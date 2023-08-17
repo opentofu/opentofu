@@ -10,11 +10,11 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	"github.com/mitchellh/go-homedir"
 	"github.com/zclconf/go-cty/cty"
 )
 

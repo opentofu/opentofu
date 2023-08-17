@@ -12,10 +12,10 @@ import (
 	"runtime"
 
 	"github.com/armon/circbuf"
+	"github.com/mitchellh/go-linereader"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	"github.com/mitchellh/go-linereader"
 	"github.com/zclconf/go-cty/cty"
 )
 

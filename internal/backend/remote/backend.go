@@ -19,6 +19,8 @@ import (
 	version "github.com/hashicorp/go-version"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
@@ -27,8 +29,6 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
-	"github.com/mitchellh/cli"
-	"github.com/mitchellh/colorstring"
 	"github.com/zclconf/go-cty/cty"
 
 	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"

@@ -14,10 +14,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/mitchellh/cli"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
-	"github.com/mitchellh/cli"
 )
 
 func TestMetaColorize(t *testing.T) {

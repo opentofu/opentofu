@@ -14,10 +14,10 @@ import (
 
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
-	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 )
 

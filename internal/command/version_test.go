@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/mitchellh/cli"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/mitchellh/cli"
 )
 
 func TestVersionCommand_implements(t *testing.T) {

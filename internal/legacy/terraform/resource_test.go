@@ -11,8 +11,8 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
 	"github.com/mitchellh/reflectwalk"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
 )
 
 func TestResourceConfigGet(t *testing.T) {

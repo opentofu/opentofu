@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mitchellh/cli"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/mitchellh/cli"
 
 	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
 )

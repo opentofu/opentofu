@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
@@ -16,7 +17,6 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/mitchellh/cli"
 )
 
 // StateShowCommand is a Command implementation that shows a single resource.
