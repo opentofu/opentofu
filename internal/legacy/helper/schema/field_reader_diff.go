@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/terraform/internal/legacy/terraform"
 	"github.com/mitchellh/mapstructure"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
 )
 
 // DiffFieldReader reads fields out of a diff structures.

@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/hashicorp/terraform/internal/logging"
+	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 )
 
 func TestMain(m *testing.M) {

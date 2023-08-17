@@ -1,6 +1,6 @@
 package terraform
 
-import "github.com/hashicorp/terraform/internal/addrs"
+import "github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 
 // nodeExternalReference allows external callers (such as the testing framework)
 // to provide the list of references they are making into the graph. This

@@ -7,10 +7,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/backend/remote-state/inmem"
 	"github.com/mitchellh/cli"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
 
-	legacy "github.com/hashicorp/terraform/internal/legacy/terraform"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
 )
 
 // Since we can't unlock a local state file, just test that calling unlock

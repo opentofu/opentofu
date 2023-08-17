@@ -16,9 +16,9 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/hashicorp/go-azure-helpers/authentication"
 	"github.com/hashicorp/go-azure-helpers/sender"
-	"github.com/hashicorp/terraform/internal/httpclient"
-	"github.com/hashicorp/terraform/version"
 	"github.com/manicminer/hamilton/environments"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/containers"
 )

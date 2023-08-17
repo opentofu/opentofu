@@ -21,7 +21,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/copystructure"
 
-	tfversion "github.com/hashicorp/terraform/version"
+	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 type MockClient struct {

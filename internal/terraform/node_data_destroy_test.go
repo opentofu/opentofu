@@ -6,8 +6,8 @@ package terraform
 import (
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 func TestNodeDataDestroyExecute(t *testing.T) {

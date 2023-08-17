@@ -1,4 +1,4 @@
-module github.com/hashicorp/terraform
+module github.com/placeholderplaceholderplaceholder/opentf
 
 require (
 	cloud.google.com/go/kms v1.10.1

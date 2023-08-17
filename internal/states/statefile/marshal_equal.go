@@ -6,7 +6,7 @@ package statefile
 import (
 	"bytes"
 
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // StatesMarshalEqual returns true if and only if the two given states have

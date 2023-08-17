@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/hashicorp/terraform/version"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 func TestNew_userAgent(t *testing.T) {

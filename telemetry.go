@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/hashicorp/terraform/version"
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -12,6 +11,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 // If this environment variable is set to "otlp" when running Terraform CLI
@@ -29,7 +30,7 @@ const openTelemetryExporterEnvVar = "OTEL_TRACES_EXPORTER"
 var tracer trace.Tracer
 
 func init() {
-	tracer = otel.Tracer("github.com/hashicorp/terraform")
+	tracer = otel.Tracer("github.com/placeholderplaceholderplaceholder/opentf")
 }
 
 // openTelemetryInit initializes the optional OpenTelemetry exporter.

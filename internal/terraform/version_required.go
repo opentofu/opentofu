@@ -4,9 +4,9 @@
 package terraform
 
 import (
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
-	"github.com/hashicorp/terraform/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 )
 
 // CheckCoreVersionRequirements visits each of the modules in the given

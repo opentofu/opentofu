@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/e2e"
-	"github.com/hashicorp/terraform/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 )
 
 // The tests in this file run through different scenarios recommended in our

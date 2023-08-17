@@ -4,7 +4,7 @@
 package remote
 
 import (
-	"github.com/hashicorp/terraform/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 )
 
 // CLIInit implements backend.CLI

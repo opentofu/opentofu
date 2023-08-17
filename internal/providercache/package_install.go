@@ -13,9 +13,9 @@ import (
 
 	getter "github.com/hashicorp/go-getter"
 
-	"github.com/hashicorp/terraform/internal/copy"
-	"github.com/hashicorp/terraform/internal/getproviders"
-	"github.com/hashicorp/terraform/internal/httpclient"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from

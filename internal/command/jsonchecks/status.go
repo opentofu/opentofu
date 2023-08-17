@@ -6,7 +6,7 @@ package jsonchecks
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform/internal/checks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
 )
 
 type checkStatus []byte

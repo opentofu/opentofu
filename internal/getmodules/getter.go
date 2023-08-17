@@ -11,7 +11,7 @@ import (
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
-	"github.com/hashicorp/terraform/internal/copy"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
 )
 
 // We configure our own go-getter detector and getter sets here, because

@@ -4,8 +4,8 @@
 package command
 
 import (
-	"github.com/hashicorp/terraform/internal/backend"
-	"github.com/hashicorp/terraform/internal/cloud"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
 )
 
 const failedToLoadSchemasMessage = `

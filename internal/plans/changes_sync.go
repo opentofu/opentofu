@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // ChangesSync is a wrapper around a Changes that provides a concurrency-safe

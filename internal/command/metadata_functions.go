@@ -6,8 +6,8 @@ package command
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform/internal/command/jsonfunction"
-	"github.com/hashicorp/terraform/internal/lang"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonfunction"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
 	"github.com/zclconf/go-cty/cty/function"
 )
 

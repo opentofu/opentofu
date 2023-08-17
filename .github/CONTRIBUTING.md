@@ -6,7 +6,7 @@ This repository contains only Terraform core, which includes the command line in
 
 This document provides guidance on Terraform contribution recommended practices. It covers what we're looking for in order to help set some expectations and help you get the most out of participation in this project. 
 
-To record a bug report, enhancement proposal, or give any other product feedback, please [open a GitHub issue](https://github.com/hashicorp/terraform/issues/new/choose) using the most appropriate issue template. Please do fill in all of the information the issue templates request, because we've seen from experience that this will maximize the chance that we'll be able to act on your feedback.
+To record a bug report, enhancement proposal, or give any other product feedback, please [open a GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) using the most appropriate issue template. Please do fill in all of the information the issue templates request, because we've seen from experience that this will maximize the chance that we'll be able to act on your feedback.
 
 ---
 
@@ -42,7 +42,7 @@ Read the documentation, and don't be afraid to [ask questions](https://discuss.h
 
 In order to be respectful of the time of community contributors, we aim to discuss potential changes in GitHub issues prior to implementation. That will allow us to give design feedback up front and set expectations about the scope of the change, and, for larger changes, how best to approach the work such that the Terraform team can review it and merge it along with other concurrent work.
 
-If the bug you wish to fix or enhancement you wish to implement isn't already covered by a GitHub issue that contains feedback from the Terraform team, please do start a discussion (either in [a new GitHub issue](https://github.com/hashicorp/terraform/issues/new/choose) or an existing one, as appropriate) before you invest significant development time. If you mention your intent to implement the change described in your issue, the Terraform team can, as best as possible, prioritize including implementation-related feedback in the subsequent discussion.
+If the bug you wish to fix or enhancement you wish to implement isn't already covered by a GitHub issue that contains feedback from the Terraform team, please do start a discussion (either in [a new GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) or an existing one, as appropriate) before you invest significant development time. If you mention your intent to implement the change described in your issue, the Terraform team can, as best as possible, prioritize including implementation-related feedback in the subsequent discussion.
 
 At this time, we do not have a formal process for reviewing outside proposals that significantly change Terraform's workflow, its primary usage patterns, and its language. Additionally, some seemingly simple proposals can have deep effects across Terraform, which is why we strongly suggest starting with an issue-based proposal. 
 
@@ -60,7 +60,7 @@ There are some areas of Terraform which are of special concern to the Terraform 
 
 The Terraform team is not merging PRs for new state storage backends at the current time. Our priority regarding state storage backends is to find maintainers for existing backends and remove those backends without maintainers.
 
-Please see the [CODEOWNERS](https://github.com/hashicorp/terraform/blob/main/CODEOWNERS) file for the status of a given backend. Community members with an interest in a particular standard backend are welcome to help maintain it.
+Please see the [CODEOWNERS](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/CODEOWNERS) file for the status of a given backend. Community members with an interest in a particular standard backend are welcome to help maintain it.
 
 Currently, merging state storage backends places a significant burden on the Terraform team. The team must set up an environment and cloud service provider account, or a new database/storage/key-value service, in order to build and test remote state storage backends. The time and complexity of doing so prevents us from moving Terraform forward in other ways.
 
@@ -78,17 +78,17 @@ From our [documentation](https://www.terraform.io/docs/provisioners/index.html):
 
 The Terraform team is in the process of building a way forward which continues to decrease reliance on provisioners. In the mean time however, as our documentation indicates, they are a tool of last resort. As such expect that PRs and issues for provisioners are not high in priority. 
 
-Please see the [CODEOWNERS](https://github.com/hashicorp/terraform/blob/main/CODEOWNERS) file for the status of a given provisioner. Community members with an interest in a particular provisioner are welcome to help maintain it.
+Please see the [CODEOWNERS](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/CODEOWNERS) file for the status of a given provisioner. Community members with an interest in a particular provisioner are welcome to help maintain it.
 
 #### Maintainers
 
 Maintainers are key contributors to our Open Source project. They contribute their time and expertise and we ask that the community take extra special care to be mindful of this when interacting with them.
 
-For code that has a listed maintainer or maintainers in our [CODEOWNERS](https://github.com/hashicorp/terraform/blob/main/CODEOWNERS) file, the Terraform team will highlight them for participation in PRs which relate to the area of code they maintain. The expectation is that a maintainer will review the code and work with the PR contributor before the code is merged by the Terraform team.
+For code that has a listed maintainer or maintainers in our [CODEOWNERS](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/CODEOWNERS) file, the Terraform team will highlight them for participation in PRs which relate to the area of code they maintain. The expectation is that a maintainer will review the code and work with the PR contributor before the code is merged by the Terraform team.
 
 There is no expectation on response time for our maintainers; they may be indisposed for prolonged periods of time. Please be patient. Discussions on when code becomes "unmaintained" will be on a case-by-case basis. 
 
-If an an unmaintained area of code interests you and you'd like to become a maintainer, you may simply make a PR against our [CODEOWNERS](https://github.com/hashicorp/terraform/blob/main/CODEOWNERS) file with your github handle attached to the approriate area. If there is a maintainer or team of maintainers for that area, please coordinate with them as necessary. 
+If an an unmaintained area of code interests you and you'd like to become a maintainer, you may simply make a PR against our [CODEOWNERS](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/CODEOWNERS) file with your github handle attached to the approriate area. If there is a maintainer or team of maintainers for that area, please coordinate with them as necessary. 
 
 ### Pull Request Lifecycle
 
@@ -96,7 +96,7 @@ If an an unmaintained area of code interests you and you'd like to become a main
 2. Once you believe your pull request is ready to be merged you can create your pull request.
 3. When time permits Terraform's core team members will look over your contribution and either merge, or provide comments letting you know if there is anything left to do. It may take some time for us to respond. We may also have questions that we need answered about the code, either because something doesn't make sense to us or because we want to understand your thought process. We kindly ask that you do not target specific team members. 
 4. If we have requested changes, you can either make those changes or, if you disagree with the suggested changes, we can have a conversation about our reasoning and agree on a path forward. This may be a multi-step process. Our view is that pull requests are a chance to collaborate, and we welcome conversations about how to do things better. It is the contributor's responsibility to address any changes requested. While reviewers are happy to give guidance, it is unsustainable for us to perform the coding work necessary to get a PR into a mergeable state.
-5. Once all outstanding comments and checklist items have been addressed, your contribution will be merged! Merged PRs may or may not be included in the next release based on changes the Terraform teams deems as breaking or not. The core team takes care of updating the [CHANGELOG.md](https://github.com/hashicorp/terraform/blob/main/CHANGELOG.md) as they merge.
+5. Once all outstanding comments and checklist items have been addressed, your contribution will be merged! Merged PRs may or may not be included in the next release based on changes the Terraform teams deems as breaking or not. The core team takes care of updating the [CHANGELOG.md](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/CHANGELOG.md) as they merge.
 6. In some cases, we might decide that a PR should be closed without merging. We'll make sure to provide clear reasoning when this happens. Following the recommended process above is one of the ways to ensure you don't spend time on a PR we can't or won't merge.
 
 #### Getting Your Pull Requests Merged Faster
@@ -128,7 +128,7 @@ Terraform providers are not maintained in this repository; you can find relevant
 repository and relevant issue tracker for each provider within the
 [Terraform Registry index](https://registry.terraform.io/browse/providers).
 
-This repository also does not include the source code for some other parts of the Terraform product including Terraform Cloud, Terraform Enterprise, and the Terraform Registry. Those components are not open source, though if you have feedback about them (including bug reports) please do feel free to [open a GitHub issue on this repository](https://github.com/hashicorp/terraform/issues/new/choose).
+This repository also does not include the source code for some other parts of the Terraform product including Terraform Cloud, Terraform Enterprise, and the Terraform Registry. Those components are not open source, though if you have feedback about them (including bug reports) please do feel free to [open a GitHub issue on this repository](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose).
 
 ---
 
@@ -136,7 +136,7 @@ If you wish to work on the Terraform CLI source code, you'll first need to insta
 
 At this time the Terraform development environment is targeting only Linux and Mac OS X systems. While Terraform itself is compatible with Windows, unfortunately the unit test suite currently contains Unix-specific assumptions around maximum path lengths, path separators, etc.
 
-Refer to the file [`.go-version`](https://github.com/hashicorp/terraform/blob/main/.go-version) to see which version of Go Terraform is currently built with. Other versions will often work, but if you run into any build or testing problems please try with the specific Go version indicated. You can optionally simplify the installation of multiple specific versions of Go on your system by installing [`goenv`](https://github.com/syndbg/goenv), which reads `.go-version` and automatically selects the correct Go version.
+Refer to the file [`.go-version`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.go-version) to see which version of Go Terraform is currently built with. Other versions will often work, but if you run into any build or testing problems please try with the specific Go version indicated. You can optionally simplify the installation of multiple specific versions of Go on your system by installing [`goenv`](https://github.com/syndbg/goenv), which reads `.go-version` and automatically selects the correct Go version.
 
 Use Git to clone this repository into a location of your choice. Terraform is using [Go Modules](https://blog.golang.org/using-go-modules), and so you should *not* clone it inside your `GOPATH`.
 

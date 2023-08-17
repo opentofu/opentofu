@@ -3,7 +3,7 @@ package json
 import (
 	"strings"
 
-	"github.com/hashicorp/terraform/internal/moduletest"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
 )
 
 type TestSuiteAbstract map[string][]string

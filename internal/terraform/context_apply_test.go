@@ -24,16 +24,16 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/configs/hcl2shim"
-	"github.com/hashicorp/terraform/internal/lang/marks"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/provisioners"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func TestContext2Apply_basic(t *testing.T) {
@@ -5607,7 +5607,7 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 	//        }
 	//    }
 	//    return d, nil
-	//}
+	// }
 
 	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
@@ -5928,7 +5928,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 		t.Logf("Step 2 state: %s", state)
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	if state.HasManagedResourceInstanceObjects() {
 		t.Fatal("expected empty state, got:", state)
 	}
@@ -5997,7 +5997,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 		}
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`
 <no state>`)
@@ -6072,7 +6072,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 		}
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`<no state>`)
 	if actual != expected {
@@ -6141,7 +6141,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 		}
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`
 <no state>`)

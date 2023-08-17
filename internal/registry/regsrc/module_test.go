@@ -70,7 +70,7 @@ func TestModule(t *testing.T) {
 			wantString: "Испытание.com:1234/HashiCorp/Consul/aws//Foo",
 			// Note we DO lowercase submodule names. This might causes issues on
 			// some filesystems (e.g. HFS+) that are case-sensitive where
-			// //modules/Foo and //modules/foo describe different paths, but
+			////modules/Foo and //modules/foo describe different paths, but
 			// it's less confusing in general just to not support that. Any user
 			// with a module with submodules in both cases is already asking for
 			// portability issues, and terraform can ensure it does

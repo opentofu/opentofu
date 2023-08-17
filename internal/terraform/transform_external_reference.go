@@ -1,6 +1,6 @@
 package terraform
 
-import "github.com/hashicorp/terraform/internal/addrs"
+import "github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 
 // ExternalReferenceTransformer will add a GraphNodeReferencer into the graph
 // that makes no changes to the graph itself but, by referencing the addresses

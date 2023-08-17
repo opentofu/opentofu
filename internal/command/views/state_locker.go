@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform/internal/command/arguments"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 )
 
 // The StateLocker view is used to display locking/unlocking status messages

@@ -29,4 +29,4 @@ This repository contains only OpenTF core, which includes the command line inter
 
 ## License
 
-[Mozilla Public License v2.0](https://github.com/OpenFTFoundation/OpenTF/blob/main/LICENSE)
+[Mozilla Public License v2.0](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/LICENSE)

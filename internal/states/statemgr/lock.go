@@ -4,8 +4,8 @@
 package statemgr
 
 import (
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 // LockDisabled implements State and Locker but disables state locking.

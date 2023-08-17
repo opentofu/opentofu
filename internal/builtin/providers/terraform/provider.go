@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 )
 
 // Provider is an implementation of providers.Interface

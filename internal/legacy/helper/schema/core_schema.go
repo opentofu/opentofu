@@ -6,7 +6,7 @@ package schema
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
 

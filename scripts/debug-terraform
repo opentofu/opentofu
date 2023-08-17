@@ -10,7 +10,7 @@
 #    https://github.com/derekparker/delve/tree/master/Documentation/installation
 #
 # For more convenient use, you may wish to put this script in your PATH:
-#    ln -s ../src/github.com/hashicorp/terraform/scripts/debug-terraform $GOPATH/bin/debug-terraform
+#    ln -s ../src/github.com/placeholderplaceholderplaceholder/opentf/scripts/debug-terraform $GOPATH/bin/debug-terraform
 #
 # Note that when running this script the Terraform binary is NOT in $GOPATH/bin,
 # so any providers installed there won't be found unless Terraform searches
