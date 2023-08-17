@@ -256,7 +256,7 @@ jobs:
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         id: clipkg
         with:
-          name: terraform_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip
+          name: opentf_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip
           path: .
       - name: Extract packages
         if: ${{ matrix.goos == 'windows' }}
