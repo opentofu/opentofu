@@ -16,7 +16,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 env:
-  PKG_NAME: "terraform"
+  PKG_NAME: "opentf"
 
 permissions:
   contents: read
@@ -141,9 +141,9 @@ jobs:
       - name: Build Docker images
         uses: hashicorp/actions-docker-build@v1
         with:
-          pkg_name: "terraform_${{env.version}}"
+          pkg_name: "opentf_${{env.version}}"
           version: ${{env.version}}
-          bin_name: terraform
+          bin_name: opentf
           target: default
           arch: ${{matrix.arch}}
           dockerfile: .github/workflows/build-Dockerfile
@@ -256,13 +256,13 @@ jobs:
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         id: clipkg
         with:
-          name: terraform_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip
+          name: opentf_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip
           path: .
       - name: Extract packages
         if: ${{ matrix.goos == 'windows' }}
         run: |
           unzip "${{ needs.e2etest-build.outputs.e2e-cache-path }}/terraform-e2etest_${{ env.os }}_${{ env.arch }}.zip"
-          unzip "./terraform_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
+          unzip "./opentf_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
         if: ${{ contains(matrix.goarch, 'arm') }}
@@ -305,7 +305,7 @@ jobs:
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         id: clipkg
         with:
-          name: terraform_${{ env.version }}_linux_amd64.zip
+          name: opentf_${{ env.version }}_linux_amd64.zip
           path: .
       - name: Checkout terraform-exec repo
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -315,7 +315,7 @@ jobs:
       - name: Run terraform-exec end-to-end tests
         run: |
           FULL_RELEASE_VERSION="${{ env.version }}"
-          unzip terraform_${FULL_RELEASE_VERSION}_linux_amd64.zip
-          export TFEXEC_E2ETEST_TERRAFORM_PATH="$(pwd)/terraform"
+          unzip opentf_${FULL_RELEASE_VERSION}_linux_amd64.zip
+          export TFEXEC_E2ETEST_TERRAFORM_PATH="$(pwd)/opentf"
           cd terraform-exec
           go test -race -timeout=30m -v ./tfexec/internal/e2etest
