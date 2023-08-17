@@ -126,7 +126,7 @@ func TestShow_argsWithState(t *testing.T) {
 	}
 }
 
-// https://github.com/placeholderplaceholderplaceholder/opentf/issues/21462
+// https://github.com/hashicorp/terraform/issues/21462
 func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 	// Create the default state with aliased resource
 	testState := states.BuildState(func(s *states.SyncState) {

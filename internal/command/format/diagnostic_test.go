@@ -655,7 +655,7 @@ func TestDiagnosticWarningsCompact(t *testing.T) {
 	}
 }
 
-// Test case via https://github.com/placeholderplaceholderplaceholder/opentf/issues/21359
+// Test case via https://github.com/hashicorp/terraform/issues/21359
 func TestDiagnostic_nonOverlappingHighlightContext(t *testing.T) {
 	var diags tfdiags.Diagnostics
 

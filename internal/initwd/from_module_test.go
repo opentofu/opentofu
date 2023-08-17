@@ -142,7 +142,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 	// the same for our "wantCalls" comparison values. Otherwise this test
 	// will fail when building in a source tree with symlinks in $PWD.
 	//
-	// See also: https://github.com/placeholderplaceholderplaceholder/opentf/issues/26014
+	// See also: https://github.com/hashicorp/terraform/issues/26014
 	//
 	fromModuleDirRealpath, err := filepath.EvalSymlinks(fromModuleDir)
 	if err != nil {
@@ -246,7 +246,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 
 // TestDirFromModule_rel_submodules is similar to the test above, but the
 // from-module is relative to the install dir ("../"):
-// https://github.com/placeholderplaceholderplaceholder/opentf/issues/23010
+// https://github.com/hashicorp/terraform/issues/23010
 func TestDirFromModule_rel_submodules(t *testing.T) {
 	// This test creates a tmpdir with the following directory structure:
 	// - tmpdir/local-modules (with contents of testdata/local-modules)

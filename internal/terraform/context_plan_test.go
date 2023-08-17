@@ -863,7 +863,7 @@ module.child:
 	}
 }
 
-// https://github.com/placeholderplaceholderplaceholder/opentf/issues/3114
+// https://github.com/hashicorp/terraform/issues/3114
 func TestContext2Plan_moduleOrphansWithProvisioner(t *testing.T) {
 	m := testModule(t, "plan-modules-remove-provisioners")
 	p := testProvider("aws")
@@ -4223,7 +4223,7 @@ func TestContext2Plan_targetedOrphan(t *testing.T) {
 	}
 }
 
-// https://github.com/placeholderplaceholderplaceholder/opentf/issues/2538
+// https://github.com/hashicorp/terraform/issues/2538
 func TestContext2Plan_targetedModuleOrphan(t *testing.T) {
 	m := testModule(t, "plan-targeted-module-orphan")
 	p := testProvider("aws")
@@ -4373,7 +4373,7 @@ func TestContext2Plan_outputContainsTargetedResource(t *testing.T) {
 	}
 }
 
-// https://github.com/placeholderplaceholderplaceholder/opentf/issues/4515
+// https://github.com/hashicorp/terraform/issues/4515
 func TestContext2Plan_targetedOverTen(t *testing.T) {
 	m := testModule(t, "plan-targeted-over-ten")
 	p := testProvider("aws")

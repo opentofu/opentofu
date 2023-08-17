@@ -112,7 +112,7 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 }
 
 // Ensure that gRPC errors are returned early.
-// Reference: https://github.com/placeholderplaceholderplaceholder/opentf/issues/31047
+// Reference: https://github.com/hashicorp/terraform/issues/31047
 func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
@@ -133,7 +133,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 }
 
 // Ensure that provider error diagnostics are returned early.
-// Reference: https://github.com/placeholderplaceholderplaceholder/opentf/issues/31047
+// Reference: https://github.com/hashicorp/terraform/issues/31047
 func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)

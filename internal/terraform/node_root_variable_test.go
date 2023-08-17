@@ -93,7 +93,7 @@ func TestNodeRootVariableExecute(t *testing.T) {
 							// conversion.
 							// This had previously not been handled correctly,
 							// as reported in:
-							//     https://github.com/placeholderplaceholderplaceholder/opentf/issues/29899
+							//     https://github.com/hashicorp/terraform/issues/29899
 							vars := ctx.Variables["var"]
 							if vars == cty.NilVal || !vars.Type().IsObjectType() || !vars.Type().HasAttribute("foo") {
 								t.Logf("var.foo isn't available")

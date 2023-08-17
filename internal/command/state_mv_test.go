@@ -1616,7 +1616,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 
 // This test covers moving the only resource in a module to a new address in
 // that module, which triggers the maybePruneModule functionality. This caused
-// a panic report: https://github.com/placeholderplaceholderplaceholder/opentf/issues/25520
+// a panic report: https://github.com/hashicorp/terraform/issues/25520
 func TestStateMv_onlyResourceInModule(t *testing.T) {
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(

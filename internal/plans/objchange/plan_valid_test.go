@@ -1851,7 +1851,7 @@ func TestAssertPlanValid(t *testing.T) {
 			// cannot preserve the not-null refinement that the uuid function
 			// generates.
 			//
-			// https://github.com/placeholderplaceholderplaceholder/opentf/issues/33385
+			// https://github.com/hashicorp/terraform/issues/33385
 			&configschema.Block{
 				Attributes: map[string]*configschema.Attribute{
 					"m": {

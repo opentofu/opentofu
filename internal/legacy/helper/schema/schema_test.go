@@ -1951,7 +1951,7 @@ func TestSchemaMap_Diff(t *testing.T) {
 		},
 
 		{
-			Name: "https://github.com/placeholderplaceholderplaceholder/opentf/issues/824",
+			Name: "https://github.com/hashicorp/terraform/issues/824",
 			Schema: map[string]*Schema{
 				"block_device": &Schema{
 					Type:     TypeSet,

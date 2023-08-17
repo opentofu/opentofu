@@ -1049,7 +1049,7 @@ func TestContext2Validate_varRefUnknown(t *testing.T) {
 }
 
 // Module variables weren't being interpolated during Validate phase.
-// related to https://github.com/placeholderplaceholderplaceholder/opentf/issues/5322
+// related to https://github.com/hashicorp/terraform/issues/5322
 func TestContext2Validate_interpolateVar(t *testing.T) {
 	input := new(MockUIInput)
 

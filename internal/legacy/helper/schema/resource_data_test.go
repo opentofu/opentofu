@@ -1537,7 +1537,7 @@ func TestResourceDataHasChange(t *testing.T) {
 			Change: true,
 		},
 
-		// https://github.com/placeholderplaceholderplaceholder/opentf/issues/927
+		// https://github.com/hashicorp/terraform/issues/927
 		{
 			Schema: map[string]*Schema{
 				"ports": &Schema{
