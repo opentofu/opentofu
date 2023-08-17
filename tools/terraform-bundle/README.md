@@ -42,7 +42,7 @@ executable named `terraform-bundle`, which you can then run.
 
 For information
 on how to use `terraform-bundle`, see
-[the README from the v0.15 branch](https://github.com/placeholderplaceholderplaceholder/opentf/blob/v0.15/tools/terraform-bundle/README.md).
+[the README from the v0.15 branch](https://github.com/hashicorp/terraform/blob/v0.15/tools/terraform-bundle/README.md).
 
 You can follow a similar principle to build a `terraform-bundle` release
 compatible with Terraform v0.12 by using `--branch=v0.12` instead of
@@ -57,4 +57,4 @@ Terraform Cloud, you can use `terraform-bundle` as described above to build
 custom Terraform packages with bundled provider plugins.
 
 For more information, see
-[Installing a Bundle in Terraform Enterprise](https://github.com/placeholderplaceholderplaceholder/opentf/blob/v0.15/tools/terraform-bundle/README.md#installing-a-bundle-in-terraform-enterprise).
+[Installing a Bundle in Terraform Enterprise](https://github.com/hashicorp/terraform/blob/v0.15/tools/terraform-bundle/README.md#installing-a-bundle-in-terraform-enterprise).
