@@ -51,19 +51,19 @@ func TestProvisionerPlugin(t *testing.T) {
 
 	t.Logf("temporary provisioner executable is %s", provisionerExe)
 
-	// // INIT
+	//// INIT
 	_, stderr, err := tf.Run("init")
 	if err != nil {
 		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	// // PLAN
+	//// PLAN
 	_, stderr, err = tf.Run("plan", "-out=tfplan")
 	if err != nil {
 		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	// // APPLY
+	//// APPLY
 	stdout, stderr, err := tf.Run("apply", "tfplan")
 	if err != nil {
 		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)

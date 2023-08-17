@@ -1861,7 +1861,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-empty"), td)
 	defer testChdir(t, td)()
 
-	// // create our local state
+	//// create our local state
 	orig := states.NewState()
 	orig.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false)
 	testStateFileDefault(t, orig)

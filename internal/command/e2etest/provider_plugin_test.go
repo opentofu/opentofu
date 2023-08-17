@@ -56,19 +56,19 @@ func TestProviderProtocols(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// // INIT
+	//// INIT
 	_, stderr, err := tf.Run("init", "-plugin-dir=cache")
 	if err != nil {
 		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	// // PLAN
+	//// PLAN
 	_, stderr, err = tf.Run("plan", "-out=tfplan")
 	if err != nil {
 		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	// // APPLY
+	//// APPLY
 	stdout, stderr, err := tf.Run("apply", "tfplan")
 	if err != nil {
 		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
@@ -78,7 +78,7 @@ func TestProviderProtocols(t *testing.T) {
 		t.Fatalf("wrong output:\nstdout:%s\nstderr%s", stdout, stderr)
 	}
 
-	// / DESTROY
+	/// DESTROY
 	stdout, stderr, err = tf.Run("destroy", "-auto-approve")
 	if err != nil {
 		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
