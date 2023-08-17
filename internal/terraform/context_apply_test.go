@@ -5582,7 +5582,7 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 	})
 
 	p.PlanResourceChangeFn = testDiffFn
-	// func(info *InstanceInfo, s *InstanceState, rc *ResourceConfig) (*InstanceDiff, error) {
+	//func(info *InstanceInfo, s *InstanceState, rc *ResourceConfig) (*InstanceDiff, error) {
 	//    d := &InstanceDiff{
 	//        Attributes: map[string]*ResourceAttrDiff{},
 	//    }
