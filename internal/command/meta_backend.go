@@ -22,20 +22,20 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/hashicorp/terraform/internal/backend"
-	"github.com/hashicorp/terraform/internal/cloud"
-	"github.com/hashicorp/terraform/internal/command/arguments"
-	"github.com/hashicorp/terraform/internal/command/clistate"
-	"github.com/hashicorp/terraform/internal/command/views"
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
-	"github.com/hashicorp/terraform/internal/terraform"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
-	backendInit "github.com/hashicorp/terraform/internal/backend/init"
-	backendLocal "github.com/hashicorp/terraform/internal/backend/local"
-	legacy "github.com/hashicorp/terraform/internal/legacy/terraform"
+	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
+	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.

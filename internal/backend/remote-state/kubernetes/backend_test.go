@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/terraform/internal/backend"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

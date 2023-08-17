@@ -17,13 +17,13 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/configs/configload"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/initwd"
-	"github.com/hashicorp/terraform/internal/registry"
-	"github.com/hashicorp/terraform/internal/terraform"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 // normalizePath normalizes a given path so that it is, if possible, relative

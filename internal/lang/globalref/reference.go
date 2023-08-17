@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

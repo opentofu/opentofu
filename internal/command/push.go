@@ -6,7 +6,7 @@ package command
 import (
 	"strings"
 
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 type PushCommand struct {

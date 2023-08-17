@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/configs/configload"
-	"github.com/hashicorp/terraform/internal/copy"
-	"github.com/hashicorp/terraform/internal/registry"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func TestDirFromModule_registry(t *testing.T) {
@@ -142,7 +142,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 	// the same for our "wantCalls" comparison values. Otherwise this test
 	// will fail when building in a source tree with symlinks in $PWD.
 	//
-	// See also: https://github.com/hashicorp/terraform/issues/26014
+	// See also: https://github.com/placeholderplaceholderplaceholder/opentf/issues/26014
 	//
 	fromModuleDirRealpath, err := filepath.EvalSymlinks(fromModuleDir)
 	if err != nil {
@@ -246,7 +246,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 
 // TestDirFromModule_rel_submodules is similar to the test above, but the
 // from-module is relative to the install dir ("../"):
-// https://github.com/hashicorp/terraform/issues/23010
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/23010
 func TestDirFromModule_rel_submodules(t *testing.T) {
 	// This test creates a tmpdir with the following directory structure:
 	// - tmpdir/local-modules (with contents of testdata/local-modules)

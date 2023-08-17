@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/dag"
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // GraphNodeDestroyerCBD must be implemented by nodes that might be

@@ -6,7 +6,7 @@ package providers
 import (
 	"sync"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // SchemaCache is a global cache of Schemas.

@@ -6,8 +6,8 @@ package statefile
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/hashicorp/terraform/internal/states"
-	tfversion "github.com/hashicorp/terraform/version"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 // File is the in-memory representation of a state file. It includes the state

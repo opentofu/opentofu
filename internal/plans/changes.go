@@ -6,8 +6,8 @@ package plans
 import (
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // Changes describes various actions that Terraform will attempt to take if

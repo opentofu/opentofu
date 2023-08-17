@@ -4,8 +4,8 @@
 package terraform
 
 import (
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 )
 
 // GraphNodeAttachProvider is an interface that must be implemented by nodes

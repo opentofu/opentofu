@@ -13,12 +13,12 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/hashicorp/terraform/internal/backend"
-	"github.com/hashicorp/terraform/internal/tfdiags"
-	tfversion "github.com/hashicorp/terraform/version"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
 	"github.com/zclconf/go-cty/cty"
 
-	backendLocal "github.com/hashicorp/terraform/internal/backend/local"
+	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
 )
 
 func TestRemote(t *testing.T) {

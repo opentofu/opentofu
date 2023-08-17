@@ -9,11 +9,11 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	testing_command "github.com/hashicorp/terraform/internal/command/testing"
-	"github.com/hashicorp/terraform/internal/command/views"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/terminal"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	testing_command "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testing"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
 )
 
 func TestTest(t *testing.T) {

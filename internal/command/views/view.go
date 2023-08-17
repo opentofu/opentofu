@@ -4,10 +4,10 @@
 package views
 
 import (
-	"github.com/hashicorp/terraform/internal/command/arguments"
-	"github.com/hashicorp/terraform/internal/command/format"
-	"github.com/hashicorp/terraform/internal/terminal"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/format"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/mitchellh/colorstring"
 )
 

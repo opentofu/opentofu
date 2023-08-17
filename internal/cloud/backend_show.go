@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/hashicorp/terraform/internal/cloud/cloudplan"
-	"github.com/hashicorp/terraform/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud/cloudplan"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 )
 
 // ShowPlanForRun downloads the JSON plan output for the specified cloud run

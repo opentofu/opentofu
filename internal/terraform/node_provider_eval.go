@@ -3,7 +3,7 @@
 
 package terraform
 
-import "github.com/hashicorp/terraform/internal/tfdiags"
+import "github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
 // NodeEvalableProvider represents a provider during an "eval" walk.
 // This special provider node type just initializes a provider and

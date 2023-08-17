@@ -14,14 +14,14 @@ import (
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/command"
-	"github.com/hashicorp/terraform/internal/command/cliconfig"
-	"github.com/hashicorp/terraform/internal/command/views"
-	"github.com/hashicorp/terraform/internal/command/webbrowser"
-	"github.com/hashicorp/terraform/internal/getproviders"
-	pluginDiscovery "github.com/hashicorp/terraform/internal/plugin/discovery"
-	"github.com/hashicorp/terraform/internal/terminal"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/webbrowser"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	pluginDiscovery "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/discovery"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
 )
 
 // runningInAutomationEnvName gives the name of an environment variable that

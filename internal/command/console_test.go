@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 )

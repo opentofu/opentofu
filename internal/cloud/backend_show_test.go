@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/hashicorp/terraform/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 )
 
 // A brief discourse on the theory of testing for this feature. Doing

@@ -11,8 +11,8 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/getproviders"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
 )
 
 func TestInstallPackage(t *testing.T) {

@@ -25,13 +25,13 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	uuid "github.com/hashicorp/go-uuid"
 
-	"github.com/hashicorp/terraform/internal/backend/local"
-	"github.com/hashicorp/terraform/internal/command/jsonstate"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/states/remote"
-	"github.com/hashicorp/terraform/internal/states/statefile"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 // State implements the State interfaces in the state package to handle

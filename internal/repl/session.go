@@ -12,10 +12,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/terraform/internal/lang"
-	"github.com/hashicorp/terraform/internal/lang/marks"
-	"github.com/hashicorp/terraform/internal/lang/types"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/types"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 // Session represents the state for a single REPL session.

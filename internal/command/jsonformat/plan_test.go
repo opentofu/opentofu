@@ -12,19 +12,19 @@ import (
 	"github.com/mitchellh/colorstring"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/differ"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/structured"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/structured/attribute_path"
-	"github.com/hashicorp/terraform/internal/command/jsonplan"
-	"github.com/hashicorp/terraform/internal/command/jsonprovider"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/lang/marks"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/terminal"
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/differ"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured/attribute_path"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonplan"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 func TestRenderHuman_EmptyPlan(t *testing.T) {
@@ -1651,7 +1651,7 @@ func TestResourceChange_JSON(t *testing.T) {
 
 func TestResourceChange_listObject(t *testing.T) {
 	testCases := map[string]testCase{
-		// https://github.com/hashicorp/terraform/issues/30641
+		// https://github.com/placeholderplaceholderplaceholder/opentf/issues/30641
 		"updating non-identifying attribute": {
 			Action: plans.Update,
 			Mode:   addrs.ManagedResourceMode,

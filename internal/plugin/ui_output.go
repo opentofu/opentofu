@@ -6,7 +6,7 @@ package plugin
 import (
 	"net/rpc"
 
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 // UIOutput is an implementatin of terraform.UIOutput that communicates

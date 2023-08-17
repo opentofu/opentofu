@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/apparentlymart/go-dump/dump"
-	"github.com/hashicorp/terraform/internal/backend"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

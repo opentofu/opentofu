@@ -4,7 +4,7 @@
 package terraform
 
 import (
-	"github.com/hashicorp/terraform/internal/dag"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
 )
 
 const rootNodeName = "root"

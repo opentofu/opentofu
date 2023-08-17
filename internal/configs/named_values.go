@@ -13,7 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // A consistent detail message for all "not a valid identifier" diagnostics.

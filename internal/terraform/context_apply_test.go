@@ -24,16 +24,16 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/configs/hcl2shim"
-	"github.com/hashicorp/terraform/internal/lang/marks"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/provisioners"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func TestContext2Apply_basic(t *testing.T) {
@@ -1703,7 +1703,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 	}
 }
 
-// https://github.com/hashicorp/terraform/pull/5096
+// https://github.com/placeholderplaceholderplaceholder/opentf/pull/5096
 func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 	// Config contains CBD resource depending on non-CBD resource, which triggers
 	// a cycle if they are both replaced, but should _not_ trigger a cycle when
@@ -2495,7 +2495,7 @@ func TestContext2Apply_countVariableRef(t *testing.T) {
 func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 	// This test ensures that a provisioner can interpolate a resource count
 	// even though the provisioner expression is evaluated during the plan
-	// walk. https://github.com/hashicorp/terraform/issues/16840
+	// walk. https://github.com/placeholderplaceholderplaceholder/opentf/issues/16840
 
 	m, snap := testModuleWithSnapshot(t, "apply-provisioner-interp-count")
 
@@ -4030,7 +4030,7 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 // Test that we can resolve a multi-var (splat) for the first resource
 // created in a non-root module, which happens when the module state doesn't
 // exist yet.
-// https://github.com/hashicorp/terraform/issues/14438
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/14438
 func TestContext2Apply_multiVarMissingState(t *testing.T) {
 	m := testModule(t, "apply-multi-var-missing-state")
 	p := testProvider("test")
@@ -5582,7 +5582,7 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 	})
 
 	p.PlanResourceChangeFn = testDiffFn
-	//func(info *InstanceInfo, s *InstanceState, rc *ResourceConfig) (*InstanceDiff, error) {
+	// func(info *InstanceInfo, s *InstanceState, rc *ResourceConfig) (*InstanceDiff, error) {
 	//    d := &InstanceDiff{
 	//        Attributes: map[string]*ResourceAttrDiff{},
 	//    }
@@ -5607,7 +5607,7 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 	//        }
 	//    }
 	//    return d, nil
-	//}
+	// }
 
 	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
@@ -5728,7 +5728,7 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/2767
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/2767
 func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 	m := testModule(t, "apply-destroy-module-resource-prefix")
 	h := new(MockHook)
@@ -5855,7 +5855,7 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/5440
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/5440
 func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-module-with-attrs")
 	p := testProvider("aws")
@@ -5928,7 +5928,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 		t.Logf("Step 2 state: %s", state)
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	if state.HasManagedResourceInstanceObjects() {
 		t.Fatal("expected empty state, got:", state)
 	}
@@ -5997,7 +5997,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 		}
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`
 <no state>`)
@@ -6072,7 +6072,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 		}
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`<no state>`)
 	if actual != expected {
@@ -6141,7 +6141,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 		}
 	}
 
-	//Test that things were destroyed
+	// Test that things were destroyed
 	actual := strings.TrimSpace(state.String())
 	expected := strings.TrimSpace(`
 <no state>`)
@@ -6869,7 +6869,7 @@ func TestContext2Apply_taintX(t *testing.T) {
 	m := testModule(t, "apply-taint")
 	p := testProvider("aws")
 	// destroyCount tests against regression of
-	// https://github.com/hashicorp/terraform/issues/1056
+	// https://github.com/placeholderplaceholderplaceholder/opentf/issues/1056
 	var destroyCount = int32(0)
 	var once sync.Once
 	simulateProviderDelay := func() {
@@ -7277,7 +7277,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 	checkStateString(t, state, `<no state>`)
 }
 
-// https://github.com/hashicorp/terraform/issues/4462
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/4462
 func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 	m := testModule(t, "apply-targeted-module")
 	p := testProvider("aws")
@@ -8455,7 +8455,7 @@ aws_instance.foo:
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/7378
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/7378
 func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testing.T) {
 	m, snap := testModuleWithSnapshot(t, "apply-destroy-nested-module-with-attrs")
 	p := testProvider("null")
@@ -12795,7 +12795,7 @@ resource "test_object" "a" {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // NOTE: Due to the size of this file, new tests should be added to
 // context_apply2_test.go.
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////

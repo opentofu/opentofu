@@ -12,7 +12,7 @@ import (
 
 	svchost "github.com/hashicorp/terraform-svchost"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // SearchLocalDirectory performs an immediate, one-off scan of the given base

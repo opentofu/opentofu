@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/configs/hcl2shim"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
 	"github.com/mitchellh/reflectwalk"
 )
 

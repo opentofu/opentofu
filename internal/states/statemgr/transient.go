@@ -3,7 +3,7 @@
 
 package statemgr
 
-import "github.com/hashicorp/terraform/internal/states"
+import "github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 
 // Transient is a union of the Reader and Writer interfaces, for types that
 // deal with transient snapshots.

@@ -16,7 +16,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // Record represents some metadata about an installed module, as part

@@ -12,15 +12,15 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
-	"github.com/hashicorp/terraform/internal/terraform"
-	"github.com/hashicorp/terraform/version"
 	"github.com/mitchellh/cli"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -126,7 +126,7 @@ func TestShow_argsWithState(t *testing.T) {
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/21462
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/21462
 func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 	// Create the default state with aliased resource
 	testState := states.BuildState(func(s *states.SyncState) {

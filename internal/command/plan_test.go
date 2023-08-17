@@ -19,15 +19,15 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	backendinit "github.com/hashicorp/terraform/internal/backend/init"
-	"github.com/hashicorp/terraform/internal/checks"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/terraform"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	backendinit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func TestPlan(t *testing.T) {
@@ -790,7 +790,7 @@ func TestPlan_varsUnset(t *testing.T) {
 	// default value and there are no -var arguments on our command line.
 
 	// This will (helpfully) panic if more than one variable is requested during plan:
-	// https://github.com/hashicorp/terraform/issues/26027
+	// https://github.com/placeholderplaceholderplaceholder/opentf/issues/26027
 	close := testInteractiveInput(t, []string{"bar"})
 	defer close()
 
@@ -813,7 +813,7 @@ func TestPlan_varsUnset(t *testing.T) {
 
 // This test adds a required argument to the test provider to validate
 // processing of user input:
-// https://github.com/hashicorp/terraform/issues/26035
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/26035
 func TestPlan_providerArgumentUnset(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
@@ -893,7 +893,7 @@ func TestPlan_providerArgumentUnset(t *testing.T) {
 
 // Test that terraform properly merges provider configuration that's split
 // between config files and interactive input variables.
-// https://github.com/hashicorp/terraform/issues/28956
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/28956
 func TestPlan_providerConfigMerge(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("plan-provider-input"), td)

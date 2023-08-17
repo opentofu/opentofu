@@ -6,8 +6,8 @@ package statemgr
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 // Persistent is a union of the Refresher and Persistent interfaces, for types

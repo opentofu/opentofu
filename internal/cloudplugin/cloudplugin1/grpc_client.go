@@ -6,8 +6,8 @@ import (
 	"io"
 	"log"
 
-	"github.com/hashicorp/terraform/internal/cloudplugin"
-	"github.com/hashicorp/terraform/internal/cloudplugin/cloudproto1"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/cloudproto1"
 )
 
 // GRPCCloudClient is the client interface for interacting with terraform-cloudplugin

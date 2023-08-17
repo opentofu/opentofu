@@ -19,15 +19,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/configs/configschema"
-	"github.com/hashicorp/terraform/internal/configs/hcl2shim"
-	"github.com/hashicorp/terraform/internal/lang/marks"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/providers"
-	"github.com/hashicorp/terraform/internal/provisioners"
-	"github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func TestContext2Plan_basic(t *testing.T) {
@@ -863,7 +863,7 @@ module.child:
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/3114
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/3114
 func TestContext2Plan_moduleOrphansWithProvisioner(t *testing.T) {
 	m := testModule(t, "plan-modules-remove-provisioners")
 	p := testProvider("aws")
@@ -4223,7 +4223,7 @@ func TestContext2Plan_targetedOrphan(t *testing.T) {
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/2538
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/2538
 func TestContext2Plan_targetedModuleOrphan(t *testing.T) {
 	m := testModule(t, "plan-targeted-module-orphan")
 	p := testProvider("aws")
@@ -4373,7 +4373,7 @@ func TestContext2Plan_outputContainsTargetedResource(t *testing.T) {
 	}
 }
 
-// https://github.com/hashicorp/terraform/issues/4515
+// https://github.com/placeholderplaceholderplaceholder/opentf/issues/4515
 func TestContext2Plan_targetedOverTen(t *testing.T) {
 	m := testModule(t, "plan-targeted-over-ten")
 	p := testProvider("aws")
@@ -5368,7 +5368,7 @@ func TestContext2Plan_selfRefMultiAll(t *testing.T) {
 
 	// The graph is checked for cycles before we can walk it, so we don't
 	// encounter the self-reference check.
-	//wantErrStr := "Self-referential block"
+	// wantErrStr := "Self-referential block"
 	wantErrStr := "Cycle"
 	if !strings.Contains(gotErrStr, wantErrStr) {
 		t.Fatalf("missing expected error\ngot: %s\n\nwant: error containing %q", gotErrStr, wantErrStr)
@@ -6928,7 +6928,7 @@ output "planned" {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // NOTE: Due to the size of this file, new tests should be added to
 // context_plan2_test.go.
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////

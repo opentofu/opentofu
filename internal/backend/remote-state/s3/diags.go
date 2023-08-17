@@ -3,7 +3,7 @@ package s3
 import (
 	"strings"
 
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func diagnosticString(diag tfdiags.Diagnostic) string {

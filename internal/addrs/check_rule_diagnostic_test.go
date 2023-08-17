@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func TestCheckRuleDiagnosticExtra_WrapsExtra(t *testing.T) {

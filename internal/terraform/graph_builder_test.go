@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 
-	"github.com/hashicorp/terraform/internal/dag"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
 )
 
 func TestBasicGraphBuilder_impl(t *testing.T) {

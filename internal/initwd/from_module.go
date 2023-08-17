@@ -14,16 +14,16 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/configs/configload"
-	"github.com/hashicorp/terraform/internal/copy"
-	"github.com/hashicorp/terraform/internal/getmodules"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform/internal/modsdir"
-	"github.com/hashicorp/terraform/internal/registry"
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/modsdir"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 const initFromModuleRootCallName = "root"

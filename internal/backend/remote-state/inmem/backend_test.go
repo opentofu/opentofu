@@ -10,11 +10,11 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/hashicorp/terraform/internal/backend"
-	statespkg "github.com/hashicorp/terraform/internal/states"
-	"github.com/hashicorp/terraform/internal/states/remote"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	statespkg "github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
 
-	_ "github.com/hashicorp/terraform/internal/logging"
+	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 )
 
 func TestMain(m *testing.M) {

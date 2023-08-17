@@ -8,9 +8,9 @@ import (
 	"os/exec"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/terraform/internal/cloudplugin"
-	"github.com/hashicorp/terraform/internal/cloudplugin/cloudplugin1"
-	"github.com/hashicorp/terraform/internal/logging"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/cloudplugin1"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 )
 
 // CloudCommand is a Command implementation that interacts with Terraform

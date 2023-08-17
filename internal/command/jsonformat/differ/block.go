@@ -4,12 +4,12 @@
 package differ
 
 import (
-	"github.com/hashicorp/terraform/internal/command/jsonformat/collections"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/computed"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/computed/renderers"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/structured"
-	"github.com/hashicorp/terraform/internal/command/jsonprovider"
-	"github.com/hashicorp/terraform/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/collections"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 )
 
 func ComputeDiffForBlock(change structured.Change, block *jsonprovider.Block) computed.Diff {

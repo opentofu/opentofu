@@ -6,7 +6,7 @@ package terraform
 import (
 	"log"
 
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 // NodeDestroyableDataResourceInstance represents a resource that is "destroyable":

@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/terraform/internal/configs/configload"
-	"github.com/hashicorp/terraform/internal/depsfile"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/states/statefile"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 )
 
 type CreateArgs struct {

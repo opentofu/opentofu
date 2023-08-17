@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 func ShouldWriteConfig(out string) bool {

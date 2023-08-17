@@ -6,8 +6,8 @@ package cloud
 import (
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/configs"
-	legacy "github.com/hashicorp/terraform/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
 )
 
 func TestDetectConfigChangeType(t *testing.T) {

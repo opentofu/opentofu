@@ -6,7 +6,7 @@ package statefile
 import (
 	"io"
 
-	tfversion "github.com/hashicorp/terraform/version"
+	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 // Write writes the given state to the given writer in the current state

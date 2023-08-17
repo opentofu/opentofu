@@ -4,7 +4,7 @@
 package terraform
 
 import (
-	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 // This file contains some package-local helpers for working with diagnostics.

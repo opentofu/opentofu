@@ -10,16 +10,16 @@ import (
 	"github.com/mitchellh/colorstring"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/hashicorp/terraform/internal/command/format"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/computed"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/differ"
-	"github.com/hashicorp/terraform/internal/command/jsonformat/structured"
-	"github.com/hashicorp/terraform/internal/command/jsonplan"
-	"github.com/hashicorp/terraform/internal/command/jsonprovider"
-	"github.com/hashicorp/terraform/internal/command/jsonstate"
-	viewsjson "github.com/hashicorp/terraform/internal/command/views/json"
-	"github.com/hashicorp/terraform/internal/plans"
-	"github.com/hashicorp/terraform/internal/terminal"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/format"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/differ"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonplan"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
+	viewsjson "github.com/placeholderplaceholderplaceholder/opentf/internal/command/views/json"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
 )
 
 type JSONLogType string

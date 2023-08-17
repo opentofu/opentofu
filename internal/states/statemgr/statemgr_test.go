@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/hashicorp/terraform/internal/logging"
+	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 )
 
 func TestNewLockInfo(t *testing.T) {

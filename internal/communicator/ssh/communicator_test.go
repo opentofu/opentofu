@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/terraform/internal/communicator/remote"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 )

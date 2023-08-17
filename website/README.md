@@ -7,7 +7,7 @@ The website uses the files in this directory in conjunction with
 
 ## Suggesting Changes
 
-You can [submit an issue](https://github.com/hashicorp/terraform/issues/new/choose) with documentation requests or submit a pull request with suggested changes.
+You can [submit an issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) with documentation requests or submit a pull request with suggested changes.
 
 Click **Edit this page** at the bottom of any Terraform website page to go directly to the associated markdown file in GitHub.
 
@@ -27,9 +27,9 @@ You must update the the sidebar navigation when you add or delete documentation 
 
 To update the sidebar navigation, you must edit the appropriate `nav-data.json` file. This repository contains the sidebar navigation files for the following documentation sets:
 
-- Terraform Language: [`language-nav-data.json`](https://github.com/hashicorp/terraform/blob/main/website/data/language-nav-data.json)
-- Terraform CLI: [`cli-nav-data.json`](https://github.com/hashicorp/terraform/blob/main/website/data/cli-nav-data.json)
-- Introduction to Terraform: [`intro-nav-data.json`](https://github.com/hashicorp/terraform/blob/update-readme/website/data/intro-nav-data.json)
+- Terraform Language: [`language-nav-data.json`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/website/data/language-nav-data.json)
+- Terraform CLI: [`cli-nav-data.json`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/website/data/cli-nav-data.json)
+- Introduction to Terraform: [`intro-nav-data.json`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/update-readme/website/data/intro-nav-data.json)
 
 For more details about how to update the sidebar navigation, refer to [Editing Navigation Sidebars](https://github.com/hashicorp/terraform-website#editing-navigation-sidebars) in the `terraform-website` repository.
 

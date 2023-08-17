@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	tfaddr "github.com/hashicorp/terraform-registry-address"
-	"github.com/hashicorp/terraform/internal/getmodules"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
 )
 
 // ModuleSource is the general type for all three of the possible module source

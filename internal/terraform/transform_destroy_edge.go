@@ -6,9 +6,9 @@ package terraform
 import (
 	"log"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/dag"
-	"github.com/hashicorp/terraform/internal/plans"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 )
 
 // GraphNodeDestroyer must be implemented by nodes that destroy resources.

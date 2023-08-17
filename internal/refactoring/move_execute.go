@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/dag"
-	"github.com/hashicorp/terraform/internal/logging"
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // ApplyMoves modifies in-place the given state object so that any existing

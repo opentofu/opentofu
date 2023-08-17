@@ -23,7 +23,7 @@ Please report the crash with Terraform[1] so that we can fix this.
 When reporting bugs, please include your terraform version, the stack trace
 shown below, and any additional information which may help replicate the issue.
 
-[1]: https://github.com/hashicorp/terraform/issues
+[1]: https://github.com/placeholderplaceholderplaceholder/opentf/issues
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!! TERRAFORM CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

@@ -1,6 +1,6 @@
 version_info {
-  version_var =    "github.com/hashicorp/terraform/version.Version"
-  prerelease_var = "github.com/hashicorp/terraform/version.Prerelease"
+  version_var =    "github.com/placeholderplaceholderplaceholder/opentf/version.Version"
+  prerelease_var = "github.com/placeholderplaceholderplaceholder/opentf/version.Prerelease"
 }
 
 version_exec = false

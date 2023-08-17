@@ -6,7 +6,7 @@ package jsonplan
 import (
 	"encoding/json"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // Resource is the representation of a resource in the json plan

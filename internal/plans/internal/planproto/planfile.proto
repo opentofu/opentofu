@@ -5,8 +5,8 @@ syntax = "proto3";
 package tfplan;
 
 // For Terraform's own parsing, the proto stub types go into an internal Go
-// package. The public API is in github.com/hashicorp/terraform/plans/planfile .
-option go_package = "github.com/hashicorp/terraform/internal/plans/internal/planproto";
+// package. The public API is in github.com/placeholderplaceholderplaceholder/opentf/plans/planfile .
+option go_package = "github.com/placeholderplaceholderplaceholder/opentf/internal/plans/internal/planproto";
 
 // Plan is the root message type for the tfplan file
 message Plan {

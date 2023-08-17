@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 func TestUIInput_impl(t *testing.T) {

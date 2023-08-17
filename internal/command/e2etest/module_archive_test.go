@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/e2e"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
 )
 
 func TestInitModuleArchive(t *testing.T) {

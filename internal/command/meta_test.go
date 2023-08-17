@@ -14,9 +14,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/hashicorp/terraform/internal/backend"
-	"github.com/hashicorp/terraform/internal/backend/local"
-	"github.com/hashicorp/terraform/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/mitchellh/cli"
 )
 

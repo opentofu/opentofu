@@ -6,7 +6,7 @@ package getproviders
 import (
 	"context"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // HangingSource is an implementation of Source which hangs until the given

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/e2e"
-	"github.com/hashicorp/terraform/version"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 func TestVersion(t *testing.T) {

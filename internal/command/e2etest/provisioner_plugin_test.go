@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform/internal/e2e"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
 )
 
 // TestProvisionerPlugin is a test that terraform can execute a 3rd party
@@ -37,7 +37,7 @@ func TestProvisionerPlugin(t *testing.T) {
 	// to actually run it. Here will build the local-exec provisioner into a
 	// binary called test-provisioner
 	provisionerExePrefix := filepath.Join(tf.WorkDir(), "terraform-provisioner-test_")
-	provisionerExe := e2e.GoBuild("github.com/hashicorp/terraform/internal/provisioner-local-exec/main", provisionerExePrefix)
+	provisionerExe := e2e.GoBuild("github.com/placeholderplaceholderplaceholder/opentf/internal/provisioner-local-exec/main", provisionerExePrefix)
 
 	// provisioners must use the old binary name format, so rename this binary
 	newExe := filepath.Join(tf.WorkDir(), "terraform-provisioner-test")
@@ -51,19 +51,19 @@ func TestProvisionerPlugin(t *testing.T) {
 
 	t.Logf("temporary provisioner executable is %s", provisionerExe)
 
-	//// INIT
+	// // INIT
 	_, stderr, err := tf.Run("init")
 	if err != nil {
 		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	//// PLAN
+	// // PLAN
 	_, stderr, err = tf.Run("plan", "-out=tfplan")
 	if err != nil {
 		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	//// APPLY
+	// // APPLY
 	stdout, stderr, err := tf.Run("apply", "tfplan")
 	if err != nil {
 		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)

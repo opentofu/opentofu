@@ -13,7 +13,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 )
 
 func TestLoaderLoadConfig_okay(t *testing.T) {
@@ -147,7 +147,7 @@ func TestLoaderLoadConfig_childProviderGrandchildCount(t *testing.T) {
 	// provider configuration to call another module with count. We previously
 	// botched this rule and so this is a regression test to cover the
 	// solution to that mistake:
-	//     https://github.com/hashicorp/terraform/issues/31081
+	//     https://github.com/placeholderplaceholderplaceholder/opentf/issues/31081
 
 	// Since this test is based on success rather than failure and it's
 	// covering a relatively large set of code where only a small part

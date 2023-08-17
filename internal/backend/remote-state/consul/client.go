@@ -18,8 +18,8 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/terraform/internal/states/remote"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 )
 
 const (

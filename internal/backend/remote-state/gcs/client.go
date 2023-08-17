@@ -11,8 +11,8 @@ import (
 
 	"cloud.google.com/go/storage"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/terraform/internal/states/remote"
-	"github.com/hashicorp/terraform/internal/states/statemgr"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"golang.org/x/net/context"
 )
 

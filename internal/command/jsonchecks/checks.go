@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/hashicorp/terraform/internal/states"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // MarshalCheckStates is the main entry-point for this package, which takes

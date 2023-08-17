@@ -9,7 +9,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 )
 
 // ProposedNew constructs a proposed new object value by combining the

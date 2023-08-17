@@ -10,10 +10,10 @@ import (
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/hashicorp/terraform/internal/addrs"
-	"github.com/hashicorp/terraform/internal/checks"
-	"github.com/hashicorp/terraform/internal/configs"
-	"github.com/hashicorp/terraform/internal/lang"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
 )
 
 func TestNodeRootVariableExecute(t *testing.T) {
@@ -93,7 +93,7 @@ func TestNodeRootVariableExecute(t *testing.T) {
 							// conversion.
 							// This had previously not been handled correctly,
 							// as reported in:
-							//     https://github.com/hashicorp/terraform/issues/29899
+							//     https://github.com/placeholderplaceholderplaceholder/opentf/issues/29899
 							vars := ctx.Variables["var"]
 							if vars == cty.NilVal || !vars.Type().IsObjectType() || !vars.Type().HasAttribute("foo") {
 								t.Logf("var.foo isn't available")

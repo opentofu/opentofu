@@ -25,8 +25,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hashicorp/terraform/internal/configs/hcl2shim"
-	"github.com/hashicorp/terraform/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
 	"github.com/mitchellh/copystructure"
 	"github.com/mitchellh/mapstructure"
 )

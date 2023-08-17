@@ -6,7 +6,7 @@ package providers
 import (
 	"sort"
 
-	"github.com/hashicorp/terraform/internal/addrs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 )
 
 // AddressedTypesAbs is a helper that extracts all of the distinct provider
