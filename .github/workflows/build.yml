@@ -262,7 +262,7 @@ jobs:
         if: ${{ matrix.goos == 'windows' }}
         run: |
           unzip "${{ needs.e2etest-build.outputs.e2e-cache-path }}/terraform-e2etest_${{ env.os }}_${{ env.arch }}.zip"
-          unzip "./terraform_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
+          unzip "./opentf_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
         if: ${{ contains(matrix.goarch, 'arm') }}
