@@ -4307,21 +4307,21 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ProviderClient interface {
-	//////// Information about what a provider supports/expects
+	// ////// Information about what a provider supports/expects
 	GetProviderSchema(ctx context.Context, in *GetProviderSchema_Request, opts ...grpc.CallOption) (*GetProviderSchema_Response, error)
 	ValidateProviderConfig(ctx context.Context, in *ValidateProviderConfig_Request, opts ...grpc.CallOption) (*ValidateProviderConfig_Response, error)
 	ValidateResourceConfig(ctx context.Context, in *ValidateResourceConfig_Request, opts ...grpc.CallOption) (*ValidateResourceConfig_Response, error)
 	ValidateDataResourceConfig(ctx context.Context, in *ValidateDataResourceConfig_Request, opts ...grpc.CallOption) (*ValidateDataResourceConfig_Response, error)
 	UpgradeResourceState(ctx context.Context, in *UpgradeResourceState_Request, opts ...grpc.CallOption) (*UpgradeResourceState_Response, error)
-	//////// One-time initialization, called before other functions below
+	// ////// One-time initialization, called before other functions below
 	ConfigureProvider(ctx context.Context, in *ConfigureProvider_Request, opts ...grpc.CallOption) (*ConfigureProvider_Response, error)
-	//////// Managed Resource Lifecycle
+	// ////// Managed Resource Lifecycle
 	ReadResource(ctx context.Context, in *ReadResource_Request, opts ...grpc.CallOption) (*ReadResource_Response, error)
 	PlanResourceChange(ctx context.Context, in *PlanResourceChange_Request, opts ...grpc.CallOption) (*PlanResourceChange_Response, error)
 	ApplyResourceChange(ctx context.Context, in *ApplyResourceChange_Request, opts ...grpc.CallOption) (*ApplyResourceChange_Response, error)
 	ImportResourceState(ctx context.Context, in *ImportResourceState_Request, opts ...grpc.CallOption) (*ImportResourceState_Response, error)
 	ReadDataSource(ctx context.Context, in *ReadDataSource_Request, opts ...grpc.CallOption) (*ReadDataSource_Response, error)
-	//////// Graceful Shutdown
+	// ////// Graceful Shutdown
 	StopProvider(ctx context.Context, in *StopProvider_Request, opts ...grpc.CallOption) (*StopProvider_Response, error)
 }
 
@@ -4443,21 +4443,21 @@ func (c *providerClient) StopProvider(ctx context.Context, in *StopProvider_Requ
 
 // ProviderServer is the server API for Provider service.
 type ProviderServer interface {
-	//////// Information about what a provider supports/expects
+	// ////// Information about what a provider supports/expects
 	GetProviderSchema(context.Context, *GetProviderSchema_Request) (*GetProviderSchema_Response, error)
 	ValidateProviderConfig(context.Context, *ValidateProviderConfig_Request) (*ValidateProviderConfig_Response, error)
 	ValidateResourceConfig(context.Context, *ValidateResourceConfig_Request) (*ValidateResourceConfig_Response, error)
 	ValidateDataResourceConfig(context.Context, *ValidateDataResourceConfig_Request) (*ValidateDataResourceConfig_Response, error)
 	UpgradeResourceState(context.Context, *UpgradeResourceState_Request) (*UpgradeResourceState_Response, error)
-	//////// One-time initialization, called before other functions below
+	// ////// One-time initialization, called before other functions below
 	ConfigureProvider(context.Context, *ConfigureProvider_Request) (*ConfigureProvider_Response, error)
-	//////// Managed Resource Lifecycle
+	// ////// Managed Resource Lifecycle
 	ReadResource(context.Context, *ReadResource_Request) (*ReadResource_Response, error)
 	PlanResourceChange(context.Context, *PlanResourceChange_Request) (*PlanResourceChange_Response, error)
 	ApplyResourceChange(context.Context, *ApplyResourceChange_Request) (*ApplyResourceChange_Response, error)
 	ImportResourceState(context.Context, *ImportResourceState_Request) (*ImportResourceState_Response, error)
 	ReadDataSource(context.Context, *ReadDataSource_Request) (*ReadDataSource_Response, error)
-	//////// Graceful Shutdown
+	// ////// Graceful Shutdown
 	StopProvider(context.Context, *StopProvider_Request) (*StopProvider_Response, error)
 }
 
