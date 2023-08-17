@@ -36,6 +36,6 @@ RUN apk add --no-cache git openssh
 # directory before running "docker build", which we'll then copy into the
 # Docker image to make sure that we use an identical binary as all of the
 # other official release channels.
-COPY ["dist/linux/${TARGETARCH}/terraform", "/bin/terraform"]
+COPY ["dist/linux/${TARGETARCH}/opentf", "/bin/opentf"]
 
-ENTRYPOINT ["/bin/terraform"]
+ENTRYPOINT ["/bin/opentf"]
