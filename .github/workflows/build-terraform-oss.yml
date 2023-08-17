@@ -79,7 +79,7 @@ jobs:
           maintainer: "HashiCorp"
           homepage: "https://terraform.io/"
           license: "MPL-2.0"
-          binary: "dist/terraform"
+          binary: "dist/opentf"
           deb_depends: "git"
           rpm_depends: "git"
       - if: ${{ inputs.goos == 'linux' }}
