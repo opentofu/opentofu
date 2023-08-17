@@ -16,7 +16,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 env:
-  PKG_NAME: "terraform"
+  PKG_NAME: "opentf"
 
 permissions:
   contents: read
