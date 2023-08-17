@@ -141,9 +141,9 @@ jobs:
       - name: Build Docker images
         uses: hashicorp/actions-docker-build@v1
         with:
-          pkg_name: "terraform_${{env.version}}"
+          pkg_name: "opentf_${{env.version}}"
           version: ${{env.version}}
-          bin_name: terraform
+          bin_name: opentf
           target: default
           arch: ${{matrix.arch}}
           dockerfile: .github/workflows/build-Dockerfile
