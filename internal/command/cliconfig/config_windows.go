@@ -7,6 +7,7 @@
 package cliconfig
 
 import (
+	"os"
 	"path/filepath"
 	"syscall"
 	"unsafe"
