@@ -25,7 +25,10 @@ func configFile() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(dir, "terraform.rc"), nil
+	newConfigFile := filepath.Join(dir, "terraform.rc")
+	oldConfigFile := filepath.Join(dir, "opentf.rc")
+
+	return getNewOrLegacyPath(newConfigFile, oldConfigFile)
 }
 
 func configDir() (string, error) {
