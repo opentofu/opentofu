@@ -87,8 +87,8 @@ var BuiltinConfig Config
 
 // ConfigFile returns the default path to the configuration file.
 //
-// On Unix-like systems this is the ".terraformrc" file in the home directory.
-// On Windows, this is the "terraform.rc" file in the application data
+// On Unix-like systems this is the ".opentfrc" file in the home directory.
+// On Windows, this is the "opentf.rc" file in the application data
 // directory.
 func ConfigFile() (string, error) {
 	return configFile()
@@ -146,7 +146,7 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 	return config, diags
 }
 
-// loadConfigFile loads the CLI configuration from ".terraformrc" files.
+// loadConfigFile loads the CLI configuration from ".opentfrc" files.
 func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	result := &Config{}
