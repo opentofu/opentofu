@@ -61,14 +61,16 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	}
 
 	// Next up we have some implicit files that are loaded automatically
-	// if they are present. There's the original terraform.tfvars
-	// (DefaultVarsFilename) along with the later-added search for all files
+	// if they are present. There's the original opentf.tfvars (DefaultVarsFilename) or terraform.tfvars (BackwardCompatibleVarsFilename)
+	// along with the later-added search for all files
 	// ending in .auto.tfvars.
-	if _, err := os.Stat(DefaultVarsFilename); err == nil {
-		moreDiags := m.addVarsFromFile(DefaultVarsFilename, terraform.ValueFromAutoFile, ret)
+	defaultVarsFilename := getDefaultVarsFilename()
+	if _, err := os.Stat(defaultVarsFilename); err == nil {
+		moreDiags := m.addVarsFromFile(defaultVarsFilename, terraform.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
 	}
-	const defaultVarsFilenameJSON = DefaultVarsFilename + ".json"
+
+	defaultVarsFilenameJSON := defaultVarsFilename + ".json"
 	if _, err := os.Stat(defaultVarsFilenameJSON); err == nil {
 		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, terraform.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
@@ -265,4 +267,12 @@ func (v unparsedVariableValueString) ParseVariableValue(mode configs.VariablePar
 		Value:      val,
 		SourceType: v.sourceType,
 	}, diags
+}
+
+func getDefaultVarsFilename() string {
+	if _, err := os.Stat(DefaultVarsFilename); err == nil {
+		return DefaultVarsFilename
+	}
+
+	return BackwardCompatibleDefaultVarsFilename
 }
