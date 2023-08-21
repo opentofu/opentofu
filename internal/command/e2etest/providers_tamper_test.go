@@ -43,7 +43,7 @@ func TestProviderTampering(t *testing.T) {
 
 	seedDir := tf.WorkDir()
 	const providerVersion = "3.1.0" // must match the version in the fixture config
-	pluginDir := filepath.Join(".terraform", "providers", "registry.terraform.io", "hashicorp", "null", providerVersion, getproviders.CurrentPlatform.String())
+	pluginDir := filepath.Join(".opentf", "providers", "registry.terraform.io", "hashicorp", "null", providerVersion, getproviders.CurrentPlatform.String())
 	pluginExe := filepath.Join(pluginDir, "terraform-provider-null_v"+providerVersion+"_x5")
 	if getproviders.CurrentPlatform.OS == "windows" {
 		pluginExe += ".exe" // ugh
@@ -51,13 +51,13 @@ func TestProviderTampering(t *testing.T) {
 
 	// filepath.Join here to make sure we get the right path separator
 	// for whatever OS we're running these tests on.
-	providerCacheDir := filepath.Join(".terraform", "providers")
+	providerCacheDir := filepath.Join(".opentf", "providers")
 
 	t.Run("cache dir totally gone", func(t *testing.T) {
 		tf := e2e.NewBinary(t, terraformBin, seedDir)
 		workDir := tf.WorkDir()
 
-		err := os.RemoveAll(filepath.Join(workDir, ".terraform"))
+		err := os.RemoveAll(filepath.Join(workDir, ".opentf"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -92,7 +92,7 @@ func TestProviderTampering(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = os.RemoveAll(filepath.Join(workDir, ".terraform"))
+		err = os.RemoveAll(filepath.Join(workDir, ".opentf"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -227,7 +227,7 @@ func TestProviderTampering(t *testing.T) {
 			t.Fatalf("unexpected plan failure\nstderr:\n%s", stderr)
 		}
 
-		err = os.RemoveAll(filepath.Join(workDir, ".terraform"))
+		err = os.RemoveAll(filepath.Join(workDir, ".opentf"))
 		if err != nil {
 			t.Fatal(err)
 		}
