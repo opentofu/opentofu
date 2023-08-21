@@ -352,7 +352,7 @@ func (pc AbsProviderConfig) providerConfig() {}
 // other than the root module. Even if a valid address is returned, inheritence
 // may not be performed for other reasons, such as if the calling module
 // provided explicit provider configurations within the call for this module.
-// The ProviderTransformer graph transform in the main terraform module has the
+// The ProviderTransformer graph transform in the main opentf module has the
 // authoritative logic for provider inheritance, and this method is here mainly
 // just for its benefit.
 func (pc AbsProviderConfig) Inherited() (AbsProviderConfig, bool) {
