@@ -196,7 +196,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 		lockErr := &statemgr.LockError{
 			Info: currentLockInfo,
-			Err:  errors.New("the state is already locked by another terraform client"),
+			Err:  errors.New("the state is already locked by another opentf client"),
 		}
 		return "", lockErr
 	}
@@ -269,7 +269,7 @@ func (c *RemoteClient) getLabels() map[string]string {
 		tfstateKey:             "true",
 		tfstateSecretSuffixKey: c.nameSuffix,
 		tfstateWorkspaceKey:    c.workspace,
-		managedByKey:           "terraform",
+		managedByKey:           "opentf",
 	}
 
 	if len(c.labels) != 0 {
