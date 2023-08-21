@@ -570,6 +570,8 @@ func TestConfigDir_BackwardsCompatibility(t *testing.T) {
 		t.Fatalf("failed to set env var: %s", err)
 	}
 
+	// The three tests below are grouped for logical ease of understanding, but they are not independent.
+	// They have to run in this exact order.
 	t.Run("when no dir exists, use .opentf.d", func(t *testing.T) {
 		loadedConfigDir, err := configDir()
 		if err != nil {
