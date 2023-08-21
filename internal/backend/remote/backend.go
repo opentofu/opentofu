@@ -51,7 +51,7 @@ type Remote struct {
 	CLIColor *colorstring.Colorize
 
 	// ContextOpts are the base context options to set when initializing a
-	// new Terraform context. Many of these will be overridden or merged by
+	// new OpenTF context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
 	ContextOpts *terraform.ContextOpts
 
@@ -89,7 +89,7 @@ type Remote struct {
 	opLock sync.Mutex
 
 	// ignoreVersionConflict, if true, will disable the requirement that the
-	// local Terraform version matches the remote workspace's configured
+	// local OpenTF version matches the remote workspace's configured
 	// version. This will also cause VerifyWorkspaceTerraformVersion to return
 	// a warning diagnostic instead of an error.
 	ignoreVersionConflict bool
@@ -306,7 +306,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	// Return an error if we still don't have a token at this point.
 	if token == "" {
-		loginCommand := "terraform login"
+		loginCommand := "opentf login"
 		if b.hostname != defaultHostname {
 			loginCommand = loginCommand + " " + b.hostname
 		}
@@ -338,10 +338,10 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Failed to create the Terraform Enterprise client",
+			"Failed to create the OpenTF Enterprise client",
 			fmt.Sprintf(
 				`The "remote" backend encountered an unexpected error while creating the `+
-					`Terraform Enterprise client: %s.`, err,
+					`OpenTF Enterprise client: %s.`, err,
 			),
 		))
 		return diags
@@ -485,14 +485,14 @@ func (b *Remote) checkConstraints(c *disco.Constraints) tfdiags.Diagnostics {
 		excluding = ""
 	}
 
-	summary := fmt.Sprintf("Incompatible Terraform version v%s", v.String())
+	summary := fmt.Sprintf("Incompatible OpenTF version v%s", v.String())
 	details := fmt.Sprintf(
-		"The configured Terraform Enterprise backend is compatible with Terraform "+
+		"The configured OpenTF Enterprise backend is compatible with OpenTF "+
 			"versions >= %s, <= %s%s.", c.Minimum, c.Maximum, excluding,
 	)
 
 	if action != "" && toVersion != "" {
-		summary = fmt.Sprintf("Please %s Terraform to %s", action, toVersion)
+		summary = fmt.Sprintf("Please %s OpenTF to %s", action, toVersion)
 		details += fmt.Sprintf(" Please %s to a supported version and try again.", action)
 	}
 
@@ -662,7 +662,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 			Name: tfe.String(name),
 		}
 
-		// We only set the Terraform Version for the new workspace if this is
+		// We only set the OpenTF Version for the new workspace if this is
 		// a release candidate or a final release.
 		if tfversion.Prerelease == "" || strings.HasPrefix(tfversion.Prerelease, "rc") {
 			options.TerraformVersion = tfe.String(tfversion.String())
@@ -684,7 +684,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		// Explicitly ignore the pseudo-version "latest" here, as it will cause
 		// plan and apply to always fail.
 		if wsv != tfversion.String() && wsv != "latest" {
-			return nil, fmt.Errorf("Remote workspace Terraform version %q does not match local Terraform version %q", workspace.TerraformVersion, tfversion.String())
+			return nil, fmt.Errorf("Remote workspace OpenTF version %q does not match local OpenTF version %q", workspace.TerraformVersion, tfversion.String())
 		}
 	}
 
@@ -693,17 +693,17 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		organization: b.organization,
 		workspace:    workspace,
 
-		// This is optionally set during Terraform Enterprise runs.
+		// This is optionally set during OpenTF Enterprise runs.
 		runID: os.Getenv("TFE_RUN_ID"),
 	}
 
 	return &remote.State{
 		Client: client,
 
-		// client.runID will be set if we're running a the Terraform Cloud
-		// or Terraform Enterprise remote execution environment, in which
+		// client.runID will be set if we're running a the OpenTF Cloud
+		// or OpenTF Enterprise remote execution environment, in which
 		// case we'll disable intermediate snapshots to avoid extra storage
-		// costs for Terraform Enterprise customers.
+		// costs for OpenTF Enterprise customers.
 		// Other implementations of the remote state protocol should not run
 		// in contexts where there's a "TFE Run ID" and so are not affected
 		// by this special case.
@@ -751,14 +751,14 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 		return nil, err
 	}
 
-	// Terraform remote version conflicts are not a concern for operations. We
+	// OpenTF remote version conflicts are not a concern for operations. We
 	// are in one of three states:
 	//
 	// - Running remotely, in which case the local version is irrelevant;
 	// - Workspace configured for local operations, in which case the remote
 	//   version is meaningless;
 	// - Forcing local operations with a remote backend, which should only
-	//   happen in the Terraform Cloud worker, in which case the Terraform
+	//   happen in the OpenTF Cloud worker, in which case the OpenTF
 	//   versions by definition match.
 	b.IgnoreVersionConflict()
 
@@ -784,7 +784,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 	case backend.OperationTypeRefresh:
 		return nil, fmt.Errorf(
 			"\n\nThe \"refresh\" operation is not supported when using the \"remote\" backend. " +
-				"Use \"terraform apply -refresh-only\" instead.")
+				"Use \"opentf apply -refresh-only\" instead.")
 	default:
 		return nil, fmt.Errorf(
 			"\n\nThe \"remote\" backend does not support the %q operation.", op.Type)
@@ -904,8 +904,8 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 }
 
 // IgnoreVersionConflict allows commands to disable the fall-back check that
-// the local Terraform version matches the remote workspace's configured
-// Terraform version. This should be called by commands where this check is
+// the local OpenTF version matches the remote workspace's configured
+// OpenTF version. This should be called by commands where this check is
 // unnecessary, such as those performing remote operations, or read-only
 // operations. It will also be called if the user uses a command-line flag to
 // override this check.
@@ -913,8 +913,8 @@ func (b *Remote) IgnoreVersionConflict() {
 	b.ignoreVersionConflict = true
 }
 
-// VerifyWorkspaceTerraformVersion compares the local Terraform version against
-// the workspace's configured Terraform version. If they are equal, this means
+// VerifyWorkspaceTerraformVersion compares the local OpenTF version against
+// the workspace's configured OpenTF version. If they are equal, this means
 // that there are no compatibility concerns, so it returns no diagnostics.
 //
 // If the versions differ,
@@ -939,13 +939,13 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 	}
 
 	// If the workspace has the pseudo-version "latest", all bets are off. We
-	// cannot reasonably determine what the intended Terraform version is, so
+	// cannot reasonably determine what the intended OpenTF version is, so
 	// we'll skip version verification.
 	if workspace.TerraformVersion == "latest" {
 		return nil
 	}
 
-	// If the workspace has remote operations disabled, the remote Terraform
+	// If the workspace has remote operations disabled, the remote OpenTF
 	// version is effectively meaningless, so we'll skip version verification.
 	if isLocalExecutionMode(workspace.ExecutionMode) {
 		return nil
@@ -956,22 +956,22 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Error looking up workspace",
-			fmt.Sprintf("Invalid Terraform version: %s", err),
+			fmt.Sprintf("Invalid OpenTF version: %s", err),
 		))
 		return diags
 	}
 
 	v014 := version.Must(version.NewSemver("0.14.0"))
 	if tfversion.SemVer.LessThan(v014) || remoteVersion.LessThan(v014) {
-		// Versions of Terraform prior to 0.14.0 will refuse to load state files
-		// written by a newer version of Terraform, even if it is only a patch
+		// Versions of OpenTF prior to 0.14.0 will refuse to load state files
+		// written by a newer version of OpenTF, even if it is only a patch
 		// level difference. As a result we require an exact match.
 		if tfversion.SemVer.Equal(remoteVersion) {
 			return diags
 		}
 	}
 	if tfversion.SemVer.GreaterThanOrEqual(v014) && remoteVersion.GreaterThanOrEqual(v014) {
-		// Versions of Terraform after 0.14.0 should be compatible with each
+		// Versions of OpenTF after 0.14.0 should be compatible with each
 		// other.  At the time this code was written, the only constraints we
 		// are aware of are:
 		//
@@ -981,7 +981,7 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 		if tfversion.SemVer.LessThan(v130) && remoteVersion.LessThan(v130) {
 			return diags
 		}
-		// - Any new Terraform state version will require at least minor patch
+		// - Any new OpenTF state version will require at least minor patch
 		//   increment, so x.y.* will always be compatible with each other
 		tfvs := tfversion.SemVer.Segments64()
 		rwvs := remoteVersion.Segments64()
@@ -992,21 +992,21 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 
 	// Even if ignoring version conflicts, it may still be useful to call this
 	// method and warn the user about a mismatch between the local and remote
-	// Terraform versions.
+	// OpenTF versions.
 	severity := tfdiags.Error
 	if b.ignoreVersionConflict {
 		severity = tfdiags.Warning
 	}
 
-	suggestion := " If you're sure you want to upgrade the state, you can force Terraform to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
+	suggestion := " If you're sure you want to upgrade the state, you can force OpenTF to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
 	if b.ignoreVersionConflict {
 		suggestion = ""
 	}
 	diags = diags.Append(tfdiags.Sourceless(
 		severity,
-		"Terraform version mismatch",
+		"OpenTF version mismatch",
 		fmt.Sprintf(
-			"The local Terraform version (%s) does not match the configured version for remote workspace %s/%s (%s).%s",
+			"The local OpenTF version (%s) does not match the configured version for remote workspace %s/%s (%s).%s",
 			tfversion.String(),
 			b.organization,
 			workspace.Name,
@@ -1066,7 +1066,7 @@ func checkConstraintsWarning(err error) tfdiags.Diagnostic {
 // The newline in this error is to make it look good in the CLI!
 const initialRetryError = `
 [reset][yellow]There was an error connecting to the remote backend. Please do not exit
-Terraform to prevent data loss! Trying to restore the connection...
+OpenTF to prevent data loss! Trying to restore the connection...
 [reset]
 `
 

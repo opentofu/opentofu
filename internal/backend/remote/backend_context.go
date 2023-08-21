@@ -215,7 +215,7 @@ func stubAllVariables(vv map[string]backend.UnparsedVariableValue, decls map[str
 
 // remoteStoredVariableValue is a backend.UnparsedVariableValue implementation
 // that translates from the go-tfe representation of stored variables into
-// the Terraform Core backend representation of variables.
+// the OpenTF Core backend representation of variables.
 type remoteStoredVariableValue struct {
 	definition *tfe.Variable
 }
@@ -250,7 +250,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 	case v.definition.HCL:
 		// If the variable value is marked as being in HCL syntax, we need to
 		// parse it the same way as it would be interpreted in a .tfvars
-		// file because that is how it would get passed to Terraform CLI for
+		// file because that is how it would get passed to OpenTF CLI for
 		// a remote operation and we want to mimic that result as closely as
 		// possible.
 		var exprDiags hcl.Diagnostics
@@ -289,7 +289,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		Value: val,
 
 		// We mark these as "from input" with the rationale that entering
-		// variable values into the Terraform Cloud or Enterprise UI is,
+		// variable values into the OpenTF Cloud or Enterprise UI is,
 		// roughly speaking, a similar idea to entering variable values at
 		// the interactive CLI prompts. It's not a perfect correspondance,
 		// but it's closer than the other options.

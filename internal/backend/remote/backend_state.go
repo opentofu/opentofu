@@ -92,7 +92,7 @@ func (r *remoteClient) uploadStateFallback(ctx context.Context, stateFile *state
 func (r *remoteClient) Put(state []byte) error {
 	ctx := context.Background()
 
-	// Read the raw state into a Terraform state.
+	// Read the raw state into a OpenTF state.
 	stateFile, err := statefile.Read(bytes.NewReader(state))
 	if err != nil {
 		return fmt.Errorf("error reading state: %s", err)
@@ -128,7 +128,7 @@ func (r *remoteClient) Put(state []byte) error {
 	// Create the new state.
 	_, err = r.client.StateVersions.Upload(ctx, r.workspace.ID, options)
 	if errors.Is(err, tfe.ErrStateVersionUploadNotSupported) {
-		// Create the new state with content included in the request (Terraform Enterprise v202306-1 and below)
+		// Create the new state with content included in the request (OpenTF Enterprise v202306-1 and below)
 		log.Println("[INFO] Detected that state version upload is not supported. Retrying using compatibility state upload.")
 		return r.uploadStateFallback(ctx, stateFile, state, o)
 	}
@@ -164,7 +164,7 @@ func (r *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 	// Lock the workspace.
 	_, err := r.client.Workspaces.Lock(ctx, r.workspace.ID, tfe.WorkspaceLockOptions{
-		Reason: tfe.String("Locked by Terraform"),
+		Reason: tfe.String("Locked by OpenTF"),
 	})
 	if err != nil {
 		if err == tfe.ErrWorkspaceLocked {
