@@ -31,7 +31,10 @@ const DefaultPluginVendorDir = "terraform.d/plugins/" + pluginMachineName
 const DefaultStateFilename = "terraform.tfstate"
 
 // DefaultVarsFilename is the default filename used for vars
-const DefaultVarsFilename = "terraform.tfvars"
+const DefaultVarsFilename = "opentf.tfvars"
+
+// BackwardCompatibleDefaultVarsFilename is a backward-compatible default filename used for vars
+const BackwardCompatibleDefaultVarsFilename = "terraform.tfvars"
 
 // DefaultBackupExtension is added to the state file to form the path
 const DefaultBackupExtension = ".backup"
