@@ -11,6 +11,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -548,4 +549,57 @@ func TestConfig_Merge_disableCheckpointSignature(t *testing.T) {
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("bad: %#v", actual)
 	}
+}
+
+func TestConfigDir_BackwardsCompatibility(t *testing.T) {
+	dir, err := os.MkdirTemp("", "opentf_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %s", err)
+	}
+	defer os.RemoveAll(dir)
+
+	if err := os.Setenv("OPENTF_TEST_HOME", dir); err != nil {
+		t.Fatalf("failed to set env var: %s", err)
+	}
+
+	t.Run("when no dir exists, use .opentf.d", func(t *testing.T) {
+		loadedConfigDir, err := configDir()
+		if err != nil {
+			t.Fatalf("failed to get config dir: %s", err)
+		}
+
+		if loadedConfigDir != filepath.Join(dir, ".opentf.d") {
+			t.Fatalf("bad: %s", loadedConfigDir)
+		}
+	})
+
+	t.Run("when only .terraform.d exists, use .terraform.d for backwards-compatibility reasons", func(t *testing.T) {
+		if err := os.MkdirAll(filepath.Join(dir, ".terraform.d"), 0755); err != nil {
+			t.Fatalf("failed to create temp dir: %s", err)
+		}
+
+		loadedConfigDir, err := configDir()
+		if err != nil {
+			t.Fatalf("failed to get config dir: %s", err)
+		}
+
+		if loadedConfigDir != filepath.Join(dir, ".terraform.d") {
+			t.Fatalf("bad: %s", loadedConfigDir)
+		}
+	})
+
+	t.Run("when both .terraform.d and .opentf.d exist, use .opentf.d", func(t *testing.T) {
+		if err := os.MkdirAll(filepath.Join(dir, ".opentf.d"), 0755); err != nil {
+			t.Fatalf("failed to create temp dir: %s", err)
+		}
+
+		loadedConfigDir, err := configDir()
+		if err != nil {
+			t.Fatalf("failed to get config dir: %s", err)
+		}
+
+		if loadedConfigDir != filepath.Join(dir, ".opentf.d") {
+			t.Fatalf("bad: %s", loadedConfigDir)
+		}
+	})
 }

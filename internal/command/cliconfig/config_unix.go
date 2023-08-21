@@ -46,6 +46,11 @@ func configDir() (string, error) {
 }
 
 func homeDir() (string, error) {
+	// For unit-testing purposes.
+	if home := os.Getenv("OPENTF_TEST_HOME"); home != "" {
+		return home, nil
+	}
+
 	// First prefer the HOME environmental variable
 	if home := os.Getenv("HOME"); home != "" {
 		// FIXME: homeDir gets called from globalPluginDirs during init, before
