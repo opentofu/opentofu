@@ -19,7 +19,10 @@ func configFile() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(dir, ".terraformrc"), nil
+	newConfigFile := filepath.Join(dir, ".opentfrc")
+	legacyConfigFile := filepath.Join(dir, ".terraformrc")
+
+	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
 }
 
 func configDir() (string, error) {
