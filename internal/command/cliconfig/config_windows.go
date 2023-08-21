@@ -38,8 +38,8 @@ func configDir() (string, error) {
 		return "", err
 	}
 
-	newConfigDir := filepath.Join(dir, ".opentf.d")
-	legacyConfigDir := filepath.Join(dir, ".terraform.d")
+	newConfigDir := filepath.Join(dir, "opentf.d")
+	legacyConfigDir := filepath.Join(dir, "terraform.d")
 
 	return getNewOrLegacyPath(newConfigDir, legacyConfigDir)
 }

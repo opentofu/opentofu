@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
@@ -558,6 +559,13 @@ func TestConfigDir_BackwardsCompatibility(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
+	terraformdName := ".terraform.d"
+	opentfdName := ".opentf.d"
+	if runtime.GOOS == "windows" {
+		terraformdName = "terraform.d"
+		opentfdName = "opentf.d"
+	}
+
 	if err := os.Setenv("OPENTF_TEST_HOME", dir); err != nil {
 		t.Fatalf("failed to set env var: %s", err)
 	}
@@ -568,13 +576,13 @@ func TestConfigDir_BackwardsCompatibility(t *testing.T) {
 			t.Fatalf("failed to get config dir: %s", err)
 		}
 
-		if loadedConfigDir != filepath.Join(dir, ".opentf.d") {
+		if loadedConfigDir != filepath.Join(dir, opentfdName) {
 			t.Fatalf("bad: %s", loadedConfigDir)
 		}
 	})
 
 	t.Run("when only .terraform.d exists, use .terraform.d for backwards-compatibility reasons", func(t *testing.T) {
-		if err := os.MkdirAll(filepath.Join(dir, ".terraform.d"), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(dir, terraformdName), 0755); err != nil {
 			t.Fatalf("failed to create temp dir: %s", err)
 		}
 
@@ -583,13 +591,13 @@ func TestConfigDir_BackwardsCompatibility(t *testing.T) {
 			t.Fatalf("failed to get config dir: %s", err)
 		}
 
-		if loadedConfigDir != filepath.Join(dir, ".terraform.d") {
+		if loadedConfigDir != filepath.Join(dir, terraformdName) {
 			t.Fatalf("bad: %s", loadedConfigDir)
 		}
 	})
 
 	t.Run("when both .terraform.d and .opentf.d exist, use .opentf.d", func(t *testing.T) {
-		if err := os.MkdirAll(filepath.Join(dir, ".opentf.d"), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(dir, opentfdName), 0755); err != nil {
 			t.Fatalf("failed to create temp dir: %s", err)
 		}
 
@@ -598,7 +606,7 @@ func TestConfigDir_BackwardsCompatibility(t *testing.T) {
 			t.Fatalf("failed to get config dir: %s", err)
 		}
 
-		if loadedConfigDir != filepath.Join(dir, ".opentf.d") {
+		if loadedConfigDir != filepath.Join(dir, opentfdName) {
 			t.Fatalf("bad: %s", loadedConfigDir)
 		}
 	})

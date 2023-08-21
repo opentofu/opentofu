@@ -301,11 +301,12 @@ method.
 The set of directories Terraform can select as filesystem mirrors depends on
 the operating system where you are running Terraform:
 
-* **Windows:** `%APPDATA%/terraform.d/plugins` and `%APPDATA%/HashiCorp/Terraform/plugins`
+* **Windows:** `%APPDATA%/opentf.d/plugins`, `%APPDATA%/terraform.d/plugins` and `%APPDATA%/HashiCorp/Terraform/plugins`
 * **Mac OS X:** `$HOME/.opentf.d/plugins`,
+  `$HOME/.terraform.d/plugins`, and
   `~/Library/Application Support/io.terraform/plugins`, and
   `/Library/Application Support/io.terraform/plugins`
-* **Linux and other Unix-like systems**:`$HOME/.opentf.d/plugins` and
+* **Linux and other Unix-like systems**:`$HOME/.opentf.d/plugins`, `$HOME/.terraform.d/plugins` and
   `terraform/plugins` located within a valid
   [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   data directory such as `$XDG_DATA_HOME/terraform/plugins`.
