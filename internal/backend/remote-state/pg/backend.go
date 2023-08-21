@@ -45,27 +45,27 @@ func New() backend.Backend {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Name of the automatically managed Postgres schema to store state",
-				DefaultFunc: schema.EnvDefaultFunc("PG_SCHEMA_NAME", "terraform_remote_state"),
+				DefaultFunc: schema.EnvDefaultFunc("PG_SCHEMA_NAME", "opentf_remote_state"),
 			},
 
 			"skip_schema_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "If set to `true`, Terraform won't try to create the Postgres schema",
+				Description: "If set to `true`, OpenTF won't try to create the Postgres schema",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_SCHEMA_CREATION", false),
 			},
 
 			"skip_table_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "If set to `true`, Terraform won't try to create the Postgres table",
+				Description: "If set to `true`, OpenTF won't try to create the Postgres table",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_TABLE_CREATION", false),
 			},
 
 			"skip_index_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "If set to `true`, Terraform won't try to create the Postgres index",
+				Description: "If set to `true`, OpenTF won't try to create the Postgres index",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_INDEX_CREATION", false),
 			},
 		},
