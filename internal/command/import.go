@@ -327,8 +327,9 @@ Options:
                           with the "-config" flag.
 
   -var-file=foo           Set variables in the Terraform configuration from
-                          a file. If "terraform.tfvars" or any ".auto.tfvars"
+                          a file. If "opentf.tfvars", "terraform.tfvars" or any ".auto.tfvars"
                           files are present, they will be automatically loaded.
+						  Note: "opentf.tfvars" will take precedence over "terraform.tfvars"
 
   -ignore-remote-version  A rare option used for the remote backend only. See
                           the remote backend documentation for more information.

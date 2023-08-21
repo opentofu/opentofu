@@ -216,8 +216,9 @@ Options:
                       flag can be set multiple times.
 
   -var-file=foo       Set variables in the Terraform configuration from
-                      a file. If "terraform.tfvars" or any ".auto.tfvars"
+                      a file. If "opentf.tfvars", "terraform.tfvars" or any ".auto.tfvars"
                       files are present, they will be automatically loaded.
+					  Note: "opentf.tfvars" will take precedence over "terraform.tfvars"
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.

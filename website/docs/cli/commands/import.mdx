@@ -67,12 +67,13 @@ The command-line flags are all optional. The following flags are available:
 
 - `-var-file=foo` - Set variables in the Terraform configuration from
   a [variable file](/terraform/language/values/variables#variable-definitions-tfvars-files). If
-  a `terraform.tfvars` or any `.auto.tfvars` files are present in the current
-  directory, they will be automatically loaded. `terraform.tfvars` is loaded
+  an `opentf.tfvars`, `terraform.tfvars` or any `.auto.tfvars` files are present in the current
+  directory, they will be automatically loaded. `opentf.tfvars` or `terraform.tfvars` is loaded
   first and the `.auto.tfvars` files after in alphabetical order. Any files
   specified by `-var-file` override any values set automatically from files in
   the working directory. This flag can be used multiple times. This is only
   useful with the `-config` flag.
+  Note: `opentf.tfvars` will take precedence over `terraform.tfvars`
 
 For configurations using the [Terraform Cloud CLI integration](/terraform/cli/cloud) or the [`remote` backend](/terraform/language/settings/backends/remote)
 only, `terraform import`

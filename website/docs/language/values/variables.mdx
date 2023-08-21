@@ -388,8 +388,9 @@ availability_zone_names = [
 Terraform also automatically loads a number of variable definitions files
 if they are present:
 
-* Files named exactly `terraform.tfvars` or `terraform.tfvars.json`.
+* Files named exactly `opentf.tfvars`, `opentf.tfvars.json`, `terraform.tfvars` or `terraform.tfvars.json`.
 * Any files with names ending in `.auto.tfvars` or `.auto.tfvars.json`.
+* Note: `opentf.tfvars` and `opentf.tfvars.json` will take precedence over `terraform.tfvars` or `terraform.tfvars.json` respectively.
 
 Files whose names end with `.json` are parsed instead as JSON objects, with
 the root object properties corresponding to variable names:
@@ -503,8 +504,8 @@ Terraform loads variables in the following order, with later sources taking
 precedence over earlier ones:
 
 * Environment variables
-* The `terraform.tfvars` file, if present.
-* The `terraform.tfvars.json` file, if present.
+* The `opentf.tfvars` or `terraform.tfvars` file, if present and in this respective order.
+* The `opentf.tfvars.json` or `terraform.tfvars.json` file, if present and in this respective order.
 * Any `*.auto.tfvars` or `*.auto.tfvars.json` files, processed in lexical order
   of their filenames.
 * Any `-var` and `-var-file` options on the command line, in the order they

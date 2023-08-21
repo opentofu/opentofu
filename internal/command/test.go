@@ -68,9 +68,10 @@ Options:
                         once to set more than one variable.
 
   -var-file=filename    Load variable values from the given file, in addition
-                        to the default files terraform.tfvars and *.auto.tfvars.
+                        to the default files opentf.tfvars or terraform.tfvars, and *.auto.tfvars.
                         Use this option more than once to include more than one
                         variables file.
+						Note: opentf.tfvars will take precedence over terraform.tfvars
 
   -verbose              Print the plan or state for each test run block as it
                         executes.
