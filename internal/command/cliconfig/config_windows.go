@@ -7,6 +7,7 @@
 package cliconfig
 
 import (
+	"os"
 	"path/filepath"
 	"syscall"
 	"unsafe"
@@ -37,10 +38,18 @@ func configDir() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(dir, "terraform.d"), nil
+	newConfigDir := filepath.Join(dir, "opentf.d")
+	legacyConfigDir := filepath.Join(dir, "terraform.d")
+
+	return getNewOrLegacyPath(newConfigDir, legacyConfigDir)
 }
 
 func homeDir() (string, error) {
+	// For unit-testing purposes.
+	if home := os.Getenv("OPENTF_TEST_HOME"); home != "" {
+		return home, nil
+	}
+
 	b := make([]uint16, syscall.MAX_PATH)
 
 	// See: http://msdn.microsoft.com/en-us/library/windows/desktop/bb762181(v=vs.85).aspx
