@@ -2,8 +2,6 @@
 
 This repository contains OpenTF core, which includes the command line interface and the main graph engine
 
-**All communication is subject to [the OpenTF code of conduct](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.github/CODE_OF_CONDUCT.md).**
-
 This document provides guidance on OpenTF contribution recommended practices. It covers what we're looking for in order to help set some expectations and help you get the most out of participation in this project. 
 
 To record a bug report, enhancement proposal, or give any other product feedback, please [open a GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) using the most appropriate issue template
