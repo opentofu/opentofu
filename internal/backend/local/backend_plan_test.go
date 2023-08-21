@@ -229,8 +229,8 @@ Changes to Outputs:
   ~ sensitive_after  = (sensitive value)
   ~ sensitive_before = (sensitive value)
 
-You can apply this plan to save these new output values to the OpenTF
-state, without changing any real infrastructure.
+You can apply this plan to save these new output values to the OpenTF state,
+without changing any real infrastructure.
 `)
 
 	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {
@@ -322,13 +322,13 @@ func TestLocal_planTainted(t *testing.T) {
 		t.Fatal("plan should not be empty")
 	}
 
-	expectedOutput := `OpenTF used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+	expectedOutput := `OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
 -/+ destroy and then create replacement
 
 OpenTF will perform the following actions:
 
-  # test_instance.foo is tainted, so must be replaced
+  # test_instance.foo is tainted, so it must be replaced
 -/+ resource "test_instance" "foo" {
         # (1 unchanged attribute hidden)
 
@@ -420,8 +420,8 @@ func TestLocal_planDeposedOnly(t *testing.T) {
 	// it's also possible for there to be _multiple_ deposed objects, in the
 	// unlikely event that create_before_destroy _keeps_ crashing across
 	// subsequent runs.
-	expectedOutput := `OpenTF used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+	expectedOutput := `OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   + create
   - destroy
 
@@ -450,7 +450,7 @@ OpenTF will perform the following actions:
 
 Plan: 1 to add, 0 to change, 1 to destroy.`
 	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {
-		t.Fatalf("Unexpected output:\n%s", output)
+		t.Fatalf("Unexpected output\ngot\n%s\n\nwant:\n%s", output, expectedOutput)
 	}
 }
 
@@ -492,13 +492,13 @@ func TestLocal_planTainted_createBeforeDestroy(t *testing.T) {
 		t.Fatal("plan should not be empty")
 	}
 
-	expectedOutput := `OpenTF used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+	expectedOutput := `OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
 +/- create replacement and then destroy
 
 OpenTF will perform the following actions:
 
-  # test_instance.foo is tainted, so must be replaced
+  # test_instance.foo is tainted, so it must be replaced
 +/- resource "test_instance" "foo" {
         # (1 unchanged attribute hidden)
 
@@ -507,7 +507,7 @@ OpenTF will perform the following actions:
 
 Plan: 1 to add, 0 to change, 1 to destroy.`
 	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {
-		t.Fatalf("Unexpected output:\n%s", output)
+		t.Fatalf("Unexpected output\ngot\n%s\n\nwant:\n%s", output, expectedOutput)
 	}
 }
 

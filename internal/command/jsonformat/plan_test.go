@@ -863,7 +863,7 @@ new line`),
 			RequiredReplace: cty.NewPathSet(cty.Path{
 				cty.GetAttrStep{Name: "ami"},
 			}),
-			ExpectedOutput: `  # test_instance.example is tainted, so must be replaced
+			ExpectedOutput: `  # test_instance.example is tainted, so it must be replaced
 -/+ resource "test_instance" "example" {
       ~ ami = "ami-BEFORE" -> "ami-AFTER" # forces replacement
       ~ id  = "i-02ae66f368e8518a9" -> (known after apply)
@@ -5844,7 +5844,7 @@ func TestResourceChange_actionReason(t *testing.T) {
 			After:           nullVal,
 			Schema:          emptySchema,
 			RequiredReplace: cty.NewPathSet(),
-			ExpectedOutput: `  # test_instance.example is tainted, so must be replaced
+			ExpectedOutput: `  # test_instance.example is tainted, so must it be replaced
 -/+ resource "test_instance" "example" {}`,
 		},
 		"replace because tainted (create first)": {
@@ -5855,7 +5855,7 @@ func TestResourceChange_actionReason(t *testing.T) {
 			After:           nullVal,
 			Schema:          emptySchema,
 			RequiredReplace: cty.NewPathSet(),
-			ExpectedOutput: `  # test_instance.example is tainted, so must be replaced
+			ExpectedOutput: `  # test_instance.example is tainted, so must it be replaced
 +/- resource "test_instance" "example" {}`,
 		},
 		"replace because cannot update (delete first)": {
