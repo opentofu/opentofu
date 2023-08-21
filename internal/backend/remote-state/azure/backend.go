@@ -174,7 +174,7 @@ func New() backend.Backend {
 			"use_azuread_auth": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Should Terraform use AzureAD Authentication to access the Blob?",
+				Description: "Should OpenTF use AzureAD Authentication to access the Blob?",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_AZUREAD", false),
 			},
 		},
