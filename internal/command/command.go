@@ -13,7 +13,7 @@ import (
 var test bool = false
 
 // DefaultDataDir is the default directory for storing local data.
-const DefaultDataDir = ".terraform"
+const DefaultDataDir = ".opentf"
 
 // PluginPathFile is the name of the file in the data dir which stores the list
 // of directories supplied by the user with the `-plugin-dir` flag during init.

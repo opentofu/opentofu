@@ -77,7 +77,7 @@ func NewDir(mainPath string) *Dir {
 	return &Dir{
 		mainDir:     mainPath,
 		originalDir: mainPath,
-		dataDir:     filepath.Join(mainPath, ".terraform"),
+		dataDir:     filepath.Join(mainPath, ".opentf"),
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
@@ -21,6 +22,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
 
 	version "github.com/hashicorp/go-version"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/modsdir"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
@@ -78,7 +80,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		}
 		haveEntries := false
 		for _, entry := range entries {
-			if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".terraform" {
+			if entry.Name() == "." || entry.Name() == ".." || entry.Name() == ".opentf" || entry.Name() == ".terraform" {
 				continue
 			}
 			haveEntries = true
