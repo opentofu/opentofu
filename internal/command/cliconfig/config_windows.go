@@ -41,15 +41,7 @@ func configDir() (string, error) {
 	newConfigDir := filepath.Join(dir, ".opentf.d")
 	legacyConfigDir := filepath.Join(dir, ".terraform.d")
 
-	// If the legacy directory exists, but the new directory does not, then use the legacy directory, for backwards compatibility reasons.
-	// Otherwise, use the new directory.
-	if _, err := os.Stat(legacyConfigDir); err == nil {
-		if _, err := os.Stat(newConfigDir); os.IsNotExist(err) {
-			return legacyConfigDir, nil
-		}
-	}
-
-	return newConfigDir, nil
+	return getNewOrLegacyPath(newConfigDir, legacyConfigDir)
 }
 
 func homeDir() (string, error) {
