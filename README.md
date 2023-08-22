@@ -11,7 +11,7 @@ The key features of OpenTF are:
 
 - **Infrastructure as Code**: Infrastructure is described using a high-level configuration syntax. This allows a blueprint of your datacenter to be versioned and treated as you would any other code. Additionally, infrastructure can be shared and re-used.
 
-- **Execution Plans**: OpenTF has a "planning" step where it generates an execution plan. The execution plan shows what Terraform will do when you call apply. This lets you avoid any surprises when OpenTF manipulates infrastructure.
+- **Execution Plans**: OpenTF has a "planning" step where it generates an execution plan. The execution plan shows what OpenTF will do when you call apply. This lets you avoid any surprises when OpenTF manipulates infrastructure.
 
 - **Resource Graph**: OpenTF builds a graph of all your resources, and parallelizes the creation and modification of any non-dependent resources. Because of this, OpenTF builds infrastructure as efficiently as possible, and operators get insight into dependencies in their infrastructure.
 
@@ -19,13 +19,11 @@ The key features of OpenTF are:
 
 ## Developing OpenTF
 
-This repository contains only OpenTF core, which includes the command line interface and the main graph engine. Providers are implemented as plugins, and OpenTF can automatically download providers that are published on [the Terraform Registry](https://registry.terraform.io). For more information, see [Extending Terraform](https://www.terraform.io/docs/extend/index.html).
+This repository contains only OpenTF core, which includes the command line interface and the main graph engine.
 
 - To learn more about compiling OpenTF and contributing suggested changes, refer to [the contributing guide](.github/CONTRIBUTING.md).
 
-- To learn more about how we handle bug reports, refer to the [bug triage guide](./BUGPROCESS.md).
-
-- To learn how to contribute to the OpenTF documentation in this repository, refer to the [Terraform Documentation README](/website/README.md).
+- To submit bug reports or enhancement requests, refer to the [the contributing guide](.github/CONTRIBUTING.md) as well.
 
 ## License
 
