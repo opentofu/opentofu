@@ -20,7 +20,7 @@ in more detail in a corresponding section below.
 
 ## CLI (`command` package)
 
-Each time a user runs the `terraform` program, aside from some initial
+Each time a user runs the `opentf` program, aside from some initial
 bootstrapping in the root package (not shown in the diagram) execution
 transfers immediately into one of the "command" implementations in
 [the `command` package](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/command).
@@ -29,8 +29,8 @@ their corresponding `command` package types can be found in the `commands.go`
 file in the root of the repository.
 
 The full flow illustrated above does not actually apply to _all_ commands,
-but it applies to the main OpenTF workflow commands `terraform plan` and
-`terraform apply`, along with a few others.
+but it applies to the main OpenTF workflow commands `opentf plan` and
+`opentf apply`, along with a few others.
 
 For these commands, the role of the command implementation is to read and parse
 any command line arguments, command line options, and environment variables
@@ -69,7 +69,7 @@ backend and Terraform Cloud's backends (`remote`, `cloud`) perform operations.
 Thus, most backends do _not_ implement this interface, and so the `command` package wraps these
 backends in an instance of
 [`local.Local`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local#Local),
-causing the operation to be executed locally within the `terraform` process itself.
+causing the operation to be executed locally within the `opentf` process itself.
 
 ## Backends
 
@@ -109,7 +109,7 @@ configuration objects, but the main entry point is in the sub-package
 via
 [`configload.Loader`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload#Loader).
 A loader deals with all of the details of installing child modules
-(during `terraform init`) and then locating those modules again when a
+(during `opentf init`) and then locating those modules again when a
 configuration is loaded by a backend. It takes the path to a root module
 and recursively loads all of the child modules to produce a single
 [`configs.Config`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/configs#Config)

@@ -100,7 +100,7 @@ protocol version 5.0, since major version 5 is supported and the optional
 5.1 and 5.2 enhancements will be ignored.
 
 If OpenTF Core and the plugin do not have at least one mutually-supported
-major version, OpenTF Core will return an error from `terraform init`
+major version, OpenTF Core will return an error from `opentf init`
 during plugin installation:
 
 ```
@@ -122,7 +122,7 @@ it with the following constraint:
 Alternatively, upgrade to the latest version of OpenTF for compatibility with newer provider releases.
 ```
 
-The above messages are for plugins installed via `terraform init` from a
+The above messages are for plugins installed via `opentf init` from a
 OpenTF registry, where the registry API allows OpenTF Core to recognize
 the protocol compatibility for each provider release. For plugins that are
 installed manually to a local plugin directory, OpenTF Core has no way to

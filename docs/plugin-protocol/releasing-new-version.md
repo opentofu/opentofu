@@ -8,7 +8,7 @@ everything that needs to be is aware of it.
 
 ## New Protobuf File
 
-The protocol is defined in protobuf files that live in the hashicorp/terraform
+The protocol is defined in protobuf files that live in the opentffoundation/opentf
 repository. Adding a new version of the protocol involves creating a new
 `.proto` file in that directory. It is recommended that you copy the latest
 protocol file, and modify it accordingly.
@@ -32,9 +32,9 @@ support for the new protocol version until it is added to that list.
 ## Update OpenTF's Version Constraints
 
 OpenTF only downloads providers that speak protocol versions it is
-compatible with from the Registry during `terraform init`. When adding support
+compatible with from the Registry during `opentf init`. When adding support
 for a new protocol, you need to tell OpenTF it knows that protocol version.
-Modify the `SupportedPluginProtocols` variable in hashicorp/terraform's
+Modify the `SupportedPluginProtocols` variable in opentffoundation/opentf's
 `internal/getproviders/registry_client.go` file to include the new protocol.
 
 ## Test Running a Provider With the Test Framework
@@ -47,7 +47,7 @@ the protocol version between the test framework and OpenTF.
 ## Test Retrieving and Running a Provider From the Registry
 
 Publish a provider, either to the public registry or to the staging registry,
-and test running `terraform init` and `terraform apply`, along with exercising
+and test running `opentf init` and `opentf apply`, along with exercising
 any of the new functionality the protocol version introduces. This end-to-end
 test ensures that all the pieces needing to be updated before practitioners can
 use providers built with the new protocol have been updated.

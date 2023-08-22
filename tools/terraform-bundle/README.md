@@ -32,8 +32,8 @@ OpenTF v0.13.0 and later.
 If you have a working toolchain for the Go programming language, you can
 build a `terraform-bundle` executable as follows:
 
-* `git clone --single-branch --branch=v0.15 --depth=1 https://github.com/hashicorp/terraform.git`
-* `cd terraform`
+* `git clone --single-branch --branch=v0.15 --depth=1 https://github.com/opentffoundation/opentf.git`
+* `cd opentf`
 * `go build -o ../terraform-bundle ./tools/terraform-bundle`
 
 After running these commands, your original working directory will have an
@@ -42,7 +42,7 @@ executable named `terraform-bundle`, which you can then run.
 
 For information
 on how to use `terraform-bundle`, see
-[the README from the v0.15 branch](https://github.com/hashicorp/terraform/blob/v0.15/tools/terraform-bundle/README.md).
+[the README from the v0.15 branch](https://github.com/opentffoundation/opentf/blob/v0.15/tools/terraform-bundle/README.md).
 
 You can follow a similar principle to build a `terraform-bundle` release
 compatible with OpenTF v0.12 by using `--branch=v0.12` instead of
@@ -57,4 +57,4 @@ Terraform Cloud, you can use `terraform-bundle` as described above to build
 custom OpenTF packages with bundled provider plugins.
 
 For more information, see
-[Installing a Bundle in Terraform Enterprise](https://github.com/hashicorp/terraform/blob/v0.15/tools/terraform-bundle/README.md#installing-a-bundle-in-terraform-enterprise).
+[Installing a Bundle in Terraform Enterprise](https://github.com/opentffoundation/opentf/blob/v0.15/tools/terraform-bundle/README.md#installing-a-bundle-in-terraform-enterprise).
