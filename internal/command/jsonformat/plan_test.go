@@ -5844,7 +5844,7 @@ func TestResourceChange_actionReason(t *testing.T) {
 			After:           nullVal,
 			Schema:          emptySchema,
 			RequiredReplace: cty.NewPathSet(),
-			ExpectedOutput: `  # test_instance.example is tainted, so it must it be replaced
+			ExpectedOutput: `  # test_instance.example is tainted, so it must be replaced
 -/+ resource "test_instance" "example" {}`,
 		},
 		"replace because tainted (create first)": {
@@ -5855,7 +5855,7 @@ func TestResourceChange_actionReason(t *testing.T) {
 			After:           nullVal,
 			Schema:          emptySchema,
 			RequiredReplace: cty.NewPathSet(),
-			ExpectedOutput: `  # test_instance.example is tainted, so it must it be replaced
+			ExpectedOutput: `  # test_instance.example is tainted, so it must be replaced
 +/- resource "test_instance" "example" {}`,
 		},
 		"replace because cannot update (delete first)": {
