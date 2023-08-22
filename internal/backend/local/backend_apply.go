@@ -352,7 +352,7 @@ const stateWriteFatalErrorFmt = `Failed to save state after apply.
 
 Error serializing state: %s
 
-A catastrophic error has prevented OpenTF from persisting the state file or creating a backup. Unfortunately this means that the record of any resources created during this apply has been lost, and such resources may exist outside of Terraform's management.
+A catastrophic error has prevented OpenTF from persisting the state file or creating a backup. Unfortunately this means that the record of any resources created during this apply has been lost, and such resources may exist outside of OpenTF's management.
 
 For resources that support import, it is possible to recover by manually importing each resource using its id from the target system.
 
