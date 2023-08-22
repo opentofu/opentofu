@@ -11,7 +11,7 @@
 # built by the (closed-source) official release process.
 
 FROM docker.mirror.hashicorp.services/golang:alpine
-LABEL maintainer="HashiCorp Terraform Team <terraform@hashicorp.com>"
+LABEL maintainer="OpenTF Team <opentf@opentf.org>"
 
 RUN apk add --no-cache git bash openssh
 
