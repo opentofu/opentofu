@@ -6,7 +6,7 @@
 //
 // The CLI config is a small collection of settings that a user can override via
 // some files in their home directory or, in some cases, via environment
-// variables. The CLI config is not the same thing as a Terraform configuration
+// variables. The CLI config is not the same thing as a OpenTF configuration
 // written in the Terraform language; the logic for those lives in the top-level
 // directory "configs".
 package cliconfig
@@ -24,15 +24,16 @@ import (
 	"github.com/hashicorp/hcl"
 
 	svchost "github.com/hashicorp/terraform-svchost"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 const pluginCacheDirEnvVar = "TF_PLUGIN_CACHE_DIR"
 const pluginCacheMayBreakLockFileEnvVar = "TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE"
 
-// Config is the structure of the configuration for the Terraform CLI.
+// Config is the structure of the configuration for the OpenTF CLI.
 //
-// This is not the configuration for Terraform itself. That is in the
+// This is not the configuration for OpenTF itself. That is in the
 // "config" package.
 type Config struct {
 	Providers    map[string]string
@@ -49,9 +50,9 @@ type Config struct {
 	// those who wish to use the Plugin Cache Dir even in cases where doing so
 	// will cause the dependency lock file to be incomplete.
 	//
-	// This is likely to become a silent no-op in future Terraform versions but
+	// This is likely to become a silent no-op in future OpenTF versions but
 	// is here in recognition of the fact that the dependency lock file is not
-	// yet a good fit for all Terraform workflows and folks in that category
+	// yet a good fit for all OpenTF workflows and folks in that category
 	// would prefer to have the plugin cache dir's behavior to take priority
 	// over the requirements of the dependency lock file.
 	PluginCacheMayBreakDependencyLockFile bool `hcl:"plugin_cache_may_break_dependency_lock_file"`
@@ -94,7 +95,7 @@ func ConfigFile() (string, error) {
 	return configFile()
 }
 
-// ConfigDir returns the configuration directory for Terraform.
+// ConfigDir returns the configuration directory for OpenTF.
 func ConfigDir() (string, error) {
 	return configDir()
 }
@@ -122,7 +123,7 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 	// in the config directory. We skip the config directory when source
 	// file override is set because we interpret the environment variable
 	// being set as an intention to ignore the default set of CLI config
-	// files because we're doing something special, like running Terraform
+	// files because we're doing something special, like running OpenTF
 	// in automation with a locally-customized configuration.
 	if cliConfigFileOverride() == "" {
 		if configDir, err := ConfigDir(); err == nil {
