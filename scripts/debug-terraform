@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This is a helper script to launch Terraform inside the "dlv" debugger,
+# This is a helper script to launch OpenTF inside the "dlv" debugger,
 # configured to await a remote debugging connection on port 2345. You can
 # then connect to it using the following command, or its equivalent in your
 # debugging frontend of choice:
