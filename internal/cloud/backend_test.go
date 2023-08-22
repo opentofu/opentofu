@@ -356,7 +356,7 @@ func WithEnvVars(t *testing.T) {
 			vars: map[string]string{
 				"TF_WORKSPACE": "i-dont-exist-in-org",
 			},
-			expectedErr: `Invalid workspace selection: Terraform failed to find workspace "i-dont-exist-in-org" in organization hashicorp`,
+			expectedErr: `Invalid workspace selection: OpenTF failed to find workspace "i-dont-exist-in-org" in organization hashicorp`,
 		},
 		"workspaces and env var specified": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -399,7 +399,7 @@ func WithEnvVars(t *testing.T) {
 			vars: map[string]string{
 				"TF_WORKSPACE": "shire",
 			},
-			expectedErr: "Terraform failed to find workspace \"shire\" with the tags specified in your configuration:\n[cloud]",
+			expectedErr: "OpenTF failed to find workspace \"shire\" with the tags specified in your configuration:\n[cloud]",
 		},
 		"env var workspace has specified tag": {
 			setup: func(b *Cloud) {
@@ -610,7 +610,7 @@ func TestCloud_config(t *testing.T) {
 					"project": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "terraform login localhost",
+			confErr: "opentf login localhost",
 		},
 		"with_tags": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -808,7 +808,7 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 
 	_, err = b.StateMgr(workspaceName)
 	if err != nil {
-		t.Fatalf("expected no error from StateMgr, despite not being able to set remote Terraform version: %#v", err)
+		t.Fatalf("expected no error from StateMgr, despite not being able to set remote TF version: %#v", err)
 	}
 	// Make sure the workspace was created:
 	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, workspaceName)
@@ -822,7 +822,7 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 		tfe.WorkspaceUpdateOptions{TerraformVersion: tfe.String("1.1.0")},
 	)
 	if err == nil {
-		t.Fatalf("the mocks aren't emulating a nonexistent remote Terraform version correctly, so this test isn't trustworthy anymore")
+		t.Fatalf("the mocks aren't emulating a nonexistent remote TF version correctly, so this test isn't trustworthy anymore")
 	}
 }
 
@@ -1089,7 +1089,7 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 	}
 
 	// This should fail
-	want := `Remote workspace Terraform version "0.13.5" does not match local Terraform version "0.14.0"`
+	want := `Remote workspace TF version "0.13.5" does not match local OpenTF version "0.14.0"`
 	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
@@ -1203,7 +1203,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion(t *testing.T) {
 				if len(diags) != 1 {
 					t.Fatal("expected diag, but none returned")
 				}
-				if got := diags.Err().Error(); !strings.Contains(got, "Incompatible Terraform version") {
+				if got := diags.Err().Error(); !strings.Contains(got, "Incompatible TF version") {
 					t.Fatalf("unexpected error: %s", got)
 				}
 			} else {
@@ -1252,7 +1252,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}
-	if got := diags.Err().Error(); !strings.Contains(got, "Incompatible Terraform version: The remote workspace specified") {
+	if got := diags.Err().Error(); !strings.Contains(got, "Incompatible TF version: The remote workspace specified") {
 		t.Fatalf("unexpected error: %s", got)
 	}
 }
@@ -1304,10 +1304,10 @@ func TestCloud_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
 		t.Errorf("wrong severity: got %#v, want %#v", got, want)
 	}
-	if got, want := diags[0].Description().Summary, "Incompatible Terraform version"; got != want {
+	if got, want := diags[0].Description().Summary, "Incompatible TF version"; got != want {
 		t.Errorf("wrong summary: got %s, want %s", got, want)
 	}
-	wantDetail := "The local Terraform version (0.14.0) does not meet the version requirements for remote workspace hashicorp/app-prod (0.13.5)."
+	wantDetail := "The local OpenTF version (0.14.0) does not meet the version requirements for remote workspace hashicorp/app-prod (0.13.5)."
 	if got := diags[0].Description().Detail; got != wantDetail {
 		t.Errorf("wrong summary: got %s, want %s", got, wantDetail)
 	}
