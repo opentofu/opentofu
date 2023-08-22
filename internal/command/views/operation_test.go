@@ -100,7 +100,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					Changes: plans.NewChanges(),
 				}
 			},
-			"Terraform has checked that the real remote objects still match",
+			"OpenTF has checked that the real remote objects still match",
 		},
 		"nothing at all in destroy mode": {
 			func(schemas *terraform.Schemas) *plans.Plan {
@@ -197,7 +197,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					}},
 				}
 			},
-			"Objects have changed outside of Terraform",
+			"Objects have changed outside of OpenTF",
 		},
 		"drift detected in refresh-only mode": {
 			func(schemas *terraform.Schemas) *plans.Plan {
@@ -339,11 +339,11 @@ func TestOperation_plan(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-Terraform used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   + create
 
-Terraform will perform the following actions:
+OpenTF will perform the following actions:
 
   # test_resource.foo will be created
   + resource "test_resource" "foo" {
@@ -368,12 +368,12 @@ func TestOperation_planWithDatasource(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-Terraform used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
-Terraform will perform the following actions:
+OpenTF will perform the following actions:
 
   # data.test_data_source.bar will be read during apply
  <= data "test_data_source" "bar" {
@@ -404,12 +404,12 @@ func TestOperation_planWithDatasourceAndDrift(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-Terraform used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
-Terraform will perform the following actions:
+OpenTF will perform the following actions:
 
   # data.test_data_source.bar will be read during apply
  <= data "test_data_source" "bar" {

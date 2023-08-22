@@ -196,7 +196,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 		lockErr := &statemgr.LockError{
 			Info: currentLockInfo,
-			Err:  errors.New("the state is already locked by another terraform client"),
+			Err:  errors.New("the state is already locked by another opentf client"),
 		}
 		return "", lockErr
 	}

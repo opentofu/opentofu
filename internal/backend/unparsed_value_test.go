@@ -207,7 +207,7 @@ func TestUnparsedValue(t *testing.T) {
 				},
 			},
 			"missing2": {
-				Value:      cty.NilVal, // Terraform Core handles substituting the default
+				Value:      cty.NilVal, // OpenTF Core handles substituting the default
 				SourceType: terraform.ValueFromConfig,
 				SourceRange: tfdiags.SourceRange{
 					Filename: "fake.tf",

@@ -42,7 +42,7 @@ func (b *Local) opApply(
 			"No configuration files",
 			"Apply requires configuration to be present. Applying without a configuration "+
 				"would mark everything for destruction, which is normally not what is desired. "+
-				"If you would like to destroy everything, run 'terraform destroy' instead.",
+				"If you would like to destroy everything, run 'opentf destroy' instead.",
 		))
 		op.ReportResult(runningOp, diags)
 		return
@@ -92,10 +92,10 @@ func (b *Local) opApply(
 		plan, moreDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
-			// If Terraform Core generated a partial plan despite the errors
-			// then we'll make a best effort to render it. Terraform Core
+			// If OpenTF Core generated a partial plan despite the errors
+			// then we'll make the best effort to render it. OpenTF Core
 			// promises that if it returns a non-nil plan along with errors
-			// then the plan won't necessarily contain all of the needed
+			// then the plan won't necessarily contain all the needed
 			// actions but that any it does include will be properly-formed.
 			// plan.Errored will be true in this case, which our plan
 			// renderer can rely on to tailor its messaging.
@@ -136,15 +136,15 @@ func (b *Local) opApply(
 				} else {
 					query = "Do you really want to destroy all resources?"
 				}
-				desc = "Terraform will destroy all your managed infrastructure, as shown above.\n" +
+				desc = "OpenTF will destroy all your managed infrastructure, as shown above.\n" +
 					"There is no undo. Only 'yes' will be accepted to confirm."
 			case plans.RefreshOnlyMode:
 				if op.Workspace != "default" {
-					query = "Would you like to update the Terraform state for \"" + op.Workspace + "\" to reflect these detected changes?"
+					query = "Would you like to update the OpenTF state for \"" + op.Workspace + "\" to reflect these detected changes?"
 				} else {
-					query = "Would you like to update the Terraform state to reflect these detected changes?"
+					query = "Would you like to update the OpenTF state to reflect these detected changes?"
 				}
-				desc = "Terraform will write these changes to the state without modifying any real infrastructure.\n" +
+				desc = "OpenTF will write these changes to the state without modifying any real infrastructure.\n" +
 					"There is no undo. Only 'yes' will be accepted to confirm."
 			default:
 				if op.Workspace != "default" {
@@ -152,7 +152,7 @@ func (b *Local) opApply(
 				} else {
 					query = "Do you want to perform these actions?"
 				}
-				desc = "Terraform will perform the actions described above.\n" +
+				desc = "OpenTF will perform the actions described above.\n" +
 					"Only 'yes' will be accepted to approve."
 			}
 
@@ -212,7 +212,7 @@ func (b *Local) opApply(
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Cannot apply incomplete plan",
-				"Terraform encountered an error when generating this plan, so it cannot be applied.",
+				"OpenTF encountered an error when generating this plan, so it cannot be applied.",
 			))
 			op.ReportResult(runningOp, diags)
 			return
@@ -227,7 +227,7 @@ func (b *Local) opApply(
 	// Set up our hook for continuous state updates
 	stateHook.StateMgr = opState
 
-	// Start the apply in a goroutine so that we can be interrupted.
+	// Start to apply in a goroutine so that we can be interrupted.
 	var applyState *states.State
 	var applyDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
@@ -332,29 +332,29 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 	return diags
 }
 
-const stateWriteBackedUpError = `The error shown above has prevented Terraform from writing the updated state to the configured backend. To allow for recovery, the state has been written to the file "errored.tfstate" in the current working directory.
+const stateWriteBackedUpError = `The error shown above has prevented OpenTF from writing the updated state to the configured backend. To allow for recovery, the state has been written to the file "errored.tfstate" in the current working directory.
 
-Running "terraform apply" again at this point will create a forked state, making it harder to recover.
+Running "opentf apply" again at this point will create a forked state, making it harder to recover.
 
 To retry writing this state, use the following command:
-    terraform state push errored.tfstate
+    opentf state push errored.tfstate
 `
 
-const stateWriteConsoleFallbackError = `The errors shown above prevented Terraform from writing the updated state to
+const stateWriteConsoleFallbackError = `The errors shown above prevented OpenTF from writing the updated state to
 the configured backend and from creating a local backup file. As a fallback,
 the raw state data is printed above as a JSON object.
 
 To retry writing this state, copy the state data (from the first { to the last } inclusive) and save it into a local file called errored.tfstate, then run the following command:
-    terraform state push errored.tfstate
+    opentf state push errored.tfstate
 `
 
 const stateWriteFatalErrorFmt = `Failed to save state after apply.
 
 Error serializing state: %s
 
-A catastrophic error has prevented Terraform from persisting the state file or creating a backup. Unfortunately this means that the record of any resources created during this apply has been lost, and such resources may exist outside of Terraform's management.
+A catastrophic error has prevented OpenTF from persisting the state file or creating a backup. Unfortunately this means that the record of any resources created during this apply has been lost, and such resources may exist outside of OpenTF's management.
 
 For resources that support import, it is possible to recover by manually importing each resource using its id from the target system.
 
-This is a serious bug in Terraform and should be reported.
+This is a serious bug in OpenTF and should be reported.
 `
