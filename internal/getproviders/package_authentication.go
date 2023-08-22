@@ -242,7 +242,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		// Indicates that none of the hashes given to
 		// NewPackageHashAuthentication were considered to be usable by this
 		// version of Terraform.
-		return nil, fmt.Errorf("this version of Terraform does not support any of the checksum formats given for this provider")
+		return nil, fmt.Errorf("this version of OpenTF does not support any of the checksum formats given for this provider")
 	}
 
 	matches, err := PackageMatchesAnyHash(localLocation, a.RequiredHashes)
