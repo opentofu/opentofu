@@ -394,8 +394,8 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Token:                     stringAttr(obj, "token"),
 		UserAgentProducts: []*awsbase.UserAgentProduct{
 			{Name: "APN", Version: "1.0"},
-			{Name: "placeholderplaceholderplaceholder", Version: "1.0"},
-			{Name: "OpenTF", Version: version.String()},
+			{Name: "HashiCorp", Version: "1.0"},
+			{Name: "Terraform", Version: version.String()},
 		},
 	}
 

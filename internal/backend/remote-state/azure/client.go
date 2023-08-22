@@ -21,7 +21,7 @@ import (
 const (
 	leaseHeader = "x-ms-lease-id"
 	// Must be lower case
-	lockInfoMetaKey = "opentflockid"
+	lockInfoMetaKey = "terraformlockid"
 )
 
 type RemoteClient struct {

@@ -350,7 +350,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	if sessionName == "" {
-		sessionName = "opentf"
+		sessionName = "terraform"
 	}
 	if sessionExpiration == 0 {
 		if v := os.Getenv("ALICLOUD_ASSUME_ROLE_SESSION_EXPIRATION"); v != "" {
@@ -505,7 +505,7 @@ type Catcher struct {
 	RetryWaitSeconds int
 }
 
-const TerraformUA = "placeholderplaceholderplaceholder-OpenTF"
+const TerraformUA = "HashiCorp-Terraform"
 
 var TerraformVersion = strings.TrimSuffix(version.String(), "-dev")
 var ClientErrorCatcher = Catcher{"AliyunGoClientFailure", 10, 3}

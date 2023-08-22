@@ -16,7 +16,7 @@ import (
 
 const REQUEST_CLIENT = "TENCENTCLOUD_API_REQUEST_CLIENT"
 
-var ReqClient = "OpenTF-latest"
+var ReqClient = "Terraform-latest"
 
 func SetReqClient(name string) {
 	if name == "" {
