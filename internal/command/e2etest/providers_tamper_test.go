@@ -163,7 +163,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `provider registry.terraform.io/hashicorp/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `terraform init -upgrade`; !strings.Contains(stderr, want) {
+		if want := `opentf init -upgrade`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
@@ -189,7 +189,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `provider registry.terraform.io/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `terraform init`; !strings.Contains(stderr, want) {
+		if want := `opentf init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})

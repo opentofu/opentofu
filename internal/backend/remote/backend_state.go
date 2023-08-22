@@ -92,7 +92,7 @@ func (r *remoteClient) uploadStateFallback(ctx context.Context, stateFile *state
 func (r *remoteClient) Put(state []byte) error {
 	ctx := context.Background()
 
-	// Read the raw state into a Terraform state.
+	// Read the raw state into a OpenTF state.
 	stateFile, err := statefile.Read(bytes.NewReader(state))
 	if err != nil {
 		return fmt.Errorf("error reading state: %s", err)
@@ -164,7 +164,7 @@ func (r *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 	// Lock the workspace.
 	_, err := r.client.Workspaces.Lock(ctx, r.workspace.ID, tfe.WorkspaceLockOptions{
-		Reason: tfe.String("Locked by Terraform"),
+		Reason: tfe.String("Locked by OpenTF"),
 	})
 	if err != nil {
 		if err == tfe.ErrWorkspaceLocked {

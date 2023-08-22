@@ -612,11 +612,11 @@ something bad happened during this test
 			},
 			StdOut: `  run "run_block"... pass
 
-Terraform used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   + create
 
-Terraform will perform the following actions:
+OpenTF will perform the following actions:
 
   # test_resource.creating will be created
   + resource "test_resource" "creating" {
