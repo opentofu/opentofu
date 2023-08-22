@@ -843,8 +843,8 @@ Warning: second warning
 some thing not very bad happened again
 `,
 			stderr: `
-OpenTF left the following resources in state after executing
-main.tftest.hcl, and they need to be cleaned up manually:
+OpenTF left the following resources in state after executing main.tftest.hcl,
+and they need to be cleaned up manually:
   - test.bar
   - test.bar (0fcb640a)
   - test.foo
@@ -915,8 +915,8 @@ Error: first error
 
 this time it is very bad
 
-OpenTF left the following resources in state after executing
-main.tftest.hcl, and they need to be cleaned up manually:
+OpenTF left the following resources in state after executing main.tftest.hcl,
+and they need to be cleaned up manually:
   - test.bar
   - test.bar (0fcb640a)
   - test.foo
@@ -993,8 +993,8 @@ func TestTestHuman_FatalInterruptSummary(t *testing.T) {
 OpenTF was interrupted while executing main.tftest.hcl, and may not have
 performed the expected cleanup operations.
 
-OpenTF was in the process of creating the following resources for
-"run_block" from the module under test, and they may not have been destroyed:
+OpenTF was in the process of creating the following resources for "run_block"
+from the module under test, and they may not have been destroyed:
   - test_instance.one
   - test_instance.two
 `,
@@ -1210,8 +1210,8 @@ OpenTF has already created the following resources for "setup_block" from
   - test_instance.setup_one
   - test_instance.setup_two
 
-OpenTF was in the process of creating the following resources for
-"run_block" from the module under test, and they may not have been destroyed:
+OpenTF was in the process of creating the following resources for "run_block"
+from the module under test, and they may not have been destroyed:
   - test_instance.new_one
   - test_instance.new_two
 `,
