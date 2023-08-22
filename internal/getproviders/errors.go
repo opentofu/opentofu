@@ -30,9 +30,9 @@ type ErrHostNoProviders struct {
 func (err ErrHostNoProviders) Error() string {
 	switch {
 	case err.HasOtherVersion:
-		return fmt.Sprintf("host %s does not support the provider registry protocol required by this Terraform version, but may be compatible with a different Terraform version", err.Hostname.ForDisplay())
+		return fmt.Sprintf("host %s does not support the provider registry protocol required by this OpenTF version, but may be compatible with a different OpenTF version", err.Hostname.ForDisplay())
 	default:
-		return fmt.Sprintf("host %s does not offer a Terraform provider registry", err.Hostname.ForDisplay())
+		return fmt.Sprintf("host %s does not offer a OpenTF provider registry", err.Hostname.ForDisplay())
 	}
 }
 
