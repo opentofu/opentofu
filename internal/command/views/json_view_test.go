@@ -29,12 +29,12 @@ func TestNewJSONView(t *testing.T) {
 	version := tfversion.String()
 	want := []map[string]interface{}{
 		{
-			"@level":    "info",
-			"@message":  fmt.Sprintf("Terraform %s", version),
-			"@module":   "terraform.ui",
-			"type":      "version",
-			"terraform": version,
-			"ui":        JSON_UI_VERSION,
+			"@level":   "info",
+			"@message": fmt.Sprintf("OpenTF %s", version),
+			"@module":  "opentf.ui",
+			"type":     "version",
+			"opentf":   version,
+			"ui":       JSON_UI_VERSION,
 		},
 	}
 
@@ -51,7 +51,7 @@ func TestJSONView_Log(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "hello, world",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 		},
 	}
@@ -82,7 +82,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		{
 			"@level":   "warn",
 			"@message": `Warning: Improper use of "less"`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]interface{}{
 				"severity": "warning",
@@ -93,7 +93,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		{
 			"@level":   "error",
 			"@message": "Error: Unusually stripey cat detected",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]interface{}{
 				"severity": "error",
@@ -127,7 +127,7 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 		{
 			"@level":   "warn",
 			"@message": `Warning: Improper use of "less"`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]interface{}{
 				"severity": "warning",
@@ -139,7 +139,7 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 		{
 			"@level":   "error",
 			"@message": "Error: Unusually stripey cat detected",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]interface{}{
 				"severity": "error",
@@ -174,7 +174,7 @@ func TestJSONView_PlannedChange(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `module.foo.test_instance.bar["boop"]: Plan to create`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "create",
@@ -215,7 +215,7 @@ func TestJSONView_ResourceDrift(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `module.foo.test_instance.bar["boop"]: Drift detected (update)`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -249,7 +249,7 @@ func TestJSONView_ChangeSummary(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Apply complete! Resources: 1 added, 2 changed, 3 destroyed.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"add":       float64(1),
@@ -279,7 +279,7 @@ func TestJSONView_ChangeSummaryWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Apply complete! Resources: 1 imported, 1 added, 2 changed, 3 destroyed.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"add":       float64(1),
@@ -311,7 +311,7 @@ func TestJSONView_Hook(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `module.foo.test_instance.bar["boop"]: Creation complete after 34s [id=boop-beep]`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "apply_complete",
 			"hook": map[string]interface{}{
 				"resource": map[string]interface{}{
@@ -354,7 +354,7 @@ func TestJSONView_Outputs(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Outputs: 2",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "outputs",
 			"outputs": map[string]interface{}{
 				"boop_count": map[string]interface{}{

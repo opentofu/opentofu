@@ -442,7 +442,7 @@ func TestOperation_planNextStep(t *testing.T) {
 		},
 		"state path": {
 			path: "good plan.tfplan",
-			want: `terraform apply "good plan.tfplan"`,
+			want: `opentf apply "good plan.tfplan"`,
 		},
 	}
 	for name, tc := range testCases {
@@ -488,31 +488,31 @@ func TestOperationJSON_logs(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Apply cancelled",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": "Destroy cancelled",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": "Stopping operation...",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": interrupted,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": fatalInterrupt,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 		},
 	}
@@ -549,7 +549,7 @@ func TestOperationJSON_emergencyDumpState(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Emergency state dump",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "log",
 			"state":    stateJSON,
 		},
@@ -571,7 +571,7 @@ func TestOperationJSON_planNoChanges(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -643,7 +643,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop[0]: Plan to replace",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -662,7 +662,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop[1]: Plan to create",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "create",
@@ -681,7 +681,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.boop[0]: Plan to delete",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -700,7 +700,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Plan to replace",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -719,7 +719,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.beep: Plan to update",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -739,7 +739,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 3 to add, 1 to change, 3 to destroy.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -799,7 +799,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.boop[0]: Plan to import",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "import",
@@ -821,7 +821,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.boop[1]: Plan to delete",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -843,7 +843,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop[0]: Plan to replace",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -865,7 +865,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Plan to update",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -886,7 +886,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 4 to import, 1 to add, 1 to change, 2 to destroy.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -948,7 +948,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Drift detected (delete)",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -967,7 +967,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop: Drift detected (update)",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -995,7 +995,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `test_resource.honk["bonk"]: Plan to move`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "move",
@@ -1023,7 +1023,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -1079,7 +1079,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Drift detected (delete)",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -1098,7 +1098,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop: Drift detected (update)",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -1126,7 +1126,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `test_resource.honk["bonk"]: Drift detected (move)`,
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "move",
@@ -1154,7 +1154,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -1214,7 +1214,7 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -1228,7 +1228,7 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Outputs: 4",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "outputs",
 			"outputs": map[string]interface{}{
 				"boop": map[string]interface{}{
@@ -1289,7 +1289,7 @@ func TestOperationJSON_plannedChange(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop[0]: Plan to replace",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -1308,7 +1308,7 @@ func TestOperationJSON_plannedChange(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop[1]: Plan to create",
-			"@module":  "terraform.ui",
+			"@module":  "opentf.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "create",
