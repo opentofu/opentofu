@@ -499,7 +499,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 					Severity: hcl.DiagWarning,
 					Summary:  "Reference to undefined provider",
 					Detail: fmt.Sprintf(
-						"There is no explicit declaration for local provider name %q in %s, so Terraform is assuming you mean to pass a configuration for provider %q.\n\nTo clarify your intent and silence this warning, add to %s a required_providers entry named %q with source = %q, or a different source address if appropriate.",
+						"There is no explicit declaration for local provider name %q in %s, so OpenTF is assuming you mean to pass a configuration for provider %q.\n\nTo clarify your intent and silence this warning, add to %s a required_providers entry named %q with source = %q, or a different source address if appropriate.",
 						name, moduleText, defAddr.ForDisplay(),
 						parentModuleText, name, defAddr.ForDisplay(),
 					),
@@ -624,7 +624,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 					Severity: hcl.DiagWarning,
 					Summary:  "Reference to undefined provider",
 					Detail: fmt.Sprintf(
-						"There is no explicit declaration for local provider name %q in %s, so Terraform is assuming you mean to pass a configuration for %q.\n\nIf you also control the child module, add a required_providers entry named %q with the source address %q.",
+						"There is no explicit declaration for local provider name %q in %s, so OpenTF is assuming you mean to pass a configuration for %q.\n\nIf you also control the child module, add a required_providers entry named %q with the source address %q.",
 						name, moduleText, providerAddr.Provider.ForDisplay(),
 						name, providerAddr.Provider.ForDisplay(),
 					),
@@ -756,7 +756,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 
 		fmt.Fprintf(
 			&buf,
-			"Earlier versions of Terraform used empty provider blocks (\"proxy provider configurations\") for child modules to declare their need to be passed a provider configuration by their callers. That approach was ambiguous and is now deprecated.\n\nIf you control this module, you can migrate to the new declaration syntax by removing all of the empty provider %q blocks and then adding or updating an entry like the following to the required_providers block of %s:\n",
+			"Earlier versions of OpenTF used empty provider blocks (\"proxy provider configurations\") for child modules to declare their need to be passed a provider configuration by their callers. That approach was ambiguous and is now deprecated.\n\nIf you control this module, you can migrate to the new declaration syntax by removing all of the empty provider %q blocks and then adding or updating an entry like the following to the required_providers block of %s:\n",
 			name, moduleText,
 		)
 		fmt.Fprintf(&buf, "    %s = {\n", name)
