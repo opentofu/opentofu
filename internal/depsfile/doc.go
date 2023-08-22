@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-// Package depsfile contains the logic for reading and writing Terraform's
+// Package depsfile contains the logic for reading and writing OpenTF's
 // dependency lock and development override configuration files.
 //
 // These files are separate from the main Terraform configuration files (.tf)
@@ -9,12 +9,12 @@
 // where .tf files configure a particular module while these configure
 // a whole configuration tree. Another, more practical consideration is that
 // we intend both of these files to be primarily maintained automatically by
-// Terraform itself, rather than by human-originated edits, and so keeping
-// them separate means that it's easier to distinguish the files that Terraform
+// OpenTF itself, rather than by human-originated edits, and so keeping
+// them separate means that it's easier to distinguish the files that OpenTF
 // will change automatically during normal workflow from the files that
-// Terraform only edits on direct request.
+// OpenTF only edits on direct request.
 //
-// Both files use HCL syntax, for consistency with other files in Terraform
+// Both files use HCL syntax, for consistency with other files in OpenTF
 // that we expect humans to (in this case, only occasionally) edit directly.
 // A dependency lock file tracks the most recently selected upstream versions
 // of each dependency, and is intended for checkin to version control.

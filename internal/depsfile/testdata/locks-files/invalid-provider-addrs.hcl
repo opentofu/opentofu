@@ -39,6 +39,6 @@ provider "registry.terraform.io/-/null" { # ERROR: Invalid provider source addre
 }
 
 # Built-in providers are not allowed, because they are not versioned
-# independently of the Terraform CLI release they are embedded in.
+# independently of the OpenTF CLI release they are embedded in.
 provider "terraform.io/builtin/foo" { # ERROR: Invalid provider source address
 }
