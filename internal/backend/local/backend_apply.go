@@ -93,9 +93,9 @@ func (b *Local) opApply(
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			// If OpenTF Core generated a partial plan despite the errors
-			// then we'll make a best effort to render it. OpenTF Core
+			// then we'll make the best effort to render it. OpenTF Core
 			// promises that if it returns a non-nil plan along with errors
-			// then the plan won't necessarily contain all of the needed
+			// then the plan won't necessarily contain all the needed
 			// actions but that any it does include will be properly-formed.
 			// plan.Errored will be true in this case, which our plan
 			// renderer can rely on to tailor its messaging.
@@ -227,7 +227,7 @@ func (b *Local) opApply(
 	// Set up our hook for continuous state updates
 	stateHook.StateMgr = opState
 
-	// Start the apply in a goroutine so that we can be interrupted.
+	// Start to apply in a goroutine so that we can be interrupted.
 	var applyState *states.State
 	var applyDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})

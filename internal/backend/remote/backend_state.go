@@ -128,7 +128,7 @@ func (r *remoteClient) Put(state []byte) error {
 	// Create the new state.
 	_, err = r.client.StateVersions.Upload(ctx, r.workspace.ID, options)
 	if errors.Is(err, tfe.ErrStateVersionUploadNotSupported) {
-		// Create the new state with content included in the request (OpenTF Enterprise v202306-1 and below)
+		// Create the new state with content included in the request (Terraform Enterprise v202306-1 and below)
 		log.Println("[INFO] Detected that state version upload is not supported. Retrying using compatibility state upload.")
 		return r.uploadStateFallback(ctx, stateFile, state, o)
 	}

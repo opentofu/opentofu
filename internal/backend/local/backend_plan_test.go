@@ -404,7 +404,7 @@ func TestLocal_planDeposedOnly(t *testing.T) {
 	// The deposed object and the current object are distinct, so our
 	// plan includes separate actions for each of them. This strange situation
 	// is not common: it should arise only if OpenTF fails during
-	// a create-before-destroy when the create hasn't completed yet but
+	// a create-before-destroy when the "create" hasn't completed yet but
 	// in a severe way that prevents the previous object from being restored
 	// as "current".
 	//

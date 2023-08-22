@@ -700,10 +700,10 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 	return &remote.State{
 		Client: client,
 
-		// client.runID will be set if we're running a the OpenTF Cloud
-		// or OpenTF Enterprise remote execution environment, in which
+		// client.runID will be set if we're running a Terraform Cloud
+		// or Terraform Enterprise remote execution environment, in which
 		// case we'll disable intermediate snapshots to avoid extra storage
-		// costs for OpenTF Enterprise customers.
+		// costs for Terraform Enterprise customers.
 		// Other implementations of the remote state protocol should not run
 		// in contexts where there's a "TFE Run ID" and so are not affected
 		// by this special case.
@@ -758,7 +758,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 	// - Workspace configured for local operations, in which case the remote
 	//   version is meaningless;
 	// - Forcing local operations with a remote backend, which should only
-	//   happen in the OpenTF Cloud worker, in which case the OpenTF
+	//   happen in the Terraform Cloud worker, in which case the OpenTF
 	//   versions by definition match.
 	b.IgnoreVersionConflict()
 

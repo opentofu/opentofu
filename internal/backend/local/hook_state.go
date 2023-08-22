@@ -50,7 +50,7 @@ type IntermediateStatePersistInfo struct {
 	// hasn't yet been a persisted snapshot.
 	LastPersist time.Time
 
-	// ForcePersist is true when OpenTF CLI has receieved an interrupt
+	// ForcePersist is true when OpenTF CLI has received an interrupt
 	// signal and is therefore trying to create snapshots more aggressively
 	// in anticipation of possibly being terminated ungracefully.
 	// [IntermediateStateConditionalPersister] implementations should ideally
@@ -116,7 +116,7 @@ func (h *StateHook) Stopping() {
 			err := mgrPersist.PersistState(h.Schemas)
 			if err != nil {
 				// This hook can't affect OpenTF Core's ongoing behavior,
-				// but it's a best effort thing anyway so we'll just emit a
+				// but it's a best effort thing anyway, so we'll just emit a
 				// log to aid with debugging.
 				log.Printf("[ERROR] Failed to persist state after interruption: %s", err)
 			}

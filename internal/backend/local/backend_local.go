@@ -362,12 +362,12 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 //
 // This function does not modify the map given in "existing", but may return
 // it unchanged if no modifications are required. If modifications are required,
-// the result is a new map with all of the elements from "existing" plus
+// the result is a new map with all the elements from "existing" plus
 // additional elements as appropriate.
 //
 // Interactive prompting is a "best effort" thing for first-time user UX and
 // not something we expect folks to be relying on for routine use. OpenTF
-// is primarily a non-interactive tool and so we prefer to report in error
+// is primarily a non-interactive tool, and so we prefer to report in error
 // messages that variables are not set rather than reporting that input failed:
 // the primary resolution to missing variables is to provide them by some other
 // means.

@@ -165,7 +165,7 @@ func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*
 
 	diags = diags.Append(diagsUndeclared)
 
-	// By this point we should've gathered all of the required root module
+	// By this point we should've gathered all the required root module
 	// variables from one of the many possible sources. We'll now populate
 	// any we haven't gathered as unset placeholders which OpenTF Core
 	// can then react to.
