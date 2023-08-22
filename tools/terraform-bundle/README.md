@@ -52,7 +52,7 @@ OpenTF v0.13's introduction of automatic third-party provider installation.
 
 ## Terraform Enterprise Users
 
-If you use OpenTF Enterprise, the self-hosted distribution of
+If you use Terraform Enterprise, the self-hosted distribution of
 Terraform Cloud, you can use `terraform-bundle` as described above to build
 custom OpenTF packages with bundled provider plugins.
 
