@@ -10,16 +10,17 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
-// DefaultParallelism is the limit Terraform places on total parallel
+// DefaultParallelism is the limit OpenTF places on total parallel
 // operations as it walks the dependency graph.
 const DefaultParallelism = 10
 
-// State describes arguments which are used to define how Terraform interacts
+// State describes arguments which are used to define how OpenTF interacts
 // with state.
 type State struct {
 	// Lock controls whether or not the state manager is used to lock state
@@ -46,7 +47,7 @@ type State struct {
 	BackupPath string
 }
 
-// Operation describes arguments which are used to configure how a Terraform
+// Operation describes arguments which are used to configure how a OpenTF
 // operation such as a plan or apply executes.
 type Operation struct {
 	// PlanMode selects one of the mutually-exclusive planning modes that
@@ -54,7 +55,7 @@ type Operation struct {
 	// only for an operation that produces a plan.
 	PlanMode plans.Mode
 
-	// Parallelism is the limit Terraform places on total parallel operations
+	// Parallelism is the limit OpenTF places on total parallel operations
 	// as it walks the dependency graph.
 	Parallelism int
 
@@ -66,7 +67,7 @@ type Operation struct {
 	// their dependencies.
 	Targets []addrs.Targetable
 
-	// ForceReplace addresses cause Terraform to force a particular set of
+	// ForceReplace addresses cause OpenTF to force a particular set of
 	// resource instances to generate "replace" actions in any plan where they
 	// would normally have generated "no-op" or "update" actions.
 	//
@@ -169,7 +170,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Incompatible refresh options",
-				"It doesn't make sense to use -refresh-only at the same time as -refresh=false, because Terraform would have nothing to do.",
+				"It doesn't make sense to use -refresh-only at the same time as -refresh=false, because OpenTF would have nothing to do.",
 			))
 		}
 	default:
