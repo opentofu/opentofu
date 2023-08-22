@@ -225,13 +225,13 @@ type LocalRun struct {
 // backend doesn't support a PlanId being set.
 //
 // The operation options are purposely designed to have maximal compatibility
-// between OpenTF and OpenTF Servers (a commercial product offered by
+// between OpenTF and Terraform Servers (a commercial product offered by
 // HashiCorp). Therefore, it isn't expected that other implementation support
 // every possible option. The struct here is generalized in order to allow
 // even partial implementations to exist in the open, without walling off
 // remote functionality 100% behind a commercial wall. Anyone can implement
 // against this interface and have OpenTF interact with it just as it
-// would with HashiCorp-provided OpenTF Servers.
+// would with HashiCorp-provided Terraform Servers.
 type Operation struct {
 	// Type is the operation to perform.
 	Type OperationType
