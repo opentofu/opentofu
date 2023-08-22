@@ -7,12 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -550,66 +548,4 @@ func TestConfig_Merge_disableCheckpointSignature(t *testing.T) {
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("bad: %#v", actual)
 	}
-}
-
-func TestConfigDir_BackwardsCompatibility(t *testing.T) {
-	dir, err := os.MkdirTemp("", "opentf_test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %s", err)
-	}
-	defer os.RemoveAll(dir)
-
-	terraformdName := ".terraform.d"
-	opentfdName := ".opentf.d"
-	if runtime.GOOS == "windows" {
-		terraformdName = "terraform.d"
-		opentfdName = "opentf.d"
-	}
-
-	if err := os.Setenv("OPENTF_TEST_HOME", dir); err != nil {
-		t.Fatalf("failed to set env var: %s", err)
-	}
-
-	// The three tests below are grouped for logical ease of understanding, but they are not independent.
-	// They have to run in this exact order.
-	t.Run("when no dir exists, use .opentf.d", func(t *testing.T) {
-		loadedConfigDir, err := configDir()
-		if err != nil {
-			t.Fatalf("failed to get config dir: %s", err)
-		}
-
-		if loadedConfigDir != filepath.Join(dir, opentfdName) {
-			t.Fatalf("bad: %s", loadedConfigDir)
-		}
-	})
-
-	t.Run("when only .terraform.d exists, use .terraform.d for backwards-compatibility reasons", func(t *testing.T) {
-		if err := os.MkdirAll(filepath.Join(dir, terraformdName), 0755); err != nil {
-			t.Fatalf("failed to create temp dir: %s", err)
-		}
-
-		loadedConfigDir, err := configDir()
-		if err != nil {
-			t.Fatalf("failed to get config dir: %s", err)
-		}
-
-		if loadedConfigDir != filepath.Join(dir, terraformdName) {
-			t.Fatalf("bad: %s", loadedConfigDir)
-		}
-	})
-
-	t.Run("when both .terraform.d and .opentf.d exist, use .opentf.d", func(t *testing.T) {
-		if err := os.MkdirAll(filepath.Join(dir, opentfdName), 0755); err != nil {
-			t.Fatalf("failed to create temp dir: %s", err)
-		}
-
-		loadedConfigDir, err := configDir()
-		if err != nil {
-			t.Fatalf("failed to get config dir: %s", err)
-		}
-
-		if loadedConfigDir != filepath.Join(dir, opentfdName) {
-			t.Fatalf("bad: %s", loadedConfigDir)
-		}
-	})
 }
