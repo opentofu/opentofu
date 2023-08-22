@@ -338,10 +338,10 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Failed to create the OpenTF Enterprise client",
+			"Failed to create the Terraform Enterprise client",
 			fmt.Sprintf(
 				`The "remote" backend encountered an unexpected error while creating the `+
-					`OpenTF Enterprise client: %s.`, err,
+					`Terraform Enterprise client: %s.`, err,
 			),
 		))
 		return diags
