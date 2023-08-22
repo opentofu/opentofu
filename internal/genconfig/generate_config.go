@@ -17,8 +17,8 @@ import (
 // GenerateResourceContents generates HCL configuration code for the provided
 // resource and state value.
 //
-// If you want to generate actual valid Terraform code you should follow this
-// call up with a call to WrapResourceContents, which will place a Terraform
+// If you want to generate actual valid OpenTF code you should follow this
+// call up with a call to WrapResourceContents, which will place an OpenTF
 // resource header around the attributes and blocks returned by this function.
 func GenerateResourceContents(addr addrs.AbsResourceInstance,
 	schema *configschema.Block,
