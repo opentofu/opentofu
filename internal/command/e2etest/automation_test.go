@@ -237,8 +237,8 @@ func TestPlanOnlyInAutomation(t *testing.T) {
 
 	// Because we're running with TF_IN_AUTOMATION set, we should not see
 	// any mention of the the "terraform apply" command in the output.
-	if strings.Contains(stdout, "terraform apply") {
-		t.Errorf("unwanted mention of \"terraform apply\" in plan output\n%s", stdout)
+	if strings.Contains(stdout, "opentf apply") {
+		t.Errorf("unwanted mention of \"opentf apply\" in plan output\n%s", stdout)
 	}
 
 	if tf.FileExists("tfplan") {
