@@ -591,7 +591,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Legacy remote state not supported",
-			"This working directory is configured for legacy remote state, which is no longer supported from OpenTF v0.12 onwards. To migrate this environment, first run \"opentf init\" under a Terraform 0.11 release, and then upgrade OpenTF again.",
+			"This working directory is configured for legacy remote state, which is no longer supported from Terraform v0.12 onwards, and thus not supported by OpenTF, either. To migrate this environment, first run \"terraform init\" under a Terraform 0.11 release, and then upgrade to OpenTF.",
 		))
 		return nil, diags
 	}
