@@ -103,7 +103,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		}
 		if useCompact {
 			msg := format.DiagnosticWarningsCompact(diags, v.colorize)
-			msg = "\n" + msg + "\nTo see the full warning notes, run Terraform without -compact-warnings.\n"
+			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTF without -compact-warnings.\n"
 			v.streams.Print(msg)
 			return
 		}
@@ -134,7 +134,7 @@ func (v *View) HelpPrompt(command string) {
 
 const helpPrompt = `
 For more help on using this command, run:
-  terraform %s -help
+  opentf %s -help
 `
 
 // outputColumns returns the number of text character cells any non-error
