@@ -15,7 +15,7 @@ import (
 )
 
 // TestProviderTampering tests various ways that the provider plugins in the
-// local cache directory might be modified after an initial "terraform init",
+// local cache directory might be modified after an initial "opentf init",
 // which other Terraform commands which use those plugins should catch and
 // report early.
 func TestProviderTampering(t *testing.T) {

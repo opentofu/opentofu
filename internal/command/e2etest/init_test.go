@@ -58,7 +58,7 @@ func TestInitProvidersInternal(t *testing.T) {
 	t.Parallel()
 
 	// This test should _not_ reach out anywhere because the "terraform"
-	// provider is internal to the core terraform binary.
+	// provider is internal to the core opentf binary.
 
 	fixturePath := filepath.Join("testdata", "terraform-provider")
 	tf := e2e.NewBinary(t, terraformBin, fixturePath)
@@ -145,7 +145,7 @@ func TestInitProvidersLocalOnly(t *testing.T) {
 	fixturePath := filepath.Join("testdata", "local-only-provider")
 	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 	// If you run this test on a workstation with a plugin-cache directory
-	// configured, it will leave a bad directory behind and terraform init will
+	// configured, it will leave a bad directory behind and opentf init will
 	// not work until you remove it.
 	//
 	// To avoid this, we will  "zero out" any existing cli config file.
