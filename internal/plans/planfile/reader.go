@@ -61,7 +61,7 @@ func Open(filename string) (*Reader, error) {
 		// like our old plan format from versions prior to 0.12.
 		if b, sErr := ioutil.ReadFile(filename); sErr == nil {
 			if bytes.HasPrefix(b, []byte("tfplan")) {
-				return nil, errUnusable(fmt.Errorf("the given plan file was created by an earlier version of Terraform; plan files cannot be shared between different Terraform versions"))
+				return nil, errUnusable(fmt.Errorf("the given plan file was created by an earlier version of OpenTF, or an earlier version of Terraform; plan files cannot be shared between different OpenTF or Terraform versions"))
 			}
 		}
 		return nil, err
@@ -93,7 +93,7 @@ func Open(filename string) (*Reader, error) {
 //
 // Errors can be returned for various reasons, including if the plan file
 // is not of an appropriate format version, if it was created by a different
-// version of Terraform, if it is invalid, etc.
+// version of OpenTF, if it is invalid, etc.
 func (r *Reader) ReadPlan() (*plans.Plan, error) {
 	var planFile *zip.File
 	for _, file := range r.zip.File {
@@ -255,7 +255,7 @@ func (r *Reader) ReadDependencyLocks() (*depsfile.Locks, tfdiags.Diagnostics) {
 	diags = diags.Append(tfdiags.Sourceless(
 		tfdiags.Error,
 		"Saved plan has no dependency lock information",
-		"The specified saved plan file does not include any dependency lock information. This is a bug in the previous run of Terraform that created this file.",
+		"The specified saved plan file does not include any dependency lock information. This is a bug in the previous run of OpenTF that created this file.",
 	))
 	return nil, diags
 }

@@ -75,7 +75,7 @@ type Plan struct {
 	// was derived from:
 	//
 	// PrevRunState is a representation of the outcome of the previous
-	// Terraform operation, without any updates from the remote system but
+	// OpenTF operation, without any updates from the remote system but
 	// potentially including some changes that resulted from state upgrade
 	// actions.
 	//
@@ -98,7 +98,7 @@ type Plan struct {
 	// updated resources. It is easier to build the testing scope with access
 	// to same temporary state the plan used/built.
 	//
-	// This is never recorded outside of Terraform. It is not written into the
+	// This is never recorded outside of OpenTF. It is not written into the
 	// binary plan file, and it is not written into the JSON structured outputs.
 	// The testing framework never writes the plans out but holds everything in
 	// memory as it executes, so there is no need to add any kind of
@@ -108,7 +108,7 @@ type Plan struct {
 
 	// ExternalReferences are references that are being made to resources within
 	// the plan from external sources. As with PlannedState this is used by the
-	// terraform testing framework, and so isn't written into any external
+	// opentf testing framework, and so isn't written into any external
 	// representation of the plan.
 	ExternalReferences []*addrs.Reference
 
@@ -118,7 +118,7 @@ type Plan struct {
 
 // CanApply returns true if and only if the recieving plan includes content
 // that would make sense to apply. If it returns false, the plan operation
-// should indicate that there's nothing to do and Terraform should exit
+// should indicate that there's nothing to do and OpenTF should exit
 // without prompting the user to confirm the changes.
 //
 // This function represents our main business logic for making the decision
@@ -142,7 +142,7 @@ func (p *Plan) CanApply() bool {
 
 	case !p.PriorState.ManagedResourcesEqual(p.PrevRunState):
 		// If there are no changes planned but we detected some
-		// outside-Terraform changes while refreshing then we consider
+		// outside-OpenTF changes while refreshing then we consider
 		// that applyable in isolation only if this was a refresh-only
 		// plan where we expect updating the state to include these
 		// changes was the intended goal.
