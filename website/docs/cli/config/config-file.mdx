@@ -47,7 +47,6 @@ of each of these settings:
 
 ```hcl
 plugin_cache_dir   = "$HOME/.terraform.d/plugin-cache"
-disable_checkpoint = true
 ```
 
 ## Available Settings
@@ -61,14 +60,6 @@ The following settings can be set in the CLI configuration file:
 * `credentials_helper` - configures an external helper program for the storage
   and retrieval of credentials for Terraform Cloud or Terraform Enterprise.
   See [Credentials Helpers](#credentials-helpers) below for more information.
-
-* `disable_checkpoint` — when set to `true`, disables
-  [upgrade and security bulletin checks](/terraform/cli/commands#upgrade-and-security-bulletin-checks)
-  that require reaching out to HashiCorp-provided network services.
-
-* `disable_checkpoint_signature` — when set to `true`, allows the upgrade and
-  security bulletin checks described above but disables the use of an anonymous
-  id used to de-duplicate warning messages.
 
 * `plugin_cache_dir` — enables
   [plugin caching](#provider-plugin-cache)

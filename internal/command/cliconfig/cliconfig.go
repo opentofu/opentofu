@@ -39,9 +39,6 @@ type Config struct {
 	Providers    map[string]string
 	Provisioners map[string]string
 
-	DisableCheckpoint          bool `hcl:"disable_checkpoint"`
-	DisableCheckpointSignature bool `hcl:"disable_checkpoint_signature"`
-
 	// If set, enables local caching of plugins in this directory to
 	// avoid repeatedly re-downloading over the Internet.
 	PluginCacheDir string `hcl:"plugin_cache_dir"`
@@ -360,8 +357,6 @@ func (c *Config) Merge(c2 *Config) *Config {
 		}
 		result.Provisioners[k] = v
 	}
-	result.DisableCheckpoint = c.DisableCheckpoint || c2.DisableCheckpoint
-	result.DisableCheckpointSignature = c.DisableCheckpointSignature || c2.DisableCheckpointSignature
 
 	result.PluginCacheDir = c.PluginCacheDir
 	if result.PluginCacheDir == "" {

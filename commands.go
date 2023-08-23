@@ -305,7 +305,6 @@ func initCommands(
 				Version:           Version,
 				VersionPrerelease: VersionPrerelease,
 				Platform:          getproviders.CurrentPlatform,
-				CheckFunc:         commandVersionCheck,
 			}, nil
 		},
 
