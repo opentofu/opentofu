@@ -15,10 +15,10 @@ import (
 
 // This output is shown if a panic happens.
 const panicOutput = `
-!!!!!!!!!!!!!!!!!!!!!!!!!!! TERRAFORM CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!! OPENTF CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Terraform crashed! This is always indicative of a bug within Terraform.
-Please report the crash with Terraform[1] so that we can fix this.
+OpenTF crashed! This is always indicative of a bug within OpenTF.
+Please report the crash with OpenTF[1] so that we can fix this.
 
 When reporting bugs, please include your terraform version, the stack trace
 shown below, and any additional information which may help replicate the issue.
