@@ -338,10 +338,10 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Failed to create the Terraform Enterprise client",
+			"Failed to create the remote backend client",
 			fmt.Sprintf(
 				`The "remote" backend encountered an unexpected error while creating the `+
-					`Terraform Enterprise client: %s.`, err,
+					`remote backend client: %s.`, err,
 			),
 		))
 		return diags
@@ -487,7 +487,7 @@ func (b *Remote) checkConstraints(c *disco.Constraints) tfdiags.Diagnostics {
 
 	summary := fmt.Sprintf("Incompatible OpenTF version v%s", v.String())
 	details := fmt.Sprintf(
-		"The configured OpenTF Enterprise backend is compatible with OpenTF "+
+		"The configured remote backend is compatible with OpenTF "+
 			"versions >= %s, <= %s%s.", c.Minimum, c.Maximum, excluding,
 	)
 

@@ -46,7 +46,7 @@ const (
 	genericHostname    = "localterraform.com"
 )
 
-// Cloud is an implementation of EnhancedBackend in service of the Terraform Cloud/Enterprise
+// Cloud is an implementation of EnhancedBackend in service of the cloud backend
 // integration for Terraform CLI. This backend is not intended to be surfaced at the user level and
 // is instead an implementation detail of cloud.Cloud.
 type Cloud struct {
@@ -60,16 +60,16 @@ type Cloud struct {
 	// Operation. See Operation for more details.
 	ContextOpts *terraform.ContextOpts
 
-	// client is the Terraform Cloud/Enterprise API client.
+	// client is the cloud backend API client.
 	client *tfe.Client
 
 	// lastRetry is set to the last time a request was retried.
 	lastRetry time.Time
 
-	// hostname of Terraform Cloud or Terraform Enterprise
+	// hostname of cloud backend
 	hostname string
 
-	// token for Terraform Cloud or Terraform Enterprise
+	// token for cloud backend
 	token string
 
 	// organization is the organization that contains the target workspaces.
@@ -244,7 +244,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 		return diagErr
 	}
 
-	// Discover the service URL to confirm that it provides the Terraform Cloud/Enterprise API
+	// Discover the service URL to confirm that it provides the cloud backend API
 	service, err := b.discover()
 
 	// Check for errors before we continue.
@@ -317,10 +317,10 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Failed to create the Terraform Cloud/Enterprise client",
+				"Failed to create the cloud backend client",
 				fmt.Sprintf(
 					`Encountered an unexpected error while creating the `+
-						`Terraform Cloud/Enterprise client: %s.`, err,
+						`Terraform cloud backend client: %s.`, err,
 				),
 			))
 			return diags
@@ -373,15 +373,15 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 			diags = diags.Append(
 				tfdiags.Sourceless(
 					tfdiags.Error,
-					"Unsupported Terraform Enterprise version",
+					"Unsupported cloud backend version",
 					cloudIntegrationUsedInUnsupportedTFE,
 				),
 			)
 		} else {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Unsupported Terraform Enterprise version",
-				`The 'cloud' option is not supported with this version of Terraform Enterprise.`,
+				"Unsupported cloud backend version",
+				`The 'cloud' option is not supported with this version of the cloud backend.`,
 			),
 			)
 		}
@@ -679,7 +679,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 					Name: b.WorkspaceMapping.Project,
 				}
 				// didn't find project, create it instead
-				log.Printf("[TRACE] cloud: Creating Terraform Cloud project %s/%s", b.organization, b.WorkspaceMapping.Project)
+				log.Printf("[TRACE] cloud: Creating cloud backend project %s/%s", b.organization, b.WorkspaceMapping.Project)
 				project, err := b.client.Projects.Create(context.Background(), b.organization, createOpts)
 				if err != nil && err != tfe.ErrResourceNotFound {
 					return nil, fmt.Errorf("failed to create project %s: %v", b.WorkspaceMapping.Project, err)
@@ -690,7 +690,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		}
 
 		// Create a workspace
-		log.Printf("[TRACE] cloud: Creating Terraform Cloud workspace %s/%s", b.organization, name)
+		log.Printf("[TRACE] cloud: Creating cloud backend workspace %s/%s", b.organization, name)
 		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, workspaceCreateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("error creating workspace %s: %v", name, err)
@@ -713,7 +713,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 			// object to do a nicely formatted message, so we're just assuming the
 			// issue was that the version wasn't available since that's probably what
 			// happened.
-			log.Printf("[TRACE] cloud: Attempted to select version %s for TFC workspace; unavailable, so %s will be used instead.", tfversion.String(), workspace.TerraformVersion)
+			log.Printf("[TRACE] cloud: Attempted to select version %s for cloud backend workspace; unavailable, so %s will be used instead.", tfversion.String(), workspace.TerraformVersion)
 			if b.CLI != nil {
 				versionUnavailable := fmt.Sprintf(unavailableTerraformVersion, tfversion.String(), workspace.TerraformVersion)
 				b.CLI.Output(b.Colorize().Color(versionUnavailable))
@@ -725,7 +725,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		options := tfe.WorkspaceAddTagsOptions{
 			Tags: b.WorkspaceMapping.tfeTags(),
 		}
-		log.Printf("[TRACE] cloud: Adding tags for Terraform Cloud workspace %s/%s", b.organization, name)
+		log.Printf("[TRACE] cloud: Adding tags for cloud backend workspace %s/%s", b.organization, name)
 		err = b.client.Workspaces.AddTags(context.Background(), workspace.ID, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error updating workspace %s: %v", name, err)
@@ -797,7 +797,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 		f = b.opApply
 	default:
 		return nil, fmt.Errorf(
-			"\n\nTerraform Cloud does not support the %q operation.", op.Type)
+			"\n\nThe cloud backend does not support the %q operation.", op.Type)
 	}
 
 	// Lock
@@ -1269,7 +1269,7 @@ organization does not have access to it. The new workspace will use %s. You can
 change this later in the workspace settings.[reset]`
 
 const cloudIntegrationUsedInUnsupportedTFE = `
-This version of Terraform Cloud/Enterprise does not support the state mechanism
+This version of cloud backend does not support the state mechanism
 attempting to be used by the platform. This should never happen.
 
 Please reach out to OpenTF Support to resolve this issue.`
@@ -1283,12 +1283,12 @@ configuration to workspaces within a Terraform Cloud organization. Two strategie
 
 [bold]name[reset] - %s`, schemaDescriptionTags, schemaDescriptionName)
 
-	schemaDescriptionHostname = `The Terraform Enterprise hostname to connect to. This optional argument defaults to app.terraform.io
+	schemaDescriptionHostname = `The cloud backend hostname to connect to. This optional argument defaults to app.terraform.io
 for use with Terraform Cloud.`
 
 	schemaDescriptionOrganization = `The name of the organization containing the targeted workspace(s).`
 
-	schemaDescriptionToken = `The token used to authenticate with Terraform Cloud/Enterprise. Typically this argument should not
+	schemaDescriptionToken = `The token used to authenticate with the cloud backend. Typically this argument should not
 be set, and 'opentf login' used instead; your credentials will then be fetched from your CLI
 configuration file or configured credential helper.`
 

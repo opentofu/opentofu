@@ -91,7 +91,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Saved plan is for a different hostname",
-				fmt.Sprintf("The given saved plan refers to a run on %s, but the currently configured Terraform Cloud or Terraform Enterprise instance is %s.", cp.Hostname, b.hostname),
+				fmt.Sprintf("The given saved plan refers to a run on %s, but the currently configured cloud backend instance is %s.", cp.Hostname, b.hostname),
 			))
 			return r, diags.Err()
 		}

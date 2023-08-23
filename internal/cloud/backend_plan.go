@@ -404,7 +404,7 @@ func (b *Cloud) AssertImportCompatible(config *configs.Config) error {
 		}
 		desiredAPIVersion, _ := version.NewVersion("2.6")
 		if currentAPIVersion.LessThan(desiredAPIVersion) {
-			return fmt.Errorf("Import blocks are not supported in this version of Terraform Enterprise. Please remove any import blocks from your config or upgrade Terraform Enterprise.")
+			return fmt.Errorf("Import blocks are not supported in this version of the cloud backend. Please remove any import blocks from your config or upgrade the cloud backend.")
 		}
 
 		// Second, check the agent version is high enough.

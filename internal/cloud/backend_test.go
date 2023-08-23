@@ -728,7 +728,7 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 		t.Fatalf("expected configure to error")
 	}
 
-	expected := `The 'cloud' option is not supported with this version of Terraform Enterprise.`
+	expected := `The 'cloud' option is not supported with this version of the cloud backend.`
 	if !strings.Contains(confDiags.Err().Error(), expected) {
 		t.Fatalf("expected configure to error with %q, got %q", expected, confDiags.Err().Error())
 	}
@@ -766,7 +766,7 @@ func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 		t.Fatalf("expected configure to error")
 	}
 
-	expected := `This version of Terraform Cloud/Enterprise does not support the state mechanism
+	expected := `This version of cloud backend does not support the state mechanism
 attempting to be used by the platform. This should never happen.`
 	if !strings.Contains(confDiags.Err().Error(), expected) {
 		t.Fatalf("expected configure to error with %q, got %q", expected, confDiags.Err().Error())
