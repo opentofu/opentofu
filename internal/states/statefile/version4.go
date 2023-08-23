@@ -44,8 +44,8 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Invalid Terraform version string",
-				fmt.Sprintf("State file claims to have been written by Terraform version %q, which is not a valid version string.", sV4.TerraformVersion),
+				"Invalid OpenTF version string",
+				fmt.Sprintf("State file claims to have been written by OpenTF version %q, which is not a valid version string.", sV4.TerraformVersion),
 			))
 		}
 	}
@@ -427,7 +427,7 @@ func writeStateV4(file *File, w io.Writer) tfdiags.Diagnostics {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Failed to serialize state",
-			fmt.Sprintf("An error occured while serializing the state to save it. This is a bug in Terraform and should be reported: %s.", err),
+			fmt.Sprintf("An error occured while serializing the state to save it. This is a bug in OpenTF and should be reported: %s.", err),
 		))
 		return diags
 	}
