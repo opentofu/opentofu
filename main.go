@@ -75,7 +75,7 @@ func realMain() int {
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
 		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
-		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from Terraform.", openTelemetryExporterEnvVar))
+		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTF.", openTelemetryExporterEnvVar))
 		return 1
 	}
 	var ctx context.Context
@@ -83,7 +83,7 @@ func realMain() int {
 	{
 		// At minimum we emit a span covering the entire command execution.
 		_, displayArgs := shquot.POSIXShellSplit(os.Args)
-		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("terraform %s", displayArgs))
+		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("opentf %s", displayArgs))
 		defer otelSpan.End()
 	}
 
@@ -101,7 +101,7 @@ func realMain() int {
 	}
 
 	log.Printf(
-		"[INFO] Terraform version: %s %s",
+		"[INFO] OpenTF version: %s %s",
 		Version, VersionPrerelease)
 	for _, depMod := range version.InterestingDependencies() {
 		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
@@ -109,7 +109,7 @@ func realMain() int {
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
 	log.Printf("[INFO] CLI args: %#v", os.Args)
 	if ExperimentsAllowed() {
-		log.Printf("[INFO] This build of Terraform allows using experimental features")
+		log.Printf("[INFO] This build of OpenTF allows using experimental features")
 	}
 
 	streams, err := terminal.Init()
@@ -157,7 +157,7 @@ func realMain() int {
 			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
 		}
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, Terraform may not behave as intended.\n\n")
+			Ui.Error("As a result of the above problems, OpenTF may not behave as intended.\n\n")
 			// We continue to run anyway, since Terraform has reasonable defaults.
 		}
 	}
@@ -195,7 +195,7 @@ func realMain() int {
 			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
 		}
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, Terraform's provider installer may not behave as intended.\n\n")
+			Ui.Error("As a result of the above problems, OpenTF's provider installer may not behave as intended.\n\n")
 			// We continue to run anyway, because most commands don't do provider installation.
 		}
 	}
@@ -331,7 +331,7 @@ func realMain() int {
 			if suggestion != "" {
 				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
 			}
-			fmt.Fprintf(os.Stderr, "Terraform has no command named %q.%s\n\nTo see all of Terraform's top-level commands, run:\n  terraform -help\n\n", cmd, suggestion)
+			fmt.Fprintf(os.Stderr, "OpenTF has no command named %q.%s\n\nTo see all of OpenTF's top-level commands, run:\n  opentf -help\n\n", cmd, suggestion)
 			return 1
 		}
 	}

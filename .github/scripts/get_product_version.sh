@@ -30,7 +30,7 @@ LDFLAGS="${LDFLAGS} -X 'main.experimentsAllowed=yes'"
 fi
 LDFLAGS="${LDFLAGS} -X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'"
 
-echo "Building Terraform CLI ${VERSION}"
+echo "Building OpenTF CLI ${VERSION}"
 if [[ "$EXPERIMENTS_ENABLED" == 1 ]]; then
 echo "This build allows use of experimental features"
 fi

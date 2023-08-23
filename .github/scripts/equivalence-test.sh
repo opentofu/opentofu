@@ -10,11 +10,11 @@ Usage: ./equivalence-test.sh <command> [<args>] [<options>]
 
 Description:
   This script will handle various commands related to the execution of the
-  Terraform equivalence tests.
+  OpenTF equivalence tests.
 
 Commands:
   get_target_branch <version>
-    get_target_branch returns the default target branch for a given Terraform
+    get_target_branch returns the default target branch for a given OpenTF
     version.
 
     target_branch=$(./equivalence-test.sh get_target_branch v1.4.3); target_branch=v1.4
@@ -27,7 +27,7 @@ Commands:
     ./equivalence-test.sh download_equivalence_test_binary 0.3.0 ./bin/terraform-equivalence-testing linux amd64
 
   download_terraform_binary <version> <target> <os> <arch>
-    download_terraform_binary downloads the terraform release binary for a given
+    download_terraform_binary downloads the opentf release binary for a given
     version and places it at the target path.
 
     ./equivalence-test.sh download_terraform_binary 1.4.3 ./bin/terraform linux amd64
