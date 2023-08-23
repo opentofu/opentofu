@@ -16,7 +16,7 @@ import (
 
 // The tests in this file run through different scenarios recommended in our
 // "Running Terraform in Automation" guide:
-//     https://www.terraform.io/guides/running-terraform-in-automation.html
+//     https://www.placeholderplaceholderplaceholder.io/guides/running-terraform-in-automation.html
 
 // TestPlanApplyInAutomation runs through the "main case" of init, plan, apply
 // using the specific command line options suggested in the guide.

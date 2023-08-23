@@ -864,7 +864,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			if thirdPartySigned {
 				c.Ui.Info(fmt.Sprintf("\nPartner and community providers are signed by their developers.\n" +
 					"If you'd like to know more about provider signing, you can read about it here:\n" +
-					"https://www.terraform.io/docs/cli/plugins/signing.html"))
+					"https://www.placeholderplaceholderplaceholder.io/docs/cli/plugins/signing.html"))
 			}
 		},
 	}

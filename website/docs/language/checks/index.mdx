@@ -23,7 +23,7 @@ The following example loads the Terraform website and validates that it returns 
 ```hcl
 check "health_check" {
   data "http" "terraform_io" {
-    url = "https://www.terraform.io"
+    url = "https://www.placeholderplaceholderplaceholder.io"
   }
 
   assert {
@@ -101,7 +101,7 @@ For example, you can [rewrite the above `check` block example](#checks-syntax) t
 
 ```hcl
 data "http" "terraform_io" {
-  url = "https://www.terraform.io"
+  url = "https://www.placeholderplaceholderplaceholder.io"
 
   lifecycle {
     postcondition {

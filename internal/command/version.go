@@ -139,7 +139,7 @@ func (c *VersionCommand) Run(args []string) int {
 		if outdated {
 			c.Ui.Output(fmt.Sprintf(
 				"\nYour version of OpenTF is out of date! The latest version\n"+
-					"is %s. You can update by downloading from https://www.terraform.io/downloads.html",
+					"is %s. You can update by downloading from https://www.placeholderplaceholderplaceholder.io/downloads.html",
 				latest))
 		}
 
