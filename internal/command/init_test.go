@@ -2039,7 +2039,7 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Unsupported Terraform Core version`) {
+		if !strings.Contains(errStr, `Unsupported OpenTF Core version`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})
@@ -2063,7 +2063,7 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Unsupported Terraform Core version`) {
+		if !strings.Contains(errStr, `Unsupported OpenTF Core version`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})
