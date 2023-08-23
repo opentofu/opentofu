@@ -168,7 +168,7 @@ type ErrProtocolNotSupported struct {
 
 func (err ErrProtocolNotSupported) Error() string {
 	return fmt.Sprintf(
-		"provider %s %s is not supported by this version of opentf",
+		"provider %s %s is not supported by this version of OpenTF",
 		err.Provider,
 		err.Version,
 	)
