@@ -69,7 +69,7 @@ type ResourceInstanceChangeSrc struct {
 	RequiredReplace cty.PathSet
 
 	// Private allows a provider to stash any extra data that is opaque to
-	// Terraform that relates to this change. Terraform will save this
+	// OpenTF that relates to this change. OpenTF will save this
 	// byte-for-byte and return it to the provider in the apply call.
 	Private []byte
 }
