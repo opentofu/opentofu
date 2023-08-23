@@ -307,7 +307,7 @@ func (c *LoginCommand) outputDefaultTFELoginSuccess(dispHostname string) {
 	c.Ui.Output(
 		fmt.Sprintf(
 			c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]Logged in to Terraform Enterprise (%s)[reset]
+[green][bold]Success![reset] [bold]Logged in to the cloud backend (%s)[reset]
 `)),
 			dispHostname,
 		) + "\n",
