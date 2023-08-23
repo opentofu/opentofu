@@ -2109,7 +2109,7 @@ func TestInit_providerLockFile(t *testing.T) {
 	// The hash in here is for the fake package that newMockProviderSource produces
 	// (so it'll change if newMockProviderSource starts producing different contents)
 	wantLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2136,7 +2136,7 @@ func TestInit_providerLockFileReadonly(t *testing.T) {
 	// The hash in here is for the fake package that newMockProviderSource produces
 	// (so it'll change if newMockProviderSource starts producing different contents)
 	inputLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2149,7 +2149,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	badLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2162,7 +2162,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	updatedLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2176,7 +2176,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	emptyUpdatedLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 `)
 
