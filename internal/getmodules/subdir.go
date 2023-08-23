@@ -27,11 +27,11 @@ func SplitPackageSubdir(given string) (packageAddr, subDir string) {
 	// versions just used go-getter directly and so we need to preserve
 	// its various quirks for compatibility reasons.
 	//
-	// However, note that in Terraform we _always_ split off the subdirectory
-	// portion and handle it within Terraform-level code, _never_ passing
+	// However, note that in OpenTF we _always_ split off the subdirectory
+	// portion and handle it within OpenTF-level code, _never_ passing
 	// a subdirectory portion down into go-getter's own Get function, because
-	// Terraform's ability to refer between local paths inside the same
-	// package depends on Terraform itself always being aware of where the
+	// OpenTF's ability to refer between local paths inside the same
+	// package depends on OpenTF itself always being aware of where the
 	// package's root directory ended up on disk, and always needs the
 	// package installed wholesale.
 	packageAddr, subDir = getter.SourceDirSubdir(given)
