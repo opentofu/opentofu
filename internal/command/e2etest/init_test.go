@@ -379,7 +379,7 @@ func TestInitProviderNotFound(t *testing.T) {
 │ consumers will get the correct providers when using a module. To see which
 │ modules are currently depending on hashicorp/nonexist, run the following
 │ command:
-│     terraform providers
+│     opentf providers
 ╵
 
 `
