@@ -932,7 +932,7 @@ configuration.
 
 The -target option is not for routine use, and is provided only for
 exceptional situations such as recovering from errors or mistakes, or when
-Terraform specifically suggests to use it as part of an error message.
+OpenTF specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
@@ -940,12 +940,11 @@ The plan was created with the -target option in effect, so some changes
 requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
-    terraform plan
+    opentf plan
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
-or when Terraform specifically suggests to use it as part of an error
-message.
+or when OpenTF specifically suggests to use it as part of an error message.
   run "second"... pass
 
 Success! 2 passed, 0 failed.
