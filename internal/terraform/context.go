@@ -172,14 +172,14 @@ type ContextGraphOpts struct {
 //
 // Stop will block until the task completes.
 func (c *Context) Stop() {
-	log.Printf("[WARN] terraform: Stop called, initiating interrupt sequence")
+	log.Printf("[WARN] opentf: Stop called, initiating interrupt sequence")
 
 	c.l.Lock()
 	defer c.l.Unlock()
 
 	// If we're running, then stop
 	if c.runContextCancel != nil {
-		log.Printf("[WARN] terraform: run context exists, stopping")
+		log.Printf("[WARN] opentf: run context exists, stopping")
 
 		// Tell the hook we want to stop
 		c.sh.Stop()
@@ -197,11 +197,11 @@ func (c *Context) Stop() {
 
 	// Grab the condition var before we exit
 	if cond := c.runCond; cond != nil {
-		log.Printf("[INFO] terraform: waiting for graceful stop to complete")
+		log.Printf("[INFO] opentf: waiting for graceful stop to complete")
 		cond.Wait()
 	}
 
-	log.Printf("[WARN] terraform: stop complete")
+	log.Printf("[WARN] opentf: stop complete")
 }
 
 func (c *Context) acquireRun(phase string) func() {
@@ -359,18 +359,18 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 					tfdiags.Error,
 					"Missing required provider",
 					fmt.Sprintf(
-						"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  terraform init",
+						"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  opentf init",
 						providerAddr,
 					),
 				))
 			} else {
-				// Built-in providers can never be installed by "terraform init",
+				// Built-in providers can never be installed by "opentf init",
 				// so no point in confusing the user by suggesting that.
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
 					fmt.Sprintf(
-						"This configuration requires built-in provider %s, but that provider isn't available in this Terraform version.",
+						"This configuration requires built-in provider %s, but that provider isn't available in this OpenTF version.",
 						providerAddr,
 					),
 				))
@@ -401,7 +401,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 						tfdiags.Error,
 						"Missing required provisioner plugin",
 						fmt.Sprintf(
-							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running Terraform.",
+							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTF.",
 							pc.Type,
 						),
 					))

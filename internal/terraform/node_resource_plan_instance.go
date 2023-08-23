@@ -546,7 +546,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 					"the provider detected that no object exists with the given id. "+
 					"Only pre-existing objects can be imported; check that the id "+
 					"is correct and that it is associated with the provider's "+
-					"configured region or endpoint, or use \"terraform apply\" to "+
+					"configured region or endpoint, or use \"opentf apply\" to "+
 					"create a new remote object for this resource.",
 				n.importTarget.Addr,
 			),
