@@ -10,7 +10,7 @@ import (
 )
 
 // fileDetector is a replacement for go-getter's own file detector which
-// better meets Terraform's needs: specifically, it rejects relative filesystem
+// better meets OpenTF's needs: specifically, it rejects relative filesystem
 // paths with a somewhat-decent error message.
 //
 // This is a replacement for some historical hackery we did where we tried to
