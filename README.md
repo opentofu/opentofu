@@ -3,7 +3,7 @@
 - Website: https://www.opentf.org
 - Documentation: [https://www.opentf.org/docs/](https://www.opentf.org/docs/)
 
-<img alt="OpenTF" src="https://www.datocms-assets.com/2885/1629941242-logo-terraform-main.svg" width="600px">
+<img alt="OpenTF" src="https://raw.githubusercontent.com/opentffoundation/brand-artifacts/main/full/transparent/SVG/on-light.svg" width="600px">
 
 OpenTF is an OSS tool for building, changing, and versioning infrastructure safely and efficiently. OpenTF can manage existing and popular service providers as well as custom in-house solutions.
 
