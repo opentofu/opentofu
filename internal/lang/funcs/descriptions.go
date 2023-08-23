@@ -18,7 +18,7 @@ type descriptionEntry struct {
 }
 
 // DescriptionList is a consolidated list containing all descriptions for all
-// functions available within Terraform. A function's description should point
+// functions available within OpenTF. A function's description should point
 // to the matching entry in this list.
 //
 // We keep this as a single list, so we can quickly review descriptions within
@@ -257,7 +257,7 @@ var DescriptionList = map[string]descriptionEntry{
 		ParamDescription: []string{""},
 	},
 	"list": {
-		Description:      "The `list` function is no longer available. Prior to Terraform v0.12 it was the only available syntax for writing a literal list inside an expression, but Terraform v0.12 introduced a new first-class syntax.",
+		Description:      "The `list` function is no longer available. See `tolist` instead.",
 		ParamDescription: []string{""},
 	},
 	"log": {
@@ -273,7 +273,7 @@ var DescriptionList = map[string]descriptionEntry{
 		ParamDescription: []string{""},
 	},
 	"map": {
-		Description:      "The `map` function is no longer available. Prior to Terraform v0.12 it was the only available syntax for writing a literal map inside an expression, but Terraform v0.12 introduced a new first-class syntax.",
+		Description:      "The `map` function is no longer available. See `tomap` instead.",
 		ParamDescription: []string{""},
 	},
 	"matchkeys": {
@@ -419,7 +419,7 @@ var DescriptionList = map[string]descriptionEntry{
 		ParamDescription: []string{"", ""},
 	},
 	"textencodebase64": {
-		Description:      "`textencodebase64` encodes the unicode characters in a given string using a specified character encoding, returning the result base64 encoded because Terraform language strings are always sequences of unicode characters.",
+		Description:      "`textencodebase64` encodes the unicode characters in a given string using a specified character encoding, returning the result base64 encoded because OpenTF language strings are always sequences of unicode characters.",
 		ParamDescription: []string{"", ""},
 	},
 	"timeadd": {

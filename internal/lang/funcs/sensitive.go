@@ -10,7 +10,7 @@ import (
 )
 
 // SensitiveFunc returns a value identical to its argument except that
-// Terraform will consider it to be sensitive.
+// OpenTF will consider it to be sensitive.
 var SensitiveFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
