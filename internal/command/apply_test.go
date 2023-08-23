@@ -2127,7 +2127,7 @@ func TestApply_warnings(t *testing.T) {
 		wantWarnings := []string{
 			"warning 1",
 			"warning 2",
-			"To see the full warning notes, run Terraform without -compact-warnings.",
+			"To see the full warning notes, run OpenTF without -compact-warnings.",
 		}
 		for _, want := range wantWarnings {
 			if !strings.Contains(output.Stdout(), want) {
