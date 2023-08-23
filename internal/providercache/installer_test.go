@@ -1669,7 +1669,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				terraformProvider: nil,
 			},
 			WantErr: `some providers could not be installed:
-- terraform.io/builtin/terraform: this Terraform release has no built-in provider named "terraform"`,
+- terraform.io/builtin/terraform: this OpenTF release has no built-in provider named "terraform"`,
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
 				return map[addrs.Provider][]*testInstallerEventLogItem{
 					noProvider: {
@@ -1684,7 +1684,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						{
 							Event:    "BuiltInProviderFailure",
 							Provider: terraformProvider,
-							Args:     `this Terraform release has no built-in provider named "terraform"`,
+							Args:     `this OpenTF release has no built-in provider named "terraform"`,
 						},
 					},
 				}
@@ -1775,7 +1775,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 			},
 			WantErr: `some providers could not be installed:
-- example.com/foo/beep: locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use terraform init -upgrade to allow selection of new versions`,
+- example.com/foo/beep: locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use opentf init -upgrade to allow selection of new versions`,
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
 				return map[addrs.Provider][]*testInstallerEventLogItem{
 					noProvider: {
@@ -1798,7 +1798,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						{
 							Event:    "QueryPackagesFailure",
 							Provider: beepProvider,
-							Args:     `locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use terraform init -upgrade to allow selection of new versions`,
+							Args:     `locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use opentf init -upgrade to allow selection of new versions`,
 						},
 					},
 				}

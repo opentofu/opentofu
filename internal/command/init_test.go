@@ -2616,7 +2616,7 @@ func TestInit_invalidBuiltInProviders(t *testing.T) {
 	if subStr := "Cannot use terraform.io/builtin/terraform: built-in"; !strings.Contains(errStr, subStr) {
 		t.Errorf("error output should mention the terraform provider\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
-	if subStr := "Cannot use terraform.io/builtin/nonexist: this Terraform release"; !strings.Contains(errStr, subStr) {
+	if subStr := "Cannot use terraform.io/builtin/nonexist: this OpenTF release"; !strings.Contains(errStr, subStr) {
 		t.Errorf("error output should mention the 'nonexist' provider\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
 }
