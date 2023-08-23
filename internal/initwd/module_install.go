@@ -218,7 +218,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 						Severity: hcl.DiagError,
 						Summary:  "Failed to remove local module cache",
 						Detail: fmt.Sprintf(
-							"Terraform tried to remove %s in order to reinstall this module, but encountered an error: %s",
+							"OpenTF tried to remove %s in order to reinstall this module, but encountered an error: %s",
 							instPath, err,
 						),
 					})
@@ -463,7 +463,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid response from remote module registry",
-			Detail:   fmt.Sprintf("The registry at %s returned an invalid response when Terraform requested available versions for module %q (%s:%d).", hostname, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
+			Detail:   fmt.Sprintf("The registry at %s returned an invalid response when OpenTF requested available versions for module %q (%s:%d).", hostname, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
 			Subject:  req.CallRange.Ptr(),
 		})
 		return nil, nil, diags
@@ -482,7 +482,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  "Invalid response from remote module registry",
-				Detail:   fmt.Sprintf("The registry at %s returned an invalid version string %q for module %q (%s:%d), which Terraform ignored.", hostname, mv.Version, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
+				Detail:   fmt.Sprintf("The registry at %s returned an invalid version string %q for module %q (%s:%d), which OpenTF ignored.", hostname, mv.Version, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
 				Subject:  req.CallRange.Ptr(),
 			})
 			continue
@@ -658,7 +658,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in Terraform and should be reported.", modDir),
+			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTF and should be reported.", modDir),
 		})
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
@@ -759,7 +759,7 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in Terraform and should be reported.", modDir),
+			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTF and should be reported.", modDir),
 		})
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
@@ -891,7 +891,7 @@ func maybeImproveLocalInstallError(req *configs.ModuleRequest, diags hcl.Diagnos
 				// treats relative paths as local, so if it seems like that's
 				// what the user was doing then we'll add an additional note
 				// about it.
-				suggestion = "\n\nTerraform treats absolute filesystem paths as external modules which establish a new module package. To treat this directory as part of the same package as its caller, use a local path starting with either \"./\" or \"../\"."
+				suggestion = "\n\nOpenTF treats absolute filesystem paths as external modules which establish a new module package. To treat this directory as part of the same package as its caller, use a local path starting with either \"./\" or \"../\"."
 			}
 			newDiags = newDiags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
