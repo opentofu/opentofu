@@ -200,7 +200,7 @@ func PackageMatchesHash(loc PackageLocation, want Hash) (bool, error) {
 		}
 		return got == want, nil
 	default:
-		return false, fmt.Errorf("unsupported hash format (this may require a newer version of Terraform)")
+		return false, fmt.Errorf("unsupported hash format (this may require a newer version of OpenTF)")
 	}
 }
 
