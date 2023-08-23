@@ -21,7 +21,6 @@ type VersionCommand struct {
 
 	Version           string
 	VersionPrerelease string
-	CheckFunc         VersionCheckFunc
 	Platform          getproviders.Platform
 }
 
@@ -29,12 +28,7 @@ type VersionOutput struct {
 	Version            string            `json:"terraform_version"`
 	Platform           string            `json:"platform"`
 	ProviderSelections map[string]string `json:"provider_selections"`
-	Outdated           bool              `json:"terraform_outdated"`
 }
-
-// VersionCheckFunc is the callback called by the Version command to
-// check if there is a new version of Terraform.
-type VersionCheckFunc func() (VersionCheckInfo, error)
 
 // VersionCheckInfo is the return value for the VersionCheckFunc callback
 // and tells the Version command information about the latest version
@@ -105,21 +99,6 @@ func (c *VersionCommand) Run(args []string) int {
 		}
 	}
 
-	// If we have a version check function, then let's check for
-	// the latest version as well.
-	if c.CheckFunc != nil {
-		// Check the latest version
-		info, err := c.CheckFunc()
-		if err != nil && !jsonOutput {
-			c.Ui.Error(fmt.Sprintf(
-				"\nError checking latest version: %s", err))
-		}
-		if info.Outdated {
-			outdated = true
-			latest = info.Latest
-		}
-	}
-
 	if jsonOutput {
 		selectionsOutput := make(map[string]string)
 		for providerAddr, lock := range providerLocks {
@@ -138,7 +117,6 @@ func (c *VersionCommand) Run(args []string) int {
 			Version:            versionOutput,
 			Platform:           c.Platform.String(),
 			ProviderSelections: selectionsOutput,
-			Outdated:           outdated,
 		}
 
 		jsonOutput, err := json.MarshalIndent(output, "", "  ")

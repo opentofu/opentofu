@@ -88,30 +88,6 @@ func TestVersion_flags(t *testing.T) {
 	}
 }
 
-func TestVersion_outdated(t *testing.T) {
-	ui := new(cli.MockUi)
-	m := Meta{
-		Ui: ui,
-	}
-
-	c := &VersionCommand{
-		Meta:      m,
-		Version:   "4.5.6",
-		CheckFunc: mockVersionCheckFunc(true, "4.5.7"),
-		Platform:  getproviders.Platform{OS: "aros", Arch: "riscv64"},
-	}
-
-	if code := c.Run([]string{}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
-	}
-
-	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "Terraform v4.5.6\non aros_riscv64\n\nYour version of Terraform is out of date! The latest version\nis 4.5.7. You can update by downloading from https://www.terraform.io/downloads.html"
-	if actual != expected {
-		t.Fatalf("wrong output\ngot: %#v\nwant: %#v", actual, expected)
-	}
-}
-
 func TestVersion_json(t *testing.T) {
 	td := t.TempDir()
 	defer testChdir(t, td)()
@@ -136,8 +112,7 @@ func TestVersion_json(t *testing.T) {
 {
   "terraform_version": "4.5.6",
   "platform": "aros_riscv64",
-  "provider_selections": {},
-  "terraform_outdated": false
+  "provider_selections": {}
 }
 `)
 	if diff := cmp.Diff(expected, actual); diff != "" {
@@ -186,46 +161,11 @@ func TestVersion_json(t *testing.T) {
   "provider_selections": {
     "registry.terraform.io/hashicorp/test1": "7.8.9-beta.2",
     "registry.terraform.io/hashicorp/test2": "1.2.3"
-  },
-  "terraform_outdated": false
+  }
 }
 `)
 	if diff := cmp.Diff(expected, actual); diff != "" {
 		t.Fatalf("wrong output\n%s", diff)
 	}
 
-}
-
-func TestVersion_jsonoutdated(t *testing.T) {
-	ui := new(cli.MockUi)
-	m := Meta{
-		Ui: ui,
-	}
-
-	c := &VersionCommand{
-		Meta:      m,
-		Version:   "4.5.6",
-		CheckFunc: mockVersionCheckFunc(true, "4.5.7"),
-		Platform:  getproviders.Platform{OS: "aros", Arch: "riscv64"},
-	}
-
-	if code := c.Run([]string{"-json"}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
-	}
-
-	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "{\n  \"terraform_version\": \"4.5.6\",\n  \"platform\": \"aros_riscv64\",\n  \"provider_selections\": {},\n  \"terraform_outdated\": true\n}"
-	if actual != expected {
-		t.Fatalf("wrong output\ngot: %#v\nwant: %#v", actual, expected)
-	}
-}
-
-func mockVersionCheckFunc(outdated bool, latest string) VersionCheckFunc {
-	return func() (VersionCheckInfo, error) {
-		return VersionCheckInfo{
-			Outdated: outdated,
-			Latest:   latest,
-			// Alerts is not used by version command
-		}, nil
-	}
 }

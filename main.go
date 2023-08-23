@@ -249,9 +249,6 @@ func realMain() int {
 		initCommands(ctx, originalWd, streams, config, services, providerSrc, providerDevOverrides, unmanagedProviders)
 	}
 
-	// Run checkpoint
-	go runCheckpoint(ctx, config)
-
 	// Make sure we clean up any managed plugins at the end of this
 	defer plugin.CleanupClients()
 

@@ -123,11 +123,6 @@ func (b *binary) Cmd(args ...string) *exec.Cmd {
 	cmd.Dir = b.workDir
 	cmd.Env = os.Environ()
 
-	// Disable checkpoint since we don't want to harass that service when
-	// our tests run. (This does, of course, mean we can't actually do
-	// end-to-end testing of our Checkpoint interactions.)
-	cmd.Env = append(cmd.Env, "CHECKPOINT_DISABLE=1")
-
 	cmd.Env = append(cmd.Env, b.env...)
 
 	return cmd
