@@ -281,7 +281,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	// Return an error if we still don't have a token at this point.
 	if token == "" {
-		loginCommand := "terraform login"
+		loginCommand := "opentf login"
 		if b.hostname != defaultHostname {
 			loginCommand = loginCommand + " " + b.hostname
 		}
@@ -741,7 +741,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		// Explicitly ignore the pseudo-version "latest" here, as it will cause
 		// plan and apply to always fail.
 		if remoteTFVersion != tfversion.String() && remoteTFVersion != "latest" {
-			return nil, fmt.Errorf("Remote workspace Terraform version %q does not match local Terraform version %q", remoteTFVersion, tfversion.String())
+			return nil, fmt.Errorf("Remote workspace TF version %q does not match local OpenTF version %q", remoteTFVersion, tfversion.String())
 		}
 	}
 
@@ -785,7 +785,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	case backend.OperationTypeApply:
 		f = b.opApply
 	case backend.OperationTypeRefresh:
-		// The `terraform refresh` command has been deprecated in favor of `terraform apply -refresh-state`.
+		// The `opentf refresh` command has been deprecated in favor of `opentf apply -refresh-state`.
 		// Rather than respond with an error telling the user to run the other command we can just run
 		// that command instead. We will tell the user what we are doing, and then do it.
 		if b.CLI != nil {
@@ -965,8 +965,8 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 	remoteConstraint, err := version.NewConstraint(workspace.TerraformVersion)
 	if err != nil {
 		message := fmt.Sprintf(
-			"The remote workspace specified an invalid Terraform version or constraint (%s), "+
-				"and it isn't possible to determine whether the local Terraform version (%s) is compatible.",
+			"The remote workspace specified an invalid TF version or constraint (%s), "+
+				"and it isn't possible to determine whether the local OpenTF version (%s) is compatible.",
 			workspace.TerraformVersion,
 			tfversion.String(),
 		)
@@ -1018,7 +1018,7 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 	}
 
 	message := fmt.Sprintf(
-		"The local Terraform version (%s) does not meet the version requirements for remote workspace %s/%s (%s).",
+		"The local OpenTF version (%s) does not meet the version requirements for remote workspace %s/%s (%s).",
 		tfversion.String(),
 		b.organization,
 		workspace.Name,
@@ -1148,7 +1148,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 		return tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid workspace selection",
-			fmt.Sprintf(`Terraform failed to find workspace %q in organization %s.`, workspace, organization),
+			fmt.Sprintf(`OpenTF failed to find workspace %q in organization %s.`, workspace, organization),
 		)
 	}
 
@@ -1185,7 +1185,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 			tfdiags.Error,
 			"Invalid workspace selection",
 			fmt.Sprintf(
-				"Terraform failed to find workspace %q with the tags specified in your configuration:\n[%s]",
+				"OpenTF failed to find workspace %q with the tags specified in your configuration:\n[%s]",
 				workspace,
 				strings.ReplaceAll(opts.Tags, ",", ", "),
 			),
@@ -1245,7 +1245,7 @@ func generalError(msg string, err error) error {
 // The newline in this error is to make it look good in the CLI!
 const initialRetryError = `
 [reset][yellow]There was an error connecting to Terraform Cloud. Please do not exit
-Terraform to prevent data loss! Trying to restore the connection...
+OpenTF to prevent data loss! Trying to restore the connection...
 [reset]
 `
 
@@ -1261,10 +1261,10 @@ const operationNotCanceled = `
 [reset][red]The remote operation was not cancelled.[reset]
 `
 
-const refreshToApplyRefresh = `[bold][yellow]Proceeding with 'terraform apply -refresh-only -auto-approve'.[reset]`
+const refreshToApplyRefresh = `[bold][yellow]Proceeding with 'opentf apply -refresh-only -auto-approve'.[reset]`
 
 const unavailableTerraformVersion = `
-[reset][yellow]The local Terraform version (%s) is not available in Terraform Cloud, or your
+[reset][yellow]The local OpenTF version (%s) is not available in Terraform Cloud, or your
 organization does not have access to it. The new workspace will use %s. You can
 change this later in the workspace settings.[reset]`
 
@@ -1272,11 +1272,11 @@ const cloudIntegrationUsedInUnsupportedTFE = `
 This version of Terraform Cloud/Enterprise does not support the state mechanism
 attempting to be used by the platform. This should never happen.
 
-Please reach out to HashiCorp Support to resolve this issue.`
+Please reach out to OpenTF Support to resolve this issue.`
 
 var (
 	workspaceConfigurationHelp = fmt.Sprintf(
-		`The 'workspaces' block configures how Terraform CLI maps its workspaces for this single
+		`The 'workspaces' block configures how OpenTF CLI maps its workspaces for this single
 configuration to workspaces within a Terraform Cloud organization. Two strategies are available:
 
 [bold]tags[reset] - %s
@@ -1289,12 +1289,12 @@ for use with Terraform Cloud.`
 	schemaDescriptionOrganization = `The name of the organization containing the targeted workspace(s).`
 
 	schemaDescriptionToken = `The token used to authenticate with Terraform Cloud/Enterprise. Typically this argument should not
-be set, and 'terraform login' used instead; your credentials will then be fetched from your CLI
+be set, and 'opentf login' used instead; your credentials will then be fetched from your CLI
 configuration file or configured credential helper.`
 
 	schemaDescriptionTags = `A set of tags used to select remote Terraform Cloud workspaces to be used for this single
 configuration. New workspaces will automatically be tagged with these tag values. Generally, this
-is the primary and recommended strategy to use.  This option conflicts with "name".`
+is the primary and recommended strategy to use. This option conflicts with "name".`
 
 	schemaDescriptionName = `The name of a single Terraform Cloud workspace to be used with this configuration.
 When configured, only the specified workspace can be used. This option conflicts with "tags".`

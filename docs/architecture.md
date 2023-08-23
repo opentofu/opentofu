@@ -1,26 +1,26 @@
-# Terraform Core Architecture Summary
+# OpenTF Core Architecture Summary
 
-This document is a summary of the main components of Terraform Core and how
+This document is a summary of the main components of OpenTF Core and how
 data and requests flow between these components. It's intended as a primer
 to help navigate the codebase to dig into more details.
 
-We assume some familiarity with user-facing Terraform concepts like
-configuration, state, CLI workflow, etc. The Terraform website has
+We assume some familiarity with user-facing OpenTF concepts like
+configuration, state, CLI workflow, etc. The OpenTF website has
 documentation on these ideas.
 
-## Terraform Request Flow
+## OpenTF Request Flow
 
 The following diagram shows an approximation of how a user command is
-executed in Terraform:
+executed in OpenTF:
 
-![Terraform Architecture Diagram, described in text below](./images/architecture-overview.png)
+![OpenTF Architecture Diagram, described in text below](./images/architecture-overview.png)
 
 Each of the different subsystems (solid boxes) in this diagram is described
 in more detail in a corresponding section below.
 
 ## CLI (`command` package)
 
-Each time a user runs the `terraform` program, aside from some initial
+Each time a user runs the `opentf` program, aside from some initial
 bootstrapping in the root package (not shown in the diagram) execution
 transfers immediately into one of the "command" implementations in
 [the `command` package](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/command).
@@ -29,8 +29,8 @@ their corresponding `command` package types can be found in the `commands.go`
 file in the root of the repository.
 
 The full flow illustrated above does not actually apply to _all_ commands,
-but it applies to the main Terraform workflow commands `terraform plan` and
-`terraform apply`, along with a few others.
+but it applies to the main OpenTF workflow commands `opentf plan` and
+`opentf apply`, along with a few others.
 
 For these commands, the role of the command implementation is to read and parse
 any command line arguments, command line options, and environment variables
@@ -62,18 +62,18 @@ the command-handling code calls `Operation` with the operation it has
 constructed, and then the backend is responsible for executing that action.
 
 Backends that execute operations, however, do so as an architectural implementation detail and not a
-general feature of backends. That is, the term 'backend' as a Terraform feature is used to refer to
-a plugin that determines where Terraform stores its state snapshots - only the default `local`
+general feature of backends. That is, the term 'backend' as a OpenTF feature is used to refer to
+a plugin that determines where OpenTF stores its state snapshots - only the default `local`
 backend and Terraform Cloud's backends (`remote`, `cloud`) perform operations.
 
 Thus, most backends do _not_ implement this interface, and so the `command` package wraps these
 backends in an instance of
 [`local.Local`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local#Local),
-causing the operation to be executed locally within the `terraform` process itself.
+causing the operation to be executed locally within the `opentf` process itself.
 
 ## Backends
 
-A _backend_ determines where Terraform should store its state snapshots.
+A _backend_ determines where OpenTF should store its state snapshots.
 
 As described above, the `local` backend also executes operations on behalf of most other
 backends. It uses a _state manager_
@@ -86,7 +86,7 @@ initial processing/validation of the configuration specified in the
 operation. It then uses these, along with the other settings given in the
 operation, to construct a
 [`terraform.Context`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#Context),
-which is the main object that actually performs Terraform operations.
+which is the main object that actually performs OpenTF operations.
 
 The `local` backend finally calls an appropriate method on that context to
 begin execution of the relevant command, such as
@@ -109,13 +109,13 @@ configuration objects, but the main entry point is in the sub-package
 via
 [`configload.Loader`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload#Loader).
 A loader deals with all of the details of installing child modules
-(during `terraform init`) and then locating those modules again when a
+(during `opentf init`) and then locating those modules again when a
 configuration is loaded by a backend. It takes the path to a root module
 and recursively loads all of the child modules to produce a single
 [`configs.Config`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/configs#Config)
 representing the entire configuration.
 
-Terraform expects configuration files written in the Terraform language, which
+OpenTF expects configuration files written in the OpenTF language, which
 is a DSL built on top of
 [HCL](https://github.com/hashicorp/hcl). Some parts of the configuration
 cannot be interpreted until we build and walk the graph, since they depend
@@ -124,12 +124,12 @@ the configuration remain represented as the low-level HCL types
 [`hcl.Body`](https://pkg.go.dev/github.com/hashicorp/hcl/v2/#Body)
 and
 [`hcl.Expression`](https://pkg.go.dev/github.com/hashicorp/hcl/v2/#Expression),
-allowing Terraform to interpret them at a more appropriate time.
+allowing OpenTF to interpret them at a more appropriate time.
 
 ## State Manager
 
 A _state manager_ is responsible for storing and retrieving snapshots of the
-[Terraform state](https://www.terraform.io/docs/language/state/index.html)
+[OpenTF state](https://www.terraform.io/docs/language/state/index.html)
 for a particular workspace. Each manager is an implementation of
 some combination of interfaces in
 [the `statemgr` package](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr),
@@ -144,7 +144,7 @@ that does not implement all of `statemgr.Full`.
 The implementation
 [`statemgr.Filesystem`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr#Filesystem) is used
 by default (by the `local` backend) and is responsible for the familiar
-`terraform.tfstate` local file that most Terraform users start with, before
+`terraform.tfstate` local file that most OpenTF users start with, before
 they switch to [remote state](https://www.terraform.io/docs/language/state/remote.html).
 Other implementations of `statemgr.Full` are used to implement remote state.
 Each of these saves and retrieves state via a remote network service
@@ -166,12 +166,12 @@ to represent the necessary steps for that operation and the dependency
 relationships between them.
 
 In most cases, the
-[vertices](https://en.wikipedia.org/wiki/Vertex_(graph_theory)) of Terraform's
+[vertices](https://en.wikipedia.org/wiki/Vertex_(graph_theory)) of OpenTF's
 graphs each represent a specific object in the configuration, or something
 derived from those configuration objects. For example, each `resource` block
 in the configuration has one corresponding
 [`GraphNodeConfigResource`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#GraphNodeConfigResource)
-vertex representing it in the "plan" graph. (Terraform Core uses terminology
+vertex representing it in the "plan" graph. (OpenTF Core uses terminology
 inconsistently, describing graph _vertices_ also as graph _nodes_ in various
 places. These both describe the same concept.)
 
@@ -228,7 +228,7 @@ itself is implemented in
 [the low-level `dag` package](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/dag#AcyclicGraph.Walk)
 (where "DAG" is short for [_Directed Acyclic Graph_](https://en.wikipedia.org/wiki/Directed_acyclic_graph)), in
 [`AcyclicGraph.Walk`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/dag#AcyclicGraph.Walk).
-However, the "interesting" Terraform walk functionality is implemented in
+However, the "interesting" OpenTF walk functionality is implemented in
 [`terraform.ContextGraphWalker`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#ContextGraphWalker),
 which implements a small set of higher-level operations that are performed
 during the graph walk:
@@ -346,7 +346,7 @@ or
 
 Expression evaluation produces a dynamic value represented as a
 [`cty.Value`](https://pkg.go.dev/github.com/zclconf/go-cty/cty#Value).
-This Go type represents values from the Terraform language and such values
+This Go type represents values from the OpenTF language and such values
 are eventually passed to provider plugins.
 
 ### Sub-graphs

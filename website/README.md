@@ -55,7 +55,7 @@ You should preview all of your changes locally before creating a pull request. T
 
 **Launch Site Locally**
 
-1. Navigate into your local `terraform` top-level directory and run `make website`.
+1. Navigate into your local `opentf` top-level directory and run `make website`.
 1. Open `http://localhost:3000` in your web browser. While the preview is running, you can edit pages and Next.js automatically rebuilds them.
 1. Press `ctrl-C` in your terminal to stop the server and end the preview.
 
@@ -63,7 +63,7 @@ You should preview all of your changes locally before creating a pull request. T
 
 Merging a PR to `main` queues up documentation changes for the next minor product release. Your changes are not immediately available on the website.
 
-The website generates versioned documentation by pointing to the HEAD of the release branch for that version. For example, the `v1.2.x` documentation on the website points to the HEAD of the `v1.2` release branch in the `terraform` repository. To update existing documentation versions, you must also backport your changes to that release branch. Backported changes become live on the site within one hour.
+The website generates versioned documentation by pointing to the HEAD of the release branch for that version. For example, the `v1.2.x` documentation on the website points to the HEAD of the `v1.2` release branch in the `opentf` repository. To update existing documentation versions, you must also backport your changes to that release branch. Backported changes become live on the site within one hour.
 
 ### Backporting
 
