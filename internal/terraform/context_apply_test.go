@@ -1707,7 +1707,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 	// Config contains CBD resource depending on non-CBD resource, which triggers
 	// a cycle if they are both replaced, but should _not_ trigger a cycle when
-	// just doing a `terraform destroy`.
+	// just doing a `opentf destroy`.
 	m := testModule(t, "apply-destroy-cbd")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn

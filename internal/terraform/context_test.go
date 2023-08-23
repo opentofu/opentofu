@@ -222,27 +222,27 @@ resource "implicit_thing" "b" {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires built-in provider terraform.io/builtin/nonexist, but that provider isn't available in this Terraform version.",
+					"This configuration requires built-in provider terraform.io/builtin/nonexist, but that provider isn't available in this OpenTF version.",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires provider example.com/foo/beep, but that provider isn't available. You may be able to install it automatically by running:\n  terraform init",
+					"This configuration requires provider example.com/foo/beep, but that provider isn't available. You may be able to install it automatically by running:\n  opentf init",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires provider registry.terraform.io/hashicorp/implicit, but that provider isn't available. You may be able to install it automatically by running:\n  terraform init",
+					"This configuration requires provider registry.terraform.io/hashicorp/implicit, but that provider isn't available. You may be able to install it automatically by running:\n  opentf init",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires provider registry.terraform.io/hashicorp/implicit2, but that provider isn't available. You may be able to install it automatically by running:\n  terraform init",
+					"This configuration requires provider registry.terraform.io/hashicorp/implicit2, but that provider isn't available. You may be able to install it automatically by running:\n  opentf init",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provisioner plugin",
-					`This configuration requires provisioner plugin "nonexist", which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running Terraform.`,
+					`This configuration requires provisioner plugin "nonexist", which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTF.`,
 				),
 			)
 			assertDiagnosticsMatch(t, gotDiags, wantDiags)

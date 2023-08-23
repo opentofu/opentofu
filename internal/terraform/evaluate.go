@@ -673,7 +673,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Missing resource type schema`,
-			Detail:   fmt.Sprintf("No schema is available for %s in %s. This is a bug in Terraform and should be reported.", addr, config.Provider),
+			Detail:   fmt.Sprintf("No schema is available for %s in %s. This is a bug in OpenTF and should be reported.", addr, config.Provider),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags
@@ -999,7 +999,7 @@ func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.Source
 	diags = diags.Append(&hcl.Diagnostic{
 		Severity: hcl.DiagError,
 		Summary:  "Reference to \"check\" in invalid context",
-		Detail:   "The \"check\" object can only be referenced from an \"expect_failures\" attribute within a Terraform testing \"run\" block.",
+		Detail:   "The \"check\" object can only be referenced from an \"expect_failures\" attribute within a OpenTF testing \"run\" block.",
 		Subject:  rng.ToHCL().Ptr(),
 	})
 	return cty.NilVal, diags

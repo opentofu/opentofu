@@ -143,17 +143,17 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Incompatible plan options",
-				"Cannot skip refreshing in refresh-only mode. This is a bug in Terraform.",
+				"Cannot skip refreshing in refresh-only mode. This is a bug in OpenTF.",
 			))
 			return nil, diags
 		}
 	default:
 		// The CLI layer (and other similar callers) should not try to
-		// create a context for a mode that Terraform Core doesn't support.
+		// create a context for a mode that OpenTF Core doesn't support.
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Unsupported plan mode",
-			fmt.Sprintf("Terraform Core doesn't know how to handle plan mode %s. This is a bug in Terraform.", opts.Mode),
+			fmt.Sprintf("OpenTF Core doesn't know how to handle plan mode %s. This is a bug in OpenTF.", opts.Mode),
 		))
 		return nil, diags
 	}
@@ -184,7 +184,7 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 			"Resource targeting is in effect",
 			`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when Terraform specifically suggests to use it as part of an error message.`,
+The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTF specifically suggests to use it as part of an error message.`,
 		))
 	}
 
@@ -343,7 +343,7 @@ func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.S
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid refresh-only plan",
-			"Terraform generated planned resource changes in a refresh-only plan. This is a bug in Terraform.",
+			"OpenTF generated planned resource changes in a refresh-only plan. This is a bug in OpenTF.",
 		))
 	}
 
@@ -511,7 +511,7 @@ func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults
 			tfdiags.Error,
 			"Moved resource instances excluded by targeting",
 			fmt.Sprintf(
-				"Resource instances in your current state have moved to new addresses in the latest configuration. Terraform must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.\n\nTo create a valid plan, either remove your -target=... options altogether or add the following additional target options:%s\n\nNote that adding these options may include further additional resource instances in your plan, in order to respect object dependencies.",
+				"Resource instances in your current state have moved to new addresses in the latest configuration. OpenTF must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.\n\nTo create a valid plan, either remove your -target=... options altogether or add the following additional target options:%s\n\nNote that adding these options may include further additional resource instances in your plan, in order to respect object dependencies.",
 				listBuf.String(),
 			),
 		))
@@ -892,7 +892,7 @@ func blockedMovesWarningDiag(results refactoring.MoveResults) tfdiags.Diagnostic
 		tfdiags.Warning,
 		"Unresolved resource instance address changes",
 		fmt.Sprintf(
-			"Terraform tried to adjust resource instance addresses in the prior state based on change information recorded in the configuration, but some adjustments did not succeed due to existing objects already at the intended addresses:%s\n\nTerraform has planned to destroy these objects. If Terraform's proposed changes aren't appropriate, you must first resolve the conflicts using the \"terraform state\" subcommands and then create a new plan.",
+			"OpenTF tried to adjust resource instance addresses in the prior state based on change information recorded in the configuration, but some adjustments did not succeed due to existing objects already at the intended addresses:%s\n\nOpenTF has planned to destroy these objects. If OpenTF's proposed changes aren't appropriate, you must first resolve the conflicts using the \"opentf state\" subcommands and then create a new plan.",
 			itemsBuf.String(),
 		),
 	)
