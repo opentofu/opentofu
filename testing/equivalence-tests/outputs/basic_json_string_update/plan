@@ -35,4 +35,4 @@ Plan: 0 to add, 1 to change, 0 to destroy.
 Saved the plan to: equivalence_test_plan
 
 To perform exactly these actions, run the following command to apply:
-    terraform apply "equivalence_test_plan"
+    opentf apply "equivalence_test_plan"
