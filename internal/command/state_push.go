@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
@@ -154,7 +155,7 @@ func (c *StatePushCommand) Run(args []string) int {
 
 func (c *StatePushCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] state push [options] PATH
+Usage: opentf [global options] state push [options] PATH
 
   Update remote state from a local state file at PATH.
 

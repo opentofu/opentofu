@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"

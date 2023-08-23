@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
@@ -56,7 +57,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "Terraform v4.5.6-foo\non aros_riscv64\n+ provider registry.terraform.io/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.terraform.io/hashicorp/test2 v1.2.3"
+	expected := "OpenTF v4.5.6-foo\non aros_riscv64\n+ provider registry.terraform.io/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.terraform.io/hashicorp/test2 v1.2.3"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot:\n%s\nwant:\n%s", actual, expected)
 	}
@@ -82,7 +83,7 @@ func TestVersion_flags(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "Terraform v4.5.6-foo\non aros_riscv64"
+	expected := "OpenTF v4.5.6-foo\non aros_riscv64"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot: %#v\nwant: %#v", actual, expected)
 	}

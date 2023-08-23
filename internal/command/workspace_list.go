@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/posener/complete"
+
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 type WorkspaceListCommand struct {
@@ -94,9 +95,9 @@ func (c *WorkspaceListCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceListCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] workspace list
+Usage: opentf [global options] workspace list
 
-  List Terraform workspaces.
+  List OpenTF workspaces.
 
 `
 	return strings.TrimSpace(helpText)

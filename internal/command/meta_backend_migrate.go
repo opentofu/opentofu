@@ -941,9 +941,9 @@ const errMigrateLoadStates = `
 Error inspecting states in the %q backend:
     %s
 
-Prior to changing backends, Terraform inspects the source and destination
+Prior to changing backends, OpenTF inspects the source and destination
 states to determine what kind of migration steps need to be taken, if any.
-Terraform failed to load the states. The data in both the source and the
+OpenTF failed to load the states. The data in both the source and the
 destination remain unmodified. Please resolve the above error and try again.
 `
 
@@ -951,7 +951,7 @@ const errMigrateSingleLoadDefault = `
 Error loading state:
     %[2]s
 
-Terraform failed to load the default state from the %[1]q backend.
+OpenTF failed to load the default state from the %[1]q backend.
 State migration cannot occur unless the state can be loaded. Backend
 modification and state migration has been aborted. The state in both the
 source and the destination remain unmodified. Please resolve the
@@ -963,7 +963,7 @@ Error migrating the workspace %q from the previous %q backend
 to the newly configured %q backend:
     %s
 
-Terraform copies workspaces in alphabetical order. Any workspaces
+OpenTF copies workspaces in alphabetical order. Any workspaces
 alphabetically earlier than this one have been copied. Any workspaces
 later than this haven't been modified in the destination. No workspaces
 in the source state have been modified.
@@ -1002,7 +1002,7 @@ For example, if a workspace is currently named 'prod', the pattern 'app-*' would
 `
 
 const tfcInputBackendMigrateMultiToMulti = `
-Unlike typical Terraform workspaces representing an environment associated with a particular
+Unlike typical OpenTF workspaces representing an environment associated with a particular
 configuration (e.g. production, staging, development), Terraform Cloud workspaces are named uniquely
 across all configurations used within an organization. A typical strategy to start with is
 <COMPONENT>-<ENVIRONMENT>-<REGION> (e.g. networking-prod-us-east, networking-staging-us-east).
@@ -1027,7 +1027,7 @@ Enter "yes" to proceed or "no" to cancel.
 `
 
 const tfcInputBackendMigrateStateSingleToCloudSingle = `
-As part of migrating to Terraform Cloud, Terraform can optionally copy your
+As part of migrating to Terraform Cloud, OpenTF can optionally copy your
 current workspace state to the configured Terraform Cloud workspace.
 
 Answer "yes" to copy the latest state snapshot to the configured
@@ -1036,15 +1036,15 @@ Terraform Cloud workspace.
 Answer "no" to ignore the existing state and just activate the configured
 Terraform Cloud workspace with its existing state, if any.
 
-Should Terraform migrate your existing state?
+Should OpenTF migrate your existing state?
 `
 
 const tfcInputBackendMigrateRemoteMultiToCloud = `
-When migrating from the 'remote' backend to Terraform's native integration
-with Terraform Cloud, Terraform will automatically create or use existing
+When migrating from the 'remote' backend to OpenTF's native integration
+with Terraform Cloud, OpenTF will automatically create or use existing
 workspaces based on the previous backend configuration's 'prefix' value.
 
-When the migration is complete, workspace names in Terraform will match the
+When the migration is complete, workspace names in OpenTF will match the
 fully qualified Terraform Cloud workspace name. If necessary, the workspace
 tags configured in the 'cloud' option block will be added to the associated
 Terraform Cloud workspaces.
@@ -1095,24 +1095,24 @@ Enter "yes" to copy and "no" to start with the existing state in Terraform Cloud
 const inputBackendMigrateMultiToSingle = `
 The existing %[1]q backend supports workspaces and you currently are
 using more than one. The newly configured %[2]q backend doesn't support
-workspaces. If you continue, Terraform will copy your current workspace %[3]q
+workspaces. If you continue, OpenTF will copy your current workspace %[3]q
 to the default workspace in the new backend. Your existing workspaces in the
 source backend won't be modified. If you want to switch workspaces, back them
-up, or cancel altogether, answer "no" and Terraform will abort.
+up, or cancel altogether, answer "no" and OpenTF will abort.
 `
 
 const inputBackendMigrateMultiToMulti = `
 Both the existing %[1]q backend and the newly configured %[2]q backend
-support workspaces. When migrating between backends, Terraform will copy
+support workspaces. When migrating between backends, OpenTF will copy
 all workspaces (with the same names). THIS WILL OVERWRITE any conflicting
 states in the destination.
 
-Terraform initialization doesn't currently migrate only select workspaces.
+OpenTF initialization doesn't currently migrate only select workspaces.
 If you want to migrate a select number of workspaces, you must manually
 pull and push those states.
 
-If you answer "yes", Terraform will migrate all states. If you answer
-"no", Terraform will abort.
+If you answer "yes", OpenTF will migrate all states. If you answer
+"no", OpenTF will abort.
 `
 
 const inputBackendNewWorkspaceName = `

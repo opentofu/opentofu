@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	"github.com/posener/complete"
 )
 
 type WorkspaceNewCommand struct {
@@ -33,7 +34,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	cmdFlags := c.Meta.defaultFlagSet("workspace new")
 	cmdFlags.BoolVar(&stateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&statePath, "state", "", "terraform state file")
+	cmdFlags.StringVar(&statePath, "state", "", "opentf state file")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -183,9 +184,9 @@ func (c *WorkspaceNewCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceNewCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] workspace new [OPTIONS] NAME
+Usage: opentf [global options] workspace new [OPTIONS] NAME
 
-  Create a new Terraform workspace.
+  Create a new OpenTF workspace.
 
 Options:
 

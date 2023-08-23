@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
@@ -132,7 +133,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	// Explain the changes
 	colorize := c.Colorize()
-	c.Ui.Output("Terraform will perform the following actions:\n")
+	c.Ui.Output("OpenTF will perform the following actions:\n")
 	c.Ui.Output(colorize.Color("  [yellow]~[reset] Updating provider:"))
 	c.Ui.Output(colorize.Color(fmt.Sprintf("    [red]-[reset] %s", from)))
 	c.Ui.Output(colorize.Color(fmt.Sprintf("    [green]+[reset] %s\n", to)))
@@ -196,9 +197,9 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 func (c *StateReplaceProviderCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN
+Usage: opentf [global options] state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN
 
-  Replace provider for resources in the Terraform state.
+  Replace provider for resources in the OpenTF state.
 
 Options:
 

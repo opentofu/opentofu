@@ -13,6 +13,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
@@ -21,7 +23,6 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestShow_badArgs(t *testing.T) {
@@ -594,7 +595,7 @@ func TestShow_json_output(t *testing.T) {
 			}
 
 			args := []string{
-				"-out=terraform.plan",
+				"-out=opentf.plan",
 			}
 
 			code := pc.Run(args)
@@ -623,9 +624,9 @@ func TestShow_json_output(t *testing.T) {
 
 			args = []string{
 				"-json",
-				"terraform.plan",
+				"opentf.plan",
 			}
-			defer os.Remove("terraform.plan")
+			defer os.Remove("opentf.plan")
 			code = sc.Run(args)
 			showOutput := showDone(t)
 
@@ -684,7 +685,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	}
 
 	args := []string{
-		"-out=terraform.plan",
+		"-out=opentf.plan",
 	}
 	code := pc.Run(args)
 	planOutput := planDone(t)
@@ -705,9 +706,9 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"terraform.plan",
+		"opentf.plan",
 	}
-	defer os.Remove("terraform.plan")
+	defer os.Remove("opentf.plan")
 	code = sc.Run(args)
 	showOutput := showDone(t)
 
@@ -778,7 +779,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	args := []string{
 		"-refresh-only",
-		"-out=terraform.plan",
+		"-out=opentf.plan",
 		"-var=ami=bad-ami",
 		"-state=for-refresh.tfstate",
 	}
@@ -801,9 +802,9 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"terraform.plan",
+		"opentf.plan",
 	}
-	defer os.Remove("terraform.plan")
+	defer os.Remove("opentf.plan")
 	code = sc.Run(args)
 	showOutput := showDone(t)
 

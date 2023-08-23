@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
@@ -126,7 +127,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 		default:
 			// Should never happen; always a bug in the code that built up
 			// the contents of m.variableArgs.
-			diags = diags.Append(fmt.Errorf("unsupported variable option name %q (this is a bug in Terraform)", rawFlag.Name))
+			diags = diags.Append(fmt.Errorf("unsupported variable option name %q (this is a bug in OpenTF)", rawFlag.Name))
 		}
 	}
 

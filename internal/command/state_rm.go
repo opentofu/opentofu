@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
@@ -146,7 +147,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid target address",
-			"No matching objects found. To view the available instances, use \"terraform state list\". Please modify the address to reference a specific instance.",
+			"No matching objects found. To view the available instances, use \"opentf state list\". Please modify the address to reference a specific instance.",
 		))
 		c.showDiagnostics(diags)
 		return 1
@@ -158,14 +159,14 @@ func (c *StateRmCommand) Run(args []string) int {
 
 func (c *StateRmCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] state rm [options] ADDRESS...
+Usage: opentf [global options] state rm [options] ADDRESS...
 
-  Remove one or more items from the Terraform state, causing Terraform to
+  Remove one or more items from the OpenTF state, causing OpenTF to
   "forget" those items without first destroying them in the remote system.
 
-  This command removes one or more resource instances from the Terraform state
+  This command removes one or more resource instances from the OpenTF state
   based on the addresses given. You can view and list the available instances
-  with "terraform state list".
+  with "opentf state list".
 
   If you give the address of an entire module then all of the instances in
   that module and any of its child modules will be removed from the state.
@@ -178,7 +179,7 @@ Options:
   -dry-run                If set, prints out what would've been removed but
                           doesn't actually remove anything.
 
-  -backup=PATH            Path where Terraform should write the backup
+  -backup=PATH            Path where OpenTF should write the backup
                           state.
 
   -lock=false             Don't hold a state lock during the operation. This is
@@ -190,7 +191,7 @@ Options:
   -state=PATH             Path to the state file to update. Defaults to the
                           current workspace state.
 
-  -ignore-remote-version  Continue even if remote and local Terraform versions
+  -ignore-remote-version  Continue even if remote and local OpenTF versions
                           are incompatible. This may result in an unusable
                           workspace, and should be used with extreme caution.
 
