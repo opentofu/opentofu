@@ -921,7 +921,7 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 }
 
 func TestInit_backendCloudInvalidOptions(t *testing.T) {
-	// There are various "terraform init" options that are only for
+	// There are various "opentf init" options that are only for
 	// traditional backends and not applicable to Terraform Cloud mode.
 	// For those, we want to return an explicit error rather than
 	// just silently ignoring them, so that users will be aware that
@@ -970,8 +970,8 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 
 		// We have -backend-config as a pragmatic way to dynamically set
 		// certain settings of backends that tend to vary depending on
-		// where Terraform is running, such as AWS authentication profiles
-		// that are naturally local only to the machine where Terraform is
+		// where OpenTF is running, such as AWS authentication profiles
+		// that are naturally local only to the machine where OpenTF is
 		// running. Those needs don't apply to Terraform Cloud, because
 		// the remote workspace encapsulates all of the details of how
 		// operations and state work in that case, and so the Cloud
@@ -1359,7 +1359,7 @@ func TestInit_getProvider(t *testing.T) {
 
 	t.Run("future-state", func(t *testing.T) {
 		// getting providers should fail if a state from a newer version of
-		// terraform exists, since InitCommand.getProviders needs to inspect that
+		// opentf exists, since InitCommand.getProviders needs to inspect that
 		// state.
 
 		f, err := os.Create(DefaultStateFilename)
@@ -1741,7 +1741,7 @@ func TestInit_providerSource(t *testing.T) {
 }
 
 func TestInit_cancelModules(t *testing.T) {
-	// This test runs `terraform init` as if SIGINT (or similar on other
+	// This test runs `opentf init` as if SIGINT (or similar on other
 	// platforms) were sent to it, testing that it is interruptible.
 
 	td := t.TempDir()
@@ -1778,7 +1778,7 @@ func TestInit_cancelModules(t *testing.T) {
 }
 
 func TestInit_cancelProviders(t *testing.T) {
-	// This test runs `terraform init` as if SIGINT (or similar on other
+	// This test runs `opentf init` as if SIGINT (or similar on other
 	// platforms) were sent to it, testing that it is interruptible.
 
 	td := t.TempDir()
@@ -2109,7 +2109,7 @@ func TestInit_providerLockFile(t *testing.T) {
 	// The hash in here is for the fake package that newMockProviderSource produces
 	// (so it'll change if newMockProviderSource starts producing different contents)
 	wantLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2136,7 +2136,7 @@ func TestInit_providerLockFileReadonly(t *testing.T) {
 	// The hash in here is for the fake package that newMockProviderSource produces
 	// (so it'll change if newMockProviderSource starts producing different contents)
 	inputLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2149,7 +2149,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	badLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2162,7 +2162,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	updatedLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2176,7 +2176,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	emptyUpdatedLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 `)
 
