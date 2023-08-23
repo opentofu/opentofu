@@ -4,7 +4,7 @@
 // The version package provides a location to set the release versions for all
 // packages to consume, without creating import cycles.
 //
-// This package should not import any other terraform packages.
+// This package should not import any other OpenTF packages.
 package version
 
 import (
@@ -49,7 +49,7 @@ func init() {
 	}
 }
 
-// Header is the header name used to send the current terraform version
+// Header is the header name used to send the current OpenTF version
 // in http requests.
 const Header = "Terraform-Version"
 

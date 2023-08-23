@@ -16,8 +16,8 @@ var interestingDependencies = map[string]struct{}{
 }
 
 // InterestingDependencies returns the compiled-in module version info for
-// a small number of dependencies that Terraform uses broadly and which we
-// tend to upgrade relatively often as part of improvements to Terraform.
+// a small number of dependencies that OpenTF uses broadly and which
+// tend to upgrade relatively often.
 //
 // The set of dependencies this reports might change over time if our
 // opinions change about what's "interesting". This is here only to create
