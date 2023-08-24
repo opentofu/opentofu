@@ -1,7 +1,7 @@
 tfcoremock_object.object: Refreshing state... [id=F40F2AB4-100C-4AE8-BFD0-BF332A158415]
 
-OpenTF used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
 -/+ destroy and then create replacement
 
 OpenTF will perform the following actions:

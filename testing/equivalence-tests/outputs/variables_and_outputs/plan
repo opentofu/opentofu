@@ -32,8 +32,8 @@ Changes to Outputs:
         }
     }
 
-You can apply this plan to save these new output values to the OpenTF
-state, without changing any real infrastructure.
+You can apply this plan to save these new output values to the OpenTF state,
+without changing any real infrastructure.
 
 ─────────────────────────────────────────────────────────────────────────────
 

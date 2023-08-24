@@ -1,6 +1,6 @@
 
-Terraform used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   + create
 
 OpenTF will perform the following actions:
@@ -27,4 +27,4 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 Saved the plan to: equivalence_test_plan
 
 To perform exactly these actions, run the following command to apply:
-    terraform apply "equivalence_test_plan"
+    opentf apply "equivalence_test_plan"
