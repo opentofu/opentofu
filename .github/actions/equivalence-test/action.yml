@@ -30,7 +30,7 @@ runs:
           ./bin/equivalence-tests \
           ${{ inputs.target-os }} \
           ${{ inputs.target-arch }}
-    - name: "download terraform binary"
+    - name: "download opentf binary"
       shell: bash
       run: |
         ./.github/scripts/equivalence-test.sh download_terraform_binary \
@@ -51,7 +51,7 @@ runs:
           echo "found changes, and pushing new golden files into branch ${{ inputs.target-terraform-branch }}."
 
           git config user.email "52939924+teamterraform@users.noreply.github.com"
-          git config user.name "The Terraform Team"
+          git config user.name "The OpenTF Team"
 
           git add ./testing/equivalence-tests/outputs
           git commit -m "Automated equivalence test golden file update for release ${{ inputs.target-terraform-version }}."
