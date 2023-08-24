@@ -9,7 +9,7 @@
     },
     "root_module": {}
   },
-  "format_version": "1.1",
+  "format_version": "1.2",
   "planned_values": {
     "root_module": {}
   },
@@ -57,5 +57,6 @@
       "provider_name": "registry.terraform.io/hashicorp/null",
       "type": "null_resource"
     }
-  ]
+  ],
+  "timestamp": "2023-08-24T10:55:44Z"
 }

@@ -32,7 +32,7 @@ Changes to Outputs:
         }
     }
 
-You can apply this plan to save these new output values to the OpenTF
+You can apply this plan to save these new output values to the Terraform
 state, without changing any real infrastructure.
 
 ─────────────────────────────────────────────────────────────────────────────
@@ -40,4 +40,4 @@ state, without changing any real infrastructure.
 Saved the plan to: equivalence_test_plan
 
 To perform exactly these actions, run the following command to apply:
-    opentf apply "equivalence_test_plan"
+    terraform apply "equivalence_test_plan"
