@@ -20,9 +20,6 @@ you can
 
 Usage: `opentf login [hostname]`
 
-If you don't provide an explicit hostname, OpenTF will assume you want to
-log in to Terraform Cloud at `app.terraform.io`.
-
 ## Credentials Storage
 
 By default, OpenTF will obtain an API token and save it in plain text in a
@@ -40,5 +37,4 @@ your organization's existing secrets management system.
 ## Login Server Support
 
 The `opentf login` command works with any server supporting the
-[login protocol](/opentf/internals/login-protocol), including Terraform Cloud
-and Terraform Enterprise.
+[login protocol](/opentf/internals/login-protocol).

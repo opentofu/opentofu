@@ -21,6 +21,6 @@ The `opentf import` CLI command can only import resources into the [state](/open
 
 Before you run `opentf import` you must manually write a `resource` configuration block for the resource. The resource block describes where OpenTF should map the imported object.
 
-## Terraform Cloud
+## Cloud Backend
 
-When you use OpenTF on the command line with Terraform Cloud, many commands like `apply` run inside your Terraform Cloud environment. However, the `import` command runs locally, so it does not have access to information from Terraform Cloud. To successfully perform an import, you may need to set local variables equivalent to any remote workspace variables in Terraform Cloud.
+When you use OpenTF on the command line with a cloud backend, many commands like `apply` run inside your cloud backend's environment. However, the `import` command runs locally, so it does not have access to information from the cloud backend. To successfully perform an import, you may need to set local variables equivalent to any remote workspace variables in the cloud backend.

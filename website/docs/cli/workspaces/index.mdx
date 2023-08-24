@@ -7,7 +7,7 @@ description: >-
 
 # Managing Workspaces
 
-Workspaces in the OpenTF CLI refer to separate instances of [state data](/opentf/language/state) inside the same OpenTF working directory. They are distinctly different from [workspaces in Terraform Cloud](/opentf/cloud-docs/workspaces), which each have their own OpenTF configuration and function as separate working directories.
+Workspaces in the OpenTF CLI refer to separate instances of [state data](/opentf/language/state) inside the same OpenTF working directory. They are distinctly different from workspaces in a cloud backend, which each have their own OpenTF configuration and function as separate working directories.
 
 OpenTF relies on state to associate resources with real-world objects. When you run the same configuration multiple times with separate state data, OpenTF can manage multiple sets of non-overlapping resources.
 
@@ -68,4 +68,4 @@ For local state, OpenTF stores the workspace states in a directory called `terra
 
 For [remote state](/opentf/language/state/remote), the workspaces are stored directly in the configured [backend](/opentf/language/settings/backends/configuration). For example, if you use [Consul](/opentf/language/settings/backends/consul), the workspaces are stored by appending the workspace name to the state path. To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
 
-OpenTF stores the current workspace name locally in the ignored `.terraform` directory. This allows multiple team members to work on different workspaces concurrently. Workspace names are also attached to associated remote workspaces in Terraform Cloud. For more details about workspace names in Terraform Cloud, refer to the [CLI Integration (recommended)](/opentf/cli/cloud/settings#arguments) and [remote backend](/opentf/language/settings/backends/remote#workspaces) and  documentation.
+OpenTF stores the current workspace name locally in the ignored `.terraform` directory. This allows multiple team members to work on different workspaces concurrently. Workspace names are also attached to associated remote workspaces in a cloud backend. For more details about workspace names in cloud backends, refer to the [CLI Integration (recommended)](/opentf/cli/cloud/settings#arguments) and [remote backend](/opentf/language/settings/backends/remote#workspaces) and  documentation.

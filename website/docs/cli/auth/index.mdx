@@ -2,26 +2,23 @@
 page_title: Authentication - OpenTF CLI
 description: >-
   Documentation about the login and logout commands that help automate getting
-  an API token for your Terraform Cloud account.
+  an API token for your cloud backend account.
 ---
 
 # CLI Authentication
 
-[Terraform Cloud](https://cloud.hashicorp.com/products/terraform) and
-[Terraform Enterprise](/opentf/enterprise) are platforms that perform
+TACOS (TF Automation and Collaboration Software) are platforms that perform
 OpenTF runs to provision infrastructure, offering a collaboration-focused
-environment that makes it easier for teams to use OpenTF together. (For
-expediency, the content below refers to both products as "Terraform Cloud.")
+environment that makes it easier for teams to use OpenTF together.
 
-OpenTF CLI integrates with Terraform Cloud in several ways — it can be a
-front-end for [CLI-driven runs](/opentf/cloud-docs/run/cli) in Terraform Cloud,
-and can also use Terraform Cloud as a state backend and a private module
+OpenTF CLI integrates with TACOS in several ways — it can be a
+front-end for CLI-driven runs, and can also use some TACOS as a state backend and a private module
 registry. All of these integrations require you to authenticate OpenTF CLI
-with your Terraform Cloud account.
+with your TACOS account.
 
 The best way to handle CLI authentication is with the `login` and `logout`
 commands, which help automate the process of getting an API token for your
-Terraform Cloud user account.
+TACOS user account.
 
 For details, see:
 
