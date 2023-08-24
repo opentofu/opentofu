@@ -2,7 +2,7 @@
 
 This repository contains OpenTF core, which includes the command line interface and the main graph engine
 
-This document provides guidance on OpenTF contribution recommended practices. It covers what we're looking for in order to help set some expectations and help you get the most out of participation in this project. 
+This document provides guidance on OpenTF contribution recommended practices. It covers what we're looking for in order to help set some expectations and help you get the most out of participation in this project.
 
 To record a bug report, enhancement proposal, or give any other product feedback, please [open a GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) using the most appropriate issue template
 
@@ -22,7 +22,7 @@ The contribution guideline will change in the near future, as the management of 
 
 ## Proposing a Change
 
-In order to be respectful of the time of community contributors, we aim to discuss potential changes in GitHub issues prior to implementation. That will allow us to give design feedback up front and set expectations about the scope of the change, and, for larger changes, how best to approach the work such that the OpenTF team can review it and merge it along with other concurrent work.
+In order to be respectful of the time of community contributors, we aim to discuss potential changes in GitHub issues prior to implementation. That will allow us to give design feedback up front and set expectations about the scope of the change, and, for larger changes, how best to approach the work such that the Terraform team can review it and merge it along with other concurrent work.
 
 If the bug you wish to fix or enhancement you wish to implement isn't already covered by a GitHub issue, please do start a discussion (either in [a new GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) or an existing one, as appropriate) before you invest significant development time.
 

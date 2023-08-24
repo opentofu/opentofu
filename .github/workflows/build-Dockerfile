@@ -4,7 +4,7 @@
 #
 # If you want to test this locally you'll need to set the three arguments
 # to values realistic for what the hashicorp/actions-docker-build GitHub
-# action would set, and ensure that there's a suitable "opentf" executable
+# action would set, and ensure that there's a suitable "terraform" executable
 # in the dist/linux/${TARGETARCH} directory.
 
 FROM docker.mirror.hashicorp.services/alpine:latest AS default

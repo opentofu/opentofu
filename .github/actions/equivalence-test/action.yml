@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: MPL-2.0
 
 name: equivalence-test
-description: "Execute the suite of OpenTF equivalence tests in testing/equivalence-tests"
+description: "Execute the suite of Terraform equivalence tests in testing/equivalence-tests"
 inputs:
-  target-opentf-version:
-    description: "The version of OpenTF to use in execution."
+  target-terraform-version:
+    description: "The version of Terraform to use in execution."
     required: true
-  target-opentf-branch:
+  target-terraform-branch:
     description: "The branch within this repository to update and compare."
     required: true
   target-equivalence-test-version:
-    description: "The version of the OpenTF equivalence tests to use."
+    description: "The version of the Terraform equivalence tests to use."
     default: "0.3.0"
   target-os:
     description: "Current operating system"
