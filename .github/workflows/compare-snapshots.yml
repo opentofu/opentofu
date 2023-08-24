@@ -36,6 +36,7 @@ jobs:
 
       - name: Run the equivalence tests
         run: |
+          export OTF_OVERRIDE_PLAN_TIMESTAMP_FOR_SNAPSHOTS="2023-08-24T12:33:30Z"
           ./bin/equivalence-tests update \
             --tests=testing/equivalence-tests/tests \
             --goldens=testing/equivalence-tests/outputs \
