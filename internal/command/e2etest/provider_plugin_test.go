@@ -38,7 +38,7 @@ func TestProviderProtocols(t *testing.T) {
 	simpleProvider := filepath.Join(tf.WorkDir(), "terraform-provider-simple")
 	simpleProviderExe := e2e.GoBuild("github.com/placeholderplaceholderplaceholder/opentf/internal/provider-simple/main", simpleProvider)
 
-	// Move the provider binaries into a directory that we will point terraform
+	// Move the provider binaries into a directory that we will point opentf
 	// to using the -plugin-dir cli flag.
 	platform := getproviders.CurrentPlatform.String()
 	hashiDir := "cache/registry.terraform.io/hashicorp/"

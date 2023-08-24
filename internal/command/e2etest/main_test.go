@@ -43,7 +43,7 @@ func setup() func() {
 		var err error
 		terraformBin, err = filepath.Abs(terraformBin)
 		if err != nil {
-			panic(fmt.Sprintf("failed to find absolute path of terraform executable: %s", err))
+			panic(fmt.Sprintf("failed to find absolute path of opentf executable: %s", err))
 		}
 		return func() {}
 	}

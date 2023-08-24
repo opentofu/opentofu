@@ -10,7 +10,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
 )
 
-// TestProviderDevOverrides is a test that terraform can execute a 3rd party
+// TestProviderDevOverrides is a test that opentf can execute a 3rd party
 // provisioner plugin.
 func TestProvisioner(t *testing.T) {
 	t.Parallel()

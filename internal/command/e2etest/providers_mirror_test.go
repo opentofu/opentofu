@@ -13,7 +13,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
 )
 
-// The tests in this file are for the "terraform providers mirror" command,
+// The tests in this file are for the "opentf providers mirror" command,
 // which is tested in an e2etest mode rather than a unit test mode because it
 // interacts directly with Terraform Registry and the full details of that are
 // tricky to mock. Such a mock is _possible_, but we're using e2etest as a
