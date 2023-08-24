@@ -159,12 +159,12 @@ func (s *Scope) Functions() map[string]function.Function {
 		})
 
 		if s.ConsoleMode {
-			// The type function is only available in terraform console.
+			// The type function is only available in opentf console.
 			s.funcs["type"] = funcs.TypeFunc
 		}
 
 		if !s.ConsoleMode {
-			// The plantimestamp function doesn't make sense in the terraform
+			// The plantimestamp function doesn't make sense in the opentf
 			// console.
 			s.funcs["plantimestamp"] = funcs.MakeStaticTimestampFunc(s.PlanTimestamp)
 		}
