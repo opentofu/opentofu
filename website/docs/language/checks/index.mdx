@@ -22,13 +22,13 @@ The following example loads the Terraform website and validates that it returns 
 
 ```hcl
 check "health_check" {
-  data "http" "terraform_io" {
+  data "http" "placeholderplaceholderplaceholder_io" {
     url = "https://www.placeholderplaceholderplaceholder.io"
   }
 
   assert {
-    condition = data.http.terraform_io.status_code == 200
-    error_message = "${data.http.terraform_io.url} returned an unhealthy status code"
+    condition = data.http.placeholderplaceholderplaceholder_io.status_code == 200
+    error_message = "${data.http.placeholderplaceholderplaceholder_io.url} returned an unhealthy status code"
   }
 }
 ```
@@ -39,7 +39,7 @@ You can use any data source from any provider as a scoped data source within a `
 
 A `check` block can optionally contain a nested (a.k.a. scoped) data source. This `data` block behaves like an external [data source](/terraform/language/data-sources), except you can not reference it outside its enclosing `check` block. Additionally, if a scoped data source's provider raises any errors, they are masked as warnings and do not prevent Terraform from continuing operation execution.
 
-You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual Terraform resource lifecycle. [In the above example](#checks-syntax), if the `terraform_io` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
+You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual Terraform resource lifecycle. [In the above example](#checks-syntax), if the `placeholderplaceholderplaceholder_io` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
 
 #### Meta-Arguments
 
@@ -100,7 +100,7 @@ You can often use postconditions interchangeably with check blocks to validate r
 For example, you can [rewrite the above `check` block example](#checks-syntax) to use a postcondition instead. The below code uses a `postcondition` block to validate that the Terraform website returns the expected status code of `200`.
 
 ```hcl
-data "http" "terraform_io" {
+data "http" "placeholderplaceholderplaceholder_io" {
   url = "https://www.placeholderplaceholderplaceholder.io"
 
   lifecycle {

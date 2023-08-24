@@ -221,13 +221,13 @@ The following example uses a check block with an assertion to verify the Terrafo
 
 ```hcl
 check "health_check" {
-  data "http" "terraform_io" {
+  data "http" "placeholderplaceholderplaceholder_io" {
     url = "https://www.placeholderplaceholderplaceholder.io"
   }
 
   assert {
-    condition = data.http.terraform_io.status_code == 200
-    error_message = "${data.http.terraform_io.url} returned an unhealthy status code"
+    condition = data.http.placeholderplaceholderplaceholder_io.status_code == 200
+    error_message = "${data.http.placeholderplaceholderplaceholder_io.url} returned an unhealthy status code"
   }
 }
 ```
