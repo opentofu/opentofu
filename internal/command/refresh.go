@@ -181,7 +181,7 @@ func (c *RefreshCommand) GatherVariables(opReq *backend.Operation, args *argumen
 
 func (c *RefreshCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] refresh [options]
+Usage: opentf [global options] refresh [options]
 
   Update the state file of your infrastructure with metadata that matches
   the physical resources they are tracking.
@@ -192,7 +192,7 @@ Usage: terraform [global options] refresh [options]
 
 Options:
 
-  -compact-warnings   If Terraform produces any warnings that are not
+  -compact-warnings   If OpenTF produces any warnings that are not
                       accompanied by errors, show them in a more compact form
                       that includes only the summary messages.
 
@@ -212,10 +212,10 @@ Options:
                       resource and its dependencies. This flag can be used
                       multiple times.
 
-  -var 'foo=bar'      Set a variable in the Terraform configuration. This
+  -var 'foo=bar'      Set a variable in the OpenTF configuration. This
                       flag can be set multiple times.
 
-  -var-file=foo       Set variables in the Terraform configuration from
+  -var-file=foo       Set variables in the OpenTF configuration from
                       a file. If "terraform.tfvars" or any ".auto.tfvars"
                       files are present, they will be automatically loaded.
 

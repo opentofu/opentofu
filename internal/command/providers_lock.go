@@ -223,7 +223,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 						tfdiags.Error,
 						"Inconsistent provider versions",
 						fmt.Sprintf(
-							"The version constraint for %s selected inconsistent versions for different platforms, which is unexpected.\n\nThe upstream registry may have changed its available versions during Terraform's work. If so, re-running this command may produce a successful result.",
+							"The version constraint for %s selected inconsistent versions for different platforms, which is unexpected.\n\nThe upstream registry may have changed its available versions during OpenTF's work. If so, re-running this command may produce a successful result.",
 							provider,
 						),
 					))
@@ -251,7 +251,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Could not retrieve providers for locking",
-				fmt.Sprintf("Terraform failed to fetch the requested providers for %s in order to calculate their checksums: %s.", platform, err),
+				fmt.Sprintf("OpenTF failed to fetch the requested providers for %s in order to calculate their checksums: %s.", platform, err),
 			))
 			break
 		}
@@ -338,20 +338,20 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	}
 
 	if madeAnyChange {
-		c.Ui.Output(c.Colorize().Color("\n[bold][green]Success![reset] [bold]Terraform has updated the lock file.[reset]"))
+		c.Ui.Output(c.Colorize().Color("\n[bold][green]Success![reset] [bold]OpenTF has updated the lock file.[reset]"))
 		c.Ui.Output("\nReview the changes in .terraform.lock.hcl and then commit to your\nversion control system to retain the new checksums.\n")
 	} else {
-		c.Ui.Output(c.Colorize().Color("\n[bold][green]Success![reset] [bold]Terraform has validated the lock file and found no need for changes.[reset]"))
+		c.Ui.Output(c.Colorize().Color("\n[bold][green]Success![reset] [bold]OpenTF has validated the lock file and found no need for changes.[reset]"))
 	}
 	return 0
 }
 
 func (c *ProvidersLockCommand) Help() string {
 	return `
-Usage: terraform [global options] providers lock [options] [providers...]
+Usage: opentf [global options] providers lock [options] [providers...]
 
   Normally the dependency lock file (.terraform.lock.hcl) is updated
-  automatically by "terraform init", but the information available to the
+  automatically by "opentf init", but the information available to the
   normal provider installer can be constrained when you're installing providers
   from filesystem or network mirrors, and so the generated lock file can end
   up incomplete.
@@ -376,7 +376,7 @@ Options:
                      This would be necessary to generate lock file entries for
                      a provider that is available only via a mirror, and not
                      published in an upstream registry. In this case, the set
-                     of valid checksums will be limited only to what Terraform
+                     of valid checksums will be limited only to what OpenTF
                      can learn from the data in the mirror directory.
 
   -net-mirror=url    Consult the given network mirror (given as a base URL)
@@ -386,13 +386,13 @@ Options:
                      This would be necessary to generate lock file entries for
                      a provider that is available only via a mirror, and not
                      published in an upstream registry. In this case, the set
-                     of valid checksums will be limited only to what Terraform
+                     of valid checksums will be limited only to what OpenTF
                      can learn from the data in the mirror indices.
 
   -platform=os_arch  Choose a target platform to request package checksums
                      for.
 
-                     By default Terraform will request package checksums
+                     By default OpenTF will request package checksums
                      suitable only for the platform where you run this
                      command. Use this option multiple times to include
                      checksums for multiple target systems.

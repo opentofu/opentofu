@@ -61,7 +61,7 @@ func (c *InitCommand) Run(args []string) int {
 	cmdFlags.BoolVar(&flagUpgrade, "upgrade", false, "")
 	cmdFlags.Var(&flagPluginPath, "plugin-dir", "plugin directory")
 	cmdFlags.StringVar(&flagLockfile, "lockfile", "", "Set a dependency lockfile mode")
-	cmdFlags.BoolVar(&c.Meta.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local Terraform versions are incompatible")
+	cmdFlags.BoolVar(&c.Meta.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTF versions are incompatible")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
@@ -390,7 +390,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to read module manifest",
-				fmt.Sprintf("After installing modules, Terraform could not re-read the manifest of installed modules. This is a bug in Terraform. %s.", err),
+				fmt.Sprintf("After installing modules, OpenTF could not re-read the manifest of installed modules. This is a bug in OpenTF. %s.", err),
 			))
 		}
 	}
@@ -592,7 +592,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			c.Ui.Info(fmt.Sprintf("- Using previously-installed %s v%s", provider.ForDisplay(), selectedVersion))
 		},
 		BuiltInProviderAvailable: func(provider addrs.Provider) {
-			c.Ui.Info(fmt.Sprintf("- %s is built in to Terraform", provider.ForDisplay()))
+			c.Ui.Info(fmt.Sprintf("- %s is built in to OpenTF", provider.ForDisplay()))
 		},
 		BuiltInProviderFailure: func(provider addrs.Provider, err error) {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -636,11 +636,11 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			case getproviders.ErrRegistryProviderNotKnown:
 				// We might be able to suggest an alternative provider to use
 				// instead of this one.
-				suggestion := fmt.Sprintf("\n\nAll modules should specify their required_providers so that external consumers will get the correct providers when using a module. To see which modules are currently depending on %s, run the following command:\n    terraform providers", provider.ForDisplay())
+				suggestion := fmt.Sprintf("\n\nAll modules should specify their required_providers so that external consumers will get the correct providers when using a module. To see which modules are currently depending on %s, run the following command:\n    opentf providers", provider.ForDisplay())
 				alternative := getproviders.MissingProviderSuggestion(ctx, provider, inst.ProviderSource(), reqs)
 				if alternative != provider {
 					suggestion = fmt.Sprintf(
-						"\n\nDid you intend to use %s? If so, you must specify that source address in each module which requires that provider. To see which modules are currently depending on %s, run the following command:\n    terraform providers",
+						"\n\nDid you intend to use %s? If so, you must specify that source address in each module which requires that provider. To see which modules are currently depending on %s, run the following command:\n    opentf providers",
 						alternative.ForDisplay(), provider.ForDisplay(),
 					)
 				}
@@ -666,7 +666,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Invalid provider registry host",
-						fmt.Sprintf("The given source address %q specifies a GitHub repository rather than a Terraform provider. Refer to the documentation of the provider to find the correct source address to use.",
+						fmt.Sprintf("The given source address %q specifies a GitHub repository rather than a OpenTF provider. Refer to the documentation of the provider to find the correct source address to use.",
 							provider.String(),
 						),
 					))
@@ -675,7 +675,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Invalid provider registry host",
-						fmt.Sprintf("The host %q given in provider source address %q does not offer a Terraform provider registry that is compatible with this Terraform version, but it may be compatible with a different Terraform version.",
+						fmt.Sprintf("The host %q given in provider source address %q does not offer a OpenTF provider registry that is compatible with this OpenTF version, but it may be compatible with a different OpenTF version.",
 							errorTy.Hostname, provider.String(),
 						),
 					))
@@ -684,7 +684,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Invalid provider registry host",
-						fmt.Sprintf("The host %q given in provider source address %q does not offer a Terraform provider registry.",
+						fmt.Sprintf("The host %q given in provider source address %q does not offer a OpenTF provider registry.",
 							errorTy.Hostname, provider.String(),
 						),
 					))
@@ -769,7 +769,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 						tfdiags.Error,
 						summaryIncompatible,
 						fmt.Sprintf(
-							"Your chosen provider mirror at %s does not have a %s v%s package available for your current platform, %s.\n\nProvider releases are separate from Terraform CLI releases, so this provider might not support your current platform. Alternatively, the mirror itself might have only a subset of the plugin packages available in the origin registry, at %s.",
+							"Your chosen provider mirror at %s does not have a %s v%s package available for your current platform, %s.\n\nProvider releases are separate from OpenTF CLI releases, so this provider might not support your current platform. Alternatively, the mirror itself might have only a subset of the plugin packages available in the origin registry, at %s.",
 							err.MirrorURL, err.Provider, err.Version, err.Platform,
 							err.Provider.Hostname,
 						),
@@ -779,7 +779,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 						tfdiags.Error,
 						summaryIncompatible,
 						fmt.Sprintf(
-							"Provider %s v%s does not have a package available for your current platform, %s.\n\nProvider releases are separate from Terraform CLI releases, so not all providers are available for all platforms. Other versions of this provider may have different platforms supported.",
+							"Provider %s v%s does not have a package available for your current platform, %s.\n\nProvider releases are separate from OpenTF CLI releases, so not all providers are available for all platforms. Other versions of this provider may have different platforms supported.",
 							err.Provider, err.Version, err.Platform,
 						),
 					))
@@ -911,7 +911,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					`Provider dependency changes detected`,
-					`Changes to the required provider dependencies were detected, but the lock file is read-only. To use and record these requirements, run "terraform init" without the "-lockfile=readonly" flag.`,
+					`Changes to the required provider dependencies were detected, but the lock file is read-only. To use and record these requirements, run "opentf init" without the "-lockfile=readonly" flag.`,
 				))
 				return true, true, diags
 			}
@@ -921,7 +921,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
 				`Provider lock file not updated`,
-				`Changes to the provider selections were detected, but not saved in the .terraform.lock.hcl file. To record these selections, run "terraform init" without the "-lockfile=readonly" flag.`,
+				`Changes to the provider selections were detected, but not saved in the .terraform.lock.hcl file. To record these selections, run "opentf init" without the "-lockfile=readonly" flag.`,
 			))
 			return true, false, diags
 		}
@@ -950,13 +950,13 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// users or those who are upgrading from a previous Terraform
 			// version that didn't have dependency lock files.
 			c.Ui.Output(c.Colorize().Color(`
-Terraform has created a lock file [bold].terraform.lock.hcl[reset] to record the provider
+OpenTF has created a lock file [bold].terraform.lock.hcl[reset] to record the provider
 selections it made above. Include this file in your version control repository
-so that Terraform can guarantee to make the same selections by default when
-you run "terraform init" in the future.`))
+so that OpenTF can guarantee to make the same selections by default when
+you run "opentf init" in the future.`))
 		} else {
 			c.Ui.Output(c.Colorize().Color(`
-Terraform has made some changes to the provider dependency selections recorded
+OpenTF has made some changes to the provider dependency selections recorded
 in the .terraform.lock.hcl file. Review those changes and commit them to your
 version control system if they represent changes you intended to make.`))
 		}
@@ -1098,14 +1098,14 @@ func (c *InitCommand) AutocompleteFlags() complete.Flags {
 
 func (c *InitCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] init [options]
+Usage: opentf [global options] init [options]
 
-  Initialize a new or existing Terraform working directory by creating
+  Initialize a new or existing OpenTF working directory by creating
   initial files, loading any remote state, downloading modules, etc.
 
   This is the first command that should be run for any new or existing
-  Terraform configuration per machine. This sets up all the local data
-  necessary to run Terraform that is typically not committed to version
+  OpenTF configuration per machine. This sets up all the local data
+  necessary to run OpenTF that is typically not committed to version
   control.
 
   This command is always safe to run multiple times. Though subsequent runs
@@ -1172,12 +1172,12 @@ Options:
 
   -ignore-remote-version  A rare option used for Terraform Cloud and the remote backend
                           only. Set this to ignore checking that the local and remote
-                          Terraform versions use compatible state representations, making
+                          OpenTF versions use compatible state representations, making
                           an operation proceed even when there is a potential mismatch.
-                          See the documentation on configuring Terraform with
+                          See the documentation on configuring OpenTF with
                           Terraform Cloud for more information.
 
-  -test-directory=path    Set the Terraform test directory, defaults to "tests".
+  -test-directory=path    Set the OpenTF test directory, defaults to "tests".
 
 `
 	return strings.TrimSpace(helpText)
@@ -1188,11 +1188,11 @@ func (c *InitCommand) Synopsis() string {
 }
 
 const errInitConfigError = `
-[reset]Terraform encountered problems during initialisation, including problems
+[reset]OpenTF encountered problems during initialisation, including problems
 with the configuration, described below.
 
-The Terraform configuration must be valid before initialization so that
-Terraform can determine which modules and providers need to be installed.
+The OpenTF configuration must be valid before initialization so that
+OpenTF can determine which modules and providers need to be installed.
 `
 
 const errInitCopyNotEmpty = `
@@ -1204,14 +1204,14 @@ To initialize the configuration already in this working directory, omit the
 `
 
 const outputInitEmpty = `
-[reset][bold]Terraform initialized in an empty directory![reset]
+[reset][bold]OpenTF initialized in an empty directory![reset]
 
-The directory has no Terraform configuration files. You may begin working
-with Terraform immediately by creating Terraform configuration files.
+The directory has no OpenTF configuration files. You may begin working
+with OpenTF immediately by creating OpenTF configuration files.
 `
 
 const outputInitSuccess = `
-[reset][bold][green]Terraform has been successfully initialized![reset][green]
+[reset][bold][green]OpenTF has been successfully initialized![reset][green]
 `
 
 const outputInitSuccessCloud = `
@@ -1219,49 +1219,49 @@ const outputInitSuccessCloud = `
 `
 
 const outputInitSuccessCLI = `[reset][green]
-You may now begin working with Terraform. Try running "terraform plan" to see
-any changes that are required for your infrastructure. All Terraform commands
+You may now begin working with OpenTF. Try running "opentf plan" to see
+any changes that are required for your infrastructure. All OpenTF commands
 should now work.
 
-If you ever set or change modules or backend configuration for Terraform,
+If you ever set or change modules or backend configuration for OpenTF,
 rerun this command to reinitialize your working directory. If you forget, other
 commands will detect it and remind you to do so if necessary.
 `
 
 const outputInitSuccessCLICloud = `[reset][green]
-You may now begin working with Terraform Cloud. Try running "terraform plan" to
+You may now begin working with Terraform Cloud. Try running "opentf plan" to
 see any changes that are required for your infrastructure.
 
-If you ever set or change modules or Terraform Settings, run "terraform init"
+If you ever set or change modules or OpenTF Settings, run "opentf init"
 again to reinitialize your working directory.
 `
 
 // providerProtocolTooOld is a message sent to the CLI UI if the provider's
 // supported protocol versions are too old for the user's version of terraform,
 // but a newer version of the provider is compatible.
-const providerProtocolTooOld = `Provider %q v%s is not compatible with Terraform %s.
+const providerProtocolTooOld = `Provider %q v%s is not compatible with OpenTF %s.
 Provider version %s is the latest compatible version. Select it with the following version constraint:
 	version = %q
 
-Terraform checked all of the plugin versions matching the given constraint:
+OpenTF checked all of the plugin versions matching the given constraint:
 	%s
 
-Consult the documentation for this provider for more information on compatibility between provider and Terraform versions.
+Consult the documentation for this provider for more information on compatibility between provider and OpenTF versions.
 `
 
 // providerProtocolTooNew is a message sent to the CLI UI if the provider's
 // supported protocol versions are too new for the user's version of terraform,
 // and the user could either upgrade terraform or choose an older version of the
 // provider.
-const providerProtocolTooNew = `Provider %q v%s is not compatible with Terraform %s.
+const providerProtocolTooNew = `Provider %q v%s is not compatible with OpenTF %s.
 You need to downgrade to v%s or earlier. Select it with the following constraint:
 	version = %q
 
-Terraform checked all of the plugin versions matching the given constraint:
+OpenTF checked all of the plugin versions matching the given constraint:
 	%s
 
-Consult the documentation for this provider for more information on compatibility between provider and Terraform versions.
-Alternatively, upgrade to the latest version of Terraform for compatibility with newer provider releases.
+Consult the documentation for this provider for more information on compatibility between provider and OpenTF versions.
+Alternatively, upgrade to the latest version of OpenTF for compatibility with newer provider releases.
 `
 
 // No version of the provider is compatible.
@@ -1273,11 +1273,11 @@ const incompleteLockFileInformationHeader = `Incomplete lock file information fo
 
 // incompleteLockFileInformationBody is the body of text displayed to users when
 // the lock file has only recorded local hashes.
-const incompleteLockFileInformationBody = `Due to your customized provider installation methods, Terraform was forced to calculate lock file checksums locally for the following providers:
+const incompleteLockFileInformationBody = `Due to your customized provider installation methods, OpenTF was forced to calculate lock file checksums locally for the following providers:
   - %s
 
-The current .terraform.lock.hcl file only includes checksums for %s, so Terraform running on another platform will fail to install these providers.
+The current .terraform.lock.hcl file only includes checksums for %s, so OpenTF running on another platform will fail to install these providers.
 
 To calculate additional checksums for another platform, run:
-  terraform providers lock -platform=linux_amd64
+  opentf providers lock -platform=linux_amd64
 (where linux_amd64 is the platform to generate)`

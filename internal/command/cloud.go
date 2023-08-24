@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/cloudplugin1"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
@@ -73,7 +74,7 @@ func (c *CloudCommand) proxy(args []string, stdout, stderr io.Writer) int {
 	// multiple versions are possible.
 	cloud1, ok := raw.(cloudplugin.Cloud1)
 	if !ok {
-		c.Ui.Error("If more than one cloudplugin versions are available, they need to be added to the cloud command. This is a bug in Terraform.")
+		c.Ui.Error("If more than one cloudplugin versions are available, they need to be added to the cloud command. This is a bug in OpenTF.")
 		return ExitRPCError
 	}
 	return cloud1.Execute(args, stdout, stderr)

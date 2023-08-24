@@ -23,6 +23,7 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
@@ -63,7 +64,7 @@ func (c *LoginCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Login is an interactive command",
-			"The \"terraform login\" command uses interactive prompts to obtain and record credentials, so it can't be run with input disabled.\n\nTo configure credentials in a non-interactive context, write existing credentials directly to a CLI configuration file.",
+			"The \"opentf login\" command uses interactive prompts to obtain and record credentials, so it can't be run with input disabled.\n\nTo configure credentials in a non-interactive context, write existing credentials directly to a CLI configuration file.",
 		))
 		c.showDiagnostics(diags)
 		return 1
@@ -125,14 +126,14 @@ func (c *LoginCommand) Run(args []string) int {
 	case *disco.ErrVersionNotSupported:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
-			"Host does not support Terraform login",
-			fmt.Sprintf("The given hostname %q allows creating Terraform authorization tokens, but requires a newer version of Terraform CLI to do so.", dispHostname),
+			"Host does not support OpenTF login",
+			fmt.Sprintf("The given hostname %q allows creating OpenTF authorization tokens, but requires a newer version of OpenTF CLI to do so.", dispHostname),
 		))
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
-			"Host does not support Terraform login",
-			fmt.Sprintf("The given hostname %q cannot support \"terraform login\": %s.", dispHostname, err),
+			"Host does not support OpenTF login",
+			fmt.Sprintf("The given hostname %q cannot support \"opentf login\": %s.", dispHostname, err),
 		))
 	}
 
@@ -146,20 +147,20 @@ func (c *LoginCommand) Run(args []string) int {
 		case *disco.ErrServiceNotProvided:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support Terraform tokens API",
-				fmt.Sprintf("The given hostname %q does not support creating Terraform authorization tokens.", dispHostname),
+				"Host does not support OpenTF tokens API",
+				fmt.Sprintf("The given hostname %q does not support creating OpenTF authorization tokens.", dispHostname),
 			))
 		case *disco.ErrVersionNotSupported:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support Terraform tokens API",
-				fmt.Sprintf("The given hostname %q allows creating Terraform authorization tokens, but requires a newer version of Terraform CLI to do so.", dispHostname),
+				"Host does not support OpenTF tokens API",
+				fmt.Sprintf("The given hostname %q allows creating OpenTF authorization tokens, but requires a newer version of OpenTF CLI to do so.", dispHostname),
 			))
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support Terraform tokens API",
-				fmt.Sprintf("The given hostname %q cannot support \"terraform login\": %s.", dispHostname, err),
+				"Host does not support OpenTF tokens API",
+				fmt.Sprintf("The given hostname %q cannot support \"opentf login\": %s.", dispHostname, err),
 			))
 		}
 	}
@@ -168,7 +169,7 @@ func (c *LoginCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			fmt.Sprintf("Credentials for %s are manually configured", dispHostname),
-			"The \"terraform login\" command cannot log in because credentials for this host are already configured in a CLI configuration file.\n\nTo log in, first revoke the existing credentials and remove that block from the CLI configuration.",
+			"The \"opentf login\" command cannot log in because credentials for this host are already configured in a CLI configuration file.\n\nTo log in, first revoke the existing credentials and remove that block from the CLI configuration.",
 		))
 	}
 
@@ -180,7 +181,7 @@ func (c *LoginCommand) Run(args []string) int {
 	var token svcauth.HostCredentialsToken
 	var tokenDiags tfdiags.Diagnostics
 
-	// Prefer Terraform login if available
+	// Prefer OpenTF login if available
 	if clientConfig != nil {
 		var oauthToken *oauth2.Token
 
@@ -196,8 +197,8 @@ func (c *LoginCommand) Run(args []string) int {
 		default:
 			tokenDiags = tokenDiags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support Terraform login",
-				fmt.Sprintf("The given hostname %q does not allow any OAuth grant types that are supported by this version of Terraform.", dispHostname),
+				"Host does not support OpenTF login",
+				fmt.Sprintf("The given hostname %q does not allow any OAuth grant types that are supported by this version of OpenTF.", dispHostname),
 			))
 		}
 		if oauthToken != nil {
@@ -218,7 +219,7 @@ func (c *LoginCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Failed to save API token",
-			fmt.Sprintf("The given host returned an API token, but Terraform failed to save it: %s.", err),
+			fmt.Sprintf("The given host returned an API token, but OpenTF failed to save it: %s.", err),
 		))
 	}
 
@@ -290,9 +291,9 @@ func (c *LoginCommand) Run(args []string) int {
 		c.Ui.Output(
 			fmt.Sprintf(
 				c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]Terraform has obtained and saved an API token.[reset]
+[green][bold]Success![reset] [bold]OpenTF has obtained and saved an API token.[reset]
 
-The new API token will be used for any future Terraform command that must make
+The new API token will be used for any future OpenTF command that must make
 authenticated requests to %s.
 `)),
 				dispHostname,
@@ -338,7 +339,7 @@ func (c *LoginCommand) Help() string {
 	}
 
 	helpText := fmt.Sprintf(`
-Usage: terraform [global options] login [hostname]
+Usage: opentf [global options] login [hostname]
 
   Retrieves an authentication token for the given hostname, if it supports
   automatic login, and saves it in a credentials file in your home directory.
@@ -486,7 +487,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	if c.BrowserLauncher != nil {
 		err = c.BrowserLauncher.OpenURL(authCodeURL)
 		if err == nil {
-			c.Ui.Output(fmt.Sprintf("Terraform must now open a web browser to the login page for %s.\n", hostname.ForDisplay()))
+			c.Ui.Output(fmt.Sprintf("OpenTF must now open a web browser to the login page for %s.\n", hostname.ForDisplay()))
 			c.Ui.Output(fmt.Sprintf("If a browser does not open this automatically, open the following URL to proceed:\n    %s\n", authCodeURL))
 		} else {
 			// Assume we're on a platform where opening a browser isn't possible.
@@ -500,7 +501,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		c.Ui.Output(fmt.Sprintf("Open the following URL to access the login page for %s:\n    %s\n", hostname.ForDisplay(), authCodeURL))
 	}
 
-	c.Ui.Output("Terraform will now wait for the host to signal that login was successful.\n")
+	c.Ui.Output("OpenTF will now wait for the host to signal that login was successful.\n")
 
 	code, ok := <-codeCh
 	if !ok {
@@ -543,7 +544,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 	}
 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
-	c.Ui.Output("Terraform must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
+	c.Ui.Output("OpenTF must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
 
 	username, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
 		Id:    "username",
@@ -607,7 +608,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	if c.BrowserLauncher != nil {
 		err := c.BrowserLauncher.OpenURL(tokensURL.String())
 		if err == nil {
-			c.Ui.Output(fmt.Sprintf("Terraform must now open a web browser to the tokens page for %s.\n", hostname.ForDisplay()))
+			c.Ui.Output(fmt.Sprintf("OpenTF must now open a web browser to the tokens page for %s.\n", hostname.ForDisplay()))
 			c.Ui.Output(fmt.Sprintf("If a browser does not open this automatically, open the following URL to proceed:\n    %s\n", tokensURL.String()))
 		} else {
 			log.Printf("[DEBUG] error opening web browser: %s", err)
@@ -630,9 +631,9 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	if credsCtx != nil {
 		switch credsCtx.Location {
 		case cliconfig.CredentialsViaHelper:
-			c.Ui.Output(fmt.Sprintf("Terraform will store the token in the configured %q credentials helper\nfor use by subsequent commands.\n", credsCtx.HelperType))
+			c.Ui.Output(fmt.Sprintf("OpenTF will store the token in the configured %q credentials helper\nfor use by subsequent commands.\n", credsCtx.HelperType))
 		case cliconfig.CredentialsInPrimaryFile, cliconfig.CredentialsNotAvailable:
-			c.Ui.Output(fmt.Sprintf("Terraform will store the token in plain text in the following file\nfor use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
+			c.Ui.Output(fmt.Sprintf("OpenTF will store the token in plain text in the following file\nfor use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
 		}
 	}
 
@@ -678,7 +679,7 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 		mechanism = "your browser"
 	}
 
-	c.Ui.Output(fmt.Sprintf("Terraform will request an API token for %s using %s.\n", hostname.ForDisplay(), mechanism))
+	c.Ui.Output(fmt.Sprintf("OpenTF will request an API token for %s using %s.\n", hostname.ForDisplay(), mechanism))
 
 	if grantType.UsesAuthorizationEndpoint() {
 		c.Ui.Output(
@@ -691,9 +692,9 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 	if credsCtx != nil {
 		switch credsCtx.Location {
 		case cliconfig.CredentialsViaHelper:
-			c.Ui.Output(fmt.Sprintf("If login is successful, Terraform will store the token in the configured\n%q credentials helper for use by subsequent commands.\n", credsCtx.HelperType))
+			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTF will store the token in the configured\n%q credentials helper for use by subsequent commands.\n", credsCtx.HelperType))
 		case cliconfig.CredentialsInPrimaryFile, cliconfig.CredentialsNotAvailable:
-			c.Ui.Output(fmt.Sprintf("If login is successful, Terraform will store the token in plain text in\nthe following file for use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
+			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTF will store the token in plain text in\nthe following file for use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
 		}
 	}
 
@@ -783,7 +784,7 @@ type loginCredentialsContext struct {
 const callbackSuccessMessage = `
 <html>
 <head>
-<title>Terraform Login</title>
+<title>OpenTF Login</title>
 <style type="text/css">
 body {
 	font-family: monospace;
@@ -794,8 +795,8 @@ body {
 </head>
 <body>
 
-<p>The login server has returned an authentication code to Terraform.</p>
-<p>Now close this page and return to the terminal where <tt>terraform login</tt>
+<p>The login server has returned an authentication code to OpenTF.</p>
+<p>Now close this page and return to the terminal where <tt>opentf login</tt>
 is running to see the result of the login process.</p>
 
 </body>

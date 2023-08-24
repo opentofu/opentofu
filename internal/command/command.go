@@ -44,7 +44,7 @@ const DefaultParallelism = 10
 // that require a backend.Local.
 const ErrUnsupportedLocalOp = `The configured backend doesn't support this operation.
 
-The "backend" in Terraform defines how Terraform operates. The default
+The "backend" in OpenTF defines how OpenTF operates. The default
 backend performs all operations locally on your machine. Your configuration
 is configured to use a non-local backend. This backend doesn't support this
 operation.

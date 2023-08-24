@@ -69,7 +69,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `registry.terraform.io/hashicorp/null: there is no package for registry.terraform.io/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `terraform init`; !strings.Contains(stderr, want) {
+		if want := `opentf init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 
@@ -104,7 +104,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `Initial configuration of the requested backend "local"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `terraform init`; !strings.Contains(stderr, want) {
+		if want := `opentf init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 
@@ -134,7 +134,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `registry.terraform.io/hashicorp/null: the cached package for registry.terraform.io/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `terraform init`; !strings.Contains(stderr, want) {
+		if want := `opentf init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})

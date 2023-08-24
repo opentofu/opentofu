@@ -41,7 +41,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 
 	if !jsonOutput {
 		c.Ui.Error(
-			"The `terraform providers schema` command requires the `-json` flag.\n")
+			"The `opentf providers schema` command requires the `-json` flag.\n")
 		cmdFlags.Usage()
 		return 1
 	}
@@ -118,7 +118,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 }
 
 const providersSchemaCommandHelp = `
-Usage: terraform [global options] providers schema -json
+Usage: opentf [global options] providers schema -json
 
   Prints out a json representation of the schemas for all providers used 
   in the current configuration.

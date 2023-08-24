@@ -76,13 +76,13 @@ func (c *StatePullCommand) Run(args []string) int {
 
 func (c *StatePullCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] state pull [options]
+Usage: opentf [global options] state pull [options]
 
   Pull the state from its location, upgrade the local copy, and output it
   to stdout.
 
   This command "pulls" the current state and outputs it to stdout.
-  As part of this process, Terraform will upgrade the state format of the
+  As part of this process, OpenTF will upgrade the state format of the
   local copy to the current version.
 
   The primary use of this is for state stored remotely. This command

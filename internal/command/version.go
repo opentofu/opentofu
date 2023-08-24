@@ -41,9 +41,9 @@ type VersionCheckInfo struct {
 
 func (c *VersionCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] version [options]
+Usage: opentf [global options] version [options]
 
-  Displays the version of Terraform and all installed plugins
+  Displays the version of OpenTF and all installed plugins
 
 Options:
 
@@ -72,7 +72,7 @@ func (c *VersionCommand) Run(args []string) int {
 		return 1
 	}
 
-	fmt.Fprintf(&versionString, "Terraform v%s", c.Version)
+	fmt.Fprintf(&versionString, "OpenTF v%s", c.Version)
 	if c.VersionPrerelease != "" {
 		fmt.Fprintf(&versionString, "-%s", c.VersionPrerelease)
 	}
@@ -138,7 +138,7 @@ func (c *VersionCommand) Run(args []string) int {
 		}
 		if outdated {
 			c.Ui.Output(fmt.Sprintf(
-				"\nYour version of Terraform is out of date! The latest version\n"+
+				"\nYour version of OpenTF is out of date! The latest version\n"+
 					"is %s. You can update by downloading from https://www.terraform.io/downloads.html",
 				latest))
 		}
@@ -149,5 +149,5 @@ func (c *VersionCommand) Run(args []string) int {
 }
 
 func (c *VersionCommand) Synopsis() string {
-	return "Show the current Terraform version"
+	return "Show the current OpenTF version"
 }

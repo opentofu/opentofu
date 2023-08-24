@@ -192,9 +192,9 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 
 func (c *ConsoleCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] console [options]
+Usage: opentf [global options] console [options]
 
-  Starts an interactive console for experimenting with Terraform
+  Starts an interactive console for experimenting with OpenTF
   interpolations.
 
   This will open an interactive console that you can use to type
@@ -209,10 +209,10 @@ Options:
   -state=path       Legacy option for the local backend only. See the local
                     backend's documentation for more information.
 
-  -var 'foo=bar'    Set a variable in the Terraform configuration. This
+  -var 'foo=bar'    Set a variable in the OpenTF configuration. This
                     flag can be set multiple times.
 
-  -var-file=foo     Set variables in the Terraform configuration from
+  -var-file=foo     Set variables in the OpenTF configuration from
                     a file. If "terraform.tfvars" or any ".auto.tfvars"
                     files are present, they will be automatically loaded.
 `
@@ -220,5 +220,5 @@ Options:
 }
 
 func (c *ConsoleCommand) Synopsis() string {
-	return "Try Terraform expressions at an interactive command prompt"
+	return "Try OpenTF expressions at an interactive command prompt"
 }

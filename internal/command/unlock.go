@@ -11,6 +11,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
@@ -89,8 +90,8 @@ func (c *UnlockCommand) Run(args []string) int {
 			return 1
 		}
 
-		desc := "Terraform will remove the lock on the remote state.\n" +
-			"This will allow local Terraform commands to modify this state, even though it\n" +
+		desc := "OpenTF will remove the lock on the remote state.\n" +
+			"This will allow local OpenTF commands to modify this state, even though it\n" +
 			"may still be in use. Only 'yes' will be accepted to confirm."
 
 		v, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
@@ -119,7 +120,7 @@ func (c *UnlockCommand) Run(args []string) int {
 
 func (c *UnlockCommand) Help() string {
 	helpText := `
-Usage: terraform [global options] force-unlock LOCK_ID
+Usage: opentf [global options] force-unlock LOCK_ID
 
   Manually unlock the state for the defined configuration.
 
@@ -140,8 +141,8 @@ func (c *UnlockCommand) Synopsis() string {
 }
 
 const outputUnlockSuccess = `
-[reset][bold][green]Terraform state has been successfully unlocked![reset][green]
+[reset][bold][green]OpenTF state has been successfully unlocked![reset][green]
 
-The state has been unlocked, and Terraform commands should now be able to
+The state has been unlocked, and OpenTF commands should now be able to
 obtain a new lock on the remote state.
 `

@@ -568,7 +568,7 @@ func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
 func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
-	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local Terraform versions are incompatible")
+	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTF versions are incompatible")
 
 	return f
 }
@@ -711,7 +711,7 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		}
 		if useCompact {
 			msg := format.DiagnosticWarningsCompact(diags, m.Colorize())
-			msg = "\n" + msg + "\nTo see the full warning notes, run Terraform without -compact-warnings.\n"
+			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTF without -compact-warnings.\n"
 			m.Ui.Warn(msg)
 			return
 		}
