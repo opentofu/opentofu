@@ -71,7 +71,7 @@ func realMain() int {
 
 	err = openTelemetryInit()
 	if err != nil {
-		// openTelemetryInit can only fail if Terraform was run with an
+		// openTelemetryInit can only fail if OpenTF was run with an
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
 		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
@@ -158,7 +158,7 @@ func realMain() int {
 		}
 		if diags.HasErrors() {
 			Ui.Error("As a result of the above problems, OpenTF may not behave as intended.\n\n")
-			// We continue to run anyway, since Terraform has reasonable defaults.
+			// We continue to run anyway, since OpenTF has reasonable defaults.
 		}
 	}
 
@@ -202,7 +202,7 @@ func realMain() int {
 	providerDevOverrides := providerDevOverrides(config.ProviderInstallation)
 
 	// The user can declare that certain providers are being managed on
-	// Terraform's behalf using this environment variable. This is used
+	// OpenTF's behalf using this environment variable. This is used
 	// primarily by the SDK's acceptance testing framework.
 	unmanagedProviders, err := parseReattachProviders(os.Getenv("TF_REATTACH_PROVIDERS"))
 	if err != nil {
@@ -224,7 +224,7 @@ func realMain() int {
 		return 1
 	}
 
-	// The arguments can begin with a -chdir option to ask Terraform to switch
+	// The arguments can begin with a -chdir option to ask OpenTF to switch
 	// to a different working directory for the rest of its work. If that
 	// option is present then extractChdirOption returns a trimmed args with that option removed.
 	overrideWd, args, err := extractChdirOption(args)
@@ -317,7 +317,7 @@ func realMain() int {
 	if cmd := cliRunner.Subcommand(); cmd != "" && !autoComplete {
 		// Due to the design of cli.CLI, this special error message only works
 		// for typos of top-level commands. For a subcommand typo, like
-		// "terraform state posh", cmd would be "state" here and thus would
+		// "opentf state push", cmd would be "state" here and thus would
 		// be considered to exist, and it would print out its own usage message.
 		if _, exists := Commands[cmd]; !exists {
 			suggestions := make([]string, 0, len(Commands))
