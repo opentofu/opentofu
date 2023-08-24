@@ -47,7 +47,7 @@ func helpFunc(commands map[string]cli.CommandFactory) string {
 	// website/source/docs/cli/commands/index.html.markdown; if you
 	// change this then consider updating that to match.
 	helpText := fmt.Sprintf(`
-Usage: terraform [global options] <subcommand> [args]
+Usage: opentf [global options] <subcommand> [args]
 
 The available commands for execution are listed below.
 The primary workflow commands are given first, followed by
