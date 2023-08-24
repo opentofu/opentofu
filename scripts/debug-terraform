@@ -18,9 +18,9 @@
 
 set -eu
 
-echo "Launching Terraform in a headless debug session"
+echo "Launching OpenTF in a headless debug session"
 echo "Connect to it using: dlv connect 127.0.0.1:2345"
-echo "(Terraform takes a long time to build and launch in this mode; some logs will appear below)"
+echo "(OpenTF takes a long time to build and launch in this mode; some logs will appear below)"
 echo "---------------------------"
 
-exec dlv debug github.com/hashicorp/terraform --headless --listen :2345 --log -- "$@"
+exec dlv debug github.com/placeholderplaceholderplaceholder/opentf --headless --listen :2345 --log -- "$@"
