@@ -1922,10 +1922,10 @@ func testForV0State(buf *bufio.Reader) error {
 		return fmt.Errorf("Failed to check for magic bytes: %v", err)
 	}
 	if string(start) == "tfstate" {
-		return fmt.Errorf("Terraform 0.7 no longer supports upgrading the binary state\n" +
-			"format which was used prior to Terraform 0.3. Please upgrade\n" +
-			"this state file using Terraform 0.6.16 prior to using it with\n" +
-			"Terraform 0.7.")
+		return fmt.Errorf("OpenTF 0.7 no longer supports upgrading the binary state\n" +
+			"format which was used prior to OpenTF 0.3. Please upgrade\n" +
+			"this state file using OpenTF 0.6.16 prior to using it with\n" +
+			"OpenTF 0.7.")
 	}
 
 	return nil
@@ -2011,7 +2011,7 @@ func ReadState(src io.Reader) (*State, error) {
 
 		result = v3State
 	default:
-		return nil, fmt.Errorf("Terraform %s does not support state version %d, please update.",
+		return nil, fmt.Errorf("OpenTF %s does not support state version %d, please update.",
 			tfversion.SemVer.String(), versionIdentifier.Version)
 	}
 
@@ -2055,7 +2055,7 @@ func ReadStateV2(jsonBytes []byte) (*State, error) {
 	// Check the version, this to ensure we don't read a future
 	// version that we don't understand
 	if state.Version > StateVersion {
-		return nil, fmt.Errorf("Terraform %s does not support state version %d, please update.",
+		return nil, fmt.Errorf("OpenTF %s does not support state version %d, please update.",
 			tfversion.SemVer.String(), state.Version)
 	}
 
@@ -2064,9 +2064,9 @@ func ReadStateV2(jsonBytes []byte) (*State, error) {
 		if _, err := version.NewVersion(state.TFVersion); err != nil {
 			return nil, fmt.Errorf(
 				"State contains invalid version: %s\n\n"+
-					"Terraform validates the version format prior to writing it. This\n"+
+					"OpenTF validates the version format prior to writing it. This\n"+
 					"means that this is invalid of the state becoming corrupted through\n"+
-					"some external means. Please manually modify the Terraform version\n"+
+					"some external means. Please manually modify the OpenTF version\n"+
 					"field to be a proper semantic version.",
 				state.TFVersion)
 		}
@@ -2090,7 +2090,7 @@ func ReadStateV3(jsonBytes []byte) (*State, error) {
 	// Check the version, this to ensure we don't read a future
 	// version that we don't understand
 	if state.Version > StateVersion {
-		return nil, fmt.Errorf("Terraform %s does not support state version %d, please update.",
+		return nil, fmt.Errorf("OpenTF %s does not support state version %d, please update.",
 			tfversion.SemVer.String(), state.Version)
 	}
 
@@ -2099,9 +2099,9 @@ func ReadStateV3(jsonBytes []byte) (*State, error) {
 		if _, err := version.NewVersion(state.TFVersion); err != nil {
 			return nil, fmt.Errorf(
 				"State contains invalid version: %s\n\n"+
-					"Terraform validates the version format prior to writing it. This\n"+
+					"OpenTF validates the version format prior to writing it. This\n"+
 					"means that this is invalid of the state becoming corrupted through\n"+
-					"some external means. Please manually modify the Terraform version\n"+
+					"some external means. Please manually modify the OpenTF version\n"+
 					"field to be a proper semantic version.",
 				state.TFVersion)
 		}
@@ -2153,7 +2153,7 @@ func WriteState(d *State, dst io.Writer) error {
 		if _, err := version.NewVersion(d.TFVersion); err != nil {
 			return fmt.Errorf(
 				"Error writing state, invalid version: %s\n\n"+
-					"The Terraform version when writing the state must be a semantic\n"+
+					"The OpenTF version when writing the state must be a semantic\n"+
 					"version.",
 				d.TFVersion)
 		}
