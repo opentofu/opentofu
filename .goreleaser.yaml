@@ -170,4 +170,4 @@ changelog:
   use: github-native
 
 release:
-  draft: false
+  draft: true
