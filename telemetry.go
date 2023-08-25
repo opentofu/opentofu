@@ -15,7 +15,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
-// If this environment variable is set to "otlp" when running Terraform CLI
+// If this environment variable is set to "otlp" when running OpenTF CLI
 // then we'll enable an experimental OTLP trace exporter.
 //
 // BEWARE! This is not a committed external interface.
@@ -35,11 +35,11 @@ func init() {
 
 // openTelemetryInit initializes the optional OpenTelemetry exporter.
 //
-// By default we don't export telemetry information at all, since Terraform is
+// By default we don't export telemetry information at all, since OpenTF is
 // a CLI tool and so we don't assume we're running in an environment with
 // a telemetry collector available.
 //
-// However, for those running Terraform in automation we allow setting
+// However, for those running OpenTF in automation we allow setting
 // the standard OpenTelemetry environment variable OTEL_TRACES_EXPORTER=otlp
 // to enable an OTLP exporter, which is in turn configured by all of the
 // standard OTLP exporter environment variables:
@@ -49,7 +49,7 @@ func init() {
 // We don't currently support any other telemetry export protocols, because
 // OTLP has emerged as a de-facto standard and each other exporter we support
 // means another relatively-heavy external dependency. OTLP happens to use
-// protocol buffers and gRPC, which Terraform would depend on for other reasons
+// protocol buffers and gRPC, which OpenTF would depend on for other reasons
 // anyway.
 func openTelemetryInit() error {
 	// We'll check the environment variable ourselves first, because the

@@ -26,10 +26,10 @@ import (
 
 // runningInAutomationEnvName gives the name of an environment variable that
 // can be set to any non-empty value in order to suppress certain messages
-// that assume that Terraform is being run from a command prompt.
+// that assume that OpenTF is being run from a command prompt.
 const runningInAutomationEnvName = "TF_IN_AUTOMATION"
 
-// Commands is the mapping of all the available Terraform commands.
+// Commands is the mapping of all the available OpenTF commands.
 var Commands map[string]cli.CommandFactory
 
 // PrimaryCommands is an ordered sequence of the top-level commands (not
