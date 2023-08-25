@@ -2,8 +2,8 @@ tfcoremock_simple_resource.second: Refreshing state... [id=70c47571-66c3-b1dc-24
 
 Note: Objects have changed outside of OpenTF
 
-OpenTF detected the following changes made outside of OpenTF since the
-last "opentf apply" which may have affected this plan:
+OpenTF detected the following changes made outside of OpenTF since the last
+"opentf apply" which may have affected this plan:
 
   # tfcoremock_simple_resource.first has moved to tfcoremock_simple_resource.second
     resource "tfcoremock_simple_resource" "second" {

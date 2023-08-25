@@ -1,0 +1,55 @@
+# This workflow runs on pull requests to ensure that the snapshots produced by
+# the equivalence tests are consistent with the snapshots that are checked in.
+#
+# If there is an inconsistency, it is the responsibility of the committer to
+# review it, ensure that any changes are intentional, and then commit the new
+# snapshots.
+name: Snapshots
+
+on:
+  pull_request:
+
+jobs:
+  compare:
+    name: Compare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with: { go-version: '1.20' }
+
+      - name: Get the equivalence test binary
+        run: |
+          ./.github/scripts/equivalence-test.sh download_equivalence_test_binary \
+            0.3.0 \
+            ./bin/equivalence-tests \
+            linux \
+            amd64
+
+      - name: Build the OpenTF binary
+        run: |
+          go build -o ./bin/opentf
+
+      - name: Run the equivalence tests
+        run: |
+          export OTF_OVERRIDE_PLAN_TIMESTAMP_FOR_SNAPSHOTS="2023-08-24T12:33:30Z"
+          ./bin/equivalence-tests update \
+            --tests=testing/equivalence-tests/tests \
+            --goldens=testing/equivalence-tests/outputs \
+            --binary=./bin/opentf
+
+      - name: Ensure there is no diff
+        shell: bash
+        run: |
+          changed=$(git diff --quiet -- testing/equivalence-tests/outputs || echo true)
+          if [[ $changed == "true" ]]; then
+            echo "Found changes, please commit the new golden files."
+            git diff -- testing/equivalence-tests/outputs
+            exit 1
+          else
+            echo "Found no changes."
+          fi

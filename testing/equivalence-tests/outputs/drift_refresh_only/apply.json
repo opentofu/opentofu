@@ -2,10 +2,11 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 0 added, 0 changed, 0 destroyed.",
-    "@module": "terraform.ui",
+    "@module": "opentf.ui",
     "changes": {
       "add": 0,
       "change": 0,
+      "import": 0,
       "operation": "apply",
       "remove": 0
     },
@@ -14,7 +15,7 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "terraform.ui",
+    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }

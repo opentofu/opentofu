@@ -1,7 +1,7 @@
 tfcoremock_simple_resource.multiline: Refreshing state... [id=69fe5233-e77a-804f-0dac-115c949540bc]
 
-OpenTF used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
+OpenTF used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
   ~ update in-place
 
 OpenTF will perform the following actions:
