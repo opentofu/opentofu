@@ -62,7 +62,6 @@ dockers:
   - use: buildx
     goarch: amd64
     build_flag_templates:
-      - "--builder=orbstack"
       - "--pull"
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
@@ -81,7 +80,6 @@ dockers:
   - use: buildx
     goarch: arm64
     build_flag_templates:
-      - "--builder=orbstack"
       - "--pull"
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
@@ -100,7 +98,6 @@ dockers:
   - use: buildx
     goarch: arm
     build_flag_templates:
-      - "--builder=orbstack"
       - "--pull"
       - "--platform=linux/arm"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
@@ -119,7 +116,6 @@ dockers:
   - use: buildx
     goarch: "386"
     build_flag_templates:
-      - "--builder=orbstack"
       - "--pull"
       - "--platform=linux/386"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
