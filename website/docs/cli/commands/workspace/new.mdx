@@ -1,15 +1,15 @@
 ---
 page_title: 'Command: workspace new'
-description: The terraform workspace new command is used to create a new workspace.
+description: The opentf workspace new command is used to create a new workspace.
 ---
 
 # Command: workspace new
 
-The `terraform workspace new` command is used to create a new workspace.
+The `opentf workspace new` command is used to create a new workspace.
 
 ## Usage
 
-Usage: `terraform workspace new [OPTIONS] NAME [DIR]`
+Usage: `opentf workspace new [OPTIONS] NAME [DIR]`
 
 This command will create a new workspace with the given name. A workspace with
 this name must not already exist.
@@ -28,11 +28,11 @@ The command-line flags are all optional. The supported flags are:
 ## Example: Create
 
 ```
-$ terraform workspace new example
+$ opentf workspace new example
 Created and switched to workspace "example"!
 
 You're now on a new, empty workspace. Workspaces isolate their state,
-so if you run "terraform plan" Terraform will not see any existing state
+so if you run "opentf plan" OpenTF will not see any existing state
 for this configuration.
 ```
 
@@ -41,10 +41,10 @@ for this configuration.
 To create a new workspace from a pre-existing local state file:
 
 ```
-$ terraform workspace new -state=old.terraform.tfstate example
+$ opentf workspace new -state=old.opentf.tfstate example
 Created and switched to workspace "example".
 
 You're now on a new, empty workspace. Workspaces isolate their state,
-so if you run "terraform plan" Terraform will not see any existing state
+so if you run "opentf plan" OpenTF will not see any existing state
 for this configuration.
 ```
