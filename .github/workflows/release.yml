@@ -22,3 +22,26 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Read Go version
+        run: |
+          echo "goversion=$(cat .go-version)" >> "$GITHUB_ENV"
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: $goversion
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          version: v1.20.0
+          args: release --clean --snapshot=${{ !startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
