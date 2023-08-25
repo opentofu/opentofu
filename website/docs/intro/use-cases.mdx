@@ -8,7 +8,7 @@ description: |-
 
 # Use Cases
 
-[OpenTF](/terraform/intro) is an infrastructure as code tool that lets you define infrastructure resources in human-readable configuration files that you can version, reuse, and share. You can then use a consistent workflow to safely and efficiently provision and manage your infrastructure throughout its lifecycle.
+[OpenTF](/opentf/intro) is an infrastructure as code tool that lets you define infrastructure resources in human-readable configuration files that you can version, reuse, and share. You can then use a consistent workflow to safely and efficiently provision and manage your infrastructure throughout its lifecycle.
 
 This page describes popular OpenTF use cases and provides related resources that you can use to create OpenTF configurations and workflows.
 
@@ -17,7 +17,7 @@ Provisioning infrastructure across multiple clouds increases fault-tolerance, al
 
 ### Resources
 
-- Try our [Deploy Federated Multi-Cloud Kubernetes Clusters](/terraform/tutorials/networking/multicloud-kubernetes) tutorial to provision Kubernetes clusters in both Azure and AWS environments, configure Consul federation with mesh gateways across the two clusters, and deploy microservices across the two clusters to verify federation.
+- Try our [Deploy Federated Multi-Cloud Kubernetes Clusters](/opentf/tutorials/networking/multicloud-kubernetes) tutorial to provision Kubernetes clusters in both Azure and AWS environments, configure Consul federation with mesh gateways across the two clusters, and deploy microservices across the two clusters to verify federation.
 - Browse the [Terraform Registry](https://registry.terraform.io/browse/providers) to find thousands of publicly available providers.
 
 
@@ -27,8 +27,8 @@ You can use OpenTF to efficiently deploy, release, scale, and monitor infrastruc
 
 ### Resources
 
-- Try our [Automate Monitoring with the OpenTF Datadog Provider](/terraform/tutorials/applications/datadog-provider) tutorial to deploy a demo Nginx application to a Kubernetes cluster with Helm and install the Datadog agent across the cluster. The Datadog agent reports the cluster health back to your Datadog dashboard.
-- Try our [Use Application Load Balancers for Blue-Green and Canary Deployments](/terraform/tutorials/aws/blue-green-canary-tests-deployments) tutorial. You will provision the blue and green environments, add feature toggles to your OpenTF configuration to define a list of potential deployment strategies, conduct a canary test, and incrementally promote your green environment.
+- Try our [Automate Monitoring with the OpenTF Datadog Provider](/opentf/tutorials/applications/datadog-provider) tutorial to deploy a demo Nginx application to a Kubernetes cluster with Helm and install the Datadog agent across the cluster. The Datadog agent reports the cluster health back to your Datadog dashboard.
+- Try our [Use Application Load Balancers for Blue-Green and Canary Deployments](/opentf/tutorials/aws/blue-green-canary-tests-deployments) tutorial. You will provision the blue and green environments, add feature toggles to your OpenTF configuration to define a list of potential deployment strategies, conduct a canary test, and incrementally promote your green environment.
 
 
 ## Self-Service Clusters
@@ -37,8 +37,8 @@ At a large organization, your centralized operations team may get many repetitiv
 
 ### Resources
 
-- Try the [Use Modules from the Registry](/terraform/tutorials/modules/module-use) tutorial to get started using public modules in your OpenTF configuration.
-- Try the [Build and Use a Local Module](/terraform/tutorials/modules/module-create) tutorial to create a module to manage AWS S3 buckets.
+- Try the [Use Modules from the Registry](/opentf/tutorials/modules/module-use) tutorial to get started using public modules in your OpenTF configuration.
+- Try the [Build and Use a Local Module](/opentf/tutorials/modules/module-create) tutorial to create a module to manage AWS S3 buckets.
 
 
 ## Policy Compliance and Management
@@ -47,9 +47,9 @@ OpenTF can help you enforce policies on the types of resources teams can provisi
 
 ### Resources
 
-- Try the [Control Costs with Policies](/terraform/tutorials/cloud-get-started/cost-estimation) tutorial to estimate the cost of infrastructure changes and define policy to limit it.
+- Try the [Control Costs with Policies](/opentf/tutorials/cloud-get-started/cost-estimation) tutorial to estimate the cost of infrastructure changes and define policy to limit it.
 
-- The [Sentinel documentation](/terraform/cloud-docs/policy-enforcement) provides more in-depth information and a list of example policies that you can adapt for your use cases.
+- The [Sentinel documentation](/opentf/cloud-docs/policy-enforcement) provides more in-depth information and a list of example policies that you can adapt for your use cases.
 
 
 ## PaaS Application Setup
@@ -57,7 +57,7 @@ Platform as a Service (PaaS) vendors like Heroku allow you to create  web applic
 
 ### Resources
 
-Try the [Deploy, Manage, and Scale an Application on Heroku](/terraform/tutorials/applications/heroku-provider) tutorial to manage an application’s lifecycle with OpenTF.
+Try the [Deploy, Manage, and Scale an Application on Heroku](/opentf/tutorials/applications/heroku-provider) tutorial to manage an application’s lifecycle with OpenTF.
 
 
 ## Software Defined Networking
@@ -71,8 +71,8 @@ Kubernetes is an open-source workload scheduler for containerized applications. 
 
 ### Resources
 
-- Try the [Manage Kubernetes Resources via OpenTF](/terraform/tutorials/kubernetes/kubernetes-provider) tutorial. You will use OpenTF to schedule and expose a NGINX deployment on a Kubernetes cluster.
-- Try the [Deploy Infrastructure with the cloud backend Operator for Kubernetes](/terraform/tutorials/kubernetes/kubernetes-operator) tutorial. You will configure and deploy the Operator to a Kubernetes cluster and use it to create a cloud backend workspace and provision a message queue for an example application.
+- Try the [Manage Kubernetes Resources via OpenTF](/opentf/tutorials/kubernetes/kubernetes-provider) tutorial. You will use OpenTF to schedule and expose a NGINX deployment on a Kubernetes cluster.
+- Try the [Deploy Infrastructure with the cloud backend Operator for Kubernetes](/opentf/tutorials/kubernetes/kubernetes-operator) tutorial. You will configure and deploy the Operator to a Kubernetes cluster and use it to create a cloud backend workspace and provision a message queue for an example application.
 
 
 ## Parallel Environments
