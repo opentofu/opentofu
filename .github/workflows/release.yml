@@ -26,14 +26,14 @@ jobs:
       - name: Fetch tags
         run: git fetch --force --tags
 
-      - name: Read Go version
-        run: |
-          echo "goversion=$(cat .go-version)" >> "$GITHUB_ENV"
+      - name: Determine Go version
+        id: go
+        uses: ./.github/actions/go-version
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: $goversion
+          go-version: ${{ steps.go.outputs.version }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
