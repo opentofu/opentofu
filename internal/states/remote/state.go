@@ -27,6 +27,8 @@ type State struct {
 
 	Client Client
 
+	encryptionInitialized bool
+
 	// We track two pieces of meta data in addition to the state itself:
 	//
 	// lineage - the state's unique ID
@@ -135,6 +137,7 @@ func (s *State) RefreshState() error {
 // that we can make internal calls to it from methods that are already holding
 // the s.mu lock.
 func (s *State) refreshState() error {
+	s.ensureEncryptionInitialized()
 	payload, err := s.Client.Get()
 	if err != nil {
 		return err
@@ -210,6 +213,7 @@ func (s *State) PersistState(schemas *opentf.Schemas) error {
 		return err
 	}
 
+	s.ensureEncryptionInitialized()
 	err = s.Client.Put(buf.Bytes())
 	if err != nil {
 		return err
