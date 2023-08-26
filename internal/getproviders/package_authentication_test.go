@@ -41,7 +41,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 			"unauthenticated",
 		},
 		{
-			&PackageAuthenticationResult{result: communityProvider},
+			&PackageAuthenticationResult{result: signed},
 			"signed",
 		},
 	}
@@ -75,10 +75,10 @@ var _ PackageAuthentication = (*mockAuthentication)(nil)
 func TestPackageAuthenticationAll_success(t *testing.T) {
 	result, err := PackageAuthenticationAll(
 		&mockAuthentication{result: verifiedChecksum},
-		&mockAuthentication{result: communityProvider},
+		&mockAuthentication{result: signed},
 	).AuthenticatePackage(nil)
 
-	want := PackageAuthenticationResult{result: communityProvider}
+	want := PackageAuthenticationResult{result: signed}
 	if result == nil || *result != want {
 		t.Errorf("wrong result: want %#v, got %#v", want, result)
 	}
@@ -94,7 +94,7 @@ func TestPackageAuthenticationAll_failure(t *testing.T) {
 	result, err := PackageAuthenticationAll(
 		&mockAuthentication{result: verifiedChecksum},
 		&mockAuthentication{err: someError},
-		&mockAuthentication{result: communityProvider},
+		&mockAuthentication{result: signed},
 	).AuthenticatePackage(nil)
 
 	if result != nil {
@@ -340,7 +340,7 @@ func TestSignatureAuthentication_success(t *testing.T) {
 				},
 			},
 			PackageAuthenticationResult{
-				result: communityProvider,
+				result: signed,
 				KeyID:  testAuthorKeyID,
 			},
 		},
@@ -355,7 +355,7 @@ func TestSignatureAuthentication_success(t *testing.T) {
 				},
 			},
 			PackageAuthenticationResult{
-				result: communityProvider,
+				result: signed,
 				KeyID:  testAuthorKeyID,
 			},
 		},
@@ -398,7 +398,7 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 				},
 			},
 			PackageAuthenticationResult{
-				result: communityProvider,
+				result: signed,
 				KeyID:  testHashiCorpPublicKeyID,
 			},
 		},

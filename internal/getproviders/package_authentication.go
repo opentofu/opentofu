@@ -21,7 +21,7 @@ type packageAuthenticationResult int
 
 const (
 	verifiedChecksum packageAuthenticationResult = iota
-	communityProvider
+	signed
 )
 
 var (
@@ -56,7 +56,7 @@ func (t *PackageAuthenticationResult) Signed() bool {
 	if t == nil {
 		return false
 	}
-	return t.result == communityProvider
+	return t.result == signed
 }
 
 // SigningKey represents a key used to sign packages from a registry. These are
@@ -377,7 +377,7 @@ func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (
 
 	// We have a valid signature, but it's not from the HashiCorp key, and it
 	// also isn't a trusted partner. This is a community provider.
-	return &PackageAuthenticationResult{result: communityProvider, KeyID: keyID}, nil
+	return &PackageAuthenticationResult{result: signed, KeyID: keyID}, nil
 }
 
 func (s signatureAuthentication) AcceptableHashes() []Hash {
