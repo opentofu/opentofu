@@ -675,7 +675,7 @@ NeedProvider:
 		}
 
 		var signedHashes []getproviders.Hash
-		if authResult.SignedByAnyParty() {
+		if authResult.Signed() {
 			// We'll trust new hashes from upstream only if they were verified
 			// as signed by a suitable key. Otherwise, we'd record only
 			// a new hash we just calculated ourselves from the bytes on disk,

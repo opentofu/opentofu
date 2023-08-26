@@ -148,7 +148,7 @@ func TestSourcePackageMeta(t *testing.T) {
 						[]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"),
 						[]byte("GPG signature"),
 						[]SigningKey{
-							{ASCIIArmor: HashicorpPublicKey},
+							{ASCIIArmor: TestingPublicKey},
 						},
 					),
 				),
