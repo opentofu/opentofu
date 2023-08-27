@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	getter "github.com/hashicorp/go-getter"
+	"oras.land/oras-go/v2/registry/remote"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
@@ -69,6 +70,73 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	if err == nil && n < resp.ContentLength {
 		err = fmt.Errorf("incorrect response size: expected %d bytes, but got %d bytes", resp.ContentLength, n)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	archiveFilename := f.Name()
+	localLocation := getproviders.PackageLocalArchive(archiveFilename)
+
+	var authResult *getproviders.PackageAuthenticationResult
+	if meta.Authentication != nil {
+		if authResult, err = meta.Authentication.AuthenticatePackage(localLocation); err != nil {
+			return authResult, err
+		}
+	}
+
+	// We can now delegate to installFromLocalArchive for extraction. To do so,
+	// we construct a new package meta description using the local archive
+	// path as the location, and skipping authentication. installFromLocalMeta
+	// is responsible for verifying that the archive matches the allowedHashes,
+	// though.
+	localMeta := getproviders.PackageMeta{
+		Provider:         meta.Provider,
+		Version:          meta.Version,
+		ProtocolVersions: meta.ProtocolVersions,
+		TargetPlatform:   meta.TargetPlatform,
+		Filename:         meta.Filename,
+		Location:         localLocation,
+		Authentication:   nil,
+	}
+	if _, err := installFromLocalArchive(ctx, localMeta, targetDir, allowedHashes); err != nil {
+		return nil, err
+	}
+	return authResult, nil
+}
+
+func installFromOCIBlob(ctx context.Context, meta getproviders.PackageMeta, targetDir string, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
+	blobLocation := meta.Location.(getproviders.PackageOCIBlob)
+
+	// When we're installing from an HTTP URL we expect the URL to refer to
+	// a zip file. We'll fetch that into a temporary file here and then
+	// delegate to installFromLocalArchive below to actually extract it.
+	// (We're not using go-getter here because its HTTP getter has a bunch
+	// of extraneous functionality we don't need or want, like indirection
+	// through X-Terraform-Get header, attempting partial fetches for
+	// files that already exist, etc.)
+
+	repo, err := remote.NewRepository(blobLocation.Repository)
+	if err != nil {
+		panic(err)
+	}
+	repo.PlainHTTP = true
+
+	_, layerReader, err := repo.Blobs().FetchReference(ctx, blobLocation.Digest)
+	if err != nil {
+		panic(err)
+	}
+	defer layerReader.Close()
+
+	f, err := ioutil.TempFile("", "terraform-provider")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open temporary file to download from %s: %w", blobLocation, err)
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	// We'll borrow go-getter's "cancelable copy" implementation here so that
+	// the download can potentially be interrupted partway through.
+	_, err = getter.Copy(ctx, f, layerReader)
 	if err != nil {
 		return nil, err
 	}

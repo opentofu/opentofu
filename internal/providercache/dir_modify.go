@@ -34,11 +34,14 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 	log.Printf("[TRACE] providercache.Dir.InstallPackage: installing %s v%s from %s", meta.Provider, meta.Version, meta.Location)
 	switch meta.Location.(type) {
 	case getproviders.PackageHTTPURL:
+		fmt.Println(meta.Location)
 		return installFromHTTPURL(ctx, meta, newPath, allowedHashes)
 	case getproviders.PackageLocalArchive:
 		return installFromLocalArchive(ctx, meta, newPath, allowedHashes)
 	case getproviders.PackageLocalDir:
 		return installFromLocalDir(ctx, meta, newPath, allowedHashes)
+	case getproviders.PackageOCIBlob:
+		return installFromOCIBlob(ctx, meta, newPath, allowedHashes)
 	default:
 		// Should not get here, because the above should be exhaustive for
 		// all implementations of getproviders.Location.

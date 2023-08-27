@@ -227,6 +227,12 @@ func initCommands(
 			}, nil
 		},
 
+		"oci-publish": func() (cli.Command, error) {
+			return &command.OCIPublishCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"output": func() (cli.Command, error) {
 			return &command.OutputCommand{
 				Meta: meta,
@@ -350,9 +356,9 @@ func initCommands(
 			}, nil
 		},
 
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 		// Plumbing
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
 			return &command.UnlockCommand{

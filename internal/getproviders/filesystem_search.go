@@ -101,6 +101,12 @@ func SearchLocalDirectory(baseDir string) (map[addrs.Provider]PackageMetaList, e
 			return nil
 		}
 
+		isOCI := false
+		if strings.HasPrefix(hostnameGiven, "oci:") {
+			isOCI = true
+			hostnameGiven = strings.TrimPrefix(hostnameGiven, "oci:")
+		}
+
 		hostname, err := svchost.ForComparison(hostnameGiven)
 		if err != nil {
 			log.Printf("[WARN] local provider path %q contains invalid hostname %q; ignoring", fullPath, hostnameGiven)
@@ -116,6 +122,7 @@ func SearchLocalDirectory(baseDir string) (map[addrs.Provider]PackageMetaList, e
 		} else {
 			providerAddr = addrs.NewProvider(hostname, namespace, typeName)
 		}
+		providerAddr.IsOCI = isOCI
 
 		// The "info" passed to our function is an Lstat result, so it might
 		// be referring to a symbolic link. We'll do a full "Stat" on it
@@ -270,9 +277,14 @@ func SearchLocalDirectory(baseDir string) (map[addrs.Provider]PackageMetaList, e
 // it can be used by callers outside this package that may have other
 // types that represent package identifiers.
 func UnpackedDirectoryPathForPackage(baseDir string, provider addrs.Provider, version Version, platform Platform) string {
+	hostname := provider.Hostname.ForDisplay()
+	if provider.IsOCI {
+		hostname = "oci:" + hostname
+	}
+
 	return filepath.ToSlash(filepath.Join(
 		baseDir,
-		provider.Hostname.ForDisplay(), provider.Namespace, provider.Type,
+		hostname, provider.Namespace, provider.Type,
 		version.String(),
 		platform.String(),
 	))

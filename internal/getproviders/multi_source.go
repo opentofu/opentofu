@@ -217,7 +217,9 @@ func (ps MultiSourceMatchingPatterns) MatchesProvider(addr addrs.Provider) bool 
 		hostMatch := (pattern.Hostname == svchost.Hostname(Wildcard) || pattern.Hostname == addr.Hostname)
 		namespaceMatch := (pattern.Namespace == Wildcard || pattern.Namespace == addr.Namespace)
 		typeMatch := (pattern.Type == Wildcard || pattern.Type == addr.Type)
-		if hostMatch && namespaceMatch && typeMatch {
+		ociMatch := (pattern.IsOCI == addr.IsOCI)
+
+		if hostMatch && namespaceMatch && typeMatch && ociMatch {
 			return true
 		}
 	}

@@ -313,6 +313,14 @@ type PackageHTTPURL string
 func (p PackageHTTPURL) packageLocation() {}
 func (p PackageHTTPURL) String() string   { return string(p) }
 
+type PackageOCIBlob struct {
+	Repository string
+	Digest     string
+}
+
+func (p PackageOCIBlob) packageLocation() {}
+func (p PackageOCIBlob) String() string   { return fmt.Sprintf("%s:%s", p.Repository, p.Digest) }
+
 // PackageMetaList is a list of PackageMeta. It's just []PackageMeta with
 // some methods for convenient sorting and filtering.
 type PackageMetaList []PackageMeta
