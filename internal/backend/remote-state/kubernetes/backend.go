@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"log"
 	"os"
 	"path/filepath"
@@ -242,7 +243,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Overriding with static configuration
-	cfg.UserAgent = fmt.Sprintf("placeholderplaceholderplaceholder/1.0 OpenTF/%s", version.String())
+	cfg.UserAgent = httpclient.TerraformUserAgent(version.Version)
 
 	if v, ok := data.GetOk("host"); ok {
 		cfg.Host = v.(string)

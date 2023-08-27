@@ -439,7 +439,6 @@ func (b *Backend) getOSSEndpointByRegion(access_key, secret_key, security_token,
 		return nil, fmt.Errorf("unable to initialize the location client: %#v", err)
 
 	}
-
 	locationClient.AppendUserAgent(httpclient.TerraformUA, TerraformVersion)
 	endpointsResponse, err := locationClient.DescribeEndpoints(args)
 	if err != nil {
