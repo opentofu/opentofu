@@ -10,7 +10,7 @@ the SDK's API.
 ----
 
 **If you want to write a plugin for OpenTF, please refer to
-[Extending OpenTF](https://www.terraform.io/docs/extend/index.html) instead.**
+[Extending OpenTF](https://www.placeholderplaceholderplaceholder.io/docs/extend/index.html) instead.**
 
 This documentation is for those who are developing _OpenTF SDKs_, rather
 than those implementing plugins.

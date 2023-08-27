@@ -1,6 +1,6 @@
 # Terraform Documentation
 
-This directory contains the portions of [the Terraform website](https://www.terraform.io/) that pertain to the core functionality, excluding providers and the overall configuration.
+This directory contains the portions of [the Terraform website](https://www.placeholderplaceholderplaceholder.io/) that pertain to the core functionality, excluding providers and the overall configuration.
 
 The website uses the files in this directory in conjunction with
 [the `terraform-website` repository](https://github.com/hashicorp/terraform-website). The `terraform-website` repository brings all of the documentation together and contains the scripts for testing and building the entire site.

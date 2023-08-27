@@ -4,7 +4,7 @@ This directory contains some documentation about the OpenTF Core codebase,
 aimed at readers who are interested in making code contributions.
 
 If you're looking for information on _using_ OpenTF, please instead refer
-to [the main OpenTF CLI documentation](https://www.terraform.io/docs/cli/index.html).
+to [the main OpenTF CLI documentation](https://www.placeholderplaceholderplaceholder.io/docs/cli/index.html).
 
 ## OpenTF Core Architecture Documents
 
@@ -21,7 +21,7 @@ to [the main OpenTF CLI documentation](https://www.terraform.io/docs/cli/index.h
   SDK and so wish to conform to them.
 
   (If you are planning to write a new provider using the _official_ SDK then
-  please refer to [the Extend documentation](https://www.terraform.io/docs/extend/index.html)
+  please refer to [the Extend documentation](https://www.placeholderplaceholderplaceholder.io/docs/extend/index.html)
   instead; it presents similar information from the perspective of the SDK
   API, rather than the plugin wire protocol.)
 
