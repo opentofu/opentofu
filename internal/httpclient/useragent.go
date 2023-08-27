@@ -9,28 +9,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
-const userAgentFormat = "OpenTF/%s"
 const uaEnvVar = "TF_APPEND_USER_AGENT"
 const TerraformUA = "placeholderplaceholderplaceholder-OpenTF"
-
-// Deprecated: Use TerraformUserAgent(version) instead
-func UserAgentString() string {
-	ua := fmt.Sprintf(userAgentFormat, version.Version)
-
-	if add := os.Getenv(uaEnvVar); add != "" {
-		add = strings.TrimSpace(add)
-		if len(add) > 0 {
-			ua += " " + add
-			log.Printf("[DEBUG] Using modified User-Agent: %s", ua)
-		}
-	}
-
-	return ua
-}
 
 type userAgentRoundTripper struct {
 	inner     http.RoundTripper

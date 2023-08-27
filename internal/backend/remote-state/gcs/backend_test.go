@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"log"
 	"os"
 	"strings"
@@ -438,7 +439,7 @@ func testGetClientOptions(t *testing.T) ([]option.ClientOption, error) {
 	}
 	credOptions = append(credOptions, option.WithCredentialsJSON([]byte(contents)))
 	opts = append(opts, credOptions...)
-	opts = append(opts, option.WithUserAgent(httpclient.UserAgentString()))
+	opts = append(opts, option.WithUserAgent(httpclient.TerraformUserAgent(version.Version)))
 
 	return opts, nil
 }

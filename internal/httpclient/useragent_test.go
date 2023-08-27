@@ -12,7 +12,7 @@ import (
 )
 
 func TestUserAgentString_env(t *testing.T) {
-	expectedBase := fmt.Sprintf(userAgentFormat, version.Version)
+	expectedBase := fmt.Sprintf("%s/%s (+https://www.opentf.org)", TerraformUA, version.Version)
 	if oldenv, isSet := os.LookupEnv(uaEnvVar); isSet {
 		defer os.Setenv(uaEnvVar, oldenv)
 	} else {
@@ -39,7 +39,7 @@ func TestUserAgentString_env(t *testing.T) {
 				os.Setenv(uaEnvVar, c.additional)
 			}
 
-			actual := UserAgentString()
+			actual := TerraformUserAgent(version.Version)
 
 			if c.expected != actual {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", c.expected, actual)

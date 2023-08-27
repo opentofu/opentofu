@@ -4,6 +4,7 @@
 package httpclient
 
 import (
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"net/http"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
@@ -14,7 +15,7 @@ import (
 func New() *http.Client {
 	cli := cleanhttp.DefaultPooledClient()
 	cli.Transport = &userAgentRoundTripper{
-		userAgent: UserAgentString(),
+		userAgent: TerraformUserAgent(version.Version),
 		inner:     cli.Transport,
 	}
 	return cli

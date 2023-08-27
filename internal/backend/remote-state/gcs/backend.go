@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"os"
 	"strings"
 
@@ -207,7 +208,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		opts = append(opts, credOptions...)
 	}
 
-	opts = append(opts, option.WithUserAgent(httpclient.UserAgentString()))
+	opts = append(opts, option.WithUserAgent(httpclient.TerraformUserAgent(version.Version)))
 
 	// Custom endpoint for storage API
 	if storageEndpoint, ok := data.GetOk("storage_custom_endpoint"); ok {
