@@ -30,7 +30,7 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 	return rt.inner.RoundTrip(req)
 }
 
-func Application() string {
+func UserAgentApplication() string {
 	if customApplication := os.Getenv(customUaEnvVar); customApplication != "" {
 		return customApplication
 	}
