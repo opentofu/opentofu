@@ -17,9 +17,9 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 

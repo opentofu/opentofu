@@ -29,10 +29,10 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 

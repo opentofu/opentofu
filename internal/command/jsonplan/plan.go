@@ -18,10 +18,10 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonconfig"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 

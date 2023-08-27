@@ -6,8 +6,8 @@ package statemgr
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 )
 
 // Persistent is a union of the Refresher and Persistent interfaces, for types

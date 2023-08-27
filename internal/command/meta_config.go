@@ -21,8 +21,8 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 

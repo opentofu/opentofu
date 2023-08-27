@@ -34,11 +34,11 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
 	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 

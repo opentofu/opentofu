@@ -7,8 +7,8 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
 )
 
 // CLI is an optional interface that can be implemented to be initialized

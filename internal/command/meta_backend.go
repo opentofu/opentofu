@@ -28,9 +28,9 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
 	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"

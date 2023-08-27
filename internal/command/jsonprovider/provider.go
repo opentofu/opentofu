@@ -6,8 +6,8 @@ package jsonprovider
 import (
 	"encoding/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 )
 
 // FormatVersion represents the version of the json format and will be

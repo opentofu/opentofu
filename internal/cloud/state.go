@@ -27,11 +27,11 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // State implements the State interfaces in the state package to handle

@@ -24,11 +24,11 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
