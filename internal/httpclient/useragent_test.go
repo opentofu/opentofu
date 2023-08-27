@@ -55,7 +55,7 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 		defer os.Unsetenv(appendUaEnvVar)
 	}
 
-	expectedBase := "placeholderplaceholderplaceholder-OpenTF/0.0.0 (+https://www.opentf.org)"
+	expectedBase := "OpenTF/0.0.0"
 
 	testCases := []struct {
 		envVarValue string
