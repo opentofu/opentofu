@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -404,7 +405,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	if securityToken != "" {
 		options = append(options, oss.SecurityToken(securityToken))
 	}
-	options = append(options, oss.UserAgent(fmt.Sprintf("%s/%s", TerraformUA, TerraformVersion)))
+	options = append(options, oss.UserAgent(httpclient.TerraformUserAgent(TerraformVersion)))
 
 	proxyUrl := getHttpProxyUrl()
 	if proxyUrl != nil {
@@ -438,7 +439,8 @@ func (b *Backend) getOSSEndpointByRegion(access_key, secret_key, security_token,
 		return nil, fmt.Errorf("unable to initialize the location client: %#v", err)
 
 	}
-	locationClient.AppendUserAgent(TerraformUA, TerraformVersion)
+
+	locationClient.AppendUserAgent(httpclient.TerraformUA, TerraformVersion)
 	endpointsResponse, err := locationClient.DescribeEndpoints(args)
 	if err != nil {
 		return nil, fmt.Errorf("describe oss endpoint using region: %#v got an error: %#v", region, err)
@@ -504,8 +506,6 @@ type Catcher struct {
 	RetryCount       int
 	RetryWaitSeconds int
 }
-
-const TerraformUA = "placeholderplaceholderplaceholder-OpenTF"
 
 var TerraformVersion = strings.TrimSuffix(version.String(), "-dev")
 var ClientErrorCatcher = Catcher{"AliyunGoClientFailure", 10, 3}

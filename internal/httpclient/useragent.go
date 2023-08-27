@@ -15,6 +15,7 @@ import (
 
 const userAgentFormat = "OpenTF/%s"
 const uaEnvVar = "TF_APPEND_USER_AGENT"
+const TerraformUA = "placeholderplaceholderplaceholder-OpenTF"
 
 // Deprecated: Use TerraformUserAgent(version) instead
 func UserAgentString() string {
@@ -45,7 +46,7 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 }
 
 func TerraformUserAgent(version string) string {
-	ua := fmt.Sprintf("placeholderplaceholderplaceholder OpenTF/%s (+https://www.opentf.org)", version)
+	ua := fmt.Sprintf("%s/%s (+https://www.opentf.org)", TerraformUA, version)
 
 	if add := os.Getenv(uaEnvVar); add != "" {
 		add = strings.TrimSpace(add)
