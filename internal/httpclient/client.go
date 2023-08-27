@@ -4,10 +4,10 @@
 package httpclient
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"net/http"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 // New returns the DefaultPooledClient from the cleanhttp
