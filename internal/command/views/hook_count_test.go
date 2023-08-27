@@ -14,7 +14,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestCountHook_impl(t *testing.T) {

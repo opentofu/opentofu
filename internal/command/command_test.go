@@ -40,7 +40,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"

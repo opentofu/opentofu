@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 // Provisioner represents a resource provisioner in Terraform and properly
@@ -46,7 +46,7 @@ type Provisioner struct {
 
 	// ValidateFunc is a function for extended validation. This is optional
 	// and should be used when individual field validation is not enough.
-	ValidateFunc func(*terraform.ResourceConfig) ([]string, []error)
+	ValidateFunc func(*opentf.ResourceConfig) ([]string, []error)
 
 	stopCtx       context.Context
 	stopCtxCancel context.CancelFunc
@@ -117,23 +117,23 @@ func (p *Provisioner) stopInit() {
 	p.stopCtx, p.stopCtxCancel = context.WithCancel(context.Background())
 }
 
-// Stop implementation of terraform.ResourceProvisioner interface.
+// Stop implementation of opentf.ResourceProvisioner interface.
 func (p *Provisioner) Stop() error {
 	p.stopOnce.Do(p.stopInit)
 	p.stopCtxCancel()
 	return nil
 }
 
-// GetConfigSchema implementation of terraform.ResourceProvisioner interface.
+// GetConfigSchema implementation of opentf.ResourceProvisioner interface.
 func (p *Provisioner) GetConfigSchema() (*configschema.Block, error) {
 	return schemaMap(p.Schema).CoreConfigSchema(), nil
 }
 
-// Apply implementation of terraform.ResourceProvisioner interface.
+// Apply implementation of opentf.ResourceProvisioner interface.
 func (p *Provisioner) Apply(
-	o terraform.UIOutput,
-	s *terraform.InstanceState,
-	c *terraform.ResourceConfig) error {
+	o opentf.UIOutput,
+	s *opentf.InstanceState,
+	c *opentf.ResourceConfig) error {
 	var connData, configData *ResourceData
 
 	{
@@ -148,7 +148,7 @@ func (p *Provisioner) Apply(
 			}
 		}
 
-		c := terraform.NewResourceConfigRaw(raw)
+		c := opentf.NewResourceConfigRaw(raw)
 		sm := schemaMap(p.ConnSchema)
 		diff, err := sm.Diff(nil, c, nil, nil, true)
 		if err != nil {
@@ -183,8 +183,8 @@ func (p *Provisioner) Apply(
 	return p.ApplyFunc(ctx)
 }
 
-// Validate implements the terraform.ResourceProvisioner interface.
-func (p *Provisioner) Validate(c *terraform.ResourceConfig) (ws []string, es []error) {
+// Validate implements the opentf.ResourceProvisioner interface.
+func (p *Provisioner) Validate(c *opentf.ResourceConfig) (ws []string, es []error) {
 	if err := p.InternalValidate(); err != nil {
 		return nil, []error{fmt.Errorf(
 			"Internal validation of the provisioner failed! This is always a bug\n"+

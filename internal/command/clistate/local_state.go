@@ -15,7 +15,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 )
 
@@ -42,13 +42,13 @@ type LocalState struct {
 	// hurt to remove file we never wrote to.
 	created bool
 
-	state     *terraform.State
-	readState *terraform.State
+	state     *opentf.State
+	readState *opentf.State
 	written   bool
 }
 
 // SetState will force a specific state in-memory for this local state.
-func (s *LocalState) SetState(state *terraform.State) {
+func (s *LocalState) SetState(state *opentf.State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -57,7 +57,7 @@ func (s *LocalState) SetState(state *terraform.State) {
 }
 
 // StateReader impl.
-func (s *LocalState) State() *terraform.State {
+func (s *LocalState) State() *opentf.State {
 	return s.state.DeepCopy()
 }
 
@@ -67,7 +67,7 @@ func (s *LocalState) State() *terraform.State {
 // the original.
 //
 // StateWriter impl.
-func (s *LocalState) WriteState(state *terraform.State) error {
+func (s *LocalState) WriteState(state *opentf.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -103,7 +103,7 @@ func (s *LocalState) WriteState(state *terraform.State) error {
 		s.state.Serial++
 	}
 
-	if err := terraform.WriteState(s.state, s.stateFileOut); err != nil {
+	if err := opentf.WriteState(s.state, s.stateFileOut); err != nil {
 		return err
 	}
 
@@ -164,9 +164,9 @@ func (s *LocalState) RefreshState() error {
 		reader = s.stateFileOut
 	}
 
-	state, err := terraform.ReadState(reader)
+	state, err := opentf.ReadState(reader)
 	// if there's no state we just assign the nil return value
-	if err != nil && err != terraform.ErrNoState {
+	if err != nil && err != opentf.ErrNoState {
 		return err
 	}
 

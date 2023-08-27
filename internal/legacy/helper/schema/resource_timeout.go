@@ -10,7 +10,7 @@ import (
 
 	"github.com/mitchellh/copystructure"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 const TimeoutKey = "e2bfb730-ecaa-11e6-8f88-34363bc7c4c0"
@@ -56,7 +56,7 @@ type ResourceTimeout struct {
 
 // ConfigDecode takes a schema and the configuration (available in Diff) and
 // validates, parses the timeouts into `t`
-func (t *ResourceTimeout) ConfigDecode(s *Resource, c *terraform.ResourceConfig) error {
+func (t *ResourceTimeout) ConfigDecode(s *Resource, c *opentf.ResourceConfig) error {
 	if s.Timeouts != nil {
 		raw, err := copystructure.Copy(s.Timeouts)
 		if err != nil {
@@ -156,18 +156,18 @@ func unsupportedTimeoutKeyError(key string) error {
 //
 // StateEncode encodes the timeout into the ResourceData's InstanceState for
 // saving to state
-func (t *ResourceTimeout) DiffEncode(id *terraform.InstanceDiff) error {
+func (t *ResourceTimeout) DiffEncode(id *opentf.InstanceDiff) error {
 	return t.metaEncode(id)
 }
 
-func (t *ResourceTimeout) StateEncode(is *terraform.InstanceState) error {
+func (t *ResourceTimeout) StateEncode(is *opentf.InstanceState) error {
 	return t.metaEncode(is)
 }
 
 // metaEncode encodes the ResourceTimeout into a map[string]interface{} format
 // and stores it in the Meta field of the interface it's given.
-// Assumes the interface is either *terraform.InstanceState or
-// *terraform.InstanceDiff, returns an error otherwise
+// Assumes the interface is either *opentf.InstanceState or
+// *opentf.InstanceDiff, returns an error otherwise
 func (t *ResourceTimeout) metaEncode(ids interface{}) error {
 	m := make(map[string]interface{})
 
@@ -197,12 +197,12 @@ func (t *ResourceTimeout) metaEncode(ids interface{}) error {
 	// only add the Timeout to the Meta if we have values
 	if len(m) > 0 {
 		switch instance := ids.(type) {
-		case *terraform.InstanceDiff:
+		case *opentf.InstanceDiff:
 			if instance.Meta == nil {
 				instance.Meta = make(map[string]interface{})
 			}
 			instance.Meta[TimeoutKey] = m
-		case *terraform.InstanceState:
+		case *opentf.InstanceState:
 			if instance.Meta == nil {
 				instance.Meta = make(map[string]interface{})
 			}
@@ -215,10 +215,10 @@ func (t *ResourceTimeout) metaEncode(ids interface{}) error {
 	return nil
 }
 
-func (t *ResourceTimeout) StateDecode(id *terraform.InstanceState) error {
+func (t *ResourceTimeout) StateDecode(id *opentf.InstanceState) error {
 	return t.metaDecode(id)
 }
-func (t *ResourceTimeout) DiffDecode(is *terraform.InstanceDiff) error {
+func (t *ResourceTimeout) DiffDecode(is *opentf.InstanceDiff) error {
 	return t.metaDecode(is)
 }
 
@@ -226,12 +226,12 @@ func (t *ResourceTimeout) metaDecode(ids interface{}) error {
 	var rawMeta interface{}
 	var ok bool
 	switch rawInstance := ids.(type) {
-	case *terraform.InstanceDiff:
+	case *opentf.InstanceDiff:
 		rawMeta, ok = rawInstance.Meta[TimeoutKey]
 		if !ok {
 			return nil
 		}
-	case *terraform.InstanceState:
+	case *opentf.InstanceState:
 		rawMeta, ok = rawInstance.Meta[TimeoutKey]
 		if !ok {
 			return nil

@@ -28,7 +28,7 @@ import (
 	"github.com/mitchellh/copystructure"
 	"github.com/mitchellh/mapstructure"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 // Name of ENV variable which (if not empty) prefers panic over error
@@ -360,7 +360,7 @@ func (s *Schema) ZeroValue() interface{} {
 	}
 }
 
-func (s *Schema) finalizeDiff(d *terraform.ResourceAttrDiff, customized bool) *terraform.ResourceAttrDiff {
+func (s *Schema) finalizeDiff(d *opentf.ResourceAttrDiff, customized bool) *opentf.ResourceAttrDiff {
 	if d == nil {
 		return d
 	}
@@ -447,8 +447,8 @@ func (m schemaMap) panicOnError() bool {
 //
 // The diff is optional.
 func (m schemaMap) Data(
-	s *terraform.InstanceState,
-	d *terraform.InstanceDiff) (*ResourceData, error) {
+	s *opentf.InstanceState,
+	d *opentf.InstanceDiff) (*ResourceData, error) {
 	return &ResourceData{
 		schema:       m,
 		state:        s,
@@ -470,13 +470,13 @@ func (m *schemaMap) DeepCopy() schemaMap {
 // Diff returns the diff for a resource given the schema map,
 // state, and configuration.
 func (m schemaMap) Diff(
-	s *terraform.InstanceState,
-	c *terraform.ResourceConfig,
+	s *opentf.InstanceState,
+	c *opentf.ResourceConfig,
 	customizeDiff CustomizeDiffFunc,
 	meta interface{},
-	handleRequiresNew bool) (*terraform.InstanceDiff, error) {
-	result := new(terraform.InstanceDiff)
-	result.Attributes = make(map[string]*terraform.ResourceAttrDiff)
+	handleRequiresNew bool) (*opentf.InstanceDiff, error) {
+	result := new(opentf.InstanceDiff)
+	result.Attributes = make(map[string]*opentf.ResourceAttrDiff)
 
 	// Make sure to mark if the resource is tainted
 	if s != nil {
@@ -527,8 +527,8 @@ func (m schemaMap) Diff(
 		// caused that.
 		if result.RequiresNew() {
 			// Create the new diff
-			result2 := new(terraform.InstanceDiff)
-			result2.Attributes = make(map[string]*terraform.ResourceAttrDiff)
+			result2 := new(opentf.InstanceDiff)
+			result2.Attributes = make(map[string]*opentf.ResourceAttrDiff)
 
 			// Preserve the DestroyTainted flag
 			result2.DestroyTainted = result.DestroyTainted
@@ -613,11 +613,11 @@ func (m schemaMap) Diff(
 	return result, nil
 }
 
-// Input implements the terraform.ResourceProvider method by asking
+// Input implements the opentf.ResourceProvider method by asking
 // for input for required configuration keys that don't have a value.
 func (m schemaMap) Input(
-	input terraform.UIInput,
-	c *terraform.ResourceConfig) (*terraform.ResourceConfig, error) {
+	input opentf.UIInput,
+	c *opentf.ResourceConfig) (*opentf.ResourceConfig, error) {
 	keys := make([]string, 0, len(m))
 	for k, _ := range m {
 		keys = append(keys, k)
@@ -676,7 +676,7 @@ func (m schemaMap) Input(
 }
 
 // Validate validates the configuration against this schema mapping.
-func (m schemaMap) Validate(c *terraform.ResourceConfig) ([]string, []error) {
+func (m schemaMap) Validate(c *opentf.ResourceConfig) ([]string, []error) {
 	return m.validateObject("", m, c)
 }
 
@@ -868,12 +868,12 @@ type resourceDiffer interface {
 func (m schemaMap) diff(
 	k string,
 	schema *Schema,
-	diff *terraform.InstanceDiff,
+	diff *opentf.InstanceDiff,
 	d resourceDiffer,
 	all bool) error {
 
-	unsupressedDiff := new(terraform.InstanceDiff)
-	unsupressedDiff.Attributes = make(map[string]*terraform.ResourceAttrDiff)
+	unsupressedDiff := new(opentf.InstanceDiff)
+	unsupressedDiff.Attributes = make(map[string]*opentf.ResourceAttrDiff)
 
 	var err error
 	switch schema.Type {
@@ -901,7 +901,7 @@ func (m schemaMap) diff(
 					continue
 				}
 
-				attrV = &terraform.ResourceAttrDiff{
+				attrV = &opentf.ResourceAttrDiff{
 					Old: attrV.Old,
 					New: attrV.Old,
 				}
@@ -916,7 +916,7 @@ func (m schemaMap) diff(
 func (m schemaMap) diffList(
 	k string,
 	schema *Schema,
-	diff *terraform.InstanceDiff,
+	diff *opentf.InstanceDiff,
 	d resourceDiffer,
 	all bool) error {
 	o, n, _, computedList, customized := d.diffChange(k)
@@ -961,7 +961,7 @@ func (m schemaMap) diffList(
 
 	// If the whole list is computed, then say that the # is computed
 	if computedList {
-		diff.Attributes[k+".#"] = &terraform.ResourceAttrDiff{
+		diff.Attributes[k+".#"] = &opentf.ResourceAttrDiff{
 			Old:         oldStr,
 			NewComputed: true,
 			RequiresNew: schema.ForceNew,
@@ -987,7 +987,7 @@ func (m schemaMap) diffList(
 		}
 
 		diff.Attributes[k+".#"] = countSchema.finalizeDiff(
-			&terraform.ResourceAttrDiff{
+			&opentf.ResourceAttrDiff{
 				Old: oldStr,
 				New: newStr,
 			},
@@ -1038,7 +1038,7 @@ func (m schemaMap) diffList(
 func (m schemaMap) diffMap(
 	k string,
 	schema *Schema,
-	diff *terraform.InstanceDiff,
+	diff *opentf.InstanceDiff,
 	d resourceDiffer,
 	all bool) error {
 	prefix := k + "."
@@ -1093,7 +1093,7 @@ func (m schemaMap) diffMap(
 		}
 
 		diff.Attributes[k+".%"] = countSchema.finalizeDiff(
-			&terraform.ResourceAttrDiff{
+			&opentf.ResourceAttrDiff{
 				Old: oldStr,
 				New: newStr,
 			},
@@ -1116,7 +1116,7 @@ func (m schemaMap) diffMap(
 		}
 
 		diff.Attributes[prefix+k] = schema.finalizeDiff(
-			&terraform.ResourceAttrDiff{
+			&opentf.ResourceAttrDiff{
 				Old: old,
 				New: v,
 			},
@@ -1125,7 +1125,7 @@ func (m schemaMap) diffMap(
 	}
 	for k, v := range stateMap {
 		diff.Attributes[prefix+k] = schema.finalizeDiff(
-			&terraform.ResourceAttrDiff{
+			&opentf.ResourceAttrDiff{
 				Old:        v,
 				NewRemoved: true,
 			},
@@ -1139,7 +1139,7 @@ func (m schemaMap) diffMap(
 func (m schemaMap) diffSet(
 	k string,
 	schema *Schema,
-	diff *terraform.InstanceDiff,
+	diff *opentf.InstanceDiff,
 	d resourceDiffer,
 	all bool) error {
 
@@ -1203,7 +1203,7 @@ func (m schemaMap) diffSet(
 		}
 
 		diff.Attributes[k+".#"] = countSchema.finalizeDiff(
-			&terraform.ResourceAttrDiff{
+			&opentf.ResourceAttrDiff{
 				Old:         countStr,
 				NewComputed: true,
 			},
@@ -1216,7 +1216,7 @@ func (m schemaMap) diffSet(
 	changed := oldLen != newLen
 	if changed || all {
 		diff.Attributes[k+".#"] = countSchema.finalizeDiff(
-			&terraform.ResourceAttrDiff{
+			&opentf.ResourceAttrDiff{
 				Old: oldStr,
 				New: newStr,
 			},
@@ -1266,7 +1266,7 @@ func (m schemaMap) diffSet(
 func (m schemaMap) diffString(
 	k string,
 	schema *Schema,
-	diff *terraform.InstanceDiff,
+	diff *opentf.InstanceDiff,
 	d resourceDiffer,
 	all bool) error {
 	var originalN interface{}
@@ -1309,7 +1309,7 @@ func (m schemaMap) diffString(
 	}
 
 	diff.Attributes[k] = schema.finalizeDiff(
-		&terraform.ResourceAttrDiff{
+		&opentf.ResourceAttrDiff{
 			Old:         os,
 			New:         ns,
 			NewExtra:    originalN,
@@ -1323,10 +1323,10 @@ func (m schemaMap) diffString(
 }
 
 func (m schemaMap) inputString(
-	input terraform.UIInput,
+	input opentf.UIInput,
 	k string,
 	schema *Schema) (interface{}, error) {
-	result, err := input.Input(context.Background(), &terraform.InputOpts{
+	result, err := input.Input(context.Background(), &opentf.InputOpts{
 		Id:          k,
 		Query:       k,
 		Description: schema.Description,
@@ -1339,7 +1339,7 @@ func (m schemaMap) inputString(
 func (m schemaMap) validate(
 	k string,
 	schema *Schema,
-	c *terraform.ResourceConfig) ([]string, []error) {
+	c *opentf.ResourceConfig) ([]string, []error) {
 	raw, ok := c.Get(k)
 	if !ok && schema.DefaultFunc != nil {
 		// We have a dynamic default. Check if we have a value.
@@ -1413,7 +1413,7 @@ func isWhollyKnown(raw interface{}) bool {
 func (m schemaMap) validateConflictingAttributes(
 	k string,
 	schema *Schema,
-	c *terraform.ResourceConfig) error {
+	c *opentf.ResourceConfig) error {
 
 	if len(schema.ConflictsWith) == 0 {
 		return nil
@@ -1438,7 +1438,7 @@ func (m schemaMap) validateList(
 	k string,
 	raw interface{},
 	schema *Schema,
-	c *terraform.ResourceConfig) ([]string, []error) {
+	c *opentf.ResourceConfig) ([]string, []error) {
 	// first check if the list is wholly unknown
 	if s, ok := raw.(string); ok {
 		if s == hcl2shim.UnknownVariableValue {
@@ -1530,7 +1530,7 @@ func (m schemaMap) validateMap(
 	k string,
 	raw interface{},
 	schema *Schema,
-	c *terraform.ResourceConfig) ([]string, []error) {
+	c *opentf.ResourceConfig) ([]string, []error) {
 	// first check if the list is wholly unknown
 	if s, ok := raw.(string); ok {
 		if s == hcl2shim.UnknownVariableValue {
@@ -1666,7 +1666,7 @@ func getValueType(k string, schema *Schema) (ValueType, error) {
 func (m schemaMap) validateObject(
 	k string,
 	schema map[string]*Schema,
-	c *terraform.ResourceConfig) ([]string, []error) {
+	c *opentf.ResourceConfig) ([]string, []error) {
 	raw, _ := c.Get(k)
 
 	// schemaMap can't validate nil
@@ -1717,7 +1717,7 @@ func (m schemaMap) validatePrimitive(
 	k string,
 	raw interface{},
 	schema *Schema,
-	c *terraform.ResourceConfig) ([]string, []error) {
+	c *opentf.ResourceConfig) ([]string, []error) {
 
 	// a nil value shouldn't happen in the old protocol, and in the new
 	// protocol the types have already been validated. Either way, we can't
@@ -1805,7 +1805,7 @@ func (m schemaMap) validateType(
 	k string,
 	raw interface{},
 	schema *Schema,
-	c *terraform.ResourceConfig) ([]string, []error) {
+	c *opentf.ResourceConfig) ([]string, []error) {
 	var ws []string
 	var es []error
 	switch schema.Type {

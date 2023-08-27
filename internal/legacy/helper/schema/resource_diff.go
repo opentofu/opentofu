@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 // newValueWriter is a minor re-implementation of MapFieldWriter to include
@@ -116,16 +116,16 @@ type ResourceDiff struct {
 	schema map[string]*Schema
 
 	// The current config for this resource.
-	config *terraform.ResourceConfig
+	config *opentf.ResourceConfig
 
 	// The state for this resource as it exists post-refresh, after the initial
 	// diff.
-	state *terraform.InstanceState
+	state *opentf.InstanceState
 
 	// The diff created by Terraform. This diff is used, along with state,
 	// config, and custom-set diff data, to provide a multi-level reader
 	// experience similar to ResourceData.
-	diff *terraform.InstanceDiff
+	diff *opentf.InstanceDiff
 
 	// The internal reader structure that contains the state, config, the default
 	// diff, and the new diff.
@@ -145,7 +145,7 @@ type ResourceDiff struct {
 }
 
 // newResourceDiff creates a new ResourceDiff instance.
-func newResourceDiff(schema map[string]*Schema, config *terraform.ResourceConfig, state *terraform.InstanceState, diff *terraform.InstanceDiff) *ResourceDiff {
+func newResourceDiff(schema map[string]*Schema, config *opentf.ResourceConfig, state *opentf.InstanceState, diff *opentf.InstanceDiff) *ResourceDiff {
 	d := &ResourceDiff{
 		config: config,
 		state:  state,
