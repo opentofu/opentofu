@@ -29,7 +29,7 @@ func Disco(s *httptest.Server) *disco.Disco {
 		"providers.v1": fmt.Sprintf("%s/v1/providers", s.URL),
 	}
 	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.TerraformUserAgent(tfversion.String()))
+	d.SetUserAgent(httpclient.OpenTfUserAgent(tfversion.String()))
 
 	d.ForceHostServices(svchost.Hostname("registry.terraform.io"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)

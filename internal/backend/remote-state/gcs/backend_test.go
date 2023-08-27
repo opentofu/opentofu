@@ -439,7 +439,7 @@ func testGetClientOptions(t *testing.T) ([]option.ClientOption, error) {
 	}
 	credOptions = append(credOptions, option.WithCredentialsJSON([]byte(contents)))
 	opts = append(opts, credOptions...)
-	opts = append(opts, option.WithUserAgent(httpclient.TerraformUserAgent(version.Version)))
+	opts = append(opts, option.WithUserAgent(httpclient.OpenTfUserAgent(version.Version)))
 
 	return opts, nil
 }

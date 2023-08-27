@@ -39,7 +39,7 @@ func TestUserAgentString_env(t *testing.T) {
 				os.Setenv(appendUaEnvVar, c.additional)
 			}
 
-			actual := TerraformUserAgent(version.Version)
+			actual := OpenTfUserAgent(version.Version)
 
 			if c.expected != actual {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", c.expected, actual)
@@ -72,7 +72,7 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			os.Unsetenv(appendUaEnvVar)
 			os.Setenv(appendUaEnvVar, tc.envVarValue)
-			givenUA := TerraformUserAgent("0.0.0")
+			givenUA := OpenTfUserAgent("0.0.0")
 			if givenUA != tc.expected {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
 			}
@@ -99,7 +99,7 @@ func TestCustomUserAgentViaEnvVar(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			os.Unsetenv(customUaEnvVar)
 			os.Setenv(customUaEnvVar, tc.envVarValue)
-			givenUA := TerraformUserAgent("0.0.0")
+			givenUA := OpenTfUserAgent("0.0.0")
 			if givenUA != tc.envVarValue {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.envVarValue, givenUA)
 			}
@@ -136,7 +136,7 @@ func TestCustomUserAgentAndAppendViaEnvVar(t *testing.T) {
 			os.Unsetenv(appendUaEnvVar)
 			os.Setenv(customUaEnvVar, tc.customUaValue)
 			os.Setenv(appendUaEnvVar, tc.appendUaValue)
-			givenUA := TerraformUserAgent("0.0.0")
+			givenUA := OpenTfUserAgent("0.0.0")
 			if givenUA != tc.expected {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
 			}

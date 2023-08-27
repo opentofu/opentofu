@@ -15,7 +15,7 @@ import (
 func New() *http.Client {
 	cli := cleanhttp.DefaultPooledClient()
 	cli.Transport = &userAgentRoundTripper{
-		userAgent: TerraformUserAgent(version.Version),
+		userAgent: OpenTfUserAgent(version.Version),
 		inner:     cli.Transport,
 	}
 	return cli

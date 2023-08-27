@@ -37,7 +37,7 @@ func Application() string {
 	return defaultApplicationName
 }
 
-func TerraformUserAgent(version string) string {
+func OpenTfUserAgent(version string) string {
 	ua := fmt.Sprintf("%s/%s", defaultApplicationName, version)
 	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
 		ua = customUa
