@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
-	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
@@ -110,17 +109,8 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 
 	searchRules = append(searchRules, getproviders.MultiSourceSelector{
 		Source: getproviders.NewOCISource(),
-		Include: getproviders.MultiSourceMatchingPatterns{
-			{
-				Hostname:  svchost.Hostname(getproviders.Wildcard),
-				Namespace: getproviders.Wildcard,
-				Type:      getproviders.Wildcard,
-				IsOCI:     true,
-			},
-		},
+		IsOCI:  true,
 	})
-
-	return getproviders.MultiSource(searchRules) // TODO: Fix matching. Others shouldn't match the OCI address. Maybe make it explicit in the multisource provider?
 
 	// We'll track any providers we can find in the local search directories
 	// along the way, and then exclude them from the registry source we'll

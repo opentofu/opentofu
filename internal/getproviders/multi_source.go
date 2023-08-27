@@ -124,6 +124,8 @@ type MultiSourceSelector struct {
 	// together define which providers are eligible to be potentially
 	// installed from the corresponding Source.
 	Include, Exclude MultiSourceMatchingPatterns
+
+	IsOCI bool
 }
 
 // MultiSourceMatchingPatterns is a set of patterns that together define a
@@ -200,6 +202,9 @@ func ParseMultiSourceMatchingPatterns(strs []string) (MultiSourceMatchingPattern
 // The absense of any include patterns is treated the same as a pattern
 // that matches all addresses. Exclusions take priority over inclusions.
 func (s MultiSourceSelector) CanHandleProvider(addr addrs.Provider) bool {
+	if addr.IsOCI != s.IsOCI {
+		return false
+	}
 	switch {
 	case s.Exclude.MatchesProvider(addr):
 		return false
