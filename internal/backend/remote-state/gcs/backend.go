@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"os"
 	"strings"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/impersonate"
 	"google.golang.org/api/option"
