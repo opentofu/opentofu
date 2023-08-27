@@ -12,10 +12,9 @@ import (
 )
 
 const (
-	uaEnvVar        = "TF_APPEND_USER_AGENT"
-	Organization    = "placeholderplaceholderplaceholder"
-	Application     = "OpenTF"
-	OpenTFUserAgent = Organization + "-" + Application
+	appendUaEnvVar         = "TF_APPEND_USER_AGENT"
+	customUaEnvVar         = "OPENTF_USER_AGENT"
+	defaultApplicationName = "OpenTF"
 )
 
 type userAgentRoundTripper struct {
@@ -31,10 +30,20 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 	return rt.inner.RoundTrip(req)
 }
 
-func TerraformUserAgent(version string) string {
-	ua := fmt.Sprintf("%s/%s (+https://www.opentf.org)", OpenTFUserAgent, version)
+func Application() string {
+	if customApplication := os.Getenv(customUaEnvVar); customApplication != "" {
+		return customApplication
+	}
+	return defaultApplicationName
+}
 
-	if add := os.Getenv(uaEnvVar); add != "" {
+func TerraformUserAgent(version string) string {
+	ua := fmt.Sprintf("%s/%s", defaultApplicationName, version)
+	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
+		ua = customUa
+	}
+
+	if add := os.Getenv(appendUaEnvVar); add != "" {
 		add = strings.TrimSpace(add)
 		if len(add) > 0 {
 			ua += " " + add

@@ -395,8 +395,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Token:                     stringAttr(obj, "token"),
 		UserAgentProducts: []*awsbase.UserAgentProduct{
 			{Name: "APN", Version: "1.0"},
-			{Name: httpclient.Organization, Version: "1.0"},
-			{Name: httpclient.Application, Version: version.String()},
+			{Name: httpclient.Application(), Version: version.String()},
 		},
 	}
 

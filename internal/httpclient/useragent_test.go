@@ -12,11 +12,11 @@ import (
 )
 
 func TestUserAgentString_env(t *testing.T) {
-	expectedBase := fmt.Sprintf("%s/%s (+https://www.opentf.org)", OpenTFUserAgent, version.Version)
-	if oldenv, isSet := os.LookupEnv(uaEnvVar); isSet {
-		defer os.Setenv(uaEnvVar, oldenv)
+	expectedBase := fmt.Sprintf("%s/%s", defaultApplicationName, version.Version)
+	if oldenv, isSet := os.LookupEnv(appendUaEnvVar); isSet {
+		defer os.Setenv(appendUaEnvVar, oldenv)
 	} else {
-		defer os.Unsetenv(uaEnvVar)
+		defer os.Unsetenv(appendUaEnvVar)
 	}
 
 	for i, c := range []struct {
@@ -34,9 +34,9 @@ func TestUserAgentString_env(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			if c.additional == "" {
-				os.Unsetenv(uaEnvVar)
+				os.Unsetenv(appendUaEnvVar)
 			} else {
-				os.Setenv(uaEnvVar, c.additional)
+				os.Setenv(appendUaEnvVar, c.additional)
 			}
 
 			actual := TerraformUserAgent(version.Version)
@@ -49,10 +49,10 @@ func TestUserAgentString_env(t *testing.T) {
 }
 
 func TestUserAgentAppendViaEnvVar(t *testing.T) {
-	if oldenv, isSet := os.LookupEnv(uaEnvVar); isSet {
-		defer os.Setenv(uaEnvVar, oldenv)
+	if oldenv, isSet := os.LookupEnv(appendUaEnvVar); isSet {
+		defer os.Setenv(appendUaEnvVar, oldenv)
 	} else {
-		defer os.Unsetenv(uaEnvVar)
+		defer os.Unsetenv(appendUaEnvVar)
 	}
 
 	expectedBase := "placeholderplaceholderplaceholder-OpenTF/0.0.0 (+https://www.opentf.org)"
@@ -70,8 +70,72 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			os.Unsetenv(uaEnvVar)
-			os.Setenv(uaEnvVar, tc.envVarValue)
+			os.Unsetenv(appendUaEnvVar)
+			os.Setenv(appendUaEnvVar, tc.envVarValue)
+			givenUA := TerraformUserAgent("0.0.0")
+			if givenUA != tc.expected {
+				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
+			}
+		})
+	}
+}
+func TestCustomUserAgentViaEnvVar(t *testing.T) {
+	if oldenv, isSet := os.LookupEnv(customUaEnvVar); isSet {
+		defer os.Setenv(customUaEnvVar, oldenv)
+	} else {
+		defer os.Unsetenv(customUaEnvVar)
+	}
+
+	testCases := []struct {
+		envVarValue string
+	}{
+		{" "},
+		{" \n"},
+		{"test/1"},
+		{"test/1 (comment)"},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			os.Unsetenv(customUaEnvVar)
+			os.Setenv(customUaEnvVar, tc.envVarValue)
+			givenUA := TerraformUserAgent("0.0.0")
+			if givenUA != tc.envVarValue {
+				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.envVarValue, givenUA)
+			}
+		})
+	}
+}
+func TestCustomUserAgentAndAppendViaEnvVar(t *testing.T) {
+	if oldenv, isSet := os.LookupEnv(appendUaEnvVar); isSet {
+		defer os.Setenv(appendUaEnvVar, oldenv)
+	} else {
+		defer os.Unsetenv(appendUaEnvVar)
+	}
+	if oldenv, isSet := os.LookupEnv(customUaEnvVar); isSet {
+		defer os.Setenv(customUaEnvVar, oldenv)
+	} else {
+		defer os.Unsetenv(customUaEnvVar)
+	}
+
+	testCases := []struct {
+		customUaValue string
+		appendUaValue string
+		expected      string
+	}{
+		{"", "", "OpenTF/0.0.0"},
+		{"", " ", "OpenTF/0.0.0"},
+		{"", " \n", "OpenTF/0.0.0"},
+		{"", "testy test", "OpenTF/0.0.0 testy test"},
+		{"opensource", "opentf", "opensource opentf"},
+	}
+
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			os.Unsetenv(customUaEnvVar)
+			os.Unsetenv(appendUaEnvVar)
+			os.Setenv(customUaEnvVar, tc.customUaValue)
+			os.Setenv(appendUaEnvVar, tc.appendUaValue)
 			givenUA := TerraformUserAgent("0.0.0")
 			if givenUA != tc.expected {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
