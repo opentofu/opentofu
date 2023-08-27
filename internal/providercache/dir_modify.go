@@ -34,7 +34,6 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 	log.Printf("[TRACE] providercache.Dir.InstallPackage: installing %s v%s from %s", meta.Provider, meta.Version, meta.Location)
 	switch meta.Location.(type) {
 	case getproviders.PackageHTTPURL:
-		fmt.Println(meta.Location)
 		return installFromHTTPURL(ctx, meta, newPath, allowedHashes)
 	case getproviders.PackageLocalArchive:
 		return installFromLocalArchive(ctx, meta, newPath, allowedHashes)
