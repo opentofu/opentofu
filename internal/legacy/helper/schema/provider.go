@@ -25,7 +25,7 @@ var ReservedProviderFields = []string{
 //
 // By defining a schema for the configuration of the provider, the
 // map of supporting resources, and a configuration function, the schema
-// framework takes over and handles all the pro1vider operations for you.
+// framework takes over and handles all the provider operations for you.
 //
 // After defining the provider structure, it is unlikely that you'll require any
 // of the methods on Provider itself.
