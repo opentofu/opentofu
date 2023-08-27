@@ -269,7 +269,7 @@ func (c *RemoteClient) getLabels() map[string]string {
 		tfstateKey:             "true",
 		tfstateSecretSuffixKey: c.nameSuffix,
 		tfstateWorkspaceKey:    c.workspace,
-		managedByKey:           "terraform",
+		managedByKey:           "opentf",
 	}
 
 	if len(c.labels) != 0 {

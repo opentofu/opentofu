@@ -242,7 +242,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Overriding with static configuration
-	cfg.UserAgent = fmt.Sprintf("HashiCorp/1.0 Terraform/%s", version.String())
+	cfg.UserAgent = fmt.Sprintf("placeholderplaceholderplaceholder/1.0 OpenTF/%s", version.String())
 
 	if v, ok := data.GetOk("host"); ok {
 		cfg.Host = v.(string)

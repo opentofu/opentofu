@@ -45,7 +45,7 @@ func New() backend.Backend {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Name of the automatically managed Postgres schema to store state",
-				DefaultFunc: schema.EnvDefaultFunc("PG_SCHEMA_NAME", "terraform_remote_state"),
+				DefaultFunc: schema.EnvDefaultFunc("PG_SCHEMA_NAME", "opentf_remote_state"),
 			},
 
 			"skip_schema_creation": {
