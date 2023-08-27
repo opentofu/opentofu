@@ -375,8 +375,7 @@ func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (
 		return nil, err
 	}
 
-	// We have a valid signature, but it's not from the HashiCorp key, and it
-	// also isn't a trusted partner. This is a community provider.
+	// We have a valid signature.
 	return &PackageAuthenticationResult{result: signed, KeyID: keyID}, nil
 }
 
