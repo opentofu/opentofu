@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"log"
 	"os"
 	"strings"
@@ -17,7 +16,6 @@ import (
 	kms "cloud.google.com/go/kms/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
 	"google.golang.org/api/option"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
@@ -439,7 +437,6 @@ func testGetClientOptions(t *testing.T) ([]option.ClientOption, error) {
 	}
 	credOptions = append(credOptions, option.WithCredentialsJSON([]byte(contents)))
 	opts = append(opts, credOptions...)
-	opts = append(opts, option.WithUserAgent(httpclient.TerraformUserAgent(version.Version)))
 
 	return opts, nil
 }
