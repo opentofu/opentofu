@@ -8648,7 +8648,7 @@ resource "null_instance" "depends" {
 }
 
 func TestContext2Apply_terraformWorkspace(t *testing.T) {
-	m := testModule(t, "apply-terraform-workspace")
+	m := testModule(t, "apply-opentf-workspace")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 
