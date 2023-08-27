@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	lockTagKey = "tencentcloud-opentf-lock"
+	lockTagKey = "tencentcloud-terraform-lock"
 )
 
 // RemoteClient implements the client of remote state
