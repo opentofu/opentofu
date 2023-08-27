@@ -41,6 +41,7 @@ func OpenTfUserAgent(version string) string {
 	ua := fmt.Sprintf("%s/%s", defaultApplicationName, version)
 	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
 		ua = customUa
+		log.Printf("[DEBUG] Using Custom User-Agent: %s", ua)
 	}
 
 	if add := os.Getenv(appendUaEnvVar); add != "" {
