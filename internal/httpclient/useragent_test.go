@@ -12,7 +12,7 @@ import (
 )
 
 func TestUserAgentString_env(t *testing.T) {
-	expectedBase := fmt.Sprintf("%s/%s (+https://www.opentf.org)", TerraformUA, version.Version)
+	expectedBase := fmt.Sprintf("%s/%s (+https://www.opentf.org)", OpenTFUserAgent, version.Version)
 	if oldenv, isSet := os.LookupEnv(uaEnvVar); isSet {
 		defer os.Setenv(uaEnvVar, oldenv)
 	} else {
