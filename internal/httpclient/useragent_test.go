@@ -55,7 +55,7 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 		defer os.Unsetenv(uaEnvVar)
 	}
 
-	expectedBase := "HashiCorp Terraform/0.0.0 (+https://www.terraform.io)"
+	expectedBase := "placeholderplaceholderplaceholder-OpenTF/0.0.0 (+https://www.opentf.org)"
 
 	testCases := []struct {
 		envVarValue string
