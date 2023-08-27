@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -34,6 +33,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )

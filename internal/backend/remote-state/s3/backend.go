@@ -6,7 +6,6 @@ package s3
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"os"
 	"strings"
 
@@ -16,6 +15,7 @@ import (
 	awsbase "github.com/hashicorp/aws-sdk-go-base"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
