@@ -17,7 +17,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func TestMetaColorize(t *testing.T) {
@@ -90,7 +90,7 @@ func TestMetaInputMode(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	if m.InputMode() != terraform.InputModeStd {
+	if m.InputMode() != opentf.InputModeStd {
 		t.Fatalf("bad: %#v", m.InputMode())
 	}
 }
@@ -109,11 +109,11 @@ func TestMetaInputMode_envVar(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	off := terraform.InputMode(0)
-	on := terraform.InputModeStd
+	off := opentf.InputMode(0)
+	on := opentf.InputModeStd
 	cases := []struct {
 		EnvVar   string
-		Expected terraform.InputMode
+		Expected opentf.InputMode
 	}{
 		{"false", off},
 		{"0", off},

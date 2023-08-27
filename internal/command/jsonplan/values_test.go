@@ -14,7 +14,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func TestMarshalAttributeValues(t *testing.T) {
@@ -344,8 +344,8 @@ func TestMarshalPlanValuesNoopDeposed(t *testing.T) {
 	}
 }
 
-func testSchemas() *terraform.Schemas {
-	return &terraform.Schemas{
+func testSchemas() *opentf.Schemas {
+	return &opentf.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): providers.ProviderSchema{
 				ResourceTypes: map[string]providers.Schema{

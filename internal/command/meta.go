@@ -38,7 +38,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -334,8 +334,8 @@ const (
 )
 
 // InputMode returns the type of input we should ask for in the form of
-// terraform.InputMode which is passed directly to Context.Input.
-func (m *Meta) InputMode() terraform.InputMode {
+// opentf.InputMode which is passed directly to Context.Input.
+func (m *Meta) InputMode() opentf.InputMode {
 	if test || !m.input {
 		return 0
 	}
@@ -348,14 +348,14 @@ func (m *Meta) InputMode() terraform.InputMode {
 		}
 	}
 
-	var mode terraform.InputMode
-	mode |= terraform.InputModeProvider
+	var mode opentf.InputMode
+	mode |= opentf.InputModeProvider
 
 	return mode
 }
 
 // UIInput returns a UIInput object to be used for asking for input.
-func (m *Meta) UIInput() terraform.UIInput {
+func (m *Meta) UIInput() opentf.UIInput {
 	return &UIInput{
 		Colorize: m.Colorize(),
 	}
@@ -518,13 +518,13 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 
 // contextOpts returns the options to use to initialize a Terraform
 // context with the settings from this Meta.
-func (m *Meta) contextOpts() (*terraform.ContextOpts, error) {
+func (m *Meta) contextOpts() (*opentf.ContextOpts, error) {
 	workspace, err := m.Workspace()
 	if err != nil {
 		return nil, err
 	}
 
-	var opts terraform.ContextOpts
+	var opts opentf.ContextOpts
 
 	opts.UIInput = m.UIInput()
 	opts.Parallelism = m.parallelism
@@ -542,7 +542,7 @@ func (m *Meta) contextOpts() (*terraform.ContextOpts, error) {
 		opts.Provisioners = m.provisionerFactories()
 	}
 
-	opts.Meta = &terraform.ContextMeta{
+	opts.Meta = &opentf.ContextMeta{
 		Env:                workspace,
 		OriginalWorkingDir: m.WorkingDir.OriginalWorkingDir(),
 	}
@@ -651,7 +651,7 @@ func (m *Meta) uiHook() *views.UiHook {
 }
 
 // confirm asks a yes/no confirmation.
-func (m *Meta) confirm(opts *terraform.InputOpts) (bool, error) {
+func (m *Meta) confirm(opts *opentf.InputOpts) (bool, error) {
 	if !m.Input() {
 		return false, errors.New("input is disabled")
 	}
@@ -833,7 +833,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 		return diags
 	}
 
-	versionDiags := terraform.CheckCoreVersionRequirements(config)
+	versionDiags := opentf.CheckCoreVersionRequirements(config)
 	if versionDiags.HasErrors() {
 		diags = diags.Append(versionDiags)
 		return diags
@@ -847,7 +847,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*terraform.Schemas, tfdiags.Diagnostics) {
+func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*opentf.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -870,7 +870,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*te
 			diags = diags.Append(err)
 			return nil, diags
 		}
-		tfCtx, ctxDiags := terraform.NewContext(opts)
+		tfCtx, ctxDiags := opentf.NewContext(opts)
 		diags = diags.Append(ctxDiags)
 		if ctxDiags.HasErrors() {
 			return nil, diags

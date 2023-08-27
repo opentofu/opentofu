@@ -33,7 +33,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
@@ -386,7 +386,7 @@ func TestCloud_applyWithParallelism(t *testing.T) {
 	defer configCleanup()
 
 	if b.ContextOpts == nil {
-		b.ContextOpts = &terraform.ContextOpts{}
+		b.ContextOpts = &opentf.ContextOpts{}
 	}
 	b.ContextOpts.Parallelism = 3
 	op.Workspace = testBackendSingleWorkspaceName
@@ -668,7 +668,7 @@ func TestCloud_applyWithRequiredVariables(t *testing.T) {
 	defer configCleanup()
 	defer done(t)
 
-	op.Variables = testVariables(terraform.ValueFromNamedFile, "foo") // "bar" variable value missing
+	op.Variables = testVariables(opentf.ValueFromNamedFile, "foo") // "bar" variable value missing
 	op.Workspace = testBackendSingleWorkspaceName
 
 	run, err := b.Operation(context.Background(), op)

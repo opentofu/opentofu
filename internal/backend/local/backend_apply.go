@@ -18,7 +18,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -163,7 +163,7 @@ func (b *Local) opApply(
 				diags = nil // reset so we won't show the same diagnostics again later
 			}
 
-			v, err := op.UIIn.Input(stopCtx, &terraform.InputOpts{
+			v, err := op.UIIn.Input(stopCtx, &opentf.InputOpts{
 				Id:          "approve",
 				Query:       "\n" + query,
 				Description: desc,

@@ -19,7 +19,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // Test the PreApply hook for creating a new resource
@@ -55,7 +55,7 @@ func TestUiHookPreApply_create(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 
@@ -113,7 +113,7 @@ func TestUiHookPreApply_periodicTimer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 
@@ -177,7 +177,7 @@ func TestUiHookPreApply_destroy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 
@@ -228,7 +228,7 @@ func TestUiHookPostApply_colorInterpolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -281,7 +281,7 @@ func TestUiHookPostApply_emptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -314,7 +314,7 @@ func TestPreProvisionInstanceStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -430,7 +430,7 @@ func TestPreRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -462,7 +462,7 @@ func TestPreRefresh_noID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -489,7 +489,7 @@ func TestPreImportState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -537,7 +537,7 @@ func TestPostImportState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)

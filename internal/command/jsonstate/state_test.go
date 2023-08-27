@@ -16,7 +16,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func TestMarshalOutputs(t *testing.T) {
@@ -183,7 +183,7 @@ func TestMarshalResources(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	tests := map[string]struct {
 		Resources map[string]*states.Resource
-		Schemas   *terraform.Schemas
+		Schemas   *opentf.Schemas
 		Want      []Resource
 		Err       bool
 	}{
@@ -806,8 +806,8 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 	}
 }
 
-func testSchemas() *terraform.Schemas {
-	return &terraform.Schemas{
+func testSchemas() *opentf.Schemas {
+	return &opentf.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): {
 				ResourceTypes: map[string]providers.Schema{

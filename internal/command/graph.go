@@ -12,7 +12,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -123,7 +123,7 @@ func (c *GraphCommand) Run(args []string) int {
 		}
 	}
 
-	var g *terraform.Graph
+	var g *opentf.Graph
 	var graphDiags tfdiags.Diagnostics
 	switch graphTypeStr {
 	case "plan":
@@ -171,7 +171,7 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
-	graphStr, err := terraform.GraphDot(g, &dag.DotOpts{
+	graphStr, err := opentf.GraphDot(g, &dag.DotOpts{
 		DrawCycles: drawCycles,
 		MaxDepth:   moduleDepth,
 		Verbose:    verbose,

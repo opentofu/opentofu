@@ -17,7 +17,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views/json"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // How long to wait between sending heartbeat/progress messages
@@ -33,7 +33,7 @@ func newJSONHook(view *JSONView) *jsonHook {
 }
 
 type jsonHook struct {
-	terraform.NilHook
+	opentf.NilHook
 
 	view *JSONView
 
@@ -47,7 +47,7 @@ type jsonHook struct {
 	timeAfter func(time.Duration) <-chan time.Time
 }
 
-var _ terraform.Hook = (*jsonHook)(nil)
+var _ opentf.Hook = (*jsonHook)(nil)
 
 type applyProgress struct {
 	addr   addrs.AbsResourceInstance
@@ -62,7 +62,7 @@ type applyProgress struct {
 	heartbeatDone chan struct{}
 }
 
-func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (terraform.HookAction, error) {
+func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (opentf.HookAction, error) {
 	if action != plans.NoOp {
 		idKey, idValue := format.ObjectValueIDOrName(priorState)
 		h.view.Hook(json.NewApplyStart(addr, action, idKey, idValue))
@@ -82,7 +82,7 @@ func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generatio
 	if action != plans.NoOp {
 		go h.applyingHeartbeat(progress)
 	}
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }
 
 func (h *jsonHook) applyingHeartbeat(progress applyProgress) {
@@ -99,7 +99,7 @@ func (h *jsonHook) applyingHeartbeat(progress applyProgress) {
 	}
 }
 
-func (h *jsonHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generation, newState cty.Value, err error) (terraform.HookAction, error) {
+func (h *jsonHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generation, newState cty.Value, err error) (opentf.HookAction, error) {
 	key := addr.String()
 	h.applyingLock.Lock()
 	progress := h.applying[key]
@@ -110,7 +110,7 @@ func (h *jsonHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generati
 	h.applyingLock.Unlock()
 
 	if progress.action == plans.NoOp {
-		return terraform.HookActionContinue, nil
+		return opentf.HookActionContinue, nil
 	}
 
 	elapsed := h.timeNow().Round(time.Second).Sub(progress.start)
@@ -124,15 +124,15 @@ func (h *jsonHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generati
 		idKey, idValue := format.ObjectValueID(newState)
 		h.view.Hook(json.NewApplyComplete(addr, progress.action, idKey, idValue, elapsed))
 	}
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }
 
-func (h *jsonHook) PreProvisionInstanceStep(addr addrs.AbsResourceInstance, typeName string) (terraform.HookAction, error) {
+func (h *jsonHook) PreProvisionInstanceStep(addr addrs.AbsResourceInstance, typeName string) (opentf.HookAction, error) {
 	h.view.Hook(json.NewProvisionStart(addr, typeName))
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }
 
-func (h *jsonHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typeName string, err error) (terraform.HookAction, error) {
+func (h *jsonHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typeName string, err error) (opentf.HookAction, error) {
 	if err != nil {
 		// Errors are collected and displayed post-apply, so no need to
 		// re-render them here. Instead just signal that this provisioner step
@@ -141,7 +141,7 @@ func (h *jsonHook) PostProvisionInstanceStep(addr addrs.AbsResourceInstance, typ
 	} else {
 		h.view.Hook(json.NewProvisionComplete(addr, typeName))
 	}
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }
 
 func (h *jsonHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName string, msg string) {
@@ -155,14 +155,14 @@ func (h *jsonHook) ProvisionOutput(addr addrs.AbsResourceInstance, typeName stri
 	}
 }
 
-func (h *jsonHook) PreRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value) (terraform.HookAction, error) {
+func (h *jsonHook) PreRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value) (opentf.HookAction, error) {
 	idKey, idValue := format.ObjectValueID(priorState)
 	h.view.Hook(json.NewRefreshStart(addr, idKey, idValue))
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }
 
-func (h *jsonHook) PostRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value, newState cty.Value) (terraform.HookAction, error) {
+func (h *jsonHook) PostRefresh(addr addrs.AbsResourceInstance, gen states.Generation, priorState cty.Value, newState cty.Value) (opentf.HookAction, error) {
 	idKey, idValue := format.ObjectValueID(newState)
 	h.view.Hook(json.NewRefreshComplete(addr, idKey, idValue))
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }

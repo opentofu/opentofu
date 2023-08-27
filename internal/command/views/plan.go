@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 // The Plan view is used for the plan command.
 type Plan interface {
 	Operation() Operation
-	Hooks() []terraform.Hook
+	Hooks() []opentf.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
@@ -51,8 +51,8 @@ func (v *PlanHuman) Operation() Operation {
 	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
 }
 
-func (v *PlanHuman) Hooks() []terraform.Hook {
-	return []terraform.Hook{
+func (v *PlanHuman) Hooks() []opentf.Hook {
+	return []opentf.Hook{
 		NewUiHook(v.view),
 	}
 }
@@ -77,8 +77,8 @@ func (v *PlanJSON) Operation() Operation {
 	return &OperationJSON{view: v.view}
 }
 
-func (v *PlanJSON) Hooks() []terraform.Hook {
-	return []terraform.Hook{
+func (v *PlanJSON) Hooks() []opentf.Hook {
+	return []opentf.Hook{
 		newJSONHook(v.view),
 	}
 }

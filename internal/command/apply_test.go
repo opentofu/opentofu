@@ -27,7 +27,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -299,7 +299,7 @@ func TestApply_parallelism(t *testing.T) {
 	providerFactories := map[addrs.Provider]providers.Factory{}
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("test%d", i)
-		provider := &terraform.MockProvider{}
+		provider := &opentf.MockProvider{}
 		provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
 				name + "_instance": {Block: &configschema.Block{}},
@@ -2160,7 +2160,7 @@ func applyFixtureSchema() *providers.GetProviderSchemaResponse {
 // GetSchemaResponse, PlanResourceChangeFn, and ApplyResourceChangeFn populated,
 // with the plan/apply steps just passing through the data determined by
 // Terraform Core.
-func applyFixtureProvider() *terraform.MockProvider {
+func applyFixtureProvider() *opentf.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = applyFixtureSchema()
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {

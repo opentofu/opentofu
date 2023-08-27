@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // FormatVersion represents the version of the json format and will be
@@ -39,7 +39,7 @@ func newProviders() *Providers {
 // schema into the public structured JSON versions.
 //
 // This is a format that can be read by the structured plan renderer.
-func MarshalForRenderer(s *terraform.Schemas) map[string]*Provider {
+func MarshalForRenderer(s *opentf.Schemas) map[string]*Provider {
 	schemas := make(map[string]*Provider, len(s.Providers))
 	for k, v := range s.Providers {
 		schemas[k.String()] = marshalProvider(v)
@@ -47,7 +47,7 @@ func MarshalForRenderer(s *terraform.Schemas) map[string]*Provider {
 	return schemas
 }
 
-func Marshal(s *terraform.Schemas) ([]byte, error) {
+func Marshal(s *opentf.Schemas) ([]byte, error) {
 	providers := newProviders()
 	providers.Schemas = MarshalForRenderer(s)
 	ret, err := json.Marshal(providers)

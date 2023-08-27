@@ -17,7 +17,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 
 	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 )
@@ -261,7 +261,7 @@ func TestSession_stateless(t *testing.T) {
 func testSession(t *testing.T, test testSessionTest) {
 	t.Helper()
 
-	p := &terraform.MockProvider{}
+	p := &opentf.MockProvider{}
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"test_instance": {
@@ -281,7 +281,7 @@ func testSession(t *testing.T, test testSessionTest) {
 	}
 
 	// Build the TF context
-	ctx, diags := terraform.NewContext(&terraform.ContextOpts{
+	ctx, diags := opentf.NewContext(&opentf.ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): providers.FactoryFixed(p),
 		},
@@ -294,7 +294,7 @@ func testSession(t *testing.T, test testSessionTest) {
 	if state == nil {
 		state = states.NewState()
 	}
-	scope, diags := ctx.Eval(config, state, addrs.RootModuleInstance, &terraform.EvalOpts{})
+	scope, diags := ctx.Eval(config, state, addrs.RootModuleInstance, &opentf.EvalOpts{})
 	if diags.HasErrors() {
 		t.Fatalf("failed to create scope: %s", diags.Err())
 	}

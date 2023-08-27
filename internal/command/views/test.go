@@ -18,7 +18,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -140,7 +140,7 @@ func (t *TestHuman) Run(run *moduletest.Run, file *moduletest.File) {
 		// We're going to be more verbose about what we print, here's the plan
 		// or the state depending on the type of run we did.
 
-		schemas := &terraform.Schemas{
+		schemas := &opentf.Schemas{
 			Providers:    run.Verbose.Providers,
 			Provisioners: run.Verbose.Provisioners,
 		}
@@ -402,7 +402,7 @@ func (t *TestJSON) Run(run *moduletest.Run, file *moduletest.File) {
 
 	if run.Verbose != nil {
 
-		schemas := &terraform.Schemas{
+		schemas := &opentf.Schemas{
 			Providers:    run.Verbose.Providers,
 			Provisioners: run.Verbose.Provisioners,
 		}

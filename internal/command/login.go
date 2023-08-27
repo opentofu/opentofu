@@ -27,7 +27,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
 	uuid "github.com/hashicorp/go-uuid"
@@ -546,7 +546,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
 	c.Ui.Output("OpenTF must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
 
-	username, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
+	username, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
 		Id:    "username",
 		Query: fmt.Sprintf("Username for %s:", hostname.ForDisplay()),
 	})
@@ -554,7 +554,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		diags = diags.Append(fmt.Errorf("Failed to request username: %s", err))
 		return nil, diags
 	}
-	password, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
+	password, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
 		Id:     "password",
 		Query:  fmt.Sprintf("Password for %s:", hostname.ForDisplay()),
 		Secret: true,
@@ -637,7 +637,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 		}
 	}
 
-	token, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
+	token, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
 		Id:     "token",
 		Query:  fmt.Sprintf("Token for %s:", hostname.ForDisplay()),
 		Secret: true,
@@ -698,7 +698,7 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 		}
 	}
 
-	v, err := c.UIInput().Input(context.Background(), &terraform.InputOpts{
+	v, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
 		Id:          "approve",
 		Query:       "Do you want to proceed?",
 		Description: `Only 'yes' will be accepted to confirm.`,

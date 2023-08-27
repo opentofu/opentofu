@@ -16,7 +16,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -154,7 +154,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 		mustConfirm := (op.UIIn != nil && op.UIOut != nil) && !op.AutoApprove
 
 		if mustConfirm && b.input {
-			opts := &terraform.InputOpts{Id: "approve"}
+			opts := &opentf.InputOpts{Id: "approve"}
 
 			if op.PlanMode == plans.DestroyMode {
 				opts.Query = "\nDo you really want to destroy all resources in workspace \"" + op.Workspace + "\"?"

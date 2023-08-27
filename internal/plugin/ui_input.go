@@ -8,7 +8,7 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // UIInput is an implementation of terraform.UIInput that communicates
@@ -17,7 +17,7 @@ type UIInput struct {
 	Client *rpc.Client
 }
 
-func (i *UIInput) Input(ctx context.Context, opts *terraform.InputOpts) (string, error) {
+func (i *UIInput) Input(ctx context.Context, opts *opentf.InputOpts) (string, error) {
 	var resp UIInputInputResponse
 	err := i.Client.Call("Plugin.Input", opts, &resp)
 	if err != nil {
@@ -39,11 +39,11 @@ type UIInputInputResponse struct {
 // UIInputServer is a net/rpc compatible structure for serving
 // a UIInputServer. This should not be used directly.
 type UIInputServer struct {
-	UIInput terraform.UIInput
+	UIInput opentf.UIInput
 }
 
 func (s *UIInputServer) Input(
-	opts *terraform.InputOpts,
+	opts *opentf.InputOpts,
 	reply *UIInputInputResponse) error {
 	value, err := s.UIInput.Input(context.Background(), opts)
 	*reply = UIInputInputResponse{

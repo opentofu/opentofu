@@ -21,7 +21,7 @@ import (
 	"github.com/bgentry/speakeasy"
 	"github.com/mattn/go-isatty"
 	"github.com/mitchellh/colorstring"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 var defaultInputReader io.Reader
@@ -49,7 +49,7 @@ type UIInput struct {
 	once        sync.Once
 }
 
-func (i *UIInput) Input(ctx context.Context, opts *terraform.InputOpts) (string, error) {
+func (i *UIInput) Input(ctx context.Context, opts *opentf.InputOpts) (string, error) {
 	i.once.Do(i.init)
 
 	r := i.Reader

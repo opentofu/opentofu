@@ -12,13 +12,13 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 
 	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestCountHook_impl(t *testing.T) {
-	var _ terraform.Hook = new(countHook)
+	var _ opentf.Hook = new(countHook)
 }
 
 func TestCountHookPostDiff_DestroyDeposed(t *testing.T) {

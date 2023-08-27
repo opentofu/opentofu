@@ -50,7 +50,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
@@ -523,8 +523,8 @@ func testStateOutput(t *testing.T, path string, expected string) {
 	}
 }
 
-func testProvider() *terraform.MockProvider {
-	p := new(terraform.MockProvider)
+func testProvider() *opentf.MockProvider {
+	p := new(opentf.MockProvider)
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		resp.PlannedState = req.ProposedNewState
 		return resp

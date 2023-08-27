@@ -16,7 +16,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -81,11 +81,11 @@ func TestOperation_emergencyDumpState(t *testing.T) {
 func TestOperation_planNoChanges(t *testing.T) {
 
 	tests := map[string]struct {
-		plan     func(schemas *terraform.Schemas) *plans.Plan
+		plan     func(schemas *opentf.Schemas) *plans.Plan
 		wantText string
 	}{
 		"nothing at all in normal mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				return &plans.Plan{
 					UIMode:  plans.NormalMode,
 					Changes: plans.NewChanges(),
@@ -94,7 +94,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"no differences, so no changes are needed.",
 		},
 		"nothing at all in refresh-only mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				return &plans.Plan{
 					UIMode:  plans.RefreshOnlyMode,
 					Changes: plans.NewChanges(),
@@ -103,7 +103,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"OpenTF has checked that the real remote objects still match",
 		},
 		"nothing at all in destroy mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				return &plans.Plan{
 					UIMode:  plans.DestroyMode,
 					Changes: plans.NewChanges(),
@@ -112,7 +112,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"No objects need to be destroyed.",
 		},
 		"no drift detected in normal noop": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				addr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test_resource",
@@ -153,7 +153,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"No changes",
 		},
 		"drift detected in normal mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				addr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test_resource",
@@ -200,7 +200,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"Objects have changed outside of OpenTF",
 		},
 		"drift detected in refresh-only mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				addr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test_resource",
@@ -241,7 +241,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"If you were expecting these changes then you can apply this plan",
 		},
 		"move-only changes in refresh-only mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				addr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test_resource",
@@ -290,7 +290,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 			"test_resource.anywhere has moved to test_resource.somewhere",
 		},
 		"drift detected in destroy mode": {
-			func(schemas *terraform.Schemas) *plans.Plan {
+			func(schemas *opentf.Schemas) *plans.Plan {
 				return &plans.Plan{
 					UIMode:  plans.DestroyMode,
 					Changes: plans.NewChanges(),

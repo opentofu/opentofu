@@ -26,7 +26,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
 	"github.com/zclconf/go-cty/cty"
@@ -53,7 +53,7 @@ type Remote struct {
 	// ContextOpts are the base context options to set when initializing a
 	// new OpenTF context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *terraform.ContextOpts
+	ContextOpts *opentf.ContextOpts
 
 	// client is the remote backend API client.
 	client *tfe.Client
@@ -869,7 +869,7 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 		// Only ask if the remote operation should be canceled
 		// if the auto approve flag is not set.
 		if !op.AutoApprove {
-			v, err := op.UIIn.Input(cancelCtx, &terraform.InputOpts{
+			v, err := op.UIIn.Input(cancelCtx, &opentf.InputOpts{
 				Id:          "cancel",
 				Query:       "\nDo you want to cancel the remote operation?",
 				Description: "Only 'yes' will be accepted to cancel.",

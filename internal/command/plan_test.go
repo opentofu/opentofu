@@ -26,7 +26,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -1436,7 +1436,7 @@ func TestPlan_parallelism(t *testing.T) {
 	providerFactories := map[addrs.Provider]providers.Factory{}
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("test%d", i)
-		provider := &terraform.MockProvider{}
+		provider := &opentf.MockProvider{}
 		provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
 				name + "_instance": {Block: &configschema.Block{}},
@@ -1632,7 +1632,7 @@ func planFixtureSchema() *providers.GetProviderSchemaResponse {
 // operation with the configuration in testdata/plan. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan
 // step just passing through the new object proposed by Terraform Core.
-func planFixtureProvider() *terraform.MockProvider {
+func planFixtureProvider() *opentf.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = planFixtureSchema()
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
@@ -1673,7 +1673,7 @@ func planVarsFixtureSchema() *providers.GetProviderSchemaResponse {
 // operation with the configuration in testdata/plan-vars. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan
 // step just passing through the new object proposed by Terraform Core.
-func planVarsFixtureProvider() *terraform.MockProvider {
+func planVarsFixtureProvider() *opentf.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = planVarsFixtureSchema()
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
@@ -1695,7 +1695,7 @@ func planVarsFixtureProvider() *terraform.MockProvider {
 // planFixtureProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/plan. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, returning 3 warnings.
-func planWarningsFixtureProvider() *terraform.MockProvider {
+func planWarningsFixtureProvider() *opentf.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = planFixtureSchema()
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {

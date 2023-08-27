@@ -13,7 +13,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -329,13 +329,13 @@ func TestJSONHook_refresh(t *testing.T) {
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
 }
 
-func testHookReturnValues(t *testing.T, action terraform.HookAction, err error) {
+func testHookReturnValues(t *testing.T, action opentf.HookAction, err error) {
 	t.Helper()
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != terraform.HookActionContinue {
+	if action != opentf.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 }

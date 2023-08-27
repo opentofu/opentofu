@@ -20,7 +20,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -107,13 +107,13 @@ func (c *ShowCommand) Synopsis() string {
 	return "Show the current state or a saved plan"
 }
 
-func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *terraform.Schemas, tfdiags.Diagnostics) {
+func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *opentf.Schemas, tfdiags.Diagnostics) {
 	var diags, showDiags tfdiags.Diagnostics
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
 	var stateFile *statefile.File
 	var config *configs.Config
-	var schemas *terraform.Schemas
+	var schemas *opentf.Schemas
 
 	// No plan file or state file argument provided,
 	// so get the latest state snapshot

@@ -13,7 +13,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/repl"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
 	"github.com/mitchellh/cli"
@@ -121,7 +121,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		ErrorWriter: os.Stderr,
 	}
 
-	evalOpts := &terraform.EvalOpts{}
+	evalOpts := &opentf.EvalOpts{}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
 		// so the variable values end up in the "PlanOpts" even though we're

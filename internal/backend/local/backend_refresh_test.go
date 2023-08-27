@@ -20,7 +20,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -102,7 +102,7 @@ func TestLocal_refreshInput(t *testing.T) {
 
 	// Enable input asking since it is normally disabled by default
 	b.OpInput = true
-	b.ContextOpts.UIInput = &terraform.MockUIInput{InputReturnString: "bar"}
+	b.ContextOpts.UIInput = &opentf.MockUIInput{InputReturnString: "bar"}
 
 	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh-var-unset")
 	defer configCleanup()

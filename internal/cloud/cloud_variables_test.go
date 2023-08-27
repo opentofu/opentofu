@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -18,16 +18,16 @@ import (
 func TestParseCloudRunVariables(t *testing.T) {
 	t.Run("populates variables from allowed sources", func(t *testing.T) {
 		vv := map[string]backend.UnparsedVariableValue{
-			"undeclared":                      testUnparsedVariableValue{source: terraform.ValueFromCLIArg, value: cty.StringVal("0")},
-			"declaredFromConfig":              testUnparsedVariableValue{source: terraform.ValueFromConfig, value: cty.StringVal("1")},
-			"declaredFromNamedFileMapString":  testUnparsedVariableValue{source: terraform.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.StringVal("bar")})},
-			"declaredFromNamedFileBool":       testUnparsedVariableValue{source: terraform.ValueFromNamedFile, value: cty.BoolVal(true)},
-			"declaredFromNamedFileNumber":     testUnparsedVariableValue{source: terraform.ValueFromNamedFile, value: cty.NumberIntVal(2)},
-			"declaredFromNamedFileListString": testUnparsedVariableValue{source: terraform.ValueFromNamedFile, value: cty.ListVal([]cty.Value{cty.StringVal("2a"), cty.StringVal("2b")})},
-			"declaredFromNamedFileNull":       testUnparsedVariableValue{source: terraform.ValueFromNamedFile, value: cty.NullVal(cty.String)},
-			"declaredFromNamedMapComplex":     testUnparsedVariableValue{source: terraform.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.ObjectVal(map[string]cty.Value{"qux": cty.ListVal([]cty.Value{cty.BoolVal(true), cty.BoolVal(false)})})})},
-			"declaredFromCLIArg":              testUnparsedVariableValue{source: terraform.ValueFromCLIArg, value: cty.StringVal("3")},
-			"declaredFromEnvVar":              testUnparsedVariableValue{source: terraform.ValueFromEnvVar, value: cty.StringVal("4")},
+			"undeclared":                      testUnparsedVariableValue{source: opentf.ValueFromCLIArg, value: cty.StringVal("0")},
+			"declaredFromConfig":              testUnparsedVariableValue{source: opentf.ValueFromConfig, value: cty.StringVal("1")},
+			"declaredFromNamedFileMapString":  testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.StringVal("bar")})},
+			"declaredFromNamedFileBool":       testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.BoolVal(true)},
+			"declaredFromNamedFileNumber":     testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.NumberIntVal(2)},
+			"declaredFromNamedFileListString": testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.ListVal([]cty.Value{cty.StringVal("2a"), cty.StringVal("2b")})},
+			"declaredFromNamedFileNull":       testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.NullVal(cty.String)},
+			"declaredFromNamedMapComplex":     testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.ObjectVal(map[string]cty.Value{"qux": cty.ListVal([]cty.Value{cty.BoolVal(true), cty.BoolVal(false)})})})},
+			"declaredFromCLIArg":              testUnparsedVariableValue{source: opentf.ValueFromCLIArg, value: cty.StringVal("3")},
+			"declaredFromEnvVar":              testUnparsedVariableValue{source: opentf.ValueFromEnvVar, value: cty.StringVal("4")},
 		}
 
 		decls := map[string]*configs.Variable{
@@ -169,12 +169,12 @@ func TestParseCloudRunVariables(t *testing.T) {
 }
 
 type testUnparsedVariableValue struct {
-	source terraform.ValueSourceType
+	source opentf.ValueSourceType
 	value  cty.Value
 }
 
-func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
-	return &terraform.InputValue{
+func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
+	return &opentf.InputValue{
 		Value:      v.value,
 		SourceType: v.source,
 		SourceRange: tfdiags.SourceRange{

@@ -18,7 +18,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 var (
@@ -242,7 +242,7 @@ func (b *Remote) hasExplicitVariableValues(op *backend.Operation) bool {
 	// their final values will come from the _remote_ execution context.
 	for _, v := range variables {
 		switch v.SourceType {
-		case terraform.ValueFromCLIArg, terraform.ValueFromNamedFile:
+		case opentf.ValueFromCLIArg, opentf.ValueFromNamedFile:
 			return true
 		}
 	}
@@ -431,7 +431,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 					return generalError(fmt.Sprintf("Failed to override policy check.\n%s", runUrl), err)
 				}
 			} else {
-				opts := &terraform.InputOpts{
+				opts := &opentf.InputOpts{
 					Id:          "override",
 					Query:       "\nDo you want to override the soft failed policy check?",
 					Description: "Only 'override' will be accepted to override.",
@@ -463,7 +463,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 	return nil
 }
 
-func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *terraform.InputOpts, r *tfe.Run, keyword string) error {
+func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *opentf.InputOpts, r *tfe.Run, keyword string) error {
 	doneCtx, cancel := context.WithCancel(stopCtx)
 	result := make(chan error, 2)
 

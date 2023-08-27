@@ -14,7 +14,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -220,7 +220,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 	if !w.AutoApply {
 		if mustConfirm {
-			opts := &terraform.InputOpts{Id: "approve"}
+			opts := &opentf.InputOpts{Id: "approve"}
 
 			if op.PlanMode == plans.DestroyMode {
 				opts.Query = "\nDo you really want to destroy all resources in workspace \"" + op.Workspace + "\"?"

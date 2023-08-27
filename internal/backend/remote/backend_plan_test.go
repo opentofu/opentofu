@@ -28,7 +28,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
@@ -210,7 +210,7 @@ func TestRemote_planWithParallelism(t *testing.T) {
 	defer configCleanup()
 
 	if b.ContextOpts == nil {
-		b.ContextOpts = &terraform.ContextOpts{}
+		b.ContextOpts = &opentf.ContextOpts{}
 	}
 	b.ContextOpts.Parallelism = 3
 	op.Workspace = backend.DefaultStateName
@@ -615,7 +615,7 @@ func TestRemote_planWithVariables(t *testing.T) {
 	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-variables")
 	defer configCleanup()
 
-	op.Variables = testVariables(terraform.ValueFromCLIArg, "foo", "bar")
+	op.Variables = testVariables(opentf.ValueFromCLIArg, "foo", "bar")
 	op.Workspace = backend.DefaultStateName
 
 	run, err := b.Operation(context.Background(), op)

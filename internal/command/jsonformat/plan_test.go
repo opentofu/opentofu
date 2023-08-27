@@ -24,7 +24,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func TestRenderHuman_EmptyPlan(t *testing.T) {
@@ -6986,7 +6986,7 @@ func runTestCases(t *testing.T, testCases map[string]testCase) {
 				RequiredReplace: tc.RequiredReplace,
 			}
 
-			tfschemas := &terraform.Schemas{
+			tfschemas := &opentf.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{
 					src.ProviderAddr.Provider: {
 						ResourceTypes: map[string]providers.Schema{

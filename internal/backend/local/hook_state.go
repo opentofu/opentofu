@@ -10,13 +10,13 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // StateHook is a hook that continuously updates the state by calling
 // WriteState on a statemgr.Full.
 type StateHook struct {
-	terraform.NilHook
+	opentf.NilHook
 	sync.Mutex
 
 	StateMgr statemgr.Writer
@@ -31,7 +31,7 @@ type StateHook struct {
 	// Schemas are the schemas to use when persisting state due to
 	// PersistInterval. This is ignored if PersistInterval is zero,
 	// and PersistInterval is ignored if this is nil.
-	Schemas *terraform.Schemas
+	Schemas *opentf.Schemas
 
 	intermediatePersist IntermediateStatePersistInfo
 }
@@ -59,9 +59,9 @@ type IntermediateStatePersistInfo struct {
 	ForcePersist bool
 }
 
-var _ terraform.Hook = (*StateHook)(nil)
+var _ opentf.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(new *states.State) (terraform.HookAction, error) {
+func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -75,13 +75,13 @@ func (h *StateHook) PostStateUpdate(new *states.State) (terraform.HookAction, er
 
 	if h.StateMgr != nil {
 		if err := h.StateMgr.WriteState(new); err != nil {
-			return terraform.HookActionHalt, err
+			return opentf.HookActionHalt, err
 		}
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
 			if h.shouldPersist() {
 				err := mgrPersist.PersistState(h.Schemas)
 				if err != nil {
-					return terraform.HookActionHalt, err
+					return opentf.HookActionHalt, err
 				}
 				h.intermediatePersist.LastPersist = time.Now()
 			} else {
@@ -90,7 +90,7 @@ func (h *StateHook) PostStateUpdate(new *states.State) (terraform.HookAction, er
 		}
 	}
 
-	return terraform.HookActionContinue, nil
+	return opentf.HookActionContinue, nil
 }
 
 func (h *StateHook) Stopping() {

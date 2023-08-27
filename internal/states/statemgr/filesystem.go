@@ -19,7 +19,7 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 // Filesystem is a full state manager that uses a file in the local filesystem
@@ -227,7 +227,7 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 
 // PersistState is an implementation of Persister that does nothing because
 // this type's Writer implementation does its own persistence.
-func (s *Filesystem) PersistState(schemas *terraform.Schemas) error {
+func (s *Filesystem) PersistState(schemas *opentf.Schemas) error {
 	return nil
 }
 

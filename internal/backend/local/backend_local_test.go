@@ -24,7 +24,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -272,6 +272,6 @@ func (s *stateStorageThatFailsRefresh) RefreshState() error {
 	return fmt.Errorf("intentionally failing for testing purposes")
 }
 
-func (s *stateStorageThatFailsRefresh) PersistState(schemas *terraform.Schemas) error {
+func (s *stateStorageThatFailsRefresh) PersistState(schemas *opentf.Schemas) error {
 	return fmt.Errorf("unimplemented")
 }

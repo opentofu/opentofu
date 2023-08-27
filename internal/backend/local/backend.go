@@ -19,7 +19,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -68,7 +68,7 @@ type Local struct {
 
 	// OpenTF context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *terraform.ContextOpts
+	ContextOpts *opentf.ContextOpts
 
 	// OpInput will ask for necessary input prior to performing any operations.
 	//
@@ -270,7 +270,7 @@ func (b *Local) StateMgr(name string) (statemgr.Full, error) {
 
 // Operation implements backend.Enhanced
 //
-// This will initialize an in-memory terraform.Context to perform the
+// This will initialize an in-memory opentf.Context to perform the
 // operation within this process.
 //
 // The given operation parameter will be merged with the ContextOpts on
@@ -340,7 +340,7 @@ func (b *Local) opWait(
 	doneCh <-chan struct{},
 	stopCtx context.Context,
 	cancelCtx context.Context,
-	tfCtx *terraform.Context,
+	tfCtx *opentf.Context,
 	opStateMgr statemgr.Persister,
 	view views.Operation) (canceled bool) {
 	// Wait for the operation to finish or for us to be interrupted so

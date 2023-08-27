@@ -7,18 +7,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func TestUIOutput_impl(t *testing.T) {
-	var _ terraform.UIOutput = new(UIOutput)
+	var _ opentf.UIOutput = new(UIOutput)
 }
 
 func TestUIOutput_input(t *testing.T) {
 	client, server := plugin.TestRPCConn(t)
 	defer client.Close()
 
-	o := new(terraform.MockUIOutput)
+	o := new(opentf.MockUIOutput)
 
 	err := server.RegisterName("Plugin", &UIOutputServer{
 		UIOutput: o,

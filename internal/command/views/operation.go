@@ -17,7 +17,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views/json"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -30,7 +30,7 @@ type Operation interface {
 	EmergencyDumpState(stateFile *statefile.File) error
 
 	PlannedChange(change *plans.ResourceInstanceChangeSrc)
-	Plan(plan *plans.Plan, schemas *terraform.Schemas)
+	Plan(plan *plans.Plan, schemas *opentf.Schemas)
 	PlanNextStep(planPath string, genConfigPath string)
 
 	Diagnostics(diags tfdiags.Diagnostics)
@@ -91,7 +91,7 @@ func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File) error {
 	return nil
 }
 
-func (v *OperationHuman) Plan(plan *plans.Plan, schemas *terraform.Schemas) {
+func (v *OperationHuman) Plan(plan *plans.Plan, schemas *opentf.Schemas) {
 	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
@@ -209,7 +209,7 @@ func (v *OperationJSON) EmergencyDumpState(stateFile *statefile.File) error {
 
 // Log a change summary and a series of "planned" messages for the changes in
 // the plan.
-func (v *OperationJSON) Plan(plan *plans.Plan, schemas *terraform.Schemas) {
+func (v *OperationJSON) Plan(plan *plans.Plan, schemas *opentf.Schemas) {
 	for _, dr := range plan.DriftedResources {
 		// In refresh-only mode, we output all resources marked as drifted,
 		// including those which have moved without other changes. In other plan

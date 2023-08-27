@@ -19,7 +19,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -34,7 +34,7 @@ func TestShowHuman(t *testing.T) {
 		plan       *plans.Plan
 		jsonPlan   *cloudplan.RemotePlanJSON
 		stateFile  *statefile.File
-		schemas    *terraform.Schemas
+		schemas    *opentf.Schemas
 		wantExact  bool
 		wantString string
 	}{
@@ -179,7 +179,7 @@ func TestShowJSON(t *testing.T) {
 			view.Configure(&arguments.View{NoColor: true})
 			v := NewShow(arguments.ViewJSON, view)
 
-			schemas := &terraform.Schemas{
+			schemas := &opentf.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{
 					addrs.NewDefaultProvider("test"): {
 						ResourceTypes: map[string]providers.Schema{
