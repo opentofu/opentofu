@@ -15,7 +15,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	terraformProvider "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/providers/terraform"
+	terraformProvider "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/providers/tf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	tfplugin "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin"
