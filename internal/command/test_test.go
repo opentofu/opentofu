@@ -200,7 +200,7 @@ func TestTest_Broken_HCL_Files(t *testing.T) {
 			code:     1,
 		},
 		"broken_wrong_block_check": {
-			expected: "Blocks of type \"data\" are not expected here.",
+			expected: "Blocks of type \"check\" are not expected here.",
 			code:     1,
 		},
 	}
