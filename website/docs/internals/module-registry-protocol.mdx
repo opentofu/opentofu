@@ -2,15 +2,13 @@
 page_title: Module Registry Protocol
 description: |-
   The module registry protocol is implemented by a host intending to be the
-  host of one or more Terraform modules, specifying which modules are available
+  host of one or more OpenTF modules, specifying which modules are available
   and where to find their distribution packages.
 ---
 
 # Module Registry Protocol
 
--> Third-party module registries are supported only in Terraform CLI 0.11 and later. Prior versions do not support this protocol.
-
-The module registry protocol is what Terraform CLI uses to discover metadata
+The module registry protocol is what OpenTF CLI uses to discover metadata
 about modules available for installation and to locate the distribution
 package for a selected module.
 
@@ -23,13 +21,13 @@ publishing them on the public Terraform Registry.
 The public Terraform Registry implements a superset of the API described on
 this page, in order to capture additional information used in the registry UI.
 For information on those extensions, see
-[Terraform Registry HTTP API](/terraform/registry/api-docs). Third-party registry
+[OpenTF Registry HTTP API](/opentf/registry/api-docs). Third-party registry
 implementations may choose to implement those extensions if desired, but
-Terraform CLI itself does not use them.
+OpenTF CLI itself does not use them.
 
 ## Module Addresses
 
-Each Terraform module has an associated address. A module address has the
+Each OpenTF module has an associated address. A module address has the
 syntax `hostname/namespace/name/system`, where:
 
 - `hostname` is the hostname of the module registry that serves this module.
@@ -61,7 +59,7 @@ For example:
 - `example.com/awesomecorp/consul/happycloud` is a hypothetical module published
   on a third-party registry.
 
-If you intend to share a module you've developed for use by all Terraform
+If you intend to share a module you've developed for use by all OpenTF
 users, please consider publishing it into the public
 [Terraform Registry](https://registry.terraform.io/) to make your module more
 discoverable. You only need to implement this module registry protocol if you
@@ -71,7 +69,7 @@ under your control.
 ## Module Versions
 
 Each distinct module address has associated with it a set of versions, each
-of which has an associated version number. Terraform assumes version numbers
+of which has an associated version number. OpenTF assumes version numbers
 follow the [Semantic Versioning 2.0](https://semver.org/) conventions, with
 the user-facing behavior of the module serving as the "public API".
 
@@ -80,8 +78,8 @@ blocks have the same source address.
 
 ## Service Discovery
 
-The module registry protocol begins with Terraform CLI using
-[Terraform's remote service discovery protocol](/terraform/internals/remote-service-discovery),
+The module registry protocol begins with OpenTF CLI using
+[OpenTF's remote service discovery protocol](/opentf/internals/remote-service-discovery),
 with the hostname in the module address acting as the "User-facing Hostname".
 
 The service identifier for the module registry protocol is `modules.v1`.
@@ -93,22 +91,22 @@ the module registry protocol might contain the following:
 
 ```json
 {
-  "modules.v1": "/terraform/modules/v1/"
+  "modules.v1": "/opentf/modules/v1/"
 }
 ```
 
-If the given URL is a relative URL then Terraform will interpret it as relative
+If the given URL is a relative URL then OpenTF will interpret it as relative
 to the discovery document itself. The specific module registry protocol
 endpoints are defined as URLs relative to the given base URL, and so the
 specified base URL should generally end with a slash to ensure that those
 relative paths will be resolved as expected.
 
 The following sections describe the various operations that a module
-registry must implement to be compatible with Terraform CLI's module
+registry must implement to be compatible with OpenTF CLI's module
 installer. The indicated URLs are all relative to the URL resulting from
-service discovery, as described above. We use the current URLs on
-Terraform Registry as working examples, assuming that the caller already
-performed service discovery on `registry.terraform.io` to learn the base URL.
+service discovery, as described above. We use a hypothetical URL for a provider
+registry, assuming that the caller already performed service discovery on a hypothetical
+`registry.example.io` to learn the base URL.
 
 The URLs are shown with the convention that a path portion with a colon `:`
 prefix is a placeholder for a dynamically-selected value, while all other
@@ -139,7 +137,7 @@ available versions for a given fully-qualified module.
 ### Sample Request
 
 ```text
-$ curl 'https://registry.terraform.io/v1/modules/hashicorp/consul/aws/versions'
+$ curl 'https://registry.example.io/v1/modules/hashicorp/consul/aws/versions'
 ```
 
 ### Sample Response
@@ -147,9 +145,9 @@ $ curl 'https://registry.terraform.io/v1/modules/hashicorp/consul/aws/versions'
 The `modules` array in the response always includes the requested module as the
 first element.
 
-Terraform does not use the other elements of this list. However, third-party implementations should always use a single-element list for forward compatiblity.
+OpenTF does not use the other elements of this list. However, third-party implementations should always use a single-element list for forward compatiblity.
 
-Each returned module has an array of available versions, which Terraform
+Each returned module has an array of available versions, which OpenTF
 matches against any version constraints given in configuration.
 
 ```json
@@ -194,7 +192,7 @@ This endpoint downloads the specified version of a module for a single target sy
 ### Sample Request
 
 ```text
-$ curl -i 'https://registry.terraform.io/v1/modules/hashicorp/consul/aws/0.0.1/download'
+$ curl -i 'https://registry.example.io/v1/modules/hashicorp/consul/aws/0.0.1/download'
 ```
 
 ### Sample Response
@@ -208,11 +206,11 @@ X-Terraform-Get: https://api.github.com/repos/hashicorp/terraform-aws-consul/tar
 A successful response has no body, and includes the location from which the
 module version's source can be downloaded in the `X-Terraform-Get` header.
 The value of this header accepts the same values as the `source` argument
-in a `module` block in Terraform configuration, as described in
-[Module Sources](/terraform/language/modules/sources),
+in a `module` block in OpenTF configuration, as described in
+[Module Sources](/opentf/language/modules/sources),
 except that it may not recursively refer to another module registry address.
 
 The value of `X-Terraform-Get` may instead be a relative URL, indicated by
 beginning with `/`, `./` or `../`, in which case it is resolved relative to
 the full URL of the download endpoint to produce
-[an HTTP URL module source](/terraform/language/modules/sources#http-urls).
+[an HTTP URL module source](/opentf/language/modules/sources#http-urls).
