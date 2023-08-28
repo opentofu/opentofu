@@ -1709,7 +1709,7 @@ func TestApply_disableBackup(t *testing.T) {
 func TestApply_terraformEnv(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-terraform-env"), td)
+	testCopyDir(t, testFixturePath("apply-opentf-workspace"), td)
 	defer testChdir(t, td)()
 
 	statePath := testTempFile(t)
@@ -1746,7 +1746,7 @@ output = default
 func TestApply_terraformEnvNonDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-terraform-env"), td)
+	testCopyDir(t, testFixturePath("apply-opentf-workspace"), td)
 	defer testChdir(t, td)()
 
 	// Create new env
