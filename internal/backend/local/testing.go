@@ -12,10 +12,10 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 // TestLocal returns a configured Local struct with temporary paths and
@@ -35,16 +35,16 @@ func TestLocal(t *testing.T) *Local {
 	local.StateOutPath = filepath.Join(tempDir, "state.tfstate")
 	local.StateBackupPath = filepath.Join(tempDir, "state.tfstate.bak")
 	local.StateWorkspaceDir = filepath.Join(tempDir, "state.tfstate.d")
-	local.ContextOpts = &terraform.ContextOpts{}
+	local.ContextOpts = &opentf.ContextOpts{}
 
 	return local
 }
 
 // TestLocalProvider modifies the ContextOpts of the *Local parameter to
 // have a provider with the given name.
-func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.ProviderSchema) *terraform.MockProvider {
+func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.ProviderSchema) *opentf.MockProvider {
 	// Build a mock resource provider for in-memory operations
-	p := new(terraform.MockProvider)
+	p := new(opentf.MockProvider)
 
 	p.GetProviderSchemaResponse = &schema
 
@@ -89,7 +89,7 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 
 	// Initialize the opts
 	if b.ContextOpts == nil {
-		b.ContextOpts = &terraform.ContextOpts{}
+		b.ContextOpts = &opentf.ContextOpts{}
 	}
 
 	// Set up our provider

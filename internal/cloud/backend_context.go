@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -24,7 +24,7 @@ import (
 func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &backend.LocalRun{
-		PlanOpts: &terraform.PlanOpts{
+		PlanOpts: &opentf.PlanOpts{
 			Mode:    op.PlanMode,
 			Targets: op.Targets,
 		},
@@ -63,7 +63,7 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 	}
 
 	// Initialize our context options
-	var opts terraform.ContextOpts
+	var opts opentf.ContextOpts
 	if v := b.ContextOpts; v != nil {
 		opts = *v
 	}
@@ -143,7 +143,7 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 		}
 	}
 
-	tfCtx, ctxDiags := terraform.NewContext(&opts)
+	tfCtx, ctxDiags := opentf.NewContext(&opts)
 	diags = diags.Append(ctxDiags)
 	ret.Core = tfCtx
 
@@ -183,24 +183,24 @@ func (b *Cloud) getRemoteWorkspaceID(ctx context.Context, localWorkspaceName str
 	return remoteWorkspace.ID, nil
 }
 
-func stubAllVariables(vv map[string]backend.UnparsedVariableValue, decls map[string]*configs.Variable) terraform.InputValues {
-	ret := make(terraform.InputValues, len(decls))
+func stubAllVariables(vv map[string]backend.UnparsedVariableValue, decls map[string]*configs.Variable) opentf.InputValues {
+	ret := make(opentf.InputValues, len(decls))
 
 	for name, cfg := range decls {
 		raw, exists := vv[name]
 		if !exists {
-			ret[name] = &terraform.InputValue{
+			ret[name] = &opentf.InputValue{
 				Value:      cty.UnknownVal(cfg.Type),
-				SourceType: terraform.ValueFromConfig,
+				SourceType: opentf.ValueFromConfig,
 			}
 			continue
 		}
 
 		val, diags := raw.ParseVariableValue(cfg.ParsingMode)
 		if diags.HasErrors() {
-			ret[name] = &terraform.InputValue{
+			ret[name] = &opentf.InputValue{
 				Value:      cty.UnknownVal(cfg.Type),
-				SourceType: terraform.ValueFromConfig,
+				SourceType: opentf.ValueFromConfig,
 			}
 			continue
 		}
@@ -219,7 +219,7 @@ type remoteStoredVariableValue struct {
 
 var _ backend.UnparsedVariableValue = (*remoteStoredVariableValue)(nil)
 
-func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
+func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var val cty.Value
 
@@ -282,7 +282,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		val = cty.StringVal(v.definition.Value)
 	}
 
-	return &terraform.InputValue{
+	return &opentf.InputValue{
 		Value: val,
 
 		// We mark these as "from input" with the rationale that entering
@@ -290,6 +290,6 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		// roughly speaking, a similar idea to entering variable values at
 		// the interactive CLI prompts. It's not a perfect correspondance,
 		// but it's closer than the other options.
-		SourceType: terraform.ValueFromInput,
+		SourceType: opentf.ValueFromInput,
 	}, diags
 }

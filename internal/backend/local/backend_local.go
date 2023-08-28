@@ -13,9 +13,9 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -68,7 +68,7 @@ func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.
 	ret := &backend.LocalRun{}
 
 	// Initialize our context options
-	var coreOpts terraform.ContextOpts
+	var coreOpts opentf.ContextOpts
 	if v := b.ContextOpts; v != nil {
 		coreOpts = *v
 	}
@@ -115,7 +115,7 @@ func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.
 	if op.Type != backend.OperationTypeInvalid {
 		// If input asking is enabled, then do that
 		if op.PlanFile == nil && b.OpInput {
-			mode := terraform.InputModeProvider
+			mode := opentf.InputModeProvider
 
 			log.Printf("[TRACE] backend/local: requesting interactive input, if necessary")
 			inputDiags := ret.Core.Input(ret.Config, mode)
@@ -136,7 +136,7 @@ func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.
 	return ret, configSnap, s, diags
 }
 
-func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, coreOpts *terraform.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, coreOpts *opentf.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the configuration using the caller-provided configuration loader.
@@ -194,7 +194,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 		return nil, nil, diags
 	}
 
-	planOpts := &terraform.PlanOpts{
+	planOpts := &opentf.PlanOpts{
 		Mode:               op.PlanMode,
 		Targets:            op.Targets,
 		ForceReplace:       op.ForceReplace,
@@ -208,7 +208,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	// snapshot, from the previous run.
 	run.InputState = s.State()
 
-	tfCtx, moreDiags := terraform.NewContext(coreOpts)
+	tfCtx, moreDiags := opentf.NewContext(coreOpts)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, nil, diags
@@ -217,7 +217,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	return run, configSnap, diags
 }
 
-func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *terraform.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *opentf.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	const errSummary = "Invalid plan file"
@@ -342,7 +342,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	// we need to apply the plan.
 	run.Plan = plan
 
-	tfCtx, moreDiags := terraform.NewContext(coreOpts)
+	tfCtx, moreDiags := opentf.NewContext(coreOpts)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, nil, diags
@@ -371,7 +371,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 // messages that variables are not set rather than reporting that input failed:
 // the primary resolution to missing variables is to provide them by some other
 // means.
-func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[string]backend.UnparsedVariableValue, vcs map[string]*configs.Variable, uiInput terraform.UIInput) map[string]backend.UnparsedVariableValue {
+func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[string]backend.UnparsedVariableValue, vcs map[string]*configs.Variable, uiInput opentf.UIInput) map[string]backend.UnparsedVariableValue {
 	var needed []string
 	if b.OpInput && uiInput != nil {
 		for name, vc := range vcs {
@@ -400,7 +400,7 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 	}
 	for _, name := range needed {
 		vc := vcs[name]
-		rawValue, err := uiInput.Input(ctx, &terraform.InputOpts{
+		rawValue, err := uiInput.Input(ctx, &opentf.InputOpts{
 			Id:          fmt.Sprintf("var.%s", name),
 			Query:       fmt.Sprintf("var.%s", name),
 			Description: vc.Description,
@@ -478,16 +478,16 @@ type unparsedInteractiveVariableValue struct {
 
 var _ backend.UnparsedVariableValue = unparsedInteractiveVariableValue{}
 
-func (v unparsedInteractiveVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
+func (v unparsedInteractiveVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	val, valDiags := mode.Parse(v.Name, v.RawValue)
 	diags = diags.Append(valDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	return &terraform.InputValue{
+	return &opentf.InputValue{
 		Value:      val,
-		SourceType: terraform.ValueFromInput,
+		SourceType: opentf.ValueFromInput,
 	}, diags
 }
 
@@ -498,9 +498,9 @@ type unparsedUnknownVariableValue struct {
 
 var _ backend.UnparsedVariableValue = unparsedUnknownVariableValue{}
 
-func (v unparsedUnknownVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
-	return &terraform.InputValue{
+func (v unparsedUnknownVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
+	return &opentf.InputValue{
 		Value:      cty.UnknownVal(v.WantType),
-		SourceType: terraform.ValueFromInput,
+		SourceType: opentf.ValueFromInput,
 	}, nil
 }

@@ -12,10 +12,10 @@ import (
 	uuid "github.com/hashicorp/go-uuid"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 )
 
 // State implements the State interfaces in the state package to handle
@@ -166,7 +166,7 @@ func (s *State) refreshState() error {
 }
 
 // statemgr.Persister impl.
-func (s *State) PersistState(schemas *terraform.Schemas) error {
+func (s *State) PersistState(schemas *opentf.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -15,7 +15,7 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -56,7 +56,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			ret[name] = unparsedVariableValueString{
 				str:        rawVal,
 				name:       name,
-				sourceType: terraform.ValueFromEnvVar,
+				sourceType: opentf.ValueFromEnvVar,
 			}
 		}
 	}
@@ -66,12 +66,12 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	// (DefaultVarsFilename) along with the later-added search for all files
 	// ending in .auto.tfvars.
 	if _, err := os.Stat(DefaultVarsFilename); err == nil {
-		moreDiags := m.addVarsFromFile(DefaultVarsFilename, terraform.ValueFromAutoFile, ret)
+		moreDiags := m.addVarsFromFile(DefaultVarsFilename, opentf.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
 	}
 	const defaultVarsFilenameJSON = DefaultVarsFilename + ".json"
 	if _, err := os.Stat(defaultVarsFilenameJSON); err == nil {
-		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, terraform.ValueFromAutoFile, ret)
+		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, opentf.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
 	}
 	if infos, err := ioutil.ReadDir("."); err == nil {
@@ -81,7 +81,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			if !isAutoVarFile(name) {
 				continue
 			}
-			moreDiags := m.addVarsFromFile(name, terraform.ValueFromAutoFile, ret)
+			moreDiags := m.addVarsFromFile(name, opentf.ValueFromAutoFile, ret)
 			diags = diags.Append(moreDiags)
 		}
 	}
@@ -117,11 +117,11 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			ret[name] = unparsedVariableValueString{
 				str:        rawVal,
 				name:       name,
-				sourceType: terraform.ValueFromCLIArg,
+				sourceType: opentf.ValueFromCLIArg,
 			}
 
 		case "-var-file":
-			moreDiags := m.addVarsFromFile(rawFlag.Value, terraform.ValueFromNamedFile, ret)
+			moreDiags := m.addVarsFromFile(rawFlag.Value, opentf.ValueFromNamedFile, ret)
 			diags = diags.Append(moreDiags)
 
 		default:
@@ -134,7 +134,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	return ret, diags
 }
 
-func (m *Meta) addVarsFromFile(filename string, sourceType terraform.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
+func (m *Meta) addVarsFromFile(filename string, sourceType opentf.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	src, err := ioutil.ReadFile(filename)
@@ -229,17 +229,17 @@ func (m *Meta) addVarsFromFile(filename string, sourceType terraform.ValueSource
 // intended to deal with expressions inside "tfvars" files.
 type unparsedVariableValueExpression struct {
 	expr       hcl.Expression
-	sourceType terraform.ValueSourceType
+	sourceType opentf.ValueSourceType
 }
 
-func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
+func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	val, hclDiags := v.expr.Value(nil) // nil because no function calls or variable references are allowed here
 	diags = diags.Append(hclDiags)
 
 	rng := tfdiags.SourceRangeFromHCL(v.expr.Range())
 
-	return &terraform.InputValue{
+	return &opentf.InputValue{
 		Value:       val,
 		SourceType:  v.sourceType,
 		SourceRange: rng,
@@ -253,16 +253,16 @@ func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.Variabl
 type unparsedVariableValueString struct {
 	str        string
 	name       string
-	sourceType terraform.ValueSourceType
+	sourceType opentf.ValueSourceType
 }
 
-func (v unparsedVariableValueString) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
+func (v unparsedVariableValueString) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	val, hclDiags := mode.Parse(v.name, v.str)
 	diags = diags.Append(hclDiags)
 
-	return &terraform.InputValue{
+	return &opentf.InputValue{
 		Value:      val,
 		SourceType: v.sourceType,
 	}, diags

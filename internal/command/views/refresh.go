@@ -8,8 +8,8 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views/json"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -18,7 +18,7 @@ type Refresh interface {
 	Outputs(outputValues map[string]*states.OutputValue)
 
 	Operation() Operation
-	Hooks() []terraform.Hook
+	Hooks() []opentf.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
@@ -65,8 +65,8 @@ func (v *RefreshHuman) Operation() Operation {
 	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
 }
 
-func (v *RefreshHuman) Hooks() []terraform.Hook {
-	return []terraform.Hook{
+func (v *RefreshHuman) Hooks() []opentf.Hook {
+	return []opentf.Hook{
 		v.countHook,
 		NewUiHook(v.view),
 	}
@@ -101,8 +101,8 @@ func (v *RefreshJSON) Operation() Operation {
 	return &OperationJSON{view: v.view}
 }
 
-func (v *RefreshJSON) Hooks() []terraform.Hook {
-	return []terraform.Hook{
+func (v *RefreshJSON) Hooks() []opentf.Hook {
+	return []opentf.Hook{
 		newJSONHook(v.view),
 	}
 }

@@ -20,9 +20,9 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -308,7 +308,7 @@ type TestSuiteRunner struct {
 	Config *configs.Config
 
 	GlobalVariables map[string]backend.UnparsedVariableValue
-	Opts            *terraform.ContextOpts
+	Opts            *opentf.ContextOpts
 
 	View views.Test
 
@@ -615,7 +615,7 @@ func (runner *TestFileRunner) validate(config *configs.Config, run *moduletest.R
 
 	var diags tfdiags.Diagnostics
 
-	tfCtx, ctxDiags := terraform.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return diags
@@ -662,12 +662,12 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		return state, diags
 	}
 
-	planOpts := &terraform.PlanOpts{
+	planOpts := &opentf.PlanOpts{
 		Mode:         plans.DestroyMode,
 		SetVariables: variables,
 	}
 
-	tfCtx, ctxDiags := terraform.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return state, diags
@@ -703,7 +703,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 	return updated, diags
 }
 
-func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*terraform.Context, *plans.Plan, tfdiags.Diagnostics) {
+func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*opentf.Context, *plans.Plan, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called plan for %s/%s", file.Name, run.Name)
 
 	var diags tfdiags.Diagnostics
@@ -724,7 +724,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		return nil, nil, diags
 	}
 
-	planOpts := &terraform.PlanOpts{
+	planOpts := &opentf.PlanOpts{
 		Mode: func() plans.Mode {
 			switch run.Config.Options.Mode {
 			case configs.RefreshOnlyTestMode:
@@ -740,7 +740,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		ExternalReferences: references,
 	}
 
-	tfCtx, ctxDiags := terraform.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, nil, diags
@@ -770,7 +770,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	return tfCtx, plan, diags
 }
 
-func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, config *configs.Config, run *moduletest.Run, file *moduletest.File) (*terraform.Context, *states.State, tfdiags.Diagnostics) {
+func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, config *configs.Config, run *moduletest.Run, file *moduletest.File) (*opentf.Context, *states.State, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called apply for %s/%s", file.Name, run.Name)
 
 	var diags tfdiags.Diagnostics
@@ -794,7 +794,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 		created = append(created, change)
 	}
 
-	tfCtx, ctxDiags := terraform.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, state, diags
@@ -824,7 +824,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 	return tfCtx, updated, diags
 }
 
-func (runner *TestFileRunner) wait(ctx *terraform.Context, runningCtx context.Context, run *moduletest.Run, file *moduletest.File, created []*plans.ResourceInstanceChangeSrc) (diags tfdiags.Diagnostics, cancelled bool) {
+func (runner *TestFileRunner) wait(ctx *opentf.Context, runningCtx context.Context, run *moduletest.Run, file *moduletest.File, created []*plans.ResourceInstanceChangeSrc) (diags tfdiags.Diagnostics, cancelled bool) {
 	var identifier string
 	if file == nil {
 		identifier = "validate"
@@ -997,13 +997,13 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 
 // helper functions
 
-// buildInputVariablesForTest creates a terraform.InputValues mapping for
+// buildInputVariablesForTest creates a opentf.InputValues mapping for
 // variable values that are relevant to the config being tested.
 //
 // Crucially, it differs from prepareInputVariablesForAssertions in that it only
 // includes variables that are reference by the config and not everything that
 // is defined within the test run block and test file.
-func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (terraform.InputValues, tfdiags.Diagnostics) {
+func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (opentf.InputValues, tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
 	for name := range config.Module.Variables {
 		if run != nil {
@@ -1011,7 +1011,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 				// Local variables take precedence.
 				variables[name] = unparsedVariableValueExpression{
 					expr:       expr,
-					sourceType: terraform.ValueFromConfig,
+					sourceType: opentf.ValueFromConfig,
 				}
 				continue
 			}
@@ -1022,7 +1022,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 				// If it's not set locally, it maybe set for the entire file.
 				variables[name] = unparsedVariableValueExpression{
 					expr:       expr,
-					sourceType: terraform.ValueFromConfig,
+					sourceType: opentf.ValueFromConfig,
 				}
 				continue
 			}
@@ -1043,7 +1043,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 	return backend.ParseVariableValues(variables, config.Module.Variables)
 }
 
-// prepareInputVariablesForAssertions creates a terraform.InputValues mapping
+// prepareInputVariablesForAssertions creates a opentf.InputValues mapping
 // that contains all the variables defined for a given run and file, alongside
 // any unset variables that have defaults within the provided config.
 //
@@ -1055,14 +1055,14 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 // In addition, it modifies the provided config so that any variables that are
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
-func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (terraform.InputValues, func(), tfdiags.Diagnostics) {
+func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (opentf.InputValues, func(), tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
 
 	if run != nil {
 		for name, expr := range run.Config.Variables {
 			variables[name] = unparsedVariableValueExpression{
 				expr:       expr,
-				sourceType: terraform.ValueFromConfig,
+				sourceType: opentf.ValueFromConfig,
 			}
 		}
 	}
@@ -1076,7 +1076,7 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 			}
 			variables[name] = unparsedVariableValueExpression{
 				expr:       expr,
-				sourceType: terraform.ValueFromConfig,
+				sourceType: opentf.ValueFromConfig,
 			}
 		}
 	}
@@ -1094,7 +1094,7 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 	// We've gathered all the values we have, let's convert them into
 	// terraform.InputValues so they can be passed into the Terraform graph.
 
-	inputs := make(terraform.InputValues, len(variables))
+	inputs := make(opentf.InputValues, len(variables))
 	var diags tfdiags.Diagnostics
 	for name, variable := range variables {
 		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
@@ -1114,9 +1114,9 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 		}
 
 		if variable.Default != cty.NilVal {
-			inputs[name] = &terraform.InputValue{
+			inputs[name] = &opentf.InputValue{
 				Value:       variable.Default,
-				SourceType:  terraform.ValueFromConfig,
+				SourceType:  opentf.ValueFromConfig,
 				SourceRange: tfdiags.SourceRangeFromHCL(variable.DeclRange),
 			}
 		}

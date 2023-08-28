@@ -7,12 +7,12 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
-func allowedSourceType(source terraform.ValueSourceType) bool {
-	return source == terraform.ValueFromNamedFile || source == terraform.ValueFromCLIArg || source == terraform.ValueFromEnvVar
+func allowedSourceType(source opentf.ValueSourceType) bool {
+	return source == opentf.ValueFromNamedFile || source == opentf.ValueFromCLIArg || source == opentf.ValueFromEnvVar
 }
 
 // ParseCloudRunVariables accepts a mapping of unparsed values and a mapping of variable

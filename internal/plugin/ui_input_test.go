@@ -9,18 +9,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 )
 
 func TestUIInput_impl(t *testing.T) {
-	var _ terraform.UIInput = new(UIInput)
+	var _ opentf.UIInput = new(UIInput)
 }
 
 func TestUIInput_input(t *testing.T) {
 	client, server := plugin.TestRPCConn(t)
 	defer client.Close()
 
-	i := new(terraform.MockUIInput)
+	i := new(opentf.MockUIInput)
 	i.InputReturnString = "foo"
 
 	err := server.RegisterName("Plugin", &UIInputServer{
@@ -32,7 +32,7 @@ func TestUIInput_input(t *testing.T) {
 
 	input := &UIInput{Client: client}
 
-	opts := &terraform.InputOpts{
+	opts := &opentf.InputOpts{
 		Id: "foo",
 	}
 

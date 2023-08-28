@@ -21,8 +21,8 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
@@ -282,7 +282,7 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 		attrS := schema.Attributes[name]
 
 		for {
-			strVal, err := input.Input(context.Background(), &terraform.InputOpts{
+			strVal, err := input.Input(context.Background(), &opentf.InputOpts{
 				Id:          name,
 				Query:       name,
 				Description: attrS.Description,

@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 
 	tfe "github.com/hashicorp/go-tfe"
@@ -256,7 +256,7 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 	tests := map[string]struct {
 		localVariables    map[string]backend.UnparsedVariableValue
 		remoteVariables   []*tfe.VariableCreateOptions
-		expectedVariables terraform.InputValues
+		expectedVariables opentf.InputValues
 	}{
 		"no local variables": {
 			map[string]backend.UnparsedVariableValue{},
@@ -277,28 +277,28 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 					Category: &catTerraform,
 				},
 			},
-			terraform.InputValues{
-				varName1: &terraform.InputValue{
+			opentf.InputValues{
+				varName1: &opentf.InputValue{
 					Value:      cty.StringVal(varValue1),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName2: &terraform.InputValue{
+				varName2: &opentf.InputValue{
 					Value:      cty.StringVal(varValue2),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName3: &terraform.InputValue{
+				varName3: &opentf.InputValue{
 					Value:      cty.StringVal(varValue3),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
@@ -326,28 +326,28 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 					Category: &catTerraform,
 				},
 			},
-			terraform.InputValues{
-				varName1: &terraform.InputValue{
+			opentf.InputValues{
+				varName1: &opentf.InputValue{
 					Value:      cty.StringVal(varValue1),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName2: &terraform.InputValue{
+				varName2: &opentf.InputValue{
 					Value:      cty.StringVal(varValue2),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName3: &terraform.InputValue{
+				varName3: &opentf.InputValue{
 					Value:      cty.StringVal(varValue3),
-					SourceType: terraform.ValueFromNamedFile,
+					SourceType: opentf.ValueFromNamedFile,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "fake.tfvars",
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
@@ -371,28 +371,28 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 					Category: &catTerraform,
 				},
 			},
-			terraform.InputValues{
-				varName1: &terraform.InputValue{
+			opentf.InputValues{
+				varName1: &opentf.InputValue{
 					Value:      cty.StringVal(varValue1),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName2: &terraform.InputValue{
+				varName2: &opentf.InputValue{
 					Value:      cty.StringVal(varValue2),
-					SourceType: terraform.ValueFromInput,
+					SourceType: opentf.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName3: &terraform.InputValue{
+				varName3: &opentf.InputValue{
 					Value:      cty.StringVal(varValue3),
-					SourceType: terraform.ValueFromNamedFile,
+					SourceType: opentf.ValueFromNamedFile,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "fake.tfvars",
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
@@ -461,10 +461,10 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 
 type testUnparsedVariableValue string
 
-func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*terraform.InputValue, tfdiags.Diagnostics) {
-	return &terraform.InputValue{
+func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
+	return &opentf.InputValue{
 		Value:      cty.StringVal(string(v)),
-		SourceType: terraform.ValueFromNamedFile,
+		SourceType: opentf.ValueFromNamedFile,
 		SourceRange: tfdiags.SourceRange{
 			Filename: "fake.tfvars",
 			Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},

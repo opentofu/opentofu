@@ -85,12 +85,12 @@ specified in the operation, then uses the _config loader_ to load and do
 initial processing/validation of the configuration specified in the
 operation. It then uses these, along with the other settings given in the
 operation, to construct a
-[`terraform.Context`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#Context),
+[`terraform.Context`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#Context),
 which is the main object that actually performs OpenTF operations.
 
 The `local` backend finally calls an appropriate method on that context to
 begin execution of the relevant command, such as
-[`Plan`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#Context.Plan)
+[`Plan`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#Context.Plan)
 or
 [`Apply`](), which in turn constructs a graph using a _graph builder_,
 described in a later section.
@@ -160,7 +160,7 @@ kind of arbitrary blob store.
 ## Graph Builder
 
 A _graph builder_ is called by a
-[`terraform.Context`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#Context)
+[`terraform.Context`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#Context)
 method (e.g. `Plan` or `Apply`) to produce the graph that will be used
 to represent the necessary steps for that operation and the dependency
 relationships between them.
@@ -170,7 +170,7 @@ In most cases, the
 graphs each represent a specific object in the configuration, or something
 derived from those configuration objects. For example, each `resource` block
 in the configuration has one corresponding
-[`GraphNodeConfigResource`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#GraphNodeConfigResource)
+[`GraphNodeConfigResource`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#GraphNodeConfigResource)
 vertex representing it in the "plan" graph. (OpenTF Core uses terminology
 inconsistently, describing graph _vertices_ also as graph _nodes_ in various
 places. These both describe the same concept.)
@@ -187,23 +187,23 @@ graph from the set of changes described in the plan that is being applied.
 
 The graph builders all work in terms of a sequence of _transforms_, which
 are implementations of
-[`terraform.GraphTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#GraphTransformer).
+[`terraform.GraphTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#GraphTransformer).
 Implementations of this interface just take a graph and mutate it in any
 way needed, and so the set of available transforms is quite varied. Some
 important examples include:
 
-* [`ConfigTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#ConfigTransformer),
+* [`ConfigTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#ConfigTransformer),
   which creates a graph vertex for each `resource` block in the configuration.
 
-* [`StateTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#StateTransformer),
+* [`StateTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#StateTransformer),
   which creates a graph vertex for each resource instance currently tracked
   in the state.
 
-* [`ReferenceTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#ReferenceTransformer),
+* [`ReferenceTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#ReferenceTransformer),
   which analyses the configuration to find dependencies between resources and
   other objects and creates any necessary "happens after" edges for these.
 
-* [`ProviderTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#ProviderTransformer),
+* [`ProviderTransformer`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#ProviderTransformer),
   which associates each resource or resource instance with exactly one
   provider configuration (implementing
   [the inheritance rules](https://www.placeholderplaceholderplaceholder.io/docs/language/modules/develop/providers.html))
@@ -217,7 +217,7 @@ builder uses a different subset of these depending on the needs of the
 operation that is being performed.
 
 The result of graph building is a
-[`terraform.Graph`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#Graph), which
+[`terraform.Graph`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#Graph), which
 can then be processed using a _graph walker_.
 
 ## Graph Walk
@@ -229,13 +229,13 @@ itself is implemented in
 (where "DAG" is short for [_Directed Acyclic Graph_](https://en.wikipedia.org/wiki/Directed_acyclic_graph)), in
 [`AcyclicGraph.Walk`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/dag#AcyclicGraph.Walk).
 However, the "interesting" OpenTF walk functionality is implemented in
-[`terraform.ContextGraphWalker`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#ContextGraphWalker),
+[`terraform.ContextGraphWalker`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#ContextGraphWalker),
 which implements a small set of higher-level operations that are performed
 during the graph walk:
 
 * `EnterPath` is called once for each module in the configuration, taking a
   module address and returning a
-  [`terraform.EvalContext`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#EvalContext)
+  [`terraform.EvalContext`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#EvalContext)
   that tracks objects within that module. `terraform.Context` is the _global_
   context for the entire operation, while `terraform.EvalContext` is a
   context for processing within a single module, and is the primary means
@@ -287,20 +287,20 @@ implementation can take any action against the `EvalContext`.
 
 The implementation of `terraform.EvalContext` used in real processing
 (as opposed to testing) is
-[`terraform.BuiltinEvalContext`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#BuiltinEvalContext).
+[`terraform.BuiltinEvalContext`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#BuiltinEvalContext).
 It provides coordinated access to plugins, the current state, and the current
 plan via the `EvalContext` interface methods.
 
 In order to be executed, a vertex must implement
-[`terraform.GraphNodeExecutable`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#GraphNodeExecutable),
+[`terraform.GraphNodeExecutable`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#GraphNodeExecutable),
 which has a single `Execute` method that handles. There are numerous `Execute`
 implementations with different behaviors, but some prominent examples are:
 
-* [NodePlannableResource.Execute](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#NodePlannableResourceInstance.Execute), which handles the `plan` operation.
+* [NodePlannableResource.Execute](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#NodePlannableResourceInstance.Execute), which handles the `plan` operation.
 
-* [`NodeApplyableResourceInstance.Execute`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#NodeApplyableResourceInstance.Execute), which handles the main `apply` operation.
+* [`NodeApplyableResourceInstance.Execute`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#NodeApplyableResourceInstance.Execute), which handles the main `apply` operation.
 
-* [`NodeDestroyResourceInstance.Execute`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#EvalWriteState), which handles the main `destroy` operation.
+* [`NodeDestroyResourceInstance.Execute`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#EvalWriteState), which handles the main `destroy` operation.
 
 A vertex must complete successfully before the graph walk will begin evaluation
 for other vertices that have "happens after" edges. Evaluation can fail with one
@@ -367,7 +367,7 @@ known when the main graph is constructed, but become known while evaluating
 other vertices in the main graph.
 
 This special behavior applies to vertex objects that implement
-[`terraform.GraphNodeDynamicExpandable`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/terraform#GraphNodeDynamicExpandable).
+[`terraform.GraphNodeDynamicExpandable`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#GraphNodeDynamicExpandable).
 Such vertices have their own nested _graph builder_, _graph walk_,
 and _vertex evaluation_ steps, with the same behaviors as described in these
 sections for the main graph. The difference is in which graph transforms
