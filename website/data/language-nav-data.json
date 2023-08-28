@@ -97,7 +97,7 @@
       },
       {
         "title": "The <code>terraform_data</code> Resource Type",
-        "path": "resources/terraform-data"
+        "path": "resources/tf-data"
       }
     ]
   },
@@ -917,7 +917,7 @@
     "title": "Terraform Settings",
     "routes": [
       { "title": "Overview", "path": "settings" },
-      { "title": "Terraform Cloud", "path": "settings/terraform-cloud" },
+      { "title": "Terraform Cloud", "path": "settings/tf-cloud" },
       {
         "title": "Backends",
         "routes": [
