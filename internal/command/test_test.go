@@ -132,7 +132,7 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
-		"broken_no_hcl": {
+		"broken_no_valid_hcl": {
 			expected: "Unsupported block type",
 			code:     1,
 		},
@@ -187,9 +187,12 @@ func TestTest_Broken_HCL_Files(t *testing.T) {
 		code     int
 		skip     bool
 	}{
-
-		"broken_no_hcl": {
+		"broken_no_valid_hcl": {
 			expected: "Unsupported block type",
+			code:     1,
+		},
+		"broken_wrong_block_resource": {
+			expected: "Blocks of type \"resource\" are not expected here.",
 			code:     1,
 		},
 	}
