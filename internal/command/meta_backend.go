@@ -35,7 +35,7 @@ import (
 
 	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
 	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.

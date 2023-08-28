@@ -14,11 +14,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestProvider_impl(t *testing.T) {
-	var _ terraform.ResourceProvider = new(Provider)
+	var _ opentf.ResourceProvider = new(Provider)
 }
 
 func TestProviderGetSchema(t *testing.T) {
@@ -53,7 +53,7 @@ func TestProviderGetSchema(t *testing.T) {
 		},
 	}
 
-	want := &terraform.ProviderSchema{
+	want := &opentf.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"bar": &configschema.Attribute{
@@ -86,7 +86,7 @@ func TestProviderGetSchema(t *testing.T) {
 			}),
 		},
 	}
-	got, err := p.GetSchema(&terraform.ProviderSchemaRequest{
+	got, err := p.GetSchema(&opentf.ProviderSchemaRequest{
 		ResourceTypes: []string{"foo", "bar"},
 		DataSources:   []string{"baz", "bar"},
 	})
@@ -159,7 +159,7 @@ func TestProviderConfigure(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		c := terraform.NewResourceConfigRaw(tc.Config)
+		c := opentf.NewResourceConfigRaw(tc.Config)
 		err := tc.P.Configure(c)
 		if err != nil != tc.Err {
 			t.Fatalf("%d: %s", i, err)
@@ -170,11 +170,11 @@ func TestProviderConfigure(t *testing.T) {
 func TestProviderResources(t *testing.T) {
 	cases := []struct {
 		P      *Provider
-		Result []terraform.ResourceType
+		Result []opentf.ResourceType
 	}{
 		{
 			P:      &Provider{},
-			Result: []terraform.ResourceType{},
+			Result: []opentf.ResourceType{},
 		},
 
 		{
@@ -184,9 +184,9 @@ func TestProviderResources(t *testing.T) {
 					"bar": nil,
 				},
 			},
-			Result: []terraform.ResourceType{
-				terraform.ResourceType{Name: "bar", SchemaAvailable: true},
-				terraform.ResourceType{Name: "foo", SchemaAvailable: true},
+			Result: []opentf.ResourceType{
+				opentf.ResourceType{Name: "bar", SchemaAvailable: true},
+				opentf.ResourceType{Name: "foo", SchemaAvailable: true},
 			},
 		},
 
@@ -198,10 +198,10 @@ func TestProviderResources(t *testing.T) {
 					"baz": nil,
 				},
 			},
-			Result: []terraform.ResourceType{
-				terraform.ResourceType{Name: "bar", Importable: true, SchemaAvailable: true},
-				terraform.ResourceType{Name: "baz", SchemaAvailable: true},
-				terraform.ResourceType{Name: "foo", SchemaAvailable: true},
+			Result: []opentf.ResourceType{
+				opentf.ResourceType{Name: "bar", Importable: true, SchemaAvailable: true},
+				opentf.ResourceType{Name: "baz", SchemaAvailable: true},
+				opentf.ResourceType{Name: "foo", SchemaAvailable: true},
 			},
 		},
 	}
@@ -217,11 +217,11 @@ func TestProviderResources(t *testing.T) {
 func TestProviderDataSources(t *testing.T) {
 	cases := []struct {
 		P      *Provider
-		Result []terraform.DataSource
+		Result []opentf.DataSource
 	}{
 		{
 			P:      &Provider{},
-			Result: []terraform.DataSource{},
+			Result: []opentf.DataSource{},
 		},
 
 		{
@@ -231,9 +231,9 @@ func TestProviderDataSources(t *testing.T) {
 					"bar": nil,
 				},
 			},
-			Result: []terraform.DataSource{
-				terraform.DataSource{Name: "bar", SchemaAvailable: true},
-				terraform.DataSource{Name: "foo", SchemaAvailable: true},
+			Result: []opentf.DataSource{
+				opentf.DataSource{Name: "bar", SchemaAvailable: true},
+				opentf.DataSource{Name: "foo", SchemaAvailable: true},
 			},
 		},
 	}
@@ -264,7 +264,7 @@ func TestProviderValidate(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		c := terraform.NewResourceConfigRaw(tc.Config)
+		c := opentf.NewResourceConfigRaw(tc.Config)
 		_, es := tc.P.Validate(c)
 		if len(es) > 0 != tc.Err {
 			t.Fatalf("%d: %#v", i, es)
@@ -297,9 +297,9 @@ func TestProviderDiff_legacyTimeoutType(t *testing.T) {
 			},
 		},
 	}
-	ic := terraform.NewResourceConfigRaw(invalidCfg)
+	ic := opentf.NewResourceConfigRaw(invalidCfg)
 	_, err := p.Diff(
-		&terraform.InstanceInfo{
+		&opentf.InstanceInfo{
 			Type: "blah",
 		},
 		nil,
@@ -333,9 +333,9 @@ func TestProviderDiff_timeoutInvalidValue(t *testing.T) {
 			"create": "invalid",
 		},
 	}
-	ic := terraform.NewResourceConfigRaw(invalidCfg)
+	ic := opentf.NewResourceConfigRaw(invalidCfg)
 	_, err := p.Diff(
-		&terraform.InstanceInfo{
+		&opentf.InstanceInfo{
 			Type: "blah",
 		},
 		nil,
@@ -379,7 +379,7 @@ func TestProviderValidateResource(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		c := terraform.NewResourceConfigRaw(tc.Config)
+		c := opentf.NewResourceConfigRaw(tc.Config)
 		_, es := tc.P.ValidateResource(tc.Type, c)
 		if len(es) > 0 != tc.Err {
 			t.Fatalf("%d: %#v", i, es)
@@ -396,7 +396,7 @@ func TestProviderImportState_default(t *testing.T) {
 		},
 	}
 
-	states, err := p.ImportState(&terraform.InstanceInfo{
+	states, err := p.ImportState(&opentf.InstanceInfo{
 		Type: "foo",
 	}, "bar")
 	if err != nil {
@@ -428,7 +428,7 @@ func TestProviderImportState_setsId(t *testing.T) {
 		},
 	}
 
-	_, err := p.ImportState(&terraform.InstanceInfo{
+	_, err := p.ImportState(&opentf.InstanceInfo{
 		Type: "foo",
 	}, "bar")
 	if err != nil {
@@ -458,7 +458,7 @@ func TestProviderImportState_setsType(t *testing.T) {
 		},
 	}
 
-	_, err := p.ImportState(&terraform.InstanceInfo{
+	_, err := p.ImportState(&opentf.InstanceInfo{
 		Type: "foo",
 	}, "bar")
 	if err != nil {

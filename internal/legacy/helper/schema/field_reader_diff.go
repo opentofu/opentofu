@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 // DiffFieldReader reads fields out of a diff structures.
@@ -29,7 +29,7 @@ import (
 // It cannot be determined whether a retrieved value is composed of
 // diff elements.
 type DiffFieldReader struct {
-	Diff   *terraform.InstanceDiff
+	Diff   *opentf.InstanceDiff
 	Source FieldReader
 	Schema map[string]*Schema
 

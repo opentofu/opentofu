@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestProvisioner_impl(t *testing.T) {
-	var _ terraform.ResourceProvisioner = new(Provisioner)
+	var _ opentf.ResourceProvisioner = new(Provisioner)
 }
 
 func noopApply(ctx context.Context) error {
@@ -114,7 +114,7 @@ func TestProvisionerValidate(t *testing.T) {
 			P: &Provisioner{
 				Schema:    nil,
 				ApplyFunc: noopApply,
-				ValidateFunc: func(*terraform.ResourceConfig) (ws []string, errors []error) {
+				ValidateFunc: func(*opentf.ResourceConfig) (ws []string, errors []error) {
 					ws = append(ws, "Simple warning from provisioner ValidateFunc")
 					return
 				},
@@ -127,7 +127,7 @@ func TestProvisionerValidate(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, tc.Name), func(t *testing.T) {
-			c := terraform.NewResourceConfigRaw(tc.Config)
+			c := opentf.NewResourceConfigRaw(tc.Config)
 			ws, es := tc.P.Validate(c)
 			if len(es) > 0 != tc.Err {
 				t.Fatalf("%d: %#v %s", i, es, es)
@@ -189,10 +189,10 @@ func TestProvisionerApply(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, tc.Name), func(t *testing.T) {
-			c := terraform.NewResourceConfigRaw(tc.Config)
+			c := opentf.NewResourceConfigRaw(tc.Config)
 
-			state := &terraform.InstanceState{
-				Ephemeral: terraform.EphemeralState{
+			state := &opentf.InstanceState{
+				Ephemeral: opentf.EphemeralState{
 					ConnInfo: tc.Conn,
 				},
 			}
@@ -230,7 +230,7 @@ func TestProvisionerApply_nilState(t *testing.T) {
 		"foo": 42,
 	}
 
-	c := terraform.NewResourceConfigRaw(conf)
+	c := opentf.NewResourceConfigRaw(conf)
 	err := p.Apply(nil, nil, c)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -290,9 +290,9 @@ func TestProvisionerStop_apply(t *testing.T) {
 		"foo": 42,
 	}
 
-	c := terraform.NewResourceConfigRaw(conf)
-	state := &terraform.InstanceState{
-		Ephemeral: terraform.EphemeralState{
+	c := opentf.NewResourceConfigRaw(conf)
+	state := &opentf.InstanceState{
+		Ephemeral: opentf.EphemeralState{
 			ConnInfo: conn,
 		},
 	}

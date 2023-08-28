@@ -11,14 +11,14 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 // DiffFromValues takes the current state and desired state as cty.Values and
-// derives a terraform.InstanceDiff to give to the legacy providers. This is
+// derives a opentf.InstanceDiff to give to the legacy providers. This is
 // used to take the states provided by the new ApplyResourceChange method and
 // convert them to a state+diff required for the legacy Apply method.
-func DiffFromValues(prior, planned cty.Value, res *Resource) (*terraform.InstanceDiff, error) {
+func DiffFromValues(prior, planned cty.Value, res *Resource) (*opentf.InstanceDiff, error) {
 	return diffFromValues(prior, planned, res, nil)
 }
 
@@ -26,7 +26,7 @@ func DiffFromValues(prior, planned cty.Value, res *Resource) (*terraform.Instanc
 // test fixtures from the legacy tests. In the new provider protocol the diff
 // only needs to be created for the apply operation, and any customizations
 // have already been done.
-func diffFromValues(prior, planned cty.Value, res *Resource, cust CustomizeDiffFunc) (*terraform.InstanceDiff, error) {
+func diffFromValues(prior, planned cty.Value, res *Resource, cust CustomizeDiffFunc) (*opentf.InstanceDiff, error) {
 	instanceState, err := res.ShimInstanceStateFromValue(prior)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func diffFromValues(prior, planned cty.Value, res *Resource, cust CustomizeDiffF
 
 	configSchema := res.CoreConfigSchema()
 
-	cfg := terraform.NewResourceConfigShimmed(planned, configSchema)
+	cfg := opentf.NewResourceConfigShimmed(planned, configSchema)
 	removeConfigUnknowns(cfg.Config)
 	removeConfigUnknowns(cfg.Raw)
 
@@ -68,11 +68,11 @@ func removeConfigUnknowns(cfg map[string]interface{}) {
 	}
 }
 
-// ApplyDiff takes a cty.Value state and applies a terraform.InstanceDiff to
+// ApplyDiff takes a cty.Value state and applies a opentf.InstanceDiff to
 // get a new cty.Value state. This is used to convert the diff returned from
 // the legacy provider Diff method to the state required for the new
 // PlanResourceChange method.
-func ApplyDiff(base cty.Value, d *terraform.InstanceDiff, schema *configschema.Block) (cty.Value, error) {
+func ApplyDiff(base cty.Value, d *opentf.InstanceDiff, schema *configschema.Block) (cty.Value, error) {
 	return d.ApplyToValue(base, schema)
 }
 
@@ -110,9 +110,9 @@ func JSONMapToStateValue(m map[string]interface{}, block *configschema.Block) (c
 	return block.CoerceValue(val)
 }
 
-// StateValueFromInstanceState converts a terraform.InstanceState to a
+// StateValueFromInstanceState converts a opentf.InstanceState to a
 // cty.Value as described by the provided cty.Type, and maintains the resource
 // ID as the "id" attribute.
-func StateValueFromInstanceState(is *terraform.InstanceState, ty cty.Type) (cty.Value, error) {
+func StateValueFromInstanceState(is *opentf.InstanceState, ty cty.Type) (cty.Value, error) {
 	return is.AttrsAsObjectValue(ty)
 }

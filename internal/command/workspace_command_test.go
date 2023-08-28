@@ -18,7 +18,7 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
 
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestWorkspace_createAndChange(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestDiffFieldReader_impl(t *testing.T) {
@@ -61,14 +61,14 @@ func TestDiffFieldReader_NestedSetUpdate(t *testing.T) {
 
 	r := &DiffFieldReader{
 		Schema: schema,
-		Diff: &terraform.InstanceDiff{
-			Attributes: map[string]*terraform.ResourceAttrDiff{
-				"list_of_sets_1.0.nested_set.1.val": &terraform.ResourceAttrDiff{
+		Diff: &opentf.InstanceDiff{
+			Attributes: map[string]*opentf.ResourceAttrDiff{
+				"list_of_sets_1.0.nested_set.1.val": &opentf.ResourceAttrDiff{
 					Old:        "1",
 					New:        "0",
 					NewRemoved: true,
 				},
-				"list_of_sets_1.0.nested_set.2.val": &terraform.ResourceAttrDiff{
+				"list_of_sets_1.0.nested_set.2.val": &opentf.ResourceAttrDiff{
 					New: "2",
 				},
 			},
@@ -121,13 +121,13 @@ func TestDiffFieldReader_MapHandling(t *testing.T) {
 	}
 	r := &DiffFieldReader{
 		Schema: schema,
-		Diff: &terraform.InstanceDiff{
-			Attributes: map[string]*terraform.ResourceAttrDiff{
-				"tags.%": &terraform.ResourceAttrDiff{
+		Diff: &opentf.InstanceDiff{
+			Attributes: map[string]*opentf.ResourceAttrDiff{
+				"tags.%": &opentf.ResourceAttrDiff{
 					Old: "1",
 					New: "2",
 				},
-				"tags.baz": &terraform.ResourceAttrDiff{
+				"tags.baz": &opentf.ResourceAttrDiff{
 					Old: "",
 					New: "qux",
 				},
@@ -217,28 +217,28 @@ func TestDiffFieldReader_extra(t *testing.T) {
 
 	r := &DiffFieldReader{
 		Schema: schema,
-		Diff: &terraform.InstanceDiff{
-			Attributes: map[string]*terraform.ResourceAttrDiff{
-				"stringComputed": &terraform.ResourceAttrDiff{
+		Diff: &opentf.InstanceDiff{
+			Attributes: map[string]*opentf.ResourceAttrDiff{
+				"stringComputed": &opentf.ResourceAttrDiff{
 					Old:         "foo",
 					New:         "bar",
 					NewComputed: true,
 				},
 
-				"listMap.0.bar": &terraform.ResourceAttrDiff{
+				"listMap.0.bar": &opentf.ResourceAttrDiff{
 					NewRemoved: true,
 				},
 
-				"mapRemove.bar": &terraform.ResourceAttrDiff{
+				"mapRemove.bar": &opentf.ResourceAttrDiff{
 					NewRemoved: true,
 				},
 
-				"setChange.10.value": &terraform.ResourceAttrDiff{
+				"setChange.10.value": &opentf.ResourceAttrDiff{
 					Old: "50",
 					New: "80",
 				},
 
-				"setEmpty.#": &terraform.ResourceAttrDiff{
+				"setEmpty.#": &opentf.ResourceAttrDiff{
 					Old: "2",
 					New: "0",
 				},
@@ -355,158 +355,158 @@ func TestDiffFieldReader(t *testing.T) {
 	testFieldReader(t, func(s map[string]*Schema) FieldReader {
 		return &DiffFieldReader{
 			Schema: s,
-			Diff: &terraform.InstanceDiff{
-				Attributes: map[string]*terraform.ResourceAttrDiff{
-					"bool": &terraform.ResourceAttrDiff{
+			Diff: &opentf.InstanceDiff{
+				Attributes: map[string]*opentf.ResourceAttrDiff{
+					"bool": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "true",
 					},
 
-					"int": &terraform.ResourceAttrDiff{
+					"int": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "42",
 					},
 
-					"float": &terraform.ResourceAttrDiff{
+					"float": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "3.1415",
 					},
 
-					"string": &terraform.ResourceAttrDiff{
+					"string": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "string",
 					},
 
-					"stringComputed": &terraform.ResourceAttrDiff{
+					"stringComputed": &opentf.ResourceAttrDiff{
 						Old:         "foo",
 						New:         "bar",
 						NewComputed: true,
 					},
 
-					"list.#": &terraform.ResourceAttrDiff{
+					"list.#": &opentf.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"list.0": &terraform.ResourceAttrDiff{
+					"list.0": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "foo",
 					},
 
-					"list.1": &terraform.ResourceAttrDiff{
+					"list.1": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "bar",
 					},
 
-					"listInt.#": &terraform.ResourceAttrDiff{
+					"listInt.#": &opentf.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"listInt.0": &terraform.ResourceAttrDiff{
+					"listInt.0": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "21",
 					},
 
-					"listInt.1": &terraform.ResourceAttrDiff{
+					"listInt.1": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "42",
 					},
 
-					"map.foo": &terraform.ResourceAttrDiff{
+					"map.foo": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "bar",
 					},
 
-					"map.bar": &terraform.ResourceAttrDiff{
+					"map.bar": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "baz",
 					},
 
-					"mapInt.%": &terraform.ResourceAttrDiff{
+					"mapInt.%": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
-					"mapInt.one": &terraform.ResourceAttrDiff{
+					"mapInt.one": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "1",
 					},
-					"mapInt.two": &terraform.ResourceAttrDiff{
+					"mapInt.two": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
 
-					"mapIntNestedSchema.%": &terraform.ResourceAttrDiff{
+					"mapIntNestedSchema.%": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
-					"mapIntNestedSchema.one": &terraform.ResourceAttrDiff{
+					"mapIntNestedSchema.one": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "1",
 					},
-					"mapIntNestedSchema.two": &terraform.ResourceAttrDiff{
+					"mapIntNestedSchema.two": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
 
-					"mapFloat.%": &terraform.ResourceAttrDiff{
+					"mapFloat.%": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "1",
 					},
-					"mapFloat.oneDotTwo": &terraform.ResourceAttrDiff{
+					"mapFloat.oneDotTwo": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "1.2",
 					},
 
-					"mapBool.%": &terraform.ResourceAttrDiff{
+					"mapBool.%": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
-					"mapBool.True": &terraform.ResourceAttrDiff{
+					"mapBool.True": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "true",
 					},
-					"mapBool.False": &terraform.ResourceAttrDiff{
+					"mapBool.False": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "false",
 					},
 
-					"set.#": &terraform.ResourceAttrDiff{
+					"set.#": &opentf.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"set.10": &terraform.ResourceAttrDiff{
+					"set.10": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "10",
 					},
 
-					"set.50": &terraform.ResourceAttrDiff{
+					"set.50": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "50",
 					},
 
-					"setDeep.#": &terraform.ResourceAttrDiff{
+					"setDeep.#": &opentf.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"setDeep.10.index": &terraform.ResourceAttrDiff{
+					"setDeep.10.index": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "10",
 					},
 
-					"setDeep.10.value": &terraform.ResourceAttrDiff{
+					"setDeep.10.value": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "foo",
 					},
 
-					"setDeep.50.index": &terraform.ResourceAttrDiff{
+					"setDeep.50.index": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "50",
 					},
 
-					"setDeep.50.value": &terraform.ResourceAttrDiff{
+					"setDeep.50.value": &opentf.ResourceAttrDiff{
 						Old: "",
 						New: "bar",
 					},

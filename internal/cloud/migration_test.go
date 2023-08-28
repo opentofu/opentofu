@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/terraform"
+	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
 )
 
 func TestDetectConfigChangeType(t *testing.T) {
