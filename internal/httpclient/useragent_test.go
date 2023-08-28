@@ -12,7 +12,7 @@ import (
 )
 
 func TestUserAgentString_env(t *testing.T) {
-	expectedBase := fmt.Sprintf("%s/%s", defaultApplicationName, version.Version)
+	expectedBase := fmt.Sprintf("%s/%s", DefaultApplicationName, version.Version)
 	if oldenv, isSet := os.LookupEnv(appendUaEnvVar); isSet {
 		defer os.Setenv(appendUaEnvVar, oldenv)
 	} else {

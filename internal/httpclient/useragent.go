@@ -14,7 +14,7 @@ import (
 const (
 	appendUaEnvVar         = "TF_APPEND_USER_AGENT"
 	customUaEnvVar         = "OPENTF_USER_AGENT"
-	defaultApplicationName = "OpenTF"
+	DefaultApplicationName = "OpenTF"
 )
 
 type userAgentRoundTripper struct {
@@ -34,11 +34,11 @@ func UserAgentApplication() string {
 	if customApplication := os.Getenv(customUaEnvVar); customApplication != "" {
 		return customApplication
 	}
-	return defaultApplicationName
+	return DefaultApplicationName
 }
 
 func OpenTfUserAgent(version string) string {
-	ua := fmt.Sprintf("%s/%s", defaultApplicationName, version)
+	ua := fmt.Sprintf("%s/%s", DefaultApplicationName, version)
 	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
 		ua = customUa
 		log.Printf("[DEBUG] Using Custom User-Agent: %s", ua)
