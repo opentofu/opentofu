@@ -195,6 +195,10 @@ func TestTest_Broken_HCL_Files(t *testing.T) {
 			expected: "Blocks of type \"resource\" are not expected here.",
 			code:     1,
 		},
+		"broken_wrong_block_data": {
+			expected: "Blocks of type \"data\" are not expected here.",
+			code:     1,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
