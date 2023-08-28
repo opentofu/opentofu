@@ -9,27 +9,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
-const userAgentFormat = "Terraform/%s"
-const uaEnvVar = "TF_APPEND_USER_AGENT"
-
-// Deprecated: Use TerraformUserAgent(version) instead
-func UserAgentString() string {
-	ua := fmt.Sprintf(userAgentFormat, version.Version)
-
-	if add := os.Getenv(uaEnvVar); add != "" {
-		add = strings.TrimSpace(add)
-		if len(add) > 0 {
-			ua += " " + add
-			log.Printf("[DEBUG] Using modified User-Agent: %s", ua)
-		}
-	}
-
-	return ua
-}
+const (
+	appendUaEnvVar         = "TF_APPEND_USER_AGENT"
+	customUaEnvVar         = "OPENTF_USER_AGENT"
+	DefaultApplicationName = "OpenTF"
+)
 
 type userAgentRoundTripper struct {
 	inner     http.RoundTripper
@@ -44,10 +30,14 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 	return rt.inner.RoundTrip(req)
 }
 
-func TerraformUserAgent(version string) string {
-	ua := fmt.Sprintf("HashiCorp Terraform/%s (+https://www.terraform.io)", version)
+func OpenTfUserAgent(version string) string {
+	ua := fmt.Sprintf("%s/%s", DefaultApplicationName, version)
+	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
+		ua = customUa
+		log.Printf("[DEBUG] Using Custom User-Agent: %s", ua)
+	}
 
-	if add := os.Getenv(uaEnvVar); add != "" {
+	if add := os.Getenv(appendUaEnvVar); add != "" {
 		add = strings.TrimSpace(add)
 		if len(add) > 0 {
 			ua += " " + add

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/placeholderplaceholderplaceholder/opentf/version"
 )
 
 // New returns the DefaultPooledClient from the cleanhttp
@@ -14,7 +15,7 @@ import (
 func New() *http.Client {
 	cli := cleanhttp.DefaultPooledClient()
 	cli.Transport = &userAgentRoundTripper{
-		userAgent: UserAgentString(),
+		userAgent: OpenTfUserAgent(version.Version),
 		inner:     cli.Transport,
 	}
 	return cli

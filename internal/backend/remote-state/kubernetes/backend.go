@@ -13,6 +13,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	k8sSchema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -242,7 +243,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Overriding with static configuration
-	cfg.UserAgent = fmt.Sprintf("HashiCorp/1.0 Terraform/%s", version.String())
+	cfg.UserAgent = httpclient.OpenTfUserAgent(version.Version)
 
 	if v, ok := data.GetOk("host"); ok {
 		cfg.Host = v.(string)

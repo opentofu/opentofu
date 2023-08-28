@@ -92,7 +92,7 @@ func NewClient(services *disco.Disco, client *http.Client) *Client {
 
 	services.Transport = retryableClient.HTTPClient.Transport
 
-	services.SetUserAgent(httpclient.TerraformUserAgent(version.String()))
+	services.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
 
 	return &Client{
 		client:   retryableClient,

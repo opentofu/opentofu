@@ -15,6 +15,7 @@ import (
 	awsbase "github.com/hashicorp/aws-sdk-go-base"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
@@ -394,8 +395,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Token:                     stringAttr(obj, "token"),
 		UserAgentProducts: []*awsbase.UserAgentProduct{
 			{Name: "APN", Version: "1.0"},
-			{Name: "HashiCorp", Version: "1.0"},
-			{Name: "Terraform", Version: version.String()},
+			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
 	}
 

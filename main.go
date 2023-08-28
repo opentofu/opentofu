@@ -181,7 +181,7 @@ func realMain() int {
 		// object checks that and just acts as though no credentials are present.
 		services = disco.NewWithCredentialsSource(nil)
 	}
-	services.SetUserAgent(httpclient.TerraformUserAgent(version.String()))
+	services.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
 
 	providerSrc, diags := providerSource(config.ProviderInstallation, services)
 	if len(diags) > 0 {
