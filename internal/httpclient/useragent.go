@@ -30,13 +30,6 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 	return rt.inner.RoundTrip(req)
 }
 
-func UserAgentApplication() string {
-	if customApplication := os.Getenv(customUaEnvVar); customApplication != "" {
-		return customApplication
-	}
-	return DefaultApplicationName
-}
-
 func OpenTfUserAgent(version string) string {
 	ua := fmt.Sprintf("%s/%s", DefaultApplicationName, version)
 	if customUa := os.Getenv(customUaEnvVar); customUa != "" {
