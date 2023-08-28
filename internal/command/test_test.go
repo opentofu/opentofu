@@ -132,6 +132,10 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		"broken_no_hcl": {
+			expected: "Unsupported block type",
+			code:     1,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -166,6 +170,62 @@ func TestTest(t *testing.T) {
 			}
 
 			if !strings.Contains(output.Stdout(), tc.expected) {
+				t.Errorf("output didn't contain expected string:\n\n%s", output.All())
+			}
+
+			if provider.ResourceCount() > 0 {
+				t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+			}
+		})
+	}
+}
+func TestTest_Broken_HCL_Files(t *testing.T) {
+	tcs := map[string]struct {
+		override string
+		args     []string
+		expected string
+		code     int
+		skip     bool
+	}{
+
+		"broken_no_hcl": {
+			expected: "Unsupported block type",
+			code:     1,
+		},
+	}
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+			if len(tc.override) > 0 {
+				file = tc.override
+			}
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
+
+			provider := testing_command.NewProvider(nil)
+			view, done := testView(t)
+
+			c := &TestCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(provider.Provider),
+					View:             view,
+				},
+			}
+
+			code := c.Run(tc.args)
+			output := done(t)
+
+			if code != tc.code {
+				t.Errorf("expected status code %d but got %d", tc.code, code)
+			}
+
+			if !strings.Contains(output.All(), tc.expected) {
 				t.Errorf("output didn't contain expected string:\n\n%s", output.All())
 			}
 
