@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package terraform
+package tf
 
 import (
 	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
