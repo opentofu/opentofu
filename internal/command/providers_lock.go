@@ -232,7 +232,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			},
 			FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, auth *getproviders.PackageAuthenticationResult) {
 				var keyID string
-				if auth != nil && auth.ThirdPartySigned() {
+				if auth != nil && auth.Signed() {
 					keyID = auth.KeyID
 				}
 				if keyID != "" {

@@ -809,7 +809,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		},
 		FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult) {
 			var keyID string
-			if authResult != nil && authResult.ThirdPartySigned() {
+			if authResult != nil && authResult.Signed() {
 				keyID = authResult.KeyID
 			}
 			if keyID != "" {
@@ -856,13 +856,13 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		ProvidersFetched: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
 			thirdPartySigned := false
 			for _, authResult := range authResults {
-				if authResult.ThirdPartySigned() {
+				if authResult.Signed() {
 					thirdPartySigned = true
 					break
 				}
 			}
 			if thirdPartySigned {
-				c.Ui.Info(fmt.Sprintf("\nPartner and community providers are signed by their developers.\n" +
+				c.Ui.Info(fmt.Sprintf("\nProviders are signed by their developers.\n" +
 					"If you'd like to know more about provider signing, you can read about it here:\n" +
 					"https://www.placeholderplaceholderplaceholder.io/docs/cli/plugins/signing.html"))
 			}

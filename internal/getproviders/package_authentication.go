@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
-	openpgpArmor "github.com/ProtonMail/go-crypto/openpgp/armor"
 	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 	openpgpPacket "github.com/ProtonMail/go-crypto/openpgp/packet"
 )
@@ -22,9 +21,7 @@ type packageAuthenticationResult int
 
 const (
 	verifiedChecksum packageAuthenticationResult = iota
-	officialProvider
-	partnerProvider
-	communityProvider
+	signed
 )
 
 var (
@@ -50,59 +47,24 @@ func (t *PackageAuthenticationResult) String() string {
 	}
 	return []string{
 		"verified checksum",
-		"signed by HashiCorp",
-		"signed by a HashiCorp partner",
-		"self-signed",
+		"signed",
 	}[t.result]
 }
 
-// SignedByHashiCorp returns whether the package was authenticated as signed
-// by HashiCorp.
-func (t *PackageAuthenticationResult) SignedByHashiCorp() bool {
+// Signed returns whether the package was authenticated as signed by anyone.
+func (t *PackageAuthenticationResult) Signed() bool {
 	if t == nil {
 		return false
 	}
-	if t.result == officialProvider {
-		return true
-	}
-
-	return false
+	return t.result == signed
 }
 
-// SignedByAnyParty returns whether the package was authenticated as signed
-// by either HashiCorp or by a third-party.
-func (t *PackageAuthenticationResult) SignedByAnyParty() bool {
-	if t == nil {
-		return false
-	}
-	if t.result == officialProvider || t.result == partnerProvider || t.result == communityProvider {
-		return true
-	}
-
-	return false
-}
-
-// ThirdPartySigned returns whether the package was authenticated as signed by a party
-// other than HashiCorp.
-func (t *PackageAuthenticationResult) ThirdPartySigned() bool {
-	if t == nil {
-		return false
-	}
-	if t.result == partnerProvider || t.result == communityProvider {
-		return true
-	}
-
-	return false
-}
-
-// SigningKey represents a key used to sign packages from a registry, along
-// with an optional trust signature from the registry operator. These are
+// SigningKey represents a key used to sign packages from a registry. These are
 // both in ASCII armored OpenPGP format.
 //
 // The JSON struct tags represent the field names used by the Registry API.
 type SigningKey struct {
-	ASCIIArmor     string `json:"ascii_armor"`
-	TrustSignature string `json:"trust_signature"`
+	ASCIIArmor string `json:"ascii_armor"`
 }
 
 // PackageAuthentication is an interface implemented by the optional package
@@ -257,7 +219,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		return nil, fmt.Errorf("provider package doesn't match the expected checksum %q", a.RequiredHashes[0].String())
 	}
 	// It's non-ideal that this doesn't actually list the expected checksums,
-	// but in the many-checksum case the message would get pretty unweildy.
+	// but in the many-checksum case the message would get pretty unwieldy.
 	// In practice today we typically use this authenticator only with a
 	// single hash returned from a network mirror, so the better message
 	// above will prevail in that case. Maybe we'll improve on this somehow
@@ -408,51 +370,13 @@ func NewSignatureAuthentication(document, signature []byte, keys []SigningKey) P
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
 	// Find the key that signed the checksum file. This can fail if there is no
 	// valid signature for any of the provided keys.
-	signingKey, keyID, err := s.findSigningKey()
+	_, keyID, err := s.findSigningKey()
 	if err != nil {
 		return nil, err
 	}
 
-	// Verify the signature using the HashiCorp public key. If this succeeds,
-	// this is an official provider.
-	hashicorpKeyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(HashicorpPublicKey))
-	if err != nil {
-		return nil, fmt.Errorf("error creating HashiCorp keyring: %s", err)
-	}
-	_, err = openpgp.CheckDetachedSignature(hashicorpKeyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), openpgpConfig)
-	if err == nil {
-		return &PackageAuthenticationResult{result: officialProvider, KeyID: keyID}, nil
-	}
-
-	// If the signing key has a trust signature, attempt to verify it with the
-	// HashiCorp partners public key.
-	if signingKey.TrustSignature != "" {
-		hashicorpPartnersKeyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(HashicorpPartnersKey))
-		if err != nil {
-			return nil, fmt.Errorf("error creating HashiCorp Partners keyring: %s", err)
-		}
-
-		authorKey, err := openpgpArmor.Decode(strings.NewReader(signingKey.ASCIIArmor))
-		if err != nil {
-			return nil, fmt.Errorf("error decoding signing key: %s", err)
-		}
-
-		trustSignature, err := openpgpArmor.Decode(strings.NewReader(signingKey.TrustSignature))
-		if err != nil {
-			return nil, fmt.Errorf("error decoding trust signature: %s", err)
-		}
-
-		_, err = openpgp.CheckDetachedSignature(hashicorpPartnersKeyring, authorKey.Body, trustSignature.Body, openpgpConfig)
-		if err != nil {
-			return nil, fmt.Errorf("error verifying trust signature: %s", err)
-		}
-
-		return &PackageAuthenticationResult{result: partnerProvider, KeyID: keyID}, nil
-	}
-
-	// We have a valid signature, but it's not from the HashiCorp key, and it
-	// also isn't a trusted partner. This is a community provider.
-	return &PackageAuthenticationResult{result: communityProvider, KeyID: keyID}, nil
+	// We have a valid signature.
+	return &PackageAuthenticationResult{result: signed, KeyID: keyID}, nil
 }
 
 func (s signatureAuthentication) AcceptableHashes() []Hash {

@@ -41,20 +41,8 @@ func TestPackageAuthenticationResult(t *testing.T) {
 			"unauthenticated",
 		},
 		{
-			&PackageAuthenticationResult{result: verifiedChecksum},
-			"verified checksum",
-		},
-		{
-			&PackageAuthenticationResult{result: officialProvider},
-			"signed by HashiCorp",
-		},
-		{
-			&PackageAuthenticationResult{result: partnerProvider},
-			"signed by a HashiCorp partner",
-		},
-		{
-			&PackageAuthenticationResult{result: communityProvider},
-			"self-signed",
+			&PackageAuthenticationResult{result: signed},
+			"signed",
 		},
 	}
 	for _, test := range tests {
@@ -87,10 +75,10 @@ var _ PackageAuthentication = (*mockAuthentication)(nil)
 func TestPackageAuthenticationAll_success(t *testing.T) {
 	result, err := PackageAuthenticationAll(
 		&mockAuthentication{result: verifiedChecksum},
-		&mockAuthentication{result: communityProvider},
+		&mockAuthentication{result: signed},
 	).AuthenticatePackage(nil)
 
-	want := PackageAuthenticationResult{result: communityProvider}
+	want := PackageAuthenticationResult{result: signed}
 	if result == nil || *result != want {
 		t.Errorf("wrong result: want %#v, got %#v", want, result)
 	}
@@ -106,7 +94,7 @@ func TestPackageAuthenticationAll_failure(t *testing.T) {
 	result, err := PackageAuthenticationAll(
 		&mockAuthentication{result: verifiedChecksum},
 		&mockAuthentication{err: someError},
-		&mockAuthentication{result: communityProvider},
+		&mockAuthentication{result: signed},
 	).AuthenticatePackage(nil)
 
 	if result != nil {
@@ -337,26 +325,13 @@ func TestMatchingChecksumAuthentication_failure(t *testing.T) {
 // Signature authentication takes a checksum document, a signature, and a list
 // of signing keys. If the document is signed by one of the given keys, the
 // authentication is successful. The value of the result depends on the signing
-// key and its trust signature.
+// key.
 func TestSignatureAuthentication_success(t *testing.T) {
 	tests := map[string]struct {
 		signature string
 		keys      []SigningKey
 		result    PackageAuthenticationResult
 	}{
-		"partner provider": {
-			testAuthorSignatureGoodBase64,
-			[]SigningKey{
-				{
-					ASCIIArmor:     testAuthorKeyArmor,
-					TrustSignature: testAuthorKeyTrustSignatureArmor,
-				},
-			},
-			PackageAuthenticationResult{
-				result: partnerProvider,
-				KeyID:  testAuthorKeyID,
-			},
-		},
 		"community provider": {
 			testAuthorSignatureGoodBase64,
 			[]SigningKey{
@@ -365,7 +340,7 @@ func TestSignatureAuthentication_success(t *testing.T) {
 				},
 			},
 			PackageAuthenticationResult{
-				result: communityProvider,
+				result: signed,
 				KeyID:  testAuthorKeyID,
 			},
 		},
@@ -373,14 +348,14 @@ func TestSignatureAuthentication_success(t *testing.T) {
 			testAuthorSignatureGoodBase64,
 			[]SigningKey{
 				{
-					ASCIIArmor: HashicorpPartnersKey,
+					ASCIIArmor: anotherPublicKey,
 				},
 				{
 					ASCIIArmor: testAuthorKeyArmor,
 				},
 			},
 			PackageAuthenticationResult{
-				result: communityProvider,
+				result: signed,
 				KeyID:  testAuthorKeyID,
 			},
 		},
@@ -419,11 +394,11 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 			testHashicorpSignatureGoodBase64,
 			[]SigningKey{
 				{
-					ASCIIArmor: HashicorpPublicKey,
+					ASCIIArmor: TestingPublicKey,
 				},
 			},
 			PackageAuthenticationResult{
-				result: officialProvider,
+				result: signed,
 				KeyID:  testHashiCorpPublicKeyID,
 			},
 		},
@@ -482,30 +457,10 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 			testAuthorSignatureGoodBase64,
 			[]SigningKey{
 				{
-					ASCIIArmor: HashicorpPublicKey,
+					ASCIIArmor: TestingPublicKey,
 				},
 			},
 			"authentication signature from unknown issuer",
-		},
-		"invalid trust signature": {
-			testAuthorSignatureGoodBase64,
-			[]SigningKey{
-				{
-					ASCIIArmor:     testAuthorKeyArmor,
-					TrustSignature: "invalid PGP armor value",
-				},
-			},
-			"error decoding trust signature: EOF",
-		},
-		"unverified trust signature": {
-			testAuthorSignatureGoodBase64,
-			[]SigningKey{
-				{
-					ASCIIArmor:     testAuthorKeyArmor,
-					TrustSignature: testOtherKeyTrustSignatureArmor,
-				},
-			},
-			"error verifying trust signature: openpgp: invalid signature: RSA verification failure",
 		},
 	}
 
@@ -610,46 +565,8 @@ O74RFokGZzbPtoIvutb8eYoA/1QxxyqE/8A4Z21azYEO0j563LRa8SkZcB5UPDy3
 =Xb0o
 -----END PGP PUBLIC KEY BLOCK-----`
 
-// testAuthorKeyTrustSignatureArmor is a trust signature of the data in
-// testAuthorKeyArmor signed with HashicorpPartnersKey.
-const testAuthorKeyTrustSignatureArmor = `-----BEGIN PGP SIGNATURE-----
-
-iQIzBAABCAAdFiEEUYkGV8Ws20uCMIZWfXLUJo5GYPwFAl5w9+YACgkQfXLUJo5G
-YPwjRBAAvy9jo3vvetb4qx/z2qhbRH2JbZN9byKuqlIggPzDhhaIsVJVZ9L6H6bE
-AMgPe/NaH58wfiqMYenulYxj9tZwJORT/OK0Y9ZFXXZk6kWPMNv7TEppyB0wKgqq
-ORKf07KjDcVQslDG9ARgnvDq2GA4UTHxhT0chKHdIKeDLmTm0VSkfNeOhQIkW7vB
-S/WT9y78319QJek8OKwJo0Jv0O93rvZZI0JFjXGtP15XNBfObMtPXn3l8qoLzhsv
-pJJG/u+BsVZ+y1JDQQlHaD1P2TLW/nGymFq12k693IOCmNyaIOa01Wa9B/j3a3RY
-v4SdkULvJKbttNMNBgIMJ74wZp5EUhEFs68sllrIrmthH8bW2fbcHEQ1g/MJCe3+
-43c9aoW8yNQmuEe7yre9lgqcJOIOxlb5XEJhH0Lh+8OBi5aHA/5wXGU5WrhWqHCR
-npXBsNqy2sKUuVkEzvn3Hd6aoKncVLrgNR8xA3VP86jJhawvO+M+YYMr1wOVHc/I
-PYq9hlyUR8qJ/0RpnaIE1iLbPYfEpGTg7oHORpbQVoZAUwMN/Sdox7sMkqCOb1RJ
-Cmy9J5o7iiNOoshvps5cxcbsM7LNfbf0vDhWpckAvsQehrS1mfVuFHkIiotVQhH1
-QXPfvB2cVF/SxMqqHWpnT+8c8klfS03kXSb0BdknrQ4DNPq1H5A=
-=3A1s
------END PGP SIGNATURE-----`
-
-// testOtherKeyTrustSignatureArmor is a trust signature of another key (not the
-// author key), signed with HashicorpPartnersKey.
-const testOtherKeyTrustSignatureArmor = `-----BEGIN PGP SIGNATURE-----
-
-iQIzBAABCAAdFiEEUYkGV8Ws20uCMIZWfXLUJo5GYPwFAl6POvsACgkQfXLUJo5G
-YPyGihAAomM1kGmrC5KRgWQ+V47r8wFoIkhsTgAYb9ENOzn/RVJt3SJSstcKxfA3
-7HW5R4kqAoXH1hcPYpUcOcdeAvtZxjGRQ9JgErV8NBg6sR11aQccCzAG4Hy0hWav
-/jB5NzTEX5JFEXH6WhpWI1avh0l2j6JxO1K1s+5+5PI3KbuO+XSqeZ3QmUz9FwGu
-pr0J6oYcERupzrpnmgMb5fbkpHfzffR2/MOYdF9Hae4EvDS1b7tokuuKsStNnCm0
-ge7PFdekwbj/OiQrQlqM1pOw2siPX3ouWCtW8oExm9tAxNw31Bn2g3oaNMkHMqJd
-hlVUZlqeJMyylUat3cY7GTQONfCnoyUHe/wv8exBUbV3v2glp9y2g9i2XmXkHOrV
-Z+pnNBc+jdp3a4O0Y8fXXZdjiIolZKY8BbvzheuMrQQIOmw4N3KrZbTpLKuqz8rb
-h8bqUbU42oWcJmBvzF4NZ4tQ+aFHs4CbOnjfDfS14baQr2Gqo9BqTfrzS5Pbs8lq
-AhY0r+zi71lQ1rBfgZfjd8zWlOzpDO//nwKhGCqYOWke/C/T6o0zxM0R4uR4zXwT
-KhvXK8/kK/L8Flaxqme0d5bzXLbsMe9I6I76DY5iNhkiFnnWt4+FhGoIDR03MTKS
-SnHodBLlpKLyUXi36DCDy/iKVsieqLsAdcYe0nQFuhoQcOme33A=
-=aHOG
------END PGP SIGNATURE-----`
-
 // testShaSumsPlaceholder is a string that represents a signed document that
-// the signature authenticator will check. Some of the signature valuesin
+// the signature authenticator will check. Some of the signature values in
 // other constants in this file are signing this string.
 const testShaSumsPlaceholder = "example shasums data"
 
@@ -741,12 +658,12 @@ func TestEntityString(t *testing.T) {
 		},
 		{
 			"HashicorpPublicKey",
-			testReadArmoredEntity(t, HashicorpPublicKey),
+			testReadArmoredEntity(t, TestingPublicKey),
 			"34365D9472D7468F HashiCorp Security (hashicorp.com/security) <security@hashicorp.com>",
 		},
 		{
 			"HashicorpPartnersKey",
-			testReadArmoredEntity(t, HashicorpPartnersKey),
+			testReadArmoredEntity(t, anotherPublicKey),
 			"7D72D4268E4660FC HashiCorp Security (Terraform Partner Signing) <security+terraform@hashicorp.com>",
 		},
 	}

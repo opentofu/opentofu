@@ -3,9 +3,8 @@
 
 package getproviders
 
-// HashicorpPublicKey is the HashiCorp public key, also available at
-// https://www.hashicorp.com/security
-const HashicorpPublicKey = `-----BEGIN PGP PUBLIC KEY BLOCK-----
+// TestingPublicKey is some public key used for testing.
+const TestingPublicKey = `-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBGB9+xkBEACabYZOWKmgZsHTdRDiyPJxhbuUiKX65GUWkyRMJKi/1dviVxOX
 PG6hBPtF48IFnVgxKpIb7G6NjBousAV+CuLlv5yqFKpOZEGC6sBV+Gx8Vu1CICpl
@@ -128,9 +127,7 @@ ZF5q4h4I33PSGDdSvGXn9UMY5Isjpg==
 =7pIB
 -----END PGP PUBLIC KEY BLOCK-----`
 
-// HashicorpPartnersKey is a key created by HashiCorp, used to generate and
-// verify trust signatures for Partner tier providers.
-const HashicorpPartnersKey = `-----BEGIN PGP PUBLIC KEY BLOCK-----
+const anotherPublicKey = `-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBF5vdGkBEADKi3Nm83oqMcar+YSDFKBup7+/Ty7m+SldtDH4/RWT0vgVHuQ1
 0joA+TrjITR5/aBVQ1/i2pOiBiImnaWsykccjFw9f9AuJqHo520YrAbNCeA6LuGH

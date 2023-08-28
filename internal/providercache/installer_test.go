@@ -2367,7 +2367,7 @@ func TestEnsureProviderVersions_local_source(t *testing.T) {
 	}
 }
 
-// This test only verifies protocol errors and does not try for successfull
+// This test only verifies protocol errors and does not try for successful
 // installation (at the time of writing, the test files aren't signed so the
 // signature verification fails); that's left to the e2e tests.
 func TestEnsureProviderVersions_protocol_errors(t *testing.T) {
@@ -2622,7 +2622,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				"signing_keys": map[string]interface{}{
 					"gpg_public_keys": []map[string]interface{}{
 						{
-							"ascii_armor": getproviders.HashicorpPublicKey,
+							"ascii_armor": getproviders.TestingPublicKey,
 						},
 					},
 				},
@@ -2659,7 +2659,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				"signing_keys": map[string]interface{}{
 					"gpg_public_keys": []map[string]interface{}{
 						{
-							"ascii_armor": getproviders.HashicorpPublicKey,
+							"ascii_armor": getproviders.TestingPublicKey,
 						},
 					},
 				},

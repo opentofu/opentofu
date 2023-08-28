@@ -287,7 +287,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 				"signing_keys": map[string]interface{}{
 					"gpg_public_keys": []map[string]interface{}{
 						{
-							"ascii_armor": HashicorpPublicKey,
+							"ascii_armor": TestingPublicKey,
 						},
 					},
 				},
