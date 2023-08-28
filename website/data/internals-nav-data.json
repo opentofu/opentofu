@@ -1,5 +1,5 @@
 [
-  { "heading": "Terraform Internals" },
+  { "heading": "OpenTF Internals" },
   {
     "title": "Overview", 
     "path": ""
@@ -9,7 +9,7 @@
     "path": "credentials-helpers"
   },
   {
-    "title": "Debugging Terraform",
+    "title": "Debugging OpenTF",
     "path": "debugging"
   },
   {
@@ -59,7 +59,7 @@
     "hidden": true
   },
   { "divider": true },
-  { "title": "Terraform CLI", "href": "/cli" },
+  { "title": "OpenTF CLI", "href": "/cli" },
   { "divider": true },
   { "title": "Configuration Language", "href": "/language" }
 ]

@@ -1,5 +1,5 @@
 [
-  { "heading": "Terraform CLI" },
+  { "heading": "OpenTF CLI" },
   { "title": "Overview", "path": "" },
   { "title": "Basic CLI Features", "href": "/cli/commands" },
   {
@@ -229,10 +229,10 @@
     ]
   },
   {
-    "title": "Using Terraform Cloud",
+    "title": "Using Cloud Backend",
     "routes": [
       { "title": "Overview", "path": "cloud" },
-      { "title": "Terraform Cloud Settings", "path": "cloud/settings" },
+      { "title": "Cloud Backend Settings", "path": "cloud/settings" },
       {
         "title": "Initializing and Migrating",
         "path": "cloud/migrating"
@@ -240,19 +240,6 @@
       {
         "title": "Command Line Arguments",
         "path": "cloud/command-line-arguments"
-      }
-    ]
-  },
-  {
-    "title": "Automating Terraform",
-    "routes": [
-      {
-        "title": "Running Terraform in Automation",
-        "href": "https://learn.hashicorp.com/tutorials/terraform/automate-terraform?in=terraform/automation&utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS"
-      },
-      {
-        "title": "GitHub Actions",
-        "href": "https://learn.hashicorp.com/tutorials/terraform/github-actions?utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS"
       }
     ]
   },
@@ -443,5 +430,5 @@
     ]
   },
   { "divider": true },
-  { "title": "Terraform Internals", "href": "/internals" }
+  { "title": "OpenTF Internals", "href": "/internals" }
 ]
