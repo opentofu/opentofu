@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           changed_execution_time=$(git diff --quiet -S "complete after 0s" -- testing/equivalence-tests/outputs || echo true)
-          if [[ $changed == "true" ]]; then
+          if [[ "$changed_execution_time" == "true" ]]; then
             echo "Found changes in the execution times in the result outputs. Defaulting the execution times to 0"
             find testing/equivalence-tests/outputs -type f -name "apply.json" -exec sed -E -i 's/complete after [0-9]+s/complete after 0s/g' {} +
             find testing/equivalence-tests/outputs -type f -name "apply.json" -exec sed -E -i 's/\"elapsed_seconds\"\: [0-9]+/\"elapsed_seconds\"\: 0/g' {} +
@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           changed=$(git diff --quiet -- testing/equivalence-tests/outputs || echo true)
-          if [[ $changed == "true" ]]; then
+          if [[ "$changed" == "true" ]]; then
             echo "Found changes, please commit the new golden files."
             git diff -- testing/equivalence-tests/outputs
             exit 1

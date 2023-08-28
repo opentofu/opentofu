@@ -48,7 +48,7 @@
         "addr": "tfcoremock_list.list",
         "implied_provider": "tfcoremock",
         "module": "",
-        "resource": "tfcoremock_list.list",
+        "resource": "tdfcoremock_list.list",
         "resource_key": null,
         "resource_name": "list",
         "resource_type": "tfcoremock_list"
