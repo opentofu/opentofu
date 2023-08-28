@@ -60,7 +60,7 @@ func TestInitProvidersInternal(t *testing.T) {
 	// This test should _not_ reach out anywhere because the "terraform"
 	// provider is internal to the core opentf binary.
 
-	fixturePath := filepath.Join("testdata", "terraform-provider")
+	fixturePath := filepath.Join("testdata", "tf-provider")
 	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("init")
