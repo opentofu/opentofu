@@ -132,10 +132,6 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
-		"broken_no_valid_hcl": {
-			expected: "Unsupported block type",
-			code:     1,
-		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -196,6 +192,14 @@ func TestTest_Broken_HCL_Files(t *testing.T) {
 			code:     1,
 		},
 		"broken_wrong_block_data": {
+			expected: "Blocks of type \"data\" are not expected here.",
+			code:     1,
+		},
+		"broken_wrong_block_output": {
+			expected: "Blocks of type \"output\" are not expected here.",
+			code:     1,
+		},
+		"broken_wrong_block_check": {
 			expected: "Blocks of type \"data\" are not expected here.",
 			code:     1,
 		},
