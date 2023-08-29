@@ -917,7 +917,6 @@
     "title": "OpenTF Settings",
     "routes": [
       { "title": "Overview", "path": "settings" },
-      { "title": "OpentTF Cloud", "path": "settings/tf-cloud" },
       {
         "title": "Backends",
         "routes": [
