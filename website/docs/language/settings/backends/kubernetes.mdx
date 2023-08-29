@@ -22,7 +22,7 @@ terraform {
 }
 ```
 
-This assumes the user/service account running opentf has [permissions](https://kubernetes.io/docs/reference/access-authn-authz/authorization/) to read/write secrets in the [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) used to store the secret.
+This assumes the user/service account running OpenTF has [permissions](https://kubernetes.io/docs/reference/access-authn-authz/authorization/) to read/write secrets in the [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) used to store the secret.
 
 If the `config_path` or `config_paths` attribute is set the backend will attempt to use a [kubeconfig file](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) to gain access to the cluster.
 
