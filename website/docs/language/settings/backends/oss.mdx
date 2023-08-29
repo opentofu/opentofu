@@ -16,7 +16,7 @@ This backend supports [state locking](/opentf/language/state/locking) via TableS
 ## Example Configuration
 
 ```hcl
-opentf {
+terraform {
   backend "oss" {
     bucket = "bucket-for-opentf-state"
     prefix   = "path/mystate"
@@ -36,11 +36,11 @@ OpenTF state will be written into the file `path/mystate/version-1.tfstate`. The
 ## Data Source Configuration
 
 To make use of the OSS remote state in another configuration, use the
-[`opentf_remote_state` data
+[`terraform_remote_state` data
 source](/opentf/language/state/remote-state-data).
 
 ```hcl
-opentf {
+terraform {
   backend "oss" {
     bucket = "remote-state-dns"
     prefix = "mystate/state"
@@ -50,11 +50,11 @@ opentf {
 }
 ```
 
-The `opentf_remote_state` data source will return all of the root outputs
+The `terraform_remote_state` data source will return all of the root outputs
 defined in the referenced remote state, an example output might look like:
 
 ```
-data "opentf_remote_state" "network" {
+data "terraform_remote_state" "network" {
     backend   = "oss"
     config    = {
         bucket = "remote-state-dns"

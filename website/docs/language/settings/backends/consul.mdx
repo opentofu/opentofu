@@ -12,7 +12,7 @@ This backend supports [state locking](/opentf/language/state/locking).
 ## Example Configuration
 
 ```hcl
-opentf {
+terraform {
   backend "consul" {
     address = "consul.example.com"
     scheme  = "https"
@@ -27,7 +27,7 @@ Note that for the access credentials we recommend using a
 ## Data Source Configuration
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "consul"
   config = {
     path = "full/path"

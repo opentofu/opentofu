@@ -14,7 +14,7 @@ This backend supports [state locking](/opentf/language/state/locking), with lock
 ## Example Configuration
 
 ```hcl
-opentf {
+terraform {
   backend "kubernetes" {
     secret_suffix    = "state"
     config_path      = "~/.kube/config"
@@ -35,7 +35,7 @@ Note that for the access credentials we recommend using a [partial configuration
 ## Example Referencing
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "kubernetes"
   config = {
     secret_suffix    = "state"

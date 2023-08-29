@@ -19,7 +19,7 @@ on the S3 bucket to allow for state recovery in the case of accidental deletions
 ## Example Configuration
 
 ```hcl
-opentf {
+terraform {
   backend "s3" {
     bucket = "mybucket"
     key    = "path/to/my/key"
@@ -104,11 +104,11 @@ This is seen in the following AWS IAM Statement:
 ## Data Source Configuration
 
 To make use of the S3 remote state in another configuration, use the
-[`opentf_remote_state` data
+[`terraform_remote_state` data
 source](/opentf/language/state/remote-state-data).
 
 ```hcl
-data "opentf_remote_state" "network" {
+data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
     bucket = "opentf-state-prod"

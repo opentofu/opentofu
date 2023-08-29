@@ -17,7 +17,7 @@ apply your configuration.
 OpenTF settings are gathered together into `opentf` blocks:
 
 ```hcl
-opentf {
+terraform {
   # ...
 }
 ```
@@ -69,7 +69,7 @@ current module, mapping each local provider name to a source address and a
 version constraint.
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     aws = {
       version = ">= 2.7.0"
@@ -92,7 +92,7 @@ a per-module basis by setting the `experiments` argument inside a `opentf`
 block:
 
 ```hcl
-opentf {
+terraform {
   experiments = [example]
 }
 ```

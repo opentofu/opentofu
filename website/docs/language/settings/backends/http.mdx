@@ -18,7 +18,7 @@ info will be added as a query parameter to state updates requests.
 ## Example Usage
 
 ```hcl
-opentf {
+terraform {
   backend "http" {
     address = "http://myrest.api.com/foo"
     lock_address = "http://myrest.api.com/foo"
@@ -30,7 +30,7 @@ opentf {
 ## Data Source Configuration
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "http"
   config = {
     address = "http://my.rest.api.com"

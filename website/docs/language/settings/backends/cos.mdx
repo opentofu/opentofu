@@ -20,7 +20,7 @@ on the COS bucket to allow for state recovery in the case of accidental deletion
 ## Example Configuration
 
 ```hcl
-opentf {
+terraform {
   backend "cos" {
     region = "ap-guangzhou"
     bucket = "bucket-for-opentf-state-1258798060"
@@ -34,10 +34,10 @@ OpenTF state will be written into the file `opentf/state/terraform.tfstate`.
 
 ## Data Source Configuration
 
-To make use of the COS remote state in another configuration, use the [`opentf_remote_state` data source](/opentf/language/state/remote-state-data).
+To make use of the COS remote state in another configuration, use the [`terraform_remote_state` data source](/opentf/language/state/remote-state-data).
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "cos"
 
   config = {
@@ -80,7 +80,7 @@ The details of `assume_role` block as following:
 Usage:
 
 ```hcl
-opentf {
+terraform {
   backend "cos" {
     region = "ap-guangzhou"
     bucket = "bucket-for-opentf-state-{appid}"

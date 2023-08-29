@@ -14,7 +14,7 @@ This backend supports state locking and consistency checking with Azure Blob Sto
 When authenticating using the Azure CLI or a Service Principal (either with a Client Certificate or a Client Secret):
 
 ```hcl
-opentf {
+terraform {
   backend "azurerm" {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "abcd1234"
@@ -29,7 +29,7 @@ opentf {
 When authenticating using Managed Service Identity (MSI):
 
 ```hcl
-opentf {
+terraform {
   backend "azurerm" {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "abcd1234"
@@ -47,7 +47,7 @@ opentf {
 When authenticating using OpenID Connect (OIDC):
 
 ```hcl
-opentf {
+terraform {
   backend "azurerm" {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "abcd1234"
@@ -65,7 +65,7 @@ opentf {
 When authenticating using Azure AD Authentication:
 
 ```hcl
-opentf {
+terraform {
   backend "azurerm" {
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
@@ -84,7 +84,7 @@ opentf {
 When authenticating using the Access Key associated with the Storage Account:
 
 ```hcl
-opentf {
+terraform {
   backend "azurerm" {
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
@@ -102,7 +102,7 @@ opentf {
 When authenticating using a SAS Token associated with the Storage Account:
 
 ```hcl
-opentf {
+terraform {
   backend "azurerm" {
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
@@ -122,7 +122,7 @@ opentf {
 When authenticating using a Service Principal (either with a Client Certificate or a Client Secret):
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "azurerm"
   config = {
     storage_account_name = "opentf123abc"
@@ -137,7 +137,7 @@ data "opentf_remote_state" "foo" {
 When authenticating using Managed Service Identity (MSI):
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "azurerm"
   config = {
     resource_group_name  = "StorageAccount-ResourceGroup"
@@ -156,7 +156,7 @@ data "opentf_remote_state" "foo" {
 When authenticating using OpenID Connect (OIDC):
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "azurerm"
   config = {
     resource_group_name  = "StorageAccount-ResourceGroup"
@@ -175,7 +175,7 @@ data "opentf_remote_state" "foo" {
 When authenticating using AzureAD Authentication:
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "azurerm"
   config = {
     storage_account_name = "opentf123abc"
@@ -195,7 +195,7 @@ data "opentf_remote_state" "foo" {
 When authenticating using the Access Key associated with the Storage Account:
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "azurerm"
   config = {
     storage_account_name = "opentf123abc"
@@ -214,7 +214,7 @@ data "opentf_remote_state" "foo" {
 When authenticating using a SAS Token associated with the Storage Account:
 
 ```hcl
-data "opentf_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "azurerm"
   config = {
     storage_account_name = "opentf123abc"
