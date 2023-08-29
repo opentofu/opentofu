@@ -12,7 +12,7 @@ to exist with the given settings. If you are writing a new configuration for
 the first time, the resources it defines will exist _only_ in the configuration,
 and will not yet represent real infrastructure objects in the target platform.
 
-_Applying_ a OpenTF configuration is the process of creating, updating,
+_Applying_ an OpenTF configuration is the process of creating, updating,
 and destroying real infrastructure objects in order to make their settings
 match the configuration.
 
@@ -26,7 +26,7 @@ associated infrastructure object in the state, OpenTF compares the
 actual configuration of the object with the arguments given in the
 configuration and, if necessary, updates the object to match the configuration.
 
-In summary, applying a OpenTF configuration will:
+In summary, applying an OpenTF configuration will:
 
 - _Create_ resources that exist in the configuration but are not associated with a real infrastructure object in the state.
 - _Destroy_ resources that exist in the state but no longer exist in the configuration.
@@ -44,7 +44,7 @@ customized on a per-resource basis.
 
 ## Accessing Resource Attributes
 
-[Expressions](/opentf/language/expressions) within a OpenTF module can access
+[Expressions](/opentf/language/expressions) within an OpenTF module can access
 information about resources in the same module, and you can use that information
 to help configure other resources. Use the `<RESOURCE TYPE>.<NAME>.<ATTRIBUTE>`
 syntax to reference a resource attribute in an expression.

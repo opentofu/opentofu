@@ -67,7 +67,7 @@ The following arguments are supported:
 ### Interpreter Examples
 
 ```hcl
-resource "opentf_data" "example1" {
+resource "terraform_data" "example1" {
   provisioner "local-exec" {
     command = "open WFH, '>completed.txt' and print WFH scalar localtime"
     interpreter = ["perl", "-e"]
@@ -76,7 +76,7 @@ resource "opentf_data" "example1" {
 ```
 
 ```hcl
-resource "opentf_data" "example2" {
+resource "terraform_data" "example2" {
   provisioner "local-exec" {
     command = "Get-Date > completed.txt"
     interpreter = ["PowerShell", "-Command"]

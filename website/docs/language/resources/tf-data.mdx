@@ -1,16 +1,16 @@
 ---
-page_title: The opentf_data Managed Resource Type
+page_title: The terraform_data Managed Resource Type
 description: >-
-  Retrieves the root module output values from a OpenTF state snapshot stored
+  Retrieves the root module output values from an OpenTF state snapshot stored
   in a remote backend.
 ---
 
-# The `opentf_data` Managed Resource Type
+# The `terraform_data` Managed Resource Type
 
-The `opentf_data` implements the standard resource lifecycle, but does not directly take any other actions.
-You can use the `opentf_data` resource without requiring or configuring a provider. It is always available through a built-in provider with the [source address](/opentf/language/providers/requirements#source-addresses) `terraform.io/builtin/terraform`.
+The `terraform_data` implements the standard resource lifecycle, but does not directly take any other actions.
+You can use the `terraform_data` resource without requiring or configuring a provider. It is always available through a built-in provider with the [source address](/opentf/language/providers/requirements#source-addresses) `terraform.io/builtin/terraform`.
 
-The `opentf_data` resource is useful for storing values which need to follow a manage resource lifecycle, and for triggering provisioners when there is no other logical managed resource in which to place them.
+The `terraform_data` resource is useful for storing values which need to follow a manage resource lifecycle, and for triggering provisioners when there is no other logical managed resource in which to place them.
 
 
 ## Example Usage (data for `replace_triggered_by`)
@@ -18,7 +18,7 @@ The `opentf_data` resource is useful for storing values which need to follow a m
 
 [The `replace_triggered_by` lifecycle argument](/opentf/language/meta-arguments/lifecycle#replace_triggered_by) requires all of the given addresses to be for resources, because the decision to force replacement is based on the planned actions for all of the mentioned resources.
 
-Plain data values such as [Local Values](/opentf/language/values/locals) and [Input Variables](/opentf/language/values/variables) don't have any side-effects to plan against and so they aren't valid in `replace_triggered_by`. You can use `opentf_data`'s behavior of planning an action each time `input` changes to _indirectly_ use a plain value to trigger replacement.
+Plain data values such as [Local Values](/opentf/language/values/locals) and [Input Variables](/opentf/language/values/variables) don't have any side-effects to plan against and so they aren't valid in `replace_triggered_by`. You can use `terraform_data`'s behavior of planning an action each time `input` changes to _indirectly_ use a plain value to trigger replacement.
 
 
 ```hcl
@@ -26,7 +26,7 @@ variable "revision" {
   default = 1
 }
 
-resource "opentf_data" "replacement" {
+resource "terraform_data" "replacement" {
   input = var.revision
 }
 
@@ -34,7 +34,7 @@ resource "opentf_data" "replacement" {
 # but can now be replaced by any change to the revision variable value.
 resource "example_database" "test" {
   lifecycle {
-    replace_triggered_by = [opentf_data.replacement]
+    replace_triggered_by = [terraform_data.replacement]
   }
 }
 ```
@@ -50,9 +50,9 @@ resource "aws_instance" "database" {
   # ...
 }
 
-# A use-case for opentf_data is as a do-nothing container
+# A use-case for terraform_data is as a do-nothing container
 # for arbitrary actions taken by a provisioner.
-resource "opentf_data" "bootstrap" {
+resource "terraform_data" "bootstrap" {
   triggers_replace = [
     aws_instance.web.id,
     aws_instance.database.id
