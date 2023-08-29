@@ -4,7 +4,7 @@
 #
 # If you want to test this locally you'll need to set the three arguments
 # to values realistic for what the hashicorp/actions-docker-build GitHub
-# action would set, and ensure that there's a suitable "terraform" executable
+# action would set, and ensure that there's a suitable "opentf" executable
 # in the dist/linux/${TARGETARCH} directory.
 
 FROM docker.mirror.hashicorp.services/alpine:latest AS default
@@ -13,21 +13,21 @@ FROM docker.mirror.hashicorp.services/alpine:latest AS default
 # action, which sets these appropriately based on context.
 ARG PRODUCT_VERSION=UNSPECIFIED
 ARG PRODUCT_REVISION=UNSPECIFIED
-ARG BIN_NAME=terraform
+ARG BIN_NAME=opentf
 
 # This argument is set by the Docker toolchain itself, to the name
 # of the CPU architecture we're building an image for.
-# Our caller should've extracted the corresponding "terraform" executable
+# Our caller should've extracted the corresponding "opentf" executable
 # into dist/linux/${TARGETARCH} for us to use.
 ARG TARGETARCH
 
-LABEL maintainer="HashiCorp Terraform Team <terraform@hashicorp.com>"
+LABEL maintainer="OpenTF Team"
 
 # New standard version label.
 LABEL version=$PRODUCT_VERSION
 
-# Historical Terraform-specific label preserved for backward compatibility.
-LABEL "com.hashicorp.terraform.version"="${PRODUCT_VERSION}"
+# Historical OpenTF-specific label preserved for backward compatibility.
+LABEL "com.opentf.version"="${PRODUCT_VERSION}"
 
 RUN apk add --no-cache git openssh
 

@@ -32,7 +32,7 @@ GOOS="$(go env GOOS)"
 GOARCH="$(go env GOARCH)"
 GOEXE="$(go env GOEXE)"
 OUTDIR="build/${GOOS}_${GOARCH}"
-OUTFILE="terraform-e2etest_${GOOS}_${GOARCH}.zip"
+OUTFILE="opentf-e2etest_${GOOS}_${GOARCH}.zip"
 
 LDFLAGS="-X github.com/placeholderplaceholderplaceholder/opentf/internal/command/e2etest.terraformBin=./opentf$GOEXE"
 # Caller may pass in the environment variable GO_LDFLAGS with additional
