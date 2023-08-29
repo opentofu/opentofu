@@ -114,7 +114,7 @@ terraform {
 }
 
 # Using multiple workspaces:
-opentfex {
+terraform {
   backend "remote" {
     hostname = "app.example.io"
     organization = "company"
@@ -130,7 +130,7 @@ opentfex {
 
 ```hcl
 # main.tf
-opentfex {
+terraform {
   required_version = "~> 0.12.0"
 
   backend "remote" {}
@@ -146,16 +146,16 @@ hostname     = "app.example.io"
 organization = "company"
 ```
 
-Running `opentfex init` with the backend file:
+Running `opentf init` with the backend file:
 
 ```sh
-opentfex init -backend-config=config.remote.tfbackend
+opentf init -backend-config=config.remote.tfbackend
 ```
 
 ### Data Source Configuration
 
 ```hcl
-data "opentfex_remote_state" "foo" {
+data "terraform_remote_state" "foo" {
   backend = "remote"
 
   config = {
@@ -170,7 +170,7 @@ data "opentfex_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opentfex/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opentf/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 
 The following configuration options are supported:
 
@@ -180,9 +180,9 @@ The following configuration options are supported:
   targeted workspace(s).
 - `token` - (Optional) The token used to authenticate with the remote backend.
   We recommend omitting the token from the configuration, and instead using
-  [`opentfex login`](/opentfex/cli/commands/login) or manually configuring
+  [`opentf login`](/opentf/cli/commands/login) or manually configuring
   `credentials` in the
-  [CLI config file](/opentfex/cli/config/config-file#credentials).
+  [CLI config file](/opentf/cli/config/config-file#credentials).
 - `workspaces` - (Required) A block specifying which remote workspace(s) to use.
   The `workspaces` block supports the following keys:
 
@@ -194,7 +194,7 @@ The following configuration options are supported:
     (minus the prefix) are used on the command line for OpenTF CLI workspaces.
     If omitted, only the default workspace can be used. This option conflicts with `name`.
 
-->  **Note:** You must use the `name` key when configuring a `opentfex_remote_state`
+->  **Note:** You must use the `name` key when configuring a `terraform_remote_state`
 data source that retrieves state from another remote workspace. The `prefix` key is only
 intended for use when configuring an instance of the remote backend.
 
@@ -220,7 +220,7 @@ the remote workspace accept the following option to modify that behavior:
 
 ## Excluding Files from Upload with .terraformignore
 
-When executing a remote `plan` or `apply` in a [CLI-driven run](/opentfex/cloud-docs/run/cli),
+When executing a remote `plan` or `apply` in a [CLI-driven run](/opentf/cloud-docs/run/cli),
 an archive of your configuration directory is uploaded to TACOS (TF Automation and Collaboration Software). You can define
 paths to ignore from upload via a `.terraformignore` file at the root of your configuration directory. If this file is not present, the archive will exclude the following by default:
 
