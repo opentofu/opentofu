@@ -89,7 +89,7 @@ A module registry is the native way of distributing modules for use
 across multiple configurations, using a OpenTF-specific protocol that
 has full support for module versioning.
 
-[Module Registry](https://registry.example.io/) is an index of modules
+[Public Terraform Registry](https://registry.terraform.io/) is an index of modules
 shared publicly using this protocol. This public registry is the easiest way
 to get started with OpenTF and find modules created by others in the
 community.
@@ -113,7 +113,7 @@ module "consul" {
 ```
 
 The above example will use the
-[Consul module for AWS](https://registry.example.io/modules/hashicorp/consul/aws)
+[Consul module for AWS](https://registry.terraform.io/modules/hashicorp/consul/aws)
 from a public registry.
 
 For modules hosted in other registries, prefix the source address with an
@@ -121,7 +121,7 @@ additional `<HOSTNAME>/` portion, giving the hostname of the private registry:
 
 ```hcl
 module "consul" {
-  source = "app.example.io/example-corp/k8s-cluster/azurerm"
+  source = "app.terraform.io/example-corp/k8s-cluster/azurerm"
   version = "1.1.0"
 }
 ```
