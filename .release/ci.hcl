@@ -3,15 +3,15 @@
 
 schema = "1"
 
-project "terraform" {
+project "opentf" {
   // the team key is not used by CRT currently
-  team = "terraform"
+  team = "opentffoundation"
   slack {
-    notification_channel = "C011WJ112MD"
+    notification_channel = "C05NDN8RB3J"
   }
   github {
-    organization = "hashicorp"
-    repository = "terraform"
+    organization = "opentffoundation"
+    repository = "opentf"
 
     release_branches = [
       "main",
@@ -24,8 +24,8 @@ project "terraform" {
 event "build" {
   depends = ["merge"]
   action "build" {
-    organization = "hashicorp"
-    repository = "terraform"
+    organization = "opentffoundation"
+    repository = "opentf"
     workflow = "build"
   }
 }
@@ -36,7 +36,7 @@ event "prepare" {
   depends = ["build"]
 
   action "prepare" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository   = "crt-workflows-common"
     workflow     = "prepare"
     depends      = ["build"]
@@ -58,7 +58,7 @@ event "trigger-staging" {
 event "promote-staging" {
   depends = ["trigger-staging"]
   action "promote-staging" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository = "crt-workflows-common"
     workflow = "promote-staging"
     config = "release-metadata.hcl"
@@ -72,7 +72,7 @@ event "promote-staging" {
 event "promote-staging-docker" {
   depends = ["promote-staging"]
   action "promote-staging-docker" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository = "crt-workflows-common"
     workflow = "promote-staging-docker"
   }
@@ -85,7 +85,7 @@ event "promote-staging-docker" {
 event "promote-staging-packaging" {
   depends = ["promote-staging-docker"]
   action "promote-staging-packaging" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository = "crt-workflows-common"
     workflow = "promote-staging-packaging"
   }
@@ -103,7 +103,7 @@ event "trigger-production" {
 event "promote-production" {
   depends = ["trigger-production"]
   action "promote-production" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository = "crt-workflows-common"
     workflow = "promote-production"
   }
@@ -116,7 +116,7 @@ event "promote-production" {
 event "promote-production-docker" {
   depends = ["promote-production"]
   action "promote-production-docker" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository = "crt-workflows-common"
     workflow = "promote-production-docker"
   }
@@ -129,7 +129,7 @@ event "promote-production-docker" {
 event "promote-production-packaging" {
   depends = ["promote-production-docker"]
   action "promote-production-packaging" {
-    organization = "hashicorp"
+    organization = "opentffoundation"
     repository = "crt-workflows-common"
     workflow = "promote-production-packaging"
   }
@@ -139,27 +139,11 @@ event "promote-production-packaging" {
   }
 }
 
-// commenting the ironbank update for now until it is all set up on the Ironbank side
-
-// event "update-ironbank" {
-//   depends = ["promote-production-packaging"]
-//   action "update-ironbank" {
-//     organization = "hashicorp"
-//     repository = "crt-workflows-common"
-//     workflow = "update-ironbank"
-//   }
-
-//   notification {
-//     on = "always"
-//   }
-// }
-
 event "crt-hook-tfc-upload" {
-  // this will need to be changed back to update-ironbank once the Ironbank setup is done
   depends = ["promote-production-packaging"]
   action "crt-hook-tfc-upload" {
-    organization = "hashicorp"
-    repository = "terraform-releases"
+    organization = "opentffoundation"
+    repository = "opentf-releases"
     workflow = "crt-hook-tfc-upload"
   }
 
