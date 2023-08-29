@@ -1,6 +1,6 @@
 <% wrap_layout :inner do %>
   <% content_for :sidebar do %>
-    <h4><a href="/docs/language/index.html">Terraform Language</a></h4>
+    <h4><a href="/docs/language/index.html">OpenTF Language</a></h4>
 
     <ul class="nav docs-sidenav">
 
@@ -143,7 +143,7 @@
           </li>
 
           <li>
-            <a href="/docs/language/resources/tf-data.html">Terraform Data Resource Type</a>
+            <a href="/docs/language/resources/tf-data.html">OpenTF Data Resource Type</a>
           </li>
 
         </ul>
@@ -860,14 +860,14 @@
       </li><!-- function reference -->
 
       <li>
-        <a href="#">Terraform Settings</a>
+        <a href="#">OpenTF Settings</a>
         <ul class="nav">
           <li>
             <a href="/docs/language/settings/index.html">Overview</a>
           </li>
 
           <li>
-            <a href="/docs/language/settings/tf-cloud.html">Terraform Cloud</a>
+            <a href="/docs/language/settings/tf-cloud.html">Cloud Backend</a>
           </li>
 
           <li>
@@ -1075,15 +1075,11 @@
           </li>
 
           <li>
-            <a href="/docs/configuration-0-11/terraform.html">Terraform</a>
+            <a href="/docs/configuration-0-11/terraform.html">OpenTF</a>
           </li>
 
           <li>
             <a href="/docs/language/resources/provisioners/index.html">Provisioners</a>
-          </li>
-
-          <li>
-            <a href="/docs/configuration-0-11/terraform-enterprise.html">Terraform Push (deprecated)</a>
           </li>
 
           <li>
@@ -1094,7 +1090,7 @@
 
     </ul>
 
-    <%= partial("layouts/otherdocs", :locals => { :skip => "Terraform Language" }) %>
+    <%= partial("layouts/otherdocs", :locals => { :skip => "OpenTF Language" }) %>
   <% end %>
 
   <%= yield %>
