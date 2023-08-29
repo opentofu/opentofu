@@ -20,8 +20,8 @@ Some of these backends act like plain remote disks for state files, while others
 
 ## Using a Backend Block
 
-You do not need to configure a backend when using Terraform Cloud because
-Terraform Cloud automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](/opentf/language/settings/tf-cloud), it cannot include a `backend` block.
+You do not need to configure a backend when using TACOS (TF Automation and Collaboration Software) because
+it automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](/opentf/language/settings/tf-cloud), it cannot include a `backend` block.
 
 To configure a backend, add a nested `backend` block within the top-level
 `opentf` block. The following example configures the `remote` backend.
