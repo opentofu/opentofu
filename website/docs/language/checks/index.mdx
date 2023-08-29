@@ -14,7 +14,7 @@ Check blocks allow you to define [custom conditions](/opentf/language/expression
 
 You can declare a `check` block with a local name, zero-to-one scoped [data sources](#scoped-data-sources), and one-to-many [assertions](#assertions).
 
-The following example loads a website and validates that it returns the expected status code `200`.
+The following example loads the website and validates that it returns the expected status code `200`.
 
 ```hcl
 check "health_check" {
@@ -93,7 +93,7 @@ Preconditions are unique amongst the custom conditions in that they execute _bef
 
 You can often use postconditions interchangeably with check blocks to validate resources and data sources.
 
-For example, you can [rewrite the above `check` block example](#checks-syntax) to use a postcondition instead. The below code uses a `postcondition` block to validate that a website returns the expected status code of `200`.
+For example, you can [rewrite the above `check` block example](#checks-syntax) to use a postcondition instead. The below code uses a `postcondition` block to validate that the website returns the expected status code of `200`.
 
 ```hcl
 data "http" "placeholderplaceholderplaceholder_io" {
@@ -108,7 +108,7 @@ data "http" "placeholderplaceholderplaceholder_io" {
 }
 ```
 
-Both the `check` and `postcondition` block examples validate that a website returns a `200` status code during a plan or an apply operation. The difference between the two blocks is how each handles failure.
+Both the `check` and `postcondition` block examples validate that the website returns a `200` status code during a plan or an apply operation. The difference between the two blocks is how each handles failure.
 
 If a `postcondition` block fails, it _blocks_ OpenTF from executing the current operation. If a `check` block fails, it _does not_ block OpenTF from executing an operation.
 
