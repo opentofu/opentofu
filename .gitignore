@@ -25,3 +25,6 @@ vendor/
 
 # Coverage
 coverage.txt
+
+# GoReleaser build directory
+dist/

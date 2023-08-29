@@ -1,0 +1,173 @@
+project_name: opentf
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+    - make protobuf
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+
+    flags:
+      - "-mod=readonly"
+      - "-trimpath"
+
+    ldflags:
+      - "-s -w"
+      - "-X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'"
+
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+      - openbsd
+      - solaris
+
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+
+    ignore:
+      - goos: freebsd
+        goarch: arm64
+      - goos: openbsd
+        goarch: arm
+      - goos: openbsd
+        goarch: arm64
+      - goos: solaris
+        goarch: "386"
+      - goos: solaris
+        goarch: arm
+      - goos: solaris
+        goarch: arm64
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+
+archives:
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{- .Os }}_{{- .Arch }}"
+
+dockers:
+  - use: buildx
+    goarch: amd64
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTF"
+      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64"
+
+  - use: buildx
+    goarch: arm64
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTF"
+      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64"
+
+  - use: buildx
+    goarch: arm
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTF"
+      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-arm"
+
+  - use: buildx
+    goarch: "386"
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/386"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTF"
+      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-386"
+
+docker_manifests:
+  - name_template: ghcr.io/opentffoundation/opentf:v{{ .Version }}
+    image_templates:
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+
+  - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}
+    image_templates:
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+
+  - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+
+  - name_template: ghcr.io/opentffoundation/opentf:latest
+    image_templates:
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+
+snapshot:
+  name_template: "{{ .Version }}-next"
+
+changelog:
+  use: github-native
+
+release:
+  draft: true
