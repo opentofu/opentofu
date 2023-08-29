@@ -310,7 +310,7 @@ jobs:
       - name: Checkout opentf-exec repo
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
-          repository: hashicorp/opentf-exec
+          repository: hashicorp/terraform-exec
           path: opentf-exec
       - name: Run opentf-exec end-to-end tests
         run: |
