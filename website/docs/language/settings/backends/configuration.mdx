@@ -142,7 +142,7 @@ or `backend` block:
 
 ```hcl
 address = "demo.consul.io"
-path    = "example_app/opent_state"
+path    = "example_app/terraform_state"
 scheme  = "https"
 ```
 
@@ -159,7 +159,7 @@ follows:
 ```
 $ opentf init \
     -backend-config="address=demo.consul.io" \
-    -backend-config="path=example_app/opent_state" \
+    -backend-config="path=example_app/terraform_state" \
     -backend-config="scheme=https"
 ```
 

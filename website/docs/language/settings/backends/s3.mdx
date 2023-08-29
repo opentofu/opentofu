@@ -104,8 +104,7 @@ This is seen in the following AWS IAM Statement:
 ## Data Source Configuration
 
 To make use of the S3 remote state in another configuration, use the
-[`terraform_remote_state` data
-source](/opentf/language/state/remote-state-data).
+[`terraform_remote_state` data source](/opentf/language/state/remote-state-data).
 
 ```hcl
 data "terraform_remote_state" "network" {
@@ -118,13 +117,13 @@ data "terraform_remote_state" "network" {
 }
 ```
 
-The `opent_remote_state` data source will return all of the root module
+The `terraform_remote_state` data source will return all of the root module
 outputs defined in the referenced remote state (but not any outputs from
 nested modules unless they are explicitly output again in the root). An
 example output might look like:
 
 ```
-data.opent_remote_state.network:
+data.terraform_remote_state.network:
   id = 2016-10-29 01:57:59.780010914 +0000 UTC
   addresses.# = 2
   addresses.0 = 52.207.220.222
@@ -322,7 +321,7 @@ provider "aws" {
 
 If workspace IAM roles are centrally managed and shared across many separate
 OpenTF configurations, the role ARNs could also be obtained via a data
-source such as [`opent_remote_state`](/opentf/language/state/remote-state-data)
+source such as [`terraform_remote_state`](/opentf/language/state/remote-state-data)
 to avoid repeating these values.
 
 ### Creating and Selecting Workspaces
