@@ -275,7 +275,7 @@ replace the `dns_records` module with a new implementation targeting that
 provider, and all of the configuration that _produces_ the recordset
 definitions can remain unchanged.
 
-We can create lightweight abstractions like these by defining Terraform object
+We can create lightweight abstractions like these by defining OpenTF object
 types representing the concepts involved and then using these object types
 for module input variables. In this case, all of our "DNS records"
 implementations would have the following variable declared:
