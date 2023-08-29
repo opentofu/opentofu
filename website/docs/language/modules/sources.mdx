@@ -172,7 +172,7 @@ automatically as BitBucket repositories:
 
 ```hcl
 module "consul" {
-  source = "bitbucket.org/hashicorp/terraform-consul-aws"
+  source = "bitbucket.org/example-corp/opentf-consul-aws"
 }
 ```
 
@@ -386,7 +386,7 @@ prefix, followed by
 
 ```hcl
 module "consul" {
-  source = "s3::https://s3-eu-west-1.amazonaws.com/examplecorp-terraform-modules/vpc.zip"
+  source = "s3::https://s3-eu-west-1.amazonaws.com/examplecorp-opentf-modules/vpc.zip"
 }
 ```
 
@@ -447,7 +447,7 @@ For example:
 - `hashicorp/consul/aws//modules/consul-cluster`
 - `git::https://example.com/network.git//modules/vpc`
 - `https://example.com/network-module.zip//modules/vpc`
-- `s3::https://s3-eu-west-1.amazonaws.com/examplecorp-terraform-modules/network.zip//modules/vpc`
+- `s3::https://s3-eu-west-1.amazonaws.com/examplecorp-opentf-modules/network.zip//modules/vpc`
 
 If the source address has arguments, such as the `ref` argument supported for
 the version control sources, the sub-directory portion must be _before_ those
