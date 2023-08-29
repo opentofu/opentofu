@@ -20,11 +20,11 @@ import (
 // compromise for now to keep these tests relatively simple.
 
 func TestTerraformProvidersMirror(t *testing.T) {
-	testTerraformProvidersMirror(t, "terraform-providers-mirror")
+	testTerraformProvidersMirror(t, "opentf-providers-mirror")
 }
 
 func TestTerraformProvidersMirrorWithLockFile(t *testing.T) {
-	testTerraformProvidersMirror(t, "terraform-providers-mirror-with-lock-file")
+	testTerraformProvidersMirror(t, "opentf-providers-mirror-with-lock-file")
 }
 
 func testTerraformProvidersMirror(t *testing.T, fixture string) {

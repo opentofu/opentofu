@@ -38,8 +38,8 @@ func TestInstallPackage(t *testing.T) {
 		ProtocolVersions: getproviders.VersionList{versions.MustParseVersion("5.0.0")},
 		TargetPlatform:   linuxPlatform,
 
-		Filename: "terraform-provider-null_2.1.0_linux_amd64.zip",
-		Location: getproviders.PackageLocalArchive("testdata/terraform-provider-null_2.1.0_linux_amd64.zip"),
+		Filename: "provider-null_2.1.0_linux_amd64.zip",
+		Location: getproviders.PackageLocalArchive("testdata/provider-null_2.1.0_linux_amd64.zip"),
 	}
 
 	result, err := tmpDir.InstallPackage(context.TODO(), meta, nil)
