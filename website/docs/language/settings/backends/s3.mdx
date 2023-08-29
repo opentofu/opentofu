@@ -131,7 +131,7 @@ data.opent_remote_state.network:
   addresses.1 = 54.196.78.166
   backend = s3
   config.% = 3
-  config.bucket = opent-state-prod
+  config.bucket = opentf-state-prod
   config.key = network/terraform.tfstate
   config.region = us-east-1
   elb_address = web-elb-790251200.us-east-1.elb.amazonaws.com
@@ -144,7 +144,7 @@ This backend requires the configuration of the AWS Region and S3 state storage. 
 
 ### Credentials and Shared Configuration
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opent/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opentf/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 
 The following configuration is required:
 
@@ -182,7 +182,7 @@ The following configuration is optional:
 The following configuration is required:
 
 * `bucket` - (Required) Name of the S3 Bucket.
-* `key` - (Required) Path to the state file inside the S3 Bucket. When using a non-default [workspace](/opent/language/state/workspaces), the state path will be `/workspace_key_prefix/workspace_name/key` (see also the `workspace_key_prefix` configuration).
+* `key` - (Required) Path to the state file inside the S3 Bucket. When using a non-default [workspace](/opentf/language/state/workspaces), the state path will be `/workspace_key_prefix/workspace_name/key` (see also the `workspace_key_prefix` configuration).
 
 The following configuration is optional:
 
@@ -214,7 +214,7 @@ The S3 backend can be used in a number of different ways that make different
 tradeoffs between convenience, security, and isolation in such an organization.
 This section describes one such approach that aims to find a good compromise
 between these tradeoffs, allowing use of
-[OpenTF's workspaces feature](/opent/language/state/workspaces) to switch
+[OpenTF's workspaces feature](/opentf/language/state/workspaces) to switch
 conveniently between multiple isolated deployments of the same configuration.
 
 Use this section as a starting-point for your approach, but note that
@@ -315,20 +315,20 @@ provider "aws" {
   # environment or the global credentials file.
 
   assume_role {
-    role_arn = "${var.workspace_iam_roles[opent.workspace]}"
+    role_arn = "${var.workspace_iam_roles[terraform.workspace]}"
   }
 }
 ```
 
 If workspace IAM roles are centrally managed and shared across many separate
 OpenTF configurations, the role ARNs could also be obtained via a data
-source such as [`opent_remote_state`](/opent/language/state/remote-state-data)
+source such as [`opent_remote_state`](/opentf/language/state/remote-state-data)
 to avoid repeating these values.
 
 ### Creating and Selecting Workspaces
 
 With the necessary objects created and the backend configured, run
-`opent init` to initialize the backend and establish an initial workspace
+`opentf init` to initialize the backend and establish an initial workspace
 called "default". This workspace will not be used, but is created automatically
 by OpenTF as a convenience for users who are not using the workspaces
 feature.
@@ -337,12 +337,12 @@ Create a workspace corresponding to each key given in the `workspace_iam_roles`
 variable value above:
 
 ```
-$ opent workspace new staging
+$ opentf workspace new staging
 Created and switched to workspace "staging"!
 
 ...
 
-$ opent workspace new production
+$ opentf workspace new production
 Created and switched to workspace "production"!
 
 ...
@@ -355,8 +355,8 @@ as reading and writing the state from S3, will be performed directly as the
 administrator's own user within the administrative account.
 
 ```
-$ opent workspace select staging
-$ opent apply
+$ opentf workspace select staging
+$ opentf apply
 ...
 ```
 
@@ -403,19 +403,19 @@ to only a single state object within an S3 bucket is shown below:
     {
       "Effect": "Allow",
       "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::myorg-opent-states"
+      "Resource": "arn:aws:s3:::myorg-opentf-states"
     },
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject"],
-      "Resource": "arn:aws:s3:::myorg-opent-states/myapp/production/tfstate"
+      "Resource": "arn:aws:s3:::myorg-opentf-states/myapp/production/tfstate"
     }
   ]
 }
 ```
 
 It is also possible to apply fine-grained access control to the DynamoDB
-table used for locking. When OpenTF puts the state lock in place during `opent plan`, it stores the full state file as a document and sets the s3 object key as the partition key for the document. After the state lock is released, OpenTF places a digest of the updated state file in DynamoDB. The key is similar to the one for the original state file, but is suffixed with `-md5`.
+table used for locking. When OpenTF puts the state lock in place during `opentf plan`, it stores the full state file as a document and sets the s3 object key as the partition key for the document. After the state lock is released, OpenTF places a digest of the updated state file in DynamoDB. The key is similar to the one for the original state file, but is suffixed with `-md5`.
 
 The example below shows a simple IAM policy that allows the backend operations role to perform these operations:
 
@@ -436,8 +436,8 @@ The example below shows a simple IAM policy that allows the backend operations r
         "Condition" : {
           "ForAllValues:StringEquals" : {
             "dynamodb:LeadingKeys" : [
-              "myorg-opent-states/myapp/production/tfstate", // during a state lock the full state file is stored with this key
-              "myorg-opent-states/myapp/production/tfstate-md5" // after the lock is released a hash of the statefile's contents are stored with this key
+              "myorg-opentf-states/myapp/production/tfstate", // during a state lock the full state file is stored with this key
+              "myorg-opentf-states/myapp/production/tfstate-md5" // after the lock is released a hash of the statefile's contents are stored with this key
             ]
           }
         }

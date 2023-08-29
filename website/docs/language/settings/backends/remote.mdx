@@ -67,10 +67,10 @@ running any remote operations against them.
 
 OpenTF uses shortened names without the common prefix to interact with workspaces on the command line. For example, if `prefix = "networking-"`, use `opentf workspace select prod` to switch to the OpenTF CLI workspace `prod` within the current configuration. However, remote OpenTF operations such as `plan` and `apply` for that OpenTF CLI workspace will take place in the remote workspace `networking-prod`.
 
-Because of this, the [`opentf.workspace`](/opentf/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
+Because of this, the [`terraform.workspace`](/opentf/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
 
-- For local operations, `opentf.workspace` = `prod`
-- For remote operations, `opentf.workspace`=  `networking-prod`
+- For local operations, `terraform.workspace` = `prod`
+- For remote operations, `terraform.workspace`=  `networking-prod`
 
 ### Determining Run Environment
 
@@ -78,7 +78,7 @@ If you need to determine whether a run is local or remote in your OpenTF configu
 
 ```
 output "current_workspace_name" {
-  value = opentf.workspace
+  value = terraform.workspace
 }
 
 variable "TFC_RUN_ID" {

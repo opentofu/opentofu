@@ -24,10 +24,10 @@ You do not need to configure a backend when using Terraform Cloud because
 Terraform Cloud automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](/opentf/language/settings/tf-cloud), it cannot include a `backend` block.
 
 To configure a backend, add a nested `backend` block within the top-level
-`opent` block. The following example configures the `remote` backend.
+`opentf` block. The following example configures the `remote` backend.
 
 ```hcl
-opent {
+terraform {
   backend "remote" {
     organization = "example_corp"
 
@@ -71,13 +71,13 @@ If a configuration includes no backend block, OpenTF defaults to using the `loca
 
 ## Initialization
 
-When you change a backend's configuration, you must run `opent init` again
+When you change a backend's configuration, you must run `opentf init` again
 to validate and configure the backend before you can perform any plans, applies,
 or state operations.
 
 After you initialize, OpenTF creates a `.terraform/` directory locally. This directory contains the most recent backend configuration, including any authentication parameters you provided to the OpenTF CLI. Do not check this directory into Git, as it may contain sensitive credentials for your remote backend.
 
-The local backend configuration is different and entirely separate from the `terraform.tfstate` file that contains [state data](/opent/language/state) about your real-world infrastruture. OpenTF stores the `terraform.tfstate` file in your remote backend.
+The local backend configuration is different and entirely separate from the `terraform.tfstate` file that contains [state data](/opentf/language/state) about your real-world infrastruture. OpenTF stores the `terraform.tfstate` file in your remote backend.
 
 When you change backends, OpenTF gives you the option to migrate
 your state to the new backend. This lets you adopt backends without losing
@@ -94,13 +94,13 @@ automatically by an automation script running OpenTF. When some or all of
 the arguments are omitted, we call this a _partial configuration_.
 
 With a partial configuration, the remaining configuration arguments must be
-provided as part of [the initialization process](/opent/cli/init).
+provided as part of [the initialization process](/opentf/cli/init).
 
 There are several ways to supply the remaining arguments:
 
 - **File**: A configuration file may be specified via the `init` command line.
   To specify a file, use the `-backend-config=PATH` option when running
-  `opent init`. If the file contains secrets it may be kept in
+  `opentf init`. If the file contains secrets it may be kept in
   a secure data store, such as [Vault](https://www.vaultproject.io/),
   in which case it must be downloaded to the local disk before running OpenTF.
 
@@ -108,7 +108,7 @@ There are several ways to supply the remaining arguments:
   `init` command line. Note that many shells retain command-line flags in a
   history file, so this isn't recommended for secrets. To specify a single
   key/value pair, use the `-backend-config="KEY=VALUE"` option when running
-  `opent init`.
+  `opentf init`.
 
 - **Interactively**: OpenTF will interactively ask you for the required
   values, unless interactive input is disabled. OpenTF will not prompt for
@@ -129,7 +129,7 @@ an empty backend configuration is specified in one of the root OpenTF
 configuration files, to specify the backend type. For example:
 
 ```hcl
-opent {
+terraform {
   backend "consul" {}
 }
 ```
@@ -137,7 +137,7 @@ opent {
 ### File
 
 A backend configuration file has the contents of the `backend` block as
-top-level attributes, without the need to wrap it in another `opent`
+top-level attributes, without the need to wrap it in another `opentf`
 or `backend` block:
 
 ```hcl
@@ -157,7 +157,7 @@ The same settings can alternatively be specified on the command line as
 follows:
 
 ```
-$ opent init \
+$ opentf init \
     -backend-config="address=demo.consul.io" \
     -backend-config="path=example_app/opent_state" \
     -backend-config="scheme=https"
@@ -177,12 +177,12 @@ both the configuration itself as well as the type of backend (for example
 from "consul" to "s3").
 
 OpenTF will automatically detect any changes in your configuration
-and request a [reinitialization](/opent/cli/init). As part of
+and request a [reinitialization](/opentf/cli/init). As part of
 the reinitialization process, OpenTF will ask if you'd like to migrate
 your existing state to the new configuration. This allows you to easily
 switch from one backend to another.
 
-If you're using multiple [workspaces](/opent/language/state/workspaces),
+If you're using multiple [workspaces](/opentf/language/state/workspaces),
 OpenTF can copy all workspaces to the destination. If OpenTF detects
 you have multiple workspaces, it will ask if this is what you want to do.
 
@@ -193,7 +193,7 @@ want to migrate your state. You can respond "no" in this scenario.
 
 If you no longer want to use any backend, you can simply remove the
 configuration from the file. OpenTF will detect this like any other
-change and prompt you to [reinitialize](/opent/cli/init).
+change and prompt you to [reinitialize](/opentf/cli/init).
 
 As part of the reinitialization, OpenTF will ask if you'd like to migrate
 your state back down to normal local state. Once this is complete then
