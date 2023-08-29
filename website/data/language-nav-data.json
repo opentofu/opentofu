@@ -1,5 +1,5 @@
 [
-  { "heading": "Terraform Language" },
+  { "heading": "OpenTF Language" },
   { "title": "Overview", "path": "" },
   {
     "title": "Attributes as Blocks - Configuration Language",
@@ -914,10 +914,9 @@
     ]
   },
   {
-    "title": "Terraform Settings",
+    "title": "OpenTF Settings",
     "routes": [
       { "title": "Overview", "path": "settings" },
-      { "title": "Terraform Cloud", "path": "settings/tf-cloud" },
       {
         "title": "Backends",
         "routes": [
@@ -1060,7 +1059,7 @@
     ]
   },
   {
-    "title": "Upgrading to Terraform v1.5",
+    "title": "Upgrading to OpenTF v1.5",
     "path": "upgrade-guides"
   },
   {
@@ -1068,5 +1067,5 @@
     "path": "v1-compatibility-promises"
   },
   { "divider": true },
-  { "title": "Terraform Internals", "href": "/internals" }
+  { "title": "OpenTF Internals", "href": "/internals" }
 ]
