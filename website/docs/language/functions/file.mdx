@@ -20,9 +20,9 @@ return the resulting Unicode characters. If the file contains invalid UTF-8
 sequences then this function will produce an error.
 
 This function can be used only with files that already exist on disk
-at the beginning of a OpenTF run. Functions do not participate in the
+at the beginning of an OpenTF run. Functions do not participate in the
 dependency graph, so this function cannot be used with files that are generated
-dynamically during a OpenTF operation. We do not recommend using dynamic
+dynamically during an OpenTF operation. We do not recommend using dynamic
 local files in OpenTF configurations, but in rare situations where this is
 necessary you can use
 [the `local_file` data source](https://registry.terraform.io/providers/hashicorp/local/latest/docs/data-sources/file)
