@@ -81,8 +81,8 @@ func TestTest(t *testing.T) {
 			code:     1,
 		},
 		"expect_runtime_check_pass_with_expect": {
-			expected: "0 passed, 1 failed.",
-			code:     1,
+			expected: "1 passed, 0 failed.",
+			code:     0,
 		},
 		"expect_runtime_check_fail_command_plan": {
 			expected: "0 passed, 1 failed.",
