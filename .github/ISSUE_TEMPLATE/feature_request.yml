@@ -10,8 +10,6 @@ body:
       value: |
         # Thank you for opening a feature request.
 
-        The [OpenTF](https://github.com/placeholderplaceholderplaceholder/opentf) issue tracker is reserved for feature requests relating to the core OpenTF CLI application and configuration language.
-
   - type: textarea
     id: tf-version
     attributes:
