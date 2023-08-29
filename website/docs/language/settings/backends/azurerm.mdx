@@ -19,7 +19,7 @@ terraform {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
   }
 }
 ```
@@ -34,7 +34,7 @@ terraform {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
     use_msi              = true
     subscription_id      = "00000000-0000-0000-0000-000000000000"
     tenant_id            = "00000000-0000-0000-0000-000000000000"
@@ -52,7 +52,7 @@ terraform {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
     use_oidc             = true
     subscription_id      = "00000000-0000-0000-0000-000000000000"
     tenant_id            = "00000000-0000-0000-0000-000000000000"
@@ -69,7 +69,7 @@ terraform {
   backend "azurerm" {
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
     use_azuread_auth     = true
     subscription_id      = "00000000-0000-0000-0000-000000000000"
     tenant_id            = "00000000-0000-0000-0000-000000000000"
@@ -88,7 +88,7 @@ terraform {
   backend "azurerm" {
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
 
     # rather than defining this inline, the Access Key can also be sourced
     # from an Environment Variable - more information is available below.
@@ -106,7 +106,7 @@ terraform {
   backend "azurerm" {
     storage_account_name = "abcd1234"
     container_name       = "tfstate"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
 
     # rather than defining this inline, the SAS Token can also be sourced
     # from an Environment Variable - more information is available below.
@@ -127,7 +127,7 @@ data "terraform_remote_state" "foo" {
   config = {
     storage_account_name = "opentf123abc"
     container_name       = "opentf-state"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
   }
 }
 ```
@@ -143,7 +143,7 @@ data "terraform_remote_state" "foo" {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "opentf123abc"
     container_name       = "opentf-state"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
     use_msi              = true
     subscription_id      = "00000000-0000-0000-0000-000000000000"
     tenant_id            = "00000000-0000-0000-0000-000000000000"
@@ -162,7 +162,7 @@ data "terraform_remote_state" "foo" {
     resource_group_name  = "StorageAccount-ResourceGroup"
     storage_account_name = "opentf123abc"
     container_name       = "opentf-state"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
     use_oidc             = true
     subscription_id      = "00000000-0000-0000-0000-000000000000"
     tenant_id            = "00000000-0000-0000-0000-000000000000"
@@ -180,7 +180,7 @@ data "terraform_remote_state" "foo" {
   config = {
     storage_account_name = "opentf123abc"
     container_name       = "opentf-state"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
     use_azuread_auth     = true
     subscription_id      = "00000000-0000-0000-0000-000000000000"
     tenant_id            = "00000000-0000-0000-0000-000000000000"
@@ -200,7 +200,7 @@ data "terraform_remote_state" "foo" {
   config = {
     storage_account_name = "opentf123abc"
     container_name       = "opentf-state"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
 
     # rather than defining this inline, the Access Key can also be sourced
     # from an Environment Variable - more information is available below.
@@ -219,7 +219,7 @@ data "terraform_remote_state" "foo" {
   config = {
     storage_account_name = "opentf123abc"
     container_name       = "opentf-state"
-    key                  = "prod.opentf.tfstate"
+    key                  = "prod.terraform.tfstate"
 
     # rather than defining this inline, the SAS Token can also be sourced
     # from an Environment Variable - more information is available below.
