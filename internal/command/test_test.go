@@ -76,6 +76,10 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		"expect_to_runtime_check_fail": {
+			expected: "0 passed, 1 failed.",
+			code:     1,
+		},
 		"expect_failures_resources": {
 			expected: "1 passed, 0 failed.",
 			code:     0,
