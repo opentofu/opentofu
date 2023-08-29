@@ -9,7 +9,7 @@ description: >-
 
 # Attributes as Blocks
 
--> **Note:** This page is an appendix to the Terraform documentation. Most users do not need to know the full details of this behavior.
+-> **Note:** This page is an appendix to the OpenTF documentation. Most users do not need to know the full details of this behavior.
 
 ## Summary
 
@@ -23,13 +23,13 @@ is set to an empty list (`<ATTR> = []`).
 Most users do not need to know any further details of this "nested block or
 empty list" behavior. However, read further if you need to:
 
-- Use Terraform's [JSON syntax](/terraform/language/syntax/json) with this
+- Use OpenTF's [JSON syntax](/terraform/language/syntax/json) with this
   type of resource.
 - Create a reusable module that wraps this type of resource.
 
 ## Details
 
-In Terraform v0.12 and later, the language makes a distinction between
+The language makes a distinction between
 [argument syntax and nested block syntax](/terraform/language/syntax/configuration#arguments-and-blocks)
 within blocks:
 
