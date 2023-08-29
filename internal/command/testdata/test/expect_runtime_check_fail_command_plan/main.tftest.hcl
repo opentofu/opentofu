@@ -1,0 +1,3 @@
+run "test" {
+  command = plan
+}

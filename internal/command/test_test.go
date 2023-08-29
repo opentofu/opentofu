@@ -76,6 +76,22 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		"expect_runtime_check_fail": {
+			expected: "0 passed, 1 failed.",
+			code:     1,
+		},
+		"expect_runtime_check_pass_with_expect": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
+		"expect_runtime_check_pass_command_plan_expected": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
+		"expect_runtime_check_fail_command_plan": {
+			expected: "0 passed, 1 failed.",
+			code:     1,
+		},
 		"expect_failures_resources": {
 			expected: "1 passed, 0 failed.",
 			code:     0,
@@ -175,7 +191,7 @@ func TestTest(t *testing.T) {
 		})
 	}
 }
-func TestTest_Broken_HCL_Files(t *testing.T) {
+func TestTest_Broken_Full_Output(t *testing.T) {
 	tcs := map[string]struct {
 		override string
 		args     []string
@@ -185,6 +201,10 @@ func TestTest_Broken_HCL_Files(t *testing.T) {
 	}{
 		"broken_no_valid_hcl": {
 			expected: "Unsupported block type",
+			code:     1,
+		},
+		"expect_runtime_check_fail_command_plan": {
+			expected: "Check block assertion known after apply",
 			code:     1,
 		},
 		"broken_wrong_block_resource": {
