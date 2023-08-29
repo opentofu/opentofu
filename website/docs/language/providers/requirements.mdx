@@ -27,7 +27,7 @@ A provider requirement consists of a local name, a source location, and a
 version constraint:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     mycloud = {
       source  = "mycorp/mycloud"
@@ -38,7 +38,7 @@ opentf {
 ```
 
 The `required_providers` block must be nested inside the top-level
-[`opentf` block](/opentf/language/settings) (which can also contain other settings).
+[`terraform` block](/opentf/language/settings) (which can also contain other settings).
 
 Each argument in the `required_providers` block enables one provider. The key
 determines the provider's [local name](#local-names) (its unique identifier
@@ -68,7 +68,7 @@ declares `mycloud` as the local name for `mycorp/mycloud`, then uses that local
 name when [configuring the provider](/opentf/language/providers/configuration):
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     mycloud = {
       source  = "mycorp/mycloud"
@@ -153,7 +153,7 @@ When this happens, we recommend combining each provider's namespace with
 its type name to produce compound local names with a dash:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     # In the rare situation of using two providers that
     # have the same type name -- "http" in this example --
@@ -212,7 +212,7 @@ Each module should at least declare the minimum provider version it is known
 to work with, using the `>=` version constraint syntax:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     mycloud = {
       source  = "hashicorp/aws"
@@ -231,7 +231,7 @@ following example uses the operator to allow only patch releases within a
 specific minor release:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     mycloud = {
       source  = "hashicorp/aws"
@@ -252,7 +252,7 @@ incompatibilities, and let the root module manage the maximum version.
 
 Most providers are distributed separately as plugins, but there
 is one provider that is built into OpenTF itself. This provider enables the
-[the `opentf_remote_state` data source](/opentf/language/state/remote-state-data).
+[the `terraform_remote_state` data source](/opentf/language/state/remote-state-data).
 
 Because this provider is built in to OpenTF, you don't need to declare it
 in the `required_providers` block in order to use its features. However, for
@@ -298,7 +298,7 @@ type you wish to represent your in-house provider under that hostname, giving
 a source address like `opentf.example.com/examplecorp/ourcloud`:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     mycloud = {
       source  = "opentf.example.com/examplecorp/ourcloud"
