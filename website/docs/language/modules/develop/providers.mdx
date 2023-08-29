@@ -54,7 +54,7 @@ To declare that a module requires particular versions of a specific provider,
 use a `required_providers` block inside a `opentf` block:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -78,7 +78,7 @@ To declare multiple configuration names for a provider within a module, add the
 `configuration_aliases` argument:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -216,7 +216,7 @@ The subdirectory `./tunnel` must then declare the configuration aliases for the
 provider so the calling module can pass configurations with these names in its `providers` argument:
 
 ```hcl
-opentf {
+terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
