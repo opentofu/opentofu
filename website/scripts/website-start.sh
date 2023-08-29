@@ -11,7 +11,7 @@ REPO_TO_CLONE=dev-portal
 # Set the subdirectory name for the dev-portal app
 PREVIEW_DIR=website-preview
 # The product for which we are building the deploy preview
-PRODUCT=terraform
+PRODUCT=opentf
 # Preview mode, controls the UI rendered (either the product site or developer). Can be `io` or `developer`
 PREVIEW_MODE=developer
 
