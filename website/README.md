@@ -1,15 +1,12 @@
-# Terraform Documentation
+# OpenTF Documentation
 
-This directory contains the portions of [the Terraform website](https://www.placeholderplaceholderplaceholder.io/) that pertain to the core functionality, excluding providers and the overall configuration.
-
-The website uses the files in this directory in conjunction with
-[the `terraform-website` repository](https://github.com/hashicorp/terraform-website). The `terraform-website` repository brings all of the documentation together and contains the scripts for testing and building the entire site.
+This directory contains the portions of [the OpenTF website](https://placeholderplaceholderplaceholder.io/) that pertain to the core functionality, excluding providers and the overall configuration.
 
 ## Suggesting Changes
 
-You can [submit an issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) with documentation requests or submit a pull request with suggested changes.
+You can [submit an issue](https://github.com/opentffoundation/opentf/issues/new/choose) with documentation requests or submit a pull request with suggested changes.
 
-Click **Edit this page** at the bottom of any Terraform website page to go directly to the associated markdown file in GitHub.
+Click **Edit this page** at the bottom of any OpenTF website page to go directly to the associated markdown file in GitHub.
 
 ## Validating Content
 
@@ -27,19 +24,13 @@ You must update the the sidebar navigation when you add or delete documentation 
 
 To update the sidebar navigation, you must edit the appropriate `nav-data.json` file. This repository contains the sidebar navigation files for the following documentation sets:
 
-- Terraform Language: [`language-nav-data.json`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/website/data/language-nav-data.json)
-- Terraform CLI: [`cli-nav-data.json`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/website/data/cli-nav-data.json)
-- Introduction to Terraform: [`intro-nav-data.json`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/update-readme/website/data/intro-nav-data.json)
-
-For more details about how to update the sidebar navigation, refer to [Editing Navigation Sidebars](https://github.com/hashicorp/terraform-website#editing-navigation-sidebars) in the `terraform-website` repository.
-
-## Adding Redirects
-
-You must add a redirect when you move, rename, or delete documentation pages. Refer to https://github.com/hashicorp/terraform-website#redirects for details.
+- OpenTF Language: [`language-nav-data.json`](https://github.com/opentffoundation/opentf/blob/main/website/data/language-nav-data.json)
+- OpenTF CLI: [`cli-nav-data.json`](https://github.com/opentffoundation/opentf/blob/main/website/data/cli-nav-data.json)
+- Introduction to OpenTF: [`intro-nav-data.json`](https://github.com/opentffoundation/opentf/blob/main/website/data/intro-nav-data.json)
 
 ## Previewing Changes
 
-You should preview all of your changes locally before creating a pull request. The build includes content from this repository and the [`terraform-website`](https://github.com/hashicorp/terraform-website/) repository, allowing you to preview the entire Terraform documentation site.
+You should preview all of your changes locally before creating a pull request.
 
 **Set Up Local Environment**
 
@@ -78,8 +69,6 @@ To make your changes available on the latest docs version:
    <img width="317" alt="Screen Shot 2022-08-09 at 11 06 17 AM" src="https://user-images.githubusercontent.com/83350965/183686586-f94e58f3-fd62-48cf-88bd-fa886fe4724f.png">
 
 1. Merge the pull request. GitHub Actions autogenerates a backport pull request, linked to the original.
-
-   <img width="726" alt="Screen Shot 2022-08-09 at 11 08 52 AM" src="https://user-images.githubusercontent.com/83350965/183687165-350b0e9b-a888-409e-91e2-81d82eac0a4e.png">
 
 1. Merge the auto-generated backport pull request.
 

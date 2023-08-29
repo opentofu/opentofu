@@ -1,5 +1,5 @@
 {
-  "name": "terraform-docs-preview",
+  "name": "opentf-docs-preview",
   "private": "true",
   "scripts": {
     "build": "./scripts/website-build.sh",

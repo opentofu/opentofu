@@ -1,13 +1,8 @@
-######################################################
-# NOTE: This file is managed by the Digital Team's   #
-# Terraform configuration @ hashicorp/mktg-terraform #
-######################################################
-
 .DEFAULT_GOAL := website
 
 # Set the preview mode for the website shell to "developer" or "io"
 PREVIEW_MODE ?= developer
-REPO ?= terraform
+REPO ?= opentf
 
 # Enable setting alternate docker tool, e.g. 'make DOCKER_CMD=podman'
 DOCKER_CMD ?= docker
