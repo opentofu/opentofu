@@ -11,7 +11,7 @@ Stores the state as an object in a configurable prefix in a given bucket on [Ten
 
 This backend supports [state locking](/opentf/language/state/locking). Storing your state in a COS bucket requires the following permissions:
 
-- `CreateTag`, `DeleteTag`, and `DescribeTags` on the tag key `tencentcloud-opentf-lock`
+- `CreateTag`, `DeleteTag`, and `DescribeTags` on the tag key `tencentcloud-terraform-lock`
 - `Put`, `Get`, and `Delete` files for the specified bucket's prefix
 
 ~> **Warning!** It is highly recommended that you enable [Object Versioning](https://intl.cloud.tencent.com/document/product/436/19883)
