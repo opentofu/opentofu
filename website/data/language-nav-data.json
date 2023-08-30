@@ -441,12 +441,10 @@
             "title": "<code>length</code>",
             "path": "language/functions/length"
           },
-          { "title": "<code>list</code>", "path": "language/functions/list" },
           {
             "title": "<code>lookup</code>",
             "path": "language/functions/lookup"
           },
-          { "title": "<code>map</code>", "path": "language/functions/map" },
           {
             "title": "<code>matchkeys</code>",
             "path": "language/functions/matchkeys"
