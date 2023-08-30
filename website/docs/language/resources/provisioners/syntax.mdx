@@ -11,22 +11,18 @@ You can use provisioners to model specific actions on the local machine or on
 a remote machine in order to prepare servers or other infrastructure objects
 for service.
 
--> **Note:** We removed the Chef, Habitat, Puppet, and Salt Masterless provisioners in Terraform v0.15.0. Information about these legacy provisioners is still available in the documentation for [Terraform v1.1 (and earlier)](/terraform/language/v1.1.x/resources/provisioners/syntax).
-
 ## Provisioners are a Last Resort
 
-> **Hands-on:** Try the [Provision Infrastructure Deployed with Terraform](/terraform/tutorials/provision?utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS) tutorials to learn about more declarative ways to handle provisioning actions.
-
-Terraform includes the concept of provisioners as a measure of pragmatism,
+OpenTF includes the concept of provisioners as a measure of pragmatism,
 knowing that there are always certain behaviors that cannot be directly
-represented in Terraform's declarative model.
+represented in OpenTF's declarative model.
 
 However, they also add a considerable amount of complexity and uncertainty to
-Terraform usage. Firstly, Terraform cannot model the actions of provisioners
+OpenTF usage. Firstly, OpenTF cannot model the actions of provisioners
 as part of a plan because they can in principle take any action. Secondly,
 successful use of provisioners requires coordinating many more details than
-Terraform usage usually requires: direct network access to your servers,
-issuing Terraform credentials to log in, making sure that all of the necessary
+OpenTF usage usually requires: direct network access to your servers,
+issuing OpenTF credentials to log in, making sure that all of the necessary
 external software is installed, etc.
 
 The following sections describe some situations which can be solved with
@@ -78,8 +74,6 @@ process in various ways data passed via the means described above, allowing
 you to run arbitrary scripts and do basic system configuration immediately
 during the boot process and without the need to access the machine over SSH.
 
-> **Hands-on:** Try the [Provision Infrastructure with Cloud-Init](/terraform/tutorials/provision/cloud-init?utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS) tutorial.
-
 If you are building custom machine images, you can make use of the "user data"
 or "metadata" passed by the above means in whatever way makes sense to your
 application, by referring to your vendor's documentation on how to access the
@@ -87,19 +81,19 @@ data at runtime.
 
 This approach is _required_ if you intend to use any mechanism in your cloud
 provider for automatically launching and destroying servers in a group,
-because in that case individual servers will launch unattended while Terraform
+because in that case individual servers will launch unattended while OpenTF
 is not around to provision them.
 
-Even if you're deploying individual servers directly with Terraform, passing
+Even if you're deploying individual servers directly with OpenTF, passing
 data this way will allow faster boot times and simplify deployment by avoiding
-the need for direct network access from Terraform to the new server and for
+the need for direct network access from OpenTF to the new server and for
 remote access credentials to be provided.
 
 ### Provisioning files using cloud-config
 
-You can add the [`cloudinit_config`](https://registry.terraform.io/providers/hashicorp/cloudinit/latest/docs) data source to your Terraform configuration and specify the files you want to provision as `text/cloud-config` content. The `cloudinit_config` data source renders multi-part MIME configurations for use with [cloud-init](https://cloudinit.readthedocs.io/en/latest/). Pass the files in the `content` field as YAML-encoded configurations using the `write_files` block. 
+You can add the [`cloudinit_config`](https://registry.terraform.io/providers/hashicorp/cloudinit/latest/docs) data source to your OpenTF configuration and specify the files you want to provision as `text/cloud-config` content. The `cloudinit_config` data source renders multi-part MIME configurations for use with [cloud-init](https://cloudinit.readthedocs.io/en/latest/). Pass the files in the `content` field as YAML-encoded configurations using the `write_files` block.
 
-In the following example, the `my_cloud_config` data source specifies a `text/cloud-config` MIME part named `cloud.conf`. The `part.content` field is set to [`yamlencode`](/terraform/language/functions/yamlencode), which encodes the `write_files` JSON object as YAML so that the system can provision the referenced files.
+In the following example, the `my_cloud_config` data source specifies a `text/cloud-config` MIME part named `cloud.conf`. The `part.content` field is set to [`yamlencode`](/opentf/language/functions/yamlencode), which encodes the `write_files` JSON object as YAML so that the system can provision the referenced files.
 
 ```hcl
 data "cloudinit_config" "my_cloud_config" {
@@ -134,7 +128,7 @@ data "cloudinit_config" "my_cloud_config" {
 ### Running configuration management software
 
 As a convenience to users who are forced to use generic operating system
-distribution images, Terraform includes a number of specialized provisioners
+distribution images, OpenTF includes a number of specialized provisioners
 for launching specific configuration management products.
 
 We strongly recommend not using these, and instead running system configuration
@@ -144,26 +138,24 @@ configuration management provisioners and can run their installation steps
 during a separate build process, before creating a system disk image that you
 can deploy many times.
 
-> **Hands-on:** Try the [Provision Infrastructure with Packer](/terraform/tutorials/provision/packer?utm_source=WEBSITE&utm_medium=WEB_IO&utm_offer=ARTICLE_PAGE&utm_content=DOCS) tutorial.
-
 If you are using configuration management software that has a centralized server
 component, you will need to delay the _registration_ step until the final
 system is booted from your custom image. To achieve that, use one of the
 mechanisms described above to pass the necessary information into each instance
 so that it can register itself with the configuration management server
-immediately on boot, without the need to accept commands from Terraform over
+immediately on boot, without the need to accept commands from OpenTF over
 SSH or WinRM.
 
-### First-class Terraform provider functionality may be available
+### First-class provider functionality may be available
 
 It is technically possible to use the `local-exec` provisioner to run the CLI
 for your target system in order to create, update, or otherwise interact with
 remote objects in that system.
 
 If you are trying to use a new feature of the remote system that isn't yet
-supported in its Terraform provider, that might be the only option. However,
+supported in its provider, that might be the only option. However,
 if there _is_ provider support for the feature you intend to use, prefer to
-use that provider functionality rather than a provisioner so that Terraform
+use that provider functionality rather than a provisioner so that OpenTF
 can be fully aware of the object and properly manage ongoing changes to it.
 
 Even if the functionality you need is not available in a provider today, we
@@ -199,11 +191,11 @@ resource "aws_instance" "web" {
 
 The `local-exec` provisioner requires no other configuration, but most other
 provisioners must connect to the remote system using SSH or WinRM.
-You must include [a `connection` block](/terraform/language/resources/provisioners/connection) so that Terraform knows how to communicate with the server.
+You must include [a `connection` block](/opentf/language/resources/provisioners/connection) so that OpenTF knows how to communicate with the server.
 
-Terraform includes several built-in provisioners. You can also use third-party provisioners as plugins, by placing them
+OpenTF includes several built-in provisioners. You can also use third-party provisioners as plugins, by placing them
 in `%APPDATA%\terraform.d\plugins`, `~/.terraform.d/plugins`, or the same
-directory where the Terraform binary is installed. However, we do not recommend
+directory where the OpenTF binary is installed. However, we do not recommend
 using any provisioners except the built-in `file`, `local-exec`, and
 `remote-exec` provisioners.
 
@@ -227,8 +219,8 @@ block would create a dependency cycle.
 ## Suppressing Provisioner Logs in CLI Output
 
 The configuration for a `provisioner` block may use sensitive values, such as
-[`sensitive` variables](/terraform/language/values/variables#suppressing-values-in-cli-output) or
-[`sensitive` output values](/terraform/language/values/outputs#sensitive-suppressing-values-in-cli-output).
+[`sensitive` variables](/opentf/language/values/variables#suppressing-values-in-cli-output) or
+[`sensitive` output values](/opentf/language/values/outputs#sensitive-suppressing-values-in-cli-output).
 In this case, all log output from the provisioner is automatically suppressed to
 prevent the sensitive values from being displayed.
 
@@ -241,8 +233,8 @@ bootstrapping of a system.
 
 If a creation-time provisioner fails, the resource is marked as **tainted**.
 A tainted resource will be planned for destruction and recreation upon the
-next `terraform apply`. Terraform does this because a failed provisioner
-can leave a resource in a semi-configured state. Because Terraform cannot
+next `opentf apply`. OpenTF does this because a failed provisioner
+can leave a resource in a semi-configured state. Because OpenTF cannot
 reason about what the provisioner does, the only way to ensure proper creation
 of a resource is to recreate it. This is tainting.
 
@@ -266,11 +258,11 @@ resource "aws_instance" "web" {
 ```
 
 Destroy provisioners are run before the resource is destroyed. If they
-fail, Terraform will error and rerun the provisioners again on the next
-`terraform apply`. Due to this behavior, care should be taken for destroy
+fail, OpenTF will error and rerun the provisioners again on the next
+`opentf apply`. Due to this behavior, care should be taken for destroy
 provisioners to be safe to run multiple times.
 
-~> **Note**: Destroy provisioners of this resource do not run if `create_before_destroy` is set to `true`. This [GitHub issue](https://github.com/hashicorp/terraform/issues/13549) contains more details.
+~> **Note**: Destroy provisioners of this resource do not run if `create_before_destroy` is set to `true`.
 
 Destroy-time provisioners can only run if they remain in the configuration
 at the time a resource is destroyed. If a resource block with a destroy-time
@@ -286,7 +278,7 @@ remove a resource with a destroy-time provisioner:
 
 Because of this limitation, you should use destroy-time provisioners sparingly and with care.
 
-~> **NOTE:** A destroy-time provisioner within a resource that is tainted _will not_ run. This includes resources that are marked tainted from a failed creation-time provisioner or tainted manually using `terraform taint`.
+~> **NOTE:** A destroy-time provisioner within a resource that is tainted _will not_ run. This includes resources that are marked tainted from a failed creation-time provisioner or tainted manually using `opentf taint`.
 
 ## Multiple Provisioners
 
@@ -316,7 +308,7 @@ resource "aws_instance" "web" {
 
 ## Failure Behavior
 
-By default, provisioners that fail will also cause the Terraform apply
+By default, provisioners that fail will also cause the OpenTF apply
 itself to fail. The `on_failure` setting can be used to change this. The
 allowed values are:
 
