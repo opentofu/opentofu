@@ -27,11 +27,6 @@ and some backends can be configured to encrypt the state data at rest.
 
 For example:
 
-- [Terraform Cloud](https://cloud.hashicorp.com/products/terraform) always encrypts state at rest and
-  protects it with TLS in transit. Terraform Cloud also knows the identity of
-  the user requesting state and maintains a history of state changes. This can
-  be used to control access and track activity. [Terraform Enterprise](/opentf/enterprise)
-  also supports detailed audit logging.
 - The S3 backend supports encryption at rest when the `encrypt` option is
   enabled. IAM policies and logging can be used to identify any invalid access.
   Requests for the state go over a TLS connection.
