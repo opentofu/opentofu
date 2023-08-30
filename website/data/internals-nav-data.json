@@ -1,65 +1,56 @@
 [
   { "heading": "OpenTF Internals" },
   {
-    "title": "Overview", 
-    "path": ""
-   },
+    "title": "Overview",
+    "path": "internals/index"
+  },
   {
     "title": "Credentials Helpers",
-    "path": "credentials-helpers"
+    "path": "internals/credentials-helpers"
   },
   {
     "title": "Debugging OpenTF",
-    "path": "debugging"
+    "path": "internals/debugging"
   },
   {
     "title": "Module Registry Protocol",
-    "path": "module-registry-protocol"
+    "path": "internals/module-registry-protocol"
   },
   {
     "title": "Provider Network Mirror Protocol",
-    "path": "provider-network-mirror-protocol"
+    "path": "internals/provider-network-mirror-protocol"
   },
   {
     "title": "Provider Registry Protocol",
-    "path": "provider-registry-protocol"
+    "path": "internals/provider-registry-protocol"
   },
   {
     "title": "Resource Graph",
-    "path": "graph"
+    "path": "internals/graph"
   },
   {
     "title": "Login Protocol",
-    "path": "login-protocol"
+    "path": "internals/login-protocol"
   },
   {
     "title": "JSON Output Format",
-    "path": "json-format"
+    "path": "internals/json-format"
   },
   {
     "title": "Remote Service Discovery",
-    "path": "remote-service-discovery"
+    "path": "internals/remote-service-discovery"
   },
   {
     "title": "Provider Metadata",
-    "path": "provider-meta"
+    "path": "internals/provider-meta"
   },
   {
     "title": "Functions Metadata",
-    "path": "functions-meta"
+    "path": "internals/functions-meta"
   },
   {
     "title": "Machine Readable UI",
-    "path": "machine-readable-ui",
+    "path": "internals/machine-readable-ui",
     "hidden": true
-  },
-  {
-    "title": "Archiving",
-    "path": "archiving",
-    "hidden": true
-  },
-  { "divider": true },
-  { "title": "OpenTF CLI", "href": "/cli" },
-  { "divider": true },
-  { "title": "Configuration Language", "href": "/language" }
+  }
 ]

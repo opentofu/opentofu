@@ -1,20 +1,20 @@
 [
   { "heading": "Introduction to OpenTF" },
-  { "title": "What is OpenTF?", "path": "" },
-  { "title": "Use Cases", "path": "use-cases" },
-  { "title": "OpenTF Editions", "path": "terraform-editions" },
-  { "title": "The Core OpenTF Workflow", "path": "core-workflow" },
+  { "title": "What is OpenTF?", "path": "intro/index" },
+  { "title": "Use Cases", "path": "intro/use-cases" },
+  { "title": "OpenTF Editions", "path": "intro/terraform-editions" },
+  { "title": "The Core OpenTF Workflow", "path": "intro/core-workflow" },
   {
     "title": "OpenTF vs. Alternatives",
     "routes": [
-      { "title": "Overview", "path": "vs" },
-      { "title": "Chef, Puppet, etc.", "path": "vs/chef-puppet" },
+      { "title": "Overview", "path": "intro/vs/index" },
+      { "title": "Chef, Puppet, etc.", "path": "intro/vs/chef-puppet" },
       {
         "title": "CloudFormation, Heat, etc.",
-        "path": "vs/cloudformation"
+        "path": "intro/vs/cloudformation"
       },
-      { "title": "Boto, Fog, etc.", "path": "vs/boto" },
-      { "title": "Custom Solutions", "path": "vs/custom" }
+      { "title": "Boto, Fog, etc.", "path": "intro/vs/boto" },
+      { "title": "Custom Solutions", "path": "intro/vs/custom" }
     ]
   }
 ]
