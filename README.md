@@ -5,6 +5,8 @@
 
 <img alt="OpenTF" src="https://raw.githubusercontent.com/opentffoundation/brand-artifacts/main/full/transparent/SVG/on-light.svg" width="600px">
 
+Test
+
 OpenTF is an OSS tool for building, changing, and versioning infrastructure safely and efficiently. OpenTF can manage existing and popular service providers as well as custom in-house solutions.
 
 The key features of OpenTF are:
