@@ -148,6 +148,10 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		"refresh_only": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -991,28 +995,12 @@ Success! 2 passed, 0 failed.
 }
 
 func TestTest_PartialUpdates(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath(path.Join("test", "partial_updates")), td)
-	defer testChdir(t, td)()
-
-	provider := testing_command.NewProvider(nil)
-	view, done := testView(t)
-
-	c := &TestCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(provider.Provider),
-			View:             view,
-		},
-	}
-
-	code := c.Run([]string{"-no-color"})
-	output := done(t)
-
-	if code != 0 {
-		t.Errorf("expected status code 0 but got %d", code)
-	}
-
-	expected := `main.tftest.hcl... pass
+	tcs := map[string]struct {
+		expectedOut  string
+		expectedCode int
+	}{
+		"partial_updates": {
+			expectedOut: `main.tftest.hcl... pass
   run "first"... pass
 
 Warning: Resource targeting is in effect
@@ -1039,15 +1027,83 @@ or when OpenTF specifically suggests to use it as part of an error message.
   run "second"... pass
 
 Success! 2 passed, 0 failed.
-`
+`,
+			expectedCode: 0,
+		},
+		"partial_update_failure": {
+			expectedOut: `main.tftest.hcl... fail
+  run "partial"... fail
 
-	actual := output.All()
+Warning: Resource targeting is in effect
 
-	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
-		t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
+You are creating a plan with the -target option, which means that the result
+of this plan may not represent all of the changes requested by the current
+configuration.
+
+The -target option is not for routine use, and is provided only for
+exceptional situations such as recovering from errors or mistakes, or when
+OpenTF specifically suggests to use it as part of an error message.
+
+Warning: Applied changes may be incomplete
+
+The plan was created with the -target option in effect, so some changes
+requested in the configuration may have been ignored and the output values
+may not be fully updated. Run the following command to verify that no other
+changes are pending:
+    opentf plan
+	
+Note that the -target option is not suitable for routine use, and is provided
+only for exceptional situations such as recovering from errors or mistakes,
+or when OpenTF specifically suggests to use it as part of an error message.
+
+Error: Unknown condition run
+
+  on main.tftest.hcl line 7, in run "partial":
+   7:     condition = test_resource.bar.value == "bar"
+
+Condition expression could not be evaluated at this time.
+
+Failure! 0 passed, 1 failed.
+`,
+			expectedCode: 1,
+		},
 	}
 
-	if provider.ResourceCount() > 0 {
-		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+	for file, tc := range tcs {
+		t.Run(file, func(t *testing.T) {
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
+
+			provider := testing_command.NewProvider(nil)
+			view, done := testView(t)
+
+			c := &TestCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(provider.Provider),
+					View:             view,
+				},
+			}
+
+			code := c.Run([]string{"-no-color"})
+			output := done(t)
+
+			expectedOut := tc.expectedOut
+			expectedCode := tc.expectedCode
+
+			if code != expectedCode {
+				t.Errorf("expected status code %d but got %d", expectedCode, code)
+			}
+
+			actual := output.All()
+
+			if diff := cmp.Diff(actual, expectedOut); len(diff) > 0 {
+				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expectedOut, actual, diff)
+			}
+
+			if provider.ResourceCount() > 0 {
+				t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+			}
+		})
 	}
 }
