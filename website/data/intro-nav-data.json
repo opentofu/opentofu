@@ -2,7 +2,6 @@
   { "heading": "Introduction to OpenTF" },
   { "title": "What is OpenTF?", "path": "intro/index" },
   { "title": "Use Cases", "path": "intro/use-cases" },
-  { "title": "OpenTF Editions", "path": "intro/terraform-editions" },
   { "title": "The Core OpenTF Workflow", "path": "intro/core-workflow" },
   {
     "title": "OpenTF vs. Alternatives",
