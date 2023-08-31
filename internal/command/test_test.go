@@ -227,6 +227,10 @@ func TestTest_Broken_Full_Output(t *testing.T) {
 			expected: "Blocks of type \"check\" are not expected here.",
 			code:     1,
 		},
+		"refresh_conflicting_config": {
+			expected: "Incompatible plan options",
+			code:     1,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
