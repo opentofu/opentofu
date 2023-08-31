@@ -27,7 +27,7 @@ line endings (CRLF), though both are accepted.
 A _module_ is a collection of `.tf` and/or `.tf.json` files kept together in a
 directory.
 
-A OpenTF module only consists of the top-level configuration files in a
+An OpenTF module only consists of the top-level configuration files in a
 directory; nested directories are treated as completely separate modules, and
 are not automatically included in the configuration.
 
@@ -36,11 +36,11 @@ treating the entire module as a single document. Separating various blocks into
 different files is purely for the convenience of readers and maintainers, and
 has no effect on the module's behavior.
 
-A OpenTF module can use [module calls](/opentf/language/modules) to
+An OpenTF module can use [module calls](/opentf/language/modules) to
 explicitly include other modules into the configuration. These child modules can
 come from local directories (nested in the parent module's directory, or
 anywhere else on disk), or from external sources like the
-[Module Registry](https://registry.terraform.io).
+[Public Terraform Registry](https://registry.terraform.io).
 
 ## The Root Module
 
