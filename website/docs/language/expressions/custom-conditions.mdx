@@ -9,11 +9,11 @@ description: >-
 You can create conditions that produce custom error messages for several types of objects in a configuration. For example, you can add a condition to an input variable that checks whether incoming image IDs are formatted properly. Custom conditions can capture assumptions, helping future maintainers understand the configuration design and intent. They also return useful information about errors earlier and in context, helping consumers more easily diagnose issues in their configurations.
 
 This page explains the following:
-  - Creating checks with [assertions](#checks-with-assertions) to verify your infrastructure as a whole
-  - Creating [validation conditions](#input-variable-validation) for input variables
-  - Creating [preconditions and postconditions](#preconditions-and-postconditions) for resources, data sources, and outputs
-  - Writing effective [condition expressions](#condition-expressions) and [error messages](#error-messages)
-  - When OpenTF [evaluates custom conditions](#conditions-checked-only-during-apply) during the plan and apply cycle
+- Creating checks with [assertions](#checks-with-assertions) to verify your infrastructure as a whole
+- Creating [validation conditions](#input-variable-validation) for input variables
+- Creating [preconditions and postconditions](#preconditions-and-postconditions) for resources, data sources, and outputs
+- Writing effective [condition expressions](#condition-expressions) and [error messages](#error-messages)
+- When OpenTF [evaluates custom conditions](#conditions-checked-only-during-apply) during the plan and apply cycle
 
 ## Selecting a Custom Condition for your use case
 
