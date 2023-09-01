@@ -8,11 +8,13 @@ The easiest way to contribute is by [opening an issue](https://github.com/opentf
 
 All major changes to OpenTF Core go through the public RFC process, including those proposed by the core team. Thus, if you'd like to propose such a change, please prepare an RFC, so that the community can discuss the change and everybody has a chance to voice their opinion. You're also welcome to voice your own opinion on existing RFCs! You can find them by [going to the issues view and filtering by the rfc label](https://github.com/opentffoundation/opentf/issues?q=is%3Aopen+is%3Aissue+label%3Arfc).
 
+Generally, we appreciate external contributions very much and would love to work with you on them. **However, please make sure to read the [Contributing a Code Change](#contributing-a-code-change) section prior to making a contribution.**
+
 ---
 
 <!-- MarkdownTOC autolink="true" -->
 
-- [Proposing a Change](#proposing-a-change)
+- [Contributing a Code Change](#contributing-a-code-change)
 - [Working on the Code](#working-on-the-code)
 - [Acceptance Tests: Testing interactions with external services](#acceptance-tests-testing-interactions-with-external-services)
 - [Generated Code](#generated-code)
