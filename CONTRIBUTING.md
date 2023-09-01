@@ -21,7 +21,7 @@ All major changes to OpenTF Core go through the public RFC process, including th
 
 ## Contributing a Code Change
 
-In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issues for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
+In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issue for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
 
 In order for a code change to be accepted, you'll also have to accept the Developer Certificate of Origin (DCO). It's very lightweight, and you can find it [here](https://developercertificate.org). Accepting is accomplished by signing off on your commits, you can do this by adding a `Signed-off-by` line to your commit message, like here:
 ```
@@ -29,7 +29,7 @@ This is my commit message
 
 Signed-off-by: Random Developer <random@developer.example.org>
 ```
-Git has a built-in parameter to append this automatically
+Git has a built-in flag to append this line automatically:
 ```
 ~> git commit -s -m 'This is my commit message'
 ```
