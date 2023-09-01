@@ -1,6 +1,6 @@
 # Contributing to OpenTF
 
-This repository contains OpenTF Core, which includes the command line interface and the main graph engine
+This repository contains OpenTF Core, which includes the command line interface, the main graph engine, and the documentation for them.
 
 This document provides guidance on OpenTF contribution recommended practices. It covers how to submit issues, how to get involved in the discussion, how to work on the code, and how to contribute code changes.
 
