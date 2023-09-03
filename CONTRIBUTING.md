@@ -1,42 +1,44 @@
 # Contributing to OpenTF
 
-This repository contains OpenTF core, which includes the command line interface and the main graph engine
+This repository contains OpenTF Core, which includes the command line interface, the main graph engine, and the documentation for them.
 
-This document provides guidance on OpenTF contribution recommended practices. It covers what we're looking for in order to help set some expectations and help you get the most out of participation in this project.
+This document provides guidance on OpenTF contribution recommended practices. It covers how to submit issues, how to get involved in the discussion, how to work on the code, and how to contribute code changes.
 
-To record a bug report, enhancement proposal, or give any other product feedback, please [open a GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) using the most appropriate issue template
+The easiest way to contribute is by [opening an issue](https://github.com/opentffoundation/opentf/issues/new/choose)! Bug reports, broken compatibility reports, feature requests, old issue reposts, and well-prepared RFCs are all very welcome.
 
-The contribution guideline will change in the near future, as the management of the open-source project is stabilized
+All major changes to OpenTF Core go through the public RFC process, including those proposed by the core team. Thus, if you'd like to propose such a change, please prepare an RFC, so that the community can discuss the change and everybody has a chance to voice their opinion. You're also welcome to voice your own opinion on existing RFCs! You can find them by [going to the issues view and filtering by the rfc label](https://github.com/opentffoundation/opentf/issues?q=is%3Aopen+is%3Aissue+label%3Arfc).
+
+Generally, we appreciate external contributions very much and would love to work with you on them. **However, please make sure to read the [Contributing a Code Change](#contributing-a-code-change) section prior to making a contribution.**
 
 ---
 
 <!-- MarkdownTOC autolink="true" -->
 
-- [Proposing a Change](#proposing-a-change)
-- [PR Checks](#pr-checks)
-- [OpenTF CLI/Core Development Environment](#opentf-clicore-development-environment)
+- [Contributing a Code Change](#contributing-a-code-change)
+- [Working on the Code](#working-on-the-code)
 - [Acceptance Tests: Testing interactions with external services](#acceptance-tests-testing-interactions-with-external-services)
 - [Generated Code](#generated-code)
 
 <!-- /MarkdownTOC -->
 
-## Proposing a Change
+## Contributing a Code Change
 
-In order to be respectful of the time of community contributors, we aim to discuss potential changes in GitHub issues prior to implementation. That will allow us to give design feedback up front and set expectations about the scope of the change, and, for larger changes, how best to approach the work such that the OpenTF team can review it and merge it along with other concurrent work.
+In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issue for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
 
-If the bug you wish to fix or enhancement you wish to implement isn't already covered by a GitHub issue, please do start a discussion (either in [a new GitHub issue](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose) or an existing one, as appropriate) before you invest significant development time.
+In order for a code change to be accepted, you'll also have to accept the Developer Certificate of Origin (DCO). It's very lightweight, and you can find it [here](https://developercertificate.org). Accepting is accomplished by signing off on your commits, you can do this by adding a `Signed-off-by` line to your commit message, like here:
+```
+This is my commit message
 
-### PR Checks
+Signed-off-by: Random Developer <random@developer.example.org>
+```
+Git has a built-in flag to append this line automatically:
+```
+~> git commit -s -m 'This is my commit message'
+```
 
-Test checks run when a PR is opened. Tests include unit tests and acceptance tests, and all tests must pass before a PR can be merged
+You can find more details about the DCO checker in the [DCO app repo](https://github.com/dcoapp/app).
 
-----
-
-## OpenTF CLI/Core Development Environment
-
-This repository contains the source code for OpenTF CLI, which is the main component of OpenTF that contains the core OpenTF engine.
-
----
+## Working on the Code
 
 If you wish to work on the OpenTF CLI source code, you'll first need to install the [Go](https://golang.org/) compiler and the version control system [Git](https://git-scm.com/).
 

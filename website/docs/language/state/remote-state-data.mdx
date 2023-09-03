@@ -1,18 +1,18 @@
 ---
 page_title: The terraform_remote_state Data Source
 description: >-
-  Retrieves the root module output values from a Terraform state snapshot stored
+  Retrieves the root module output values from an OpenTF state snapshot stored
   in a remote backend.
 ---
 
 # The `terraform_remote_state` Data Source
 
-[backends]: /terraform/language/settings/backends/configuration
+[backends]: /opentf/language/settings/backends/configuration
 
 The `terraform_remote_state` data source uses the latest state snapshot from a specified state backend to retrieve the root module output values
-from some other Terraform configuration.
+from some other OpenTF configuration.
 
-You can use the `terraform_remote_state` data source without requiring or configuring a provider. It is always available through a built-in provider with the [source address](/terraform/language/providers/requirements#source-addresses) `terraform.io/builtin/terraform`. That provider does not include any other resources or data sources.
+You can use the `terraform_remote_state` data source without requiring or configuring a provider. It is always available through a built-in provider with the [source address](/opentf/language/providers/requirements#source-addresses) `terraform.io/builtin/terraform`. That provider does not include any other resources or data sources.
 
 ## Alternative Ways to Share Data Between Configurations
 
@@ -44,16 +44,16 @@ limited to) the following:
 | Kubernetes                                                             | [`kubernetes_config_map` resource type](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/config_map)                           | [`kubernetes_config_map` data source](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/data-sources/config_map)                                                                                                                              |
 | OCI Object Storage                                                     | [`oci_objectstorage_bucket` resource type](https://registry.terraform.io/providers/hashicorp/oci/latest/docs/resources/objectstorage_object)                     | [`oci_objectstorage_bucket` data source](https://registry.terraform.io/providers/hashicorp/oci/latest/docs/data-sources/objectstorage_object)                                                                                                                        |
 
--> These are some common options from the Official Terraform providers, but
+-> These are some common options from the Official OpenTF providers, but
 there are too many configuration storage options for us to list them all
 here, including some in partner and community providers.
 Any pair of managed resource type and corresponding data source can potentially
-be used to share data between Terraform configurations. See individual provider
+be used to share data between OpenTF configurations. See individual provider
 documentation to find other possibilities.
 
 A key advantage of using a separate explicit configuration store instead of
 `terraform_remote_state` is that the data can potentially also be read by
-systems other than Terraform, such as configuration management or scheduler
+systems other than OpenTF, such as configuration management or scheduler
 systems within your compute instances. For that reason, we recommend selecting
 a configuration store that your other infrastructure could potentially make
 use of. For example:
@@ -74,18 +74,18 @@ use of. For example:
 Some of the data stores listed above are specifically designed for storing
 small configuration values, while others are generic blob storage systems. For
 those generic systems, you can use
-[the `jsonencode` function](/terraform/language/functions/jsonencode)
+[the `jsonencode` function](/opentf/language/functions/jsonencode)
 and
-[the `jsondecode` function](/terraform/language/functions/jsondecode) respectively
+[the `jsondecode` function](/opentf/language/functions/jsondecode) respectively
 to store and retrieve structured data.
 
 You can encapsulate the implementation details of retrieving your published
 configuration data by writing a
-[data-only module](/terraform/language/modules/develop/composition#data-only-modules)
+[data-only module](/opentf/language/modules/develop/composition#data-only-modules)
 containing the necessary data source configuration and any necessary
 post-processing such as JSON decoding. You can then change that module later
 if you switch to a different strategy for sharing data between multiple
-Terraform configurations.
+OpenTF configurations.
 
 ## Example Usage (`remote` Backend)
 
@@ -101,16 +101,9 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
-# Terraform >= 0.12
 resource "aws_instance" "foo" {
   # ...
   subnet_id = data.terraform_remote_state.vpc.outputs.subnet_id
-}
-
-# Terraform <= 0.11
-resource "aws_instance" "foo" {
-  # ...
-  subnet_id = "${data.terraform_remote_state.vpc.subnet_id}"
 }
 ```
 
@@ -125,16 +118,9 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
-# Terraform >= 0.12
 resource "aws_instance" "foo" {
   # ...
   subnet_id = data.terraform_remote_state.vpc.outputs.subnet_id
-}
-
-# Terraform <= 0.11
-resource "aws_instance" "foo" {
-  # ...
-  subnet_id = "${data.terraform_remote_state.vpc.subnet_id}"
 }
 ```
 
@@ -143,7 +129,7 @@ resource "aws_instance" "foo" {
 The following arguments are supported:
 
 * `backend` - (Required) The remote backend to use.
-* `workspace` - (Optional) The Terraform workspace to use, if the backend
+* `workspace` - (Optional) The OpenTF workspace to use, if the backend
   supports workspaces.
 * `config` - (Optional; object) The configuration of the remote backend.
   Although this argument is listed as optional, most backends require
@@ -151,7 +137,7 @@ The following arguments are supported:
 
   The `config` object can use any arguments that would be valid in the
   equivalent `terraform { backend "<TYPE>" { ... } }` block. See
-  [the documentation of your chosen backend](/terraform/language/settings/backends/configuration)
+  [the documentation of your chosen backend](/opentf/language/settings/backends/configuration)
   for details.
 
   -> **Note:** If the backend configuration requires a nested block, specify
@@ -164,10 +150,8 @@ The following arguments are supported:
 
 In addition to the above, the following attributes are exported:
 
-* (v0.12+) `outputs` - An object containing every root-level
-  [output](/terraform/language/values/outputs) in the remote state.
-* (<= v0.11) `<OUTPUT NAME>` - Each root-level [output](/terraform/language/values/outputs)
-  in the remote state appears as a top level attribute on the data source.
+* `outputs` - An object containing every root-level
+  [output](/opentf/language/values/outputs) in the remote state.
 
 ## Root Outputs Only
 
@@ -187,7 +171,6 @@ module "app" {
 }
 
 output "app_value" {
-  # This syntax is for Terraform 0.12 or later.
   value = module.app.example
 }
 ```

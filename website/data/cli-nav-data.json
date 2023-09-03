@@ -1,137 +1,129 @@
 [
   { "heading": "OpenTF CLI" },
-  { "title": "Overview", "path": "" },
-  { "title": "Basic CLI Features", "href": "/cli/commands" },
+  { "title": "Overview", "path": "cli/index" },
+  { "title": "Basic CLI Features", "path": "cli/commands/index" },
   {
     "title": "Initializing Working Directories",
     "routes": [
-      { "title": "Overview", "path": "init" },
-      { "title": "<code>init</code>", "href": "/cli/commands/init" },
-      { "title": "<code>get</code>", "href": "/cli/commands/get" }
+      { "title": "Overview", "path": "cli/init/index" },
+      { "title": "<code>init</code>", "path": "cli/commands/init" },
+      { "title": "<code>get</code>", "path": "cli/commands/get" }
     ]
   },
   {
     "title": "Provisioning Infrastructure",
     "routes": [
-      { "title": "Overview", "path": "run" },
-      { "title": "<code>plan</code>", "href": "/cli/commands/plan" },
-      { "title": "<code>apply</code>", "href": "/cli/commands/apply" },
-      { "title": "<code>destroy</code>", "href": "/cli/commands/destroy" }
+      { "title": "Overview", "path": "cli/run/index" },
+      { "title": "<code>plan</code>", "path": "cli/commands/plan" },
+      { "title": "<code>apply</code>", "path": "cli/commands/apply" },
+      { "title": "<code>destroy</code>", "path": "cli/commands/destroy" }
     ]
   },
   {
     "title": "Authenticating",
     "routes": [
-      { "title": "Overview", "path": "auth" },
-      { "title": "<code>login</code>", "href": "/cli/commands/login" },
-      { "title": "<code>logout</code>", "href": "/cli/commands/logout" }
+      { "title": "Overview", "path": "cli/auth/index" },
+      { "title": "<code>login</code>", "path": "cli/commands/login" },
+      { "title": "<code>logout</code>", "path": "cli/commands/logout" }
     ]
   },
   {
     "title": "Writing and Modifying Code",
     "routes": [
-      { "title": "Overview", "path": "code" },
-      { "title": "<code>console</code>", "href": "/cli/commands/console" },
-      { "title": "<code>fmt</code>", "href": "/cli/commands/fmt" },
-      { "title": "<code>validate</code>", "href": "/cli/commands/validate" },
-      {
-        "title": "<code>0.13upgrade</code>",
-        "href": "/cli/commands/0.13upgrade"
-      },
-      {
-        "title": "<code>0.12upgrade</code>",
-        "href": "/cli/commands/0.12upgrade"
-      }
+      { "title": "Overview", "path": "cli/code/index" },
+      { "title": "<code>console</code>", "path": "cli/commands/console" },
+      { "title": "<code>fmt</code>", "path": "cli/commands/fmt" },
+      { "title": "<code>validate</code>", "path": "cli/commands/validate" }
     ]
   },
   {
     "title": "Inspecting Infrastructure",
     "routes": [
-      { "title": "Overview", "path": "inspect" },
-      { "title": "<code>graph</code>", "href": "/cli/commands/graph" },
-      { "title": "<code>output</code>", "href": "/cli/commands/output" },
-      { "title": "<code>show</code>", "href": "/cli/commands/show" },
+      { "title": "Overview", "path": "cli/inspect/index" },
+      { "title": "<code>graph</code>", "path": "cli/commands/graph" },
+      { "title": "<code>output</code>", "path": "cli/commands/output" },
+      { "title": "<code>show</code>", "path": "cli/commands/show" },
       {
         "title": "<code>state list</code>",
-        "href": "/cli/commands/state/list"
+        "path": "cli/commands/state/list"
       },
       {
         "title": "<code>state show</code>",
-        "href": "/cli/commands/state/show"
+        "path": "cli/commands/state/show"
       }
     ]
   },
   {
     "title": "Importing Infrastructure",
     "routes": [
-      { "title": "Overview", "path": "import" },
+      { "title": "Overview", "path": "cli/import/index" },
       {
         "title": "<code>import</code>",
-        "href": "/cli/commands/import"
+        "path": "cli/commands/import"
       },
-      { "title": "Usage Tips", "path": "import/usage" },
+      { "title": "Usage Tips", "path": "cli/import/usage" },
       {
         "title": "Resource Importability",
-        "path": "import/importability"
+        "path": "cli/import/importability"
       }
     ]
   },
   {
     "title": "Manipulating State",
     "routes": [
-      { "title": "Overview", "path": "state" },
+      { "title": "Overview", "path": "cli/state/index" },
       {
         "title": "Resource Addressing",
-        "path": "state/resource-addressing"
+        "path": "cli/state/resource-addressing"
       },
-      { "title": "<code>state</code>", "href": "/cli/commands/state" },
+      { "title": "<code>state</code>", "path": "cli/commands/state/index" },
       {
         "title": "Inspecting State",
         "routes": [
-          { "title": "Overview", "path": "state/inspect" },
+          { "title": "Overview", "path": "cli/state/inspect" },
           {
             "title": "<code>state list</code>",
-            "href": "/cli/commands/state/list"
+            "path": "cli/commands/state/list"
           },
           {
             "title": "<code>state show</code>",
-            "href": "/cli/commands/state/show"
+            "path": "cli/commands/state/show"
           },
           {
             "title": "<code>refresh</code>",
-            "href": "/cli/commands/refresh"
+            "path": "cli/commands/refresh"
           }
         ]
       },
       {
         "title": "Forcing Re-creation (Tainting)",
         "routes": [
-          { "title": "Overview", "path": "state/taint" },
+          { "title": "Overview", "path": "cli/state/taint" },
           {
             "title": "<code>taint</code>",
-            "href": "/cli/commands/taint"
+            "path": "cli/commands/taint"
           },
           {
             "title": "<code>untaint</code>",
-            "href": "/cli/commands/untaint"
+            "path": "cli/commands/untaint"
           }
         ]
       },
       {
         "title": "Moving Resources",
         "routes": [
-          { "title": "Overview", "path": "state/move" },
+          { "title": "Overview", "path": "cli/state/move" },
           {
             "title": "<code>state mv</code>",
-            "href": "/cli/commands/state/mv"
+            "path": "cli/commands/state/mv"
           },
           {
             "title": "<code>state rm</code>",
-            "href": "/cli/commands/state/rm"
+            "path": "cli/commands/state/rm"
           },
           {
             "title": "<code>state replace-provider</code>",
-            "href": "/cli/commands/state/replace-provider"
+            "path": "cli/commands/state/replace-provider"
           }
         ]
       },
@@ -140,19 +132,19 @@
         "routes": [
           {
             "title": "Overview",
-            "path": "state/recover"
+            "path": "cli/state/recover"
           },
           {
             "title": "<code>state pull</code>",
-            "href": "/cli/commands/state/pull"
+            "path": "cli/commands/state/pull"
           },
           {
             "title": "<code>state push</code>",
-            "href": "/cli/commands/state/push"
+            "path": "cli/commands/state/push"
           },
           {
             "title": "<code>force-unlock</code>",
-            "href": "/cli/commands/force-unlock"
+            "path": "cli/commands/force-unlock"
           }
         ]
       }
@@ -161,30 +153,30 @@
   {
     "title": "Managing Workspaces",
     "routes": [
-      { "title": "Overview", "path": "workspaces" },
+      { "title": "Overview", "path": "cli/workspaces/index" },
       {
         "title": "<code>workspace</code>",
         "routes": [
-          { "title": "Overview", "href": "/cli/commands/workspace" },
+          { "title": "Overview", "path": "cli/commands/workspace/index" },
           {
             "title": "<code>workspace list</code>",
-            "href": "/cli/commands/workspace/list"
+            "path": "cli/commands/workspace/list"
           },
           {
             "title": "<code>workspace select</code>",
-            "href": "/cli/commands/workspace/select"
+            "path": "cli/commands/workspace/select"
           },
           {
             "title": "<code>workspace new</code>",
-            "href": "/cli/commands/workspace/new"
+            "path": "cli/commands/workspace/new"
           },
           {
             "title": "<code>workspace delete</code>",
-            "href": "/cli/commands/workspace/delete"
+            "path": "cli/commands/workspace/delete"
           },
           {
             "title": "<code>workspace show</code>",
-            "href": "/cli/commands/workspace/show"
+            "path": "cli/commands/workspace/show"
           }
         ]
       }
@@ -193,155 +185,146 @@
   {
     "title": "Managing Plugins",
     "routes": [
-      { "title": "Overview", "path": "plugins" },
-      { "title": "Plugin Signing", "path": "plugins/signing" },
+      { "title": "Overview", "path": "cli/plugins/index" },
+      { "title": "Plugin Signing", "path": "cli/plugins/signing" },
       {
         "title": "<code>providers</code>",
-        "href": "/cli/commands/providers"
+        "path": "cli/commands/providers"
       },
       {
         "title": "<code>version</code>",
-        "href": "/cli/commands/version"
+        "path": "cli/commands/version"
       },
       {
         "title": "<code>providers lock</code>",
-        "href": "/cli/commands/providers/lock"
+        "path": "cli/commands/providers/lock"
       },
       {
         "title": "<code>providers mirror</code>",
-        "href": "/cli/commands/providers/mirror"
+        "path": "cli/commands/providers/mirror"
       },
       {
         "title": "<code>providers schema</code>",
-        "href": "/cli/commands/providers/schema"
+        "path": "cli/commands/providers/schema"
       }
     ]
   },
   {
     "title": "CLI Configuration",
     "routes": [
-      { "title": "Overview", "path": "config" },
-      { "title": "CLI Configuration", "path": "config/config-file" },
+      { "title": "Overview", "path": "cli/config/index" },
+      { "title": "CLI Configuration", "path": "cli/config/config-file" },
       {
         "title": "Environment Variables",
-        "path": "config/environment-variables"
+        "path": "cli/config/environment-variables"
       }
     ]
   },
   {
     "title": "Using Cloud Backend",
     "routes": [
-      { "title": "Overview", "path": "cloud" },
-      { "title": "Cloud Backend Settings", "path": "cloud/settings" },
+      { "title": "Overview", "path": "cli/cloud/index" },
+      { "title": "Cloud Backend Settings", "path": "cli/cloud/settings" },
       {
         "title": "Initializing and Migrating",
-        "path": "cloud/migrating"
+        "path": "cli/cloud/migrating"
       },
       {
         "title": "Command Line Arguments",
-        "path": "cloud/command-line-arguments"
+        "path": "cli/cloud/command-line-arguments"
       }
     ]
   },
   {
     "title": "Alphabetical List of Commands",
     "routes": [
-      { "title": "Overview", "href": "/cli/commands" },
-      { "title": "<code>apply</code>", "href": "/cli/commands/apply" },
-      { "title": "<code>console</code>", "href": "/cli/commands/console" },
-      { "title": "<code>destroy</code>", "href": "/cli/commands/destroy" },
-      { "title": "<code>env</code>", "href": "/cli/commands/env" },
-      { "title": "<code>fmt</code>", "href": "/cli/commands/fmt" },
+      { "title": "Overview", "path": "cli/commands/index" },
+      { "title": "<code>apply</code>", "path": "cli/commands/apply" },
+      { "title": "<code>console</code>", "path": "cli/commands/console" },
+      { "title": "<code>destroy</code>", "path": "cli/commands/destroy" },
+      { "title": "<code>env</code>", "path": "cli/commands/env" },
+      { "title": "<code>fmt</code>", "path": "cli/commands/fmt" },
       {
         "title": "<code>force-unlock</code>",
-        "href": "/cli/commands/force-unlock"
+        "path": "cli/commands/force-unlock"
       },
-      { "title": "<code>get</code>", "href": "/cli/commands/get" },
-      { "title": "<code>graph</code>", "href": "/cli/commands/graph" },
-      { "title": "<code>import</code>", "href": "/cli/commands/import" },
-      { "title": "<code>init</code>", "href": "/cli/commands/init" },
-      { "title": "<code>login</code>", "href": "/cli/commands/login" },
-      { "title": "<code>logout</code>", "href": "/cli/commands/logout" },
-      { "title": "<code>output</code>", "href": "/cli/commands/output" },
-      { "title": "<code>plan</code>", "href": "/cli/commands/plan" },
-      { "title": "<code>providers</code>", "href": "/cli/commands/providers" },
+      { "title": "<code>get</code>", "path": "cli/commands/get" },
+      { "title": "<code>graph</code>", "path": "cli/commands/graph" },
+      { "title": "<code>import</code>", "path": "cli/commands/import" },
+      { "title": "<code>init</code>", "path": "cli/commands/init" },
+      { "title": "<code>login</code>", "path": "cli/commands/login" },
+      { "title": "<code>logout</code>", "path": "cli/commands/logout" },
+      { "title": "<code>output</code>", "path": "cli/commands/output" },
+      { "title": "<code>plan</code>", "path": "cli/commands/plan" },
+      { "title": "<code>providers</code>", "path": "cli/commands/providers" },
       {
         "title": "<code>providers lock</code>",
-        "href": "/cli/commands/providers/lock"
+        "path": "cli/commands/providers/lock"
       },
       {
         "title": "<code>providers mirror</code>",
-        "href": "/cli/commands/providers/mirror"
+        "path": "cli/commands/providers/mirror"
       },
       {
         "title": "<code>providers schema</code>",
-        "href": "/cli/commands/providers/schema"
+        "path": "cli/commands/providers/schema"
       },
-      {
-        "title": "<code>push (deprecated)</code>",
-        "href": "/cli/commands/push"
-      },
-      { "title": "<code>refresh</code>", "href": "/cli/commands/refresh" },
-      { "title": "<code>show</code>", "href": "/cli/commands/show" },
-      { "title": "<code>state</code>", "href": "/cli/commands/state" },
+      { "title": "<code>refresh</code>", "path": "cli/commands/refresh" },
+      { "title": "<code>show</code>", "path": "cli/commands/show" },
+      { "title": "<code>state</code>", "path": "cli/commands/state/index" },
       {
         "title": "<code>state list</code>",
-        "href": "/cli/commands/state/list"
+        "path": "cli/commands/state/list"
       },
-      { "title": "<code>state mv</code>", "href": "/cli/commands/state/mv" },
+      { "title": "<code>state mv</code>", "path": "cli/commands/state/mv" },
       {
         "title": "<code>state pull</code>",
-        "href": "/cli/commands/state/pull"
+        "path": "cli/commands/state/pull"
       },
       {
         "title": "<code>state push</code>",
-        "href": "/cli/commands/state/push"
+        "path": "cli/commands/state/push"
       },
       {
         "title": "<code>state replace-provider</code>",
-        "href": "/cli/commands/state/replace-provider"
+        "path": "cli/commands/state/replace-provider"
       },
-      { "title": "<code>state rm</code>", "href": "/cli/commands/state/rm" },
+      { "title": "<code>state rm</code>", "path": "cli/commands/state/rm" },
       {
         "title": "<code>state show</code>",
-        "href": "/cli/commands/state/show"
+        "path": "cli/commands/state/show"
       },
-      { "title": "<code>taint</code>", "href": "/cli/commands/taint" },
+      { "title": "<code>taint</code>", "path": "cli/commands/taint" },
       {
         "title": "<code>test (deprecated)</code>",
-        "href": "/cli/commands/test"
+        "path": "cli/commands/test"
       },
-      { "title": "<code>untaint</code>", "href": "/cli/commands/untaint" },
-      { "title": "<code>validate</code>", "href": "/cli/commands/validate" },
-      { "title": "<code>version</code>", "href": "/cli/commands/version" },
-      { "title": "<code>workspace</code>", "href": "/cli/commands/workspace" },
+      { "title": "<code>untaint</code>", "path": "cli/commands/untaint" },
+      { "title": "<code>validate</code>", "path": "cli/commands/validate" },
+      { "title": "<code>version</code>", "path": "cli/commands/version" },
+      {
+        "title": "<code>workspace</code>",
+        "path": "cli/commands/workspace/index"
+      },
       {
         "title": "<code>workspace list</code>",
-        "href": "/cli/commands/workspace/list"
+        "path": "cli/commands/workspace/list"
       },
       {
         "title": "<code>workspace select</code>",
-        "href": "/cli/commands/workspace/select"
+        "path": "cli/commands/workspace/select"
       },
       {
         "title": "<code>workspace new</code>",
-        "href": "/cli/commands/workspace/new"
+        "path": "cli/commands/workspace/new"
       },
       {
         "title": "<code>workspace delete</code>",
-        "href": "/cli/commands/workspace/delete"
+        "path": "cli/commands/workspace/delete"
       },
       {
         "title": "<code>workspace show</code>",
-        "href": "/cli/commands/workspace/show"
-      },
-      {
-        "title": "<code>0.12upgrade</code>",
-        "href": "/cli/commands/0.12upgrade"
-      },
-      {
-        "title": "<code>0.13upgrade</code>",
-        "href": "/cli/commands/0.13upgrade"
+        "path": "cli/commands/workspace/show"
       }
     ]
   },
@@ -349,70 +332,83 @@
     "title": "Alphabetical list of commands",
     "hidden": true,
     "routes": [
-      { "title": "Overview", "path": "commands" },
-      { "title": "apply", "path": "commands/apply" },
-      { "title": "console", "path": "commands/console" },
-      { "title": "destroy", "path": "commands/destroy" },
-      { "title": "env", "path": "commands/env" },
-      { "title": "fmt", "path": "commands/fmt" },
-      { "title": "force-unlock", "path": "commands/force-unlock" },
-      { "title": "get", "path": "commands/get" },
-      { "title": "graph", "path": "commands/graph" },
-      { "title": "import", "path": "commands/import" },
-      { "title": "init", "path": "commands/init" },
-      { "title": "login", "path": "commands/login" },
-      { "title": "logout", "path": "commands/logout" },
-      { "title": "output", "path": "commands/output" },
-      { "title": "plan", "path": "commands/plan" },
+      { "title": "Overview", "path": "cli/commands/index" },
+      { "title": "apply", "path": "cli/commands/apply" },
+      { "title": "console", "path": "cli/commands/console" },
+      { "title": "destroy", "path": "cli/commands/destroy" },
+      { "title": "env", "path": "cli/commands/env" },
+      { "title": "fmt", "path": "cli/commands/fmt" },
+      { "title": "force-unlock", "path": "cli/commands/force-unlock" },
+      { "title": "get", "path": "cli/commands/get" },
+      { "title": "graph", "path": "cli/commands/graph" },
+      { "title": "import", "path": "cli/commands/import" },
+      { "title": "init", "path": "cli/commands/init" },
+      { "title": "login", "path": "cli/commands/login" },
+      { "title": "logout", "path": "cli/commands/logout" },
+      { "title": "output", "path": "cli/commands/output" },
+      { "title": "plan", "path": "cli/commands/plan" },
       {
         "title": "providers",
         "routes": [
-          { "title": "providers", "path": "commands/providers" },
-          { "title": "providers lock", "path": "commands/providers/lock" },
-          { "title": "providers mirror", "path": "commands/providers/mirror" },
-          { "title": "providers schema", "path": "commands/providers/schema" }
+          { "title": "providers", "path": "cli/commands/providers" },
+          { "title": "providers lock", "path": "cli/commands/providers/lock" },
+          {
+            "title": "providers mirror",
+            "path": "cli/commands/providers/mirror"
+          },
+          {
+            "title": "providers schema",
+            "path": "cli/commands/providers/schema"
+          }
         ]
       },
-      { "title": "push (deprecated)", "path": "commands/push" },
-      { "title": "refresh", "path": "commands/refresh" },
-      { "title": "show", "path": "commands/show" },
+      { "title": "refresh", "path": "cli/commands/refresh" },
+      { "title": "show", "path": "cli/commands/show" },
       {
         "title": "state",
         "routes": [
-          { "title": "state", "path": "commands/state" },
-          { "title": "state list", "path": "commands/state/list" },
-          { "title": "state mv", "path": "commands/state/mv" },
-          { "title": "state pull", "path": "commands/state/pull" },
-          { "title": "state push", "path": "commands/state/push" },
+          { "title": "state", "path": "cli/commands/state" },
+          { "title": "state list", "path": "cli/commands/state/list" },
+          { "title": "state mv", "path": "cli/commands/state/mv" },
+          { "title": "state pull", "path": "cli/commands/state/pull" },
+          { "title": "state push", "path": "cli/commands/state/push" },
           {
             "title": "state replace-provider",
-            "path": "commands/state/replace-provider"
+            "path": "cli/commands/state/replace-provider"
           },
-          { "title": "state rm", "path": "commands/state/rm" },
-          { "title": "state show", "path": "commands/state/show" }
+          { "title": "state rm", "path": "cli/commands/state/rm" },
+          { "title": "state show", "path": "cli/commands/state/show" }
         ]
       },
-      { "title": "taint", "path": "commands/taint" },
-      { "title": "test (deprecated)", "path": "commands/test", "hidden": true },
-      { "title": "untaint", "path": "commands/untaint" },
-      { "title": "validate", "path": "commands/validate" },
-      { "title": "version", "path": "commands/version" },
+      { "title": "taint", "path": "cli/commands/taint" },
+      {
+        "title": "test (deprecated)",
+        "path": "cli/commands/test",
+        "hidden": true
+      },
+      { "title": "untaint", "path": "cli/commands/untaint" },
+      { "title": "validate", "path": "cli/commands/validate" },
+      { "title": "version", "path": "cli/commands/version" },
       {
         "title": "workspace",
         "routes": [
           {
             "title": "workspace",
-            "path": "commands/workspace"
+            "path": "cli/commands/workspace"
           },
-          { "title": "workspace list", "path": "commands/workspace/list" },
-          { "title": "workspace select", "path": "commands/workspace/select" },
-          { "title": "workspace new", "path": "commands/workspace/new" },
-          { "title": "workspace delete", "path": "commands/workspace/delete" },
-          { "title": "workspace show", "path": "commands/workspace/show" }
+          { "title": "workspace list", "path": "cli/commands/workspace/list" },
+          {
+            "title": "workspace select",
+            "path": "cli/commands/workspace/select"
+          },
+          { "title": "workspace new", "path": "cli/commands/workspace/new" },
+          {
+            "title": "workspace delete",
+            "path": "cli/commands/workspace/delete"
+          },
+          { "title": "workspace show", "path": "cli/commands/workspace/show" }
         ]
-      },
-      { "title": "0.12upgrade", "path": "commands/0.12upgrade" },
-      { "title": "0.13upgrade", "path": "commands/0.13upgrade" }
+      }
     ]
   },
   {
@@ -421,14 +417,12 @@
     "routes": [
       {
         "title": "APT Packages for Debian and Ubuntu",
-        "path": "install/apt"
+        "path": "cli/install/apt"
       },
       {
         "title": "Yum Packages for Red Hat Enterprise Linux, Fedora, and Amazon Linux",
-        "path": "install/yum"
+        "path": "cli/install/yum"
       }
     ]
-  },
-  { "divider": true },
-  { "title": "OpenTF Internals", "href": "/internals" }
+  }
 ]

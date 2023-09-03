@@ -107,7 +107,7 @@ For example, local-only data sources exist for
 [rendering AWS IAM policies](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document).
 
 The behavior of local-only data sources is the same as all other data
-sources, but their result data exists only temporarily during a OpenTF
+sources, but their result data exists only temporarily during an OpenTF
 operation, and is re-calculated each time a new plan is created.
 
 ## Data Resource Dependencies
@@ -199,7 +199,7 @@ and name must be unique.
 Within the block (the `{ }`) is configuration for the data instance. The
 configuration is dependent on the type; as with
 [resources](/opentf/language/resources), each provider on the
-[Provider Registry](https://registry.terraform.io/browse/providers) has its own
+[Public Terraform Registry](https://registry.terraform.io/browse/providers) has its own
 documentation for configuring and using the data types it provides.
 
 Each data instance will export one or more attributes, which can be

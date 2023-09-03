@@ -131,7 +131,7 @@ The following values are available:
   advanced cases where OpenTF is run from a directory other than the root module
   directory. We recommend using `path.root` or `path.module` over `path.cwd` where
   possible.
-- `opentf.workspace` is the name of the currently selected
+- `terraform.workspace` is the name of the currently selected
   [workspace](/opentf/language/state/workspaces).
 
 Use the values in this section carefully, because they include information
@@ -145,7 +145,7 @@ the provider to consider the change of path to be a change to be applied, even
 if the path still refers to the same file.
 
 Similarly, if you use any of these values as a form of namespacing in a shared
-module, such as using `opentf.workspace` as a prefix for globally-unique
+module, such as using `terraform.workspace` as a prefix for globally-unique
 object names, it may not be possible to call your module more than once in
 the same configuration.
 
@@ -153,14 +153,14 @@ Aside from `path.module`, we recommend using the values in this section only
 in the root module of your configuration. If you are writing a shared module
 which needs a prefix to help create unique names, define an input variable
 for your module and allow the calling module to define the prefix. The
-calling module can then use `opentf.workspace` to define it if appropriate,
+calling module can then use `terraform.workspace` to define it if appropriate,
 or some other value if not:
 
 ```hcl
 module "example" {
   # ...
 
-  name_prefix = "app-${opentf.workspace}"
+  name_prefix = "app-${terraform.workspace}"
 }
 ```
 
