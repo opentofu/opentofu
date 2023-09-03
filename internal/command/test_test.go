@@ -191,7 +191,7 @@ func TestTest(t *testing.T) {
 		})
 	}
 }
-func TestTest_Broken_Full_Output(t *testing.T) {
+func TestTest_Full_Output(t *testing.T) {
 	tcs := map[string]struct {
 		override string
 		args     []string
@@ -222,6 +222,11 @@ func TestTest_Broken_Full_Output(t *testing.T) {
 		"broken_wrong_block_check": {
 			expected: "Blocks of type \"check\" are not expected here.",
 			code:     1,
+		},
+		"is_sorted": {
+			expected: "1.tftest.hcl... pass\n  run \"1\"... pass\n2.tftest.hcl... pass\n  run \"2\"... pass\n3.tftest.hcl... pass\n  run \"3\"... pass",
+			code:     0,
+			args:     []string{"-no-color"},
 		},
 	}
 	for name, tc := range tcs {
@@ -257,7 +262,7 @@ func TestTest_Broken_Full_Output(t *testing.T) {
 			}
 
 			if !strings.Contains(output.All(), tc.expected) {
-				t.Errorf("output didn't contain expected string:\n\n%s", output.All())
+				t.Errorf("output didn't contain expected string:\n\n%s \n\n----\n\nexpected: %s", output.All(), tc.expected)
 			}
 
 			if provider.ResourceCount() > 0 {
