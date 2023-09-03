@@ -1001,6 +1001,7 @@ Success! 2 passed, 0 failed.
 func TestTest_PartialUpdates(t *testing.T) {
 	tcs := map[string]struct {
 		expectedOut  string
+		expectedErr  string
 		expectedCode int
 	}{
 		"partial_updates": {
@@ -1060,14 +1061,15 @@ Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
 or when OpenTF specifically suggests to use it as part of an error message.
 
+Failure! 0 passed, 1 failed.
+`,
+			expectedErr: `
 Error: Unknown condition run
 
   on main.tftest.hcl line 7, in run "partial":
    7:     condition = test_resource.bar.value == "bar"
 
 Condition expression could not be evaluated at this time.
-
-Failure! 0 passed, 1 failed.
 `,
 			expectedCode: 1,
 		},
@@ -1092,17 +1094,20 @@ Failure! 0 passed, 1 failed.
 			code := c.Run([]string{"-no-color"})
 			output := done(t)
 
-			expectedOut := tc.expectedOut
+			actualOut, expectedOut := output.Stdout(), tc.expectedOut
+			actualErr, expectedErr := output.Stderr(), tc.expectedErr
 			expectedCode := tc.expectedCode
 
 			if code != expectedCode {
 				t.Errorf("expected status code %d but got %d", expectedCode, code)
 			}
 
-			actual := output.All()
+			if diff := cmp.Diff(actualOut, expectedOut); len(diff) > 0 {
+				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expectedOut, actualOut, diff)
+			}
 
-			if diff := cmp.Diff(actual, expectedOut); len(diff) > 0 {
-				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expectedOut, actual, diff)
+			if diff := cmp.Diff(actualErr, expectedErr); len(diff) > 0 {
+				t.Errorf("error didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expectedErr, actualErr, diff)
 			}
 
 			if provider.ResourceCount() > 0 {
