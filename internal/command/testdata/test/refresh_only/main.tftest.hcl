@@ -40,6 +40,3 @@ run "third" {
     error_message = "invalid value"
   }
 }
-
-
-
