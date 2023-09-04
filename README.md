@@ -1,6 +1,7 @@
 # OpenTF
 
 - Manifesto: https://opentf.org
+- [Join our Slack community!](https://join.slack.com/t/slack-9uv6202/shared_invite/zt-22ifsm1t2-AF6cL0cOdzivP8E~4deDJA)
 
 <img alt="OpenTF" src="https://raw.githubusercontent.com/opentffoundation/brand-artifacts/main/full/transparent/SVG/on-light.svg" width="600px">
 
