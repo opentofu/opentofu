@@ -10,6 +10,7 @@ import (
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
@@ -68,6 +69,64 @@ run "test_case" {
 							Block: &configschema.Block{
 								Attributes: map[string]*configschema.Attribute{
 									"value": {
+										Type:     cty.String,
+										Required: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedStatus: moduletest.Pass,
+		},
+		"basic_passing_with_sensitive_value": {
+			configs: map[string]string{
+				"main.tf": `
+resource "test_resource" "a" {
+	sensitive_value = "Shhhhh!"
+}
+`,
+				"main.tftest.hcl": `
+run "test_case" {
+	assert {
+		condition = test_resource.a.sensitive_value == "Shhhhh!"
+		error_message = "invalid value"
+	}
+}
+`,
+			},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_resource",
+						Name: "a",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+						AttrsJSON: encodeCtyValue(t, cty.ObjectVal(map[string]cty.Value{
+							"sensitive_value": cty.StringVal("Shhhhh!"),
+						})),
+						AttrSensitivePaths: []cty.PathValueMarks{
+							{
+								Path:  cty.GetAttrPath("sensitive_value"),
+								Marks: cty.NewValueMarks(marks.Sensitive),
+							},
+						},
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+			}),
+			provider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"test_resource": {
+							Block: &configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"sensitive_value": {
 										Type:     cty.String,
 										Required: true,
 									},
