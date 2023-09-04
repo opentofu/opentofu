@@ -7,12 +7,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for opening an RFC! RFCs are a highly-structured format for submitting change requests.
-        All major changes to OpenTF should first go through an RFC, to have a place for the community to discuss.
-        The template has a lot of fields and is inspired by the Rust RFC template.
-        Please take your time to fill it out carefully.
-        Working experimental PoCs in a draft Pull Request are a very welcome attachment to an RFC, especially
-        ones that are easy to check out and take for a spin.
+        Thank you for opening an RFC!
+        
+        RFCs are a highly-structured format for submitting change requests. All major changes to OpenTF should first go through an RFC, to have a place for the community to discuss.
+        
+        The template has a lot of fields and is inspired by the Rust RFC template. Please take your time to fill it out carefully.
+        
+        Working experimental PoCs in a draft Pull Request are a very welcome attachment to an RFC, especially ones that are easy to check out and take for a spin.
 
   - type: textarea
     id: summary
