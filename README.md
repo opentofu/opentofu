@@ -1,9 +1,10 @@
 # OpenTF
 
-- Website: https://www.opentf.org
-- Documentation: [https://www.opentf.org/docs/](https://www.opentf.org/docs/)
+- Manifesto: https://opentf.org
 
 <img alt="OpenTF" src="https://raw.githubusercontent.com/opentffoundation/brand-artifacts/main/full/transparent/SVG/on-light.svg" width="600px">
+
+**Important Note: This repository is currently a work in progress while we're preparing it for the first alpha release and fine-tuning the community contribution process. Please read the [contributing](CONTRIBUTING.md) docs before contributing. Additionally, please be mindful that building this repository in its current state and running it might put you in violation of the [Terraform Registry ToS](https://web.archive.org/web/https://registry.terraform.io/terms), if that's where you fetch your providers or modules from.**
 
 OpenTF is an OSS tool for building, changing, and versioning infrastructure safely and efficiently. OpenTF can manage existing and popular service providers as well as custom in-house solutions.
 
@@ -19,7 +20,7 @@ The key features of OpenTF are:
 
 ## Developing OpenTF
 
-This repository contains only OpenTF core, which includes the command line interface and the main graph engine.
+This repository contains OpenTF Core, which includes the command line interface and the main graph engine.
 
 - To learn more about compiling OpenTF and contributing suggested changes, refer to [the contributing guide](.github/CONTRIBUTING.md).
 
