@@ -25,7 +25,7 @@ shown below, and any additional information which may help replicate the issue.
 
 [1]: https://github.com/placeholderplaceholderplaceholder/opentf/issues
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!! TERRAFORM CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!! OPENTF CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 `
 
