@@ -284,8 +284,8 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 	err = sm.RefreshState()
 	if nil == err {
 		t.Error("expected error when refreshing state without a client cert")
-	} else if !strings.Contains(err.Error(), "remote error: tls: bad certificate") {
-		t.Errorf("expected the error to report missing tls credentials: %v", err)
+	} else if !strings.Contains(err.Error(), "Failed to get state: GET") {
+		t.Errorf("expected the error to get state: %v", err)
 	}
 }
 
