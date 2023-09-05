@@ -51,6 +51,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: v2.1.1
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -59,3 +64,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.gpg.outputs.fingerprint }}
+          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
+          COSIGN_PWD: ${{ secrets.COSIGN_PWD }}

@@ -167,6 +167,11 @@ signs:
   - artifacts: checksum
     args: [ "--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}" ]
 
+docker_signs:
+  - artifacts: all
+    args: ["sign", "--key=env://COSIGN_KEY", "${artifact}@${digest}", "--yes"]
+    stdin: "{{ .Env.COSIGN_PASSWORD }}"
+
 snapshot:
   name_template: "{{ .Version }}-next"
 
