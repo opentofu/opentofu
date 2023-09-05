@@ -12,21 +12,21 @@ OpenTF is an OSS tool for building, changing, and versioning infrastructure safe
 
 The key features of OpenTF are:
 
-- **Infrastructure as Code**: Infrastructure is described using a high-level configuration syntax. This allows a blueprint of your datacenter to be versioned and treated as you would any other code. Additionally, infrastructure can be shared and re-used.
+- **Infrastructure as Code**: Infrastructure is described using a high-level configuration syntax. This allows a blueprint of your data center to be versioned and treated as you would any other code. Additionally, infrastructure can be shared and re-used.
 
 - **Execution Plans**: OpenTF has a "planning" step where it generates an execution plan. The execution plan shows what OpenTF will do when you call apply. This lets you avoid any surprises when OpenTF manipulates infrastructure.
 
 - **Resource Graph**: OpenTF builds a graph of all your resources, and parallelizes the creation and modification of any non-dependent resources. Because of this, OpenTF builds infrastructure as efficiently as possible, and operators get insight into dependencies in their infrastructure.
 
-- **Change Automation**: Complex changesets can be applied to your infrastructure with minimal human interaction. With the previously mentioned execution plan and resource graph, you know exactly what OpenTF will change and in what order, avoiding many possible human errors.
+- **Change Automation**: Complex change sets can be applied to your infrastructure with minimal human interaction. With the previously mentioned execution plan and resource graph, you know exactly what OpenTF will change and in what order, avoiding many possible human errors.
 
 ## Developing OpenTF
 
 This repository contains OpenTF Core, which includes the command line interface and the main graph engine.
 
-- To learn more about compiling OpenTF and contributing suggested changes, refer to [the contributing guide](CONTRIBUTING.md).
+-  Refer to [the contributing guide](CONTRIBUTING.md), to learn more about compiling OpenTF and contributing suggested changes.
 
-- To submit bug reports or enhancement requests, refer to the [the contributing guide](CONTRIBUTING.md) as well.
+-  Refer to the [the contributing guide](CONTRIBUTING.md) as well to submit bug reports or enhancement requests.
 
 ## License
 
