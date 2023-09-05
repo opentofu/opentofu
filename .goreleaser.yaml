@@ -167,12 +167,12 @@ signs:
   - artifacts: checksum
     cmd: cosign
     args: ["sign-blob", "--key=env://COSIGN_KEY", "--output-signature=${signature}", "${artifact}", "--yes"]
-    stdin: "{{ .Env.COSIGN_PASSWORD }}"
+    stdin: "{{ .Env.COSIGN_PWD }}"
 
 docker_signs:
   - artifacts: all
     args: ["sign", "--key=env://COSIGN_KEY", "${artifact}@${digest}", "--yes"]
-    stdin: "{{ .Env.COSIGN_PASSWORD }}"
+    stdin: "{{ .Env.COSIGN_PWD }}"
 
 snapshot:
   name_template: "{{ .Version }}-next"
