@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/backend"
 )
 
 func TestBackend_impl(t *testing.T) {

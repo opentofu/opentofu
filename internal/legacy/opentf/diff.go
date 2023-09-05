@@ -15,9 +15,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/configs/configschema"
+	"github.com/opentffoundation/opentf/internal/configs/hcl2shim"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/mitchellh/copystructure"

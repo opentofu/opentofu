@@ -8,12 +8,12 @@ import (
 	"log"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/logging"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/addrs"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/dag"
 )
 
 // Graph represents the graph that Terraform uses to represent resources

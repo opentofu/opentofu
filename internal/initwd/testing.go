@@ -7,10 +7,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/configs/configload"
+	"github.com/opentffoundation/opentf/internal/registry"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // LoadConfigForTests is a convenience wrapper around configload.NewLoaderForTests,

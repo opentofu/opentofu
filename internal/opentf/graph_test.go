@@ -6,7 +6,7 @@ package opentf
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/dag"
 )
 
 // testGraphnotContains is an assertion helper that tests that a node is

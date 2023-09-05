@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/dag"
 )
 
 func TestGraphDot(t *testing.T) {

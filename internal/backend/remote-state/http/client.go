@@ -15,8 +15,8 @@ import (
 	"net/url"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/states/remote"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 )
 
 // httpClient is a remote client that stores data in Consul or HTTP REST.

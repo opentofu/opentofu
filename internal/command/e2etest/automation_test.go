@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/e2e"
+	"github.com/opentffoundation/opentf/internal/plans"
 )
 
 // The tests in this file run through different scenarios recommended in our
 // "Running Terraform in Automation" guide:
-//     https://www.placeholderplaceholderplaceholder.io/guides/running-terraform-in-automation.html
+//     https://opentf.org/guides/running-terraform-in-automation.html
 
 // TestPlanApplyInAutomation runs through the "main case" of init, plan, apply
 // using the specific command line options suggested in the guide.

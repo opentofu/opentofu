@@ -4,7 +4,7 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // This file contains some package-local helpers for working with diagnostics.

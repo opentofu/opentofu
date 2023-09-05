@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/discovery"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/plugin/discovery"
 )
 
 func TestModuleWalkTree(t *testing.T) {

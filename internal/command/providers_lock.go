@@ -9,11 +9,11 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providercache"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/depsfile"
+	"github.com/opentffoundation/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/providercache"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 type providersLockChangeType string

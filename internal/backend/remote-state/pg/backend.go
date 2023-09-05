@@ -11,8 +11,8 @@ import (
 	"strconv"
 
 	"github.com/lib/pq"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
+	"github.com/opentffoundation/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/legacy/helper/schema"
 )
 
 const (

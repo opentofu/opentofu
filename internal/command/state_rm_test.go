@@ -11,8 +11,8 @@ import (
 
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/states"
 )
 
 func TestStateRm(t *testing.T) {

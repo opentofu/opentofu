@@ -11,11 +11,11 @@ import (
 
 	uuid "github.com/hashicorp/go-uuid"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/backend/local"
+	"github.com/opentffoundation/opentf/internal/opentf"
+	"github.com/opentffoundation/opentf/internal/states"
+	"github.com/opentffoundation/opentf/internal/states/statefile"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 )
 
 // State implements the State interfaces in the state package to handle

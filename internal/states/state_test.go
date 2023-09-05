@@ -11,8 +11,8 @@ import (
 	"github.com/go-test/deep"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/lang/marks"
 )
 
 func TestState(t *testing.T) {

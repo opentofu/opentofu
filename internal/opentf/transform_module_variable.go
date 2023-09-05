@@ -8,12 +8,12 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/configs"
 )
 
 // ModuleVariableTransformer is a GraphTransformer that adds all the variables

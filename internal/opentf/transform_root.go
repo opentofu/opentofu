@@ -4,7 +4,7 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/dag"
 )
 
 const rootNodeName = "root"

@@ -32,10 +32,10 @@ import (
 	"github.com/jmespath/go-jmespath"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/internal/legacy/helper/schema"
+	"github.com/opentffoundation/opentf/version"
 )
 
 // Deprecated in favor of flattening assume_role_* options

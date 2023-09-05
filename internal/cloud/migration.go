@@ -4,8 +4,8 @@
 package cloud
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundation/opentf/internal/configs"
+	legacy "github.com/opentffoundation/opentf/internal/legacy/opentf"
 )
 
 // Most of the logic for migrating into and out of "cloud mode" actually lives

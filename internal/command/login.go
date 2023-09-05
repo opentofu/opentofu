@@ -24,11 +24,11 @@ import (
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/command/cliconfig"
+	"github.com/opentffoundation/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/internal/logging"
+	"github.com/opentffoundation/opentf/internal/opentf"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 
 	uuid "github.com/hashicorp/go-uuid"
 	"golang.org/x/oauth2"

@@ -6,7 +6,7 @@ package opentf
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // NodeDestroyableDataResourceInstance represents a resource that is "destroyable":

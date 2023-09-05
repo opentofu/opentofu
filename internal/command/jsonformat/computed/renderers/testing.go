@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed"
+	"github.com/opentffoundation/opentf/internal/plans"
 )
 
 type ValidateDiffFunction func(t *testing.T, diff computed.Diff)

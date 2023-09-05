@@ -4,8 +4,8 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/configs"
 )
 
 // GraphNodeAttachProvider is an interface that must be implemented by nodes

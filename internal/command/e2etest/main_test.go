@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentffoundation/opentf/internal/e2e"
 )
 
 var terraformBin string
@@ -48,7 +48,7 @@ func setup() func() {
 		return func() {}
 	}
 
-	tmpFilename := e2e.GoBuild("github.com/placeholderplaceholderplaceholder/opentf", "opentf")
+	tmpFilename := e2e.GoBuild("github.com/opentffoundation/opentf", "opentf")
 
 	// Make the executable available for use in tests
 	terraformBin = tmpFilename

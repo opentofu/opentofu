@@ -6,7 +6,7 @@ package statefile
 import (
 	"io"
 
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	tfversion "github.com/opentffoundation/opentf/version"
 )
 
 // Write writes the given state to the given writer in the current state

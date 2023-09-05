@@ -6,10 +6,10 @@ package differ
 import (
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed/renderers"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/structured"
+	"github.com/opentffoundation/opentf/internal/command/jsonprovider"
 )
 
 func checkForUnknownType(change structured.Change, ctype cty.Type) (computed.Diff, bool) {

@@ -18,13 +18,13 @@ The following example loads the website and validates that it returns the expect
 
 ```hcl
 check "health_check" {
-  data "http" "placeholderplaceholderplaceholder_io" {
-    url = "https://www.placeholderplaceholderplaceholder.io"
+  data "http" "opentf.org" {
+    url = "https://opentf.org"
   }
 
   assert {
-    condition = data.http.placeholderplaceholderplaceholder_io.status_code == 200
-    error_message = "${data.http.placeholderplaceholderplaceholder_io.url} returned an unhealthy status code"
+    condition = data.http.opentf.org.status_code == 200
+    error_message = "${data.http.opentf.org.url} returned an unhealthy status code"
   }
 }
 ```
@@ -35,7 +35,7 @@ You can use any data source from any provider as a scoped data source within a `
 
 A `check` block can optionally contain a nested (a.k.a. scoped) data source. This `data` block behaves like an external [data source](/opentf/language/data-sources), except you can not reference it outside its enclosing `check` block. Additionally, if a scoped data source's provider raises any errors, they are masked as warnings and do not prevent OpenTF from continuing operation execution.
 
-You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual OpenTF resource lifecycle. [In the above example](#checks-syntax), if the `placeholderplaceholderplaceholder_io` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
+You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual OpenTF resource lifecycle. [In the above example](#checks-syntax), if the `opentf.org` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
 
 #### Meta-Arguments
 
@@ -65,7 +65,7 @@ Condition arguments within `assert` blocks can refer to scoped data sources with
 
 ### Meta-Arguments
 
-Check blocks do not currently support [meta-arguments](/opentf/language/resources/syntax#meta-arguments). We are still collecting feedback on this feature, so if your use case would benefit from check blocks supporting meta-arguments, please [let us know](https://github.com/placeholderplaceholderplaceholder/opentf/issues/new/choose).
+Check blocks do not currently support [meta-arguments](/opentf/language/resources/syntax#meta-arguments). We are still collecting feedback on this feature, so if your use case would benefit from check blocks supporting meta-arguments, please [let us know](https://github.com/opentffoundation/opentf/issues/new/choose).
 
 ## Continuous validation in TACOS (TF Automation and Collaboration Software)
 
@@ -96,8 +96,8 @@ You can often use postconditions interchangeably with check blocks to validate r
 For example, you can [rewrite the above `check` block example](#checks-syntax) to use a postcondition instead. The below code uses a `postcondition` block to validate that the website returns the expected status code of `200`.
 
 ```hcl
-data "http" "placeholderplaceholderplaceholder_io" {
-  url = "https://www.placeholderplaceholderplaceholder.io"
+data "http" "opentf.org" {
+  url = "https://opentf.org"
 
   lifecycle {
     postcondition {

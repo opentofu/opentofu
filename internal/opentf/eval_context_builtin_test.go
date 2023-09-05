@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 )
 

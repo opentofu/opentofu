@@ -21,9 +21,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	svchost "github.com/hashicorp/terraform-svchost"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/depsfile"
+	"github.com/opentffoundation/opentf/internal/getproviders"
 )
 
 func TestConfigProviderTypes(t *testing.T) {

@@ -10,12 +10,12 @@ import (
 	"github.com/go-test/deep"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/globalref"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/checks"
+	"github.com/opentffoundation/opentf/internal/lang/globalref"
+	"github.com/opentffoundation/opentf/internal/lang/marks"
+	"github.com/opentffoundation/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/states"
 )
 
 func TestTFPlanRoundTrip(t *testing.T) {

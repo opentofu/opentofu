@@ -14,9 +14,9 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // ProvidersMirrorCommand is a Command implementation that implements the

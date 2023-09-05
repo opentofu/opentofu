@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

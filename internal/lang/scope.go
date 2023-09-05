@@ -10,9 +10,9 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty/function"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/experiments"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 type ParseRef func(traversal hcl.Traversal) (*addrs.Reference, tfdiags.Diagnostics)

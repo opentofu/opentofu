@@ -17,15 +17,15 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/modsdir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/regsrc"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/response"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/configs/configload"
+	"github.com/opentffoundation/opentf/internal/getmodules"
+	"github.com/opentffoundation/opentf/internal/modsdir"
+	"github.com/opentffoundation/opentf/internal/registry"
+	"github.com/opentffoundation/opentf/internal/registry/regsrc"
+	"github.com/opentffoundation/opentf/internal/registry/response"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 type ModuleInstaller struct {

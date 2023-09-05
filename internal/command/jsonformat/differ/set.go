@@ -8,13 +8,13 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/collections"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured/attribute_path"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/collections"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed/renderers"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/structured"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentffoundation/opentf/internal/command/jsonprovider"
+	"github.com/opentffoundation/opentf/internal/plans"
 )
 
 func computeAttributeDiffAsSet(change structured.Change, elementType cty.Type) computed.Diff {

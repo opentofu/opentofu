@@ -8,10 +8,10 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {

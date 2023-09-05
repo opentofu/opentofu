@@ -16,7 +16,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/addrs"
 )
 
 // Record represents some metadata about an installed module, as part

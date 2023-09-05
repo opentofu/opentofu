@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/addrs"
 )
 
 func TestDiffEmpty(t *testing.T) {

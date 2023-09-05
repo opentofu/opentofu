@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/command/clistate"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 )
 
 func main() {

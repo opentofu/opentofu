@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/addrs"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/dag"
 )
 
 func TestBasicGraphBuilder_impl(t *testing.T) {

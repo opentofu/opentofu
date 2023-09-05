@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/opentffoundation/opentf/internal/configs/configschema"
+	"github.com/opentffoundation/opentf/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 )
 

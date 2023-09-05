@@ -15,11 +15,11 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-linereader"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/communicator"
+	"github.com/opentffoundation/opentf/internal/communicator/remote"
+	"github.com/opentffoundation/opentf/internal/configs/configschema"
+	"github.com/opentffoundation/opentf/internal/provisioners"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

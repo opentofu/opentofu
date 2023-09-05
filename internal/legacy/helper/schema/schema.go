@@ -27,8 +27,8 @@ import (
 
 	"github.com/mitchellh/copystructure"
 	"github.com/mitchellh/mapstructure"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundation/opentf/internal/configs/hcl2shim"
+	"github.com/opentffoundation/opentf/internal/legacy/opentf"
 )
 
 // Name of ENV variable which (if not empty) prefers panic over error

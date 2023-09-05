@@ -15,10 +15,10 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/command/jsonstate"
+	"github.com/opentffoundation/opentf/internal/states/remote"
+	"github.com/opentffoundation/opentf/internal/states/statefile"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 )
 
 type remoteClient struct {

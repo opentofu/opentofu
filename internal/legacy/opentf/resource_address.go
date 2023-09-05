@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/configs"
 )
 
 // ResourceAddress is a way of identifying an individual resource (or,
@@ -96,7 +96,7 @@ func (r *ResourceAddress) String() string {
 // HasResourceSpec returns true if the address has a resource spec, as
 // defined in the documentation:
 //
-//	https://www.placeholderplaceholderplaceholder.io/docs/cli/state/resource-addressing.html
+//	https://opentf.org/docs/cli/state/resource-addressing.html
 //
 // In particular, this returns false if the address contains only
 // a module path, thus addressing the entire module.

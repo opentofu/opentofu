@@ -21,7 +21,7 @@ import (
 	"github.com/bgentry/speakeasy"
 	"github.com/mattn/go-isatty"
 	"github.com/mitchellh/colorstring"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/opentffoundation/opentf/internal/opentf"
 )
 
 var defaultInputReader io.Reader

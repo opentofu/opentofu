@@ -4,8 +4,8 @@
 package providers
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/configs/configschema"
 )
 
 // ProviderSchema is an overall container for all of the schemas for all

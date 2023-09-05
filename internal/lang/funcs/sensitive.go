@@ -4,7 +4,7 @@
 package funcs
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/opentffoundation/opentf/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )

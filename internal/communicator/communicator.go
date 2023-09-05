@@ -12,11 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/shared"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/ssh"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/winrm"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundation/opentf/internal/communicator/remote"
+	"github.com/opentffoundation/opentf/internal/communicator/shared"
+	"github.com/opentffoundation/opentf/internal/communicator/ssh"
+	"github.com/opentffoundation/opentf/internal/communicator/winrm"
+	"github.com/opentffoundation/opentf/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 )
 

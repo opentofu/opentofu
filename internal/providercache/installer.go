@@ -12,10 +12,10 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	copydir "github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	copydir "github.com/opentffoundation/opentf/internal/copy"
+	"github.com/opentffoundation/opentf/internal/depsfile"
+	"github.com/opentffoundation/opentf/internal/getproviders"
 )
 
 // Installer is the main type in this package, representing a provider installer

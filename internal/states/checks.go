@@ -4,8 +4,8 @@
 package states
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/checks"
 )
 
 // CheckResults represents a summary snapshot of the status of a set of checks

@@ -6,7 +6,7 @@ package opentf
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundation/opentf/internal/dag"
 )
 
 // VertexTransformer is a GraphTransformer that transforms vertices

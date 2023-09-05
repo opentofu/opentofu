@@ -16,18 +16,18 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/configs"
+	"github.com/opentffoundation/opentf/internal/copy"
+	"github.com/opentffoundation/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/states"
+	"github.com/opentffoundation/opentf/internal/states/statefile"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 
-	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
-	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	backendInmem "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
+	backendInit "github.com/opentffoundation/opentf/internal/backend/init"
+	backendLocal "github.com/opentffoundation/opentf/internal/backend/local"
+	backendInmem "github.com/opentffoundation/opentf/internal/backend/remote-state/inmem"
 )
 
 // Test empty directory with no config/state creates a local state.

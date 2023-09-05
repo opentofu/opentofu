@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	proto "github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin5"
+	"github.com/opentffoundation/opentf/internal/configs/configschema"
+	proto "github.com/opentffoundation/opentf/internal/tfplugin5"
 	"github.com/zclconf/go-cty/cty"
 )
 

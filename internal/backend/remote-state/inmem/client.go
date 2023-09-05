@@ -6,8 +6,8 @@ package inmem
 import (
 	"crypto/md5"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/states/remote"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 )
 
 // RemoteClient is a remote client that stores data in memory for testing.

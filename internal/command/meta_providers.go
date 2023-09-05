@@ -14,15 +14,15 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	terraformProvider "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/providers/tf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	tfplugin "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin"
-	tfplugin6 "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin6"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providercache"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	terraformProvider "github.com/opentffoundation/opentf/internal/builtin/providers/tf"
+	"github.com/opentffoundation/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/logging"
+	tfplugin "github.com/opentffoundation/opentf/internal/plugin"
+	tfplugin6 "github.com/opentffoundation/opentf/internal/plugin6"
+	"github.com/opentffoundation/opentf/internal/providercache"
+	"github.com/opentffoundation/opentf/internal/providers"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // The TF_DISABLE_PLUGIN_TLS environment variable is intended only for use by

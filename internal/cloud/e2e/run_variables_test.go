@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	tfversion "github.com/opentffoundation/opentf/version"
 )
 
 func terraformConfigRequiredVariable(org, name string) string {

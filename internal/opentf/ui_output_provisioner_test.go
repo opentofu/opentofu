@@ -6,7 +6,7 @@ package opentf
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/addrs"
 )
 
 func TestProvisionerUIOutput_impl(t *testing.T) {

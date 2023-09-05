@@ -8,10 +8,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/experiments"
 
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	tfversion "github.com/opentffoundation/opentf/version"
 )
 
 // Module is a container for a set of configuration constructs that are

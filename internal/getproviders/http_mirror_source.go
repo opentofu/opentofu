@@ -20,10 +20,10 @@ import (
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"golang.org/x/net/idna"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/internal/logging"
+	"github.com/opentffoundation/opentf/version"
 )
 
 // HTTPMirrorSource is a source that reads provider metadata from a provider

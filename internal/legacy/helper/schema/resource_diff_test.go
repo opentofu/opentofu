@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundation/opentf/internal/configs/hcl2shim"
+	"github.com/opentffoundation/opentf/internal/legacy/opentf"
 )
 
 // testSetFunc is a very simple function we use to test a foo/bar complex set.

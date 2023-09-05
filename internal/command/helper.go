@@ -4,8 +4,8 @@
 package command
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
+	"github.com/opentffoundation/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/cloud"
 )
 
 const failedToLoadSchemasMessage = `

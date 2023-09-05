@@ -8,7 +8,7 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

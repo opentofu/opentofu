@@ -4,10 +4,10 @@
 package main
 
 import (
-	localexec "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/provisioners/local-exec"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/grpcwrap"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin5"
+	localexec "github.com/opentffoundation/opentf/internal/builtin/provisioners/local-exec"
+	"github.com/opentffoundation/opentf/internal/grpcwrap"
+	"github.com/opentffoundation/opentf/internal/plugin"
+	"github.com/opentffoundation/opentf/internal/tfplugin5"
 )
 
 func main() {

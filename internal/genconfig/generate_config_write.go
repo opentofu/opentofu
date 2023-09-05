@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 func ShouldWriteConfig(out string) bool {

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundation/opentf/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 )
 

@@ -13,10 +13,10 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/regsrc"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/test"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/internal/registry/regsrc"
+	"github.com/opentffoundation/opentf/internal/registry/test"
+	tfversion "github.com/opentffoundation/opentf/version"
 )
 
 func TestConfigureDiscoveryRetry(t *testing.T) {

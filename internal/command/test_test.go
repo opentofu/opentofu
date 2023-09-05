@@ -9,11 +9,11 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	testing_command "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testing"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	testing_command "github.com/opentffoundation/opentf/internal/command/testing"
+	"github.com/opentffoundation/opentf/internal/command/views"
+	"github.com/opentffoundation/opentf/internal/providers"
+	"github.com/opentffoundation/opentf/internal/terminal"
 )
 
 func TestTest(t *testing.T) {

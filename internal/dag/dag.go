@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 
 	"github.com/hashicorp/go-multierror"
 )

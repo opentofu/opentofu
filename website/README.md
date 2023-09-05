@@ -1,6 +1,6 @@
 # OpenTF Documentation
 
-This directory contains the portions of [the OpenTF website](https://placeholderplaceholderplaceholder.io/) that pertain to the core functionality, excluding providers and the overall configuration.
+This directory contains the portions of [the OpenTF website](https://opentf.org/) that pertain to the core functionality, excluding providers and the overall configuration.
 
 ## Suggesting Changes
 

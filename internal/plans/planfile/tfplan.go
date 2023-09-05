@@ -12,14 +12,14 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/globalref"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/internal/planproto"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/addrs"
+	"github.com/opentffoundation/opentf/internal/checks"
+	"github.com/opentffoundation/opentf/internal/lang/globalref"
+	"github.com/opentffoundation/opentf/internal/lang/marks"
+	"github.com/opentffoundation/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/plans/internal/planproto"
+	"github.com/opentffoundation/opentf/internal/states"
+	"github.com/opentffoundation/opentf/version"
 )
 
 const tfplanFormatVersion = 3

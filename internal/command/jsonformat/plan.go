@@ -10,13 +10,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/format"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonplan"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/command/format"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed/renderers"
+	"github.com/opentffoundation/opentf/internal/command/jsonplan"
+	"github.com/opentffoundation/opentf/internal/command/jsonprovider"
+	"github.com/opentffoundation/opentf/internal/command/jsonstate"
+	"github.com/opentffoundation/opentf/internal/plans"
 )
 
 const (

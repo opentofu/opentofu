@@ -6,7 +6,7 @@ package command
 import (
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 type PushCommand struct {

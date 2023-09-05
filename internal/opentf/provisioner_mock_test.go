@@ -4,7 +4,7 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundation/opentf/internal/provisioners"
 )
 
 // simpleMockProvisioner returns a MockProvisioner that is pre-configured

@@ -13,9 +13,9 @@ import (
 
 	getter "github.com/hashicorp/go-getter"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/internal/copy"
+	"github.com/opentffoundation/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/httpclient"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from
@@ -120,7 +120,7 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 			)
 		} else if !matches {
 			return authResult, fmt.Errorf(
-				"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://www.placeholderplaceholderplaceholder.io/language/provider-checksum-verification",
+				"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://opentf.org/language/provider-checksum-verification",
 				meta.Provider, meta.Version,
 			)
 		}
@@ -210,7 +210,7 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 			)
 		} else if !matches {
 			return authResult, fmt.Errorf(
-				"the local package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://www.placeholderplaceholderplaceholder.io/language/provider-checksum-verification",
+				"the local package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://opentf.org/language/provider-checksum-verification",
 				meta.Provider, meta.Version,
 			)
 		}

@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundation/opentf/internal/backend"
+	"github.com/opentffoundation/opentf/internal/backend/remote-state/inmem"
+	"github.com/opentffoundation/opentf/internal/states"
 )
 
 func TestStatePush_empty(t *testing.T) {

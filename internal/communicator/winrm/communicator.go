@@ -14,8 +14,8 @@ import (
 
 	"github.com/masterzen/winrm"
 	"github.com/packer-community/winrmcp/winrmcp"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundation/opentf/internal/communicator/remote"
+	"github.com/opentffoundation/opentf/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 )
 

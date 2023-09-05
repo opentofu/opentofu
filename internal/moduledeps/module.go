@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/discovery"
+	"github.com/opentffoundation/opentf/internal/plugin/discovery"
 )
 
 // Module represents the dependencies of a single module, as well being

@@ -6,10 +6,10 @@ package differ
 import (
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/collections"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/collections"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed/renderers"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/structured"
 )
 
 func computeAttributeDiffAsTuple(change structured.Change, elementTypes []cty.Type) computed.Diff {

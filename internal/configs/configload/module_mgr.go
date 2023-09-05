@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/modsdir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
+	"github.com/opentffoundation/opentf/internal/modsdir"
+	"github.com/opentffoundation/opentf/internal/registry"
 	"github.com/spf13/afero"
 )
 

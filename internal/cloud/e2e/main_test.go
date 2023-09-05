@@ -15,8 +15,8 @@ import (
 
 	expect "github.com/Netflix/go-expect"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/e2e"
+	tfversion "github.com/opentffoundation/opentf/version"
 )
 
 var terraformBin string
@@ -210,7 +210,7 @@ func setupBinary() func() {
 		"go",
 		"build",
 		"-o", tmpTerraformBinaryDir,
-		"-ldflags", fmt.Sprintf("-X \"github.com/placeholderplaceholderplaceholder/opentf/version.Prerelease=%s\"", tfversion.Prerelease),
+		"-ldflags", fmt.Sprintf("-X \"github.com/opentffoundation/opentf/version.Prerelease=%s\"", tfversion.Prerelease),
 	)
 	err = cmd.Run()
 	if err != nil {

@@ -10,11 +10,11 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/collections"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured/attribute_path"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/collections"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/computed"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/structured"
+	"github.com/opentffoundation/opentf/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentffoundation/opentf/internal/plans"
 )
 
 var _ computed.DiffRenderer = (*primitiveRenderer)(nil)

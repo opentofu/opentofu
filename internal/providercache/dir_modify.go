@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/getproviders"
 )
 
 // InstallPackage takes a metadata object describing a package available for
