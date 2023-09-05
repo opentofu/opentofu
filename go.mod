@@ -1,5 +1,7 @@
 module github.com/placeholderplaceholderplaceholder/opentf
 
+go 1.21
+
 require (
 	cloud.google.com/go/kms v1.10.1
 	cloud.google.com/go/storage v1.28.1
@@ -237,5 +239,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
-
-go 1.20
