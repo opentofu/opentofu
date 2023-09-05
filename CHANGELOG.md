@@ -16,6 +16,7 @@ BUG FIXES:
 * The upstream dependency that OpenTF uses for service discovery of OpenTF-native services such as cloud backend state storage was previously not concurrency-safe, but OpenTF was treating it as if it was in situations like when a configuration has multiple `terraform_remote_state` blocks all using the "remote" backend. OpenTF is now using a newer version of that library which updates its internal caches in a concurrency-safe way. ([#33364](https://github.com/hashicorp/terraform/issues/33364))
 * Transitive dependencies were lost during apply when the referenced resource expanded into zero instances ([#33403](https://github.com/hashicorp/terraform/issues/33403))
 * OpenTF will no longer override SSH settings in local git configuration when installing modules. ([#33592](https://github.com/hashicorp/terraform/issues/33592))
+* Handle file-operation errors in `internal/states/statemgr`. ([#278](https://github.com/opentffoundation/opentf/issues/278))
 
 ## Previous Releases
 

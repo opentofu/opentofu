@@ -287,7 +287,10 @@ func (s *Filesystem) refreshState() error {
 		}
 
 		// we have a state file, make sure we're at the start
-		s.stateFileOut.Seek(0, io.SeekStart)
+		_, err := s.stateFileOut.Seek(0, io.SeekStart)
+		if err != nil {
+			return err
+		}
 		reader = s.stateFileOut
 	}
 
@@ -364,9 +367,16 @@ func (s *Filesystem) Unlock(id string) error {
 	}
 
 	lockInfoPath := s.lockInfoPath()
-	log.Printf("[TRACE] statemgr.Filesystem: removing lock metadata file %s", lockInfoPath)
-	os.Remove(lockInfoPath)
-
+	err := os.Remove(lockInfoPath)
+	if err != nil {
+		log.Printf(
+			"[ERROR] statemgr.Filesystem: error removing lock metadata file %q: %s",
+			lockInfoPath,
+			err,
+		)
+	} else {
+		log.Printf("[TRACE] statemgr.Filesystem: removed lock metadata file %s", lockInfoPath)
+	}
 	fileName := s.stateFileOut.Name()
 
 	unlockErr := s.unlock()
@@ -378,7 +388,10 @@ func (s *Filesystem) Unlock(id string) error {
 	// clean up the state file if we created it an never wrote to it
 	stat, err := os.Stat(fileName)
 	if err == nil && stat.Size() == 0 && s.created {
-		os.Remove(fileName)
+		err = os.Remove(fileName)
+		if err != nil {
+			log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
+		}
 	}
 
 	return unlockErr
