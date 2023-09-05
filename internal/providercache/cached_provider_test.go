@@ -6,8 +6,8 @@ package providercache
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationgetproviders"
 )
 
 func TestCachedProviderHash(t *testing.T) {

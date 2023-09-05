@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationstates/remote"
 )
 
 func TestRemoteClient_impl(t *testing.T) {

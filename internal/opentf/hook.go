@@ -6,10 +6,10 @@ package opentf
 import (
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationstates"
 )
 
 // HookAction is an enum of actions that can be taken as a result of a hook

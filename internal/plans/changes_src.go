@@ -6,8 +6,8 @@ package plans
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationstates"
 	"github.com/zclconf/go-cty/cty"
 )
 

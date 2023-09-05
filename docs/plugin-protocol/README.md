@@ -10,7 +10,7 @@ the SDK's API.
 ----
 
 **If you want to write a plugin for OpenTF, please refer to
-[Extending OpenTF](https://www.placeholderplaceholderplaceholder.io/docs/extend/index.html) instead.**
+[Extending OpenTF](https://www.opentffoundationndex.html) instead.**
 
 This documentation is for those who are developing _OpenTF SDKs_, rather
 than those implementing plugins.
@@ -114,7 +114,7 @@ Select it with the following version constraint:
 
 ```
 Provider "aws" v3.0.0 is not compatible with OpenTF v0.12.0.
-Provider version v2.34.0 is the latest compatible version. Select 
+Provider version v2.34.0 is the latest compatible version. Select
 it with the following constraint:
 
     version = "~> 2.34.0"

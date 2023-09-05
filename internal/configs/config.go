@@ -11,9 +11,9 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationdepsfile"
+	"github.com/opentffoundationgetproviders"
 )
 
 // A Config is a node in the tree of modules within a configuration.

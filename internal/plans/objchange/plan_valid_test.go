@@ -9,8 +9,8 @@ import (
 	"github.com/apparentlymart/go-dump/dump"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationtfdiags"
 )
 
 func TestAssertPlanValid(t *testing.T) {

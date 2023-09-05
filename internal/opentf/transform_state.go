@@ -6,7 +6,7 @@ package opentf
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationstates"
 )
 
 // StateTransformer is a GraphTransformer that adds the elements of

@@ -8,13 +8,13 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	ctymsgpack "github.com/zclconf/go-cty/cty/msgpack"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationmoduletest"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationtfdiags"
 )
 
 func TestTestContext_EvaluateAgainstState(t *testing.T) {

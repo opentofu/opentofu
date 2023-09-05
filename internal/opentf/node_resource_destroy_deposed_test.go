@@ -6,11 +6,11 @@ package opentf
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationstates"
 	"github.com/zclconf/go-cty/cty"
 )
 

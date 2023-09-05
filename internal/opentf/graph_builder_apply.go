@@ -4,12 +4,12 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationdag"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationtfdiags"
 )
 
 // ApplyGraphBuilder implements GraphBuilder and is responsible for building

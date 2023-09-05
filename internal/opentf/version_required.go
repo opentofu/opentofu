@@ -4,9 +4,9 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationtfdiags"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundationconfigs"
 )
 
 // CheckCoreVersionRequirements visits each of the modules in the given

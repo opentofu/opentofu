@@ -6,8 +6,8 @@ package statefile
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationstates"
+	tfversion "github.com/opentffoundation
 )
 
 // File is the in-memory representation of a state file. It includes the state

@@ -10,7 +10,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationtfdiags"
 )
 
 // anyKeyImpl is the InstanceKey representation indicating a wildcard, which

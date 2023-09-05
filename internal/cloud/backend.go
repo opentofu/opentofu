@@ -25,16 +25,16 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcommand/jsonformat"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationstates/statemgr"
+	"github.com/opentffoundationtfdiags"
+	tfversion "github.com/opentffoundation
 
-	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	backendLocal "github.com/opentffoundationbackend/local"
 )
 
 const (

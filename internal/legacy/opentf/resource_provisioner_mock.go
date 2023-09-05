@@ -6,7 +6,7 @@ package opentf
 import (
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/opentffoundationconfigs/configschema"
 )
 
 // MockResourceProvisioner implements ResourceProvisioner but mocks out all the

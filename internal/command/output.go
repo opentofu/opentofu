@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationcommand/arguments"
+	"github.com/opentffoundationcommand/views"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationtfdiags"
 )
 
 // OutputCommand is a Command implementation that reads an output
@@ -105,7 +105,7 @@ Usage: opentf [global options] output [options] [NAME]
 Options:
 
   -state=path      Path to the state file to read. Defaults to
-                   "terraform.tfstate". Ignored when remote 
+                   "terraform.tfstate". Ignored when remote
                    state is used.
 
   -no-color        If specified, output won't contain any color.

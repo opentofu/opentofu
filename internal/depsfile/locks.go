@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationgetproviders"
 )
 
 // Locks is the top-level type representing the information retained in a

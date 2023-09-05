@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundationaddrs"
 )
 
 func TestConfigTransformer_nilModule(t *testing.T) {

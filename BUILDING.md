@@ -4,7 +4,7 @@ If you'd like to build OpenTF from source, you can do so using the Go build tool
 
 ## Prerequisites
 
-1. Ensure you've installed the Go language version specified in [`.go-version`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.go-version).
+1. Ensure you've installed the Go language version specified in [`.go-version`](https://github.com/opentffoundation/.go-version).
 2. Clone this repository to a location of your choice.
 
 ## OpenTF Build Options
@@ -16,7 +16,7 @@ OpenTF accepts certain options passed using `ldflags` at build time which contro
 OpenTF will include a `-dev` flag when reporting its own version (ex: 1.5.0-dev) unless `version.dev` is set to `no`:
 
 ```
-go build -ldflags "-w -s -X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'" -o bin/ .
+go build -ldflags "-w -s -X 'github.com/opentffoundationev=no'" -o bin/ .
 ```
 
 ### Experimental Features
@@ -33,6 +33,4 @@ For the most part, the OpenTF release process relies on the Go toolchain default
 
 ### `CGO_ENABLED`
 
-One exception is the `CGO_ENABLED` option, which is set explicitly when building OpenTF binaries. For most platforms, we build with `CGO_ENABLED=0` in order to produce a statically linked binary. For MacOS/Darwin operating systems, we build with `CGO_ENABLED=1` to avoid a platform-specific issue with DNS resolution. 
-
-
+One exception is the `CGO_ENABLED` option, which is set explicitly when building OpenTF binaries. For most platforms, we build with `CGO_ENABLED=0` in order to produce a statically linked binary. For MacOS/Darwin operating systems, we build with `CGO_ENABLED=1` to avoid a platform-specific issue with DNS resolution.

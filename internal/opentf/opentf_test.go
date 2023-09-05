@@ -16,17 +16,17 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationinitwd"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationprovisioners"
+	"github.com/opentffoundationregistry"
+	"github.com/opentffoundationstates"
 
-	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	_ "github.com/opentffoundationlogging"
 )
 
 // This is the directory where our test fixtures are.
@@ -281,10 +281,10 @@ func (h *HookRecordApplyOrder) PreApply(addr addrs.AbsResourceInstance, gen stat
 
 const testTerraformInputProviderOnlyStr = `
 aws_instance.foo:
-  ID = 
+  ID =
   provider = provider["registry.terraform.io/hashicorp/aws"]
   foo = us-west-2
-  type = 
+  type =
 `
 
 const testTerraformApplyStr = `
@@ -783,7 +783,7 @@ const testTerraformApplyDestroyStr = `
 
 const testTerraformApplyErrorStr = `
 aws_instance.bar: (tainted)
-  ID = 
+  ID =
   provider = provider["registry.terraform.io/hashicorp/aws"]
   foo = 2
 

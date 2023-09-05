@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/instances"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationinstances"
 	"github.com/zclconf/go-cty/cty"
 )
 

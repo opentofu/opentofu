@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/instances"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationinstances"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationtfdiags"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationstates"
 )
 
 // NodeDestroyResourceInstance represents a resource instance that is to be

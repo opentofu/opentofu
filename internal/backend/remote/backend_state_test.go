@@ -8,11 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcloud"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/remote"
+	"github.com/opentffoundationstates/statefile"
 )
 
 func TestRemoteClient_impl(t *testing.T) {

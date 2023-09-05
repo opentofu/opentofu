@@ -10,10 +10,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationdag"
+	"github.com/opentffoundationlang"
 )
 
 // GraphNodeReferenceable must be implemented by any node that represents

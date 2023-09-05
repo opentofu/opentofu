@@ -10,15 +10,15 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/didyoumean"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/instances"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationdidyoumean"
+	"github.com/opentffoundationinstances"
+	"github.com/opentffoundationlang"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationprovisioners"
+	"github.com/opentffoundationtfdiags"
 )
 
 // NodeValidatableResource represents a resource that is used for validation

@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationhttpclient"
+	"github.com/opentffoundationlegacy/helper/schema"
+	"github.com/opentffoundation
 	k8sSchema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +30,7 @@ import (
 const (
 	noConfigError = `
 
-[Kubernetes backend] Neither service_account nor load_config_file were set to true, 
+[Kubernetes backend] Neither service_account nor load_config_file were set to true,
 this could cause issues connecting to your Kubernetes cluster.
 `
 )

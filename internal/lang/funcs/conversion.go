@@ -6,8 +6,8 @@ package funcs
 import (
 	"strconv"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/types"
+	"github.com/opentffoundationlang/marks"
+	"github.com/opentffoundationlang/types"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"

@@ -8,8 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/acctest"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationlegacy/helper/acctest"
 )
 
 func TestBackend_impl(t *testing.T) {

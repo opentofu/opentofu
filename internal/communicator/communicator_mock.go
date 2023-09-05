@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundationcommunicator/remote"
+	"github.com/opentffoundationprovisioners"
 )
 
 // MockCommunicator is an implementation of Communicator that can be used for tests.

@@ -9,8 +9,8 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationgetproviders"
 )
 
 func TestDirReading(t *testing.T) {

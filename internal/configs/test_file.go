@@ -6,9 +6,9 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationgetmodules"
+	"github.com/opentffoundationtfdiags"
 )
 
 // TestCommand represents the Terraform a given run block will execute, plan

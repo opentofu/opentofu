@@ -13,11 +13,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	tfaddr "github.com/hashicorp/terraform-registry-address"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/statefile"
+	"github.com/opentffoundationstates/statemgr"
+	"github.com/opentffoundation
 )
 
 func TestState_impl(t *testing.T) {

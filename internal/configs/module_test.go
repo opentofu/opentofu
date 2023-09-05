@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundationaddrs"
 	"github.com/zclconf/go-cty/cty"
 )
 

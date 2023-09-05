@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
 )
 
 func TestNodeModuleVariablePath(t *testing.T) {

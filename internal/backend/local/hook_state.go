@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/statemgr"
 )
 
 // StateHook is a hook that continuously updates the state by calling

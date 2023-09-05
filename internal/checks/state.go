@@ -8,8 +8,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
 )
 
 // State is a container for state tracking of all of the the checks declared in

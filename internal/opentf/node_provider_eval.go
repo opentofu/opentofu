@@ -3,7 +3,7 @@
 
 package opentf
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+import "github.com/opentffoundationtfdiags"
 
 // NodeEvalableProvider represents a provider during an "eval" walk.
 // This special provider node type just initializes a provider and

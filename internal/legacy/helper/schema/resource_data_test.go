@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundationlegacy/opentf"
 )
 
 func TestResourceDataGet(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationlang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 

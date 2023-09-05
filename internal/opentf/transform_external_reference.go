@@ -1,6 +1,6 @@
 package opentf
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+import "github.com/opentffoundationaddrs"
 
 // ExternalReferenceTransformer will add a GraphNodeReferencer into the graph
 // that makes no changes to the graph itself but, by referencing the addresses

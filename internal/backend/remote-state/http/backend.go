@@ -16,11 +16,11 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationlegacy/helper/schema"
+	"github.com/opentffoundationlogging"
+	"github.com/opentffoundationstates/remote"
+	"github.com/opentffoundationstates/statemgr"
 )
 
 func New() backend.Backend {

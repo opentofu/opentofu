@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentffoundation/opentf/internal/e2e"
+	"github.com/opentffoundation/opentf/internal/getproviders"
 )
 
 // TestProviderTampering tests various ways that the provider plugins in the

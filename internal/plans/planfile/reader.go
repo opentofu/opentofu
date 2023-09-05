@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationdepsfile"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationstates/statefile"
+	"github.com/opentffoundationtfdiags"
 )
 
 const tfstateFilename = "tfstate"

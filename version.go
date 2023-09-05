@@ -4,7 +4,7 @@
 package main
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/version"
 )
 
 var Version = version.Version

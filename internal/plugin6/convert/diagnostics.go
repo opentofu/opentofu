@@ -4,8 +4,8 @@
 package convert
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	proto "github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin6"
+	"github.com/opentffoundationtfdiags"
+	proto "github.com/opentffoundationtfplugin6"
 	"github.com/zclconf/go-cty/cty"
 )
 

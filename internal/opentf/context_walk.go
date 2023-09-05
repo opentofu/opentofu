@@ -7,13 +7,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/instances"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/refactoring"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationchecks"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationinstances"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationrefactoring"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationtfdiags"
 )
 
 // graphWalkOpts captures some transient values we use (and possibly mutate)

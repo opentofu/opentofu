@@ -6,7 +6,7 @@ package getproviders
 import (
 	"context"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundationaddrs"
 )
 
 // A Source can query a particular source for information about providers

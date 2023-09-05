@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentffoundatione2e"
 )
 
 func TestInitProviders(t *testing.T) {
@@ -374,7 +374,7 @@ func TestInitProviderNotFound(t *testing.T) {
 │ Could not retrieve the list of available versions for provider
 │ hashicorp/nonexist: provider registry registry.terraform.io does not have a
 │ provider named registry.terraform.io/hashicorp/nonexist
-│ 
+│
 │ All modules should specify their required_providers so that external
 │ consumers will get the correct providers when using a module. To see which
 │ modules are currently depending on hashicorp/nonexist, run the following

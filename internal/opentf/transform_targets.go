@@ -6,8 +6,8 @@ package opentf
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationdag"
 )
 
 // GraphNodeTargetable is an interface for graph nodes to implement when they

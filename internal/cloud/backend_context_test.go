@@ -11,16 +11,16 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcommand/arguments"
+	"github.com/opentffoundationcommand/clistate"
+	"github.com/opentffoundationcommand/views"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationinitwd"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationstates/statemgr"
+	"github.com/opentffoundationterminal"
+	"github.com/opentffoundationtfdiags"
 )
 
 func TestRemoteStoredVariableValue(t *testing.T) {

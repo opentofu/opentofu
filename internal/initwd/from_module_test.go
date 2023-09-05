@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationcopy"
+	"github.com/opentffoundationregistry"
+	"github.com/opentffoundationtfdiags"
 )
 
 func TestDirFromModule_registry(t *testing.T) {

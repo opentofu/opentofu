@@ -10,14 +10,14 @@ import (
 
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcommand/arguments"
+	"github.com/opentffoundationcommand/jsonformat"
+	"github.com/opentffoundationcommand/jsonprovider"
+	"github.com/opentffoundationcommand/jsonstate"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/statefile"
 )
 
 // StateShowCommand is a Command implementation that shows a single resource.
@@ -195,11 +195,11 @@ func (c *StateShowCommand) Synopsis() string {
 const errNoInstanceFound = `No instance found for the given address!
 
 This command requires that the address references one specific instance.
-To view the available instances, use "opentf state list". Please modify 
+To view the available instances, use "opentf state list". Please modify
 the address to reference a specific instance.`
 
 const errParsingAddress = `Error parsing instance address: %s
 
 This command requires that the address references one specific instance.
-To view the available instances, use "opentf state list". Please modify 
+To view the available instances, use "opentf state list". Please modify
 the address to reference a specific instance.`

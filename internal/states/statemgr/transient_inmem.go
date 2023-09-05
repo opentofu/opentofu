@@ -6,7 +6,7 @@ package statemgr
 import (
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationstates"
 )
 
 // NewTransientInMemory returns a Transient implementation that retains

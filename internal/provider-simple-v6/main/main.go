@@ -4,10 +4,10 @@
 package main
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/grpcwrap"
-	plugin "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin6"
-	simple "github.com/placeholderplaceholderplaceholder/opentf/internal/provider-simple-v6"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin6"
+	"github.com/opentffoundationgrpcwrap"
+	plugin "github.com/opentffoundationplugin6"
+	simple "github.com/opentffoundationprovider-simple-v6"
+	"github.com/opentffoundationtfplugin6"
 )
 
 func main() {

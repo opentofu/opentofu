@@ -6,7 +6,7 @@ package statefile
 import (
 	"bytes"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationstates"
 )
 
 // StatesMarshalEqual returns true if and only if the two given states have

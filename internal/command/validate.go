@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationcommand/arguments"
+	"github.com/opentffoundationcommand/views"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationtfdiags"
 )
 
 // ValidateCommand is a Command implementation that validates the terraform files
@@ -171,8 +171,8 @@ Usage: opentf [global options] validate [options]
 
 Options:
 
-  -json                 Produce output in a machine-readable JSON format, 
-                        suitable for use in text editor integrations and other 
+  -json                 Produce output in a machine-readable JSON format,
+                        suitable for use in text editor integrations and other
                         automated systems. Always disables color.
 
   -no-color             If specified, output won't contain any color.

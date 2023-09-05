@@ -3,7 +3,7 @@
 
 package opentf
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+import "github.com/opentffoundation/opentf/internal/dag"
 
 // GraphDot returns the dot formatting of a visual representation of
 // the given Terraform graph.

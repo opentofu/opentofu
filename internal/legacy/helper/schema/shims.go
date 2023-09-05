@@ -9,9 +9,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationconfigs/hcl2shim"
+	"github.com/opentffoundationlegacy/opentf"
 )
 
 // DiffFromValues takes the current state and desired state as cty.Values and

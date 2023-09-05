@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationdag"
+	"github.com/opentffoundationstates"
 )
 
 // GraphNodeDestroyerCBD must be implemented by nodes that might be

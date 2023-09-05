@@ -7,8 +7,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationchecks"
 	"github.com/zclconf/go-cty/cty"
 )
 

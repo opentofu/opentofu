@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundationlegacy/opentf"
 )
 
 func TestMultiLevelFieldReaderReadFieldExact(t *testing.T) {

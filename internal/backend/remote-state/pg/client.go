@@ -10,8 +10,8 @@ import (
 
 	uuid "github.com/hashicorp/go-uuid"
 	_ "github.com/lib/pq"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundationstates/remote"
+	"github.com/opentffoundationstates/statemgr"
 )
 
 // RemoteClient is a remote client that stores data in a Postgres database

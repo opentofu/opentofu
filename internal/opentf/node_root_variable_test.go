@@ -10,10 +10,10 @@ import (
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationchecks"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationlang"
 )
 
 func TestNodeRootVariableExecute(t *testing.T) {

@@ -14,11 +14,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/replacefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationgetproviders"
+	"github.com/opentffoundationreplacefile"
+	"github.com/opentffoundationtfdiags"
+	"github.com/opentffoundation
 )
 
 // LoadLocksFromFile reads locks from the given file, expecting it to be a

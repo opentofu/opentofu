@@ -18,19 +18,19 @@ import (
 	"github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcloud"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationhttpclient"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationstates/remote"
+	"github.com/opentffoundationtfdiags"
+	"github.com/opentffoundation
 	"github.com/zclconf/go-cty/cty"
 
-	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	backendLocal "github.com/opentffoundationbackend/local"
 )
 
 const (

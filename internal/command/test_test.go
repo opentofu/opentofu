@@ -9,11 +9,11 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	testing_command "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testing"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentffoundationaddrs"
+	testing_command "github.com/opentffoundationcommand/testing"
+	"github.com/opentffoundationcommand/views"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationterminal"
 )
 
 func TestTest(t *testing.T) {
@@ -1030,7 +1030,7 @@ requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
     opentf plan
-	
+
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
 or when OpenTF specifically suggests to use it as part of an error message.
@@ -1061,7 +1061,7 @@ requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
     opentf plan
-	
+
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
 or when OpenTF specifically suggests to use it as part of an error message.

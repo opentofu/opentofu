@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationinitwd"
 )
 
 func TestChecksHappyPath(t *testing.T) {

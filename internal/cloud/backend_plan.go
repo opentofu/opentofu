@@ -22,13 +22,13 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud/cloudplan"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/genconfig"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcloud/cloudplan"
+	"github.com/opentffoundationcommand/jsonformat"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationgenconfig"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationtfdiags"
 )
 
 var planConfigurationVersionsPollInterval = 500 * time.Millisecond

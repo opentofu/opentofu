@@ -13,17 +13,17 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcommand/arguments"
+	"github.com/opentffoundationcommand/views"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationlogging"
+	"github.com/opentffoundationmoduletest"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationtfdiags"
 )
 
 const (
@@ -38,13 +38,13 @@ func (c *TestCommand) Help() string {
 	helpText := `
 Usage: opentf [global options] test [options]
 
-  Executes automated integration tests against the current OpenTF 
+  Executes automated integration tests against the current OpenTF
   configuration.
 
-  OpenTF will search for .tftest.hcl files within the current configuration 
-  and testing directories. OpenTF will then execute the testing run blocks 
-  within any testing files in order, and verify conditional checks and 
-  assertions against the created infrastructure. 
+  OpenTF will search for .tftest.hcl files within the current configuration
+  and testing directories. OpenTF will then execute the testing run blocks
+  within any testing files in order, and verify conditional checks and
+  assertions against the created infrastructure.
 
   This command creates real infrastructure and will attempt to clean up the
   testing infrastructure on completion. Monitor the output carefully to ensure
@@ -61,7 +61,7 @@ Options:
 
   -no-color             If specified, output won't contain any color.
 
-  -test-directory=path	Set the OpenTF test directory, defaults to "tests".    
+  -test-directory=path	Set the OpenTF test directory, defaults to "tests".
 
   -var 'foo=bar'        Set a value for one of the input variables in the root
                         module of the configuration. Use this option more than

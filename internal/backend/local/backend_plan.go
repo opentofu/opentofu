@@ -9,15 +9,15 @@ import (
 	"io"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/genconfig"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationgenconfig"
+	"github.com/opentffoundationlogging"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationplans/planfile"
+	"github.com/opentffoundationstates/statefile"
+	"github.com/opentffoundationstates/statemgr"
+	"github.com/opentffoundationtfdiags"
 )
 
 func (b *Local) opPlan(

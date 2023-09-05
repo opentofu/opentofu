@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/opentffoundation/opentf/internal/opentf"
 )
 
 func TestUIInput_impl(t *testing.T) {

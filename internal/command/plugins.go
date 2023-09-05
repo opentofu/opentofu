@@ -13,13 +13,13 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/kardianos/osext"
 
-	fileprovisioner "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/provisioners/file"
-	localexec "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/provisioners/local-exec"
-	remoteexec "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/provisioners/remote-exec"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	tfplugin "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/discovery"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	fileprovisioner "github.com/opentffoundation/opentf/internal/builtin/provisioners/file"
+	localexec "github.com/opentffoundation/opentf/internal/builtin/provisioners/local-exec"
+	remoteexec "github.com/opentffoundation/opentf/internal/builtin/provisioners/remote-exec"
+	"github.com/opentffoundation/opentf/internal/logging"
+	tfplugin "github.com/opentffoundation/opentf/internal/plugin"
+	"github.com/opentffoundation/opentf/internal/plugin/discovery"
+	"github.com/opentffoundation/opentf/internal/provisioners"
 )
 
 // NOTE WELL: The logic in this file is primarily about plugin types OTHER THAN

@@ -6,9 +6,9 @@ package opentf
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationprovisioners"
 )
 
 // contextComponentFactory is the interface that Context uses

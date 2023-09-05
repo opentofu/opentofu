@@ -4,7 +4,7 @@ Describe in detail the changes you are proposing, and the rationale.
 
 See the contributing guide:
 
-https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.github/CONTRIBUTING.md
+https://github.com/opentffoundation/.github/CONTRIBUTING.md
 
 -->
 
@@ -51,6 +51,6 @@ Write a short description of the user-facing change. Examples:
 - When rendering a diff, OpenTF now quotes the name of any object attribute whose string representation is not a valid identifier.
 - The local token configuration in the cloud and remote backend now has higher priority than a token specified in a credentials block in the CLI configuration.
 
---> 
+-->
 
--  
+-

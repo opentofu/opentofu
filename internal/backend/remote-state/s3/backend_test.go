@@ -18,12 +18,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/go-cmp/cmp"
 	awsbase "github.com/hashicorp/aws-sdk-go-base"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationconfigs/hcl2shim"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/remote"
+	"github.com/opentffoundationtfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

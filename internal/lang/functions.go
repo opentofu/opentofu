@@ -12,8 +12,8 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/funcs"
+	"github.com/opentffoundationexperiments"
+	"github.com/opentffoundationlang/funcs"
 )
 
 var impureFunctions = []string{

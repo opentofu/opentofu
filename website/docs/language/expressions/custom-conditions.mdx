@@ -213,13 +213,13 @@ The following example uses a check block with an assertion to verify the OpenTF 
 
 ```hcl
 check "health_check" {
-  data "http" "placeholderplaceholderplaceholder_io" {
-    url = "https://www.placeholderplaceholderplaceholder.io"
+  data "http" "opentffoundation
+    url = "https://www.opentffoundation
   }
 
   assert {
-    condition = data.http.placeholderplaceholderplaceholder_io.status_code == 200
-    error_message = "${data.http.placeholderplaceholderplaceholder_io.url} returned an unhealthy status code"
+    condition = data.http.opentffoundation= 200
+    error_message = "${data.http.opentffoundation an unhealthy status code"
   }
 }
 ```

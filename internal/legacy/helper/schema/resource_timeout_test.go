@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundationlegacy/opentf"
 )
 
 func TestResourceTimeout_ConfigDecode_badkey(t *testing.T) {

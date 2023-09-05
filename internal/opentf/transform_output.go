@@ -6,8 +6,8 @@ package opentf
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs"
 )
 
 // OutputTransformer is a GraphTransformer that adds all the outputs

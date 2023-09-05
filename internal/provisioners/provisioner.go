@@ -4,8 +4,8 @@
 package provisioners
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationtfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

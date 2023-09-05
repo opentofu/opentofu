@@ -13,12 +13,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationconfigs/hcl2shim"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationstates"
 )
 
 func TestContext2Refresh(t *testing.T) {
@@ -1335,7 +1335,7 @@ func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
 		got := state.String()
 		want := strings.TrimSpace(`
 test_thing.bar:
-  ID = 
+  ID =
   provider = provider["registry.terraform.io/hashicorp/test"]
   name = foo
 `)
@@ -1415,7 +1415,7 @@ func TestContext2Refresh_schemaUpgradeJSON(t *testing.T) {
 		got := state.String()
 		want := strings.TrimSpace(`
 test_thing.bar:
-  ID = 
+  ID =
   provider = provider["registry.terraform.io/hashicorp/test"]
   name = foo
 `)

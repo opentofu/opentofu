@@ -10,13 +10,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationplans/planfile"
+	"github.com/opentffoundationstates/statemgr"
+	"github.com/opentffoundationtfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

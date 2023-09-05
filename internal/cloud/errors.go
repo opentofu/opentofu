@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationtfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

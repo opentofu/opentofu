@@ -10,11 +10,11 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	statespkg "github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/opentffoundationbackend"
+	statespkg "github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/remote"
 
-	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	_ "github.com/opentffoundationlogging"
 )
 
 func TestMain(m *testing.M) {

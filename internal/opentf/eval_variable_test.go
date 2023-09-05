@@ -11,11 +11,11 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationchecks"
+	"github.com/opentffoundationlang"
+	"github.com/opentffoundationlang/marks"
+	"github.com/opentffoundationtfdiags"
 )
 
 func TestPrepareFinalInputVariableValue(t *testing.T) {
@@ -165,8 +165,8 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			}))
 		}
 		// https://github.com/hashicorp/terraform/issues/32109
-		// This variable was originally introduced to test the behaviour of 
-		// the dynamic type constraint. You should be able to use the 'any' 
+		// This variable was originally introduced to test the behaviour of
+		// the dynamic type constraint. You should be able to use the 'any'
 		// constraint and introduce empty, null, and populated values into the
 		// list.
 		variable "list_with_nested_list_of_any" {
@@ -197,7 +197,7 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			)
 		}
         // https://github.com/hashicorp/terraform/issues/32752
-		// This variable was introduced to make sure the evaluation doesn't 
+		// This variable was introduced to make sure the evaluation doesn't
         // crash even when the types are wrong.
         variable "invalid_nested_type" {
             type = map(

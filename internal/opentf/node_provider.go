@@ -8,9 +8,9 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationtfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

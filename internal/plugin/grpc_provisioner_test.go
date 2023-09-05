@@ -10,12 +10,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
-	proto "github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin5"
+	"github.com/opentffoundationconfigs/hcl2shim"
+	"github.com/opentffoundationprovisioners"
+	proto "github.com/opentffoundationtfplugin5"
 	"github.com/zclconf/go-cty/cty"
 
-	mockproto "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/mock_proto"
+	mockproto "github.com/opentffoundationplugin/mock_proto"
 )
 
 var _ provisioners.Interface = (*GRPCProvisioner)(nil)

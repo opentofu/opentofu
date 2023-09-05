@@ -3,7 +3,7 @@
 
 package statemgr
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+import "github.com/opentffoundationstates"
 
 // Transient is a union of the Reader and Writer interfaces, for types that
 // deal with transient snapshots.

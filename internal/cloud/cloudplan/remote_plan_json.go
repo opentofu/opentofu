@@ -4,7 +4,7 @@
 package cloudplan
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentffoundationplans"
 )
 
 // RemotePlanJSON is a wrapper struct that associates a pre-baked JSON plan with

@@ -2,11 +2,11 @@
 
 To run them, use:
 ```
-TFE_TOKEN=<token> TFE_HOSTNAME=<hostname> TF_ACC=1 go test  ./internal/cloud/e2e/... -ldflags "-X \"github.com/placeholderplaceholderplaceholder/opentf/version.Prerelease=<PRE-RELEASE>\""
+TFE_TOKEN=<token> TFE_HOSTNAME=<hostname> TF_ACC=1 go test  ./internal/cloud/e2e/... -ldflags "-X \"github.com/opentffoundationrerelease=<PRE-RELEASE>\""
 ```
 
 Required flags
-* `TF_ACC=1`. This variable is used as part of opentf for tests that make 
+* `TF_ACC=1`. This variable is used as part of opentf for tests that make
   external network calls. This is needed to run these tests. Without it, the
   tests do not run.
 * `TFE_TOKEN=<admin token>` and `TFE_HOSTNAME=<hostname>`. The helpers

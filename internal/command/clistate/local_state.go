@@ -15,8 +15,8 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundation/opentf/internal/legacy/opentf"
+	"github.com/opentffoundation/opentf/internal/states/statemgr"
 )
 
 // LocalState manages a state storage that is local to the filesystem.

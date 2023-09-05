@@ -6,8 +6,8 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/cloudproto1"
+	"github.com/opentffoundationcloudplugin"
+	"github.com/opentffoundationcloudplugin/cloudproto1"
 	"google.golang.org/grpc"
 )
 

@@ -9,7 +9,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/opentffoundationconfigs/configschema"
 )
 
 // UnknownVariableValue is a sentinel value that can be used

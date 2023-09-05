@@ -25,13 +25,13 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	uuid "github.com/hashicorp/go-uuid"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentffoundationbackend/local"
+	"github.com/opentffoundationcommand/jsonstate"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/remote"
+	"github.com/opentffoundationstates/statefile"
+	"github.com/opentffoundationstates/statemgr"
 )
 
 // State implements the State interfaces in the state package to handle

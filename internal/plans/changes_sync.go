@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationstates"
 )
 
 // ChangesSync is a wrapper around a Changes that provides a concurrency-safe

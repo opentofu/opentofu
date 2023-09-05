@@ -8,9 +8,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/acctest"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationlegacy/helper/acctest"
+	"github.com/opentffoundationstates/remote"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
 )
 

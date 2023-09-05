@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation
 )
 
 func TestUserAgentString_env(t *testing.T) {

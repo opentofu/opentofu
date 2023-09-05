@@ -4,7 +4,7 @@
 package objchange
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/opentffoundationconfigs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
 

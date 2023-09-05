@@ -15,12 +15,12 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
-	oauthserver "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testdata/login-oauth-server"
-	tfeserver "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testdata/login-tfe-server"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/webbrowser"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/command/cliconfig"
+	oauthserver "github.com/opentffoundation/opentf/internal/command/testdata/login-oauth-server"
+	tfeserver "github.com/opentffoundation/opentf/internal/command/testdata/login-tfe-server"
+	"github.com/opentffoundation/opentf/internal/command/webbrowser"
+	"github.com/opentffoundation/opentf/internal/httpclient"
+	"github.com/opentffoundation/opentf/version"
 )
 
 func TestLogin(t *testing.T) {

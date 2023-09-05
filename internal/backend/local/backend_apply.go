@@ -10,16 +10,16 @@ import (
 	"log"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcommand/views"
+	"github.com/opentffoundationlogging"
+	"github.com/opentffoundationopentf"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationstates"
+	"github.com/opentffoundationstates/statefile"
+	"github.com/opentffoundationstates/statemgr"
+	"github.com/opentffoundationtfdiags"
 )
 
 // test hook called between plan+apply during opApply

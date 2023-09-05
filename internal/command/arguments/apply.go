@@ -6,8 +6,8 @@ package arguments
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/plans"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // Apply represents the command-line arguments for the apply command.

@@ -6,7 +6,7 @@ package providers
 import (
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentffoundationaddrs"
 )
 
 // AddressedTypesAbs is a helper that extracts all of the distinct provider

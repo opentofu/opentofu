@@ -4,8 +4,8 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationprovisioners"
 )
 
 // ResourceProvisioner is an interface that must be implemented by any

@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/dylanmei/winrmtest"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/shared"
+	"github.com/opentffoundationcommunicator/remote"
+	"github.com/opentffoundationcommunicator/shared"
 	"github.com/zclconf/go-cty/cty"
 )
 

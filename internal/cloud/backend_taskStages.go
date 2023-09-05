@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/opentffoundationopentf"
 )
 
 type taskStages map[tfe.Stage]*tfe.TaskStage

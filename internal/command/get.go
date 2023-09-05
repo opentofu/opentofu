@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationtfdiags"
 )
 
 // GetCommand is a Command implementation that takes a Terraform
@@ -56,7 +56,7 @@ func (c *GetCommand) Help() string {
 	helpText := `
 Usage: opentf [global options] get [options]
 
-  Downloads and installs modules needed for the configuration in the 
+  Downloads and installs modules needed for the configuration in the
   current working directory.
 
   This recursively downloads all modules needed, such as modules

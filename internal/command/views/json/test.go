@@ -3,7 +3,7 @@ package json
 import (
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
+	"github.com/opentffoundation/opentf/internal/moduletest"
 )
 
 type TestSuiteAbstract map[string][]string

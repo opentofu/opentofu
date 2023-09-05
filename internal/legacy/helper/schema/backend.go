@@ -7,12 +7,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationtfdiags"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationconfigs/hcl2shim"
+	"github.com/opentffoundationlegacy/opentf"
 	ctyconvert "github.com/zclconf/go-cty/cty/convert"
 )
 

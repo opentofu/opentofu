@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation
 )
 
 func TestNew_userAgent(t *testing.T) {

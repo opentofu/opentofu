@@ -13,12 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
 	awsbase "github.com/hashicorp/aws-sdk-go-base"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationhttpclient"
+	"github.com/opentffoundationlogging"
+	"github.com/opentffoundationtfdiags"
+	"github.com/opentffoundation
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
@@ -380,7 +380,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		AssumeRoleExternalID:      stringAttr(obj, "external_id"),
 		AssumeRolePolicy:          stringAttr(obj, "assume_role_policy"),
 		AssumeRoleSessionName:     stringAttr(obj, "session_name"),
-		CallerDocumentationURL:    "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
+		CallerDocumentationURL:    "https://www.opentffoundation/settings/backends/s3.html",
 		CallerName:                "S3 Backend",
 		CredsFilename:             stringAttr(obj, "shared_credentials_file"),
 		DebugLogging:              logging.IsDebugOrHigher(),

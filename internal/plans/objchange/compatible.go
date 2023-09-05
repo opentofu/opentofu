@@ -10,8 +10,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationlang/marks"
 )
 
 // AssertObjectCompatible checks whether the given "actual" value is a valid

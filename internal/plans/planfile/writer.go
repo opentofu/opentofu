@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationdepsfile"
+	"github.com/opentffoundationplans"
+	"github.com/opentffoundationstates/statefile"
 )
 
 type CreateArgs struct {

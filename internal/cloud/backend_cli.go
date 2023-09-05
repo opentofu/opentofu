@@ -4,8 +4,8 @@
 package cloud
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
+	"github.com/opentffoundationbackend"
+	"github.com/opentffoundationcommand/jsonformat"
 )
 
 // CLIInit implements backend.CLI

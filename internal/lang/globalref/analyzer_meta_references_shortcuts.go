@@ -6,8 +6,8 @@ package globalref
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationlang"
 )
 
 // ReferencesFromOutputValue returns all of the direct references from the

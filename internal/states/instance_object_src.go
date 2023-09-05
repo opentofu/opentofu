@@ -7,8 +7,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/hcl2shim"
 )
 
 // ResourceInstanceObjectSrc is a not-fully-decoded version of

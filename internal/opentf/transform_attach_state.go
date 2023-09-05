@@ -6,8 +6,8 @@ package opentf
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentffoundationdag"
+	"github.com/opentffoundationstates"
 )
 
 // GraphNodeAttachResourceState is an interface that can be implemented

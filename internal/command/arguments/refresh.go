@@ -4,7 +4,7 @@
 package arguments
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundation/opentf/internal/tfdiags"
 )
 
 // Refresh represents the command-line arguments for the apply command.

@@ -6,7 +6,7 @@ package statemgr
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentffoundationstates/statefile"
 )
 
 // Migrator is an optional interface implemented by state managers that

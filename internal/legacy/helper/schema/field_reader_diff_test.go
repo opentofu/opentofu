@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentffoundationlegacy/opentf"
 )
 
 func TestDiffFieldReader_impl(t *testing.T) {

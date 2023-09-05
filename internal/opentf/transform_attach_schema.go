@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationdag"
 )
 
 // GraphNodeAttachResourceSchema is an interface implemented by node types

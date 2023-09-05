@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	_ "github.com/opentffoundationlogging"
 )
 
 func TestNewLockInfo(t *testing.T) {

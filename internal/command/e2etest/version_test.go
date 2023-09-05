@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentffoundation/opentf/internal/e2e"
+	"github.com/opentffoundation/opentf/version"
 )
 
 func TestVersion(t *testing.T) {

@@ -19,8 +19,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentffoundationconfigs"
+	"github.com/opentffoundationtfdiags"
 )
 
 const (
@@ -550,8 +550,8 @@ func (c *FmtCommand) Help() string {
 Usage: opentf [global options] fmt [options] [target...]
 
   Rewrites all OpenTF configuration files to a canonical format. All
-  configuration files (.tf), variables files (.tfvars), and testing files 
-  (.tftest.hcl) are updated. JSON files (.tf.json, .tfvars.json, or 
+  configuration files (.tf), variables files (.tfvars), and testing files
+  (.tftest.hcl) are updated. JSON files (.tf.json, .tfvars.json, or
   .tftest.json) are not modified.
 
   By default, fmt scans the current directory for configuration files. If you

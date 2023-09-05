@@ -4,8 +4,8 @@
 package moduledeps
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/discovery"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationplugin/discovery"
 )
 
 // Providers describes a set of provider dependencies for a given module.

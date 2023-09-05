@@ -10,12 +10,12 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
+	"github.com/opentffoundationaddrs"
+	"github.com/opentffoundationconfigs/configload"
+	"github.com/opentffoundationconfigs/configschema"
+	"github.com/opentffoundationinitwd"
+	"github.com/opentffoundationproviders"
+	"github.com/opentffoundationregistry"
 )
 
 func testAnalyzer(t *testing.T, fixtureName string) *Analyzer {

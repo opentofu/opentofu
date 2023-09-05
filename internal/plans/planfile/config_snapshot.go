@@ -14,7 +14,7 @@ import (
 	"time"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/opentffoundationconfigs/configload"
 )
 
 const configSnapshotPrefix = "tfconfig/"
