@@ -165,7 +165,9 @@ checksum:
 
 signs:
   - artifacts: checksum
-    args: [ "--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}" ]
+    cmd: cosign
+    args: ["sign-blob", "--key=env://COSIGN_KEY", "--output-signature=${signature}", "${artifact}", "--yes"]
+    stdin: "{{ .Env.COSIGN_PASSWORD }}"
 
 docker_signs:
   - artifacts: all
