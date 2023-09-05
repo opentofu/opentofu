@@ -23,10 +23,10 @@ The key features of OpenTF are:
 
 This repository contains OpenTF Core, which includes the command line interface and the main graph engine.
 
-- To learn more about compiling OpenTF and contributing suggested changes, refer to [the contributing guide](.github/CONTRIBUTING.md).
+- To learn more about compiling OpenTF and contributing suggested changes, refer to [the contributing guide](CONTRIBUTING.md).
 
-- To submit bug reports or enhancement requests, refer to the [the contributing guide](.github/CONTRIBUTING.md) as well.
+- To submit bug reports or enhancement requests, refer to the [the contributing guide](CONTRIBUTING.md) as well.
 
 ## License
 
-[Mozilla Public License v2.0](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/LICENSE)
+[Mozilla Public License v2.0](https://github.com/opentffoundation/opentf/blob/main/LICENSE)
