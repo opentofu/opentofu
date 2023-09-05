@@ -974,18 +974,25 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 	}
 
 	output := d.Evaluator.State.OutputValue(addr.Absolute(d.ModulePath))
+	log.Printf("[ERROR] eranelbazdebug the output value of %q is %+v", addr.Absolute(d.ModulePath), output)
+	// https://github.com/opentffoundation/opentf/issues/257
+	// If the output is null, we do not store it to the state /internal/opentf/node_output.go#L592-L596
+	// Then OpenTF test crash to evaluate for invalid memory address or nil pointer dereference
+	if output == nil {
+		return cty.NilVal, diags
+	} else {
+		val := output.Value
+		if val == cty.NilVal {
+			// Not evaluated yet?
+			val = cty.DynamicVal
+		}
 
-	val := output.Value
-	if val == cty.NilVal {
-		// Not evaluated yet?
-		val = cty.DynamicVal
+		if output.Sensitive {
+			val = val.Mark(marks.Sensitive)
+		}
+
+		return val, diags
 	}
-
-	if output.Sensitive {
-		val = val.Mark(marks.Sensitive)
-	}
-
-	return val, diags
 }
 
 func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
