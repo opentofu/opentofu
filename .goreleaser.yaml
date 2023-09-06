@@ -166,13 +166,14 @@ checksum:
 signs:
   - artifacts: checksum
     cmd: cosign
-    args: ["sign-blob", "--key=env://COSIGN_KEY", "--output-signature=${signature}", "${artifact}", "--yes"]
-    stdin: "{{ .Env.COSIGN_PWD }}"
+    certificate: "${artifact}.pem"
+    output: true
+    args: ["sign-blob", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
 
 docker_signs:
   - artifacts: all
-    args: ["sign", "--key=env://COSIGN_KEY", "${artifact}@${digest}", "--yes"]
-    stdin: "{{ .Env.COSIGN_PWD }}"
+    output: true
+    args: ["sign", "${artifact}@${digest}", "--yes"]
 
 snapshot:
   name_template: "{{ .Version }}-next"
