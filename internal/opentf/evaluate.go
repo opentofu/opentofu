@@ -975,17 +975,24 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 
 	output := d.Evaluator.State.OutputValue(addr.Absolute(d.ModulePath))
 
-	val := output.Value
-	if val == cty.NilVal {
-		// Not evaluated yet?
-		val = cty.DynamicVal
-	}
+	// https://github.com/opentffoundation/opentf/issues/257
+	// If the output is null - it does not serialize as part of the node_output state https://github.com/opentffoundation/opentf/blob/4b623c56ffe9e6c1dc345e54470b71b0f261297a/internal/opentf/node_output.go#L592-L596
+	// In such a case, we should simply return a nil value because OpenTF test crash to evaluate for invalid memory address or nil pointer dereference
+	if output == nil {
+		return cty.NilVal, diags
+	} else {
+		val := output.Value
+		if val == cty.NilVal {
+			// Not evaluated yet?
+			val = cty.DynamicVal
+		}
 
-	if output.Sensitive {
-		val = val.Mark(marks.Sensitive)
-	}
+		if output.Sensitive {
+			val = val.Mark(marks.Sensitive)
+		}
 
-	return val, diags
+		return val, diags
+	}
 }
 
 func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
