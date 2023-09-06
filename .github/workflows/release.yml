@@ -57,5 +57,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.gpg.outputs.fingerprint }}
-          COSIGN_KEY: ${{ secrets.COSIGN_KEY }}
-          COSIGN_PWD: ${{ secrets.COSIGN_PWD }}
