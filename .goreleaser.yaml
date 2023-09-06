@@ -167,12 +167,10 @@ signs:
   - artifacts: checksum
     cmd: cosign
     certificate: "${artifact}.pem"
-    output: true
     args: ["sign-blob", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
 
 docker_signs:
   - artifacts: all
-    output: true
     args: ["sign", "${artifact}@${digest}", "--yes"]
 
 snapshot:
