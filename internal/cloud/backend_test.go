@@ -52,6 +52,39 @@ func TestCloud_backendWithName(t *testing.T) {
 	}
 }
 
+func TestCloud_backendWithoutHost(t *testing.T) {
+	s := testServer(t)
+	b := New(testDisco(s))
+
+	obj := cty.ObjectVal(map[string]cty.Value{
+		"hostname":     cty.NullVal(cty.String),
+		"organization": cty.StringVal("hashicorp"),
+		"token":        cty.NullVal(cty.String),
+		"workspaces": cty.ObjectVal(map[string]cty.Value{
+			"name":    cty.StringVal(testBackendSingleWorkspaceName),
+			"tags":    cty.NullVal(cty.Set(cty.String)),
+			"project": cty.NullVal(cty.String),
+		}),
+	})
+
+	// Configure the backend so the client is created.
+	newObj, valDiags := b.PrepareConfig(obj)
+	if len(valDiags) != 0 {
+		t.Fatalf("testBackend: backend.PrepareConfig() failed: %s", valDiags.ErrWithWarnings())
+	}
+	obj = newObj
+
+	confDiags := b.Configure(obj)
+
+	if !confDiags.HasErrors() {
+		t.Fatalf("testBackend: backend.Configure() should have failed")
+	}
+
+	if !strings.Contains(confDiags.Err().Error(), "Hostname is required for the cloud backend") {
+		t.Fatalf("testBackend: backend.Configure() should have failed with missing hostname error")
+	}
+}
+
 func TestCloud_backendWithTags(t *testing.T) {
 	b, bCleanup := testBackendWithTags(t)
 	defer bCleanup()
@@ -864,7 +897,7 @@ func TestCloud_setConfigurationFields(t *testing.T) {
 					"project": cty.NullVal(cty.String),
 				}),
 			}),
-			expectedHostname:     defaultHostname,
+			expectedHostname:     "app.terraform.io",
 			expectedOrganziation: "hashicorp",
 		},
 		"with workspace name set": {

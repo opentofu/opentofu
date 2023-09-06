@@ -38,7 +38,6 @@ import (
 )
 
 const (
-	defaultHostname    = "app.terraform.io"
 	defaultParallelism = 10
 	tfeServiceID       = "tfe.v2"
 	headerSourceKey    = "X-Terraform-Integration"
@@ -281,17 +280,13 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	// Return an error if we still don't have a token at this point.
 	if token == "" {
-		loginCommand := "opentf login"
-		if b.hostname != defaultHostname {
-			loginCommand = loginCommand + " " + b.hostname
-		}
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Required token could not be found",
 			fmt.Sprintf(
 				"Run the following command to generate a token for %s:\n    %s",
 				b.hostname,
-				loginCommand,
+				fmt.Sprintf("opentf login %s", b.hostname),
 			),
 		))
 		return diags
@@ -405,7 +400,13 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 	if val := obj.GetAttr("hostname"); !val.IsNull() && val.AsString() != "" {
 		b.hostname = val.AsString()
 	} else if b.hostname == "" {
-		b.hostname = defaultHostname
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Hostname is required for the cloud backend",
+			`OpenTF does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`,
+		))
+
+		return diags
 	}
 
 	// We can have two options, setting the organization via the config
@@ -1283,8 +1284,7 @@ configuration to workspaces within a Terraform Cloud organization. Two strategie
 
 [bold]name[reset] - %s`, schemaDescriptionTags, schemaDescriptionName)
 
-	schemaDescriptionHostname = `The cloud backend hostname to connect to. This optional argument defaults to app.terraform.io
-for use with Terraform Cloud.`
+	schemaDescriptionHostname = `The cloud backend hostname to connect to.`
 
 	schemaDescriptionOrganization = `The name of the organization containing the targeted workspace(s).`
 

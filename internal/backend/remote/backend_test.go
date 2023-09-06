@@ -50,7 +50,7 @@ func TestRemote_config(t *testing.T) {
 	}{
 		"with_a_nonexisting_organization": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("app.terraform.io"),
 				"organization": cty.StringVal("nonexisting"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -59,6 +59,18 @@ func TestRemote_config(t *testing.T) {
 				}),
 			}),
 			confErr: "organization \"nonexisting\" at host app.terraform.io not found",
+		},
+		"with_a_missing_hostname": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.NullVal(cty.String),
+				"organization": cty.StringVal("oracle"),
+				"token":        cty.NullVal(cty.String),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":   cty.StringVal("prod"),
+					"prefix": cty.NullVal(cty.String),
+				}),
+			}),
+			confErr: `Hostname is required for the remote backend`,
 		},
 		"with_an_unknown_host": {
 			config: cty.ObjectVal(map[string]cty.Value{

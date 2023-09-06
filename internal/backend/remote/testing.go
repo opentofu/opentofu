@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname(defaultHostname)
+	tfeHost  = svchost.Hostname("app.terraform.io")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -297,7 +297,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname(defaultHostname), services)
+	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	return d
 }

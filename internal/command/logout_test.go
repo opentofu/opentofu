@@ -5,6 +5,7 @@ package command
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mitchellh/cli"
@@ -28,6 +29,18 @@ func TestLogout(t *testing.T) {
 		},
 	}
 
+	t.Run("with no hostname", func(t *testing.T) {
+		status := c.Run([]string{})
+
+		if status != 1 {
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+		}
+
+		if !strings.Contains(ui.ErrorWriter.String(), "The logout command expects exactly one argument") {
+			t.Errorf("unexpected error message: %s", ui.ErrorWriter.String())
+		}
+	})
+
 	testCases := []struct {
 		// Hostname to associate a pre-stored token
 		hostname string
@@ -36,18 +49,13 @@ func TestLogout(t *testing.T) {
 		// true iff the token at hostname should be removed by the command
 		shouldRemove bool
 	}{
-		// If no command-line arguments given, should remove app.terraform.io token
-		{"app.terraform.io", []string{}, true},
-
-		// Can still specify app.terraform.io explicitly
-		{"app.terraform.io", []string{"app.terraform.io"}, true},
-
-		// Can remove tokens for other hostnames
+		// Can remove token for a hostname
 		{"tfe.example.com", []string{"tfe.example.com"}, true},
 
 		// Logout does not remove tokens for other hostnames
 		{"tfe.example.com", []string{"other-tfe.acme.com"}, false},
 	}
+
 	for _, tc := range testCases {
 		host := svchost.Hostname(tc.hostname)
 		token := svcauth.HostCredentialsToken("some-token")
