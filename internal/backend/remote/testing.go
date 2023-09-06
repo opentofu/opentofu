@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname(defaultHostname)
+	tfeHost  = svchost.Hostname("app.terraform.io")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -70,7 +70,7 @@ func testInput(t *testing.T, answers map[string]string) *mockInput {
 
 func testBackendDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -83,7 +83,7 @@ func testBackendDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -96,7 +96,7 @@ func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -297,7 +297,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname(defaultHostname), services)
+	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	return d
 }

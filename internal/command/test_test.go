@@ -152,6 +152,10 @@ func TestTest(t *testing.T) {
 			expected: "3 passed, 0 failed.",
 			code:     0,
 		},
+		"null_output": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -225,6 +229,11 @@ func TestTest_Full_Output(t *testing.T) {
 		},
 		"broken_wrong_block_check": {
 			expected: "Blocks of type \"check\" are not expected here.",
+			code:     1,
+		},
+		"not_exists_output": {
+			expected: "Error: Reference to undeclared output value",
+			args:     []string{"-no-color"},
 			code:     1,
 		},
 		"refresh_conflicting_config": {

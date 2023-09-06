@@ -174,8 +174,7 @@ data "terraform_remote_state" "foo" {
 
 The following configuration options are supported:
 
-- `hostname` - (Optional) The remote backend hostname to connect to. Defaults
-  to app.terraform.io.
+- `hostname` - (Required) The remote backend hostname to connect to.
 - `organization` - (Required) The name of the organization containing the
   targeted workspace(s).
 - `token` - (Optional) The token used to authenticate with the remote backend.

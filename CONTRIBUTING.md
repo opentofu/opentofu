@@ -40,6 +40,8 @@ Git has a built-in flag to append this line automatically:
 
 You can find more details about the DCO checker in the [DCO app repo](https://github.com/dcoapp/app).
 
+Additionally, please update [the changelog](CHANGELOG.md) if you're making any user-facing changes.
+
 ## Working on the Code
 
 If you wish to work on the OpenTF CLI source code, you'll first need to install the [Go](https://golang.org/) compiler and the version control system [Git](https://git-scm.com/).

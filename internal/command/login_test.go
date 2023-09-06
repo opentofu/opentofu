@@ -105,6 +105,17 @@ func TestLogin(t *testing.T) {
 		}
 	}
 
+	t.Run("no hostname provided", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+		status := c.Run([]string{})
+		if status == 0 {
+			t.Fatalf("successful exit; want error")
+		}
+
+		if got, want := ui.ErrorWriter.String(), "The login command expects exactly one argument"; !strings.Contains(got, want) {
+			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
+		}
+	}))
+
 	t.Run("app.terraform.io (no login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
@@ -267,7 +278,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "no",
 		})()
-		status := c.Run(nil)
+		status := c.Run([]string{"app.terraform.io"})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
@@ -282,7 +293,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "y",
 		})()
-		status := c.Run(nil)
+		status := c.Run([]string{"app.terraform.io"})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}

@@ -1,5 +1,9 @@
 ## 1.6.0 (Unreleased)
 
+UPGRADE NOTES:
+* The `cloud` and `remote` backends will no longer default to `app.terraform.io` hostname and will require the hostname to be explicitly specified ([#291](https://github.com/opentffoundation/opentf/pull/291));
+* The `login` and `logout` commands will no longer default to `app.terraform.io` hostname and will require the hostname to be explicitly provided as a command-line argument ([#291](https://github.com/opentffoundation/opentf/pull/291));
+
 NEW FEATURES:
 * `opentf test`: The previously experimental `opentf test` command has been moved out of experimental. This comes with a significant change in how OpenTF tests are written and executed.
 
@@ -16,6 +20,7 @@ BUG FIXES:
 * The upstream dependency that OpenTF uses for service discovery of OpenTF-native services such as cloud backend state storage was previously not concurrency-safe, but OpenTF was treating it as if it was in situations like when a configuration has multiple `terraform_remote_state` blocks all using the "remote" backend. OpenTF is now using a newer version of that library which updates its internal caches in a concurrency-safe way. ([#33364](https://github.com/hashicorp/terraform/issues/33364))
 * Transitive dependencies were lost during apply when the referenced resource expanded into zero instances ([#33403](https://github.com/hashicorp/terraform/issues/33403))
 * OpenTF will no longer override SSH settings in local git configuration when installing modules. ([#33592](https://github.com/hashicorp/terraform/issues/33592))
+* Handle file-operation errors in `internal/states/statemgr`. ([#278](https://github.com/opentffoundation/opentf/issues/278))
 
 ## Previous Releases
 
