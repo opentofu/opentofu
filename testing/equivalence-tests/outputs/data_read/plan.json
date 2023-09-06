@@ -324,6 +324,5 @@
       "provider_name": "registry.terraform.io/hashicorp/random",
       "type": "random_integer"
     }
-  ],
-  "timestamp": "2023-08-24T12:33:30Z"
+  ]
 }

@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -592,21 +591,6 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	}
 
 	timestamp := time.Now().UTC()
-
-	// This may not be pretty but it serves a single purpose, which is to ensure
-	// that we don't get false alerts on plan snapshots changing. This is never
-	// intended to be used in production, and is only for use in our CI system.
-	if tsOverride := os.Getenv("OTF_OVERRIDE_PLAN_TIMESTAMP_FOR_SNAPSHOTS"); tsOverride != "" {
-		var err error
-
-		if timestamp, err = time.Parse(time.RFC3339, tsOverride); err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid timestamp override",
-				fmt.Sprintf("The OTF_OVERRIDE_PLAN_TIMESTAMP_FOR_SNAPSHOTS environment variable is set to an invalid timestamp: %s", err)),
-			)
-		}
-	}
 
 	// If we get here then we should definitely have a non-nil "graph", which
 	// we can now walk.

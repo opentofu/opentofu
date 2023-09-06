@@ -2,7 +2,6 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 0 added, 0 changed, 0 destroyed.",
-    "@module": "opentf.ui",
     "changes": {
       "add": 0,
       "change": 0,
@@ -15,7 +14,6 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }

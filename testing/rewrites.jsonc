@@ -1,0 +1,7 @@
+{
+    "apply.json": {
+      "complete after [0-9]+s": "complete after 0s",
+      "\"elapsed_seconds\": [0-9]+": "\"elapsed_seconds\": 0"
+    }
+  }
+  

@@ -2,7 +2,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_nested_object.nested_object: Plan to create",
-    "@module": "opentf.ui",
     "change": {
       "action": "create",
       "resource": {
@@ -20,7 +19,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_nested_object.nested_object: Creating...",
-    "@module": "opentf.ui",
     "hook": {
       "action": "create",
       "resource": {
@@ -38,7 +36,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_nested_object.nested_object: Creation complete after 0s [id=B2491EF0-9361-40FD-B25A-0332A1A5E052]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "create",
       "elapsed_seconds": 0,
@@ -59,7 +56,6 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 1 added, 0 changed, 0 destroyed.",
-    "@module": "opentf.ui",
     "changes": {
       "add": 1,
       "change": 0,
@@ -72,7 +68,6 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }

@@ -86,6 +86,5 @@
       "provider_name": "registry.terraform.io/hashicorp/tfcoremock",
       "type": "tfcoremock_object"
     }
-  ],
-  "timestamp": "2023-08-24T12:33:30Z"
+  ]
 }
