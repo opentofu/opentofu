@@ -123,6 +123,10 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			continue
 		}
 
+		// The condition result may be marked if the expression refers to a
+		// sensitive value.
+		runVal, _ = runVal.Unmark()
+
 		if runVal.IsNull() {
 			run.Status = run.Status.Merge(moduletest.Error)
 			run.Diagnostics = run.Diagnostics.Append(&hcl.Diagnostic{
