@@ -1,0 +1,17 @@
+approved = [
+  "apache-2.0",
+  "bsd-2-clause",
+  "bsd-3-clause",
+  "isc",
+  "mpl-2.0",
+  "mit",
+]
+
+ignored = [
+  "github.com/gogo/protobuf",        # BSD-3-Clause license
+  "github.com/hashicorp/consul/api", # Mozilla Public License, version 2.0
+  "google.golang.org/protobuf",      # BSD-3-Clause license
+  "sigs.k8s.io/yaml",                # MIT License
+]
+
+[header]
