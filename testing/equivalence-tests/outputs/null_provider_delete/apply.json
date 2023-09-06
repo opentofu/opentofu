@@ -2,7 +2,6 @@
   {
     "@level": "info",
     "@message": "null_resource.null_resource: Plan to delete",
-    "@module": "opentf.ui",
     "change": {
       "action": "delete",
       "reason": "delete_because_no_resource_config",
@@ -21,7 +20,6 @@
   {
     "@level": "info",
     "@message": "null_resource.null_resource: Destroying... [id=7115293105928418144]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "delete",
       "id_key": "id",
@@ -41,7 +39,6 @@
   {
     "@level": "info",
     "@message": "null_resource.null_resource: Destruction complete after 0s",
-    "@module": "opentf.ui",
     "hook": {
       "action": "delete",
       "elapsed_seconds": 0,
@@ -60,7 +57,6 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 0 added, 0 changed, 1 destroyed.",
-    "@module": "opentf.ui",
     "changes": {
       "add": 0,
       "change": 0,
@@ -73,7 +69,6 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }

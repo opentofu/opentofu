@@ -2,7 +2,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_set.set: Plan to update",
-    "@module": "opentf.ui",
     "change": {
       "action": "update",
       "resource": {
@@ -20,7 +19,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_set.set: Modifying... [id=046952C9-B832-4106-82C0-C217F7C73E18]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "update",
       "id_key": "id",
@@ -40,7 +38,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_set.set: Modifications complete after 0s [id=046952C9-B832-4106-82C0-C217F7C73E18]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "update",
       "elapsed_seconds": 0,
@@ -61,7 +58,6 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 0 added, 1 changed, 0 destroyed.",
-    "@module": "opentf.ui",
     "changes": {
       "add": 0,
       "change": 1,
@@ -74,7 +70,6 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }

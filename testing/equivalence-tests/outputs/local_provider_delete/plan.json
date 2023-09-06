@@ -74,6 +74,5 @@
       "provider_name": "registry.terraform.io/hashicorp/local",
       "type": "local_file"
     }
-  ],
-  "timestamp": "2023-08-24T12:33:30Z"
+  ]
 }

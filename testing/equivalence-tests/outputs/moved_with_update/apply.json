@@ -2,7 +2,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_simple_resource.moved: Plan to update",
-    "@module": "opentf.ui",
     "change": {
       "action": "update",
       "previous_resource": {
@@ -29,7 +28,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_simple_resource.moved: Modifying... [id=7da63aeb-f908-a112-9886-f29a0b0bd4ad]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "update",
       "id_key": "id",
@@ -49,7 +47,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_simple_resource.moved: Modifications complete after 0s [id=7da63aeb-f908-a112-9886-f29a0b0bd4ad]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "update",
       "elapsed_seconds": 0,
@@ -70,7 +67,6 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 0 added, 1 changed, 0 destroyed.",
-    "@module": "opentf.ui",
     "changes": {
       "add": 0,
       "change": 1,
@@ -83,7 +79,6 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }

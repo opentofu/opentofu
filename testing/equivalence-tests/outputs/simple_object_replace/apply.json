@@ -2,7 +2,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_object.object: Plan to replace",
-    "@module": "opentf.ui",
     "change": {
       "action": "replace",
       "reason": "cannot_update",
@@ -21,7 +20,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_object.object: Destroying... [id=a0ed13ec-116b-14c4-7437-418e217d3659]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "delete",
       "id_key": "id",
@@ -41,7 +39,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_object.object: Destruction complete after 0s",
-    "@module": "opentf.ui",
     "hook": {
       "action": "delete",
       "elapsed_seconds": 0,
@@ -60,7 +57,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_object.object: Creating...",
-    "@module": "opentf.ui",
     "hook": {
       "action": "create",
       "resource": {
@@ -78,7 +74,6 @@
   {
     "@level": "info",
     "@message": "tfcoremock_object.object: Creation complete after 0s [id=63A9E8E8-71BC-4DAE-A66C-48CE393CCBD3]",
-    "@module": "opentf.ui",
     "hook": {
       "action": "create",
       "elapsed_seconds": 0,
@@ -99,7 +94,6 @@
   {
     "@level": "info",
     "@message": "Apply complete! Resources: 1 added, 0 changed, 1 destroyed.",
-    "@module": "opentf.ui",
     "changes": {
       "add": 1,
       "change": 0,
@@ -112,7 +106,6 @@
   {
     "@level": "info",
     "@message": "Outputs: 0",
-    "@module": "opentf.ui",
     "outputs": {},
     "type": "outputs"
   }
