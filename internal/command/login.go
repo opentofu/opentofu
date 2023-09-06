@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -51,9 +51,9 @@ func (c *LoginCommand) Run(args []string) int {
 	}
 
 	args = cmdFlags.Args()
-	if len(args) > 1 {
+	if len(args) != 1 {
 		c.Ui.Error(
-			"The login command expects at most one argument: the host to log in to.")
+			"The login command expects exactly one argument: the host to log in to.")
 		cmdFlags.Usage()
 		return 1
 	}
@@ -70,10 +70,7 @@ func (c *LoginCommand) Run(args []string) int {
 		return 1
 	}
 
-	givenHostname := "app.terraform.io"
-	if len(args) != 0 {
-		givenHostname = args[0]
-	}
+	givenHostname := args[0]
 
 	hostname, err := svchost.ForComparison(givenHostname)
 	if err != nil {
@@ -263,7 +260,7 @@ func (c *LoginCommand) Run(args []string) int {
 			return 0
 		}
 
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			c.logMOTDError(err)
 			c.outputDefaultTFCLoginSuccess()
@@ -343,9 +340,6 @@ Usage: opentf [global options] login [hostname]
 
   Retrieves an authentication token for the given hostname, if it supports
   automatic login, and saves it in a credentials file in your home directory.
-
-  If no hostname is provided, the default hostname is app.terraform.io, to
-  log in to Terraform Cloud.
 
   If not overridden by credentials helper settings in the CLI configuration,
   the credentials will be written to the following local file:

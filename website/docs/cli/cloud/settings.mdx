@@ -29,7 +29,7 @@ working directory.
 terraform {
   cloud {
     organization = "my-org"
-    hostname = "app.example.org" # Optional; defaults to app.terraform.io
+    hostname = "app.example.org"
 
     workspaces {
       project = "networking-development"
@@ -55,6 +55,8 @@ directly - it ignores the block and behaves according to its own workspace setti
 
 The `cloud` block supports the following configuration arguments:
 
+- `hostname` - (Required) The hostname of the cloud backend.
+
 - `organization` - (Required) The name of the organization containing the
   workspace(s) the current configuration should use.
 
@@ -76,8 +78,6 @@ The `cloud` block supports the following configuration arguments:
   - `project` - (Optional) The name of a cloud backend project. Workspaces that need created will
     will be created within this project. `opentf workspace list` will be filtered by workspaces
     in the supplied project.
-
-- `hostname` - (Optional) The hostname of the cloud backend.
 
 - `token` - (Optional) The token used to authenticate with the cloud backend.
   We recommend omitting the token from the configuration, and instead using

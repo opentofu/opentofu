@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname(defaultHostname)
+	tfeHost  = svchost.Hostname("app.terraform.io")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -89,7 +89,7 @@ func testBackendWithName(t *testing.T) (*Cloud, func()) {
 
 func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -103,7 +103,7 @@ func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 
 func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -122,7 +122,7 @@ func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -137,7 +137,7 @@ func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 
 func testBackendWithHandlers(t *testing.T, handlers map[string]func(http.ResponseWriter, *http.Request)) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -581,7 +581,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname(defaultHostname), services)
+	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	d.ForceHostServices(svchost.Hostname("nontfe.local"), nil)
 	return d

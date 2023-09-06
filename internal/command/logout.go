@@ -30,19 +30,16 @@ func (c *LogoutCommand) Run(args []string) int {
 	}
 
 	args = cmdFlags.Args()
-	if len(args) > 1 {
+	if len(args) != 1 {
 		c.Ui.Error(
-			"The logout command expects at most one argument: the host to log out of.")
+			"The logout command expects exactly one argument: the host to log out of.")
 		cmdFlags.Usage()
 		return 1
 	}
 
 	var diags tfdiags.Diagnostics
 
-	givenHostname := "app.terraform.io"
-	if len(args) != 0 {
-		givenHostname = args[0]
-	}
+	givenHostname := args[0]
 
 	hostname, err := svchost.ForComparison(givenHostname)
 	if err != nil {
@@ -138,8 +135,6 @@ Usage: opentf [global options] logout [hostname]
 
   Note: the API token is only removed from local storage, not destroyed on the
   remote server, so it will remain valid until manually revoked.
-
-  If no hostname is provided, the default hostname is app.terraform.io.
       %s
 `
 	return strings.TrimSpace(helpText)

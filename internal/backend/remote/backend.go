@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	defaultHostname    = "app.terraform.io"
 	defaultParallelism = 10
 	stateServiceID     = "state.v2"
 	tfeServiceID       = "tfe.v2.1"
@@ -231,7 +230,13 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if val := obj.GetAttr("hostname"); !val.IsNull() && val.AsString() != "" {
 		b.hostname = val.AsString()
 	} else {
-		b.hostname = defaultHostname
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Hostname is required for the remote backend",
+			`OpenTF does not provide a default "hostname" attribute, so it must be set to the hostname of the remote backend.`,
+		))
+
+		return diags
 	}
 
 	// Get the organization.
@@ -262,7 +267,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	// a remote backend API and to get the version constraints.
 	service, constraints, err := b.discover(serviceID)
 
-	// First check any contraints we might have received.
+	// First check any constraints we might have received.
 	if constraints != nil {
 		diags = diags.Append(b.checkConstraints(constraints))
 		if diags.HasErrors() {
@@ -306,17 +311,13 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	// Return an error if we still don't have a token at this point.
 	if token == "" {
-		loginCommand := "opentf login"
-		if b.hostname != defaultHostname {
-			loginCommand = loginCommand + " " + b.hostname
-		}
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Required token could not be found",
 			fmt.Sprintf(
 				"Run the following command to generate a token for %s:\n    %s",
 				b.hostname,
-				loginCommand,
+				fmt.Sprintf("opentf login %s", b.hostname),
 			),
 		))
 		return diags
@@ -1083,7 +1084,7 @@ const operationNotCanceled = `
 `
 
 var schemaDescriptions = map[string]string{
-	"hostname":     "The remote backend hostname to connect to (defaults to app.terraform.io).",
+	"hostname":     "The remote backend hostname to connect to.",
 	"organization": "The name of the organization containing the targeted workspace(s).",
 	"token": "The token used to authenticate with the remote backend. If credentials for the\n" +
 		"host are configured in the CLI Config File, then those will be used instead.",
