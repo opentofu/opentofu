@@ -92,7 +92,7 @@ The `local` backend finally calls an appropriate method on that context to
 begin execution of the relevant command, such as
 [`Plan`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#Context.Plan)
 or
-[`Apply`](), which in turn constructs a graph using a _graph builder_,
+[`Apply`](https://pkg.go.dev/github.com/placeholderplaceholderplaceholder/opentf/internal/opentf#Context.Apply), which in turn constructs a graph using a _graph builder_,
 described in a later section.
 
 ## Configuration Loader
