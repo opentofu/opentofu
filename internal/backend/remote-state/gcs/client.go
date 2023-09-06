@@ -6,7 +6,7 @@ package gcs
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strconv"
 
 	"cloud.google.com/go/storage"
@@ -40,7 +40,7 @@ func (c *remoteClient) Get() (payload *remote.Payload, err error) {
 	}
 	defer stateFileReader.Close()
 
-	stateFileContents, err := ioutil.ReadAll(stateFileReader)
+	stateFileContents, err := io.ReadAll(stateFileReader)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read state file from %v: %v", c.stateFileURL(), err)
 	}
@@ -150,7 +150,7 @@ func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
 	}
 	defer r.Close()
 
-	rawData, err := ioutil.ReadAll(r)
+	rawData, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
