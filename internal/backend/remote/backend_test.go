@@ -177,7 +177,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 	}{
 		"compatible version": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("app.terraform.io"),
 				"organization": cty.StringVal("hashicorp"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -189,7 +189,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too old": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("app.terraform.io"),
 				"organization": cty.StringVal("hashicorp"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -202,7 +202,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too new": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("app.terraform.io"),
 				"organization": cty.StringVal("hashicorp"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -743,7 +743,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String), // Forces aliasing to test server
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{

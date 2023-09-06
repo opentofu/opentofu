@@ -732,7 +732,7 @@ func TestCloud_config(t *testing.T) {
 
 func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 	config := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -769,7 +769,7 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 
 func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 	config := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -813,7 +813,7 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 	workspaceName := "unavailable-terraform-version"
 
 	config := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -885,19 +885,6 @@ func TestCloud_setConfigurationFields(t *testing.T) {
 				}),
 			}),
 			expectedHostname:     "hashicorp.com",
-			expectedOrganziation: "hashicorp",
-		},
-		"with hostname not set, set to default hostname": {
-			obj: cty.ObjectVal(map[string]cty.Value{
-				"organization": cty.StringVal("hashicorp"),
-				"hostname":     cty.NullVal(cty.String),
-				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":    cty.StringVal("prod"),
-					"tags":    cty.NullVal(cty.Set(cty.String)),
-					"project": cty.NullVal(cty.String),
-				}),
-			}),
-			expectedHostname:     "app.terraform.io",
 			expectedOrganziation: "hashicorp",
 		},
 		"with workspace name set": {
@@ -1427,7 +1414,7 @@ func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.NullVal(cty.String), // Forces aliasing to test server
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
