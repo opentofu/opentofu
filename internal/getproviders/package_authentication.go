@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -22,6 +23,7 @@ type packageAuthenticationResult int
 const (
 	verifiedChecksum packageAuthenticationResult = iota
 	signed
+	enforceGPGValidationEnvName = "OPENTF_ENFORCE_GPG_VALIDATION"
 )
 
 var (
@@ -367,7 +369,27 @@ func NewSignatureAuthentication(document, signature []byte, keys []SigningKey) P
 	}
 }
 
+func (s signatureAuthentication) shouldEnforceGPGValidation() bool {
+	// if we have been provided keys, we should enforce GPG validation
+	if len(s.Keys) > 0 {
+		return true
+	}
+
+	// otherwise if the environment variable is set to true, we should enforce GPG validation
+	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
+	return exists && enforceEnvVar == "true"
+}
+
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
+	shouldValidate := s.shouldEnforceGPGValidation()
+
+	if !shouldValidate {
+		// construct an empty keyID to indicate that we are not validating and return no errors
+		// this is to force a successful authentication
+		// TODO: discuss if this key should be hardcoded to a value such as "UNKNOWN"?
+		return &PackageAuthenticationResult{result: signed, KeyID: ""}, nil
+	}
+
 	// Find the key that signed the checksum file. This can fail if there is no
 	// valid signature for any of the provided keys.
 	_, keyID, err := s.findSigningKey()
@@ -439,7 +461,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), openpgpConfig)
 
-		// If the signature issuer does not match the the key, keep trying the
+		// If the signature issuer does not match the key, keep trying the
 		// rest of the provided keys.
 		if err == openpgpErrors.ErrUnknownIssuer {
 			continue
