@@ -675,9 +675,13 @@ NeedProvider:
 		}
 
 		var signedHashes []getproviders.Hash
-		if authResult.Signed() {
+		// For now, we will temporarily trust the hashes returned by the
+		// installation process that are "SigningSkipped" or "Signed".
+		// This is only intended to be temporary, see https://github.com/opentffoundation/opentf/issues/266 for more information
+		if authResult.Signed() || authResult.SigningSkipped() {
 			// We'll trust new hashes from upstream only if they were verified
-			// as signed by a suitable key. Otherwise, we'd record only
+			// as signed by a suitable key or if the signing validation was skipped.
+			// Otherwise, we'd record only
 			// a new hash we just calculated ourselves from the bytes on disk,
 			// and so the hashes would cover only the current platform.
 			signedHashes = append(signedHashes, meta.AcceptableHashes()...)

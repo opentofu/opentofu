@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	tfaddr "github.com/hashicorp/terraform-registry-address"
+
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
 	svchost "github.com/hashicorp/terraform-svchost"
@@ -150,6 +152,7 @@ func TestSourcePackageMeta(t *testing.T) {
 						[]SigningKey{
 							{ASCIIArmor: TestingPublicKey},
 						},
+						&tfaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
 					),
 				),
 			},
