@@ -10,12 +10,12 @@ https://github.com/opentffoundation/opentf/blob/main/CONTRIBUTING.md
 
 <!--
 
-Link all GitHub issues fixed by this PR, and add references to prior
-related PRs.
+Link all GitHub issues fixed by this PR, and add references to prior related PRs.
+Make sure to first open issue, get community approval and then create Pull Request to resolve it
 
 -->
 
-Fixes #
+Resolves #
 
 ## Target Release
 

@@ -1,0 +1,35 @@
+name: Pull Request Lint
+
+on:
+  pull_request:
+    types: ['opened', 'edited', 'reopened', 'synchronize']
+
+jobs:
+  check-linked-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for linked issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          QUERY='query ($prNumber: Int!, $repositoryName: String!, $repositoryOwner: String!) { 
+            repository(name: $repositoryName, owner: $repositoryOwner) { 
+              pullRequest(number: $prNumber) { 
+                closingIssuesReferences(first: 10) { 
+                  nodes { 
+                    number 
+                  } 
+                } 
+              } 
+            } 
+          }'
+          
+          ISSUES=$(gh api graphql -f query="$QUERY" -F prNumber=${{ github.event.pull_request.number }} -F repositoryName=${{ github.event.repository.name }} -F repositoryOwner=${{ github.event.repository.owner.login }} -q '.data.repository.pullRequest.closingIssuesReferences.nodes[] | .number')
+
+          if [ -z "$ISSUES" ]
+          then
+            echo "No issues linked to this PR. Please link an issue and try again."
+            exit 1
+          else
+            echo "Issue(s) linked: $ISSUES"
+          fi
