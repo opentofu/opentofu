@@ -4,7 +4,6 @@
 package configload
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -23,7 +22,7 @@ import (
 func NewLoaderForTests(t *testing.T) (*Loader, func()) {
 	t.Helper()
 
-	modulesDir, err := ioutil.TempDir("", "tf-configs")
+	modulesDir, err := os.MkdirTemp("", "tf-configs")
 	if err != nil {
 		t.Fatalf("failed to create temporary modules dir: %s", err)
 		return nil, func() {}
