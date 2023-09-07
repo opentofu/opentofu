@@ -4,7 +4,6 @@
 package statemgr
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -133,7 +132,7 @@ func TestFilesystem_writeWhileLocked(t *testing.T) {
 
 func TestFilesystem_pathOut(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
-	f, err := ioutil.TempFile("", "tf")
+	f, err := os.CreateTemp("", "tf")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -149,7 +148,7 @@ func TestFilesystem_pathOut(t *testing.T) {
 
 func TestFilesystem_backup(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
-	f, err := ioutil.TempFile("", "tf")
+	f, err := os.CreateTemp("", "tf")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -344,7 +343,7 @@ func TestFilesystem_impl(t *testing.T) {
 }
 
 func testFilesystem(t *testing.T) *Filesystem {
-	f, err := ioutil.TempFile("", "tf")
+	f, err := os.CreateTemp("", "tf")
 	if err != nil {
 		t.Fatalf("failed to create temporary file %s", err)
 	}
@@ -372,7 +371,7 @@ func testFilesystem(t *testing.T) *Filesystem {
 // Make sure we can refresh while the state is locked
 func TestFilesystem_refreshWhileLocked(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
-	f, err := ioutil.TempFile("", "tf")
+	f, err := os.CreateTemp("", "tf")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
