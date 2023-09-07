@@ -10,7 +10,7 @@ body:
       value: |
         # Thank you for opening an issue.
 
-        The [OpenTF](https://github.com/placeholderplaceholderplaceholder/opentf) issue tracker is reserved for bug reports relating to the core OpenTF CLI application and configuration language.
+        The [OpenTF](https://github.com/opentffoundation/opentf) issue tracker is reserved for bug reports relating to the core OpenTF CLI application and configuration language.
 
         ## Filing a bug report
 
