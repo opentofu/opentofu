@@ -682,6 +682,11 @@ func (p *Plan) marshalRelevantAttrs(plan *plans.Plan) error {
 
 		p.RelevantAttributes = append(p.RelevantAttributes, ResourceAttr{addr, path})
 	}
+
+	sort.Slice(p.RelevantAttributes, func(i, j int) bool {
+		return p.RelevantAttributes[i].Resource < p.RelevantAttributes[j].Resource
+	})
+
 	return nil
 }
 
