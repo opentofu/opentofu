@@ -2,7 +2,7 @@ name: Pull Request Lint
 
 on:
   pull_request:
-    types: ['opened', 'edited', 'reopened']
+    types: ['opened', 'edited', 'reopened', 'synchronize']
 
 jobs:
   title:
@@ -13,9 +13,6 @@ jobs:
         uses: actions/checkout@v1
         with:
           fetch-depth: 1
-      - name: Run fabiankoestring/body-regex-validator-action
-        uses: fabiankoestring/body-regex-validator-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PULL_REQUEST_PATTERN: '^(.*Resolves.*)$'
-          PULL_REQUEST_COMMENT: 'This is my pr comment template.'
+      - name: Get description
+        run: |
+          gh pr view --json body --jq ".body"
