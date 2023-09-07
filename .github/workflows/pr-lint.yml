@@ -15,6 +15,12 @@ jobs:
           fetch-depth: 1
       - name: Get description
         run: |
-          gh pr view --json body --jq ".body" ${{ github.event.pull_request.head.ref }}
+          body=$(gh pr view --json body --jq ".body" ${{ github.event.pull_request.head.ref }})
+          pattern='\bResolves\s+#\d+\b'
+          if echo "$body" | grep -P -q "$pattern"; then
+            exit 0
+          else
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
