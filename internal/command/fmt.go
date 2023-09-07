@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -173,7 +172,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 
 	log.Printf("[TRACE] opentf fmt: Formatting %s", path)
 
-	src, err := ioutil.ReadAll(r)
+	src, err := io.ReadAll(r)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to read %s", path))
 		return diags
@@ -200,7 +199,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 			fmt.Fprintln(w, path)
 		}
 		if c.write {
-			err := ioutil.WriteFile(path, result, 0644)
+			err := os.WriteFile(path, result, 0644)
 			if err != nil {
 				diags = diags.Append(fmt.Errorf("Failed to write %s", path))
 				return diags
@@ -231,7 +230,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 
 	log.Printf("[TRACE] opentf fmt: looking for files in %s", path)
 
-	entries, err := ioutil.ReadDir(path)
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		switch {
 		case os.IsNotExist(err):
@@ -589,14 +588,14 @@ func (c *FmtCommand) Synopsis() string {
 }
 
 func bytesDiff(b1, b2 []byte, path string) (data []byte, err error) {
-	f1, err := ioutil.TempFile("", "")
+	f1, err := os.CreateTemp("", "")
 	if err != nil {
 		return
 	}
 	defer os.Remove(f1.Name())
 	defer f1.Close()
 
-	f2, err := ioutil.TempFile("", "")
+	f2, err := os.CreateTemp("", "")
 	if err != nil {
 		return
 	}
