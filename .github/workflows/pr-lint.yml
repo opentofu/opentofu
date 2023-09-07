@@ -28,7 +28,9 @@ jobs:
 
           if [ -z "$ISSUES" ]
           then
-            gh pr comment ${{ github.event.pull_request.base.ref }} -b "Please link the relevant issue that this PR handles \n using one of the following words \n `close | closes | closed | fix | fixes | fixed | resolve | resolves | resolved` \n more details can be found [here](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
+            gh pr comment -b "Please link the relevant issue that this PR handles using one of the following keywords:
+            \`close | closes | closed | fix | fixes | fixed | resolve | resolves | resolved\`
+            More details can be found [here](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)"
             echo "No issues linked to this PR. Please link an issue and try again."
             exit 1
           else
