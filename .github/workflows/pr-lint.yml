@@ -2,34 +2,25 @@ name: Pull Request Lint
 
 on:
   pull_request:
-    types: ['opened', 'edited', 'reopened']
+    types: ['opened', 'edited', 'reopened', 'synchronize']
 
 jobs:
-  check-linked-issues:
+  title:
+    name: Description Validation
     runs-on: ubuntu-latest
     steps:
-      - name: Check for linked issues
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run actions/checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: Get description
         run: |
-          QUERY='query ($prNumber: Int!, $repositoryName: String!, $repositoryOwner: String!) { 
-            repository(name: $repositoryName, owner: $repositoryOwner) { 
-              pullRequest(number: $prNumber) { 
-                closingIssuesReferences(first: 10) { 
-                  nodes { 
-                    number 
-                  } 
-                } 
-              } 
-            } 
-          }'
-          
-          ISSUES=$(gh api graphql -f query="$QUERY" -F prNumber=${{ github.event.pull_request.number }} -F repositoryName=${{ github.event.repository.name }} -F repositoryOwner=${{ github.event.repository.owner.login }} -q '.data.repository.pullRequest.closingIssuesReferences.nodes[] | .number')
-
-          if [ -z "$ISSUES" ]
-          then
-            echo "No issues linked to this PR. Please link an issue and try again."
-            exit 1
+          body=$(gh pr view --json body --jq ".body" ${{ github.event.pull_request.head.ref }})
+          pattern='\bResolves\s+#\d+\b'
+          if echo "$body" | grep -P -q "$pattern"; then
+            exit 0
           else
-            echo "Issue(s) linked: $ISSUES"
+            exit 1
           fi
+        env:
+          GH_TOKEN: ${{ github.token }}
