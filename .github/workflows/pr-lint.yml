@@ -15,6 +15,6 @@ jobs:
           fetch-depth: 1
       - name: Get description
         run: |
-          gh pr view --json body --jq ".body" ${{ github.event.pull_request.base.ref }}
+          gh pr view --json body --jq ".body" ${{ github.event.pull_request.head.ref }}
         env:
           GH_TOKEN: ${{ github.token }}
