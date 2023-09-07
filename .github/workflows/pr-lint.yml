@@ -2,7 +2,7 @@ name: Pull Request Lint
 
 on:
   pull_request:
-    types: ['opened', 'edited', 'reopened', 'synchronize']
+    types: ['opened', 'edited', 'reopened']
 
 jobs:
   check-linked-issues:
