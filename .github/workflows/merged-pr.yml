@@ -5,7 +5,7 @@ permissions:
 # only trigger on pull request closed events
 on:
   pull_request_target:
-    types: [ closed ]
+    types: [ opened ]
 
 jobs:
   merge_job:
@@ -20,5 +20,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "Reminder for the merging maintainer: if this is a user-visible change, please update the changelog on the appropriate release branch."
+              body: "Reminder for the PR assignee: If this is a user-visible change, please update the changelog as part of the PR."
             })
