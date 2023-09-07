@@ -4,7 +4,7 @@ If you'd like to build OpenTF from source, you can do so using the Go build tool
 
 ## Prerequisites
 
-1. Ensure you've installed the Go language version specified in [`.go-version`](https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.go-version).
+1. Ensure you've installed the Go language version specified in [`.go-version`](.go-version).
 2. Clone this repository to a location of your choice.
 
 ## OpenTF Build Options
