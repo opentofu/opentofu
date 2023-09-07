@@ -682,6 +682,13 @@ func (p *Plan) marshalRelevantAttrs(plan *plans.Plan) error {
 
 		p.RelevantAttributes = append(p.RelevantAttributes, ResourceAttr{addr, path})
 	}
+
+	// We sort the relevant attributes by resource address to make the output
+	// deterministic. Our own equivalence tests rely on it.
+	sort.Slice(p.RelevantAttributes, func(i, j int) bool {
+		return p.RelevantAttributes[i].Resource < p.RelevantAttributes[j].Resource
+	})
+
 	return nil
 }
 
