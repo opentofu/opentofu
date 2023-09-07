@@ -26,7 +26,7 @@ This repository contains OpenTF Core, which includes the command line interface 
 
 - To learn more about compiling OpenTF and contributing suggested changes, refer to [the contributing guide](CONTRIBUTING.md).
 
-- To submit bug reports or enhancement requests, refer to the [the contributing guide](CONTRIBUTING.md) as well.
+- To submit bug reports or enhancement requests, refer to the [contributing guide](CONTRIBUTING.md) as well.
 
 ## License
 
