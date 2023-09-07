@@ -2,18 +2,20 @@ name: Pull Request Lint
 
 on:
   pull_request:
-    types: ['opened', 'edited', 'reopened', 'synchronize']
+    types: ['opened', 'edited', 'reopened']
 
 jobs:
   title:
-    name: ticket check
+    name: Description Validation
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check for ticket
-        uses: neofinancial/ticket-check-action@v1
+      - name: Run actions/checkout
+        uses: actions/checkout@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ticketLink: 'https://github.com/:owner/:repo/issues/%ticketNumber%'
-          ticketPrefix: '#'
-          titleRegex: '^#(?<ticketNumber>\d+)'
+          fetch-depth: 1
+      - name: Run fabiankoestring/body-regex-validator-action
+        uses: fabiankoestring/body-regex-validator-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_PATTERN: '^(.*Resolves.*)$'
+          PULL_REQUEST_COMMENT: 'This is my pr comment template.'
