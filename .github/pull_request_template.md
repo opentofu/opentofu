@@ -4,7 +4,7 @@ Describe in detail the changes you are proposing, and the rationale.
 
 See the contributing guide:
 
-https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.github/CONTRIBUTING.md
+https://github.com/opentffoundation/opentf/blob/main/CONTRIBUTING.md
 
 -->
 
