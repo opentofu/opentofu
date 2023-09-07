@@ -4,18 +4,18 @@ Describe in detail the changes you are proposing, and the rationale.
 
 See the contributing guide:
 
-https://github.com/placeholderplaceholderplaceholder/opentf/blob/main/.github/CONTRIBUTING.md
+https://github.com/opentffoundation/opentf/blob/main/CONTRIBUTING.md
 
 -->
 
 <!--
 
-Link all GitHub issues fixed by this PR, and add references to prior
-related PRs.
+Link all GitHub issues fixed by this PR, and add references to prior related PRs.
+Make sure to first open issue, get community approval and then create Pull Request to resolve it
 
 -->
 
-Fixes #
+Resolves #
 
 ## Target Release
 
