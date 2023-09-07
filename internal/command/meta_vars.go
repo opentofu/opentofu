@@ -5,7 +5,6 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -74,7 +73,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, opentf.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
 	}
-	if infos, err := ioutil.ReadDir("."); err == nil {
+	if infos, err := os.ReadDir("."); err == nil {
 		// "infos" is already sorted by name, so we just need to filter it here.
 		for _, info := range infos {
 			name := info.Name()
@@ -137,7 +136,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 func (m *Meta) addVarsFromFile(filename string, sourceType opentf.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	src, err := ioutil.ReadFile(filename)
+	src, err := os.ReadFile(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
 			diags = diags.Append(tfdiags.Sourceless(
