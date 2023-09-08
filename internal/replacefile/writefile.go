@@ -5,7 +5,6 @@ package replacefile
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -36,7 +35,7 @@ func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 		// treats an empty dir as meaning "use the TMPDIR environment variable".
 		dir = "."
 	}
-	f, err := ioutil.TempFile(dir, file) // alongside target file and with a similar name
+	f, err := os.CreateTemp(dir, file) // alongside target file and with a similar name
 	if err != nil {
 		return fmt.Errorf("cannot create temporary file to update %s: %s", filename, err)
 	}
