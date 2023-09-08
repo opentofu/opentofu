@@ -35,18 +35,18 @@ following sections.
 The nested `backend` block configures which state backend OpenTF should use.
 
 The syntax and behavior of the `backend` block is described in [Backend
-Configuration](/opentf/language/settings/backends/configuration).
+Configuration](/docs/language/settings/backends/configuration).
 
 ## Specifying a Required OpenTF Version
 
 The `required_version` setting accepts a [version constraint
-string,](/opentf/language/expressions/version-constraints) which specifies which versions of OpenTF
+string,](/docs/language/expressions/version-constraints) which specifies which versions of OpenTF
 can be used with your configuration.
 
 If the running version of OpenTF doesn't match the constraints specified,
 OpenTF will produce an error and exit without taking any further actions.
 
-When you use [child modules](/opentf/language/modules), each module can specify its own
+When you use [child modules](/docs/language/modules), each module can specify its own
 version requirements. The requirements of all modules in the tree must be
 satisfied.
 
@@ -57,7 +57,7 @@ a minimum OpenTF version that has behavior expected by the configuration.
 The `required_version` setting applies only to the version of OpenTF CLI.
 OpenTF's resource types are implemented by provider plugins,
 whose release cycles are independent of OpenTF CLI and of each other.
-Use [the `required_providers` block](/opentf/language/providers/requirements) to manage
+Use [the `required_providers` block](/docs/language/providers/requirements) to manage
 the expected versions for each provider you use.
 
 ## Specifying Provider Requirements
@@ -77,7 +77,7 @@ terraform {
 }
 ```
 
-For more information, see [Provider Requirements](/opentf/language/providers/requirements).
+For more information, see [Provider Requirements](/docs/language/providers/requirements).
 
 ## Experimental Language Features
 
@@ -122,4 +122,4 @@ provider a module is using, if the provider defines a schema for it. This
 allows the provider to receive module-specific information, and is primarily
 intended for modules distributed by the same vendor as the associated provider.
 
-For more information, see [Provider Metadata](/opentf/internals/provider-meta).
+For more information, see [Provider Metadata](/docs/internals/provider-meta).

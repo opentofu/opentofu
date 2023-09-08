@@ -18,7 +18,7 @@ to the problem, because OpenTF only directly manages the machine as a whole.
 
 If you know that an object is damaged, or if you want to force OpenTF to
 replace it for any other reason, you can override OpenTF's default behavior
-using [the `-replace=...` planning option](/opentf/cli/commands/plan#replace-address)
+using [the `-replace=...` planning option](/docs/cli/commands/plan#replace-address)
 when you run either `opentf plan` or `opentf apply`:
 
 ```shellsession
@@ -53,11 +53,11 @@ address using `-replace=...` as described above.
 
 If OpenTF has marked an object as tainted but you consider it to be working
 correctly and do not want to replace it, you can override OpenTF's
-determination using [the `opentf untaint` command](/opentf/cli/commands/untaint),
+determination using [the `opentf untaint` command](/docs/cli/commands/untaint),
 after which OpenTF will consider the object to be ready for use by any
 downstream resource declarations.
 
 You can also _force_ OpenTF to mark a particular object as tainted using
-[the `opentf taint` command](/opentf/cli/commands/taint), but that approach is
+[the `opentf taint` command](/docs/cli/commands/taint), but that approach is
 deprecated in favor of the `-replace=...` option, which avoids the need to
 create an interim state snapshot with a tainted object.

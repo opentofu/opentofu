@@ -16,8 +16,8 @@ configuration (like endpoint URLs or cloud regions) before they can be used.
 
 ## What Providers Do
 
-Each provider adds a set of [resource types](/opentf/language/resources)
-and/or [data sources](/opentf/language/data-sources) that OpenTF can
+Each provider adds a set of [resource types](/docs/language/resources)
+and/or [data sources](/docs/language/data-sources) that OpenTF can
 manage.
 
 Every resource type is implemented by a provider; without providers, OpenTF
@@ -49,7 +49,7 @@ Provider documentation in the Registry is versioned; you can use the version
 menu in the header to change which version you're viewing.
 
 For details about writing, generating, and previewing provider documentation,
-see the [provider publishing documentation](/opentf/registry/providers/docs).
+see the [provider publishing documentation](/docs/registry/providers/docs).
 
 ## How to Use Providers
 
@@ -58,13 +58,13 @@ Providers are released separately from OpenTF itself and have their own version 
 To use resources from a given provider, you need to include some information
 about it in your configuration. See the following pages for details:
 
-- [Provider Requirements](/opentf/language/providers/requirements)
+- [Provider Requirements](/docs/language/providers/requirements)
   documents how to declare providers so OpenTF can install them.
 
-- [Provider Configuration](/opentf/language/providers/configuration)
+- [Provider Configuration](/docs/language/providers/configuration)
   documents how to configure settings for providers.
 
-- [Dependency Lock File](/opentf/language/files/dependency-lock)
+- [Dependency Lock File](/docs/language/files/dependency-lock)
   documents an additional HCL file that can be included with a configuration,
   which tells OpenTF to always use a specific set of provider versions.
 
@@ -73,18 +73,18 @@ about it in your configuration. See the following pages for details:
 - TACOS (TF Automation and Collaboration Software) install providers as part of every run.
 
 - OpenTF CLI finds and installs providers when
-  [initializing a working directory](/opentf/cli/init). It can
+  [initializing a working directory](/docs/cli/init). It can
   automatically download providers from a provider registry, or load them from
   a local mirror or cache. If you are using a persistent working directory, you
   must reinitialize whenever you change a configuration's providers.
 
   To save time and bandwidth, OpenTF CLI supports an optional plugin
   cache. You can enable the cache using the `plugin_cache_dir` setting in
-  [the CLI configuration file](/opentf/cli/config/config-file).
+  [the CLI configuration file](/docs/cli/config/config-file).
 
 To ensure OpenTF always installs the same provider versions for a given
 configuration, you can use OpenTF CLI to create a
-[dependency lock file](/opentf/language/files/dependency-lock)
+[dependency lock file](/docs/language/files/dependency-lock)
 and commit it to version control along with your configuration. If a lock file
 is present, OpenTF CLI, and TACOS (TF Automation and Collaboration Software) will all obey it when
 installing providers.
@@ -105,4 +105,4 @@ develops and maintains a given provider.
 ## How to Develop Providers
 
 Providers are written in Go, using the Terraform Plugin SDK. For more
-information on developing providers, see the [Plugin Development](/opentf/plugin) documentation.
+information on developing providers, see the [Plugin Development](/docs/plugin) documentation.

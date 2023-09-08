@@ -15,7 +15,7 @@ templatefile(path, vars)
 ```
 
 The template syntax is the same as for
-[string templates](/opentf/language/expressions/strings#string-templates)
+[string templates](/docs/language/expressions/strings#string-templates)
 in the main OpenTF language, including interpolation sequences delimited with
 `${` ... `}`. This function just allows longer template sequences to be factored
 out into a separate file for readability.
@@ -99,9 +99,9 @@ YAML that will be interpreted correctly when using lots of individual
 interpolation sequences and directives.
 
 Instead, you can write a template that consists only of a single interpolated
-call to either [`jsonencode`](/opentf/language/functions/jsonencode) or
-[`yamlencode`](/opentf/language/functions/yamlencode), specifying the value to encode using
-[normal OpenTF expression syntax](/opentf/language/expressions)
+call to either [`jsonencode`](/docs/language/functions/jsonencode) or
+[`yamlencode`](/docs/language/functions/yamlencode), specifying the value to encode using
+[normal OpenTF expression syntax](/docs/language/expressions)
 as in the following examples:
 
 ```
@@ -121,9 +121,9 @@ this will produce a valid JSON or YAML representation of the given data
 structure, without the need to manually handle escaping or delimiters.
 In the latest examples above, the repetition based on elements of `ip_addrs` is
 achieved by using a
-[`for` expression](/opentf/language/expressions/for)
+[`for` expression](/docs/language/expressions/for)
 rather than by using
-[template directives](/opentf/language/expressions/strings#directives).
+[template directives](/docs/language/expressions/strings#directives).
 
 ```json
 {"backends":["10.0.0.1:8080","10.0.0.2:8080"]}
@@ -142,9 +142,9 @@ locals {
 ```
 
 For more information, see the main documentation for
-[`jsonencode`](/opentf/language/functions/jsonencode) and [`yamlencode`](/opentf/language/functions/yamlencode).
+[`jsonencode`](/docs/language/functions/jsonencode) and [`yamlencode`](/docs/language/functions/yamlencode).
 
 ## Related Functions
 
-* [`file`](/opentf/language/functions/file) reads a file from disk and returns its literal contents
+* [`file`](/docs/language/functions/file) reads a file from disk and returns its literal contents
   without any template interpretation.

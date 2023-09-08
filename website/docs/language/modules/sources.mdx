@@ -8,7 +8,7 @@ description: >-
 
 # Module Sources
 
-The `source` argument in [a `module` block](/opentf/language/modules/syntax)
+The `source` argument in [a `module` block](/docs/language/modules/syntax)
 tells OpenTF where to find the source code for the desired child module.
 
 OpenTF uses this during the module installation step of `opentf init`
@@ -95,10 +95,10 @@ to get started with OpenTF and find modules created by others in the
 community.
 
 You can also use a
-[private registry](/opentf/registry/private), either
+[private registry](/docs/registry/private), either
 via TACOS (TF Automation and Collaboration Software), or by running a custom
 service that implements
-[the module registry protocol](/opentf/registry/api-docs).
+[the module registry protocol](/docs/registry/api-docs).
 
 Modules on the public registry can be referenced using a registry
 source address of the form `<NAMESPACE>/<NAME>/<PROVIDER>`, with each
@@ -128,13 +128,13 @@ module "consul" {
 
 Registry modules support versioning. You can provide a specific version as shown
 in the above examples, or use flexible
-[version constraints](/opentf/language/modules/syntax#version).
+[version constraints](/docs/language/modules/syntax#version).
 
 You can learn more about the registry at the
-[Module Registry documentation](/opentf/registry/modules/use#using-modules).
+[Module Registry documentation](/docs/registry/modules/use#using-modules).
 
 To access modules from a private registry, you may need to configure an access
-token [in the CLI config](/opentf/cli/config/config-file#credentials). Use the
+token [in the CLI config](/docs/cli/config/config-file#credentials). Use the
 same hostname as used in the module source string. For a private registry
 within TACOS (TF Automation and Collaboration Software), use the same authentication token as you would
 use with the API or command-line clients.

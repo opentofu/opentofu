@@ -11,7 +11,7 @@ If something has gone horribly wrong (possibly due to accidents when performing
 other state manipulation actions), you might need to take drastic actions with
 your state data.
 
-- [The `opentf force-unlock` command](/opentf/cli/commands/force-unlock) can
+- [The `opentf force-unlock` command](/docs/cli/commands/force-unlock) can
   override the protections OpenTF uses to prevent two processes from
   modifying state at the same time. You might need this if a OpenTF process
   (like a normal apply) is unexpectedly terminated (like by the complete
@@ -19,7 +19,7 @@ your state data.
   state backend. Do not run this until you are completely certain what happened
   to the process that caused the lock to get stuck.
 
-- [The `opentf state pull` command](/opentf/cli/commands/state/pull) and
-  [the `opentf state push` command](/opentf/cli/commands/state/push) can
+- [The `opentf state pull` command](/docs/cli/commands/state/pull) and
+  [the `opentf state push` command](/docs/cli/commands/state/push) can
   directly read and write entire state files from and to the configured backend.
   You might need this for obtaining or restoring a state backup.

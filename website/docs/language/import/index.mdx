@@ -35,7 +35,7 @@ The above `import` block defines an import of the AWS instance with the ID "i-ab
 The `import` block has the following arguments:
 - `to` - The instance address this resource will have in your state file.
 - `id` - A string with the [import ID](#import-id) of the resource.
-- `provider` (optional) - An optional custom resource provider, see [The Resource provider Meta-Argument](/opentf/language/meta-arguments/resource-provider) for details.
+- `provider` (optional) - An optional custom resource provider, see [The Resource provider Meta-Argument](/docs/language/meta-arguments/resource-provider) for details.
 
 If you do not set the `provider` argument, OpenTF attempts to import from the default provider.
 
@@ -51,21 +51,21 @@ OpenTF processes the `import` block during the plan stage. Once a plan is approv
 
 To import a resource using `import` blocks, you must:
 1. Define an `import` block for the resource(s).
-1. Add a corresponding `resource` block to your configuration , or [generate configuration](/opentf/language/import/generating-configuration) for that resource.
+1. Add a corresponding `resource` block to your configuration , or [generate configuration](/docs/language/import/generating-configuration) for that resource.
 1. Run `opentf plan` to review how OpenTF will import the resource(s).
 1. Apply the configuration to import the resources and update your OpenTF state.
 
 The `import` block is [_idempotent_](https://en.wikipedia.org/wiki/Idempotence), meaning that applying an import action and running another plan will not generate another import action as long as that resource remains in your state.
 
-OpenTF only needs to import a given resource once. Attempting to import a resource into the same address again is a harmless no-op. You can remove `import` blocks after completing the import or safely leave them in your configuration as a record of the resource's origin for future module maintainers. For more information on maintaining configurations over time, see [Refactoring](/opentf/language/modules/develop/refactoring).
+OpenTF only needs to import a given resource once. Attempting to import a resource into the same address again is a harmless no-op. You can remove `import` blocks after completing the import or safely leave them in your configuration as a record of the resource's origin for future module maintainers. For more information on maintaining configurations over time, see [Refactoring](/docs/language/modules/develop/refactoring).
 
 ## Resource configuration
 
-Before importing, you must add configuration for every resource you want OpenTF to import. Otherwise, OpenTF throws an error during planning, insisting you add resource configuration before it can successfully import. You can create resource configuration manually or [generate it using OpenTF](/opentf/language/import/generating-configuration).
+Before importing, you must add configuration for every resource you want OpenTF to import. Otherwise, OpenTF throws an error during planning, insisting you add resource configuration before it can successfully import. You can create resource configuration manually or [generate it using OpenTF](/docs/language/import/generating-configuration).
 
-We recommend writing a `resource` block if you know what most of the [resource's arguments](/opentf/language/resources/syntax#resource-arguments) will be. For example, your configuration may already contain a similar resource whose configuration you can copy and modify.
+We recommend writing a `resource` block if you know what most of the [resource's arguments](/docs/language/resources/syntax#resource-arguments) will be. For example, your configuration may already contain a similar resource whose configuration you can copy and modify.
 
-We recommend [generating configuration](/opentf/language/import/generating-configuration) when importing multiple resources or a single complex resource that you do not already have the configuration for.
+We recommend [generating configuration](/docs/language/import/generating-configuration) when importing multiple resources or a single complex resource that you do not already have the configuration for.
 
 ### Add a `resource` block
 
@@ -85,7 +85,7 @@ resource "aws_instance" "example" {
 ### Generate configuration
 
 OpenTF can generate HCL for resources that do not already exist in configuration.
-For more details, see [Generating Configuration](/opentf/language/import/generating-configuration).
+For more details, see [Generating Configuration](/docs/language/import/generating-configuration).
 
 ## Examples
 
@@ -98,7 +98,7 @@ import {
 }
 ```
 
-The below example shows how to import a resource that includes [`count`](/opentf/language/meta-arguments/count).
+The below example shows how to import a resource that includes [`count`](/docs/language/meta-arguments/count).
 
 ```hcl
 import {
@@ -108,7 +108,7 @@ import {
 ```
 
 
-The below example shows how to import a resource that includes [`for_each`](/opentf/language/meta-arguments/for_each).
+The below example shows how to import a resource that includes [`for_each`](/docs/language/meta-arguments/for_each).
 ```hcl
 import {
   to = aws_instance.example["foo"]

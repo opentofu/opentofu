@@ -16,7 +16,7 @@ a multi-step "create" action, because OpenTF can't be sure that the object
 was left in a fully-functional state.
 
 You can also manually mark an object as "tainted" using the deprecated command
-[`opentf taint`](/opentf/cli/commands/taint), although we no longer recommend that
+[`opentf taint`](/docs/cli/commands/taint), although we no longer recommend that
 workflow.
 
 If OpenTF currently considers a particular object as tainted but you've
@@ -38,7 +38,7 @@ opentf apply -replace="aws_instance.example[0]"
 
 Usage: `opentf untaint [options] address`
 
-The `address` argument is a [resource address](/opentf/cli/state/resource-addressing)
+The `address` argument is a [resource address](/docs/cli/state/resource-addressing)
 identifying a particular resource instance which is currently tainted.
 
 This command also accepts the following options:
@@ -61,12 +61,12 @@ This command also accepts the following options:
   if you are running OpenTF in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
 
-For configurations using the [`cloud` backend](/opentf/cli/cloud) or the [`remote` backend](/opentf/language/settings/backends/remote)
+For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
 only, `opentf untaint`
 also accepts the option
-[`-ignore-remote-version`](/opentf/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
-[the `local` backend](/opentf/language/settings/backends/local) only,
+[the `local` backend](/docs/language/settings/backends/local) only,
 `opentf untaint` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/opentf/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).

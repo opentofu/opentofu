@@ -18,8 +18,8 @@ Usage: `opentf apply [options] [plan file]`
 
 ### Automatic Plan Mode
 
-When you run `opentf apply` without passing a saved plan file, OpenTF automatically creates a new execution plan as if you had run [`opentf plan`](/opentf/cli/commands/plan), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](/opentf/cli/commands/plan#planning-modes) and
-[planning options](/opentf/cli/commands/plan#planning-options) to customize how OpenTF will create the plan.
+When you run `opentf apply` without passing a saved plan file, OpenTF automatically creates a new execution plan as if you had run [`opentf plan`](/docs/cli/commands/plan), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](/docs/cli/commands/plan#planning-modes) and
+[planning options](/docs/cli/commands/plan#planning-options) to customize how OpenTF will create the plan.
 
 You can pass the `-auto-approve` option to instruct OpenTF to apply the plan without asking for confirmation.
 
@@ -27,9 +27,9 @@ You can pass the `-auto-approve` option to instruct OpenTF to apply the plan wit
 
 ### Saved Plan Mode
 
-When you pass a [saved plan file](/opentf/cli/commands/plan#out-filename) to `opentf apply`, OpenTF takes the actions in the saved plan without prompting you for confirmation. You may want to use this two-step workflow when running OpenTF in automation.
+When you pass a [saved plan file](/docs/cli/commands/plan#out-filename) to `opentf apply`, OpenTF takes the actions in the saved plan without prompting you for confirmation. You may want to use this two-step workflow when running OpenTF in automation.
 
-Use [`opentf show`](/opentf/cli/commands/show) to inspect a saved plan file before applying it.
+Use [`opentf show`](/docs/cli/commands/show) to inspect a saved plan file before applying it.
 
 When using a saved plan, you cannot specify any additional planning modes or options. These options only affect OpenTF's decisions about which
 actions to take, and the plan file contains the final results of those
@@ -39,8 +39,8 @@ decisions.
 
 Without a saved plan file, `opentf apply` supports all planning modes and planning options available for `opentf plan`.
 
-- **[Planning Modes](/opentf/cli/commands/plan#planning-modes):** These include `-destroy`, which creates a plan to destroy all remote objects, and `-refresh-only`, which creates a plan to update OpenTF state and root module output values.
-- **[Planning Options](/opentf/cli/commands/plan#planning-options):** These include specifying which resource instances OpenTF should replace, setting OpenTF input variables, etc.
+- **[Planning Modes](/docs/cli/commands/plan#planning-modes):** These include `-destroy`, which creates a plan to destroy all remote objects, and `-refresh-only`, which creates a plan to update OpenTF state and root module output values.
+- **[Planning Options](/docs/cli/commands/plan#planning-options):** These include specifying which resource instances OpenTF should replace, setting OpenTF input variables, etc.
 
 ### Apply Options
 
@@ -82,22 +82,22 @@ The following options change how the apply command executes and reports on the a
   rendered by a system that cannot interpret terminal formatting.
 
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTF
-  [walks the graph](/opentf/internals/graph#walking-the-graph). Defaults to
+  [walks the graph](/docs/internals/graph#walking-the-graph). Defaults to
   10\.
 
-- All [planning modes](/opentf/cli/commands/plan#planning-modes) and
-[planning options](/opentf/cli/commands/plan#planning-options) for
+- All [planning modes](/docs/cli/commands/plan#planning-modes) and
+[planning options](/docs/cli/commands/plan#planning-options) for
 `opentf plan` - Customize how OpenTF will create the plan. Only available when you run `opentf apply` without a saved plan file.
 
 For configurations using
-[the `local` backend](/opentf/language/settings/backends/local) only,
+[the `local` backend](/docs/language/settings/backends/local) only,
 `opentf apply` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/opentf/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Passing a Different Configuration Directory
 
 If your workflow relies on overriding the root module directory, use
-[the `-chdir` global option](/opentf/cli/commands#switching-working-directory-with-chdir)
+[the `-chdir` global option](/docs/cli/commands#switching-working-directory-with-chdir)
 instead, which works across all commands and makes OpenTF consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.

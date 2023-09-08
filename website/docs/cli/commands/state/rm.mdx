@@ -7,7 +7,7 @@ description: >-
 
 # Command: state rm
 
-The main function of [OpenTF state](/opentf/language/state) is
+The main function of [OpenTF state](/docs/language/state) is
 to track the bindings between resource instance addresses in your configuration
 and the remote objects they represent. Normally OpenTF automatically
 updates the state in response to actions taken when applying a plan, such as
@@ -23,13 +23,13 @@ to exist in the remote system.
 Usage: `opentf state rm [options] ADDRESS...`
 
 OpenTF will search the state for any instances matching the given
-[resource address](/opentf/cli/state/resource-addressing), and remove
+[resource address](/docs/cli/state/resource-addressing), and remove
 the record of each one so that OpenTF will no longer be tracking the
 corresponding remote objects.
 
 This means that although the objects will still continue to exist in the
 remote system, a subsequent
-[`opentf plan`](/opentf/cli/commands/plan)
+[`opentf plan`](/docs/cli/commands/plan)
 will include an action to create a new object for each of the "forgotten"
 instances. Depending on the constraints imposed by the remote system, creating
 those objects might fail if their names or other identifiers conflict with
@@ -49,15 +49,15 @@ This command also accepts the following options:
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
-For configurations using the [`cloud` backend](/opentf/cli/cloud) or the [`remote` backend](/opentf/language/settings/backends/remote)
+For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
 only, `opentf state rm`
 also accepts the option
-[`-ignore-remote-version`](/opentf/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
-[the `local` state rm](/opentf/language/settings/backends/local) only,
+[the `local` state rm](/docs/language/settings/backends/local) only,
 `opentf state rm` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/opentf/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Example: Remove all Instances of a Resource
 
@@ -92,7 +92,7 @@ $ opentf state rm 'module.foo'
 
 ## Example: Remove a Particular Instance of a Resource using `count`
 
-A resource defined with [the `count` meta-argument](/opentf/language/meta-arguments/count)
+A resource defined with [the `count` meta-argument](/docs/language/meta-arguments/count)
 has multiple instances that are each identified by an integer. You can
 select a particular instance by including an explicit index in your given
 address:
@@ -107,7 +107,7 @@ The above shows the typical quoting syntax for Unix-style shells.
 
 ## Example: Remove a Particular Instance of a Resource using `for_each`
 
-A resource defined with [the `for_each` meta-argument](/opentf/language/meta-arguments/for_each)
+A resource defined with [the `for_each` meta-argument](/docs/language/meta-arguments/for_each)
 has multiple instances that are each identified by an string. You can
 select a particular instance by including an explicit key in your given
 address.

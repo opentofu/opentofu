@@ -16,7 +16,7 @@ propose to replace it in the next plan you create.
 
 ## Recommended Alternative
 
-We recommend using the [`-replace` option](/opentf/cli/commands/plan#replace-address) with `opentf apply` to force OpenTF to replace an object even though there are no configuration changes that would require it.
+We recommend using the [`-replace` option](/docs/cli/commands/plan#replace-address) with `opentf apply` to force OpenTF to replace an object even though there are no configuration changes that would require it.
 
 ```
 $ opentf apply -replace="aws_instance.example[0]"
@@ -32,7 +32,7 @@ $ opentf taint [options] <address>
 
 The `address` argument is the address of the resource to mark as tainted.
 The address is in
-[the resource address syntax](/opentf/cli/state/resource-addressing),
+[the resource address syntax](/docs/cli/state/resource-addressing),
 as shown in the output from other commands, such as:
 
 - `aws_instance.foo`
@@ -55,11 +55,11 @@ This command accepts the following options:
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
-For configurations using the [`cloud` backend](/opentf/cli/cloud) or the [`remote` backend](/opentf/language/settings/backends/remote) only, `opentf taint`
+For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote) only, `opentf taint`
 also accepts the option
-[`-ignore-remote-version`](/opentf/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
-[the `local` backend](/opentf/language/settings/backends/local) only,
+[the `local` backend](/docs/language/settings/backends/local) only,
 `opentf taint` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/opentf/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).

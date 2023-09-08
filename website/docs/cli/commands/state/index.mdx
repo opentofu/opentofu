@@ -7,7 +7,7 @@ description: The `opentf state` command is used for advanced state management.
 
 The `opentf state` command is used for advanced state management.
 As your OpenTF usage becomes more advanced, there are some cases where
-you may need to modify the [OpenTF state](/opentf/language/state).
+you may need to modify the [OpenTF state](/docs/language/state).
 Rather than modify the state directly, the `opentf state` commands can
 be used in many cases instead.
 
@@ -32,7 +32,7 @@ written to disk and the CLI usage is the same as if it were local state.
 All `opentf state` subcommands that modify the state write backup
 files. The path of these backup file can be controlled with `-backup`.
 
-Subcommands that are read-only (such as [list](/opentf/cli/commands/state/list))
+Subcommands that are read-only (such as [list](/docs/cli/commands/state/list))
 do not write any backup files since they aren't modifying the state.
 
 Note that backups for state modification _can not be disabled_. Due to

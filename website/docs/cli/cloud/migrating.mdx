@@ -6,7 +6,7 @@ description: >-
 
 # Initializing and Migrating
 
-After [configuring cloud backend settings](/opentf/cli/cloud/settings) for a working directory, you must run `opentf init` to finish setting up. If the working directory has no existing OpenTF state, you can start using OpenTF with a cloud backend right away.
+After [configuring cloud backend settings](/docs/cli/cloud/settings) for a working directory, you must run `opentf init` to finish setting up. If the working directory has no existing OpenTF state, you can start using OpenTF with a cloud backend right away.
 
 When you run `opentf init` in the following scenarios, OpenTF will ask you to choose whether or not to migrate state from any existing workspaces.
 
@@ -17,7 +17,7 @@ When you run `opentf init` in the following scenarios, OpenTF will ask you to ch
 ## Migrating from Local State or State Backends
 
 If the working directory already has state data available (using either local state or a [state
-backend](/opentf/language/settings/backends/configuration)), OpenTF asks your approval to migrate
+backend](/docs/language/settings/backends/configuration)), OpenTF asks your approval to migrate
 that state to the cloud backend. You will need permission to manage workspaces in the destination cloud backend organization. This process is interactive and self-documenting, and resembles
 moving between state backends.
 
@@ -36,7 +36,7 @@ according to a pattern relative to their existing names. This can indicate the f
 
 If the working directory was already connected to a cloud backend with the `remote` backend, OpenTF can continue using the same cloud backend workspaces. The local names shown for those workspaces will change to match their remote names.
 
-The [`remote` backend](/opentf/language/settings/backends/remote) was the primary implementation for cloud backends for Terraform versions 0.11.13 through 1.0.x. We recommend using the native `cloud` integration for OpenTF and Terraform versions 1.1 or later, as it provides an improved user experience and various enhancements.
+The [`remote` backend](/docs/language/settings/backends/remote) was the primary implementation for cloud backends for Terraform versions 0.11.13 through 1.0.x. We recommend using the native `cloud` integration for OpenTF and Terraform versions 1.1 or later, as it provides an improved user experience and various enhancements.
 
 ### Block Replacement
 
