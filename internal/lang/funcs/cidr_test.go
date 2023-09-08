@@ -396,3 +396,93 @@ func TestCidrSubnets(t *testing.T) {
 		})
 	}
 }
+
+func TestCidrContains(t *testing.T) {
+	noError := func(err error) bool { return err == nil }
+
+	tests := []struct {
+		Prefix  cty.Value
+		Address cty.Value
+		Want    cty.Value
+		ErrFn   func(error) bool
+	}{
+		{
+			// IPv4, contained.
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.168.2.1"),
+			cty.True,
+			noError,
+		},
+		{
+			// IPv4, not contained.
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.126.2.1"),
+			cty.False,
+			noError,
+		},
+		{
+			// IPv6, contained.
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("fe80::1"),
+			cty.True,
+			noError,
+		},
+		{
+			// IPv6, not contained.
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("fe81::1"),
+			cty.False,
+			noError,
+		},
+		{
+			// Address family mismatch: IPv4 prefix, IPv6 address.
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("fe80::1"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "address family mismatch: 192.168.2.0/20 vs. fe80::1"
+			},
+		},
+		{
+			// Address family mismatch: IPv6 prefix, IPv4 address.
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("192.168.2.1"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "address family mismatch: fe80::/48 vs. 192.168.2.1"
+			},
+		},
+		{
+			// Input error: invalid CIDR address.
+			cty.StringVal("not-a-cidr"),
+			cty.StringVal("192.168.2.1"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "invalid CIDR address: not-a-cidr"
+			},
+		},
+		{
+			// Input error: invalid IP address.
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("not-an-address"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "invalid IP address or prefix: not-an-address"
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("cidrcontains(%#v, %#v)", test.Prefix, test.Address), func(t *testing.T) {
+			got, err := CidrContains(test.Prefix, test.Address)
+
+			if !test.ErrFn(err) {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			if !got.RawEquals(test.Want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+			}
+		})
+	}
+}
