@@ -407,9 +407,16 @@ func TestCidrContains(t *testing.T) {
 		ErrFn   func(error) bool
 	}{
 		{
-			// IPv4, contained.
+			// IPv4, contained (IP).
 			cty.StringVal("192.168.2.0/20"),
 			cty.StringVal("192.168.2.1"),
+			cty.True,
+			noError,
+		},
+		{
+			// IPv4, contained (CIDR).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.168.2.0/22"),
 			cty.True,
 			noError,
 		},
@@ -417,6 +424,13 @@ func TestCidrContains(t *testing.T) {
 			// IPv4, not contained.
 			cty.StringVal("192.168.2.0/20"),
 			cty.StringVal("192.126.2.1"),
+			cty.False,
+			noError,
+		},
+		{
+			// IPv4, not contained (CIDR).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.126.2.0/18"),
 			cty.False,
 			noError,
 		},
