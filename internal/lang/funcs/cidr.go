@@ -73,6 +73,41 @@ var CidrNetmaskFunc = function.New(&function.Spec{
 	},
 })
 
+// CidrContainsFunc constructs a function that checks whether a given IP address
+// is within a given IP network address prefix.
+var CidrContainsFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name: "prefix",
+			Type: cty.String,
+		},
+		{
+			Name: "address",
+			Type: cty.String,
+		},
+	},
+	Type: function.StaticReturnType(cty.Bool),
+	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+		_, network, err := ipaddr.ParseCIDR(args[0].AsString())
+		if err != nil {
+			return cty.UnknownVal(cty.Bool), fmt.Errorf("invalid CIDR expression: %s", err)
+		}
+
+		address := ipaddr.ParseIP(args[1].AsString())
+		if address == nil {
+			return cty.UnknownVal(cty.Bool), fmt.Errorf("invalid IP address: %s", args[1].AsString())
+		}
+
+		// We require that both addresses are of the same type, so that
+		// we can't accidentally compare an IPv4 address to an IPv6 prefix.
+		if (address.To4() == nil) != (network.IP.To4() == nil) {
+			return cty.UnknownVal(cty.Bool), fmt.Errorf("address and prefix must be of the same type")
+		}
+
+		return cty.BoolVal(network.Contains(address)), nil
+	},
+})
+
 // CidrSubnetFunc contructs a function that calculates a subnet address within
 // a given IP network address prefix.
 var CidrSubnetFunc = function.New(&function.Spec{
