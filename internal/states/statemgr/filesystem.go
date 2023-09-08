@@ -6,6 +6,7 @@ package statemgr
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -296,7 +297,7 @@ func (s *Filesystem) refreshState() error {
 	f, err := statefile.Read(reader)
 	// if there's no state then a nil file is fine
 	if err != nil {
-		if err != statefile.ErrNoState {
+		if !errors.Is(err, &statefile.ErrNoState{}) {
 			return err
 		}
 		log.Printf("[TRACE] statemgr.Filesystem: snapshot file has nil snapshot, but that's okay")
@@ -484,7 +485,7 @@ func (s *Filesystem) createStateFiles() error {
 	// of our backup file if we write a change later.
 	s.backupFile, err = statefile.Read(s.stateFileOut)
 	if err != nil {
-		if err != statefile.ErrNoState {
+		if !errors.Is(err, &statefile.ErrNoState{}) {
 			return err
 		}
 		log.Printf("[TRACE] statemgr.Filesystem: no previously-stored snapshot exists")

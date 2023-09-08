@@ -150,7 +150,7 @@ func (r *Reader) ReadPlan() (*plans.Plan, error) {
 // represents the "PriorState" as defined in plans.Plan.
 //
 // If the plan file contains no embedded state file, the returned error is
-// statefile.ErrNoState.
+// &statefile.ErrNoState{}.
 func (r *Reader) ReadStateFile() (*statefile.File, error) {
 	for _, file := range r.zip.File {
 		if file.Name == tfstateFilename {
@@ -161,14 +161,14 @@ func (r *Reader) ReadStateFile() (*statefile.File, error) {
 			return statefile.Read(r)
 		}
 	}
-	return nil, errUnusable(statefile.ErrNoState)
+	return nil, errUnusable(&statefile.ErrNoState{})
 }
 
 // ReadPrevStateFile reads the previous state file embedded in the plan file, which
 // represents the "PrevRunState" as defined in plans.Plan.
 //
 // If the plan file contains no embedded previous state file, the returned error is
-// statefile.ErrNoState.
+// &statefile.ErrNoState{}.
 func (r *Reader) ReadPrevStateFile() (*statefile.File, error) {
 	for _, file := range r.zip.File {
 		if file.Name == tfstatePreviousFilename {
@@ -179,7 +179,7 @@ func (r *Reader) ReadPrevStateFile() (*statefile.File, error) {
 			return statefile.Read(r)
 		}
 	}
-	return nil, errUnusable(statefile.ErrNoState)
+	return nil, errUnusable(&statefile.ErrNoState{})
 }
 
 // ReadConfigSnapshot reads the configuration snapshot embedded in the plan

@@ -5,7 +5,6 @@ package statefile
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +16,11 @@ import (
 )
 
 // ErrNoState is returned by ReadState when the state file is empty.
-var ErrNoState = errors.New("no state")
+type ErrNoState struct{}
+
+func (e *ErrNoState) Error() string {
+	return "no state"
+}
 
 // ErrUnusableState is an error wrapper to indicate that we *think* the input
 // represents state data, but can't use it for some reason (as explained in the
@@ -51,7 +54,7 @@ func Read(r io.Reader) (*File, error) {
 	// Some callers provide us a "typed nil" *os.File here, which would
 	// cause us to panic below if we tried to use it.
 	if f, ok := r.(*os.File); ok && f == nil {
-		return nil, ErrNoState
+		return nil, &ErrNoState{}
 	}
 
 	var diags tfdiags.Diagnostics
@@ -70,7 +73,7 @@ func Read(r io.Reader) (*File, error) {
 	}
 
 	if len(src) == 0 {
-		return nil, ErrNoState
+		return nil, &ErrNoState{}
 	}
 
 	state, err := readState(src)
