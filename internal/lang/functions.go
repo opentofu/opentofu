@@ -103,6 +103,7 @@ func (s *Scope) Functions() map[string]function.Function {
 			"range":            stdlib.RangeFunc,
 			"regex":            stdlib.RegexFunc,
 			"regexall":         stdlib.RegexAllFunc,
+			"rego":             funcs.RegoFunc,
 			"replace":          funcs.ReplaceFunc,
 			"reverse":          stdlib.ReverseListFunc,
 			"rsadecrypt":       funcs.RsaDecryptFunc,

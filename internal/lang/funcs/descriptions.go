@@ -328,6 +328,10 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`regexall` applies a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) to a string and returns a list of all matches.",
 		ParamDescription: []string{"", ""},
 	},
+	"rego": {
+		Description:      "`rego` evaluates a Rego expression against a given input and returns the result.",
+		ParamDescription: []string{"", "", ""},
+	},
 	"replace": {
 		Description:      "`replace` searches a given string for another given substring, and replaces each occurrence with a given replacement string.",
 		ParamDescription: []string{"", "", ""},
