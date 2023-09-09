@@ -732,6 +732,13 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"rego": {
+			{
+				`rego("data.opentf.allow", "package opentf\nallow { input.name == \"bacon\" }", { name = "bacon" })`,
+				cty.True,
+			},
+		},
+
 		"replace": {
 			{
 				`replace("hello", "hel", "bel")`,
