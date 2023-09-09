@@ -1,0 +1,14 @@
+{
+	"name": "Go",
+	"image": "mcr.microsoft.com/devcontainers/go:1-1.21-bullseye",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"golang.Go"
+			]
+		}
+	},
+	"postStartCommand": {
+		"safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+	}
+}
