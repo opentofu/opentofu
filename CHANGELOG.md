@@ -3,6 +3,7 @@
 UPGRADE NOTES:
 * The `cloud` and `remote` backends will no longer default to `app.terraform.io` hostname and will require the hostname to be explicitly specified ([#291](https://github.com/opentffoundation/opentf/pull/291));
 * The `login` and `logout` commands will no longer default to `app.terraform.io` hostname and will require the hostname to be explicitly provided as a command-line argument ([#291](https://github.com/opentffoundation/opentf/pull/291));
+* prevent future possible incompatibility with states that include unknown `check` block result kinds.  ([#355](https://github.com/opentffoundation/opentf/pull/355));
 
 NEW FEATURES:
 * `opentf test`: The previously experimental `opentf test` command has been moved out of experimental. This comes with a significant change in how OpenTF tests are written and executed.
