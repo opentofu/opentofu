@@ -15,7 +15,7 @@ jobs:
         with:
           operations-per-run: 100
           # By default, issues and pull requests are marked as stale after 60 days of inactivity.
-          # We will override this for PRs to 30 days since we do not with to touch issues in this job.
+          # We will override this for PRs to 30 days since we do not wish to touch issues in this job.
           days-before-stale: -1
           days-before-close: -1
           days-before-pr-stale: 30
