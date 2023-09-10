@@ -1,16 +1,14 @@
-name: Merged Pull Request
+name: Pull Request Opened
 permissions:
   pull-requests: write
 
 # only trigger on pull request closed events
 on:
   pull_request_target:
-    types: [ closed ]
+    types: [ opened ]
 
 jobs:
-  merge_job:
-    # this job will only run if the PR has been merged
-    if: github.event.pull_request.merged == true
+  pr_open_job:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
@@ -20,5 +18,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "Reminder for the merging maintainer: if this is a user-visible change, please update the changelog on the appropriate release branch."
+              body: "Reminder for the PR assignee: If this is a user-visible change, please update the changelog as part of the PR."
             })
