@@ -1,0 +1,29 @@
+name: Stale Issues & Pull Requests
+
+on:
+  schedule:
+    # Run every day at 12:00 UTC
+    - cron: 0 12 * * *
+
+jobs:
+  pull_request:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/stale@1160a2240286f5da8ec72b1c0816ce2481aabf84 # v8.0.0
+        with:
+          # By default, issues and pull requests are marked as stale after 60 days of inactivity.
+          # We will override this for PRs to 30 days since we do not with to touch issues in this job.
+          days-before-stale: -1
+          days-before-close: -1
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
+          stale-pr-message: >-
+            This Pull Request has been marked as stale since it has not had any
+            activity in the last 30 days. Either remove the stale label or add a
+            comment to keep it open, otherwise it will be closed in 7 days.
+          close-pr-message: >-
+            This Pull Request has been automatically closed since it has not had
+            any activity 7 days after being marked as stale. Feel free to reopen
+            the PR if you still want to work on it.
