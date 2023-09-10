@@ -21,9 +21,10 @@ jobs:
           days-before-pr-close: 7
           stale-pr-message: >-
             This Pull Request has been marked as stale since it has not had any
-            activity in the last 30 days. Either remove the stale label or add a
-            comment to keep it open, otherwise it will be closed in 7 days.
+            activity in the last 30 days. Please commit some changes or add a
+            comment to keep the PR open, otherwise it will be closed after 7
+            days.
           close-pr-message: >-
             This Pull Request has been automatically closed since it has not had
-            any activity 7 days after being marked as stale. Feel free to reopen
-            the PR if you still want to work on it.
+            any activity 7 days after being marked as stale. If you still wish
+            to work on this, please let us know and we will reopen it.
