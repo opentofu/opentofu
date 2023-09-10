@@ -6,13 +6,11 @@ package s3
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
-	awsbase "github.com/hashicorp/aws-sdk-go-base"
+	awsbasev1 "github.com/hashicorp/aws-sdk-go-base"
+	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
@@ -21,6 +19,9 @@ import (
 	"github.com/placeholderplaceholderplaceholder/opentf/version"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
+	"os"
+	"strings"
+	"time"
 )
 
 func New() backend.Backend {
@@ -116,7 +117,7 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "AWS profile name",
 			},
-			"shared_credentials_file": {
+			"shared_credentials_files": {
 				Type:        cty.String,
 				Optional:    true,
 				Description: "Path to a shared credentials file",
@@ -209,6 +210,12 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.Number,
 				Optional:    true,
 				Description: "The maximum number of times an AWS API request is retried on retryable failure.",
+			},
+
+			"shared_config_files": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "List of paths to shared config files. If not set, defaults to [~/.aws/config].",
 			},
 		},
 	}
@@ -374,64 +381,49 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	cfg := &awsbase.Config{
-		AccessKey:                 stringAttr(obj, "access_key"),
-		AssumeRoleARN:             stringAttr(obj, "role_arn"),
-		AssumeRoleDurationSeconds: intAttr(obj, "assume_role_duration_seconds"),
-		AssumeRoleExternalID:      stringAttr(obj, "external_id"),
-		AssumeRolePolicy:          stringAttr(obj, "assume_role_policy"),
-		AssumeRoleSessionName:     stringAttr(obj, "session_name"),
-		CallerDocumentationURL:    "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
-		CallerName:                "S3 Backend",
-		CredsFilename:             stringAttr(obj, "shared_credentials_file"),
-		DebugLogging:              logging.IsDebugOrHigher(),
-		IamEndpoint:               stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
-		MaxRetries:                intAttrDefault(obj, "max_retries", 5),
-		Profile:                   stringAttr(obj, "profile"),
-		Region:                    stringAttr(obj, "region"),
-		SecretKey:                 stringAttr(obj, "secret_key"),
-		SkipCredsValidation:       boolAttr(obj, "skip_credentials_validation"),
-		SkipMetadataApiCheck:      boolAttr(obj, "skip_metadata_api_check"),
-		StsEndpoint:               stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
-		Token:                     stringAttr(obj, "token"),
-		UserAgentProducts: []*awsbase.UserAgentProduct{
+		AccessKey:                     stringAttr(obj, "access_key"),
+		CallerDocumentationURL:        "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
+		CallerName:                    "S3 Backend",
+		SuppressDebugLog:              logging.IsDebugOrHigher(),
+		IamEndpoint:                   stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
+		MaxRetries:                    intAttrDefault(obj, "max_retries", 5),
+		Profile:                       stringAttr(obj, "profile"),
+		Region:                        stringAttr(obj, "region"),
+		SecretKey:                     stringAttr(obj, "secret_key"),
+		SkipCredsValidation:           boolAttr(obj, "skip_credentials_validation"),
+		EC2MetadataServiceEnableState: boolAttr(obj, "skip_metadata_api_check"),
+		StsEndpoint:                   stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
+		Token:                         stringAttr(obj, "token"),
+		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
 	}
+	if value := obj.GetAttr("role_arn"); !value.IsNull() {
+		cfg.AssumeRole = configureAssumeRole(obj)
+	}
 
-	if policyARNSet := obj.GetAttr("assume_role_policy_arns"); !policyARNSet.IsNull() {
-		policyARNSet.ForEachElement(func(key, val cty.Value) (stop bool) {
+	if value := obj.GetAttr("shared_credentials_file"); !value.IsNull() {
+		value.ForEachElement(func(key, val cty.Value) (stop bool) {
 			v, ok := stringValueOk(val)
 			if ok {
-				cfg.AssumeRolePolicyARNs = append(cfg.AssumeRolePolicyARNs, v)
+				cfg.SharedCredentialsFiles = append(cfg.SharedCredentialsFiles, v)
 			}
 			return
 		})
 	}
 
-	if tagMap := obj.GetAttr("assume_role_tags"); !tagMap.IsNull() {
-		cfg.AssumeRoleTags = make(map[string]string, tagMap.LengthInt())
-		tagMap.ForEachElement(func(key, val cty.Value) (stop bool) {
-			k := stringValue(key)
+	if value := obj.GetAttr("shared_config_files"); !value.IsNull() {
+		value.ForEachElement(func(key, val cty.Value) (stop bool) {
 			v, ok := stringValueOk(val)
 			if ok {
-				cfg.AssumeRoleTags[k] = v
+				cfg.SharedConfigFiles = append(cfg.SharedConfigFiles, v)
 			}
 			return
 		})
 	}
 
-	if transitiveTagKeySet := obj.GetAttr("assume_role_transitive_tag_keys"); !transitiveTagKeySet.IsNull() {
-		transitiveTagKeySet.ForEachElement(func(key, val cty.Value) (stop bool) {
-			v, ok := stringValueOk(val)
-			if ok {
-				cfg.AssumeRoleTransitiveTagKeys = append(cfg.AssumeRoleTransitiveTagKeys, v)
-			}
-			return
-		})
-	}
-
-	sess, err := awsbase.GetSession(cfg)
+	sess, err := awsbasev1.GetSession(cfg)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -457,6 +449,64 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.s3Client = s3.New(sess.Copy(&s3Config))
 
 	return diags
+}
+
+func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
+	assumeRole := awsbase.AssumeRole{}
+	if value := obj.GetAttr("role_arn"); !value.IsNull() {
+		assumeRole.RoleARN = stringValue(value)
+	}
+
+	if value := obj.GetAttr("assume_role_duration_seconds"); !value.IsNull() {
+		duration, _ := time.ParseDuration(stringValue(value))
+		assumeRole.Duration = duration
+	}
+
+	if value := obj.GetAttr("external_id"); !value.IsNull() {
+		assumeRole.ExternalID = stringValue(value)
+	}
+
+	if value := obj.GetAttr("assume_role_policy"); !value.IsNull() {
+		assumeRole.Policy = stringValue(value)
+	}
+
+	if value := obj.GetAttr("session_name"); !value.IsNull() {
+		assumeRole.SessionName = stringValue(value)
+	}
+
+	if value := obj.GetAttr("assume_role_policy_arns"); !value.IsNull() {
+		value.ForEachElement(func(key, val cty.Value) (stop bool) {
+			v, ok := stringValueOk(val)
+			if ok {
+				assumeRole.PolicyARNs = append(assumeRole.PolicyARNs, v)
+			}
+			return
+		})
+	}
+
+	if tagMap := obj.GetAttr("assume_role_tags"); !tagMap.IsNull() {
+		assumeRole.Tags = make(map[string]string, tagMap.LengthInt())
+		tagMap.ForEachElement(func(key, val cty.Value) (stop bool) {
+			k := stringValue(key)
+			v, ok := stringValueOk(val)
+			if ok {
+				assumeRole.Tags[k] = v
+			}
+			return
+		})
+	}
+
+	if transitiveTagKeySet := obj.GetAttr("assume_role_transitive_tag_keys"); !transitiveTagKeySet.IsNull() {
+		transitiveTagKeySet.ForEachElement(func(key, val cty.Value) (stop bool) {
+			v, ok := stringValueOk(val)
+			if ok {
+				assumeRole.TransitiveTagKeys = append(assumeRole.TransitiveTagKeys, v)
+			}
+			return
+		})
+	}
+
+	return &assumeRole
 }
 
 func stringValue(val cty.Value) string {

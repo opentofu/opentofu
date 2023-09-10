@@ -28,15 +28,15 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
+	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.35
 	github.com/hashicorp/aws-sdk-go-base v0.7.1
 	github.com/hashicorp/consul/api v1.13.0
-	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/copywrite v0.16.3
 	github.com/hashicorp/errwrap v1.1.0
 	github.com/hashicorp/go-azure-helpers v0.43.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-getter v1.7.2
-	github.com/hashicorp/go-hclog v1.4.0
+	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.4.3
 	github.com/hashicorp/go-retryablehttp v0.7.4
@@ -85,11 +85,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
 	golang.org/x/crypto v0.10.0
-	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17
+	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea
 	golang.org/x/mod v0.10.0
 	golang.org/x/net v0.11.0
 	golang.org/x/oauth2 v0.8.0
-	golang.org/x/sys v0.9.0
+	golang.org/x/sys v0.11.0
 	golang.org/x/term v0.9.0
 	golang.org/x/text v0.10.0
 	golang.org/x/tools v0.6.0
@@ -146,7 +146,7 @@ require (
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/dylanmei/iso8601 v0.1.0 // indirect
-	github.com/fatih/color v1.13.0 // indirect
+	github.com/fatih/color v1.15.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
