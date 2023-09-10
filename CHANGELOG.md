@@ -21,6 +21,7 @@ BUG FIXES:
 * Transitive dependencies were lost during apply when the referenced resource expanded into zero instances ([#33403](https://github.com/hashicorp/terraform/issues/33403))
 * OpenTF will no longer override SSH settings in local git configuration when installing modules. ([#33592](https://github.com/hashicorp/terraform/issues/33592))
 * Handle file-operation errors in `internal/states/statemgr`. ([#278](https://github.com/opentffoundation/opentf/issues/278))
+* `opentf init`: OpenTF will no longer allow downloading remote modules to invalid paths. ([#356](https://github.com/opentffoundation/opentf/issues/356))
 
 ## Previous Releases
 

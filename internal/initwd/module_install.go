@@ -16,6 +16,7 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
@@ -159,6 +160,13 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 				// Because we descend into modules which have errors, we need
 				// to look out for this case, but the config loader's
 				// diagnostics will report the error later.
+				return nil, nil, diags
+			}
+
+			if !hclsyntax.ValidIdentifier(req.Name) {
+				// A module with an invalid name shouldn't be installed at all. This is
+				// mostly a concern for remote modules, since we need to be able to convert
+				// the name to a valid path.
 				return nil, nil, diags
 			}
 
