@@ -160,6 +160,24 @@ docker_manifests:
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
 
+nfpms:
+  - file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}'
+    homepage: https://opentf.org
+    description: >-
+      OpenTF lets you declaratively manage your cloud infrastructure.
+    license: "MPL-2.0"
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    section: default
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/nfpm/copyright
+        file_info:
+          mode: 0444
+
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
 
