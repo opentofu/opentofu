@@ -365,13 +365,18 @@ func TestSignatureAuthentication_success(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Location is unused
 			location := PackageLocalArchive("testdata/my-package.zip")
+			//
+			//providerSource, err := tfaddr.ParseProviderSource("testdata/my-package.zip")
+			//if err != nil {
+			//	t.Fatal(err)
+			//}
 
 			signature, err := base64.StdEncoding.DecodeString(test.signature)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys)
+			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -414,7 +419,7 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testProviderShaSums), signature, test.keys)
+			auth := NewSignatureAuthentication([]byte(testProviderShaSums), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -474,7 +479,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys)
+			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result != nil {
@@ -488,7 +493,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 }
 
 func TestSignatureAuthentication_acceptableHashes(t *testing.T) {
-	auth := NewSignatureAuthentication([]byte(testShaSumsRealistic), nil, nil)
+	auth := NewSignatureAuthentication([]byte(testShaSumsRealistic), nil, nil, nil)
 	authWithHashes, ok := auth.(PackageAuthenticationHashes)
 	if !ok {
 		t.Fatalf("%T does not implement PackageAuthenticationHashes", auth)

@@ -150,6 +150,7 @@ func TestSourcePackageMeta(t *testing.T) {
 						[]SigningKey{
 							{ASCIIArmor: TestingPublicKey},
 						},
+						nil,
 					),
 				),
 			},

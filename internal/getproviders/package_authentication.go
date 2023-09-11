@@ -358,7 +358,7 @@ type signatureAuthentication struct {
 	Document       []byte
 	Signature      []byte
 	Keys           []SigningKey
-	ProviderSource tfaddr.Provider
+	ProviderSource *tfaddr.Provider
 }
 
 // NewSignatureAuthentication returns a PackageAuthentication implementation
@@ -377,7 +377,7 @@ type signatureAuthentication struct {
 //
 // Any failure in the process of validating the signature will result in an
 // unauthenticated result.
-func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, source tfaddr.Provider) PackageAuthentication {
+func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, source *tfaddr.Provider) PackageAuthentication {
 	return signatureAuthentication{
 		Document:       document,
 		Signature:      signature,
@@ -388,7 +388,7 @@ func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, s
 
 func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
 	// we should enforce validation for all provider sources that are not the default provider registry
-	if s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
+	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
 		return true, nil
 	}
 
