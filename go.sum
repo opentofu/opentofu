@@ -853,8 +853,6 @@ github.com/onsi/gomega v0.0.0-20170829124025-dcabb60a477c/go.mod h1:C1qb7wdrVGGV
 github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
 github.com/onsi/gomega v1.10.1 h1:o0+MgICZLuZ7xjH7Vx6zS/zcu93/BEp1VwkIW1mEXCE=
 github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
-github.com/opentffoundation/registry-address v0.0.0-20230910130404-b1e648f4e914 h1:rim337zxoKumK1cz3/vgD3ChwnC2WnCw3CLu11F7LuQ=
-github.com/opentffoundation/registry-address v0.0.0-20230910130404-b1e648f4e914/go.mod h1:GjhYKTpGGbgXudu1+K11h1Mj81LyFH5Bws7EgqBOc3s=
 github.com/opentffoundation/registry-address v0.0.0-20230911101017-c2bfeb20301b h1:6V4/i7TQsE2vmg8pKoF3e+vQDfNFS/51/wOyc3Up5hQ=
 github.com/opentffoundation/registry-address v0.0.0-20230911101017-c2bfeb20301b/go.mod h1:GjhYKTpGGbgXudu1+K11h1Mj81LyFH5Bws7EgqBOc3s=
 github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db h1:9uViuKtx1jrlXLBW/pMnhOfzn3iSEdLase/But/IZRU=
