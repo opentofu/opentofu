@@ -9,7 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+
 	"log"
 	"os"
 	"strings"
@@ -17,6 +17,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 	openpgpPacket "github.com/ProtonMail/go-crypto/openpgp/packet"
+	tfaddr "github.com/hashicorp/terraform-registry-address"
 )
 
 type packageAuthenticationResult int
