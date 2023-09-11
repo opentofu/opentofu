@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	tfaddr "github.com/hashicorp/terraform-registry-address"
 	"log"
 	"os"
 	"strings"
@@ -354,9 +355,10 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 }
 
 type signatureAuthentication struct {
-	Document  []byte
-	Signature []byte
-	Keys      []SigningKey
+	Document       []byte
+	Signature      []byte
+	Keys           []SigningKey
+	ProviderSource tfaddr.Provider
 }
 
 // NewSignatureAuthentication returns a PackageAuthentication implementation
@@ -375,29 +377,36 @@ type signatureAuthentication struct {
 //
 // Any failure in the process of validating the signature will result in an
 // unauthenticated result.
-func NewSignatureAuthentication(document, signature []byte, keys []SigningKey) PackageAuthentication {
+func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, source tfaddr.Provider) PackageAuthentication {
 	return signatureAuthentication{
-		Document:  document,
-		Signature: signature,
-		Keys:      keys,
+		Document:       document,
+		Signature:      signature,
+		Keys:           keys,
+		ProviderSource: source,
 	}
 }
 
-func (s signatureAuthentication) shouldEnforceGPGValidation() bool {
+func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
+	// we should enforce validation for all provider sources that are not the default provider registry
+	if s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
+		return true, nil
+	}
+
 	// if we have been provided keys, we should enforce GPG validation
 	if len(s.Keys) > 0 {
-		return true
+		return true, nil
 	}
 
 	// otherwise if the environment variable is set to true, we should enforce GPG validation
 	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
-	return exists && enforceEnvVar == "true"
+	return exists && enforceEnvVar == "true", nil
 }
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
-	// TODO: remove this log message in a future release, this logic is only ever intended to be temporary and in the future
-	// all providers should be signed by a key
-	shouldValidate := s.shouldEnforceGPGValidation()
+	shouldValidate, err := s.shouldEnforceGPGValidation()
+	if err != nil {
+		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %s", location.String(), err.Error())
+	}
 
 	if !shouldValidate {
 		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
