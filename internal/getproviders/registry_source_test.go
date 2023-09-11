@@ -6,6 +6,7 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	tfaddr "github.com/hashicorp/terraform-registry-address"
 	"regexp"
 	"strings"
 	"testing"
@@ -150,7 +151,7 @@ func TestSourcePackageMeta(t *testing.T) {
 						[]SigningKey{
 							{ASCIIArmor: TestingPublicKey},
 						},
-						nil,
+						&tfaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
 					),
 				),
 			},
