@@ -23,6 +23,10 @@ type packageAuthenticationResult int
 const (
 	verifiedChecksum packageAuthenticationResult = iota
 	signed
+	signingSkipped
+)
+
+const (
 	enforceGPGValidationEnvName = "OPENTF_ENFORCE_GPG_VALIDATION"
 )
 
@@ -50,6 +54,7 @@ func (t *PackageAuthenticationResult) String() string {
 	return []string{
 		"verified checksum",
 		"signed",
+		"signing skipped",
 	}[t.result]
 }
 
@@ -59,6 +64,15 @@ func (t *PackageAuthenticationResult) Signed() bool {
 		return false
 	}
 	return t.result == signed
+}
+
+// SigningSkipped returns whether the package was authenticated but the key
+// validation was skipped.
+func (t *PackageAuthenticationResult) SigningSkipped() bool {
+	if t == nil {
+		return false
+	}
+	return t.result == signingSkipped
 }
 
 // SigningKey represents a key used to sign packages from a registry. These are
@@ -381,13 +395,21 @@ func (s signatureAuthentication) shouldEnforceGPGValidation() bool {
 }
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
+	// TODO: remove this log message in a future release, this logic is only ever intended to be temporary and in the future
+	// all providers should be signed by a key
 	shouldValidate := s.shouldEnforceGPGValidation()
 
 	if !shouldValidate {
+		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
+		// and why. This will be removed in a future release.
+		log.Printf("[WARN] Skipping GPG validation of provider package %s as no keys were provided by the registry. See https://github.com/opentffoundation/opentf/pull/309 for more information.", location)
+
 		// construct an empty keyID to indicate that we are not validating and return no errors
 		// this is to force a successful authentication
 		// TODO: discuss if this key should be hardcoded to a value such as "UNKNOWN"?
-		return &PackageAuthenticationResult{result: signed, KeyID: ""}, nil
+		return &PackageAuthenticationResult{result: signingSkipped, KeyID: ""}, nil
+	} else {
+		log.Printf("[DEBUG] Validating GPG signature of provider package %s", location)
 	}
 
 	// Find the key that signed the checksum file. This can fail if there is no
