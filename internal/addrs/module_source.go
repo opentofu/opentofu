@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+	tfaddr "github.com/opentffoundation/registry-address"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
 )
 

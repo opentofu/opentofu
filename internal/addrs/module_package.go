@@ -4,7 +4,7 @@
 package addrs
 
 import (
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+	tfaddr "github.com/opentffoundation/registry-address"
 )
 
 // A ModulePackage represents a physical location where OpenTF can retrieve
