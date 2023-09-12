@@ -80,6 +80,21 @@ go test ./internal/command/...
 go test ./internal/addrs
 ```
 
+## Adding or updating dependencies
+
+If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](.licensei.toml).
+
+To help verifying this in local development environment and in continuous integration, we use the [licensei](https://github.com/goph/licensei) open source tool.
+
+After modifying `go.mod` or `go.sum` files, you can run it manually with:
+
+```
+export GITHUB_TOKEN=changeme
+make license-check
+```
+
+Note: you need to define the `GITHUB_TOKEN` environment variable to a valid GitHub personal access token, or you will hit rate limiting from the GitHub API which `licensei` uses to discover the licenses of dependencies.
+
 ## Acceptance Tests: Testing interactions with external services
 
 OpenTF's unit test suite is self-contained, using mocks and local files to help ensure that it can run offline and is unlikely to be broken by changes to outside systems.
