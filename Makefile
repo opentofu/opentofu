@@ -55,6 +55,7 @@ website/build-local:
 # Run license check
 .PHONY: license-check
 license-check:
+	go mod vendor
 	licensei check
 	licensei header
 
