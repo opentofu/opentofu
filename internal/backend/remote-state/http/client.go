@@ -49,7 +49,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 	// Create the request
 	req, err := retryablehttp.NewRequest(method, url.String(), reader)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to make %s HTTP request: %s", what, err)
+		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
 	// Set up basic auth
 	if c.Username != "" {
@@ -70,7 +70,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 	// Make the request
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to %s: %v", what, err)
+		return nil, fmt.Errorf("Failed to %s: %w", what, err)
 	}
 
 	return resp, nil
