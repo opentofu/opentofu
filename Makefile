@@ -1,7 +1,7 @@
 export PATH := $(abspath bin/):${PATH}
 
 # Dependency versions
-LICENSEI_VERSION = 0.8.0
+LICENSEI_VERSION = 0.9.0
 
 # generate runs `go generate` to build the dynamically generated
 # source files, except the protobuf stubs which are built instead with

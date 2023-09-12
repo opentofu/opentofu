@@ -7,7 +7,7 @@ approved = [
   "mit",
 ]
 
-ignored = [
+unknown = [
   "github.com/gogo/protobuf",        # BSD-3-Clause license
   "github.com/hashicorp/consul/api", # Mozilla Public License, version 2.0
   "google.golang.org/protobuf",      # BSD-3-Clause license
