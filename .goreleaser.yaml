@@ -132,14 +132,7 @@ dockers:
       - "ghcr.io/opentffoundation/opentf:{{ .Version }}-386"
 
 docker_manifests:
-  - name_template: ghcr.io/opentffoundation/opentf:v{{ .Version }}
-    image_templates:
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
-
-  - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}
+  - name_template: ghcr.io/opentffoundation/opentf:{{ .Version }}
     image_templates:
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
@@ -147,6 +140,13 @@ docker_manifests:
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
 
   - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
+      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+
+  - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}
     image_templates:
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
       - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
@@ -180,6 +180,16 @@ nfpms:
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+
+signs:
+  - artifacts: checksum
+    cmd: cosign
+    certificate: "${artifact}.pem"
+    args: ["sign-blob", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
+
+docker_signs:
+  - artifacts: all
+    args: ["sign", "--oidc-issuer=https://token.actions.githubusercontent.com", "${artifact}@${digest}", "--yes"]
 
 snapshot:
   name_template: "{{ .Version }}-next"
