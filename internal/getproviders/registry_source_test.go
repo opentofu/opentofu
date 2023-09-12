@@ -6,10 +6,11 @@ package getproviders
 import (
 	"context"
 	"fmt"
-	tfaddr "github.com/hashicorp/terraform-registry-address"
 	"regexp"
 	"strings"
 	"testing"
+
+	tfaddr "github.com/hashicorp/terraform-registry-address"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
