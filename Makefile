@@ -62,9 +62,12 @@ license-check:
 deps: bin/licensei
 deps:
 
-bin/licensei:
+bin/licensei: bin/licensei-${LICENSEI_VERSION}
+	@ln -sf licensei-${LICENSEI_VERSION} bin/licensei
+bin/licensei-${LICENSEI_VERSION}:
 	@mkdir -p bin
 	curl -sfL https://git.io/licensei | bash -s v${LICENSEI_VERSION}
+	@mv bin/licensei $@
 
 # disallow any parallelism (-j) for Make. This is necessary since some
 # commands during the build process create temporary files that collide
