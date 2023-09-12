@@ -167,11 +167,11 @@ signs:
   - artifacts: checksum
     cmd: cosign
     certificate: "${artifact}.pem"
-    args: ["sign-blob", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
+    args: ["sign-blob", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
 
 docker_signs:
   - artifacts: all
-    args: ["sign", "${artifact}@${digest}", "--yes"]
+    args: ["sign", "--oidc-issuer=https://token.actions.githubusercontent.com", "${artifact}@${digest}", "--yes"]
 
 snapshot:
   name_template: "{{ .Version }}-next"
