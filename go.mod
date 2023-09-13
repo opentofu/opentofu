@@ -46,7 +46,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/hcl/v2 v2.17.0
 	github.com/hashicorp/jsonapi v0.0.0-20210826224640-ee7dae0fb22d
-	github.com/hashicorp/terraform-registry-address v0.2.0
 	github.com/hashicorp/terraform-svchost v0.1.1
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
