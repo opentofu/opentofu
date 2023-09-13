@@ -188,3 +188,21 @@ jobs:
             git >&2 status --porcelain
             exit 1
           fi
+
+  license-checks:
+    name: "License Checks"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Fetch source code"
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install licensei
+        run: |
+          make deps
+
+      - name: Run licensei
+        env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make license-check
