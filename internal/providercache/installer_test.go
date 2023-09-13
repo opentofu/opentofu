@@ -2471,7 +2471,7 @@ func testServices(t *testing.T) (services *disco.Disco, baseURL string, cleanup 
 		"providers.v1": server.URL + "/fails-immediately/",
 	})
 
-	// We'll also permit registry.terraform.io here just because it's our
+	// We'll also permit registry.opentf.org here just because it's our
 	// default and has some unique features that are not allowed on any other
 	// hostname. It behaves the same as example.com, which should be preferred
 	// if you're not testing something specific to the default registry in order
@@ -2553,7 +2553,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 
 		case "-/legacy":
 			// NOTE: This legacy lookup endpoint is specific to
-			// registry.terraform.io and not expected to work on any other
+			// registry.opentf.org and not expected to work on any other
 			// registry host.
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)

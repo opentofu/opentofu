@@ -235,7 +235,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 
 func TestModuleInstaller_ExactMatchPrerelease(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
-		t.Skip("this test accesses registry.terraform.io and github.com; set TF_ACC=1 to run it")
+		t.Skip("this test accesses registry.opentf.org and github.com; set TF_ACC=1 to run it")
 	}
 
 	fixtureDir := filepath.Clean("testdata/prerelease-version-constraint-match")
@@ -262,7 +262,7 @@ func TestModuleInstaller_ExactMatchPrerelease(t *testing.T) {
 
 func TestModuleInstaller_PartialMatchPrerelease(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
-		t.Skip("this test accesses registry.terraform.io and github.com; set TF_ACC=1 to run it")
+		t.Skip("this test accesses registry.opentf.org and github.com; set TF_ACC=1 to run it")
 	}
 
 	fixtureDir := filepath.Clean("testdata/prerelease-version-constraint")
@@ -431,7 +431,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 
 func TestLoaderInstallModules_registry(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
-		t.Skip("this test accesses registry.terraform.io and github.com; set TF_ACC=1 to run it")
+		t.Skip("this test accesses registry.opentf.org and github.com; set TF_ACC=1 to run it")
 	}
 
 	fixtureDir := filepath.Clean("testdata/registry-modules")
@@ -466,7 +466,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "acctest_child_a",
-			PackageAddr: "registry.terraform.io/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
+			PackageAddr: "registry.opentf.org/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
 			Version:     v,
 		},
 		{
@@ -475,7 +475,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 			Version:    v,
 			// NOTE: This local path and the other paths derived from it below
 			// can vary depending on how the registry is implemented. At the
-			// time of writing this test, registry.terraform.io returns
+			// time of writing this test, registry.opentf.org returns
 			// git repository source addresses and so this path refers to the
 			// root of the git clone, but historically the registry referred
 			// to GitHub-provided tar archives which meant that there was an
@@ -499,7 +499,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "acctest_child_b",
-			PackageAddr: "registry.terraform.io/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
+			PackageAddr: "registry.opentf.org/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
 			Version:     v,
 		},
 		{
@@ -513,7 +513,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "acctest_root",
-			PackageAddr: "registry.terraform.io/hashicorp/module-installer-acctest/aws",
+			PackageAddr: "registry.opentf.org/hashicorp/module-installer-acctest/aws",
 			Version:     v,
 		},
 		{
@@ -546,7 +546,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 
 	//check that the registry reponses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
-		Host:         svchost.Hostname("registry.terraform.io"),
+		Host:         svchost.Hostname("registry.opentf.org"),
 		Namespace:    "hashicorp",
 		Name:         "module-installer-acctest",
 		TargetSystem: "aws",
@@ -769,7 +769,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 
 func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
-		t.Skip("this test accesses registry.terraform.io and github.com; set TF_ACC=1 to run it")
+		t.Skip("this test accesses registry.opentf.org and github.com; set TF_ACC=1 to run it")
 	}
 
 	fixtureDir := filepath.Clean("testdata/registry-module-from-test")
@@ -803,7 +803,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "test.main.setup",
-			PackageAddr: "registry.terraform.io/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
+			PackageAddr: "registry.opentf.org/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
 			Version:     v,
 		},
 		{
@@ -812,7 +812,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 			Version:    v,
 			// NOTE: This local path and the other paths derived from it below
 			// can vary depending on how the registry is implemented. At the
-			// time of writing this test, registry.terraform.io returns
+			// time of writing this test, registry.opentf.org returns
 			// git repository source addresses and so this path refers to the
 			// root of the git clone, but historically the registry referred
 			// to GitHub-provided tar archives which meant that there was an
@@ -847,7 +847,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	//check that the registry reponses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
-		Host:         svchost.Hostname("registry.terraform.io"),
+		Host:         svchost.Hostname("registry.opentf.org"),
 		Namespace:    "hashicorp",
 		Name:         "module-installer-acctest",
 		TargetSystem: "aws",

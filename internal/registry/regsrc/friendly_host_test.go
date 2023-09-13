@@ -19,18 +19,18 @@ func TestFriendlyHost(t *testing.T) {
 	}{
 		{
 			name:        "simple ascii",
-			source:      "registry.terraform.io",
-			wantHost:    "registry.terraform.io",
-			wantDisplay: "registry.terraform.io",
-			wantNorm:    "registry.terraform.io",
+			source:      "registry.opentf.org",
+			wantHost:    "registry.opentf.org",
+			wantDisplay: "registry.opentf.org",
+			wantNorm:    "registry.opentf.org",
 			wantValid:   true,
 		},
 		{
 			name:        "mixed-case ascii",
-			source:      "Registry.TerraForm.io",
-			wantHost:    "Registry.TerraForm.io",
-			wantDisplay: "registry.terraform.io", // Display case folded
-			wantNorm:    "registry.terraform.io",
+			source:      "Registry.OpenTF.org",
+			wantHost:    "Registry.OpenTF.org",
+			wantDisplay: "registry.opentf.org", // Display case folded
+			wantNorm:    "registry.opentf.org",
 			wantValid:   true,
 		},
 		{

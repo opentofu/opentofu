@@ -124,7 +124,7 @@ func testRegistryServices(t *testing.T) (services *disco.Disco, baseURL string, 
 		"providers.v1": server.URL + "/fails-immediately/",
 	})
 
-	// We'll also permit registry.terraform.io here just because it's our
+	// We'll also permit registry.opentf.org here just because it's our
 	// default and has some unique features that are not allowed on any other
 	// hostname. It behaves the same as example.com, which should be preferred
 	// if you're not testing something specific to the default registry in order
