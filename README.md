@@ -2,7 +2,7 @@
 
 - Manifesto: https://opentf.org
 - About the OpenTF fork: https://opentf.org/fork
-- [Join our Slack community!](https://join.slack.com/t/opentfcommunity/shared_invite/zt-22ifsm1t2-AF6cL0cOdzivP8E~4deDJA)
+- [Join our Slack community!](https://join.slack.com/t/opentfcommunity/shared_invite/zt-232puvqp1-G6gbcbIr6QJBjabdfOC3xw)
 
 <img alt="OpenTF" src="https://raw.githubusercontent.com/opentffoundation/brand-artifacts/main/full/transparent/SVG/on-light.svg" width="600px">
 
