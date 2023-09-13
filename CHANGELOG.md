@@ -15,7 +15,7 @@ ENHANCEMENTS:
 * jsonplan: Added `errored` field to JSON plan output, indicating whether a plan errored. ([#33372](https://github.com/hashicorp/terraform/issues/33372))
 * cloud: Remote plans on cloud backends can now be saved using the `-out` flag, referenced in the `show` command, and applied by specifying the plan file name. ([#33492](https://github.com/hashicorp/terraform/issues/33492))
 * config: The `import` block `id` field now accepts an expression referencing other values such as resource attributes, as long as the value is a string known at plan time. ([#33618](https://github.com/hashicorp/terraform/issues/33618))
-
+* skip indenting JSON in state files, which can speed up marshalling large state files
 
 BUG FIXES:
 * The upstream dependency that OpenTF uses for service discovery of OpenTF-native services such as cloud backend state storage was previously not concurrency-safe, but OpenTF was treating it as if it was in situations like when a configuration has multiple `terraform_remote_state` blocks all using the "remote" backend. OpenTF is now using a newer version of that library which updates its internal caches in a concurrency-safe way. ([#33364](https://github.com/hashicorp/terraform/issues/33364))
