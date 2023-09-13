@@ -2476,7 +2476,7 @@ func testServices(t *testing.T) (services *disco.Disco, baseURL string, cleanup 
 	// hostname. It behaves the same as example.com, which should be preferred
 	// if you're not testing something specific to the default registry in order
 	// to ensure that most things are hostname-agnostic.
-	services.ForceHostServices(svchost.Hostname("registry.terraform.io"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("registry.opentf.org"), map[string]interface{}{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
 

@@ -232,12 +232,12 @@ resource "implicit_thing" "b" {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires provider registry.terraform.io/hashicorp/implicit, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
+					"This configuration requires provider registry.opentf.org/hashicorp/implicit, but that provider isn't available. You may be able to install it automatically by running:\n  opentf init",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires provider registry.terraform.io/hashicorp/implicit2, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
+					"This configuration requires provider registry.opentf.org/hashicorp/implicit2, but that provider isn't available. You may be able to install it automatically by running:\n  opentf init",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
@@ -1011,18 +1011,18 @@ func logDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
 const testContextRefreshModuleStr = `
 aws_instance.web: (tainted)
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentf.org/hashicorp/aws"]
 
 module.child:
   aws_instance.web:
     ID = new
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentf.org/hashicorp/aws"]
 `
 
 const testContextRefreshOutputStr = `
 aws_instance.web:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentf.org/hashicorp/aws"]
   foo = bar
 
 Outputs:
@@ -1037,5 +1037,5 @@ const testContextRefreshOutputPartialStr = `
 const testContextRefreshTaintedStr = `
 aws_instance.web: (tainted)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentf.org/hashicorp/aws"]
 `

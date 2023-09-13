@@ -673,9 +673,9 @@ Failure! 0 passed, 1 failed.
 Error: Provider configuration not present
 
 To work with test_resource.secondary its original provider configuration at
-provider["registry.terraform.io/hashicorp/test"].secondary is required, but
-it has been removed. This occurs when a provider configuration is removed
-while objects created by that provider still exist in the state. Re-add the
+provider["registry.opentf.org/hashicorp/test"].secondary is required, but it
+has been removed. This occurs when a provider configuration is removed while
+objects created by that provider still exist in the state. Re-add the
 provider configuration to destroy test_resource.secondary, after which you
 can remove the provider configuration again.
 `,
@@ -690,9 +690,9 @@ Failure! 0 passed, 1 failed.
 Error: Provider configuration not present
 
 To work with test_resource.secondary its original provider configuration at
-provider["registry.terraform.io/hashicorp/test"].secondary is required, but
-it has been removed. This occurs when a provider configuration is removed
-while objects created by that provider still exist in the state. Re-add the
+provider["registry.opentf.org/hashicorp/test"].secondary is required, but it
+has been removed. This occurs when a provider configuration is removed while
+objects created by that provider still exist in the state. Re-add the
 provider configuration to destroy test_resource.secondary, after which you
 can remove the provider configuration again.
 `,
@@ -708,9 +708,9 @@ Failure! 1 passed, 1 failed.
 Error: Provider configuration not present
 
 To work with test_resource.secondary its original provider configuration at
-provider["registry.terraform.io/hashicorp/test"].secondary is required, but
-it has been removed. This occurs when a provider configuration is removed
-while objects created by that provider still exist in the state. Re-add the
+provider["registry.opentf.org/hashicorp/test"].secondary is required, but it
+has been removed. This occurs when a provider configuration is removed while
+objects created by that provider still exist in the state. Re-add the
 provider configuration to destroy test_resource.secondary, after which you
 can remove the provider configuration again.
 `,
