@@ -167,7 +167,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		// to mirror how the provider works, we accept the file path or the contents
 		contents, err := backend.ReadPathOrContents(creds)
 		if err != nil {
-			return fmt.Errorf("Error loading credentials: %s", err)
+			return fmt.Errorf("Error loading credentials: %w", err)
 		}
 
 		if !json.Valid([]byte(contents)) {
@@ -217,7 +217,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 	client, err := storage.NewClient(b.storageContext, opts...)
 	if err != nil {
-		return fmt.Errorf("storage.NewClient() failed: %v", err)
+		return fmt.Errorf("storage.NewClient() failed: %w", err)
 	}
 
 	b.storageClient = client
@@ -227,7 +227,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	if key != "" {
 		kc, err := backend.ReadPathOrContents(key)
 		if err != nil {
-			return fmt.Errorf("Error loading encryption key: %s", err)
+			return fmt.Errorf("Error loading encryption key: %w", err)
 		}
 
 		// The GCS client expects a customer supplied encryption key to be
@@ -238,7 +238,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		// https://github.com/GoogleCloudPlatform/google-cloud-go/blob/def681/storage/storage.go#L1181
 		k, err := base64.StdEncoding.DecodeString(kc)
 		if err != nil {
-			return fmt.Errorf("Error decoding encryption key: %s", err)
+			return fmt.Errorf("Error decoding encryption key: %w", err)
 		}
 		b.encryptionKey = k
 	}

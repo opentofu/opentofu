@@ -438,9 +438,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 				}
 				err = b.confirm(stopCtx, op, opts, r, "override")
 				if err != nil && err != errRunOverridden {
-					return fmt.Errorf(
-						fmt.Sprintf("Failed to override: %s\n%s\n", err.Error(), runUrl),
-					)
+					return fmt.Errorf("Failed to override: %w\n%s\n", err, runUrl)
 				}
 
 				if err != errRunOverridden {
@@ -530,7 +528,7 @@ func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *o
 	result <- func() error {
 		v, err := op.UIIn.Input(doneCtx, opts)
 		if err != nil && err != context.Canceled && stopCtx.Err() != context.Canceled {
-			return fmt.Errorf("Error asking %s: %v", opts.Id, err)
+			return fmt.Errorf("Error asking %s: %w", opts.Id, err)
 		}
 
 		// We return the error of our parent channel as we don't

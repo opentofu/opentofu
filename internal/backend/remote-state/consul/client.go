@@ -347,7 +347,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	li := &statemgr.LockInfo{}
 	err = json.Unmarshal(pair.Value, li)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling lock info: %s", err)
+		return nil, fmt.Errorf("error unmarshaling lock info: %w", err)
 	}
 
 	return li, nil

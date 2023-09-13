@@ -110,14 +110,14 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state in Kubernetes failed:
 
-				Error message: %q
+				Error message: %w
 				Lock ID (gen): %v
 				Secret Name: %v
 
 				You may have to force-unlock this state in order to use it again.
 				The Kubernetes backend acquires a lock during initialization to ensure
 				the initial state file is created.`
-				return fmt.Errorf(unlockErrMsg, baseErr, err.Error(), lockID, secretName)
+				return fmt.Errorf(unlockErrMsg, baseErr, err, lockID, secretName)
 			}
 
 			return baseErr

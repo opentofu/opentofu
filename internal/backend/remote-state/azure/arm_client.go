@@ -99,7 +99,7 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 	}
 	armConfig, err := builder.Build()
 	if err != nil {
-		return nil, fmt.Errorf("Error building ARM Config: %+v", err)
+		return nil, fmt.Errorf("Error building ARM Config: %w", err)
 	}
 
 	oauthConfig, err := armConfig.BuildOAuthConfig(env.ActiveDirectoryEndpoint)
@@ -144,7 +144,7 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 		log.Printf("[DEBUG] Building the Blob Client from a SAS Token")
 		storageAuth, err := autorest.NewSASTokenAuthorizer(c.sasToken)
 		if err != nil {
-			return nil, fmt.Errorf("Error building Authorizer: %+v", err)
+			return nil, fmt.Errorf("Error building SAS Token Authorizer: %w", err)
 		}
 
 		blobsClient := blobs.NewWithEnvironment(c.environment)
@@ -163,7 +163,7 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 		log.Printf("[DEBUG] Building the Blob Client from an Access Token (using user credentials)")
 		keys, err := c.storageAccountsClient.ListKeys(ctx, c.resourceGroupName, c.storageAccountName, "")
 		if err != nil {
-			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %s", c.storageAccountName, err)
+			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
 		}
 
 		if keys.Keys == nil {
@@ -176,7 +176,7 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 
 	storageAuth, err := autorest.NewSharedKeyAuthorizer(c.storageAccountName, accessKey, autorest.SharedKey)
 	if err != nil {
-		return nil, fmt.Errorf("Error building Authorizer: %+v", err)
+		return nil, fmt.Errorf("Error building Shared Key Authorizer: %w", err)
 	}
 
 	blobsClient := blobs.NewWithEnvironment(c.environment)
@@ -189,7 +189,7 @@ func (c ArmClient) getContainersClient(ctx context.Context) (*containers.Client,
 		log.Printf("[DEBUG] Building the Container Client from a SAS Token")
 		storageAuth, err := autorest.NewSASTokenAuthorizer(c.sasToken)
 		if err != nil {
-			return nil, fmt.Errorf("Error building Authorizer: %+v", err)
+			return nil, fmt.Errorf("Error building SAS Token Authorizer: %w", err)
 		}
 
 		containersClient := containers.NewWithEnvironment(c.environment)
@@ -208,7 +208,7 @@ func (c ArmClient) getContainersClient(ctx context.Context) (*containers.Client,
 		log.Printf("[DEBUG] Building the Container Client from an Access Token (using user credentials)")
 		keys, err := c.storageAccountsClient.ListKeys(ctx, c.resourceGroupName, c.storageAccountName, "")
 		if err != nil {
-			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %s", c.storageAccountName, err)
+			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
 		}
 
 		if keys.Keys == nil {
@@ -221,7 +221,7 @@ func (c ArmClient) getContainersClient(ctx context.Context) (*containers.Client,
 
 	storageAuth, err := autorest.NewSharedKeyAuthorizer(c.storageAccountName, accessKey, autorest.SharedKey)
 	if err != nil {
-		return nil, fmt.Errorf("Error building Authorizer: %+v", err)
+		return nil, fmt.Errorf("Error building Shared Key Authorizer: %w", err)
 	}
 
 	containersClient := containers.NewWithEnvironment(c.environment)
