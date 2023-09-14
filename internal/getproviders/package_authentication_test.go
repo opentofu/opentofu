@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+	tfaddr "github.com/opentffoundation/registry-address"
 
 	"github.com/google/go-cmp/cmp"
 
