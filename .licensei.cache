@@ -1,0 +1,1218 @@
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/apparentlymart/go-shquot"
+  revision = "v0.0.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/apparentlymart/go-userdirs"
+  revision = "v0.0.0-20200915174352-b0c018a67c13"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9306931
+  license = "BSD-3-Clause"
+  name = "google.golang.org/protobuf"
+  revision = "v1.31.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/golang/protobuf"
+  revision = "v1.5.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/sys"
+  revision = "v0.9.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99698794
+  license = "MIT"
+  name = "github.com/mattn/go-isatty"
+  revision = "v0.0.17"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mattn/go-colorable"
+  revision = "v0.1.13"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9548387
+  license = "MIT"
+  name = "github.com/fatih/color"
+  revision = "v1.13.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/hashicorp/go-hclog"
+  revision = "v1.4.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/net"
+  revision = "v0.11.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "google.golang.org/grpc"
+  revision = "v1.56.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "google.golang.org/genproto/googleapis/rpc"
+  revision = "v0.0.0-20230530153820-e85fd2cbaebc"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/text"
+  revision = "v0.10.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-plugin"
+  revision = "v1.4.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9892658
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/yamux"
+  revision = "v0.0.0-20181012175058-2f1d1f20f75d"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/go-testing-interface"
+  revision = "v1.14.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/oklog/run"
+  revision = "v1.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/terraform-svchost"
+  revision = "v0.1.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "Apache-2.0"
+  name = "github.com/apparentlymart/go-textseg/v13"
+  revision = "v13.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/zclconf/go-cty"
+  revision = "v1.13.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-cleanhttp"
+  revision = "v0.5.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-version"
+  revision = "v1.6.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/oauth2"
+  revision = "v0.8.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mattn/go-shellwords"
+  revision = "v1.0.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/Masterminds/goutils"
+  revision = "v1.1.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9907975
+  license = "MIT"
+  name = "github.com/Masterminds/semver/v3"
+  revision = "v3.1.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/google/uuid"
+  revision = "v1.3.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/huandu/xstrings"
+  revision = "v1.3.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/imdario/mergo"
+  revision = "v0.3.13"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/reflectwalk"
+  revision = "v1.0.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/copystructure"
+  revision = "v1.2.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9647059
+  license = "MIT"
+  name = "github.com/shopspring/decimal"
+  revision = "v1.3.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9909638
+  license = "MIT"
+  name = "github.com/spf13/cast"
+  revision = "v1.5.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/crypto"
+  revision = "v0.10.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9907975
+  license = "MIT"
+  name = "github.com/Masterminds/sprig/v3"
+  revision = "v3.2.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9548387
+  license = "MIT"
+  name = "github.com/armon/go-radix"
+  revision = "v1.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.8933333
+  license = "MIT"
+  name = "github.com/bgentry/speakeasy"
+  revision = "v0.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/errwrap"
+  revision = "v1.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-multierror"
+  revision = "v1.1.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9939759
+  license = "MIT"
+  name = "github.com/posener/complete"
+  revision = "v1.2.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/mitchellh/cli"
+  revision = "v1.1.5"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/colorstring"
+  revision = "v0.0.0-20190213212951-d06e56a500db"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/agext/levenshtein"
+  revision = "v1.2.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/go-wordwrap"
+  revision = "v1.0.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/hcl/v2"
+  revision = "v2.17.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/terraform-registry-address"
+  revision = "v0.2.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "cloud.google.com/go/compute/metadata"
+  revision = "v0.2.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "google.golang.org/genproto/googleapis/api"
+  revision = "v0.0.0-20230530153820-e85fd2cbaebc"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "google.golang.org/genproto"
+  revision = "v0.0.0-20230530153820-e85fd2cbaebc"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "cloud.google.com/go/iam"
+  revision = "v0.13.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/googleapis/gax-go/v2"
+  revision = "v2.7.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "google.golang.org/api"
+  revision = "v0.114.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "cloud.google.com/go"
+  revision = "v0.110.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99840355
+  license = "Apache-2.0"
+  name = "github.com/golang/groupcache"
+  revision = "v0.0.0-20210331224755-41bb18bfe9da"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9935191
+  license = "Apache-2.0"
+  name = "go.opencensus.io"
+  revision = "v0.24.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/xerrors"
+  revision = "v0.0.0-20220907171357-04be3eba64a2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "cloud.google.com/go/storage"
+  revision = "v1.28.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/googleapis/enterprise-certificate-proxy"
+  revision = "v0.2.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/google/go-cmp"
+  revision = "v0.5.9"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/aws/aws-sdk-go"
+  revision = "v1.44.122"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "Apache-2.0"
+  name = "github.com/jmespath/go-jmespath"
+  revision = "v0.4.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9532164
+  license = "MIT"
+  name = "github.com/bgentry/go-netrc"
+  revision = "v0.0.0-20140422174119-9fd32a8b3d3d"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-getter"
+  revision = "v1.7.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-safetemp"
+  revision = "v1.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98639894
+  license = "Apache-2.0"
+  name = "github.com/klauspost/compress"
+  revision = "v1.15.11"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/go-homedir"
+  revision = "v1.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9484536
+  license = "BSD-2-Clause"
+  name = "github.com/ulikunitz/xz"
+  revision = "v0.5.10"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-uuid"
+  revision = "v1.0.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/ProtonMail/go-crypto"
+  revision = "v0.0.0-20230619160724-3fbb1f12458c"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9306931
+  license = "BSD-3-Clause"
+  name = "github.com/cloudflare/circl"
+  revision = "v1.3.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/apparentlymart/go-versions"
+  revision = "v1.0.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-retryablehttp"
+  revision = "v0.7.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99840355
+  license = "Apache-2.0"
+  name = "github.com/coreos/go-systemd"
+  revision = "v0.0.0-20181012123002-c6f51f82210d"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9932039
+  license = "Apache-2.0"
+  name = "github.com/coreos/pkg"
+  revision = "v0.0.0-20180928190104-399ea9e2e55f"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/mod"
+  revision = "v0.10.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9907975
+  license = "MIT"
+  name = "github.com/apparentlymart/go-cidr"
+  revision = "v1.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/bmatcuk/doublestar"
+  revision = "v1.1.5"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352336
+  license = "Apache-2.0"
+  name = "github.com/zclconf/go-cty-yaml"
+  revision = "v1.0.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.93246186
+  license = "Apache-2.0"
+  name = "github.com/spf13/afero"
+  revision = "v1.9.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9683908
+  license = "BSD-2-Clause"
+  name = "github.com/vmihailenco/msgpack/v5"
+  revision = "v5.3.5"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9683908
+  license = "BSD-2-Clause"
+  name = "github.com/vmihailenco/tagparser/v2"
+  revision = "v2.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/term"
+  revision = "v0.9.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "ISC"
+  name = "github.com/davecgh/go-spew"
+  revision = "v1.1.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/google/go-querystring"
+  revision = "v1.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99978936
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-slug"
+  revision = "v0.12.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/hashicorp/jsonapi"
+  revision = "v0.0.0-20210826224640-ee7dae0fb22d"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/sync"
+  revision = "v0.3.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/time"
+  revision = "v0.3.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-tfe"
+  revision = "v1.32.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/Azure/azure-sdk-for-go"
+  revision = "v59.2.0+incompatible"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/autorest/date"
+  revision = "v0.3.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/logger"
+  revision = "v0.2.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/tracing"
+  revision = "v0.6.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9907975
+  license = "MIT"
+  name = "github.com/golang-jwt/jwt/v4"
+  revision = "v4.4.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/autorest/adal"
+  revision = "v0.9.18"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/autorest"
+  revision = "v0.11.24"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/autorest/to"
+  revision = "v0.4.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/autorest/validation"
+  revision = "v0.3.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352336
+  license = "Apache-2.0"
+  name = "github.com/dimchansky/utfbom"
+  revision = "v1.1.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.96472603
+  license = "Apache-2.0"
+  name = "github.com/Azure/go-autorest/autorest/azure/cli"
+  revision = "v0.4.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-azure-helpers"
+  revision = "v0.43.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9345152
+  license = "Apache-2.0"
+  name = "github.com/manicminer/hamilton"
+  revision = "v0.44.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9345152
+  license = "Apache-2.0"
+  name = "github.com/manicminer/hamilton-autorest"
+  revision = "v0.2.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/mapstructure"
+  revision = "v1.5.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/tombuildsstuff/giovanni"
+  revision = "v0.15.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-rootcerts"
+  revision = "v1.0.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/golang-lru"
+  revision = "v0.5.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98948497
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/go-immutable-radix"
+  revision = "v1.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9548387
+  license = "MIT"
+  name = "github.com/armon/go-metrics"
+  revision = "v0.0.0-20180917152333-f0300d1749da"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/serf"
+  revision = "v0.9.6"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9692774
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/consul/api"
+  revision = "v1.13.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
+  revision = "v1.0.588"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts"
+  revision = "v1.0.588"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag"
+  revision = "v1.0.233"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/mozillazg/go-httpheader"
+  revision = "v0.3.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/tencentyun/cos-go-sdk-v5"
+  revision = "v0.7.29"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.8691099
+  license = "BSD-3-Clause"
+  name = "github.com/gogo/protobuf"
+  revision = "v1.3.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/google/gofuzz"
+  revision = "v1.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.92610836
+  license = "BSD-3-Clause"
+  name = "gopkg.in/inf.v0"
+  revision = "v0.9.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "k8s.io/apimachinery"
+  revision = "v0.23.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "k8s.io/utils"
+  revision = "v0.0.0-20211116205334-6203023598ed"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352336
+  license = "Apache-2.0"
+  name = "github.com/go-logr/logr"
+  revision = "v1.2.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99840355
+  license = "Apache-2.0"
+  name = "k8s.io/klog/v2"
+  revision = "v2.30.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9832041
+  license = "Apache-2.0"
+  name = "sigs.k8s.io/json"
+  revision = "v0.0.0-20211020170558-c049b76a60c6"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/modern-go/concurrent"
+  revision = "v0.0.0-20180306012644-bacd9c7ef1dd"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/modern-go/reflect2"
+  revision = "v1.0.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/json-iterator/go"
+  revision = "v1.1.12"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352336
+  license = "Apache-2.0"
+  name = "gopkg.in/yaml.v2"
+  revision = "v2.4.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352336
+  license = "Apache-2.0"
+  name = "sigs.k8s.io/structured-merge-diff/v4"
+  revision = "v4.2.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "k8s.io/api"
+  revision = "v0.23.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.88590604
+  license = "MIT"
+  name = "sigs.k8s.io/yaml"
+  revision = "v1.2.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "k8s.io/client-go"
+  revision = "v0.23.4"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352753
+  license = "Apache-2.0"
+  name = "github.com/googleapis/gnostic"
+  revision = "v0.5.5"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "Apache-2.0"
+  name = "gopkg.in/yaml.v3"
+  revision = "v3.0.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "k8s.io/kube-openapi"
+  revision = "v0.0.0-20211115234752-e816edb12b65"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/spf13/pflag"
+  revision = "v1.0.5"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/aliyun/alibaba-cloud-sdk-go"
+  revision = "v1.61.1501"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99840355
+  license = "Apache-2.0"
+  name = "gopkg.in/ini.v1"
+  revision = "v1.66.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.91958046
+  license = "MIT"
+  name = "github.com/aliyun/aliyun-oss-go-sdk"
+  revision = "v2.2.9+incompatible"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99352336
+  license = "Apache-2.0"
+  name = "github.com/aliyun/aliyun-tablestore-go-sdk"
+  revision = "v4.1.2+incompatible"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "BSD-2-Clause"
+  name = "github.com/pkg/errors"
+  revision = "v0.9.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.98802394
+  license = "MIT"
+  name = "github.com/lib/pq"
+  revision = "v1.10.3"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99978936
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/aws-sdk-go-base"
+  revision = "v0.7.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/chzyer/readline"
+  revision = "v0.0.0-20180603132655-2972be24d48e"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "github.com/kardianos/osext"
+  revision = "v0.0.0-20190222173326-2bc1f35cddc0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9932039
+  license = "Apache-2.0"
+  name = "github.com/xanzy/ssh-agent"
+  revision = "v0.3.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/Azure/go-ntlmssp"
+  revision = "v0.0.0-20200615164410-66371956d46c"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/ChrisTrenkamp/goxpath"
+  revision = "v0.0.0-20190607011252-c5096ec8773d"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9907975
+  license = "MIT"
+  name = "github.com/gofrs/uuid"
+  revision = "v4.0.0+incompatible"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/masterzen/simplexml"
+  revision = "v0.0.0-20190410153822-31eea3082786"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/masterzen/winrm"
+  revision = "v0.0.0-20200615185753-c42b5136ff88"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/dylanmei/iso8601"
+  revision = "v0.1.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9876543
+  license = "MIT"
+  name = "github.com/nu7hatch/gouuid"
+  revision = "v0.0.0-20131221200532-179d4d0c4d8d"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "MIT"
+  name = "github.com/packer-community/winrmcp"
+  revision = "v0.0.0-20180921211025-c76d91c1e7db"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9548387
+  license = "MIT"
+  name = "github.com/armon/circbuf"
+  revision = "v0.0.0-20190214190532-5111143e8da2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/mitchellh/go-linereader"
+  revision = "v0.0.0-20190213213312-1b945b3263eb"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9846387
+  license = "MPL-2.0"
+  name = "github.com/hashicorp/hcl"
+  revision = "v1.0.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 1.0
+  license = "BSD-2-Clause"
+  name = "github.com/pkg/browser"
+  revision = "v0.0.0-20201207095918-0426ae3fba23"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.994012
+  license = "MIT"
+  name = "github.com/xlab/treeprint"
+  revision = "v0.0.0-20161029104018-1d6e34225557"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/go-logr/stdr"
+  revision = "v1.2.2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/metric"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/trace"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9653466
+  license = "BSD-3-Clause"
+  name = "golang.org/x/exp"
+  revision = "v0.0.0-20220303212507-bbda1eaf7a17"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9548387
+  license = "MIT"
+  name = "github.com/cenkalti/backoff/v4"
+  revision = "v4.2.1"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/exporters/otlp/internal/retry"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/sdk"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/proto/otlp"
+  revision = "v0.20.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.9905213
+  license = "BSD-3-Clause"
+  name = "github.com/grpc-ecosystem/grpc-gateway/v2"
+  revision = "v2.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+  revision = "v1.16.0"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "go.opentelemetry.io/contrib/exporters/autoexport"
+  revision = "v0.0.0-20230703072336-9a582bd098a2"
+  type = "gomod"
+
+[[dependencies]]
+  confidence = 0.99384713
+  license = "Apache-2.0"
+  name = "github.com/golang/mock"
+  revision = "v1.6.0"
+  type = "gomod"

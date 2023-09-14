@@ -56,8 +56,10 @@ website/build-local:
 .PHONY: license-check
 license-check:
 	go mod vendor
-	licensei check
-	licensei header
+	licensei cache --debug
+	licensei check --debug
+	licensei header --debug
+	git diff --exit-code
 
 # Install dependencies
 deps: bin/licensei
