@@ -67,7 +67,7 @@ func ModulePath(args []string) (string, error) {
 
 	path, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("Error getting pwd: %s", err)
+		return "", fmt.Errorf("Error getting pwd: %w", err)
 	}
 
 	return path, nil

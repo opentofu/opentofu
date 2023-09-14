@@ -545,7 +545,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		Query: fmt.Sprintf("Username for %s:", hostname.ForDisplay()),
 	})
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to request username: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to request username: %w", err))
 		return nil, diags
 	}
 	password, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
@@ -554,7 +554,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		Secret: true,
 	})
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to request password: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to request password: %w", err))
 		return nil, diags
 	}
 
@@ -637,7 +637,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 		Secret: true,
 	})
 	if err != nil {
-		diags := diags.Append(fmt.Errorf("Failed to retrieve token: %s", err))
+		diags := diags.Append(fmt.Errorf("Failed to retrieve token: %w", err))
 		return "", diags
 	}
 
@@ -650,15 +650,15 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	}
 	client, err := tfe.NewClient(cfg)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to create API client: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to create API client: %w", err))
 		return "", diags
 	}
 	user, err := client.Users.ReadCurrent(context.Background())
 	if err == tfe.ErrUnauthorized {
-		diags = diags.Append(fmt.Errorf("Token is invalid: %s", err))
+		diags = diags.Append(fmt.Errorf("Token is invalid: %w", err))
 		return "", diags
 	} else if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to retrieve user account details: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to retrieve user account details: %w", err))
 		return "", diags
 	}
 	c.Ui.Output(fmt.Sprintf(c.Colorize().Color("\nRetrieved token for user [bold]%s[reset]\n"), user.Username))

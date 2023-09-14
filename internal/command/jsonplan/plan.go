@@ -227,13 +227,13 @@ func MarshalForLog(
 
 	err := output.marshalPlanVariables(p.VariableValues, config.Module.Variables)
 	if err != nil {
-		return nil, fmt.Errorf("error in marshalPlanVariables: %s", err)
+		return nil, fmt.Errorf("error in marshalPlanVariables: %w", err)
 	}
 
 	// output.PlannedValues
 	err = output.marshalPlannedValues(p.Changes, schemas)
 	if err != nil {
-		return nil, fmt.Errorf("error in marshalPlannedValues: %s", err)
+		return nil, fmt.Errorf("error in marshalPlannedValues: %w", err)
 	}
 
 	// output.ResourceDrift
@@ -254,25 +254,25 @@ func MarshalForLog(
 		}
 		output.ResourceDrift, err = MarshalResourceChanges(driftedResources, schemas)
 		if err != nil {
-			return nil, fmt.Errorf("error in marshaling resource drift: %s", err)
+			return nil, fmt.Errorf("error in marshaling resource drift: %w", err)
 		}
 	}
 
 	if err := output.marshalRelevantAttrs(p); err != nil {
-		return nil, fmt.Errorf("error marshaling relevant attributes for external changes: %s", err)
+		return nil, fmt.Errorf("error marshaling relevant attributes for external changes: %w", err)
 	}
 
 	// output.ResourceChanges
 	if p.Changes != nil {
 		output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas)
 		if err != nil {
-			return nil, fmt.Errorf("error in marshaling resource changes: %s", err)
+			return nil, fmt.Errorf("error in marshaling resource changes: %w", err)
 		}
 	}
 
 	// output.OutputChanges
 	if output.OutputChanges, err = MarshalOutputChanges(p.Changes); err != nil {
-		return nil, fmt.Errorf("error in marshaling output changes: %s", err)
+		return nil, fmt.Errorf("error in marshaling output changes: %w", err)
 	}
 
 	// output.Checks
@@ -284,14 +284,14 @@ func MarshalForLog(
 	if sf != nil && !sf.State.Empty() {
 		output.PriorState, err = jsonstate.Marshal(sf, schemas)
 		if err != nil {
-			return nil, fmt.Errorf("error marshaling prior state: %s", err)
+			return nil, fmt.Errorf("error marshaling prior state: %w", err)
 		}
 	}
 
 	// output.Config
 	output.Config, err = jsonconfig.Marshal(config, schemas)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling config: %s", err)
+		return nil, fmt.Errorf("error marshaling config: %w", err)
 	}
 
 	return output, nil
@@ -913,13 +913,13 @@ func encodePath(path cty.Path) (json.RawMessage, error) {
 		case cty.IndexStep:
 			key, err := ctyjson.Marshal(s.Key, s.Key.Type())
 			if err != nil {
-				return nil, fmt.Errorf("Failed to marshal index step key %#v: %s", s.Key, err)
+				return nil, fmt.Errorf("Failed to marshal index step key %#v: %w", s.Key, err)
 			}
 			steps = append(steps, key)
 		case cty.GetAttrStep:
 			name, err := json.Marshal(s.Name)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to marshal get attr step name %#v: %s", s.Name, err)
+				return nil, fmt.Errorf("Failed to marshal get attr step name %#v: %w", s.Name, err)
 			}
 			steps = append(steps, name)
 		default:

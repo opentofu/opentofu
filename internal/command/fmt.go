@@ -208,7 +208,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 		if c.diff {
 			diff, err := bytesDiff(src, result, path)
 			if err != nil {
-				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %s", path, err))
+				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %w", path, err))
 				return diags
 			}
 			w.Write(diff)

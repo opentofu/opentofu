@@ -155,7 +155,7 @@ func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics
 	if cli, ok := b.(backend.CLI); ok {
 		if err := cli.CLIInit(cliOpts); err != nil {
 			diags = diags.Append(fmt.Errorf(
-				"Error initializing backend %T: %s\n\n"+
+				"Error initializing backend %T: %w\n\n"+
 					"This is a bug; please report it to the backend developer",
 				b, err,
 			))
@@ -220,7 +220,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to get existing workspaces: %s", err)
+		return fmt.Errorf("Failed to get existing workspaces: %w", err)
 	}
 	if len(workspaces) == 0 {
 		if c, ok := b.(*cloud.Cloud); ok && m.input {
@@ -283,7 +283,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 			strings.TrimSpace(inputBackendSelectWorkspace), list.String()),
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to select workspace: %s", err)
+		return fmt.Errorf("Failed to select workspace: %w", err)
 	}
 
 	idx, err := strconv.Atoi(v)
@@ -341,7 +341,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 		}
 		if err := cli.CLIInit(cliOpts); err != nil {
 			diags = diags.Append(fmt.Errorf(
-				"Error initializing backend %T: %s\n\n"+
+				"Error initializing backend %T: %w\n\n"+
 					"This is a bug; please report it to the backend developer",
 				b, err,
 			))
@@ -554,7 +554,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
 
@@ -782,7 +782,7 @@ func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.D
 	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
 	s := sMgr.State()
@@ -1050,8 +1050,8 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 	if m.stateLock {
 		view := views.NewStateLocker(vt, m.View)
 		stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
-		if err := stateLocker.Lock(sMgr, "backend from plan"); err != nil {
-			diags = diags.Append(fmt.Errorf("Error locking state: %s", err))
+		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
+			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 			return nil, diags
 		}
 		defer stateLocker.Unlock()
@@ -1059,7 +1059,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 
 	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema().ImpliedType())
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %s", err))
+		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %w", err))
 		return nil, diags
 	}
 
@@ -1194,8 +1194,8 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 		if m.stateLock {
 			view := views.NewStateLocker(vt, m.View)
 			stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
-			if err := stateLocker.Lock(sMgr, "backend from plan"); err != nil {
-				diags = diags.Append(fmt.Errorf("Error locking state: %s", err))
+			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
+				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 				return nil, diags
 			}
 			defer stateLocker.Unlock()
@@ -1204,7 +1204,7 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 
 	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema().ImpliedType())
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %s", err))
+		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %w", err))
 		return nil, diags
 	}
 
@@ -1412,7 +1412,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 		var err error
 		configVal, err = m.inputForSchema(configVal, schema)
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %s", c.Type, err))
+			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %w", c.Type, err))
 		}
 
 		// We get an unknown here if the if the user aborted input, but we can't
@@ -1548,7 +1548,7 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 //-------------------------------------------------------------------
 
 const errBackendLocalRead = `
-Error reading local state: %s
+Error reading local state: %w
 
 OpenTF is trying to read your local state to determine if there is
 state to migrate to your newly configured backend. OpenTF can't continue
@@ -1557,7 +1557,7 @@ error above and try again.
 `
 
 const errBackendMigrateLocalDelete = `
-Error deleting local state after migration: %s
+Error deleting local state after migration: %w
 
 Your local state is deleted after successfully migrating it to the newly
 configured backend. As part of the deletion process, a backup is made at
@@ -1600,7 +1600,7 @@ to not use the backend and run "opentf init" (or any other command) again.
 `
 
 const errBackendClearSaved = `
-Error clearing the backend configuration: %s
+Error clearing the backend configuration: %w
 
 OpenTF removes the saved backend configuration when you're removing a
 configured backend. This must be done so future OpenTF runs know to not
@@ -1638,7 +1638,7 @@ OpenTF has not yet made changes to your existing configuration or state.
 `
 
 const errBackendWriteSaved = `
-Error saving the backend configuration: %s
+Error saving the backend configuration: %w
 
 OpenTF saves the complete backend configuration in a local file for
 configuring the backend on future operations. This cannot be disabled. Errors

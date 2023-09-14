@@ -297,7 +297,7 @@ func (s *LocalState) lockInfo() (*statemgr.LockInfo, error) {
 	info := statemgr.LockInfo{}
 	err = json.Unmarshal(infoData, &info)
 	if err != nil {
-		return nil, fmt.Errorf("state file %q locked, but could not unmarshal lock info: %s", s.Path, err)
+		return nil, fmt.Errorf("state file %q locked, but could not unmarshal lock info: %w", s.Path, err)
 	}
 	return &info, nil
 }
@@ -310,7 +310,7 @@ func (s *LocalState) writeLockInfo(info *statemgr.LockInfo) error {
 
 	err := os.WriteFile(path, info.Marshal(), 0600)
 	if err != nil {
-		return fmt.Errorf("could not write lock info for %q: %s", s.Path, err)
+		return fmt.Errorf("could not write lock info for %q: %w", s.Path, err)
 	}
 	return nil
 }

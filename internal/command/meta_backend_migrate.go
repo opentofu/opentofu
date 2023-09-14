@@ -178,7 +178,7 @@ func (m *Meta) backendMigrateState_S_S(opts *backendMigrateOpts) error {
 		})
 		if err != nil {
 			return fmt.Errorf(
-				"Error asking for state migration action: %s", err)
+				"Error asking for state migration action: %w", err)
 		}
 	}
 	if !migrate {
@@ -239,7 +239,7 @@ func (m *Meta) backendMigrateState_S_s(opts *backendMigrateOpts) error {
 		})
 		if err != nil {
 			return fmt.Errorf(
-				"Error asking for state migration action: %s", err)
+				"Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -302,7 +302,7 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 			// the named workspace as the new selected workspace.
 			if workspace == backend.DefaultStateName {
 				if err := m.SetWorkspace(opts.destinationWorkspace); err != nil {
-					return nil, fmt.Errorf("Failed to set new workspace: %s", err)
+					return nil, fmt.Errorf("Failed to set new workspace: %w", err)
 				}
 			}
 
@@ -489,7 +489,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	// Save both to a temporary
 	td, err := os.MkdirTemp("", "terraform")
 	if err != nil {
-		return false, fmt.Errorf("Error creating temporary directory: %s", err)
+		return false, fmt.Errorf("Error creating temporary directory: %w", err)
 	}
 	defer os.RemoveAll(td)
 
@@ -503,10 +503,10 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	sourcePath := filepath.Join(td, fmt.Sprintf("1-%s.tfstate", opts.SourceType))
 	destinationPath := filepath.Join(td, fmt.Sprintf("2-%s.tfstate", opts.DestinationType))
 	if err := saveHelper(opts.SourceType, sourcePath, source); err != nil {
-		return false, fmt.Errorf("Error saving temporary state: %s", err)
+		return false, fmt.Errorf("Error saving temporary state: %w", err)
 	}
 	if err := saveHelper(opts.DestinationType, destinationPath, destination); err != nil {
-		return false, fmt.Errorf("Error saving temporary state: %s", err)
+		return false, fmt.Errorf("Error saving temporary state: %w", err)
 	}
 
 	// Ask for confirmation
@@ -813,7 +813,7 @@ func (m *Meta) promptSingleToCloudSingleStateMigration(opts *backendMigrateOpts)
 			Description: strings.TrimSpace(tfcInputBackendMigrateStateSingleToCloudSingle),
 		})
 		if err != nil {
-			return false, fmt.Errorf("Error asking for state migration action: %s", err)
+			return false, fmt.Errorf("Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -834,7 +834,7 @@ func (m *Meta) promptRemotePrefixToCloudTagsMigration(opts *backendMigrateOpts) 
 			Description: strings.TrimSpace(tfcInputBackendMigrateRemoteMultiToCloud),
 		})
 		if err != nil {
-			return fmt.Errorf("Error asking for state migration action: %s", err)
+			return fmt.Errorf("Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -863,7 +863,7 @@ func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error
 				opts.SourceType, opts.destinationWorkspace),
 		})
 		if err != nil {
-			return fmt.Errorf("Error asking for state migration action: %s", err)
+			return fmt.Errorf("Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -890,7 +890,7 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 		Description: strings.TrimSpace(inputBackendNewWorkspaceName),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error asking for new state name: %s", err)
+		return "", fmt.Errorf("Error asking for new state name: %w", err)
 	}
 
 	return name, nil
@@ -905,7 +905,7 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 		Description: fmt.Sprintf(strings.TrimSpace(tfcInputBackendMigrateMultiToMulti), sourceType),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error asking for state migration action: %s", err)
+		return "", fmt.Errorf("Error asking for state migration action: %w", err)
 	}
 	if renameWorkspaces != "2" && renameWorkspaces != "1" {
 		return "", fmt.Errorf("Please select 1 or 2 as part of this option.")
@@ -923,7 +923,7 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 		Description: strings.TrimSpace(tfcInputBackendMigrateMultiToMultiPattern),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error asking for state migration action: %s", err)
+		return "", fmt.Errorf("Error asking for state migration action: %w", err)
 	}
 	if !strings.Contains(pattern, "*") {
 		return "", fmt.Errorf("The pattern must have an '*'")
@@ -938,7 +938,7 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 
 const errMigrateLoadStates = `
 Error inspecting states in the %q backend:
-    %s
+    %w
 
 Prior to changing backends, OpenTF inspects the source and destination
 states to determine what kind of migration steps need to be taken, if any.
@@ -947,10 +947,9 @@ destination remain unmodified. Please resolve the above error and try again.
 `
 
 const errMigrateSingleLoadDefault = `
-Error loading state:
-    %[2]s
+Error loading default state from the %q backend:
+    %w
 
-OpenTF failed to load the default state from the %[1]q backend.
 State migration cannot occur unless the state can be loaded. Backend
 modification and state migration has been aborted. The state in both the
 source and the destination remain unmodified. Please resolve the
@@ -960,7 +959,7 @@ above error and try again.
 const errMigrateMulti = `
 Error migrating the workspace %q from the previous %q backend
 to the newly configured %q backend:
-    %s
+    %w
 
 OpenTF copies workspaces in alphabetical order. Any workspaces
 alphabetically earlier than this one have been copied. Any workspaces
@@ -974,7 +973,7 @@ This will attempt to copy (with permission) all workspaces again.
 const errBackendStateCopy = `
 Error copying state from the previous %q backend to the newly configured
 %q backend:
-    %s
+    %w
 
 The state in the previous backend remains intact and unmodified. Please resolve
 the error above and try again.

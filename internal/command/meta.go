@@ -477,7 +477,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 
 	op, err := b.Operation(context.Background(), opReq)
 	if err != nil {
-		return nil, fmt.Errorf("error starting operation: %s", err)
+		return nil, fmt.Errorf("error starting operation: %w", err)
 	}
 
 	// Wait for the operation to complete or an interrupt to occur
@@ -660,7 +660,7 @@ func (m *Meta) confirm(opts *opentf.InputOpts) (bool, error) {
 		v, err := m.UIInput().Input(context.Background(), opts)
 		if err != nil {
 			return false, fmt.Errorf(
-				"Error asking for confirmation: %s", err)
+				"Error asking for confirmation: %w", err)
 		}
 
 		switch strings.ToLower(v) {
