@@ -68,7 +68,7 @@ func NewLoader(config *Config) (*Loader, error) {
 
 	err := ret.modules.readModuleManifestSnapshot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read module manifest: %s", err)
+		return nil, fmt.Errorf("failed to read module manifest: %w", err)
 	}
 
 	return ret, nil

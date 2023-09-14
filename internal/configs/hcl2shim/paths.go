@@ -90,7 +90,7 @@ func requiresReplacePath(k string, ty cty.Type) (cty.Path, error) {
 
 	path, err := pathFromFlatmapKeyObject(k, ty.AttributeTypes())
 	if err != nil {
-		return path, fmt.Errorf("[%s] %s", k, err)
+		return path, fmt.Errorf("[%s] %w", k, err)
 	}
 	return path, nil
 }
