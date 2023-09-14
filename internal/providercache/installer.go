@@ -444,7 +444,7 @@ NeedProvider:
 						cb(provider, version, i.globalCacheDir.baseDir)
 					}
 					if _, err := cached.ExecutableFile(); err != nil {
-						err := fmt.Errorf("provider binary not found: %s", err)
+						err := fmt.Errorf("provider binary not found: %w", err)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
@@ -506,7 +506,7 @@ NeedProvider:
 					}
 					newHash, err := cached.Hash()
 					if err != nil {
-						err := fmt.Errorf("after linking %s from provider cache at %s, failed to compute a checksum for it: %s", provider, i.globalCacheDir.baseDir, err)
+						err := fmt.Errorf("after linking %s from provider cache at %s, failed to compute a checksum for it: %w", provider, i.globalCacheDir.baseDir, err)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
@@ -593,7 +593,7 @@ NeedProvider:
 			continue
 		}
 		if _, err := new.ExecutableFile(); err != nil {
-			err := fmt.Errorf("provider binary not found: %s", err)
+			err := fmt.Errorf("provider binary not found: %w", err)
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
@@ -630,7 +630,7 @@ NeedProvider:
 				continue
 			}
 			if _, err := new.ExecutableFile(); err != nil {
-				err := fmt.Errorf("provider binary not found: %s", err)
+				err := fmt.Errorf("provider binary not found: %w", err)
 				errs[provider] = err
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
@@ -666,7 +666,7 @@ NeedProvider:
 		}
 		newHash, err := new.Hash()
 		if err != nil {
-			err := fmt.Errorf("after installing %s, failed to compute a checksum for it: %s", provider, err)
+			err := fmt.Errorf("after installing %s, failed to compute a checksum for it: %w", provider, err)
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
