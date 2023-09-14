@@ -179,7 +179,7 @@ func copyFiles(ctx context.Context, comm communicator.Communicator, src, dst str
 	// If we're uploading a directory, short circuit and do that
 	if info.IsDir() {
 		if err := comm.UploadDir(dst, src); err != nil {
-			return fmt.Errorf("Upload failed: %v", err)
+			return fmt.Errorf("Upload failed: %w", err)
 		}
 		return nil
 	}
@@ -193,7 +193,7 @@ func copyFiles(ctx context.Context, comm communicator.Communicator, src, dst str
 
 	err = comm.Upload(dst, f)
 	if err != nil {
-		return fmt.Errorf("Upload failed: %v", err)
+		return fmt.Errorf("Upload failed: %w", err)
 	}
 
 	return err
