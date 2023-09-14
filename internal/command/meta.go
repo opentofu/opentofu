@@ -250,6 +250,9 @@ type Meta struct {
 	//
 	// compactWarnings (-compact-warnings) selects a more compact presentation
 	// of warnings in the output when they are not accompanied by errors.
+	//
+	// verboseWarnings (-verbose-warnings) selects a more verbose presentation
+	// of warnings in the output, printing all instances of a particular warning.
 	statePath        string
 	stateOutPath     string
 	backupPath       string
@@ -260,6 +263,7 @@ type Meta struct {
 	reconfigure      bool
 	migrateState     bool
 	compactWarnings  bool
+	verboseWarnings  bool
 
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local Terraform versions don't match.
@@ -581,6 +585,7 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f.BoolVar(&m.input, "input", true, "input")
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
+	f.BoolVar(&m.verboseWarnings, "verbose-warnings", false, "do not consolidate warnings")
 
 	if m.variableArgs.items == nil {
 		m.variableArgs = newRawFlags("-var")
@@ -638,6 +643,7 @@ func (m *Meta) process(args []string) []string {
 	if m.View != nil {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
+			VerboseWarnings: m.verboseWarnings,
 			NoColor:         !m.Color,
 		})
 	}
@@ -683,6 +689,9 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 // Internally this function uses Diagnostics.Append, and so it will panic
 // if given unsupported value types, just as Append does.
 func (m *Meta) showDiagnostics(vals ...interface{}) {
+	var warningCount int
+	warningCount = 1
+
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(vals...)
 	diags.Sort()
@@ -691,9 +700,13 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		return
 	}
 
+	if m.verboseWarnings {
+		warningCount = -1
+	}
+
 	outputWidth := m.ErrorColumns()
 
-	diags = diags.ConsolidateWarnings(1)
+	diags = diags.ConsolidateWarnings(warningCount)
 
 	// Since warning messages are generally competing
 	if m.compactWarnings {

@@ -372,6 +372,10 @@ Options:
                          "-state". This can be used to preserve the old
                          state.
 
+  -verbose-warnings      If OpenTF produces any warnings, no compaction
+                         will be performed.  All locations, for all warnings
+                         will be listed.
+
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
   For more information on those options, run:

@@ -283,6 +283,10 @@ Other Options:
   -state=statefile           A legacy option used for the local backend only.
                              See the local backend's documentation for more
                              information.
+
+  -verbose-warnings          If OpenTF produces any warnings, no compaction
+                             will be performed.  All locations, for all warnings
+                             will be listed.
 `
 	return strings.TrimSpace(helpText)
 }
