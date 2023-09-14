@@ -86,13 +86,13 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		lockInfo.Operation = "init"
 		lockId, err := stateMgr.Lock(lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lock state in Postgres: %s", err)
+			return nil, fmt.Errorf("failed to lock state in Postgres: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
 			if err := stateMgr.Unlock(lockId); err != nil {
-				return fmt.Errorf(`error unlocking Postgres state: %s`, err)
+				return fmt.Errorf("error unlocking Postgres state: %w", err)
 			}
 			return parent
 		}

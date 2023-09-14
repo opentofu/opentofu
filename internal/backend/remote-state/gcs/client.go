@@ -35,19 +35,19 @@ func (c *remoteClient) Get() (payload *remote.Payload, err error) {
 		if err == storage.ErrObjectNotExist {
 			return nil, nil
 		} else {
-			return nil, fmt.Errorf("Failed to open state file at %v: %v", c.stateFileURL(), err)
+			return nil, fmt.Errorf("Failed to open state file at %v: %w", c.stateFileURL(), err)
 		}
 	}
 	defer stateFileReader.Close()
 
 	stateFileContents, err := io.ReadAll(stateFileReader)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read state file from %v: %v", c.stateFileURL(), err)
+		return nil, fmt.Errorf("Failed to read state file from %v: %w", c.stateFileURL(), err)
 	}
 
 	stateFileAttrs, err := c.stateFile().Attrs(c.storageContext)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read state file attrs from %v: %v", c.stateFileURL(), err)
+		return nil, fmt.Errorf("Failed to read state file attrs from %v: %w", c.stateFileURL(), err)
 	}
 
 	result := &remote.Payload{
@@ -70,7 +70,7 @@ func (c *remoteClient) Put(data []byte) error {
 		return stateFileWriter.Close()
 	}()
 	if err != nil {
-		return fmt.Errorf("Failed to upload state to %v: %v", c.stateFileURL(), err)
+		return fmt.Errorf("Failed to upload state to %v: %w", c.stateFileURL(), err)
 	}
 
 	return nil
@@ -78,7 +78,7 @@ func (c *remoteClient) Put(data []byte) error {
 
 func (c *remoteClient) Delete() error {
 	if err := c.stateFile().Delete(c.storageContext); err != nil {
-		return fmt.Errorf("Failed to delete state file %v: %v", c.stateFileURL(), err)
+		return fmt.Errorf("Failed to delete state file %v: %w", c.stateFileURL(), err)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}()
 
 	if err != nil {
-		return "", c.lockError(fmt.Errorf("writing %q failed: %v", c.lockFileURL(), err))
+		return "", c.lockError(fmt.Errorf("writing %q failed: %w", c.lockFileURL(), err))
 	}
 
 	info.ID = strconv.FormatInt(w.Attrs().Generation, 10)

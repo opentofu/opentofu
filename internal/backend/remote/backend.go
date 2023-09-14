@@ -655,7 +655,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 
 	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
-		return nil, fmt.Errorf("Failed to retrieve workspace %s: %v", name, err)
+		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
 
 	if err == tfe.ErrResourceNotFound {
@@ -671,7 +671,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 
 		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, options)
 		if err != nil {
-			return nil, fmt.Errorf("Error creating workspace %s: %v", name, err)
+			return nil, fmt.Errorf("Error creating workspace %s: %w", name, err)
 		}
 	}
 
@@ -734,7 +734,7 @@ func (b *Remote) fetchWorkspace(ctx context.Context, organization string, name s
 			)
 		default:
 			err := fmt.Errorf(
-				"the configured \"remote\" backend encountered an unexpected error:\n\n%s",
+				"the configured \"remote\" backend encountered an unexpected error:\n\n%w",
 				err,
 			)
 			return nil, err

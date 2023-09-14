@@ -178,7 +178,7 @@ func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, chec
 	rsp, err := c.cosClient.Object.Get(c.cosContext, cosFile, nil)
 	if rsp == nil {
 		log.Printf("[DEBUG] getObject %s: error: %v", cosFile, err)
-		err = fmt.Errorf("failed to open file at %v: %v", cosFile, err)
+		err = fmt.Errorf("failed to open file at %v: %w", cosFile, err)
 		return
 	}
 	defer rsp.Body.Close()
@@ -188,7 +188,7 @@ func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, chec
 		if rsp.StatusCode == 404 {
 			err = nil
 		} else {
-			err = fmt.Errorf("failed to open file at %v: %v", cosFile, err)
+			err = fmt.Errorf("failed to open file at %v: %w", cosFile, err)
 		}
 		return
 	}
@@ -204,7 +204,7 @@ func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, chec
 	data, err = io.ReadAll(rsp.Body)
 	log.Printf("[DEBUG] getObject %s: data length: %d", cosFile, len(data))
 	if err != nil {
-		err = fmt.Errorf("failed to open file at %v: %v", cosFile, err)
+		err = fmt.Errorf("failed to open file at %v: %w", cosFile, err)
 		return
 	}
 
@@ -239,13 +239,13 @@ func (c *remoteClient) putObject(cosFile string, data []byte) error {
 	rsp, err := c.cosClient.Object.Put(c.cosContext, cosFile, r, opt)
 	if rsp == nil {
 		log.Printf("[DEBUG] putObject %s: error: %v", cosFile, err)
-		return fmt.Errorf("failed to save file to %v: %v", cosFile, err)
+		return fmt.Errorf("failed to save file to %v: %w", cosFile, err)
 	}
 	defer rsp.Body.Close()
 
 	log.Printf("[DEBUG] putObject %s: code: %d, error: %v", cosFile, rsp.StatusCode, err)
 	if err != nil {
-		return fmt.Errorf("failed to save file to %v: %v", cosFile, err)
+		return fmt.Errorf("failed to save file to %v: %w", cosFile, err)
 	}
 
 	return nil
@@ -256,7 +256,7 @@ func (c *remoteClient) deleteObject(cosFile string) error {
 	rsp, err := c.cosClient.Object.Delete(c.cosContext, cosFile)
 	if rsp == nil {
 		log.Printf("[DEBUG] deleteObject %s: error: %v", cosFile, err)
-		return fmt.Errorf("failed to delete file %v: %v", cosFile, err)
+		return fmt.Errorf("failed to delete file %v: %w", cosFile, err)
 	}
 	defer rsp.Body.Close()
 
@@ -266,7 +266,7 @@ func (c *remoteClient) deleteObject(cosFile string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to delete file %v: %v", cosFile, err)
+		return fmt.Errorf("failed to delete file %v: %w", cosFile, err)
 	}
 
 	return nil
@@ -300,7 +300,7 @@ func (c *remoteClient) putBucket() error {
 	rsp, err := c.cosClient.Bucket.Put(c.cosContext, nil)
 	if rsp == nil {
 		log.Printf("[DEBUG] putBucket %s: error: %v", c.bucket, err)
-		return fmt.Errorf("failed to create bucket %v: %v", c.bucket, err)
+		return fmt.Errorf("failed to create bucket %v: %w", c.bucket, err)
 	}
 	defer rsp.Body.Close()
 
@@ -310,7 +310,7 @@ func (c *remoteClient) putBucket() error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create bucket %v: %v", c.bucket, err)
+		return fmt.Errorf("failed to create bucket %v: %w", c.bucket, err)
 	}
 
 	return nil
@@ -325,7 +325,7 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 				return nil
 			}
 			log.Printf("[DEBUG] deleteBucket %s: empty bucket error: %v", c.bucket, err)
-			return fmt.Errorf("failed to empty bucket %v: %v", c.bucket, err)
+			return fmt.Errorf("failed to empty bucket %v: %w", c.bucket, err)
 		}
 		for _, v := range obs {
 			c.deleteObject(v.Key)
@@ -335,7 +335,7 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 	rsp, err := c.cosClient.Bucket.Delete(c.cosContext)
 	if rsp == nil {
 		log.Printf("[DEBUG] deleteBucket %s: error: %v", c.bucket, err)
-		return fmt.Errorf("failed to delete bucket %v: %v", c.bucket, err)
+		return fmt.Errorf("failed to delete bucket %v: %w", c.bucket, err)
 	}
 	defer rsp.Body.Close()
 
@@ -345,7 +345,7 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to delete bucket %v: %v", c.bucket, err)
+		return fmt.Errorf("failed to delete bucket %v: %w", c.bucket, err)
 	}
 
 	return nil
@@ -423,7 +423,7 @@ func (c *remoteClient) CreateTag(key, value string) error {
 	_, err := c.tagClient.CreateTag(request)
 	log.Printf("[DEBUG] create tag %s:%s: error: %v", key, value, err)
 	if err != nil {
-		return fmt.Errorf("failed to create tag: %s -> %s: %s", key, value, err)
+		return fmt.Errorf("failed to create tag: %s -> %s: %w", key, value, err)
 	}
 
 	return nil
@@ -438,7 +438,7 @@ func (c *remoteClient) DeleteTag(key, value string) error {
 	_, err := c.tagClient.DeleteTag(request)
 	log.Printf("[DEBUG] delete tag %s:%s: error: %v", key, value, err)
 	if err != nil {
-		return fmt.Errorf("failed to delete tag: %s -> %s: %s", key, value, err)
+		return fmt.Errorf("failed to delete tag: %s -> %s: %w", key, value, err)
 	}
 
 	return nil

@@ -180,7 +180,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	address := data.Get("address").(string)
 	updateURL, err := url.Parse(address)
 	if err != nil {
-		return fmt.Errorf("failed to parse address URL: %s", err)
+		return fmt.Errorf("failed to parse address URL: %w", err)
 	}
 	if updateURL.Scheme != "http" && updateURL.Scheme != "https" {
 		return fmt.Errorf("address must be HTTP or HTTPS")
@@ -193,7 +193,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		var err error
 		lockURL, err = url.Parse(v.(string))
 		if err != nil {
-			return fmt.Errorf("failed to parse lockAddress URL: %s", err)
+			return fmt.Errorf("failed to parse lockAddress URL: %w", err)
 		}
 		if lockURL.Scheme != "http" && lockURL.Scheme != "https" {
 			return fmt.Errorf("lockAddress must be HTTP or HTTPS")
@@ -207,7 +207,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		var err error
 		unlockURL, err = url.Parse(v.(string))
 		if err != nil {
-			return fmt.Errorf("failed to parse unlockAddress URL: %s", err)
+			return fmt.Errorf("failed to parse unlockAddress URL: %w", err)
 		}
 		if unlockURL.Scheme != "http" && unlockURL.Scheme != "https" {
 			return fmt.Errorf("unlockAddress must be HTTP or HTTPS")

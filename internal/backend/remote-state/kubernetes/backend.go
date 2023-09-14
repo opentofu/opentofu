@@ -208,7 +208,7 @@ func (b Backend) KubernetesSecretClient() (dynamic.ResourceInterface, error) {
 
 	client, err := dynamic.NewForConfig(b.config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to configure: %s", err)
+		return nil, fmt.Errorf("Failed to configure: %w", err)
 	}
 
 	b.kubernetesSecretClient = client.Resource(secretResource).Namespace(b.namespace)
@@ -388,7 +388,7 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 			log.Printf("[INFO] Unable to load config file as it doesn't exist at %q", pathErr.Path)
 			return nil, nil
 		}
-		return nil, fmt.Errorf("Failed to initialize kubernetes configuration: %s", err)
+		return nil, fmt.Errorf("Failed to initialize kubernetes configuration: %w", err)
 	}
 
 	log.Printf("[INFO] Successfully initialized config")

@@ -80,7 +80,7 @@ func (c *RemoteClient) Put(data []byte) error {
 
 		log.Printf("[DEBUG] Snapshotting existing Blob %q (Container %q / Account %q)", c.keyName, c.containerName, c.accountName)
 		if _, err := c.giovanniBlobClient.Snapshot(ctx, c.accountName, c.containerName, c.keyName, snapshotInput); err != nil {
-			return fmt.Errorf("error snapshotting Blob %q (Container %q / Account %q): %+v", c.keyName, c.containerName, c.accountName, err)
+			return fmt.Errorf("error snapshotting Blob %q (Container %q / Account %q): %w", c.keyName, c.containerName, c.accountName, err)
 		}
 
 		log.Print("[DEBUG] Created blob snapshot")
@@ -253,7 +253,7 @@ func (c *RemoteClient) Unlock(id string) error {
 
 	lockInfo, err := c.getLockInfo()
 	if err != nil {
-		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %s", err)
+		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
 	}
 	lockErr.Info = lockInfo
@@ -265,7 +265,7 @@ func (c *RemoteClient) Unlock(id string) error {
 
 	c.leaseID = lockInfo.ID
 	if err := c.writeLockInfo(nil); err != nil {
-		lockErr.Err = fmt.Errorf("failed to delete lock info from metadata: %s", err)
+		lockErr.Err = fmt.Errorf("failed to delete lock info from metadata: %w", err)
 		return lockErr
 	}
 

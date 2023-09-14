@@ -133,7 +133,7 @@ func (c *RemoteClient) get() (*remote.Payload, error) {
 
 	buf := bytes.NewBuffer(nil)
 	if _, err := io.Copy(buf, output.Body); err != nil {
-		return nil, fmt.Errorf("Failed to read remote state: %s", err)
+		return nil, fmt.Errorf("Failed to read remote state: %w", err)
 	}
 
 	sum := md5.Sum(buf.Bytes())
@@ -183,14 +183,14 @@ func (c *RemoteClient) Put(data []byte) error {
 
 	_, err := c.s3Client.PutObject(i)
 	if err != nil {
-		return fmt.Errorf("failed to upload state: %s", err)
+		return fmt.Errorf("failed to upload state: %w", err)
 	}
 
 	sum := md5.Sum(data)
 	if err := c.putMD5(sum[:]); err != nil {
 		// if this errors out, we unfortunately have to error out altogether,
 		// since the next Get will inevitably fail.
-		return fmt.Errorf("failed to store state MD5: %s", err)
+		return fmt.Errorf("failed to store state MD5: %w", err)
 
 	}
 
@@ -372,7 +372,7 @@ func (c *RemoteClient) Unlock(id string) error {
 	// checking the ID from the info field first.
 	lockInfo, err := c.getLockInfo()
 	if err != nil {
-		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %s", err)
+		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
 	}
 	lockErr.Info = lockInfo
@@ -421,5 +421,5 @@ The referenced S3 bucket must have been previously created. If the S3 bucket
 was created within the last minute, please wait for a minute or two and try
 again.
 
-Error: %s
+Error: %w
 `

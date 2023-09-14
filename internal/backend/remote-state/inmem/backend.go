@@ -135,7 +135,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		lockInfo.Operation = "init"
 		lockID, err := s.Lock(lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lock inmem state: %s", err)
+			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
 		defer s.Unlock(lockID)
 
