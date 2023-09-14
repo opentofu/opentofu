@@ -59,6 +59,7 @@ license-check:
 	licensei cache --debug
 	licensei check --debug
 	licensei header --debug
+	rm -rf vendor/
 	git diff --exit-code
 
 # Install dependencies
