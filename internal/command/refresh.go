@@ -220,6 +220,10 @@ Options:
                       a file. If "terraform.tfvars" or any ".auto.tfvars"
                       files are present, they will be automatically loaded.
 
+  -verbose-warnings   If OpenTF produces any warnings, no compaction
+                      will be performed.  All locations, for all warnings
+                      will be listed.
+
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 `
