@@ -3,7 +3,7 @@
 
 name: Bug Report
 description: Let us know about an unexpected error, a crash, or an incorrect behavior.
-labels: ["bug", "new"]
+labels: ["bug", "pending-decision"]
 body:
   - type: markdown
     attributes:

@@ -2,7 +2,7 @@
 
 name: Submit RFC
 description: Submit a highly-structured change request for public discussion.
-labels: ["rfc", "new"]
+labels: ["rfc", "pending-decision"]
 body:
   - type: markdown
     attributes:
