@@ -9,12 +9,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+
 	"log"
+	"os"
 	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 	openpgpPacket "github.com/ProtonMail/go-crypto/openpgp/packet"
+	tfaddr "github.com/hashicorp/terraform-registry-address"
 )
 
 type packageAuthenticationResult int
@@ -22,6 +25,11 @@ type packageAuthenticationResult int
 const (
 	verifiedChecksum packageAuthenticationResult = iota
 	signed
+	signingSkipped
+)
+
+const (
+	enforceGPGValidationEnvName = "OPENTF_ENFORCE_GPG_VALIDATION"
 )
 
 var (
@@ -48,6 +56,7 @@ func (t *PackageAuthenticationResult) String() string {
 	return []string{
 		"verified checksum",
 		"signed",
+		"signing skipped",
 	}[t.result]
 }
 
@@ -57,6 +66,15 @@ func (t *PackageAuthenticationResult) Signed() bool {
 		return false
 	}
 	return t.result == signed
+}
+
+// SigningSkipped returns whether the package was authenticated but the key
+// validation was skipped.
+func (t *PackageAuthenticationResult) SigningSkipped() bool {
+	if t == nil {
+		return false
+	}
+	return t.result == signingSkipped
 }
 
 // SigningKey represents a key used to sign packages from a registry. These are
@@ -338,9 +356,10 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 }
 
 type signatureAuthentication struct {
-	Document  []byte
-	Signature []byte
-	Keys      []SigningKey
+	Document       []byte
+	Signature      []byte
+	Keys           []SigningKey
+	ProviderSource *tfaddr.Provider
 }
 
 // NewSignatureAuthentication returns a PackageAuthentication implementation
@@ -359,15 +378,50 @@ type signatureAuthentication struct {
 //
 // Any failure in the process of validating the signature will result in an
 // unauthenticated result.
-func NewSignatureAuthentication(document, signature []byte, keys []SigningKey) PackageAuthentication {
+func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, source *tfaddr.Provider) PackageAuthentication {
 	return signatureAuthentication{
-		Document:  document,
-		Signature: signature,
-		Keys:      keys,
+		Document:       document,
+		Signature:      signature,
+		Keys:           keys,
+		ProviderSource: source,
 	}
 }
 
+func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
+	// we should enforce validation for all provider sources that are not the default provider registry
+	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
+		return true, nil
+	}
+
+	// if we have been provided keys, we should enforce GPG validation
+	if len(s.Keys) > 0 {
+		return true, nil
+	}
+
+	// otherwise if the environment variable is set to true, we should enforce GPG validation
+	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
+	return exists && enforceEnvVar == "true", nil
+}
+
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
+	shouldValidate, err := s.shouldEnforceGPGValidation()
+	if err != nil {
+		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %s", location.String(), err.Error())
+	}
+
+	if !shouldValidate {
+		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
+		// and why. This will be removed in a future release.
+		log.Printf("[WARN] Skipping GPG validation of provider package %s as no keys were provided by the registry. See https://github.com/opentffoundation/opentf/pull/309 for more information.", location)
+
+		// construct an empty keyID to indicate that we are not validating and return no errors
+		// this is to force a successful authentication
+		// TODO: discuss if this key should be hardcoded to a value such as "UNKNOWN"?
+		return &PackageAuthenticationResult{result: signingSkipped, KeyID: ""}, nil
+	} else {
+		log.Printf("[DEBUG] Validating GPG signature of provider package %s", location)
+	}
+
 	// Find the key that signed the checksum file. This can fail if there is no
 	// valid signature for any of the provided keys.
 	_, keyID, err := s.findSigningKey()
@@ -439,7 +493,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), openpgpConfig)
 
-		// If the signature issuer does not match the the key, keep trying the
+		// If the signature issuer does not match the key, keep trying the
 		// rest of the provided keys.
 		if err == openpgpErrors.ErrUnknownIssuer {
 			continue

@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	tfaddr "github.com/hashicorp/terraform-registry-address"
+
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -365,13 +367,18 @@ func TestSignatureAuthentication_success(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Location is unused
 			location := PackageLocalArchive("testdata/my-package.zip")
+			//
+			//providerSource, err := tfaddr.ParseProviderSource("testdata/my-package.zip")
+			//if err != nil {
+			//	t.Fatal(err)
+			//}
 
 			signature, err := base64.StdEncoding.DecodeString(test.signature)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys)
+			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -414,7 +421,7 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testProviderShaSums), signature, test.keys)
+			auth := NewSignatureAuthentication([]byte(testProviderShaSums), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -474,7 +481,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys)
+			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result != nil {
@@ -488,7 +495,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 }
 
 func TestSignatureAuthentication_acceptableHashes(t *testing.T) {
-	auth := NewSignatureAuthentication([]byte(testShaSumsRealistic), nil, nil)
+	auth := NewSignatureAuthentication([]byte(testShaSumsRealistic), nil, nil, nil)
 	authWithHashes, ok := auth.(PackageAuthenticationHashes)
 	if !ok {
 		t.Fatalf("%T does not implement PackageAuthenticationHashes", auth)
@@ -691,4 +698,169 @@ func testReadArmoredEntity(t *testing.T, armor string) *openpgp.Entity {
 	}
 
 	return el[0]
+}
+
+func TestShouldEnforceGPGValidation(t *testing.T) {
+	tests := []struct {
+		name           string
+		providerSource *tfaddr.Provider
+		keys           []SigningKey
+		envVarValue    string
+		expected       bool
+	}{
+		{
+			name: "default provider registry, no keys",
+			providerSource: &tfaddr.Provider{
+				Hostname: tfaddr.DefaultProviderRegistryHost,
+			},
+			keys:        []SigningKey{},
+			envVarValue: "",
+			expected:    false,
+		},
+		{
+			name: "default provider registry, some keys",
+			providerSource: &tfaddr.Provider{
+				Hostname: tfaddr.DefaultProviderRegistryHost,
+			},
+			keys: []SigningKey{
+				{
+					ASCIIArmor: testAuthorKeyArmor,
+				},
+			},
+			envVarValue: "",
+			expected:    true,
+		},
+		{
+			name: "non-default provider registry, no keys",
+			providerSource: &tfaddr.Provider{
+				Hostname: "my-registry.com",
+			},
+			keys:        []SigningKey{},
+			envVarValue: "",
+			expected:    true,
+		},
+		{
+			name: "non-default provider registry, some keys",
+			providerSource: &tfaddr.Provider{
+				Hostname: "my-registry.com",
+			},
+			keys: []SigningKey{
+				{
+					ASCIIArmor: testAuthorKeyArmor,
+				},
+			},
+			envVarValue: "",
+			expected:    true,
+		},
+		// env var "true"
+		{
+			name: "default provider registry, no keys, env var true",
+			providerSource: &tfaddr.Provider{
+				Hostname: tfaddr.DefaultProviderRegistryHost,
+			},
+			keys:        []SigningKey{},
+			envVarValue: "true",
+			expected:    true,
+		},
+		{
+			name: "default provider registry, some keys, env var true",
+			providerSource: &tfaddr.Provider{
+				Hostname: tfaddr.DefaultProviderRegistryHost,
+			},
+			keys: []SigningKey{
+				{
+					ASCIIArmor: testAuthorKeyArmor,
+				},
+			},
+			envVarValue: "true",
+			expected:    true,
+		}, {
+			name: "non-default provider registry, no keys, env var true",
+			providerSource: &tfaddr.Provider{
+				Hostname: "my-registry.com",
+			},
+			keys:        []SigningKey{},
+			envVarValue: "true",
+			expected:    true,
+		},
+		{
+			name: "non-default provider registry, some keys, env var true",
+			providerSource: &tfaddr.Provider{
+				Hostname: "my-registry.com",
+			},
+			keys: []SigningKey{
+				{
+					ASCIIArmor: testAuthorKeyArmor,
+				},
+			},
+			envVarValue: "true",
+			expected:    true,
+		},
+		// env var "false"
+		{
+			name: "default provider registry, no keys, env var false",
+			providerSource: &tfaddr.Provider{
+				Hostname: tfaddr.DefaultProviderRegistryHost,
+			},
+			keys:        []SigningKey{},
+			envVarValue: "false",
+			expected:    false,
+		},
+		{
+			name: "default provider registry, some keys, env var false",
+			providerSource: &tfaddr.Provider{
+				Hostname: tfaddr.DefaultProviderRegistryHost,
+			},
+			keys: []SigningKey{
+				{
+					ASCIIArmor: testAuthorKeyArmor,
+				},
+			},
+			envVarValue: "false",
+			expected:    true,
+		}, {
+			name: "non-default provider registry, no keys, env var false",
+			providerSource: &tfaddr.Provider{
+				Hostname: "my-registry.com",
+			},
+			keys:        []SigningKey{},
+			envVarValue: "false",
+			expected:    true,
+		},
+		{
+			name: "non-default provider registry, some keys, env var false",
+			providerSource: &tfaddr.Provider{
+				Hostname: "my-registry.com",
+			},
+			keys: []SigningKey{
+				{
+					ASCIIArmor: testAuthorKeyArmor,
+				},
+			},
+			envVarValue: "false",
+			expected:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			sigAuth := signatureAuthentication{
+				ProviderSource: tt.providerSource,
+				Keys:           tt.keys,
+			}
+
+			if tt.envVarValue != "" {
+				t.Setenv(enforceGPGValidationEnvName, tt.envVarValue)
+			}
+
+			actual, err := sigAuth.shouldEnforceGPGValidation()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if actual != tt.expected {
+				t.Errorf("expected %t, actual %t", tt.expected, actual)
+			}
+		})
+	}
 }
