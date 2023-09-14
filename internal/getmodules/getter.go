@@ -131,11 +131,11 @@ func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAdd
 		log.Printf("[TRACE] getmodules: copying previous install of %q from %s to %s", packageAddr, prevDir, instPath)
 		err := os.Mkdir(instPath, os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("failed to create directory %s: %s", instPath, err)
+			return fmt.Errorf("failed to create directory %s: %w", instPath, err)
 		}
 		err = copy.CopyDir(instPath, prevDir)
 		if err != nil {
-			return fmt.Errorf("failed to copy from %s to %s: %s", prevDir, instPath, err)
+			return fmt.Errorf("failed to copy from %s to %s: %w", prevDir, instPath, err)
 		}
 	} else {
 		log.Printf("[TRACE] getmodules: fetching %q to %q", packageAddr, instPath)
