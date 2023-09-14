@@ -15,6 +15,7 @@ type View struct {
 	// level of noise when multiple instances of the same warning are raised
 	// for a configuration.
 	CompactWarnings bool
+	VerboseWarnings bool
 
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
@@ -39,6 +40,8 @@ func ParseView(args []string) (*View, []string) {
 			common.NoColor = true
 		case "-compact-warnings":
 			common.CompactWarnings = true
+		case "-verbose-warnings":
+			common.VerboseWarnings = true
 		case "-concise":
 			common.Concise = true
 		default:

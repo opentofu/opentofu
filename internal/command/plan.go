@@ -292,6 +292,10 @@ Other Options:
                              information.
 
   -show-sensitive            If specified, sensitive values will be displayed.
+
+  -verbose-warnings          If OpenTF produces any warnings, no compaction
+                             will be performed.  All locations, for all warnings
+                             will be listed.
 `
 	return strings.TrimSpace(helpText)
 }
