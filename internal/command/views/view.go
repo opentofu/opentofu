@@ -21,6 +21,7 @@ type View struct {
 	colorize *colorstring.Colorize
 
 	compactWarnings bool
+	verboseWarnings bool
 
 	// When this is true it's a hint that OpenTofu is being run indirectly
 	// via a wrapper script or other automation and so we may wish to replace
@@ -75,6 +76,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
+	v.verboseWarnings = view.VerboseWarnings
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -86,13 +88,20 @@ func (v *View) SetConfigSources(cb func() map[string][]byte) {
 // Diagnostics renders a set of warnings and errors in human-readable form.
 // Warnings are printed to stdout, and errors to stderr.
 func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
+	var warningCount int
+	warningCount = 1
+
 	diags.Sort()
 
 	if len(diags) == 0 {
 		return
 	}
 
-	diags = diags.ConsolidateWarnings(1)
+	if v.verboseWarnings {
+		warningCount = -1
+	}
+
+	diags = diags.ConsolidateWarnings(warningCount)
 
 	// Since warning messages are generally competing
 	if v.compactWarnings {
