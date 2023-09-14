@@ -70,7 +70,7 @@ func (s *RegistrySource) AvailableVersions(ctx context.Context, provider addrs.P
 		if err != nil {
 			return nil, nil, ErrQueryFailed{
 				Provider: provider,
-				Wrapped:  fmt.Errorf("registry response includes invalid version string %q: %s", str, err),
+				Wrapped:  fmt.Errorf("registry response includes invalid version string %q: %w", str, err),
 			}
 		}
 		ret = append(ret, v)
@@ -142,7 +142,7 @@ func (s *RegistrySource) registryClient(hostname svchost.Hostname) (*registryCli
 		// This indicates that a credentials helper failed, which means we
 		// can't do anything better than just pass through the helper's
 		// own error message.
-		return nil, fmt.Errorf("failed to retrieve credentials for %s: %s", hostname, err)
+		return nil, fmt.Errorf("failed to retrieve credentials for %s: %w", hostname, err)
 	}
 
 	return newRegistryClient(url, creds), nil
