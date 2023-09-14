@@ -3,7 +3,7 @@
 
 name: Feature Request
 description: Suggest a new feature or other enhancement.
-labels: ["enhancement", "new"]
+labels: ["enhancement", "pending-decision"]
 body:
   - type: markdown
     attributes:
