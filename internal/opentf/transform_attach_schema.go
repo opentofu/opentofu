@@ -67,7 +67,7 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 
 			schema, version, err := t.Plugins.ResourceTypeSchema(providerFqn, mode, typeName)
 			if err != nil {
-				return fmt.Errorf("failed to read schema for %s in %s: %s", addr, providerFqn, err)
+				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, err)
 			}
 			if schema == nil {
 				log.Printf("[ERROR] AttachSchemaTransformer: No resource schema available for %s", addr)
@@ -81,7 +81,7 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 			providerAddr := tv.ProviderAddr()
 			schema, err := t.Plugins.ProviderConfigSchema(providerAddr.Provider)
 			if err != nil {
-				return fmt.Errorf("failed to read provider configuration schema for %s: %s", providerAddr.Provider, err)
+				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
 			}
 			if schema == nil {
 				log.Printf("[ERROR] AttachSchemaTransformer: No provider config schema available for %s", providerAddr)
@@ -96,7 +96,7 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 			for _, name := range names {
 				schema, err := t.Plugins.ProvisionerSchema(name)
 				if err != nil {
-					return fmt.Errorf("failed to read provisioner configuration schema for %q: %s", name, err)
+					return fmt.Errorf("failed to read provisioner configuration schema for %q: %w", name, err)
 				}
 				if schema == nil {
 					log.Printf("[ERROR] AttachSchemaTransformer: No schema available for provisioner %q on %q", name, dag.VertexName(v))

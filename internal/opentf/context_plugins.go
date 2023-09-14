@@ -79,13 +79,13 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 
 	provider, err := cp.NewProviderInstance(addr)
 	if err != nil {
-		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %s", addr, err)
+		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
 	}
 	defer provider.Close()
 
 	resp := provider.GetProviderSchema()
 	if resp.Diagnostics.HasErrors() {
-		return resp, fmt.Errorf("failed to retrieve schema from provider %q: %s", addr, resp.Diagnostics.Err())
+		return resp, fmt.Errorf("failed to retrieve schema from provider %q: %w", addr, resp.Diagnostics.Err())
 	}
 
 	if resp.Provider.Version < 0 {
@@ -96,7 +96,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 
 	for t, r := range resp.ResourceTypes {
 		if err := r.Block.InternalValidate(); err != nil {
-			return resp, fmt.Errorf("provider %s has invalid schema for managed resource type %q, which is a bug in the provider: %q", addr, t, err)
+			return resp, fmt.Errorf("provider %s has invalid schema for managed resource type %q, which is a bug in the provider: %w", addr, t, err)
 		}
 		if r.Version < 0 {
 			return resp, fmt.Errorf("provider %s has invalid negative schema version for managed resource type %q, which is a bug in the provider", addr, t)
@@ -105,7 +105,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 
 	for t, d := range resp.DataSources {
 		if err := d.Block.InternalValidate(); err != nil {
-			return resp, fmt.Errorf("provider %s has invalid schema for data resource type %q, which is a bug in the provider: %q", addr, t, err)
+			return resp, fmt.Errorf("provider %s has invalid schema for data resource type %q, which is a bug in the provider: %w", addr, t, err)
 		}
 		if d.Version < 0 {
 			// We're not using the version numbers here yet, but we'll check
@@ -161,13 +161,13 @@ func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, er
 	log.Printf("[TRACE] terraform.contextPlugins: Initializing provisioner %q to read its schema", typ)
 	provisioner, err := cp.NewProvisionerInstance(typ)
 	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %s", typ, err)
+		return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", typ, err)
 	}
 	defer provisioner.Close()
 
 	resp := provisioner.GetSchema()
 	if resp.Diagnostics.HasErrors() {
-		return nil, fmt.Errorf("failed to retrieve schema from provisioner %q: %s", typ, resp.Diagnostics.Err())
+		return nil, fmt.Errorf("failed to retrieve schema from provisioner %q: %w", typ, resp.Diagnostics.Err())
 	}
 
 	return resp.Provisioner, nil
