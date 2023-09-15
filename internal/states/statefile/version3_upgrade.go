@@ -129,7 +129,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 							// update this message to mention OpenTF instead.
 							return nil, fmt.Errorf("invalid provider config reference %q for %s: this alias seems to contain a template interpolation sequence, which was not supported but also not error-checked in Terraform 0.11. To proceed, rename the associated provider alias to a valid identifier and apply the change with Terraform 0.11 before upgrading to Terraform 0.12", oldProviderAddr, instAddr)
 						}
-						return nil, fmt.Errorf("invalid provider config reference %q for %s: %s", oldProviderAddr, instAddr, diags.Err())
+						return nil, fmt.Errorf("invalid provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
 					}
 				} else {
 					// Smells like an old-style module-local provider address,
@@ -153,7 +153,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 								// update this message to mention OpenTF instead.
 								return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: this alias seems to contain a template interpolation sequence, which was not supported but also not error-checked in Terraform 0.11. To proceed, rename the associated provider alias to a valid identifier and apply the change with Terraform 0.11 before upgrading to Terraform 0.12", oldProviderAddr, instAddr)
 							}
-							return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: %s", oldProviderAddr, instAddr, diags.Err())
+							return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
 						}
 						providerAddr = addrs.AbsProviderConfig{
 							Module: moduleAddr.Module(),
@@ -192,7 +192,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 			if isOld := rsOld.Primary; isOld != nil {
 				isNew, err := upgradeInstanceObjectV3ToV4(rsOld, isOld, instKey, states.NotDeposed)
 				if err != nil {
-					return nil, fmt.Errorf("failed to migrate primary generation of %s: %s", instAddr, err)
+					return nil, fmt.Errorf("failed to migrate primary generation of %s: %w", instAddr, err)
 				}
 				rs.Instances = append(rs.Instances, *isNew)
 			}
@@ -205,7 +205,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				deposedKey := states.DeposedKey(fmt.Sprintf("%08x", i+1))
 				isNew, err := upgradeInstanceObjectV3ToV4(rsOld, isOld, instKey, deposedKey)
 				if err != nil {
-					return nil, fmt.Errorf("failed to migrate deposed generation index %d of %s: %s", i, instAddr, err)
+					return nil, fmt.Errorf("failed to migrate deposed generation index %d of %s: %w", i, instAddr, err)
 				}
 				rs.Instances = append(rs.Instances, *isNew)
 			}
@@ -231,7 +231,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				if err != nil {
 					// Should never happen, because this value came from JSON
 					// in the first place and so we're just round-tripping here.
-					return nil, fmt.Errorf("failed to serialize output %q value as JSON: %s", name, err)
+					return nil, fmt.Errorf("failed to serialize output %q value as JSON: %w", name, err)
 				}
 
 				// The "type" field in state V2 wasn't really that useful
@@ -243,7 +243,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				if err != nil {
 					// REALLY should never happen, because we literally just
 					// encoded this as JSON above!
-					return nil, fmt.Errorf("failed to parse output %q value from JSON: %s", name, err)
+					return nil, fmt.Errorf("failed to parse output %q value from JSON: %w", name, err)
 				}
 
 				// ImpliedType tends to produce structural types, but since older
@@ -254,7 +254,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 
 				tySrc, err := ctyjson.MarshalType(ty)
 				if err != nil {
-					return nil, fmt.Errorf("failed to serialize output %q type as JSON: %s", name, err)
+					return nil, fmt.Errorf("failed to serialize output %q type as JSON: %w", name, err)
 				}
 
 				newOS.ValueRaw = json.RawMessage(valSrc)
@@ -312,7 +312,7 @@ func upgradeInstanceObjectV3ToV4(rsOld *resourceStateV2, isOld *instanceStateV2,
 		if err != nil {
 			// This shouldn't happen, because the Meta values all came from JSON
 			// originally anyway.
-			return nil, fmt.Errorf("cannot serialize private instance object data: %s", err)
+			return nil, fmt.Errorf("cannot serialize private instance object data: %w", err)
 		}
 	}
 
@@ -399,7 +399,7 @@ func parseLegacyResourceAddress(s string) (addrs.ResourceInstance, error) {
 	if len(parts) > 2 {
 		idx, err := strconv.ParseInt(parts[2], 0, 0)
 		if err != nil {
-			return ret, fmt.Errorf("error parsing resource address %q: %s", s, err)
+			return ret, fmt.Errorf("error parsing resource address %q: %w", s, err)
 		}
 
 		ret.Key = addrs.IntKey(idx)
