@@ -75,11 +75,11 @@ func readConfigSnapshot(z *zip.Reader) (*configload.Snapshot, error) {
 
 			r, err := file.Open()
 			if err != nil {
-				return nil, fmt.Errorf("failed to open snapshot of %s from module %q: %s", fileName, moduleKey, err)
+				return nil, fmt.Errorf("failed to open snapshot of %s from module %q: %w", fileName, moduleKey, err)
 			}
 			fileSrc, err := io.ReadAll(r)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read snapshot of %s from module %q: %s", fileName, moduleKey, err)
+				return nil, fmt.Errorf("failed to read snapshot of %s from module %q: %w", fileName, moduleKey, err)
 			}
 
 			if _, exists := snap.Modules[moduleKey]; !exists {
@@ -100,7 +100,7 @@ func readConfigSnapshot(z *zip.Reader) (*configload.Snapshot, error) {
 	var manifest configSnapshotModuleManifest
 	err := json.Unmarshal(manifestSrc, &manifest)
 	if err != nil {
-		return nil, fmt.Errorf("invalid module manifest: %s", err)
+		return nil, fmt.Errorf("invalid module manifest: %w", err)
 	}
 
 	for _, record := range manifest {
@@ -187,11 +187,11 @@ func writeConfigSnapshot(snap *configload.Snapshot, z *zip.Writer) error {
 			}
 			w, err := z.CreateHeader(zh)
 			if err != nil {
-				return fmt.Errorf("failed to create snapshot of %s from module %q: %s", zh.Name, k, err)
+				return fmt.Errorf("failed to create snapshot of %s from module %q: %w", zh.Name, k, err)
 			}
 			_, err = w.Write(src)
 			if err != nil {
-				return fmt.Errorf("failed to write snapshot of %s from module %q: %s", zh.Name, k, err)
+				return fmt.Errorf("failed to write snapshot of %s from module %q: %w", zh.Name, k, err)
 			}
 		}
 	}
@@ -205,15 +205,15 @@ func writeConfigSnapshot(snap *configload.Snapshot, z *zip.Writer) error {
 		}
 		src, err := json.MarshalIndent(manifest, "", "  ")
 		if err != nil {
-			return fmt.Errorf("failed to serialize module manifest: %s", err)
+			return fmt.Errorf("failed to serialize module manifest: %w", err)
 		}
 		w, err := z.CreateHeader(zh)
 		if err != nil {
-			return fmt.Errorf("failed to create module manifest: %s", err)
+			return fmt.Errorf("failed to create module manifest: %w", err)
 		}
 		_, err = w.Write(src)
 		if err != nil {
-			return fmt.Errorf("failed to write module manifest: %s", err)
+			return fmt.Errorf("failed to write module manifest: %w", err)
 		}
 	}
 

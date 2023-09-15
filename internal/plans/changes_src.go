@@ -241,13 +241,13 @@ func (cs *ChangeSrc) Decode(ty cty.Type) (*Change, error) {
 	if len(cs.Before) > 0 {
 		before, err = cs.Before.Decode(ty)
 		if err != nil {
-			return nil, fmt.Errorf("error decoding 'before' value: %s", err)
+			return nil, fmt.Errorf("error decoding 'before' value: %w", err)
 		}
 	}
 	if len(cs.After) > 0 {
 		after, err = cs.After.Decode(ty)
 		if err != nil {
-			return nil, fmt.Errorf("error decoding 'after' value: %s", err)
+			return nil, fmt.Errorf("error decoding 'after' value: %w", err)
 		}
 	}
 

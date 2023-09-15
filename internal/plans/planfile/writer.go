@@ -69,11 +69,11 @@ func Create(filename string, args CreateArgs) error {
 			Modified: time.Now(),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create tfplan file: %s", err)
+			return fmt.Errorf("failed to create tfplan file: %w", err)
 		}
 		err = writeTfplan(args.Plan, w)
 		if err != nil {
-			return fmt.Errorf("failed to write plan: %s", err)
+			return fmt.Errorf("failed to write plan: %w", err)
 		}
 	}
 
@@ -85,11 +85,11 @@ func Create(filename string, args CreateArgs) error {
 			Modified: time.Now(),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create embedded tfstate file: %s", err)
+			return fmt.Errorf("failed to create embedded tfstate file: %w", err)
 		}
 		err = statefile.Write(args.StateFile, w)
 		if err != nil {
-			return fmt.Errorf("failed to write state snapshot: %s", err)
+			return fmt.Errorf("failed to write state snapshot: %w", err)
 		}
 	}
 
@@ -101,11 +101,11 @@ func Create(filename string, args CreateArgs) error {
 			Modified: time.Now(),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create embedded tfstate-prev file: %s", err)
+			return fmt.Errorf("failed to create embedded tfstate-prev file: %w", err)
 		}
 		err = statefile.Write(args.PreviousRunStateFile, w)
 		if err != nil {
-			return fmt.Errorf("failed to write previous state snapshot: %s", err)
+			return fmt.Errorf("failed to write previous state snapshot: %w", err)
 		}
 	}
 
@@ -113,7 +113,7 @@ func Create(filename string, args CreateArgs) error {
 	{
 		err := writeConfigSnapshot(args.ConfigSnapshot, zw)
 		if err != nil {
-			return fmt.Errorf("failed to write config snapshot: %s", err)
+			return fmt.Errorf("failed to write config snapshot: %w", err)
 		}
 	}
 
@@ -121,7 +121,7 @@ func Create(filename string, args CreateArgs) error {
 	if args.DependencyLocks != nil { // (this was a later addition, so not all callers set it, but main callers should)
 		src, diags := depsfile.SaveLocksToBytes(args.DependencyLocks)
 		if diags.HasErrors() {
-			return fmt.Errorf("failed to write embedded dependency lock file: %s", diags.Err().Error())
+			return fmt.Errorf("failed to write embedded dependency lock file: %w", diags.Err())
 		}
 
 		w, err := zw.CreateHeader(&zip.FileHeader{
@@ -130,11 +130,11 @@ func Create(filename string, args CreateArgs) error {
 			Modified: time.Now(),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create embedded dependency lock file: %s", err)
+			return fmt.Errorf("failed to create embedded dependency lock file: %w", err)
 		}
 		_, err = w.Write(src)
 		if err != nil {
-			return fmt.Errorf("failed to write embedded dependency lock file: %s", err)
+			return fmt.Errorf("failed to write embedded dependency lock file: %w", err)
 		}
 	}
 
