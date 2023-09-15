@@ -117,13 +117,13 @@ func (p *Provider) InternalValidate() error {
 
 	for k, r := range p.ResourcesMap {
 		if err := r.InternalValidate(nil, true); err != nil {
-			validationErrors = multierror.Append(validationErrors, fmt.Errorf("resource %s: %s", k, err))
+			validationErrors = multierror.Append(validationErrors, fmt.Errorf("resource %s: %w", k, err))
 		}
 	}
 
 	for k, r := range p.DataSourcesMap {
 		if err := r.InternalValidate(nil, false); err != nil {
-			validationErrors = multierror.Append(validationErrors, fmt.Errorf("data source %s: %s", k, err))
+			validationErrors = multierror.Append(validationErrors, fmt.Errorf("data source %s: %w", k, err))
 		}
 	}
 
@@ -239,7 +239,7 @@ func (p *Provider) Validate(c *opentf.ResourceConfig) ([]string, []error) {
 		return nil, []error{fmt.Errorf(
 			"Internal validation of the provider failed! This is always a bug\n"+
 				"with the provider itself, and not a user issue. Please report\n"+
-				"this bug:\n\n%s", err)}
+				"this bug:\n\n%w", err)}
 	}
 
 	return schemaMap(p.Schema).Validate(c)

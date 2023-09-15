@@ -212,7 +212,7 @@ func parseResourceAddressInternal(s string) (*ResourceAddress, error) {
 	if len(parts) > 2 {
 		idx, err := strconv.ParseInt(parts[2], 0, 0)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing resource address %q: %s", s, err)
+			return nil, fmt.Errorf("Error parsing resource address %q: %w", s, err)
 		}
 
 		addr.Index = int(idx)

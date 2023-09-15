@@ -316,7 +316,7 @@ func (d *ResourceDiff) setDiff(key string, new interface{}, computed bool) error
 	}
 
 	if err := d.newWriter.WriteField(strings.Split(key, "."), new, computed); err != nil {
-		return fmt.Errorf("Cannot set new diff value for key %s: %s", key, err)
+		return fmt.Errorf("Cannot set new diff value for key %s: %w", key, err)
 	}
 
 	d.updatedKeys[key] = true

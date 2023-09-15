@@ -31,7 +31,7 @@ func (f *StateFilter) Filter(fs ...string) ([]*StateFilterResult, error) {
 	for i, v := range fs {
 		a, err := ParseResourceAddress(v)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing address '%s': %s", v, err)
+			return nil, fmt.Errorf("Error parsing address '%s': %w", v, err)
 		}
 
 		as[i] = a

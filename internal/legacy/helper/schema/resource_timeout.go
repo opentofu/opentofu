@@ -114,7 +114,7 @@ func (t *ResourceTimeout) ConfigDecode(s *Resource, c *opentf.ResourceConfig) er
 				// Get timeout
 				rt, err := time.ParseDuration(timeValue.(string))
 				if err != nil {
-					return fmt.Errorf("Error parsing %q timeout: %s", timeKey, err)
+					return fmt.Errorf("Error parsing %q timeout: %w", timeKey, err)
 				}
 
 				var timeout *time.Duration
