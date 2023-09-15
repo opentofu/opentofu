@@ -170,9 +170,11 @@ bootstrap a resource, cleanup before destroy, run configuration management, etc.
 
 ## How to use Provisioners
 
--> **Note:** Provisioners should only be used as a last resort. For most
+:::note
+Provisioners should only be used as a last resort. For most
 common situations there are better alternatives. For more information, see
 the sections above.
+:::
 
 If you are certain that provisioners are the best way to solve your problem
 after considering the advice in the sections above, you can add a
@@ -211,9 +213,11 @@ The `self` object represents the provisioner's parent resource, and has all of
 that resource's attributes. For example, use `self.public_ip` to reference an
 `aws_instance`'s `public_ip` attribute.
 
--> **Technical note:** Resource references are restricted here because
+:::note Technical note
+Resource references are restricted here because
 references create dependencies. Referring to a resource by name within its own
 block would create a dependency cycle.
+:::
 
 ## Suppressing Provisioner Logs in CLI Output
 
@@ -261,7 +265,9 @@ fail, OpenTF will error and rerun the provisioners again on the next
 `opentf apply`. Due to this behavior, care should be taken for destroy
 provisioners to be safe to run multiple times.
 
-~> **Note**: Destroy provisioners of this resource do not run if `create_before_destroy` is set to `true`.
+:::warning Note
+Destroy provisioners of this resource do not run if `create_before_destroy` is set to `true`.
+:::
 
 Destroy-time provisioners can only run if they remain in the configuration
 at the time a resource is destroyed. If a resource block with a destroy-time
@@ -277,7 +283,9 @@ remove a resource with a destroy-time provisioner:
 
 Because of this limitation, you should use destroy-time provisioners sparingly and with care.
 
-~> **NOTE:** A destroy-time provisioner within a resource that is tainted _will not_ run. This includes resources that are marked tainted from a failed creation-time provisioner or tainted manually using `opentf taint`.
+:::warning Note
+A destroy-time provisioner within a resource that is tainted _will not_ run. This includes resources that are marked tainted from a failed creation-time provisioner or tainted manually using `opentf taint`.
+:::
 
 ## Multiple Provisioners
 

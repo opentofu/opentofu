@@ -95,7 +95,9 @@ The three kinds of collection type in the OpenTF language are:
   for single line maps. A newline between key/value pairs is sufficient
   in multi-line maps.
 
-  -> **Note:** Although colons are valid delimiters between keys and values, `opentf fmt` ignores them. In contrast, `opentf fmt` attempts to vertically align equals signs.
+  :::note
+  Although colons are valid delimiters between keys and values, `opentf fmt` ignores them. In contrast, `opentf fmt` attempts to vertically align equals signs.
+  :::
   
 * `set(...)`: a collection of unique values that do not have any secondary
   identifiers or ordering.
@@ -207,9 +209,11 @@ will raise a type mismatch error, since a tuple cannot be converted to a string.
 
 ## Dynamic Types: The "any" Constraint
 
-~> **Warning:** `any` is very rarely the correct type constraint to use.
+:::warning
+`any` is very rarely the correct type constraint to use.
 **Do not use `any` just to avoid specifying a type constraint**. Always write an
 exact type constraint unless you are truly handling dynamic data.
+:::
 
 The keyword `any` is a special construct that serves as a placeholder for a
 type yet to be decided. `any` is not _itself_ a type: when interpreting a

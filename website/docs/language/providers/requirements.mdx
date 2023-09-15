@@ -132,10 +132,12 @@ version is used. This display version omits the source host when it is the
 public registry, so you may see the shortened version `"hashicorp/random"` instead
 of `"registry.terraform.io/hashicorp/random"`.
 
--> **Note:** If you omit the `source` argument when requiring a provider,
+:::note
+If you omit the `source` argument when requiring a provider,
 OpenTF uses an implied source address of
 `registry.terraform.io/hashicorp/<LOCAL NAME>`.
 We recommend using explicit source addresses for all providers.
+:::
 
 ### Handling Local Name Conflicts
 

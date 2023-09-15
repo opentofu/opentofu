@@ -119,7 +119,9 @@ In addition to alternate [planning modes](#planning-modes), there are several op
   on resource instances which match the given address and on any objects that
   those instances depend on.
 
-  -> **Note:** Use `-target=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTF limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
+  :::note
+  Use `-target=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTF limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
+  :::
 
 - `-var 'NAME=VALUE'` - Sets a value for a single
   [input variable](/docs/language/values/variables) declared in the
@@ -150,7 +152,9 @@ we recommend using the `-var-file` option instead, and write your actual values
 in a separate file so that OpenTF can parse them directly, rather than
 interpreting the result of your shell's parsing.
 
-~> **Warning:** OpenTF will error if you include a space before or after the equals sign (e.g., `-var "length = 2"`).
+:::warning
+OpenTF will error if you include a space before or after the equals sign (e.g., `-var "length = 2"`).
+:::
 
 To use `-var` on a Unix-style shell on a system like Linux or macOS we
 recommend writing the option argument in single quotes `'` to ensure the

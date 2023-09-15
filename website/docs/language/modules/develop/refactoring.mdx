@@ -188,11 +188,13 @@ moved {
 }
 ```
 
--> **Note:** When you add `count` to an existing resource that didn't use it,
+:::note
+When you add `count` to an existing resource that didn't use it,
 OpenTF automatically proposes to move the original object to instance zero,
 unless you write an `moved` block explicitly mentioning that resource.
 However, we recommend still writing out the corresponding `moved` block
 explicitly, to make the change clearer to future readers of the module.
+:::
 
 ## Renaming a Module Call
 

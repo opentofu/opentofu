@@ -10,11 +10,13 @@ description: >-
 `nonsensitive` takes a sensitive value and returns a copy of that value with
 the sensitive marking removed, thereby exposing the sensitive value.
 
-~> **Warning:** Using this function indiscriminately will cause values that
+:::warning
+Using this function indiscriminately will cause values that
 OpenTF would normally have considered as sensitive to be treated as normal
 values and shown clearly in OpenTF's output. Use this function only when
 you've derived a new value from a sensitive value in a way that eliminates the
 sensitive portions of the value.
+:::
 
 Normally OpenTF tracks when you use expressions to derive a new value from
 a value that is marked as sensitive, so that the result can also be marked

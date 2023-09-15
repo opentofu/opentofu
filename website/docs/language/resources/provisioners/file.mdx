@@ -11,8 +11,10 @@ The `file` provisioner copies files or directories from the machine
 running OpenTF to the newly created resource. The `file` provisioner
 supports both `ssh` and `winrm` type [connections](/docs/language/resources/provisioners/connection).
 
-~> **Important:** Use provisioners as a last resort. There are better alternatives for most situations. Refer to
+:::warning Important
+Use provisioners as a last resort. There are better alternatives for most situations. Refer to
 [Declaring Provisioners](/docs/language/resources/provisioners/syntax) for more details.
+:::
 
 ## Example usage
 
@@ -46,7 +48,9 @@ resource "aws_instance" "web" {
 }
 ```
 
--> **Note:** When the `file` provisioner communicates with a Windows system over SSH, you must configure OpenSSH to run the commands with `cmd.exe` and not PowerShell. PowerShell causes file parsing errors because it is incompatible with both Unix shells and the Windows command interpreter.
+:::note
+When the `file` provisioner communicates with a Windows system over SSH, you must configure OpenSSH to run the commands with `cmd.exe` and not PowerShell. PowerShell causes file parsing errors because it is incompatible with both Unix shells and the Windows command interpreter.
+:::
 
 ## Argument Reference
 

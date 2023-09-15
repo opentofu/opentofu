@@ -8,13 +8,15 @@ Use the `opentf import` command to import existing infrastructure to OpenTF stat
 
 The `opentf import` command can only import one resource at a time. It cannot simultaneously import an entire collection of resources, like an AWS VPC.
 
-~> Warning: OpenTF expects that each remote object it is managing will be
+:::warning
+OpenTF expects that each remote object it is managing will be
 bound to only one resource address, which is normally guaranteed by OpenTF
 itself having created all objects. If you import existing objects into OpenTF,
 be careful to import each remote object to only one OpenTF resource address.
 If you import the same object multiple times, OpenTF may exhibit unwanted
 behavior. For more information on this assumption, see
 [the State section](/docs/language/state).
+:::
 
 To import a resource, first write a resource block for it in your
 configuration, establishing the name by which it will be known to OpenTF:

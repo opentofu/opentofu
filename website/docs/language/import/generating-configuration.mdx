@@ -5,7 +5,9 @@ description: >-
 
 # Generating configuration
 
-~> **Experimental:** Configuration generation is available in OpenTF v1.6 as an experimental feature. Later minor versions may contain changes to the formatting of generated configuration and behavior of the `opentf plan` command using the `-generate-config-out` flag.
+:::warning Experimental
+Configuration generation is available in OpenTF v1.6 as an experimental feature. Later minor versions may contain changes to the formatting of generated configuration and behavior of the `opentf plan` command using the `-generate-config-out` flag.
+:::
 
 OpenTF can generate code for the resources you define in [`import` blocks](/docs/language/import) that do not already exist in your configuration. OpenTF produces HCL to act as a template that contains OpenTF's best guess at the appropriate value for each resource argument.
 

@@ -523,7 +523,9 @@ Each unevaluated expression in the configuration is represented with an `<expres
 }
 ```
 
--> **Note:** Expressions in `dynamic` blocks are not included in the configuration representation.
+:::note
+Expressions in `dynamic` blocks are not included in the configuration representation.
+:::
 
 ### Block Expressions Representation
 
@@ -614,9 +616,11 @@ A `<change-representation>` describes the change to the indicated object.
 
 ## Checks Representation
 
-~> **Warning:** The JSON representation of checks is experimental
+:::warning
+The JSON representation of checks is experimental
 and some details may change in future OpenTF versions based on feedback,
 even in minor releases of OpenTF CLI.
+:::
 
 A `<checks-representation>` describes the current state of a checkable object in the configuration. For example, a resource with one or more preconditions or postconditions is an example of a checkable object, and its check state represents the results of those conditions.
 

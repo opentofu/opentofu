@@ -12,9 +12,11 @@ The bucket must exist prior to configuring the backend.
 
 This backend supports [state locking](/docs/language/state/locking).
 
-~> **Warning!** It is highly recommended that you enable
+:::warning
+It is highly recommended that you enable
 [Object Versioning](https://cloud.google.com/storage/docs/object-versioning)
 on the GCS bucket to allow for state recovery in the case of accidental deletions and human error.
+:::
 
 ## Example Configuration
 
@@ -72,7 +74,9 @@ OpenTF can impersonate a Google Service Account as described [here](https://clou
 
 ## Encryption
 
-!> **Warning:** Take care of your encryption keys because state data encrypted with a lost or deleted key is not recoverable. If you use customer-supplied encryption keys, you must securely manage your keys and ensure you do not lose them. You must not delete customer-managed encryption keys in Cloud KMS used to encrypt state. However, if you accidentally delete a key, there is a time window where [you can recover it](https://cloud.google.com/kms/docs/destroy-restore#restore).
+:::danger Warning
+Take care of your encryption keys because state data encrypted with a lost or deleted key is not recoverable. If you use customer-supplied encryption keys, you must securely manage your keys and ensure you do not lose them. You must not delete customer-managed encryption keys in Cloud KMS used to encrypt state. However, if you accidentally delete a key, there is a time window where [you can recover it](https://cloud.google.com/kms/docs/destroy-restore#restore).
+:::
 
 ### Customer-supplied encryption keys
 
@@ -80,7 +84,9 @@ To get started, follow this guide: [Use customer-supplied encryption keys](https
 
 If you want to remove customer-supplied keys from your backend configuration or change to a different customer-supplied key, OpenTF cannot perform a state migration automatically and manual intervention is necessary instead. This intervention is necessary because Google does not store customer-supplied encryption keys, any requests sent to the Cloud Storage API must supply them instead (see [Customer-supplied Encryption Keys](https://cloud.google.com/storage/docs/encryption/customer-supplied-keys)). At the time of state migration, the backend configuration loses the old key's details and OpenTF cannot use the key during the migration process.
 
-~> **Important:** To migrate your state away from using customer-supplied encryption keys or change the key used by your backend, you need to perform a [rewrite (gsutil CLI)](https://cloud.google.com/storage/docs/gsutil/commands/rewrite) or [cp (gcloud CLI)](https://cloud.google.com/sdk/gcloud/reference/storage/cp#--decryption-keys) operation to remove use of the old customer-supplied encryption key on your state file. Once you remove the encryption, you can successfully run `opentf init -migrate-state` with your new backend configuration.
+:::warning Important
+To migrate your state away from using customer-supplied encryption keys or change the key used by your backend, you need to perform a [rewrite (gsutil CLI)](https://cloud.google.com/storage/docs/gsutil/commands/rewrite) or [cp (gcloud CLI)](https://cloud.google.com/sdk/gcloud/reference/storage/cp#--decryption-keys) operation to remove use of the old customer-supplied encryption key on your state file. Once you remove the encryption, you can successfully run `opentf init -migrate-state` with your new backend configuration.
+:::
 
 ### Customer-managed encryption keys (Cloud KMS)
 
@@ -90,11 +96,15 @@ If you want to remove customer-managed keys from your backend configuration or c
 
 Customer-managed keys do not need to be sent in requests to read files from GCS buckets because decryption occurs automatically within GCS. This process means that if you use the `terraform_remote_state` [data source](/docs/language/state/remote-state-data) to access KMS-encrypted state, you do not need to specify the KMS key in the data source's `config` object.
 
-~> **Important:** To use customer-managed encryption keys, you need to create a key and give your project's GCS service agent permission to use it with the Cloud KMS CryptoKey Encrypter/Decrypter predefined role. 
+:::warning Important
+To use customer-managed encryption keys, you need to create a key and give your project's GCS service agent permission to use it with the Cloud KMS CryptoKey Encrypter/Decrypter predefined role. 
+:::
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF includes these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF includes these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration options are supported:
 

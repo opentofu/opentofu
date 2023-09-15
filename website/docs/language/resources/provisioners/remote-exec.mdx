@@ -16,8 +16,10 @@ into a cluster, etc. To invoke a local process, see the `local-exec`
 provisioner requires a [connection](/docs/language/resources/provisioners/connection)
 and supports both `ssh` and `winrm`.
 
-~> **Important:** Use provisioners as a last resort. There are better alternatives for most situations. Refer to
+:::warning Important
+Use provisioners as a last resort. There are better alternatives for most situations. Refer to
 [Declaring Provisioners](/docs/language/resources/provisioners/syntax) for more details.
+:::
 
 ## Example usage
 
@@ -59,7 +61,9 @@ The following arguments are supported:
   that will be copied to the remote resource and then executed. They are executed
   in the order they are provided. This cannot be provided with `inline` or `script`.
 
--> **Note:** Since `inline` is implemented by concatenating commands into a script, [`on_failure`](/docs/language/resources/provisioners/syntax#failure-behavior) applies only to the final command in the list. In particular, with `on_failure = fail` (the default behaviour) earlier commands will be allowed to fail, and later commands will also execute. If this behaviour is not desired, consider using `"set -o errexit"` as the first command.
+:::note
+Since `inline` is implemented by concatenating commands into a script, [`on_failure`](/docs/language/resources/provisioners/syntax#failure-behavior) applies only to the final command in the list. In particular, with `on_failure = fail` (the default behaviour) earlier commands will be allowed to fail, and later commands will also execute. If this behaviour is not desired, consider using `"set -o errexit"` as the first command.
+:::
 
 ## Script Arguments
 

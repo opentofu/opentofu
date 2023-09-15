@@ -6,7 +6,9 @@ description: >-
 
 # The `count` Meta-Argument
 
--> **Note:** A given resource or module block cannot use both `count` and `for_each`.
+:::note
+A given resource or module block cannot use both `count` and `for_each`.
+:::
 
 By default, a [resource block](/docs/language/resources/syntax) configures one real
 infrastructure object. (Similarly, a
@@ -79,9 +81,11 @@ with `module.<NAME>[<KEY>]` when displayed in plan output and elsewhere in the U
 For a module without `count` or `for_each`, the address will not contain
 the module index as the module's name suffices to reference the module.
 
--> **Note:** Within nested `provisioner` or `connection` blocks, the special
+:::note
+Within nested `provisioner` or `connection` blocks, the special
 `self` object refers to the current _resource instance,_ not the resource block
 as a whole.
+:::
 
 ## When to Use `for_each` Instead of `count`
 

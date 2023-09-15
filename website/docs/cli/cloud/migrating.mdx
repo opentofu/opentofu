@@ -81,4 +81,6 @@ terraform {
  }
 ```
 
-~> **Warning**: Because the `cloud` block does not support the `prefix` argument, once you migrate, you must refer to workspaces by their full name when using the OpenTF CLI. For example, rather than `opentf workspace select prod`, you must run the command `opentf workspace select my-app-prod`.
+:::warning
+Because the `cloud` block does not support the `prefix` argument, once you migrate, you must refer to workspaces by their full name when using the OpenTF CLI. For example, rather than `opentf workspace select prod`, you must run the command `opentf workspace select my-app-prod`.
+:::

@@ -14,8 +14,10 @@ This backend supports [state locking](/docs/language/state/locking). Storing you
 - `CreateTag`, `DeleteTag`, and `DescribeTags` on the tag key `tencentcloud-terraform-lock`
 - `Put`, `Get`, and `Delete` files for the specified bucket's prefix
 
-~> **Warning!** It is highly recommended that you enable [Object Versioning](https://intl.cloud.tencent.com/document/product/436/19883)
+:::warning
+It is highly recommended that you enable [Object Versioning](https://intl.cloud.tencent.com/document/product/436/19883)
 on the COS bucket to allow for state recovery in the case of accidental deletions and human error.
+:::
 
 ## Example Configuration
 
@@ -50,7 +52,9 @@ data "terraform_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration options or environment variables are supported:
 

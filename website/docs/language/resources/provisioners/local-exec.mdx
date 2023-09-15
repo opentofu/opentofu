@@ -17,8 +17,10 @@ Note that even though the resource will be fully created when the provisioner is
 run, there is no guarantee that it will be in an operable state - for example
 system services such as `sshd` may not be started yet on compute resources.
 
-~> **Important:** Use provisioners as a last resort. There are better alternatives for most situations. Refer to
+:::warning Important
+Use provisioners as a last resort. There are better alternatives for most situations. Refer to
 [Declaring Provisioners](/docs/language/resources/provisioners/syntax) for more details.
+:::
 
 ## Example usage
 

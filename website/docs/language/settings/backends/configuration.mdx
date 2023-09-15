@@ -47,7 +47,9 @@ There are some important limitations on backend configuration:
 
 Backends store state in a remote service, which allows multiple people to access it. Accessing remote state generally requires access credentials, since state data contains extremely sensitive information.
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. This can leak sensitive credentials.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. This can leak sensitive credentials.
+:::
 
 OpenTF writes the backend configuration in plain text in two separate files.
 - The `.terraform/terraform.tfstate` file contains the backend configuration for the current working directory.
@@ -83,8 +85,10 @@ When you change backends, OpenTF gives you the option to migrate
 your state to the new backend. This lets you adopt backends without losing
 any existing state.
 
-~> **Important:** Before migrating to a new backend, we strongly recommend manually backing up your state by copying your `terraform.tfstate` file
+:::warning Important
+Before migrating to a new backend, we strongly recommend manually backing up your state by copying your `terraform.tfstate` file
 to another location.
+:::
 
 ## Partial Configuration
 

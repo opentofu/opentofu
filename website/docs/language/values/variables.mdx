@@ -22,12 +22,14 @@ compare modules to function definitions:
 * [Output values](/docs/language/values/outputs) are like function return values.
 * [Local values](/docs/language/values/locals) are like a function's temporary local variables.
 
--> **Note:** For brevity, input variables are often referred to as just
+:::note
+For brevity, input variables are often referred to as just
 "variables" or "OpenTF variables" when it is clear from context what sort of
 variable is being discussed. Other kinds of variables in OpenTF include
 _environment variables_ (set by the shell where OpenTF runs) and _expression
 variables_ (used to indirectly represent a value in an
 [expression](/docs/language/expressions)).
+:::
 
 ## Declaring an Input Variable
 
@@ -299,8 +301,10 @@ Within the module that declared a variable, its value can be accessed from
 within [expressions](/docs/language/expressions) as `var.<NAME>`,
 where `<NAME>` matches the label given in the declaration block:
 
--> **Note:** Input variables are _created_ by a `variable` block, but you
+:::note
+Input variables are _created_ by a `variable` block, but you
 _reference_ them as attributes on an object named `var`.
+:::
 
 ```hcl
 resource "aws_instance" "example" {
@@ -495,7 +499,9 @@ precedence over earlier ones:
 * Any `-var` and `-var-file` options on the command line, in the order they
   are provided.
 
-~> **Important:** Variables with map and object
+:::warning Important
+Variables with map and object
 values behave the same way as other variables: the last value found overrides
 the previous values. This is a change from previous versions of OpenTF, which
 would _merge_ map values instead of overriding them.
+:::

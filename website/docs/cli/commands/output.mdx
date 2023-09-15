@@ -31,9 +31,11 @@ The command-line flags are all optional. The following flags are available:
 * `-state=path` - Path to the state file. Defaults to "opentf.tfstate".
   Ignored when [remote state](/docs/language/state/remote) is used.
 
--> **Note:** When using the `-json` or `-raw` command-line flag, any sensitive
+:::note
+When using the `-json` or `-raw` command-line flag, any sensitive
 values in OpenTF state will be displayed in plain text. For more information,
 see [Sensitive Data in State](/docs/language/state/sensitive-data).
+:::
 
 ## Examples
 

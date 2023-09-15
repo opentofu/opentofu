@@ -22,7 +22,9 @@ When you run `opentf apply` without passing a saved plan file, OpenTF automatica
 
 You can pass the `-auto-approve` option to instruct OpenTF to apply the plan without asking for confirmation.
 
-!> **Warning:** If you use `-auto-approve`, we recommend making sure that no one can change your infrastructure outside of your OpenTF workflow. This minimizes the risk of unpredictable changes and configuration drift.
+:::danger Warning
+If you use `-auto-approve`, we recommend making sure that no one can change your infrastructure outside of your OpenTF workflow. This minimizes the risk of unpredictable changes and configuration drift.
+:::
 
 ### Saved Plan Mode
 
