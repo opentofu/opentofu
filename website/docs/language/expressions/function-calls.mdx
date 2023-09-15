@@ -8,7 +8,7 @@ description: >-
 # Function Calls
 
 The OpenTF language has a number of
-[built-in functions](/opentf/language/functions) that can be used
+[built-in functions](/docs/language/functions) that can be used
 in expressions to transform and combine values. These
 are similar to the operators but all follow a common syntax:
 
@@ -33,7 +33,7 @@ A function call expression evaluates to the function's return value.
 ## Available Functions
 
 For a full list of available functions, see
-[the function reference](/opentf/language/functions).
+[the function reference](/docs/language/functions).
 
 ## Expanding Function Arguments
 
@@ -50,8 +50,8 @@ The expansion symbol is three periods (`...`), not a Unicode ellipsis character
 
 ## Using Sensitive Data as Function Arguments
 
-When using sensitive data, such as [an input variable](/opentf/language/values/variables#suppressing-values-in-cli-output)
-or [an output defined](/opentf/language/values/outputs#sensitive-suppressing-values-in-cli-output) as sensitive
+When using sensitive data, such as [an input variable](/docs/language/values/variables#suppressing-values-in-cli-output)
+or [an output defined](/docs/language/values/outputs#sensitive-suppressing-values-in-cli-output) as sensitive
 as function arguments, the result of the function call will be marked as sensitive.
 
 This is a conservative behavior that is true irrespective of the function being
@@ -80,10 +80,10 @@ those it can be helpful to know when OpenTF will call them in relation to
 other events that occur in an OpenTF run.
 
 The small set of special functions includes
-[`file`](/opentf/language/functions/file),
-[`templatefile`](/opentf/language/functions/templatefile),
-[`timestamp`](/opentf/language/functions/timestamp),
-and [`uuid`](/opentf/language/functions/uuid).
+[`file`](/docs/language/functions/file),
+[`templatefile`](/docs/language/functions/templatefile),
+[`timestamp`](/docs/language/functions/timestamp),
+and [`uuid`](/docs/language/functions/uuid).
 If you are not working with these functions then you don't need
 to read this section, although the information here may still be interesting
 background information.
@@ -102,7 +102,7 @@ both cause the final configuration during the apply step not to match the
 actions shown in the plan, which violates the OpenTF execution model.
 
 For that reason, OpenTF arranges for both of those functions to produce
-[unknown value](/opentf/language/expressions/references#values-not-yet-known) results during the
+[unknown value](/docs/language/expressions/references#values-not-yet-known) results during the
 plan step, with the real result being decided only during the apply step.
 For `timestamp` in particular, this means that the recorded time will be
 the instant when OpenTF began applying the change, rather than when

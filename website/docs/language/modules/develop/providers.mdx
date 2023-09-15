@@ -42,10 +42,10 @@ to reintroduce the provider configuration.
 ## Provider Version Constraints in Modules
 
 Although provider _configurations_ are shared between modules, each module must
-declare its own [provider requirements](/opentf/language/providers/requirements), so that
+declare its own [provider requirements](/docs/language/providers/requirements), so that
 OpenTF can ensure that there is a single version of the provider that is
 compatible with all modules in the configuration and to specify the
-[source address](/opentf/language/providers/requirements#source-addresses) that serves as
+[source address](/docs/language/providers/requirements#source-addresses) that serves as
 the global (module-agnostic) identifier for a provider.
 
 To declare that a module requires particular versions of a specific provider,
@@ -68,7 +68,7 @@ however, specify any of the configuration settings that determine what remote
 endpoints the provider will access, such as an AWS region; configuration
 settings come from provider _configurations_, and a particular overall OpenTF
 configuration can potentially have
-[several different configurations for the same provider](/opentf/language/providers/configuration#alias-multiple-provider-configurations).
+[several different configurations for the same provider](/docs/language/providers/configuration#alias-multiple-provider-configurations).
 
 ## Provider Aliases Within Modules
 
@@ -100,7 +100,7 @@ features are needed by other parts of their overall configuration.
 ## Implicit Provider Inheritance
 
 For convenience in simple configurations, a child module automatically inherits
-[default provider configurations](/opentf/language/providers/configuration#default-provider-configurations) from its parent. This means that
+[default provider configurations](/docs/language/providers/configuration#default-provider-configurations) from its parent. This means that
 explicit `provider` blocks appear only in the root module, and downstream
 modules can simply declare resources for that provider and have them
 automatically associated with the root provider configurations.
@@ -130,10 +130,10 @@ resource "aws_s3_bucket" "example" {
 We recommend using this approach when a single configuration for each provider
 is sufficient for an entire configuration.
 
-~> **Note:** Only provider configurations are inherited by child modules, not provider source or version requirements. Each module must [declare its own provider requirements](/opentf/language/providers/requirements). This is especially important for non-HashiCorp providers.
+~> **Note:** Only provider configurations are inherited by child modules, not provider source or version requirements. Each module must [declare its own provider requirements](/docs/language/providers/requirements). This is especially important for non-HashiCorp providers.
 
 In more complex situations there may be
-[multiple provider configurations](/opentf/language/providers/configuration#alias-multiple-provider-configurations),
+[multiple provider configurations](/docs/language/providers/configuration#alias-multiple-provider-configurations),
 or a child module may need to use different provider settings than
 its parent. For such situations, you must pass providers explicitly.
 
@@ -170,7 +170,7 @@ module "example" {
 ```
 
 The `providers` argument within a `module` block is similar to
-[the `provider` argument](/opentf/language/meta-arguments/resource-provider)
+[the `provider` argument](/docs/language/meta-arguments/resource-provider)
 within a resource, but is a map rather than a single string because a module may
 contain resources from many different providers.
 

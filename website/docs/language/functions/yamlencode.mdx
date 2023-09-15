@@ -9,7 +9,7 @@ description: The yamlencode function encodes a given value as a YAML string.
 [YAML 1.2](https://yaml.org/spec/1.2/spec.html) block syntax.
 
 This function maps
-[OpenTF language values](/opentf/language/expressions/types)
+[OpenTF language values](/docs/language/expressions/types)
 to YAML tags in the following way:
 
 | OpenTF type | YAML type            |
@@ -33,7 +33,7 @@ identical value, but the OpenTF language automatic type conversion rules
 mean that this is rarely a problem in practice.
 
 YAML is a superset of JSON, and so where possible we recommend generating
-JSON using [`jsonencode`](/opentf/language/functions/jsonencode) instead, even if
+JSON using [`jsonencode`](/docs/language/functions/jsonencode) instead, even if
 a remote system supports YAML. JSON syntax is equivalent to flow-style YAML
 and OpenTF can present detailed structural change information for JSON
 values in plans, whereas OpenTF will treat block-style YAML just as a normal
@@ -66,12 +66,12 @@ humans.
 
 `yamlencode` always uses YAML's "block style" for mappings and sequences, unless
 the mapping or sequence is empty. To generate flow-style YAML, use
-[`jsonencode`](/opentf/language/functions/jsonencode) instead: YAML flow-style is a superset
+[`jsonencode`](/docs/language/functions/jsonencode) instead: YAML flow-style is a superset
 of JSON syntax.
 
 ## Related Functions
 
-- [`jsonencode`](/opentf/language/functions/jsonencode) is a similar operation using JSON instead
+- [`jsonencode`](/docs/language/functions/jsonencode) is a similar operation using JSON instead
   of YAML.
-- [`yamldecode`](/opentf/language/functions/yamldecode) performs the opposite operation, _decoding_
+- [`yamldecode`](/docs/language/functions/yamldecode) performs the opposite operation, _decoding_
   a YAML string to obtain its represented value.

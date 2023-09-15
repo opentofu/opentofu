@@ -6,7 +6,7 @@ description: >-
 
 # Backend Configuration
 
-A backend defines where OpenTF stores its [state](/opentf/language/state) data files.
+A backend defines where OpenTF stores its [state](/docs/language/state) data files.
 
 OpenTF uses persisted state data to keep track of the resources it manages. Most non-trivial OpenTF configurations either intergrate with TACOS (TF Automation and Collaboration Software) or use a backend to store state remotely. This lets multiple people access the state data and work together on that collection of infrastructure resources.
 
@@ -14,14 +14,14 @@ This page describes how to configure a backend by adding the [`backend` block](#
 
 ## Available Backends
 
-By default, OpenTF uses a backend called [`local`](/opentf/language/settings/backends/local), which stores state as a local file on disk. You can also configure one of the built-in backends included in this documentation.
+By default, OpenTF uses a backend called [`local`](/docs/language/settings/backends/local), which stores state as a local file on disk. You can also configure one of the built-in backends included in this documentation.
 
 Some of these backends act like plain remote disks for state files, while others support locking the state while operations are being performed. This helps prevent conflicts and inconsistencies. The built-in backends listed are the only backends. You cannot load additional backends as plugins.
 
 ## Using a Backend Block
 
 You do not need to configure a backend when using TACOS (TF Automation and Collaboration Software) because
-it automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](/opentf/language/settings/tf-cloud), it cannot include a `backend` block.
+it automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](/docs/language/settings/tf-cloud), it cannot include a `backend` block.
 
 To configure a backend, add a nested `backend` block within the top-level
 `opentf` block. The following example configures the `remote` backend.
@@ -77,7 +77,7 @@ or state operations.
 
 After you initialize, OpenTF creates a `.terraform/` directory locally. This directory contains the most recent backend configuration, including any authentication parameters you provided to the OpenTF CLI. Do not check this directory into Git, as it may contain sensitive credentials for your remote backend.
 
-The local backend configuration is different and entirely separate from the `terraform.tfstate` file that contains [state data](/opentf/language/state) about your real-world infrastruture. OpenTF stores the `terraform.tfstate` file in your remote backend.
+The local backend configuration is different and entirely separate from the `terraform.tfstate` file that contains [state data](/docs/language/state) about your real-world infrastruture. OpenTF stores the `terraform.tfstate` file in your remote backend.
 
 When you change backends, OpenTF gives you the option to migrate
 your state to the new backend. This lets you adopt backends without losing
@@ -94,7 +94,7 @@ automatically by an automation script running OpenTF. When some or all of
 the arguments are omitted, we call this a _partial configuration_.
 
 With a partial configuration, the remaining configuration arguments must be
-provided as part of [the initialization process](/opentf/cli/init).
+provided as part of [the initialization process](/docs/cli/init).
 
 There are several ways to supply the remaining arguments:
 
@@ -177,12 +177,12 @@ both the configuration itself as well as the type of backend (for example
 from "consul" to "s3").
 
 OpenTF will automatically detect any changes in your configuration
-and request a [reinitialization](/opentf/cli/init). As part of
+and request a [reinitialization](/docs/cli/init). As part of
 the reinitialization process, OpenTF will ask if you'd like to migrate
 your existing state to the new configuration. This allows you to easily
 switch from one backend to another.
 
-If you're using multiple [workspaces](/opentf/language/state/workspaces),
+If you're using multiple [workspaces](/docs/language/state/workspaces),
 OpenTF can copy all workspaces to the destination. If OpenTF detects
 you have multiple workspaces, it will ask if this is what you want to do.
 
@@ -193,7 +193,7 @@ want to migrate your state. You can respond "no" in this scenario.
 
 If you no longer want to use any backend, you can simply remove the
 configuration from the file. OpenTF will detect this like any other
-change and prompt you to [reinitialize](/opentf/cli/init).
+change and prompt you to [reinitialize](/docs/cli/init).
 
 As part of the reinitialization, OpenTF will ask if you'd like to migrate
 your state back down to normal local state. Once this is complete then

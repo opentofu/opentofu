@@ -18,7 +18,7 @@ to version, encrypt, and securely share it with your team.
 
 OpenTF uses state to determine which changes to make to your
 infrastructure. Prior to any operation, OpenTF does a
-[refresh](/opentf/cli/commands/refresh) to update the state with the
+[refresh](/docs/cli/commands/refresh) to update the state with the
 real infrastructure.
 
 The primary purpose of OpenTF state is to store bindings between objects in
@@ -29,13 +29,13 @@ resource instance, and then potentially update or delete that object in
 response to future configuration changes.
 
 For more information on why OpenTF requires state and why OpenTF cannot
-function without state, please see the page [state purpose](/opentf/language/state/purpose).
+function without state, please see the page [state purpose](/docs/language/state/purpose).
 
 ## Inspection and Modification
 
 While the format of the state files are just JSON, direct file editing
 of the state is discouraged. OpenTF provides the
-[opentf state](/opentf/cli/commands/state) command to perform
+[opentf state](/docs/cli/commands/state) command to perform
 basic modifications of the state using the CLI.
 
 The CLI usage and output of the state commands is structured to be
@@ -68,10 +68,10 @@ in new versions.
 Alternatively, there are several integration points which produce JSON output
 that is specifically intended for consumption by external software:
 
-* [The `opentf output` command](/opentf/cli/commands/output)
+* [The `opentf output` command](/docs/cli/commands/output)
   has a `-json` option, for obtaining either the full set of root module output
   values or a specific named output value from the latest state snapshot.
-* [The `opentf show` command](/opentf/cli/commands/show) has a `-json`
+* [The `opentf show` command](/docs/cli/commands/show) has a `-json`
   option for inspecting the latest state snapshot in full, and also for
   inspecting saved plan files which include a copy of the prior state at the
   time the plan was made.

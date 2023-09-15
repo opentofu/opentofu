@@ -21,13 +21,13 @@ in separate configurations, allowing resource configurations to be packaged
 and re-used.
 
 This page describes how to call one module from another. For more information
-about creating re-usable child modules, see [Module Development](/opentf/language/modules/develop).
+about creating re-usable child modules, see [Module Development](/docs/language/modules/develop).
 
 ## Calling a Child Module
 
 To _call_ a module means to include the contents of that module into the
 configuration with specific values for its
-[input variables](/opentf/language/values/variables). Modules are called
+[input variables](/docs/language/values/variables). Modules are called
 from within other modules using `module` blocks:
 
 ```hcl
@@ -51,7 +51,7 @@ Module calls use the following kinds of arguments:
 
 - The `version` argument is recommended for modules from a registry.
 
-- Most other arguments correspond to [input variables](/opentf/language/values/variables)
+- Most other arguments correspond to [input variables](/docs/language/values/variables)
   defined by the module. (The `servers` argument in the example above is one of
   these.)
 
@@ -65,7 +65,7 @@ OpenTF. Its value is either the path to a local directory containing the
 module's configuration files, or a remote module source that OpenTF should
 download and use. This value must be a literal string with no template
 sequences; arbitrary expressions are not allowed. For more information on
-possible values for this argument, see [Module Sources](/opentf/language/modules/sources).
+possible values for this argument, see [Module Sources](/docs/language/modules/sources).
 
 The same source address can be specified in multiple `module` blocks to create
 multiple copies of the resources defined within, possibly with different
@@ -93,7 +93,7 @@ module "consul" {
 }
 ```
 
-The `version` argument accepts a [version constraint string](/opentf/language/expressions/version-constraints).
+The `version` argument accepts a [version constraint string](/docs/language/expressions/version-constraints).
 OpenTF will use the newest installed version of the module that meets the
 constraint; if no acceptable versions are installed, it will download the newest
 version that meets the constraint.
@@ -114,22 +114,22 @@ optional meta-arguments that have special meaning across all modules,
 described in more detail in the following pages:
 
 - `count` - Creates multiple instances of a module from a single `module` block.
-  See [the `count` page](/opentf/language/meta-arguments/count)
+  See [the `count` page](/docs/language/meta-arguments/count)
   for details.
 
 - `for_each` - Creates multiple instances of a module from a single `module`
   block. See
-  [the `for_each` page](/opentf/language/meta-arguments/for_each)
+  [the `for_each` page](/docs/language/meta-arguments/for_each)
   for details.
 
 - `providers` - Passes provider configurations to a child module. See
-  [the `providers` page](/opentf/language/meta-arguments/module-providers)
+  [the `providers` page](/docs/language/meta-arguments/module-providers)
   for details. If not specified, the child module inherits all of the default
   (un-aliased) provider configurations from the calling module.
 
 - `depends_on` - Creates explicit dependencies between the entire
   module and the listed targets. See
-  [the `depends_on` page](/opentf/language/meta-arguments/depends_on)
+  [the `depends_on` page](/docs/language/meta-arguments/depends_on)
   for details.
 
 OpenTF does not use the `lifecycle` argument. However, the `lifecycle` block is reserved for future versions.
@@ -138,7 +138,7 @@ OpenTF does not use the `lifecycle` argument. However, the `lifecycle` block is 
 
 The resources defined in a module are encapsulated, so the calling module
 cannot access their attributes directly. However, the child module can
-declare [output values](/opentf/language/values/outputs) to selectively
+declare [output values](/docs/language/values/outputs) to selectively
 export certain values to be accessed by the calling module.
 
 For example, if the `./app-cluster` module referenced in the example above
@@ -154,7 +154,7 @@ resource "aws_elb" "example" {
 ```
 
 For more information about referring to named values, see
-[Expressions](/opentf/language/expressions).
+[Expressions](/docs/language/expressions).
 
 ## Transferring Resource State Into Modules
 
@@ -164,7 +164,7 @@ result, OpenTF plans to destroy all resource instances at the old address
 and create new instances at the new address.
 
 To preserve existing objects, you can use
-[refactoring blocks](/opentf/language/modules/develop/refactoring) to record the old and new
+[refactoring blocks](/docs/language/modules/develop/refactoring) to record the old and new
 addresses for each resource instance. This directs OpenTF to treat existing
 objects at the old addresses as if they had originally been created at the
 corresponding new addresses.
@@ -174,7 +174,7 @@ corresponding new addresses.
 You may have an object that needs to be replaced with a new object for a reason
 that isn't automatically visible to OpenTF, such as if a particular virtual
 machine is running on degraded underlying hardware. In this case, you can use
-[the `-replace=...` planning option](/opentf/cli/commands/plan#replace-address)
+[the `-replace=...` planning option](/docs/cli/commands/plan#replace-address)
 to force OpenTF to propose replacing that object.
 
 If the object belongs to a resource within a nested module, specify the full

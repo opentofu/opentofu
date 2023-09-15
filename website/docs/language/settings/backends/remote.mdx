@@ -7,9 +7,9 @@ description: >-
 
 # remote
 
--> **Note:** **We recommend using the [`cloud` built-in integration](/opentf/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+-> **Note:** **We recommend using the [`cloud` built-in integration](/docs/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
 
-The remote backend is unique among all other OpenTF backends because it can both store state snapshots and execute operations for TACOS (TF Automation and Collaboration Software) [CLI-driven run workflow](/opentf/cloud-docs/run/cli). It used to be called an "enhanced" backend.
+The remote backend is unique among all other OpenTF backends because it can both store state snapshots and execute operations for TACOS (TF Automation and Collaboration Software) [CLI-driven run workflow](/docs/cloud-docs/run/cli). It used to be called an "enhanced" backend.
 
 When using full remote operations, operations like `opentf plan` or `opentf apply` can be executed in TACOS (TF Automation and Collaboration Software) run environment, with log output streaming to the local terminal. Remote plans and applies use variable values from the associated remote workspace.
 
@@ -50,7 +50,7 @@ determines which mode it uses:
   all of the desired remote workspace names. For example, set
   `prefix = "networking-"` to use remote workspaces with
   names like `networking-dev` and `networking-prod`. This is helpful when
-  mapping multiple OpenTF CLI [workspaces](/opentf/language/state/workspaces)
+  mapping multiple OpenTF CLI [workspaces](/docs/language/state/workspaces)
   used in a single OpenTF configuration to multiple remote workspaces.
 
 
@@ -67,14 +67,14 @@ running any remote operations against them.
 
 OpenTF uses shortened names without the common prefix to interact with workspaces on the command line. For example, if `prefix = "networking-"`, use `opentf workspace select prod` to switch to the OpenTF CLI workspace `prod` within the current configuration. However, remote OpenTF operations such as `plan` and `apply` for that OpenTF CLI workspace will take place in the remote workspace `networking-prod`.
 
-Because of this, the [`terraform.workspace`](/opentf/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
+Because of this, the [`terraform.workspace`](/docs/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
 
 - For local operations, `terraform.workspace` = `prod`
 - For remote operations, `terraform.workspace`=  `networking-prod`
 
 ### Determining Run Environment
 
-If you need to determine whether a run is local or remote in your OpenTF configuration, we recommend using [run environment variables](/opentf/cloud-docs/run/run-environment#environment-variables). The example below uses `TFC_RUN_ID`.
+If you need to determine whether a run is local or remote in your OpenTF configuration, we recommend using [run environment variables](/docs/cloud-docs/run/run-environment#environment-variables). The example below uses `TFC_RUN_ID`.
 
 ```
 output "current_workspace_name" {
@@ -95,8 +95,8 @@ output "remote_execution_determine" {
 ## Example Configurations
 
 ->  **Note:** We recommend omitting the token from the configuration, and instead using
-[`opentf login`](/opentf/cli/commands/login) or manually configuring
-`credentials` in the [CLI config file](/opentf/cli/config/config-file#credentials).
+[`opentf login`](/docs/cli/commands/login) or manually configuring
+`credentials` in the [CLI config file](/docs/cli/config/config-file#credentials).
 
 ### Basic Configuration
 
@@ -170,7 +170,7 @@ data "terraform_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opentf/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 
 The following configuration options are supported:
 
@@ -179,9 +179,9 @@ The following configuration options are supported:
   targeted workspace(s).
 - `token` - (Optional) The token used to authenticate with the remote backend.
   We recommend omitting the token from the configuration, and instead using
-  [`opentf login`](/opentf/cli/commands/login) or manually configuring
+  [`opentf login`](/docs/cli/commands/login) or manually configuring
   `credentials` in the
-  [CLI config file](/opentf/cli/config/config-file#credentials).
+  [CLI config file](/docs/cli/config/config-file#credentials).
 - `workspaces` - (Required) A block specifying which remote workspace(s) to use.
   The `workspaces` block supports the following keys:
 
@@ -219,7 +219,7 @@ the remote workspace accept the following option to modify that behavior:
 
 ## Excluding Files from Upload with .terraformignore
 
-When executing a remote `plan` or `apply` in a [CLI-driven run](/opentf/cloud-docs/run/cli),
+When executing a remote `plan` or `apply` in a [CLI-driven run](/docs/cloud-docs/run/cli),
 an archive of your configuration directory is uploaded to TACOS (TF Automation and Collaboration Software). You can define
 paths to ignore from upload via a `.terraformignore` file at the root of your configuration directory. If this file is not present, the archive will exclude the following by default:
 

@@ -8,18 +8,18 @@ description: >-
 # Server-side Login Protocol
 
 ~> **Note:** You don't need to read these docs to _use_
-[`opentf login`](/opentf/cli/commands/login).  The information below is for
+[`opentf login`](/docs/cli/commands/login).  The information below is for
 anyone intending to implement the server side of `opentf login` in order to
 offer OpenTF-native services in a third-party system.
 
 The `opentf login` command supports performing an OAuth 2.0 authorization
 request using configuration provided by the target host. You may wish to
 implement this protocol if you are producing a third-party implementation of
-any [OpenTF-native services](/opentf/internals/remote-service-discovery),
+any [OpenTF-native services](/docs/internals/remote-service-discovery),
 such as an OpenTF module registry.
 
 First, OpenTF uses
-[remote service discovery](/opentf/internals/remote-service-discovery) to
+[remote service discovery](/docs/internals/remote-service-discovery) to
 find the OAuth configuration for the host. The host must support the service
 name `login.v1` and define for it an object containing OAuth client
 configuration values, like this:

@@ -32,7 +32,7 @@ This assumes we have a bucket created called `mybucket`. The
 OpenTF state is written to the key `path/to/my/key`.
 
 Note that for the access credentials we recommend using a
-[partial configuration](/opentf/language/settings/backends/configuration#partial-configuration).
+[partial configuration](/docs/language/settings/backends/configuration#partial-configuration).
 
 ### S3 Bucket Permissions
 
@@ -104,7 +104,7 @@ This is seen in the following AWS IAM Statement:
 ## Data Source Configuration
 
 To make use of the S3 remote state in another configuration, use the
-[`terraform_remote_state` data source](/opentf/language/state/remote-state-data).
+[`terraform_remote_state` data source](/docs/language/state/remote-state-data).
 
 ```hcl
 data "terraform_remote_state" "network" {
@@ -143,7 +143,7 @@ This backend requires the configuration of the AWS Region and S3 state storage. 
 
 ### Credentials and Shared Configuration
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opentf/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 
 The following configuration is required:
 
@@ -181,7 +181,7 @@ The following configuration is optional:
 The following configuration is required:
 
 * `bucket` - (Required) Name of the S3 Bucket.
-* `key` - (Required) Path to the state file inside the S3 Bucket. When using a non-default [workspace](/opentf/language/state/workspaces), the state path will be `/workspace_key_prefix/workspace_name/key` (see also the `workspace_key_prefix` configuration).
+* `key` - (Required) Path to the state file inside the S3 Bucket. When using a non-default [workspace](/docs/language/state/workspaces), the state path will be `/workspace_key_prefix/workspace_name/key` (see also the `workspace_key_prefix` configuration).
 
 The following configuration is optional:
 
@@ -213,7 +213,7 @@ The S3 backend can be used in a number of different ways that make different
 tradeoffs between convenience, security, and isolation in such an organization.
 This section describes one such approach that aims to find a good compromise
 between these tradeoffs, allowing use of
-[OpenTF's workspaces feature](/opentf/language/state/workspaces) to switch
+[OpenTF's workspaces feature](/docs/language/state/workspaces) to switch
 conveniently between multiple isolated deployments of the same configuration.
 
 Use this section as a starting-point for your approach, but note that
@@ -321,7 +321,7 @@ provider "aws" {
 
 If workspace IAM roles are centrally managed and shared across many separate
 OpenTF configurations, the role ARNs could also be obtained via a data
-source such as [`terraform_remote_state`](/opentf/language/state/remote-state-data)
+source such as [`terraform_remote_state`](/docs/language/state/remote-state-data)
 to avoid repeating these values.
 
 ### Creating and Selecting Workspaces

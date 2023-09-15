@@ -6,7 +6,7 @@ description: The `opentf state push` command pushes items to the OpenTF state.
 # Command: state push
 
 The `opentf state push` command is used to manually upload a local
-state file to [remote state](/opentf/language/state/remote). This command also
+state file to [remote state](/docs/language/state/remote). This command also
 works with local state.
 
 This command should rarely be used. It is meant only as a utility in case
@@ -17,7 +17,7 @@ manual intervention is necessary with the remote state.
 Usage: `opentf state push [options] PATH`
 
 This command pushes the state specified by PATH to the currently
-configured [backend](/opentf/language/settings/backends/configuration).
+configured [backend](/docs/language/settings/backends/configuration).
 
 If PATH is "-" then the state data to push is read from stdin. This data
 is loaded completely into memory and verified prior to being written to
@@ -42,7 +42,7 @@ Both of these safety checks can be disabled with the `-force` flag.
 **This is not recommended.** If you disable the safety checks and are
 pushing state, the destination state will be overwritten.
 
-For configurations using the [`cloud` backend](/opentf/cli/cloud) or the [`remote` backend](/opentf/language/settings/backends/remote)
+For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
 only, `opentf state push`
 also accepts the option
-[`-ignore-remote-version`](/opentf/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).

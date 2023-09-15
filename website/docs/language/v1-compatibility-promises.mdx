@@ -65,35 +65,35 @@ The following top-level blocks and their defined "meta-arguments" (that is,
 arguments defined by OpenTF Core rather than by external plugins such as
 providers) will retain their current functionality:
 
-* [`resource`](/opentf/language/resources) and
-  [`data`](/opentf/language/data-sources) blocks to
+* [`resource`](/docs/language/resources) and
+  [`data`](/docs/language/data-sources) blocks to
   declare resources, including their nested block types `lifecycle`,
   `connection`, and `provisioner`, and their meta-argument `provider`.
-* [`module`](/opentf/language/modules/syntax) blocks to call other modules,
+* [`module`](/docs/language/modules/syntax) blocks to call other modules,
   and its meta-argument `providers`.
-* The [`count`](/opentf/language/meta-arguments/count),
-  [`for_each`](/opentf/language/meta-arguments/for_each), and
-  [`depends_on`](/opentf/language/meta-arguments/depends_on) meta-arguments
+* The [`count`](/docs/language/meta-arguments/count),
+  [`for_each`](/docs/language/meta-arguments/for_each), and
+  [`depends_on`](/docs/language/meta-arguments/depends_on) meta-arguments
   in `resource`, `data`, and `module` blocks.
-* [`provider`](/opentf/language/providers/configuration) blocks to configure
+* [`provider`](/docs/language/providers/configuration) blocks to configure
   providers, and the `alias` meta-argument.
-* [`variable`](/opentf/language/values/variables#declaring-an-input-variable),
-  [`output`](/opentf/language/values/outputs#declaring-an-output-value), and
-  [`locals`](/opentf/language/values/locals#declaring-a-local-value) blocks
+* [`variable`](/docs/language/values/variables#declaring-an-input-variable),
+  [`output`](/docs/language/values/outputs#declaring-an-output-value), and
+  [`locals`](/docs/language/values/locals#declaring-a-local-value) blocks
   for declaring the various kinds of named values in a module.
-* [`terraform`](/opentf/language/settings) blocks, including the nested
-  [`required_version`](/opentf/language/settings#specifying-a-required-opentf-version)
+* [`terraform`](/docs/language/settings) blocks, including the nested
+  [`required_version`](/docs/language/settings#specifying-a-required-opentf-version)
   and
-  [`required_providers`](/opentf/language/providers/requirements#requiring-providers)
+  [`required_providers`](/docs/language/providers/requirements#requiring-providers)
   arguments, and nested
-  [`backend`](/opentf/language/settings/backends/configuration#using-a-backend-block)
+  [`backend`](/docs/language/settings/backends/configuration#using-a-backend-block)
   blocks for backend configuration.
 
 We also intend to keep compatibility with all
-[expression operators](/opentf/language/expressions) and
-[built-in functions](/opentf/language/functions), with the exception of
+[expression operators](/docs/language/expressions) and
+[built-in functions](/docs/language/functions), with the exception of
 references to
-[`terraform.workspace`](/opentf/language/expressions/references#terraform-workspace),
+[`terraform.workspace`](/docs/language/expressions/references#terraform-workspace),
 whose behavior may change as part of future changes to the workspace model.
 
 We intend to retain broad compatibility with OpenTF language features, with
@@ -189,18 +189,18 @@ if you are still using an OpenTF v1.x release.
 ### Provider Installation Methods
 
 OpenTF normally installs providers from a provider registry implementing
-[the Provider Registry Protocol](/opentf/internals/provider-registry-protocol),
+[the Provider Registry Protocol](/docs/internals/provider-registry-protocol),
 version 1. All OpenTF v1.x releases will remain compatible with that
 protocol, and so correctly-implemented provider registries will stay compatible.
 
 OpenTF also supports installation of providers from
-[local filesystem directories](/opentf/cli/config/config-file#filesystem_mirror)
+[local filesystem directories](/docs/cli/config/config-file#filesystem_mirror)
 (filesystem mirrors) and from
-[network mirrors](/opentf/cli/config/config-file#network_mirror)
-(implementing [the Provider Mirror Protocol](/opentf/internals/provider-network-mirror-protocol).
+[network mirrors](/docs/cli/config/config-file#network_mirror)
+(implementing [the Provider Mirror Protocol](/docs/internals/provider-network-mirror-protocol).
 All OpenTF v1.x releases will remain compatible with those installation
 methods, including
-[the Implied Local Mirror Directories](/opentf/cli/config/config-file#implied-local-mirror-directories).
+[the Implied Local Mirror Directories](/docs/cli/config/config-file#implied-local-mirror-directories).
 
 Specific provider registries or network mirrors are run independently from
 OpenTF itself and so their own behaviors are not subject to these
@@ -236,11 +236,11 @@ and of OpenTF itself.
 ### Module Installation Methods
 
 OpenTF supports installing child modules from a number of different
-[module source types](/opentf/language/modules/sources). We will continue
+[module source types](/docs/language/modules/sources). We will continue
 to support all of the existing source types throughout the v1.x releases.
 
 One of the supported source types is a module registry implementing
-[the Module Registry Protocol](/opentf/internals/module-registry-protocol)
+[the Module Registry Protocol](/docs/internals/module-registry-protocol)
 version 1. All OpenTF v1.x releases will remain compatible with correct
 implementations of that protocol.
 
@@ -377,7 +377,7 @@ As noted above, compatibility with external software is limited to
 explicitly-machine-readable output (`-json` and `-raw` modes) and exit codes.
 Any natural-language output from these commands might change in later releases.
 
-* [`init`](/opentf/cli/commands/init)
+* [`init`](/docs/cli/commands/init)
   * `-backend=false`
   * `-backend-config=FILE`
   * `-backend-config="KEY=VALUE"`
@@ -389,10 +389,10 @@ Any natural-language output from these commands might change in later releases.
   * `-plugin-dir=DIR`
   * `-reconfigure`
   * `-upgrade`
-* [`validate`](/opentf/cli/commands/validate)
+* [`validate`](/docs/cli/commands/validate)
   * `-json`
   * `-no-color`
-* [`plan`](/opentf/cli/commands/plan)
+* [`plan`](/docs/cli/commands/plan)
   * `-compact-warnings`
   * `-destroy`
   * `-detailed-exitcode`
@@ -409,7 +409,7 @@ Any natural-language output from these commands might change in later releases.
   * `-target=ADDRESS`
   * `-var 'NAME=VALUE'`
   * `-var-file=FILE`
-* [`apply`](/opentf/cli/commands/apply)
+* [`apply`](/docs/cli/commands/apply)
   * `-auto-approve`
   * `-compact-warnings`
   * `-lock=false`
@@ -424,53 +424,53 @@ Any natural-language output from these commands might change in later releases.
   * `-target=ADDRESS`
   * `-var 'NAME=VALUE'`
   * `-var-file=FILE`
-* [`show`](/opentf/cli/commands/show)
+* [`show`](/docs/cli/commands/show)
   * `-no-color`
   * `-json`
   * (both with and without a plan file)
-* [`providers`](/opentf/cli/commands/providers) (with no subcommand)
-* [`providers lock`](/opentf/cli/commands/providers/lock)
+* [`providers`](/docs/cli/commands/providers) (with no subcommand)
+* [`providers lock`](/docs/cli/commands/providers/lock)
   * `-fs-mirror=PATH`
   * `-net-mirror=URL`
   * `-platform=OS_ARCH`
-* [`providers mirror`](/opentf/cli/commands/providers/mirror)
+* [`providers mirror`](/docs/cli/commands/providers/mirror)
   * `-platform=OS_ARCH`
-* [`providers schema`](/opentf/cli/commands/providers/schema)
+* [`providers schema`](/docs/cli/commands/providers/schema)
   * `-json`
-* [`fmt`](/opentf/cli/commands/fmt)
+* [`fmt`](/docs/cli/commands/fmt)
   * `-list=false`
   * `-write=false`
   * `-diff`
   * `-recursive`
   * `-check`
-* [`version`](/opentf/cli/commands/version)
+* [`version`](/docs/cli/commands/version)
   * `-json`
-* [`output`](/opentf/cli/commands/output)
+* [`output`](/docs/cli/commands/output)
   * `-no-color`
   * `-json`
   * `-raw`
-* [`taint`](/opentf/cli/commands/taint)
+* [`taint`](/docs/cli/commands/taint)
   * `-allow-missing`
   * `-lock=false`
   * `-lock-timeout=DURATION`
   * `-ignore-remote-version`
-* [`untaint`](/opentf/cli/commands/untaint)
+* [`untaint`](/docs/cli/commands/untaint)
   * `-allow-missing`
   * `-lock=false`
   * `-lock-timeout=DURATION`
   * `-ignore-remote-version`
-* [`force-unlock`](/opentf/cli/commands/force-unlock)
+* [`force-unlock`](/docs/cli/commands/force-unlock)
   * `-force`
-* [`state list`](/opentf/cli/commands/state/list)
+* [`state list`](/docs/cli/commands/state/list)
   * `-id=ID`
-* [`state pull`](/opentf/cli/commands/state/pull)
-* [`state push`](/opentf/cli/commands/state/push)
+* [`state pull`](/docs/cli/commands/state/pull)
+* [`state push`](/docs/cli/commands/state/push)
   * `-force`
   * `-lock=false`
   * `-lock-timeout=DURATION`
-* [`state show`](/opentf/cli/commands/state/show)
+* [`state show`](/docs/cli/commands/state/show)
   * `-ignore-remote-version`
-* [`login`](/opentf/cli/commands/login)
+* [`login`](/docs/cli/commands/login)
 
 For commands or options not in the above list, we will still avoid breaking
 changes where possible, but can't promise full compatibility throughout the

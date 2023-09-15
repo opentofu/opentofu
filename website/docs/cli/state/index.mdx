@@ -7,7 +7,7 @@ description: >-
 
 # Manipulating OpenTF State
 
-OpenTF uses [state data](/opentf/language/state) to remember which
+OpenTF uses [state data](/docs/language/state) to remember which
 real-world object corresponds to each resource in the configuration;
 this allows it to modify an existing object when its resource declaration
 changes.
@@ -19,12 +19,12 @@ infrastructure.
 
 OpenTF CLI supports several workflows for interacting with state:
 
-- [Inspecting State](/opentf/cli/state/inspect)
-- [Forcing Re-creation](/opentf/cli/state/taint)
-- [Moving Resources](/opentf/cli/state/move)
+- [Inspecting State](/docs/cli/state/inspect)
+- [Forcing Re-creation](/docs/cli/state/taint)
+- [Moving Resources](/docs/cli/state/move)
 - Importing Pre-existing Resources (documented in the
-  [Importing Infrastructure](/opentf/cli/import) section)
-- [Disaster Recovery](/opentf/cli/state/recover)
+  [Importing Infrastructure](/docs/cli/import) section)
+- [Disaster Recovery](/docs/cli/state/recover)
 
 ~> **Important:** Modifying state data outside a normal plan or apply can cause
 OpenTF to lose track of managed resources, which might waste money, annoy

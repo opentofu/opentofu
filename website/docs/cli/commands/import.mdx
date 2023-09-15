@@ -5,7 +5,7 @@ description: The opentf import command brings existing resources into OpenTF sta
 
 # Command: import
 
-The `opentf import` command [imports existing resources](/opentf/cli/import)
+The `opentf import` command [imports existing resources](/docs/cli/import)
 into OpenTF.
 
 ## Usage
@@ -15,7 +15,7 @@ Usage: `opentf import [options] ADDRESS ID`
 Import will find the existing resource from ID and import it into your OpenTF
 state at the given ADDRESS.
 
-ADDRESS must be a valid [resource address](/opentf/cli/state/resource-addressing).
+ADDRESS must be a valid [resource address](/docs/cli/state/resource-addressing).
 Because any resource address is valid, the import command can import resources
 into modules as well as directly into the root of your state.
 
@@ -31,7 +31,7 @@ itself having created all objects. If you import existing objects into OpenTF,
 be careful to import each remote object to only one OpenTF resource address.
 If you import the same object multiple times, OpenTF may exhibit unwanted
 behavior. For more information on this assumption, see
-[the State section](/opentf/language/state).
+[the State section](/docs/language/state).
 
 The command-line flags are all optional. The following flags are available:
 
@@ -51,7 +51,7 @@ The command-line flags are all optional. The following flags are available:
 - `-no-color` - If specified, output won't contain any color.
 
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTF
-  [walks the graph](/opentf/internals/graph#walking-the-graph). Defaults
+  [walks the graph](/docs/internals/graph#walking-the-graph). Defaults
   to 10.
 
 - `-provider=provider` - **Deprecated** Override the provider configuration to
@@ -60,11 +60,11 @@ The command-line flags are all optional. The following flags are available:
 
 - `-var 'foo=bar'` - Set a variable in the OpenTF configuration. This flag
   can be set multiple times. Variable values are interpreted as
-  [literal expressions](/opentf/language/expressions/types) in the
+  [literal expressions](/docs/language/expressions/types) in the
   OpenTF language, so list and map values can be specified via this flag.
 
 - `-var-file=foo` - Set variables in the OpenTF configuration from
-  a [variable file](/opentf/language/values/variables#variable-definitions-tfvars-files). If
+  a [variable file](/docs/language/values/variables#variable-definitions-tfvars-files). If
   a `terraform.tfvars` or any `.auto.tfvars` files are present in the current
   directory, they will be automatically loaded. `terraform.tfvars` is loaded
   first and the `.auto.tfvars` files after in alphabetical order. Any files
@@ -72,15 +72,15 @@ The command-line flags are all optional. The following flags are available:
   the working directory. This flag can be used multiple times. This is only
   useful with the `-config` flag.
 
-For configurations using the [`cloud` backend](/opentf/cli/cloud) or the [`remote` backend](/opentf/language/settings/backends/remote)
+For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
 only, `opentf import`
 also accepts the option
-[`-ignore-remote-version`](/opentf/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
-[the `local` backend](/opentf/language/settings/backends/local) only,
+[the `local` backend](/docs/language/settings/backends/local) only,
 `opentf import` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/opentf/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Provider Configuration
 
@@ -128,7 +128,7 @@ $ opentf import module.foo.aws_instance.bar i-abcd1234
 ## Example: Import into Resource configured with count
 
 The example below will import an AWS instance into the first instance of the `aws_instance` resource named `baz` configured with
-[`count`](/opentf/language/meta-arguments/count):
+[`count`](/docs/language/meta-arguments/count):
 
 ```shell
 $ opentf import 'aws_instance.baz[0]' i-abcd1234
@@ -137,7 +137,7 @@ $ opentf import 'aws_instance.baz[0]' i-abcd1234
 ## Example: Import into Resource configured with for_each
 
 The example below will import an AWS instance into the `"example"` instance of the `aws_instance` resource named `baz` configured with
-[`for_each`](/opentf/language/meta-arguments/for_each):
+[`for_each`](/docs/language/meta-arguments/for_each):
 
 Linux, Mac OS, and UNIX:
 

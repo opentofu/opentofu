@@ -15,14 +15,14 @@ unsafe if you have misconfigured credentials for any of your providers.
 See below for more information and recommended alternatives.
 
 This won't modify your real remote objects, but it will modify the
-[OpenTF state](/opentf/language/state).
+[OpenTF state](/docs/language/state).
 
 You shouldn't typically need to use this command, because OpenTF
 automatically performs the same refreshing actions as a part of creating
 a plan in both the
-[`opentf plan`](/opentf/cli/commands/plan)
+[`opentf plan`](/docs/cli/commands/plan)
 and
-[`opentf apply`](/opentf/cli/commands/apply)
+[`opentf apply`](/docs/cli/commands/apply)
 commands. This command is here primarily for backward compatibility, but
 we don't recommend using it because it provides no opportunity to review
 the effects of the operation before updating the state.
@@ -38,7 +38,7 @@ opentf apply -refresh-only -auto-approve
 ```
 
 Consequently, it supports all of the same options as
-[`opentf apply`](/opentf/cli/commands/apply) except that it does not accept a saved
+[`opentf apply`](/docs/cli/commands/apply) except that it does not accept a saved
 plan file, it doesn't allow selecting a planning mode other than "refresh only",
 and `-auto-approve` is always enabled.
 

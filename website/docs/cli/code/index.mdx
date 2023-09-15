@@ -7,7 +7,7 @@ description: >-
 
 # Writing and Modifying OpenTF Code
 
-The [OpenTF language](/opentf/language) is OpenTF's primary
+The [OpenTF language](/docs/language) is OpenTF's primary
 user interface, and all of OpenTF's workflows rely on configurations written
 in the OpenTF language.
 
@@ -15,17 +15,17 @@ OpenTF CLI includes several commands to make OpenTF code more convenient
 to work with. Integrating these commands into your editing workflow can
 potentially save you time and effort.
 
-- [The `opentf console` command](/opentf/cli/commands/console) starts an
+- [The `opentf console` command](/docs/cli/commands/console) starts an
   interactive shell for evaluating OpenTF
-  [expressions](/opentf/language/expressions), which can be a faster way
+  [expressions](/docs/language/expressions), which can be a faster way
   to verify that a particular resource argument results in the value you expect.
 
-- [The `opentf fmt` command](/opentf/cli/commands/fmt) rewrites OpenTF
+- [The `opentf fmt` command](/docs/cli/commands/fmt) rewrites OpenTF
   configuration files to a canonical format and style, so you don't have to
   waste time making minor adjustments for readability and consistency. It works
   well as a pre-commit hook in your version control system.
 
-- [The `opentf validate` command](/opentf/cli/commands/validate) validates the
+- [The `opentf validate` command](/docs/cli/commands/validate) validates the
   syntax and arguments of the OpenTF configuration files in a directory,
   including argument and attribute names and types for resources and modules.
   The `plan` and `apply` commands automatically validate a configuration before

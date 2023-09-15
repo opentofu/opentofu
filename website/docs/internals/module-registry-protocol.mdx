@@ -21,7 +21,7 @@ publishing them on the public Terraform Registry.
 The public Terraform Registry implements a superset of the API described on
 this page, in order to capture additional information used in the registry UI.
 For information on those extensions, see
-[OpenTF Registry HTTP API](/opentf/registry/api-docs). Third-party registry
+[OpenTF Registry HTTP API](/docs/registry/api-docs). Third-party registry
 implementations may choose to implement those extensions if desired, but
 OpenTF CLI itself does not use them.
 
@@ -79,7 +79,7 @@ blocks have the same source address.
 ## Service Discovery
 
 The module registry protocol begins with OpenTF CLI using
-[OpenTF's remote service discovery protocol](/opentf/internals/remote-service-discovery),
+[OpenTF's remote service discovery protocol](/docs/internals/remote-service-discovery),
 with the hostname in the module address acting as the "User-facing Hostname".
 
 The service identifier for the module registry protocol is `modules.v1`.
@@ -207,10 +207,10 @@ A successful response has no body, and includes the location from which the
 module version's source can be downloaded in the `X-Terraform-Get` header.
 The value of this header accepts the same values as the `source` argument
 in a `module` block in OpenTF configuration, as described in
-[Module Sources](/opentf/language/modules/sources),
+[Module Sources](/docs/language/modules/sources),
 except that it may not recursively refer to another module registry address.
 
 The value of `X-Terraform-Get` may instead be a relative URL, indicated by
 beginning with `/`, `./` or `../`, in which case it is resolved relative to
 the full URL of the download endpoint to produce
-[an HTTP URL module source](/opentf/language/modules/sources#http-urls).
+[an HTTP URL module source](/docs/language/modules/sources#http-urls).
