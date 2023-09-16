@@ -17,6 +17,7 @@ import (
 // node must filter this list to targets considered relevant.
 type GraphNodeTargetable interface {
 	SetTargets([]addrs.Targetable)
+	SetExcludes([]addrs.Targetable)
 }
 
 // TargetsTransformer is a GraphTransformer that, when the user specifies a
@@ -24,12 +25,13 @@ type GraphNodeTargetable interface {
 // their dependencies.
 type TargetsTransformer struct {
 	// List of targeted resource names specified by the user
-	Targets []addrs.Targetable
+	Targets  []addrs.Targetable
+	Excludes []addrs.Targetable
 }
 
 func (t *TargetsTransformer) Transform(g *Graph) error {
 	if len(t.Targets) > 0 {
-		targetedNodes, err := t.selectTargetedNodes(g, t.Targets)
+		targetedNodes, err := t.selectTargetedNodes(g, t.Targets, false)
 		if err != nil {
 			return err
 		}
@@ -42,13 +44,27 @@ func (t *TargetsTransformer) Transform(g *Graph) error {
 		}
 	}
 
+	if len(t.Excludes) > 0 {
+		targetedNodes, err := t.selectTargetedNodes(g, t.Excludes, true)
+		if err != nil {
+			return err
+		}
+
+		for _, v := range g.Vertices() {
+			if targetedNodes.Include(v) {
+				log.Printf("[DEBUG] Removing %q, filtered by excludes.", dag.VertexName(v))
+				g.Remove(v)
+			}
+		}
+	}
+
 	return nil
 }
 
 // Returns a set of targeted nodes. A targeted node is either addressed
 // directly, address indirectly via its container, or it's a dependency of a
 // targeted node.
-func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targetable) (dag.Set, error) {
+func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targetable, excludes bool) (dag.Set, error) {
 	targetedNodes := make(dag.Set)
 
 	vertices := g.Vertices()
@@ -61,7 +77,11 @@ func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targeta
 			// that need to dynamically expand. Note that this only occurs for nodes
 			// that are already directly targeted.
 			if tn, ok := v.(GraphNodeTargetable); ok {
-				tn.SetTargets(addrs)
+				if excludes {
+					tn.SetExcludes(addrs)
+				} else {
+					tn.SetTargets(addrs)
+				}
 			}
 
 			deps, _ := g.Ancestors(v)

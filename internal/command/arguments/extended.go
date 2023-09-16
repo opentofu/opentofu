@@ -67,6 +67,10 @@ type Operation struct {
 	// their dependencies.
 	Targets []addrs.Targetable
 
+	// Excludes allow limiting an operation to all except a set of resource
+	// addresses and their dependencies.
+	Excludes []addrs.Targetable
+
 	// ForceReplace addresses cause OpenTF to force a particular set of
 	// resource instances to generate "replace" actions in any plan where they
 	// would normally have generated "no-op" or "update" actions.
@@ -83,42 +87,23 @@ type Operation struct {
 	// method Parse to populate the exported fields from these, validating
 	// the raw values in the process.
 	targetsRaw      []string
+	excludesRaw     []string
 	forceReplaceRaw []string
 	destroyRaw      bool
 	refreshOnlyRaw  bool
 }
 
 // Parse must be called on Operation after initial flag parse. This processes
-// the raw target flags into addrs.Targetable values, returning diagnostics if
-// invalid.
+// the raw target and exclude flags into addrs.Targetable values, returning
+// diagnostics if invalid.
 func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	o.Targets = nil
+	o.Targets, diags = parseRaw(o.targetsRaw, diags)
 
-	for _, tr := range o.targetsRaw {
-		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
-		if syntaxDiags.HasErrors() {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid target %q", tr),
-				syntaxDiags[0].Detail,
-			))
-			continue
-		}
-
-		target, targetDiags := addrs.ParseTarget(traversal)
-		if targetDiags.HasErrors() {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid target %q", tr),
-				targetDiags[0].Description().Detail,
-			))
-			continue
-		}
-
-		o.Targets = append(o.Targets, target.Subject)
-	}
+	o.Excludes = nil
+	o.Excludes, diags = parseRaw(o.excludesRaw, diags)
 
 	for _, raw := range o.forceReplaceRaw {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(raw), "", hcl.Pos{Line: 1, Column: 1})
@@ -178,6 +163,38 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 	}
 
 	return diags
+}
+
+// parseRaw processes raw targets into addrs.Targetable values,
+// returning diagnostics if invalid.
+func parseRaw(targetsRaw []string, diags tfdiags.Diagnostics) ([]addrs.Targetable, tfdiags.Diagnostics) {
+	var targets []addrs.Targetable
+
+	for _, tr := range targetsRaw {
+		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
+		if syntaxDiags.HasErrors() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid target %q", tr),
+				syntaxDiags[0].Detail,
+			))
+			continue
+		}
+
+		target, targetDiags := addrs.ParseTarget(traversal)
+		if targetDiags.HasErrors() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid target %q", tr),
+				targetDiags[0].Description().Detail,
+			))
+			continue
+		}
+
+		targets = append(targets, target.Subject)
+	}
+
+	return targets, diags
 }
 
 // Vars describes arguments which specify non-default variable values. This

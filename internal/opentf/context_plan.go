@@ -63,6 +63,15 @@ type PlanOpts struct {
 	// warnings as part of the planning result.
 	Targets []addrs.Targetable
 
+	// If Excludes has a non-zero length then it activates targeted planning
+	// mode, where Terraform will take actions only for resource instances
+	// not mentioned in this set.
+	//
+	// Targeted planning mode is intended for exceptional use only,
+	// and so populating this field will cause Terraform to generate extra
+	// warnings as part of the planning result.
+	Excludes []addrs.Targetable
+
 	// ForceReplace is a set of resource instance addresses whose corresponding
 	// objects should be forced planned for replacement if the provider's
 	// plan would otherwise have been to either update the object in-place or
@@ -233,6 +242,7 @@ The -target option is not for routine use, and is provided only for exceptional 
 	if plan != nil {
 		plan.VariableValues = varVals
 		plan.TargetAddrs = opts.Targets
+		plan.ExcludeAddrs = opts.Excludes
 	} else if !diags.HasErrors() {
 		panic("nil plan but no errors")
 	}
@@ -673,6 +683,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			RootVariableValues: opts.SetVariables,
 			Plugins:            c.plugins,
 			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
 			ForceReplace:       opts.ForceReplace,
 			skipRefresh:        opts.SkipRefresh,
 			preDestroyRefresh:  opts.PreDestroyRefresh,
@@ -689,6 +700,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			RootVariableValues: opts.SetVariables,
 			Plugins:            c.plugins,
 			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
 			skipRefresh:        opts.SkipRefresh,
 			skipPlanChanges:    true, // this activates "refresh only" mode.
 			Operation:          walkPlan,
@@ -702,6 +714,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			RootVariableValues: opts.SetVariables,
 			Plugins:            c.plugins,
 			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
 			skipRefresh:        opts.SkipRefresh,
 			Operation:          walkPlanDestroy,
 		}).Build(addrs.RootModuleInstance)

@@ -175,6 +175,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 		RootVariableValues: variables,
 		Plugins:            c.plugins,
 		Targets:            plan.TargetAddrs,
+		Excludes:           plan.ExcludeAddrs,
 		ForceReplace:       plan.ForceReplaceAddrs,
 		Operation:          operation,
 		ExternalReferences: plan.ExternalReferences,
