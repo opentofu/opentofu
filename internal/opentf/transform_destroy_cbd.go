@@ -61,7 +61,7 @@ func (t *ForcedCBDTransformer) Transform(g *Graph) error {
 				return fmt.Errorf(
 					"%s: must have create before destroy enabled because "+
 						"a dependent resource has CBD enabled. However, when "+
-						"attempting to automatically do this, an error occurred: %s",
+						"attempting to automatically do this, an error occurred: %w",
 					dag.VertexName(v), err)
 			}
 		} else {

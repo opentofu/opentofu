@@ -161,9 +161,9 @@ func Retry(ctx context.Context, f func() error) error {
 	// Check if we have a context error to check if we're interrupted or timeout
 	switch ctx.Err() {
 	case context.Canceled:
-		return fmt.Errorf("interrupted - last error: %v", lastErr)
+		return fmt.Errorf("interrupted - last error: %w", lastErr)
 	case context.DeadlineExceeded:
-		return fmt.Errorf("timeout - last error: %v", lastErr)
+		return fmt.Errorf("timeout - last error: %w", lastErr)
 	}
 
 	if lastErr != nil {

@@ -447,7 +447,7 @@ func (c *Communicator) UploadScript(path string, input io.Reader) error {
 	reader := bufio.NewReader(input)
 	prefix, err := reader.Peek(2)
 	if err != nil {
-		return fmt.Errorf("Error reading script: %s", err)
+		return fmt.Errorf("Error reading script: %w", err)
 	}
 	var script bytes.Buffer
 
@@ -634,7 +634,7 @@ func checkSCPStatus(r *bufio.Reader) error {
 		// Treat any non-zero (really 1 and 2) as fatal errors
 		message, _, err := r.ReadLine()
 		if err != nil {
-			return fmt.Errorf("Error reading error message: %s", err)
+			return fmt.Errorf("Error reading error message: %w", err)
 		}
 
 		return errors.New(string(message))
@@ -655,7 +655,7 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, size
 		// so that we can determine the length, since SCP is length-prefixed.
 		tf, err := os.CreateTemp("", "terraform-upload")
 		if err != nil {
-			return fmt.Errorf("Error creating temporary file for upload: %s", err)
+			return fmt.Errorf("Error creating temporary file for upload: %w", err)
 		}
 		defer os.Remove(tf.Name())
 		defer tf.Close()
@@ -668,17 +668,17 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, size
 		// Sync the file so that the contents are definitely on disk, then
 		// read the length of it.
 		if err := tf.Sync(); err != nil {
-			return fmt.Errorf("Error creating temporary file for upload: %s", err)
+			return fmt.Errorf("Error creating temporary file for upload: %w", err)
 		}
 
 		// Seek the file to the beginning so we can re-read all of it
 		if _, err := tf.Seek(0, 0); err != nil {
-			return fmt.Errorf("Error creating temporary file for upload: %s", err)
+			return fmt.Errorf("Error creating temporary file for upload: %w", err)
 		}
 
 		fi, err := tf.Stat()
 		if err != nil {
-			return fmt.Errorf("Error creating temporary file for upload: %s", err)
+			return fmt.Errorf("Error creating temporary file for upload: %w", err)
 		}
 
 		src = tf
@@ -842,13 +842,13 @@ func BastionConnectFunc(
 			pConn, err = newHttpProxyConn(p, bAddr)
 
 			if err != nil {
-				return nil, fmt.Errorf("Error connecting to proxy: %s", err)
+				return nil, fmt.Errorf("Error connecting to proxy: %w", err)
 			}
 
 			bConn, bChans, bReq, err = ssh.NewClientConn(pConn, bAddr, bConf)
 
 			if err != nil {
-				return nil, fmt.Errorf("Error creating new client connection via proxy: %s", err)
+				return nil, fmt.Errorf("Error creating new client connection via proxy: %w", err)
 			}
 
 			bastion = ssh.NewClient(bConn, bChans, bReq)
@@ -857,7 +857,7 @@ func BastionConnectFunc(
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("Error connecting to bastion: %s", err)
+			return nil, fmt.Errorf("Error connecting to bastion: %w", err)
 		}
 
 		log.Printf("[DEBUG] Connecting via bastion (%s) to host: %s", bAddr, addr)

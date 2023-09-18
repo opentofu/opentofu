@@ -459,7 +459,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 			if err != nil {
 				// This should happen only if someone has tampered with a plan
 				// file, so we won't bother with a pretty error for it.
-				diags = diags.Append(fmt.Errorf("planned change for %s could not be decoded: %s", addr, err))
+				diags = diags.Append(fmt.Errorf("planned change for %s could not be decoded: %w", addr, err))
 				instance[cfg.Name] = cty.DynamicVal
 				continue
 			}

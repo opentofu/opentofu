@@ -62,7 +62,7 @@ func (s *State) State() *states.State {
 
 func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
 	if err := s.RefreshState(); err != nil {
-		return nil, fmt.Errorf("Failed to load state: %s", err)
+		return nil, fmt.Errorf("Failed to load state: %w", err)
 	}
 
 	state := s.State()
@@ -188,14 +188,14 @@ func (s *State) PersistState(schemas *opentf.Schemas) error {
 		// that we ought to be updating.
 		err := s.refreshState()
 		if err != nil {
-			return fmt.Errorf("failed checking for existing remote state: %s", err)
+			return fmt.Errorf("failed checking for existing remote state: %w", err)
 		}
 		log.Printf("[DEBUG] states/remote: after refresh, state read serial is: %d; serial is: %d", s.readSerial, s.serial)
 		log.Printf("[DEBUG] states/remote: after refresh, state read lineage is: %s; lineage is: %s", s.readLineage, s.lineage)
 		if s.lineage == "" { // indicates that no state snapshot is present yet
 			lineage, err := uuid.GenerateUUID()
 			if err != nil {
-				return fmt.Errorf("failed to generate initial lineage: %v", err)
+				return fmt.Errorf("failed to generate initial lineage: %w", err)
 			}
 			s.lineage = lineage
 			s.serial++

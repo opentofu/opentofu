@@ -192,7 +192,7 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 
 	stateFile, err := statefile.Read(f)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading statefile: %s", err)
+		return nil, fmt.Errorf("Error reading statefile: %w", err)
 	}
 	return stateFile.State, nil
 }
@@ -220,7 +220,7 @@ func (b *binary) SetLocalState(state *states.State) error {
 	path := b.Path("terraform.tfstate")
 	f, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("failed to create temporary state file %s: %s", path, err)
+		return fmt.Errorf("failed to create temporary state file %s: %w", path, err)
 	}
 	defer f.Close()
 

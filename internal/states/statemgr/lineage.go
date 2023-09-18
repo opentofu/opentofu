@@ -17,7 +17,7 @@ import (
 func NewLineage() string {
 	lineage, err := uuid.GenerateUUID()
 	if err != nil {
-		panic(fmt.Errorf("Failed to generate lineage: %v", err))
+		panic(fmt.Errorf("Failed to generate lineage: %w", err))
 	}
 	return lineage
 }

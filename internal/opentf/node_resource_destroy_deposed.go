@@ -324,7 +324,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 	}
 	src, err := obj.Encode(schema.ImpliedType(), currentVersion)
 	if err != nil {
-		return fmt.Errorf("failed to encode %s in state: %s", absAddr, err)
+		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)
 	}
 
 	log.Printf("[TRACE] writeResourceInstanceStateDeposed: writing state object for %s deposed %s", absAddr, key)

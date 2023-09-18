@@ -47,7 +47,7 @@ func SearchLocalDirectory(baseDir string) (map[addrs.Provider]PackageMetaList, e
 
 	err := filepath.Walk(baseDir, func(fullPath string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("cannot search %s: %s", fullPath, err)
+			return fmt.Errorf("cannot search %s: %w", fullPath, err)
 		}
 
 		// There are two valid directory structures that we support here...

@@ -158,7 +158,7 @@ func ParseMultiSourceMatchingPatterns(strs []string) (MultiSourceMatchingPattern
 			} else {
 				normalHost, err := svchost.ForComparison(givenHost)
 				if err != nil {
-					return nil, fmt.Errorf("invalid hostname in provider matching pattern %q: %s", str, err)
+					return nil, fmt.Errorf("invalid hostname in provider matching pattern %q: %w", str, err)
 				}
 
 				// The remaining code below deals only with the namespace/type portions.

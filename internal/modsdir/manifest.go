@@ -84,14 +84,14 @@ func ReadManifestSnapshot(r io.Reader) (Manifest, error) {
 	var read manifestSnapshotFile
 	err = json.Unmarshal(src, &read)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling snapshot: %v", err)
+		return nil, fmt.Errorf("error unmarshalling snapshot: %w", err)
 	}
 	new := make(Manifest)
 	for _, record := range read.Records {
 		if record.VersionStr != "" {
 			record.Version, err = version.NewVersion(record.VersionStr)
 			if err != nil {
-				return nil, fmt.Errorf("invalid version %q for %s: %s", record.VersionStr, record.Key, err)
+				return nil, fmt.Errorf("invalid version %q for %s: %w", record.VersionStr, record.Key, err)
 			}
 		}
 

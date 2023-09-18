@@ -124,7 +124,7 @@ func (s *HTTPMirrorSource) AvailableVersions(ctx context.Context, provider addrs
 
 	dec := json.NewDecoder(body)
 	if err := dec.Decode(&bodyContent); err != nil {
-		return nil, nil, s.errQueryFailed(provider, fmt.Errorf("invalid response content from mirror server: %s", err))
+		return nil, nil, s.errQueryFailed(provider, fmt.Errorf("invalid response content from mirror server: %w", err))
 	}
 
 	if len(bodyContent.Versions) == 0 {
@@ -192,7 +192,7 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 
 	dec := json.NewDecoder(body)
 	if err := dec.Decode(&bodyContent); err != nil {
-		return PackageMeta{}, s.errQueryFailed(provider, fmt.Errorf("invalid response content from mirror server: %s", err))
+		return PackageMeta{}, s.errQueryFailed(provider, fmt.Errorf("invalid response content from mirror server: %w", err))
 	}
 
 	archiveMeta, ok := bodyContent.Archives[target.String()]
@@ -209,7 +209,7 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 	if err != nil {
 		return PackageMeta{}, s.errQueryFailed(
 			provider,
-			fmt.Errorf("provider mirror returned invalid URL %q: %s", archiveMeta.RelativeURL, err),
+			fmt.Errorf("provider mirror returned invalid URL %q: %w", archiveMeta.RelativeURL, err),
 		)
 	}
 	absURL := finalURL.ResolveReference(relURL)
@@ -231,7 +231,7 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 			if err != nil {
 				return PackageMeta{}, s.errQueryFailed(
 					provider,
-					fmt.Errorf("provider mirror returned invalid provider hash %q: %s", hashStr, err),
+					fmt.Errorf("provider mirror returned invalid provider hash %q: %w", hashStr, err),
 				)
 			}
 			hashes = append(hashes, hash)
@@ -267,7 +267,7 @@ func (s *HTTPMirrorSource) mirrorHost() (svchost.Hostname, error) {
 func (s *HTTPMirrorSource) mirrorHostCredentials() (svcauth.HostCredentials, error) {
 	hostname, err := s.mirrorHost()
 	if err != nil {
-		return nil, fmt.Errorf("invalid provider mirror base URL %s: %s", s.baseURL.String(), err)
+		return nil, fmt.Errorf("invalid provider mirror base URL %s: %w", s.baseURL.String(), err)
 	}
 
 	if s.creds == nil {
@@ -304,7 +304,7 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 	req.Request.Header.Set(terraformVersionHeader, version.String())
 	creds, err := s.mirrorHostCredentials()
 	if err != nil {
-		return 0, nil, endpointURL, fmt.Errorf("failed to determine request credentials: %s", err)
+		return 0, nil, endpointURL, fmt.Errorf("failed to determine request credentials: %w", err)
 	}
 	if creds != nil {
 		// Note that if the initial requests gets redirected elsewhere
@@ -340,7 +340,7 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 		ct := resp.Header.Get("Content-Type")
 		mt, params, err := mime.ParseMediaType(ct)
 		if err != nil {
-			return 0, nil, finalURL, fmt.Errorf("response has invalid Content-Type: %s", err)
+			return 0, nil, finalURL, fmt.Errorf("response has invalid Content-Type: %w", err)
 		}
 		if mt != "application/json" {
 			return 0, nil, finalURL, fmt.Errorf("response has invalid Content-Type: must be application/json")

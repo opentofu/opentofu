@@ -111,7 +111,7 @@ func (r *Reader) ReadPlan() (*plans.Plan, error) {
 
 	pr, err := planFile.Open()
 	if err != nil {
-		return nil, errUnusable(fmt.Errorf("failed to retrieve plan from plan file: %s", err))
+		return nil, errUnusable(fmt.Errorf("failed to retrieve plan from plan file: %w", err))
 	}
 	defer pr.Close()
 
@@ -133,11 +133,11 @@ func (r *Reader) ReadPlan() (*plans.Plan, error) {
 
 	prevRunStateFile, err := r.ReadPrevStateFile()
 	if err != nil {
-		return nil, errUnusable(fmt.Errorf("failed to read previous run state from plan file: %s", err))
+		return nil, errUnusable(fmt.Errorf("failed to read previous run state from plan file: %w", err))
 	}
 	priorStateFile, err := r.ReadStateFile()
 	if err != nil {
-		return nil, errUnusable(fmt.Errorf("failed to read prior state from plan file: %s", err))
+		return nil, errUnusable(fmt.Errorf("failed to read prior state from plan file: %w", err))
 	}
 
 	ret.PrevRunState = prevRunStateFile.State
@@ -156,7 +156,7 @@ func (r *Reader) ReadStateFile() (*statefile.File, error) {
 		if file.Name == tfstateFilename {
 			r, err := file.Open()
 			if err != nil {
-				return nil, errUnusable(fmt.Errorf("failed to extract state from plan file: %s", err))
+				return nil, errUnusable(fmt.Errorf("failed to extract state from plan file: %w", err))
 			}
 			return statefile.Read(r)
 		}
@@ -174,7 +174,7 @@ func (r *Reader) ReadPrevStateFile() (*statefile.File, error) {
 		if file.Name == tfstatePreviousFilename {
 			r, err := file.Open()
 			if err != nil {
-				return nil, errUnusable(fmt.Errorf("failed to extract previous state from plan file: %s", err))
+				return nil, errUnusable(fmt.Errorf("failed to extract previous state from plan file: %w", err))
 			}
 			return statefile.Read(r)
 		}

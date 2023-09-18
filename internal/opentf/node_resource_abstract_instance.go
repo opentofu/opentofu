@@ -156,7 +156,7 @@ func (n *NodeAbstractResourceInstance) readDiff(ctx EvalContext, providerSchema 
 
 	change, err := csrc.Decode(schema.ImpliedType())
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode planned changes for %s: %s", n.Addr, err)
+		return nil, fmt.Errorf("failed to decode planned changes for %s: %w", n.Addr, err)
 	}
 
 	log.Printf("[TRACE] readDiff: Read %s change from plan for %s", change.Action, n.Addr)
@@ -339,7 +339,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 
 	src, err := obj.Encode(schema.ImpliedType(), currentVersion)
 	if err != nil {
-		return fmt.Errorf("failed to encode %s in state: %s", absAddr, err)
+		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)
 	}
 
 	write(src)
@@ -496,7 +496,7 @@ func (n *NodeAbstractResourceInstance) writeChange(ctx EvalContext, change *plan
 
 	csrc, err := change.Encode(schema.ImpliedType())
 	if err != nil {
-		return fmt.Errorf("failed to encode planned changes for %s: %s", n.Addr, err)
+		return fmt.Errorf("failed to encode planned changes for %s: %w", n.Addr, err)
 	}
 
 	changes.AppendResourceInstanceChange(csrc)

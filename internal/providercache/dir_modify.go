@@ -65,7 +65,7 @@ func (d *Dir) LinkFromOtherCache(entry *CachedProvider, allowedHashes []getprovi
 	if len(allowedHashes) > 0 {
 		if matches, err := entry.MatchesAnyHash(allowedHashes); err != nil {
 			return fmt.Errorf(
-				"failed to calculate checksum for cached copy of %s %s in %s: %s",
+				"failed to calculate checksum for cached copy of %s %s in %s: %w",
 				entry.Provider, entry.Version, d.baseDir, err,
 			)
 		} else if !matches {

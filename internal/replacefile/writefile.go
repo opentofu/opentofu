@@ -37,7 +37,7 @@ func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 	}
 	f, err := os.CreateTemp(dir, file) // alongside target file and with a similar name
 	if err != nil {
-		return fmt.Errorf("cannot create temporary file to update %s: %s", filename, err)
+		return fmt.Errorf("cannot create temporary file to update %s: %w", filename, err)
 	}
 	tmpName := f.Name()
 	moved := false
@@ -54,7 +54,7 @@ func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 	// not be effective on all platforms, but should at least work on
 	// Unix-like targets and should be harmless elsewhere.
 	if err := os.Chmod(tmpName, perm); err != nil {
-		return fmt.Errorf("cannot set mode for temporary file %s: %s", tmpName, err)
+		return fmt.Errorf("cannot set mode for temporary file %s: %w", tmpName, err)
 	}
 
 	// Write the credentials to the temporary file, then immediately close
@@ -63,7 +63,7 @@ func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 	_, err = f.Write(data)
 	f.Close()
 	if err != nil {
-		return fmt.Errorf("cannot write to temporary file %s: %s", tmpName, err)
+		return fmt.Errorf("cannot write to temporary file %s: %w", tmpName, err)
 	}
 
 	// Temporary file now replaces the original file, as atomically as
@@ -71,7 +71,7 @@ func AtomicWriteFile(filename string, data []byte, perm os.FileMode) error {
 	// containing only a partial JSON object.)
 	err = AtomicRename(tmpName, filename)
 	if err != nil {
-		return fmt.Errorf("failed to replace %s with temporary file %s: %s", filename, tmpName, err)
+		return fmt.Errorf("failed to replace %s with temporary file %s: %w", filename, tmpName, err)
 	}
 
 	moved = true

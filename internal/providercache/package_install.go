@@ -38,7 +38,7 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	httpClient := httpclient.New()
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("invalid provider download request: %s", err)
+		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -114,7 +114,7 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 	if len(allowedHashes) > 0 {
 		if matches, err := meta.MatchesAnyHash(allowedHashes); err != nil {
 			return authResult, fmt.Errorf(
-				"failed to calculate checksum for %s %s package at %s: %s",
+				"failed to calculate checksum for %s %s package at %s: %w",
 				meta.Provider, meta.Version, meta.Location, err,
 			)
 		} else if !matches {
@@ -152,11 +152,11 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 
 	absNew, err := filepath.Abs(targetDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make target path %s absolute: %s", targetDir, err)
+		return nil, fmt.Errorf("failed to make target path %s absolute: %w", targetDir, err)
 	}
 	absCurrent, err := filepath.Abs(sourceDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make source path %s absolute: %s", sourceDir, err)
+		return nil, fmt.Errorf("failed to make source path %s absolute: %w", sourceDir, err)
 	}
 
 	// Before we do anything else, we'll do a quick check to make sure that
@@ -166,7 +166,7 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 	if same, err := copy.SameFile(absNew, absCurrent); same {
 		return nil, fmt.Errorf("cannot install existing provider directory %s to itself", targetDir)
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to determine if %s and %s are the same: %s", sourceDir, targetDir, err)
+		return nil, fmt.Errorf("failed to determine if %s and %s are the same: %w", sourceDir, targetDir, err)
 	}
 
 	var authResult *getproviders.PackageAuthenticationResult
@@ -204,7 +204,7 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 	if suitableHashCount > 0 {
 		if matches, err := meta.MatchesAnyHash(allowedHashes); err != nil {
 			return authResult, fmt.Errorf(
-				"failed to calculate checksum for %s %s package at %s: %s",
+				"failed to calculate checksum for %s %s package at %s: %w",
 				meta.Provider, meta.Version, meta.Location, err,
 			)
 		} else if !matches {
@@ -218,7 +218,7 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 	// Delete anything that's already present at this path first.
 	err = os.RemoveAll(targetDir)
 	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to remove existing %s before linking it to %s: %s", sourceDir, targetDir, err)
+		return nil, fmt.Errorf("failed to remove existing %s before linking it to %s: %w", sourceDir, targetDir, err)
 	}
 
 	// We'll prefer to create a symlink if possible, but we'll fall back to
@@ -237,7 +237,7 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 	parentDir := filepath.Dir(absNew)
 	err = os.MkdirAll(parentDir, 0755)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create parent directories leading to %s: %s", targetDir, err)
+		return nil, fmt.Errorf("failed to create parent directories leading to %s: %w", targetDir, err)
 	}
 
 	err = os.Symlink(linkTarget, absNew)
@@ -251,11 +251,11 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 	// which would otherwise be a symlink.
 	err = os.Mkdir(absNew, 0755)
 	if err != nil && os.IsExist(err) {
-		return nil, fmt.Errorf("failed to create directory %s: %s", absNew, err)
+		return nil, fmt.Errorf("failed to create directory %s: %w", absNew, err)
 	}
 	err = copy.CopyDir(absNew, absCurrent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to either symlink or copy %s to %s: %s", absCurrent, absNew, err)
+		return nil, fmt.Errorf("failed to either symlink or copy %s to %s: %w", absCurrent, absNew, err)
 	}
 
 	// If we got here then apparently our copy succeeded, so we're done.

@@ -89,7 +89,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx EvalContext, p *config
 	}
 	provisionerSchema, err := ctx.ProvisionerSchema(p.Type)
 	if err != nil {
-		return diags.Append(fmt.Errorf("failed to read schema for provisioner %s: %s", p.Type, err))
+		return diags.Append(fmt.Errorf("failed to read schema for provisioner %s: %w", p.Type, err))
 	}
 	if provisionerSchema == nil {
 		return diags.Append(fmt.Errorf("provisioner %s has no schema", p.Type))

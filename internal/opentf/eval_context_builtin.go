@@ -267,7 +267,7 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 	for name, prov := range ctx.ProvisionerCache {
 		err := prov.Close()
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("provisioner.Close %s: %s", name, err))
+			diags = diags.Append(fmt.Errorf("provisioner.Close %s: %w", name, err))
 		}
 	}
 

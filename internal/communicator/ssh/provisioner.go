@@ -335,7 +335,7 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 		// file to create the HostKeyCallback.
 		tf, err := os.CreateTemp("", "tf-known_hosts")
 		if err != nil {
-			return nil, fmt.Errorf("failed to create temp known_hosts file: %s", err)
+			return nil, fmt.Errorf("failed to create temp known_hosts file: %w", err)
 		}
 		defer tf.Close()
 		defer os.RemoveAll(tf.Name())
@@ -344,7 +344,7 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 		// use it as a direct match if the remote host doesn't return a
 		// certificate.
 		if _, err := tf.WriteString(fmt.Sprintf("@cert-authority %s %s\n", opts.host, opts.hostKey)); err != nil {
-			return nil, fmt.Errorf("failed to write temp known_hosts file: %s", err)
+			return nil, fmt.Errorf("failed to write temp known_hosts file: %w", err)
 		}
 		tf.Sync()
 
@@ -396,22 +396,22 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 func signCertWithPrivateKey(pk string, certificate string) (ssh.AuthMethod, error) {
 	rawPk, err := ssh.ParseRawPrivateKey([]byte(pk))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key %q: %s", pk, err)
+		return nil, fmt.Errorf("failed to parse private key %q: %w", pk, err)
 	}
 
 	pcert, _, _, _, err := ssh.ParseAuthorizedKey([]byte(certificate))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate %q: %s", certificate, err)
+		return nil, fmt.Errorf("failed to parse certificate %q: %w", certificate, err)
 	}
 
 	usigner, err := ssh.NewSignerFromKey(rawPk)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create signer from raw private key %q: %s", rawPk, err)
+		return nil, fmt.Errorf("failed to create signer from raw private key %q: %w", rawPk, err)
 	}
 
 	ucertSigner, err := ssh.NewCertSigner(pcert.(*ssh.Certificate), usigner)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create cert signer %q: %s", usigner, err)
+		return nil, fmt.Errorf("failed to create cert signer %q: %w", usigner, err)
 	}
 
 	return ssh.PublicKeys(ucertSigner), nil
@@ -432,7 +432,7 @@ func readPrivateKey(pk string) (ssh.AuthMethod, error) {
 
 	signer, err := ssh.ParsePrivateKey([]byte(pk))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse ssh private key: %s", err)
+		return nil, fmt.Errorf("Failed to parse ssh private key: %w", err)
 	}
 
 	return ssh.PublicKeys(signer), nil

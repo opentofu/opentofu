@@ -227,7 +227,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 
 	matches, err := PackageMatchesAnyHash(localLocation, a.RequiredHashes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify provider package checksums: %s", err)
+		return nil, fmt.Errorf("failed to verify provider package checksums: %w", err)
 	}
 
 	if matches {
@@ -286,7 +286,7 @@ func (a archiveHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 
 	gotHash, err := PackageHashLegacyZipSHA(archiveLocation)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute checksum for %s: %s", archiveLocation, err)
+		return nil, fmt.Errorf("failed to compute checksum for %s: %w", archiveLocation, err)
 	}
 	wantHash := HashLegacyZipSHAFromSHA(a.WantSHA256Sum)
 	if gotHash != wantHash {
@@ -342,7 +342,7 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 	// Decode the ASCII checksum into a byte array for comparison.
 	var gotSHA256Sum [sha256.Size]byte
 	if _, err := hex.Decode(gotSHA256Sum[:], checksum); err != nil {
-		return nil, fmt.Errorf("checksum list has invalid SHA256 hash %q: %s", string(checksum), err)
+		return nil, fmt.Errorf("checksum list has invalid SHA256 hash %q: %w", string(checksum), err)
 	}
 
 	// If the checksums don't match, authentication fails.
@@ -406,7 +406,7 @@ func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
 	shouldValidate, err := s.shouldEnforceGPGValidation()
 	if err != nil {
-		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %s", location.String(), err.Error())
+		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %w", location.String(), err)
 	}
 
 	if !shouldValidate {
@@ -488,7 +488,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 	for _, key := range s.Keys {
 		keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key.ASCIIArmor))
 		if err != nil {
-			return nil, "", fmt.Errorf("error decoding signing key: %s", err)
+			return nil, "", fmt.Errorf("error decoding signing key: %w", err)
 		}
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), openpgpConfig)
@@ -501,7 +501,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 		// Any other signature error is terminal.
 		if err != nil {
-			return nil, "", fmt.Errorf("error checking signature: %s", err)
+			return nil, "", fmt.Errorf("error checking signature: %w", err)
 		}
 
 		keyID := "n/a"
