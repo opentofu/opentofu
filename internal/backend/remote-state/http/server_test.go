@@ -10,7 +10,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -281,11 +284,20 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error fetching StateMgr with %s: %v", backend.DefaultStateName, err)
 	}
+
+	opErr := new(net.OpError)
 	err = sm.RefreshState()
-	if nil == err {
-		t.Error("expected error when refreshing state without a client cert")
-	} else if !strings.Contains(err.Error(), "remote error: tls: bad certificate") {
-		t.Errorf("expected the error to report missing tls credentials: %v", err)
+	if err == nil {
+		t.Fatal("expected error when refreshing state without a client cert")
+	}
+	if errors.As(err, &opErr) {
+		errType := fmt.Sprintf("%T", opErr.Err)
+		expected := "tls.alert"
+		if errType != expected {
+			t.Fatalf("expected net.OpError.Err type: %q got: %q error:%s", expected, errType, err)
+		}
+	} else {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
