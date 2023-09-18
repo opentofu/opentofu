@@ -201,8 +201,33 @@ jobs:
         run: |
           make deps
 
+      - name: Restore cache license information of dependencies
+        uses: actions/cache/restore@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        with:
+          path: ".licensei.cache"
+          key: licensei-cache-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            licensei-cache-
+
+      - name: Determine Go version
+        id: go
+        uses: ./.github/actions/go-version
+
+      - name: Install Go toolchain
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+
       - name: Run licensei
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make license-check
+        if: env.LICENSE_CHECK != 'false'
+
+      - name: Save cache license information of dependencies
+        uses: actions/cache/save@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        if: always()
+        with:
+          path: ".licensei.cache"
+          key: licensei-cache-${{ hashFiles('go.sum') }}
