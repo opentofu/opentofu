@@ -254,7 +254,7 @@ func (r *ConfigFieldReader) readPrimitive(
 		var err error
 		raw, err = schema.DefaultValue()
 		if err != nil {
-			return FieldReadResult{}, fmt.Errorf("%s, error loading default: %s", k, err)
+			return FieldReadResult{}, fmt.Errorf("%s, error loading default: %w", k, err)
 		}
 
 		if raw == nil {

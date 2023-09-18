@@ -189,7 +189,7 @@ func (p *Provisioner) Validate(c *opentf.ResourceConfig) (ws []string, es []erro
 		return nil, []error{fmt.Errorf(
 			"Internal validation of the provisioner failed! This is always a bug\n"+
 				"with the provisioner itself, and not a user issue. Please report\n"+
-				"this bug:\n\n%s", err)}
+				"this bug:\n\n%w", err)}
 	}
 
 	if p.Schema != nil {

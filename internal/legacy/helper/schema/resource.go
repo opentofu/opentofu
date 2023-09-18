@@ -330,7 +330,7 @@ func (r *Resource) Diff(
 	err := t.ConfigDecode(r, c)
 
 	if err != nil {
-		return nil, fmt.Errorf("[ERR] Error decoding timeout: %s", err)
+		return nil, fmt.Errorf("[ERR] Error decoding timeout: %w", err)
 	}
 
 	instanceDiff, err := schemaMap(r.Schema).Diff(s, c, r.CustomizeDiff, meta, true)

@@ -328,7 +328,7 @@ func (s *Schema) DefaultValue() (interface{}, error) {
 	if s.DefaultFunc != nil {
 		defaultValue, err := s.DefaultFunc()
 		if err != nil {
-			return nil, fmt.Errorf("error loading default: %s", err)
+			return nil, fmt.Errorf("error loading default: %w", err)
 		}
 		return defaultValue, nil
 	}
@@ -648,7 +648,7 @@ func (m schemaMap) Input(
 		// Skip if it has a default value
 		defaultValue, err := v.DefaultValue()
 		if err != nil {
-			return nil, fmt.Errorf("%s: error loading default: %s", k, err)
+			return nil, fmt.Errorf("%s: error loading default: %w", k, err)
 		}
 		if defaultValue != nil {
 			continue
@@ -1047,10 +1047,10 @@ func (m schemaMap) diffMap(
 	var stateMap, configMap map[string]string
 	o, n, _, nComputed, customized := d.diffChange(k)
 	if err := mapstructure.WeakDecode(o, &stateMap); err != nil {
-		return fmt.Errorf("%s: %s", k, err)
+		return fmt.Errorf("%s: %w", k, err)
 	}
 	if err := mapstructure.WeakDecode(n, &configMap); err != nil {
-		return fmt.Errorf("%s: %s", k, err)
+		return fmt.Errorf("%s: %w", k, err)
 	}
 
 	// Keep track of whether the state _exists_ at all prior to clearing it
@@ -1281,10 +1281,10 @@ func (m schemaMap) diffString(
 		nraw = schema.Type.Zero()
 	}
 	if err := mapstructure.WeakDecode(o, &os); err != nil {
-		return fmt.Errorf("%s: %s", k, err)
+		return fmt.Errorf("%s: %w", k, err)
 	}
 	if err := mapstructure.WeakDecode(nraw, &ns); err != nil {
-		return fmt.Errorf("%s: %s", k, err)
+		return fmt.Errorf("%s: %w", k, err)
 	}
 
 	if os == ns && !all && !computed {
@@ -1347,7 +1347,7 @@ func (m schemaMap) validate(
 		raw, err = schema.DefaultFunc()
 		if err != nil {
 			return nil, []error{fmt.Errorf(
-				"%q, error loading default: %s", k, err)}
+				"%q, error loading default: %w", k, err)}
 		}
 
 		// We're okay as long as we had a value set
@@ -1616,22 +1616,22 @@ func validateMapValues(k string, m map[string]interface{}, schema *Schema) ([]st
 		case TypeBool:
 			var n bool
 			if err := mapstructure.WeakDecode(raw, &n); err != nil {
-				return nil, []error{fmt.Errorf("%s (%s): %s", k, key, err)}
+				return nil, []error{fmt.Errorf("%s (%s): %w", k, key, err)}
 			}
 		case TypeInt:
 			var n int
 			if err := mapstructure.WeakDecode(raw, &n); err != nil {
-				return nil, []error{fmt.Errorf("%s (%s): %s", k, key, err)}
+				return nil, []error{fmt.Errorf("%s (%s): %w", k, key, err)}
 			}
 		case TypeFloat:
 			var n float64
 			if err := mapstructure.WeakDecode(raw, &n); err != nil {
-				return nil, []error{fmt.Errorf("%s (%s): %s", k, key, err)}
+				return nil, []error{fmt.Errorf("%s (%s): %w", k, key, err)}
 			}
 		case TypeString:
 			var n string
 			if err := mapstructure.WeakDecode(raw, &n); err != nil {
-				return nil, []error{fmt.Errorf("%s (%s): %s", k, key, err)}
+				return nil, []error{fmt.Errorf("%s (%s): %w", k, key, err)}
 			}
 		default:
 			panic(fmt.Sprintf("Unknown validation type: %#v", schema.Type))
@@ -1753,7 +1753,7 @@ func (m schemaMap) validatePrimitive(
 		// Verify that we can parse this as the correct type
 		var n bool
 		if err := mapstructure.WeakDecode(raw, &n); err != nil {
-			return nil, []error{fmt.Errorf("%s: %s", k, err)}
+			return nil, []error{fmt.Errorf("%s: %w", k, err)}
 		}
 		decoded = n
 	case TypeInt:
@@ -1772,7 +1772,7 @@ func (m schemaMap) validatePrimitive(
 			// Verify that we can parse this as an int
 			var n int
 			if err := mapstructure.WeakDecode(raw, &n); err != nil {
-				return nil, []error{fmt.Errorf("%s: %s", k, err)}
+				return nil, []error{fmt.Errorf("%s: %w", k, err)}
 			}
 			decoded = n
 		}
@@ -1780,14 +1780,14 @@ func (m schemaMap) validatePrimitive(
 		// Verify that we can parse this as an int
 		var n float64
 		if err := mapstructure.WeakDecode(raw, &n); err != nil {
-			return nil, []error{fmt.Errorf("%s: %s", k, err)}
+			return nil, []error{fmt.Errorf("%s: %w", k, err)}
 		}
 		decoded = n
 	case TypeString:
 		// Verify that we can parse this as a string
 		var n string
 		if err := mapstructure.WeakDecode(raw, &n); err != nil {
-			return nil, []error{fmt.Errorf("%s: %s", k, err)}
+			return nil, []error{fmt.Errorf("%s: %w", k, err)}
 		}
 		decoded = n
 	default:

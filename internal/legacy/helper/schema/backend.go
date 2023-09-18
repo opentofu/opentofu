@@ -102,7 +102,7 @@ func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnos
 		// find a default value if it exists
 		def, err := attrSchema.DefaultValue()
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("error getting default for %q: %s", getAttr.Name, err))
+			diags = diags.Append(fmt.Errorf("error getting default for %q: %w", getAttr.Name, err))
 			return val, err
 		}
 
@@ -123,7 +123,7 @@ func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnos
 
 		val, err = ctyconvert.Convert(tmpVal, val.Type())
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("error setting default for %q: %s", getAttr.Name, err))
+			diags = diags.Append(fmt.Errorf("error setting default for %q: %w", getAttr.Name, err))
 		}
 
 		return val, err

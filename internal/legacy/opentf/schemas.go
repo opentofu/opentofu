@@ -109,7 +109,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 			// future calls.
 			schemas[fqn] = &ProviderSchema{}
 			diags = diags.Append(
-				fmt.Errorf("Failed to instantiate provider %q to obtain schema: %s", name, err),
+				fmt.Errorf("Failed to instantiate provider %q to obtain schema: %w", name, err),
 			)
 			return
 		}
@@ -123,7 +123,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 			// future calls.
 			schemas[fqn] = &ProviderSchema{}
 			diags = diags.Append(
-				fmt.Errorf("Failed to retrieve schema from provider %q: %s", name, resp.Diagnostics.Err()),
+				fmt.Errorf("Failed to retrieve schema from provider %q: %w", name, resp.Diagnostics.Err()),
 			)
 			return
 		}
@@ -203,7 +203,7 @@ func loadProvisionerSchemas(schemas map[string]*configschema.Block, config *conf
 			// future calls.
 			schemas[name] = &configschema.Block{}
 			diags = diags.Append(
-				fmt.Errorf("Failed to instantiate provisioner %q to obtain schema: %s", name, err),
+				fmt.Errorf("Failed to instantiate provisioner %q to obtain schema: %w", name, err),
 			)
 			return
 		}
@@ -219,7 +219,7 @@ func loadProvisionerSchemas(schemas map[string]*configschema.Block, config *conf
 			// future calls.
 			schemas[name] = &configschema.Block{}
 			diags = diags.Append(
-				fmt.Errorf("Failed to retrieve schema from provisioner %q: %s", name, resp.Diagnostics.Err()),
+				fmt.Errorf("Failed to retrieve schema from provisioner %q: %w", name, resp.Diagnostics.Err()),
 			)
 			return
 		}

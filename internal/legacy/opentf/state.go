@@ -671,7 +671,7 @@ func (s *State) ensureHasLineage() {
 	if s.Lineage == "" {
 		lineage, err := uuid.GenerateUUID()
 		if err != nil {
-			panic(fmt.Errorf("Failed to generate lineage: %v", err))
+			panic(fmt.Errorf("Failed to generate lineage: %w", err))
 		}
 		s.Lineage = lineage
 		log.Printf("[DEBUG] New state was assigned lineage %q\n", s.Lineage)
@@ -953,7 +953,7 @@ func (s *OutputState) deepcopy() *OutputState {
 
 	stateCopy, err := copystructure.Config{Lock: true}.Copy(s)
 	if err != nil {
-		panic(fmt.Errorf("Error copying output value: %s", err))
+		panic(fmt.Errorf("Error copying output value: %w", err))
 	}
 
 	return stateCopy.(*OutputState)
@@ -1918,7 +1918,7 @@ type jsonStateVersionIdentifier struct {
 func testForV0State(buf *bufio.Reader) error {
 	start, err := buf.Peek(len("tfstate"))
 	if err != nil {
-		return fmt.Errorf("Failed to check for magic bytes: %v", err)
+		return fmt.Errorf("Failed to check for magic bytes: %w", err)
 	}
 	if string(start) == "tfstate" {
 		return fmt.Errorf("OpenTF 0.7 no longer supports upgrading the binary state\n" +
@@ -1959,12 +1959,12 @@ func ReadState(src io.Reader) (*State, error) {
 	// This is suboptimal, but will work for now.
 	jsonBytes, err := io.ReadAll(buf)
 	if err != nil {
-		return nil, fmt.Errorf("Reading state file failed: %v", err)
+		return nil, fmt.Errorf("Reading state file failed: %w", err)
 	}
 
 	versionIdentifier := &jsonStateVersionIdentifier{}
 	if err := json.Unmarshal(jsonBytes, versionIdentifier); err != nil {
-		return nil, fmt.Errorf("Decoding state file version failed: %v", err)
+		return nil, fmt.Errorf("Decoding state file version failed: %w", err)
 	}
 
 	var result *State
@@ -2034,7 +2034,7 @@ func ReadState(src io.Reader) (*State, error) {
 func ReadStateV1(jsonBytes []byte) (*stateV1, error) {
 	v1State := &stateV1{}
 	if err := json.Unmarshal(jsonBytes, v1State); err != nil {
-		return nil, fmt.Errorf("Decoding state file failed: %v", err)
+		return nil, fmt.Errorf("Decoding state file failed: %w", err)
 	}
 
 	if v1State.Version != 1 {
@@ -2048,7 +2048,7 @@ func ReadStateV1(jsonBytes []byte) (*stateV1, error) {
 func ReadStateV2(jsonBytes []byte) (*State, error) {
 	state := &State{}
 	if err := json.Unmarshal(jsonBytes, state); err != nil {
-		return nil, fmt.Errorf("Decoding state file failed: %v", err)
+		return nil, fmt.Errorf("Decoding state file failed: %w", err)
 	}
 
 	// Check the version, this to ensure we don't read a future
@@ -2083,7 +2083,7 @@ func ReadStateV2(jsonBytes []byte) (*State, error) {
 func ReadStateV3(jsonBytes []byte) (*State, error) {
 	state := &State{}
 	if err := json.Unmarshal(jsonBytes, state); err != nil {
-		return nil, fmt.Errorf("Decoding state file failed: %v", err)
+		return nil, fmt.Errorf("Decoding state file failed: %w", err)
 	}
 
 	// Check the version, this to ensure we don't read a future
@@ -2161,7 +2161,7 @@ func WriteState(d *State, dst io.Writer) error {
 	// Encode the data in a human-friendly way
 	data, err := json.MarshalIndent(d, "", "    ")
 	if err != nil {
-		return fmt.Errorf("Failed to encode state: %s", err)
+		return fmt.Errorf("Failed to encode state: %w", err)
 	}
 
 	// We append a newline to the data because MarshalIndent doesn't
@@ -2169,7 +2169,7 @@ func WriteState(d *State, dst io.Writer) error {
 
 	// Write the data out to the dst
 	if _, err := io.Copy(dst, bytes.NewReader(data)); err != nil {
-		return fmt.Errorf("Failed to write state: %v", err)
+		return fmt.Errorf("Failed to write state: %w", err)
 	}
 
 	return nil
