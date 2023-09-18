@@ -164,7 +164,7 @@ func (b *Backend) path(name string) string {
 const errStateUnlock = `
 Error unlocking Azure state. Lock ID: %s
 
-Error: %s
+Error: %w
 
 You may have to force-unlock this state in order to use it again.
 `

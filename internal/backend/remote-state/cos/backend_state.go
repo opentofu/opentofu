@@ -106,7 +106,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		lockInfo.Operation = "init"
 		lockId, err := c.Lock(lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to lock cos state: %s", err)
+			return nil, fmt.Errorf("Failed to lock cos state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
