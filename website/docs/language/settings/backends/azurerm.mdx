@@ -77,7 +77,9 @@ terraform {
 }
 ```
 
--> **Note:** When using AzureAD for Authentication to Storage you also need to ensure the `Storage Blob Data Owner` role is assigned.
+:::note
+When using AzureAD for Authentication to Storage you also need to ensure the `Storage Blob Data Owner` role is assigned.
+:::
 
 ***
 
@@ -115,7 +117,9 @@ terraform {
 }
 ```
 
--> **NOTE:** When using a Service Principal or an Access Key - we recommend using a [Partial Configuration](/docs/language/settings/backends/configuration#partial-configuration) for the credentials.
+:::note
+When using a Service Principal or an Access Key - we recommend using a [Partial Configuration](/docs/language/settings/backends/configuration#partial-configuration) for the credentials.
+:::
 
 ## Data Source Configuration
 
@@ -188,7 +192,9 @@ data "terraform_remote_state" "foo" {
 }
 ```
 
--> **Note:** When using AzureAD for Authentication to Storage you also need to ensure the `Storage Blob Data Owner` role is assigned.
+:::note
+When using AzureAD for Authentication to Storage you also need to ensure the `Storage Blob Data Owner` role is assigned.
+:::
 
 ***
 
@@ -230,8 +236,9 @@ data "terraform_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
-
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration options are supported:
 
@@ -245,7 +252,9 @@ The following configuration options are supported:
 
 * `endpoint` - (Optional) The Custom Endpoint for Azure Resource Manager. This can also be sourced from the `ARM_ENDPOINT` environment variable.
 
-~> **NOTE:** An `endpoint` should only be configured when using Azure Stack.
+  :::warning Note
+  An `endpoint` should only be configured when using Azure Stack.
+  :::
 
 * `metadata_host` - (Optional) The Hostname of the Azure Metadata Service (for example `management.azure.com`), used to obtain the Cloud Environment when using a Custom Azure Environment. This can also be sourced from the `ARM_METADATA_HOSTNAME` Environment Variable.
 
@@ -297,7 +306,9 @@ When authenticating using AzureAD Authentication - the following fields are also
 
 * `use_azuread_auth` - (Optional) Should AzureAD Authentication be used to access the Blob Storage Account. This can also be sourced from the `ARM_USE_AZUREAD` environment variable.
 
--> **Note:** When using AzureAD for Authentication to Storage you also need to ensure the `Storage Blob Data Owner` role is assigned.
+  :::note
+  When using AzureAD for Authentication to Storage you also need to ensure the `Storage Blob Data Owner` role is assigned.
+  :::
 
 ***
 

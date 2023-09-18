@@ -17,8 +17,10 @@ compare modules to function definitions:
 - [Output values](/docs/language/values/outputs) are like function return values.
 - Local values are like a function's temporary local variables.
 
--> **Note:** For brevity, local values are often referred to as just "locals"
+:::note
+For brevity, local values are often referred to as just "locals"
 when the meaning is clear from context.
+:::
 
 ## Declaring a Local Value
 
@@ -56,9 +58,11 @@ locals {
 Once a local value is declared, you can reference it in
 [expressions](/docs/language/expressions) as `local.<NAME>`.
 
--> **Note:** Local values are _created_ by a `locals` block (plural), but you
+:::note
+Local values are _created_ by a `locals` block (plural), but you
 _reference_ them as attributes on an object named `local` (singular). Make sure
 to leave off the "s" when referencing a local value!
+:::
 
 ```
 resource "aws_instance" "example" {

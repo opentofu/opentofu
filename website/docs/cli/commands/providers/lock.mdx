@@ -48,13 +48,15 @@ providers from their origin registries and then update
 include a selected version for each provider and all of the package checksums
 that are covered by the provider developer's cryptographic signature.
 
-~> **Warning:** The `opentf providers lock` command prints information
+:::warning
+The `opentf providers lock` command prints information
 about what it has fetched and whether each package was signed using a
 cryptographic signature, but it cannot automatically verify that the
 providers are trustworthy and that they comply with your local system
 policies or relevant regulations. Review the signing key information
 in the output to confirm that you trust all of the signers before committing
 the updated lock file to your version control system.
+:::
 
 If you list one or more provider source addresses on the command line then
 `opentf providers lock` will restrict its work only to those providers,

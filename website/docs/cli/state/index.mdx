@@ -25,7 +25,9 @@ OpenTF CLI supports several workflows for interacting with state:
   [Importing Infrastructure](/docs/cli/import) section)
 - [Disaster Recovery](/docs/cli/state/recover)
 
-~> **Important:** Modifying state data outside a normal plan or apply can cause
+:::warning Important
+Modifying state data outside a normal plan or apply can cause
 OpenTF to lose track of managed resources, which might waste money, annoy
 your colleagues, or even compromise the security of your operations. Make sure
 to keep backups of your state data when modifying state out-of-band.
+:::

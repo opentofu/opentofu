@@ -7,7 +7,9 @@ description: >-
 
 # Backend Type: remote
 
--> **Note:** **We recommend using the [`cloud` built-in integration](/docs/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+:::note
+**We recommend using the [`cloud` built-in integration](/docs/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+:::
 
 The remote backend is unique among all other OpenTF backends because it can both store state snapshots and execute operations for TACOS (TF Automation and Collaboration Software) [CLI-driven run workflow](/docs/cloud-docs/run/cli). It used to be called an "enhanced" backend.
 
@@ -94,9 +96,11 @@ output "remote_execution_determine" {
 
 ## Example Configurations
 
-->  **Note:** We recommend omitting the token from the configuration, and instead using
+:::note
+We recommend omitting the token from the configuration, and instead using
 [`opentf login`](/docs/cli/commands/login) or manually configuring
 `credentials` in the [CLI config file](/docs/cli/config/config-file#credentials).
+:::
 
 ### Basic Configuration
 
@@ -170,7 +174,9 @@ data "terraform_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration options are supported:
 
@@ -193,9 +199,11 @@ The following configuration options are supported:
     (minus the prefix) are used on the command line for OpenTF CLI workspaces.
     If omitted, only the default workspace can be used. This option conflicts with `name`.
 
-->  **Note:** You must use the `name` key when configuring a `terraform_remote_state`
+:::note
+You must use the `name` key when configuring a `terraform_remote_state`
 data source that retrieves state from another remote workspace. The `prefix` key is only
 intended for use when configuring an instance of the remote backend.
+:::
 
 ## Command Line Arguments
 

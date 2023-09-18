@@ -9,9 +9,11 @@ description: |-
 The `opentf refresh` command reads the current settings from all managed
 remote objects and updates the OpenTF state to match.
 
-~> _Warning:_ This command is deprecated, because its default behavior is
+:::warning
+This command is deprecated, because its default behavior is
 unsafe if you have misconfigured credentials for any of your providers.
 See below for more information and recommended alternatives.
+:::
 
 This won't modify your real remote objects, but it will modify the
 [OpenTF state](/docs/language/state).

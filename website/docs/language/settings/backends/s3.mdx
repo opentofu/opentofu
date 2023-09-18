@@ -12,9 +12,11 @@ This backend also supports state locking and consistency checking via
 the `dynamodb_table` field to an existing DynamoDB table name.
 A single DynamoDB table can be used to lock multiple remote state files. OpenTF generates key names that include the values of the `bucket` and `key` variables.
 
-~> **Warning!** It is highly recommended that you enable
+:::warning
+It is highly recommended that you enable
 [Bucket Versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/manage-versioning-examples.html)
 on the S3 bucket to allow for state recovery in the case of accidental deletions and human error.
+:::
 
 ## Example Configuration
 
@@ -64,12 +66,14 @@ This is seen in the following AWS IAM Statement:
 }
 ```
 
--> **Note:** AWS can control access to S3 buckets with either IAM policies
+:::note
+AWS can control access to S3 buckets with either IAM policies
 attached to users/groups/roles (like the example above) or resource policies
 attached to bucket objects (which look similar but also require a `Principal` to
 indicate which entity has those permissions). For more details, see Amazon's
 documentation about
 [S3 access control](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
+:::
 
 ### DynamoDB Table Permissions
 
@@ -143,7 +147,9 @@ This backend requires the configuration of the AWS Region and S3 state storage. 
 
 ### Credentials and Shared Configuration
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration is required:
 

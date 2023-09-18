@@ -5,7 +5,9 @@ description: >-
 
 # Import
 
-~> **Experimental:** While we do not expect to make backwards-incompatible changes to syntax, the `-generate-config-out` flag and how OpenTF processes imports during the plan stage and generates configuration may change in future releases.
+:::warning Experimental
+While we do not expect to make backwards-incompatible changes to syntax, the `-generate-config-out` flag and how OpenTF processes imports during the plan stage and generates configuration may change in future releases.
+:::
 
 Use the `import` block to import existing infrastructure resources into OpenTF, bringing them under OpenTF's management. Unlike the `opentf import` command, configuration-driven import using `import` blocks is predictable, works with CICD pipelines, and lets you preview an import operation before modifying state.
 

@@ -43,13 +43,15 @@ object and create a new object at the new address, and so `opentf state mv`
 allows you to override that interpretation by pre-emptively attaching the
 existing object to the new address in OpenTF.
 
-~> _Warning:_ If you are using OpenTF in a collaborative environment, you
+:::warning
+If you are using OpenTF in a collaborative environment, you
 must ensure that when you are using `opentf state mv` for a code refactoring
 purpose you communicate carefully with your coworkers to ensure that nobody
 makes any other changes between your configuration change and your
 `opentf state mv` command, because otherwise they might inadvertently create
 a plan that will destroy the old object and create a new object at the new
 address.
+:::
 
 This command also accepts the following options:
 

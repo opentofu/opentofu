@@ -73,12 +73,14 @@ access to data that isn't known until runtime. It will not catch errors
 relating to expressions that can be proven to be invalid for any input, such
 as a malformed resource reference.
 
-~> **Warning:** The `try` function is intended only for concise testing of the
+:::warning
+The `try` function is intended only for concise testing of the
 presence of and types of object attributes. Although it can technically accept
 any sort of expression, we recommend using it only with simple attribute
 references and type conversion functions as shown in the examples above.
 Overuse of `try` to suppress errors will lead to a configuration that is hard
 to understand and maintain.
+:::
 
 ## Examples
 

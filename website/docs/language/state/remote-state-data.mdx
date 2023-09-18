@@ -41,12 +41,14 @@ limited to) the following:
 | Kubernetes                                                             | [`kubernetes_config_map` resource type](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/resources/config_map)                           | [`kubernetes_config_map` data source](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/data-sources/config_map)                                                                                                                              |
 | OCI Object Storage                                                     | [`oci_objectstorage_bucket` resource type](https://registry.terraform.io/providers/hashicorp/oci/latest/docs/resources/objectstorage_object)                     | [`oci_objectstorage_bucket` data source](https://registry.terraform.io/providers/hashicorp/oci/latest/docs/data-sources/objectstorage_object)                                                                                                                        |
 
--> These are some common options from the Official OpenTF providers, but
+:::note
+These are some common options from the Official OpenTF providers, but
 there are too many configuration storage options for us to list them all
 here, including some in partner and community providers.
 Any pair of managed resource type and corresponding data source can potentially
 be used to share data between OpenTF configurations. See individual provider
 documentation to find other possibilities.
+:::
 
 A key advantage of using a separate explicit configuration store instead of
 `terraform_remote_state` is that the data can potentially also be read by
@@ -137,9 +139,11 @@ The following arguments are supported:
   [the documentation of your chosen backend](/docs/language/settings/backends/configuration)
   for details.
 
-  -> **Note:** If the backend configuration requires a nested block, specify
+  :::note
+  If the backend configuration requires a nested block, specify
   it here as a normal attribute with an object value. (For example,
   `workspaces = { ... }` instead of `workspaces { ... }`.)
+  :::
 * `defaults` - (Optional; object) Default values for outputs, in case the state
   file is empty or lacks a required output.
 
@@ -177,10 +181,12 @@ available as the `app_value` root module output value. If this configuration
 didn't include the `output "app_value"` block then the data would not be
 accessible via `terraform_remote_state`.
 
-~> **Warning:** Although `terraform_remote_state` doesn't expose any other
+:::warning
+Although `terraform_remote_state` doesn't expose any other
 state snapshot information for use in configuration, the state snapshot data
 is a single object and so any user or server which has enough access to read
 the root module output values will also always have access to the full state
 snapshot data by direct network requests. Don't use `terraform_remote_state`
 if any of the resources in your configuration work with data that you consider
 sensitive.
+:::

@@ -22,8 +22,10 @@ Resource instances managed by OpenTF each export attributes whose values
 can be used elsewhere in configuration. Output values are a way to expose some
 of that information to the user of your module.
 
--> **Note:** For brevity, output values are often referred to as just "outputs"
+:::note
+For brevity, output values are often referred to as just "outputs"
 when the meaning is clear from context.
+:::
 
 ## Declaring an Output Value
 
@@ -47,8 +49,10 @@ refers to the `private_ip` attribute exposed by an `aws_instance` resource
 defined elsewhere in this module (not shown). Any valid expression is allowed
 as an output value.
 
--> **Note:** Outputs are only rendered when OpenTF applies your plan. Running
+:::note
+Outputs are only rendered when OpenTF applies your plan. Running
 `opentf plan` will not render outputs.
+:::
 
 ## Accessing Child Module Outputs
 

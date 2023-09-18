@@ -5,7 +5,9 @@ description: OpenTF can store state remotely in Kubernetes and lock that state.
 
 # Backend Type: kubernetes
 
--> **Note:** This backend is limited by Kubernetes' maximum Secret size of 1MB. See [Secret restrictions](https://kubernetes.io/docs/concepts/configuration/secret/#restrictions) for details.
+:::note
+This backend is limited by Kubernetes' maximum Secret size of 1MB. See [Secret restrictions](https://kubernetes.io/docs/concepts/configuration/secret/#restrictions) for details.
+:::
 
 Stores the state in a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/).
 
@@ -46,7 +48,9 @@ data "terraform_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration options are supported:
 
