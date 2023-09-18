@@ -164,7 +164,7 @@ nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}'
     homepage: https://opentf.org
     description: >-
-      OpenTF lets you declaratively manage your cloud infrastructure.
+      OpenTF lets you write declarative code to manage your cloud infrastructure.
     license: "MPL-2.0"
     formats:
       - deb
