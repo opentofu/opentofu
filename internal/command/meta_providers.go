@@ -231,7 +231,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error) {
 	locks, diags := m.lockedDependencies()
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("failed to read dependency lock file: %s", diags.Err())
+		return nil, fmt.Errorf("failed to read dependency lock file: %w", diags.Err())
 	}
 
 	// We'll always run through all of our providers, even if one of them
@@ -306,7 +306,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 			matched, err := cached.MatchesAnyHash(allowedHashes)
 			if err != nil {
 				reportError(fmt.Errorf(
-					"failed to verify checksum of %s %s package cached in in %s: %s",
+					"failed to verify checksum of %s %s package cached in in %s: %w",
 					provider, version, cacheDir.BasePath(), err,
 				))
 				continue

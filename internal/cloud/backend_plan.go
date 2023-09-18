@@ -399,7 +399,7 @@ func (b *Cloud) AssertImportCompatible(config *configs.Config) error {
 		// First, check the remote API version is high enough.
 		currentAPIVersion, err := version.NewVersion(b.client.RemoteAPIVersion())
 		if err != nil {
-			return fmt.Errorf("Error parsing remote API version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: %s", err)
+			return fmt.Errorf("Error parsing remote API version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: %w", err)
 		}
 		desiredAPIVersion, _ := version.NewVersion("2.6")
 		if currentAPIVersion.LessThan(desiredAPIVersion) {
@@ -413,7 +413,7 @@ func (b *Cloud) AssertImportCompatible(config *configs.Config) error {
 		}
 		currentAgentVersion, err := version.NewVersion(agentEnv)
 		if err != nil {
-			return fmt.Errorf("Error parsing TFC agent version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: %s", err)
+			return fmt.Errorf("Error parsing TFC agent version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: %w", err)
 		}
 		desiredAgentVersion, _ := version.NewVersion("1.10")
 		if currentAgentVersion.LessThan(desiredAgentVersion) {

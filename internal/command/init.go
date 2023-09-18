@@ -163,7 +163,7 @@ func (c *InitCommand) Run(args []string) int {
 	// the backend with an empty directory.
 	empty, err := configs.IsEmptyDir(path)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error checking configuration: %s", err))
+		diags = diags.Append(fmt.Errorf("Error checking configuration: %w", err))
 		c.showDiagnostics(diags)
 		return 1
 	}

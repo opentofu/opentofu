@@ -556,7 +556,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 		}
 		projects, err := b.client.Projects.List(context.Background(), b.organization, listOpts)
 		if err != nil && err != tfe.ErrResourceNotFound {
-			return nil, fmt.Errorf("failed to retrieve project %s: %v", listOpts.Name, err)
+			return nil, fmt.Errorf("failed to retrieve project %s: %w", listOpts.Name, err)
 		}
 		for _, p := range projects.Items {
 			if p.Name == b.WorkspaceMapping.Project {
@@ -607,7 +607,7 @@ func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to retrieve workspace %s: %v", name, err)
+		return fmt.Errorf("failed to retrieve workspace %s: %w", name, err)
 	}
 
 	// Configure the remote workspace name.
@@ -629,7 +629,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 
 	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
-		return nil, fmt.Errorf("Failed to retrieve workspace %s: %v", name, err)
+		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
 	if workspace != nil {
 		remoteTFVersion = workspace.TerraformVersion
@@ -683,7 +683,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 				log.Printf("[TRACE] cloud: Creating cloud backend project %s/%s", b.organization, b.WorkspaceMapping.Project)
 				project, err := b.client.Projects.Create(context.Background(), b.organization, createOpts)
 				if err != nil && err != tfe.ErrResourceNotFound {
-					return nil, fmt.Errorf("failed to create project %s: %v", b.WorkspaceMapping.Project, err)
+					return nil, fmt.Errorf("failed to create project %s: %w", b.WorkspaceMapping.Project, err)
 				}
 				configuredProject = project
 				workspaceCreateOptions.Project = configuredProject
@@ -694,7 +694,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		log.Printf("[TRACE] cloud: Creating cloud backend workspace %s/%s", b.organization, name)
 		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, workspaceCreateOptions)
 		if err != nil {
-			return nil, fmt.Errorf("error creating workspace %s: %v", name, err)
+			return nil, fmt.Errorf("error creating workspace %s: %w", name, err)
 		}
 
 		remoteTFVersion = workspace.TerraformVersion
@@ -729,7 +729,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		log.Printf("[TRACE] cloud: Adding tags for cloud backend workspace %s/%s", b.organization, name)
 		err = b.client.Workspaces.AddTags(context.Background(), workspace.ID, options)
 		if err != nil {
-			return nil, fmt.Errorf("Error updating workspace %s: %v", name, err)
+			return nil, fmt.Errorf("Error updating workspace %s: %w", name, err)
 		}
 	}
 
@@ -1120,7 +1120,7 @@ func (b *Cloud) fetchWorkspace(ctx context.Context, organization string, workspa
 			)
 		default:
 			err := fmt.Errorf(
-				"Terraform Cloud returned an unexpected error:\n\n%s",
+				"Terraform Cloud returned an unexpected error:\n\n%w",
 				err,
 			)
 			return nil, err

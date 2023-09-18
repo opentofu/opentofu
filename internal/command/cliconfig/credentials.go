@@ -42,7 +42,7 @@ func (c *Config) CredentialsSource(helperPlugins pluginDiscovery.PluginMetaSet) 
 	if err != nil {
 		// If we managed to load a Config object at all then we would already
 		// have located this file, so this error is very unlikely.
-		return nil, fmt.Errorf("can't locate credentials file: %s", err)
+		return nil, fmt.Errorf("can't locate credentials file: %w", err)
 	}
 
 	var helper svcauth.CredentialsSource
@@ -325,12 +325,12 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 
 	filename, err := s.CredentialsFilePath()
 	if err != nil {
-		return fmt.Errorf("unable to determine credentials file path: %s", err)
+		return fmt.Errorf("unable to determine credentials file path: %w", err)
 	}
 
 	oldSrc, err := os.ReadFile(filename)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("cannot read %s: %s", filename, err)
+		return fmt.Errorf("cannot read %s: %w", filename, err)
 	}
 
 	var raw map[string]interface{}
@@ -342,7 +342,7 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 		dec.UseNumber()
 		err = dec.Decode(&raw)
 		if err != nil {
-			return fmt.Errorf("cannot read %s: %s", filename, err)
+			return fmt.Errorf("cannot read %s: %w", filename, err)
 		}
 	} else {
 		raw = make(map[string]interface{})
@@ -383,7 +383,7 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 
 	newSrc, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
-		return fmt.Errorf("cannot serialize updated credentials file: %s", err)
+		return fmt.Errorf("cannot serialize updated credentials file: %w", err)
 	}
 
 	// Now we'll write our new content over the top of the existing file.
@@ -397,7 +397,7 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 		dir, file := filepath.Split(filename)
 		f, err := os.CreateTemp(dir, file)
 		if err != nil {
-			return fmt.Errorf("cannot create temporary file to update credentials: %s", err)
+			return fmt.Errorf("cannot create temporary file to update credentials: %w", err)
 		}
 		tmpName := f.Name()
 		moved := false
@@ -415,7 +415,7 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 		_, err = f.Write(newSrc)
 		f.Close()
 		if err != nil {
-			return fmt.Errorf("cannot write to temporary file %s: %s", tmpName, err)
+			return fmt.Errorf("cannot write to temporary file %s: %w", tmpName, err)
 		}
 
 		// Temporary file now replaces the original file, as atomically as
@@ -423,14 +423,14 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 		// containing only a partial JSON object.)
 		err = replacefile.AtomicRename(tmpName, filename)
 		if err != nil {
-			return fmt.Errorf("failed to replace %s with temporary file %s: %s", filename, tmpName, err)
+			return fmt.Errorf("failed to replace %s with temporary file %s: %w", filename, tmpName, err)
 		}
 
 		// Credentials file should be readable only by its owner. (This may
 		// not be effective on all platforms, but should at least work on
 		// Unix-like targets and should be harmless elsewhere.)
 		if err := os.Chmod(filename, 0600); err != nil {
-			return fmt.Errorf("cannot set mode for credentials file %s: %s", filename, err)
+			return fmt.Errorf("cannot set mode for credentials file %s: %w", filename, err)
 		}
 
 		moved = true

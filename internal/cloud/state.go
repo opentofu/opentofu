@@ -179,7 +179,7 @@ func (s *State) PersistState(schemas *opentf.Schemas) error {
 		// that we ought to be updating.
 		err := s.refreshState()
 		if err != nil {
-			return fmt.Errorf("failed checking for existing remote state: %s", err)
+			return fmt.Errorf("failed checking for existing remote state: %w", err)
 		}
 		log.Printf("[DEBUG] cloud/state: after refresh, state read serial is: %d; serial is: %d", s.readSerial, s.serial)
 		log.Printf("[DEBUG] cloud/state: after refresh, state read lineage is: %s; lineage is: %s", s.readLineage, s.lineage)
@@ -187,7 +187,7 @@ func (s *State) PersistState(schemas *opentf.Schemas) error {
 		if s.lineage == "" { // indicates that no state snapshot is present yet
 			lineage, err := uuid.GenerateUUID()
 			if err != nil {
-				return fmt.Errorf("failed to generate initial lineage: %v", err)
+				return fmt.Errorf("failed to generate initial lineage: %w", err)
 			}
 			s.lineage = lineage
 			s.serial++
@@ -343,7 +343,7 @@ func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
 	if err != nil {
 		if err == tfe.ErrWorkspaceLocked {
 			lockErr.Info = info
-			err = fmt.Errorf("%s (lock ID: \"%s/%s\")", err, s.organization, s.workspace.Name)
+			err = fmt.Errorf("%w (lock ID: \"%s/%s\")", err, s.organization, s.workspace.Name)
 		}
 		lockErr.Err = err
 		return "", lockErr
@@ -408,12 +408,12 @@ func (s *State) getStatePayload() (*remote.Payload, error) {
 			// If no state exists, then return nil.
 			return nil, nil
 		}
-		return nil, fmt.Errorf("error retrieving state: %v", err)
+		return nil, fmt.Errorf("error retrieving state: %w", err)
 	}
 
 	state, err := s.tfeClient.StateVersions.Download(ctx, sv.DownloadURL)
 	if err != nil {
-		return nil, fmt.Errorf("error downloading state: %v", err)
+		return nil, fmt.Errorf("error downloading state: %w", err)
 	}
 
 	// If the state is empty, then return nil.
@@ -502,7 +502,7 @@ func (s *State) Delete(force bool) error {
 	}
 
 	if err != nil && err != tfe.ErrResourceNotFound {
-		return fmt.Errorf("error deleting workspace %s: %v", s.workspace.Name, err)
+		return fmt.Errorf("error deleting workspace %s: %w", s.workspace.Name, err)
 	}
 
 	return nil

@@ -502,7 +502,7 @@ func (b *Cloud) confirm(stopCtx context.Context, op *backend.Operation, opts *op
 	result <- func() error {
 		v, err := op.UIIn.Input(doneCtx, opts)
 		if err != nil && err != context.Canceled && stopCtx.Err() != context.Canceled {
-			return fmt.Errorf("Error asking %s: %v", opts.Id, err)
+			return fmt.Errorf("Error asking %s: %w", opts.Id, err)
 		}
 
 		// We return the error of our parent channel as we don't

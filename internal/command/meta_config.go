@@ -288,7 +288,7 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 				Description: attrS.Description,
 			})
 			if err != nil {
-				return cty.UnknownVal(schema.ImpliedType()), fmt.Errorf("%s: %s", name, err)
+				return cty.UnknownVal(schema.ImpliedType()), fmt.Errorf("%s: %w", name, err)
 			}
 
 			val := cty.StringVal(strVal)

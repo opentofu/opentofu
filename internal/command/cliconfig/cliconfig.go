@@ -153,20 +153,20 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	// Read the HCL file and prepare for parsing
 	d, err := os.ReadFile(path)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error reading %s: %s", path, err))
+		diags = diags.Append(fmt.Errorf("Error reading %s: %w", path, err))
 		return result, diags
 	}
 
 	// Parse it
 	obj, err := hcl.Parse(string(d))
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error parsing %s: %s", path, err))
+		diags = diags.Append(fmt.Errorf("Error parsing %s: %w", path, err))
 		return result, diags
 	}
 
 	// Build up the result
 	if err := hcl.DecodeObject(&result, obj); err != nil {
-		diags = diags.Append(fmt.Errorf("Error parsing %s: %s", path, err))
+		diags = diags.Append(fmt.Errorf("Error parsing %s: %w", path, err))
 		return result, diags
 	}
 
@@ -198,7 +198,7 @@ func loadConfigDir(path string) (*Config, tfdiags.Diagnostics) {
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error reading %s: %s", path, err))
+		diags = diags.Append(fmt.Errorf("Error reading %s: %w", path, err))
 		return result, diags
 	}
 
@@ -291,7 +291,7 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 		_, err := svchost.ForComparison(givenHost)
 		if err != nil {
 			diags = diags.Append(
-				fmt.Errorf("The host %q block has an invalid hostname: %s", givenHost, err),
+				fmt.Errorf("The host %q block has an invalid hostname: %w", givenHost, err),
 			)
 		}
 	}
@@ -301,7 +301,7 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 		_, err := svchost.ForComparison(givenHost)
 		if err != nil {
 			diags = diags.Append(
-				fmt.Errorf("The credentials %q block has an invalid hostname: %s", givenHost, err),
+				fmt.Errorf("The credentials %q block has an invalid hostname: %w", givenHost, err),
 			)
 		}
 	}
@@ -324,7 +324,7 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 		_, err := os.Stat(c.PluginCacheDir)
 		if err != nil {
 			diags = diags.Append(
-				fmt.Errorf("The specified plugin cache dir %s cannot be opened: %s", c.PluginCacheDir, err),
+				fmt.Errorf("The specified plugin cache dir %s cannot be opened: %w", c.PluginCacheDir, err),
 			)
 		}
 	}
