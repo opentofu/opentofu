@@ -209,6 +209,15 @@ jobs:
           restore-keys: |
             licensei-cache-
 
+      - name: Determine Go version
+        id: go
+        uses: ./.github/actions/go-version
+
+      - name: Install Go toolchain
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+
       - name: Run licensei
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
