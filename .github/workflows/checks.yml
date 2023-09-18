@@ -192,7 +192,6 @@ jobs:
   license-checks:
     name: "License Checks"
     runs-on: ubuntu-latest
-    if: env.LICENSE_CHECK != 'false'
 
     steps:
       - name: "Fetch source code"
@@ -215,6 +214,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make license-check
+        if: env.LICENSE_CHECK != 'false'
 
       - name: Save cache license information of dependencies
         uses: actions/cache/save@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
