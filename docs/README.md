@@ -37,4 +37,4 @@ to [the main OpenTF CLI documentation](https://www.placeholderplaceholderplaceho
 
 ## Contribution Guides
 
-* [Contributing to OpenTF](../.github/CONTRIBUTING.md): a complete guideline for those who want to contribute to this project.
+* [Contributing to OpenTF](../CONTRIBUTING.md): a complete guideline for those who want to contribute to this project.
