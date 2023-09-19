@@ -45,7 +45,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 			TableName: b.otsTable,
 		})
 		if err != nil {
-			return client, fmt.Errorf("error describing table store %s: %#v", b.otsTable, err)
+			return client, fmt.Errorf("error describing table store %s: %w", b.otsTable, err)
 		}
 	}
 
@@ -55,7 +55,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 func (b *Backend) Workspaces() ([]string, error) {
 	bucket, err := b.ossClient.Bucket(b.bucketName)
 	if err != nil {
-		return []string{""}, fmt.Errorf("error getting bucket: %#v", err)
+		return []string{""}, fmt.Errorf("error getting bucket: %w", err)
 	}
 
 	var options []oss.Option
@@ -140,7 +140,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		lockInfo.Operation = "init"
 		lockId, err := client.Lock(lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lock OSS state: %s", err)
+			return nil, fmt.Errorf("failed to lock OSS state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
@@ -193,7 +193,7 @@ const stateUnlockError = `
 Error unlocking Alibaba Cloud OSS state file:
 
 Lock ID: %s
-Error message: %#v
+Error message: %w
 
 You may have to force-unlock this state in order to use it again.
 The Alibaba Cloud backend acquires a lock during initialization to ensure the initial state file is created.

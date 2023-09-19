@@ -99,7 +99,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	lockInfo.Operation = "init"
 	lockId, err := stateMgr.Lock(lockInfo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to lock state in Consul: %s", err)
+		return nil, fmt.Errorf("failed to lock state in Consul: %w", err)
 	}
 
 	// Local helper function so we can call it multiple places
@@ -149,7 +149,7 @@ func (b *Backend) path(name string) string {
 const errStateUnlock = `
 Error unlocking Consul state. Lock ID: %s
 
-Error: %s
+Error: %w
 
 You may have to force-unlock this state in order to use it again.
 The Consul backend acquires a lock during initialization to ensure

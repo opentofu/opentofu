@@ -39,7 +39,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("querying Cloud Storage failed: %v", err)
+			return nil, fmt.Errorf("querying Cloud Storage failed: %w", err)
 		}
 
 		name := path.Base(attrs.Name)
