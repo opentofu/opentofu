@@ -156,9 +156,7 @@ func parseTimestamp(ts string) (time.Time, error) {
 			// the timestamp portions by name rather than by Go's example
 			// values.
 			if err.LayoutElem == "" && err.ValueElem == "" && err.Message != "" {
-				// For some reason err.Message is populated with a ": " prefix
-				// by the time package.
-				return time.Time{}, fmt.Errorf("not a valid RFC3339 timestamp%s", err.Message)
+				return time.Time{}, fmt.Errorf("not a valid RFC3339 timestamp: %w", err)
 			}
 			var what string
 			switch err.LayoutElem {
