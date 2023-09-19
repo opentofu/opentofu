@@ -162,6 +162,7 @@ docker_manifests:
 
 nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}'
+    maintainer: 'https://github.com/orgs/opentffoundation/teams/opentf-core-team'
     homepage: https://opentf.org
     description: >-
       OpenTF lets you declaratively manage your cloud infrastructure.
@@ -198,4 +199,6 @@ changelog:
   use: github-native
 
 release:
-  draft: true
+  prerelease: auto
+  # If you want to examine the release before its live, uncomment this line:
+  # draft: false
