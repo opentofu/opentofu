@@ -52,7 +52,7 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	if rawPlan.TerraformVersion != version.String() {
-		return nil, fmt.Errorf("plan file was created by OpenTF or Terraform %s, but this is %s; plan files cannot be transferred between different versions of OpenTF / Terraform", rawPlan.TerraformVersion, version.String())
+		return nil, fmt.Errorf("plan file was created by OpenTofu or Terraform %s, but this is %s; plan files cannot be transferred between different versions of OpenTofu / Terraform", rawPlan.TerraformVersion, version.String())
 	}
 
 	plan := &plans.Plan{
@@ -272,7 +272,7 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 		// file created by an earlier version of Terraform, which had the
 		// same information spread over various other fields:
 		// ModulePath, Mode, Name, Type, and InstanceKey.
-		return nil, fmt.Errorf("no instance address for resource instance change; perhaps this plan was created by a different version of OpenTF or a different version of Terraform?")
+		return nil, fmt.Errorf("no instance address for resource instance change; perhaps this plan was created by a different version of OpenTofu or a different version of Terraform?")
 	}
 
 	instAddr, diags := addrs.ParseAbsResourceInstanceStr(rawChange.Addr)

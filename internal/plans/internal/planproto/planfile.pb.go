@@ -348,9 +348,9 @@ type Plan struct {
 	Version uint64 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 	// The mode that was active when this plan was created.
 	//
-	// This is saved only for UI purposes, so that OpenTF can tailor its
+	// This is saved only for UI purposes, so that OpenTofu can tailor its
 	// rendering of the plan depending on the mode. This must never be used to
-	// make decisions in OpenTF Core during the applying of a plan.
+	// make decisions in OpenTofu Core during the applying of a plan.
 	UiMode Mode `protobuf:"varint,17,opt,name=ui_mode,json=uiMode,proto3,enum=tfplan.Mode" json:"ui_mode,omitempty"`
 	// Errored is true for any plan whose creation was interrupted by an
 	// error. A plan with this flag set cannot be applied, and the changes
@@ -364,7 +364,7 @@ type Plan struct {
 	// each resource to determine which module it belongs to.
 	ResourceChanges []*ResourceInstanceChange `protobuf:"bytes,3,rep,name=resource_changes,json=resourceChanges,proto3" json:"resource_changes,omitempty"`
 	// An unordered set of detected drift: changes made to resources outside of
-	// OpenTF, computed by comparing the previous run's state to the state
+	// OpenTofu, computed by comparing the previous run's state to the state
 	// after refresh.
 	ResourceDrift []*ResourceInstanceChange `protobuf:"bytes,18,rep,name=resource_drift,json=resourceDrift,proto3" json:"resource_drift,omitempty"`
 	// An unordered set of proposed changes to outputs in the root module
@@ -387,7 +387,7 @@ type Plan struct {
 	// plan, or else applying the plan will fail when it reaches a different
 	// conclusion about what action a particular resource instance needs.
 	ForceReplaceAddrs []string `protobuf:"bytes,16,rep,name=force_replace_addrs,json=forceReplaceAddrs,proto3" json:"force_replace_addrs,omitempty"`
-	// The version string for the OpenTF binary that created this plan.
+	// The version string for the OpenTofu binary that created this plan.
 	TerraformVersion string `protobuf:"bytes,14,opt,name=terraform_version,json=terraformVersion,proto3" json:"terraform_version,omitempty"`
 	// Backend is a description of the backend configuration and other related
 	// settings at the time the plan was created.
@@ -715,7 +715,7 @@ type ResourceInstanceChange struct {
 	// this resource instance was tracked during the previous apply operation.
 	//
 	// This is populated only if it would be different from addr due to
-	// OpenTF having reacted to refactoring annotations in the configuration.
+	// OpenTofu having reacted to refactoring annotations in the configuration.
 	// If empty, the previous run address is the same as the current address.
 	PrevRunAddr string `protobuf:"bytes,14,opt,name=prev_run_addr,json=prevRunAddr,proto3" json:"prev_run_addr,omitempty"`
 	// deposed_key, if set, indicates that this change applies to a deposed
