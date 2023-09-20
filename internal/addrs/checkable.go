@@ -6,11 +6,10 @@ package addrs
 import (
 	"fmt"
 
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )

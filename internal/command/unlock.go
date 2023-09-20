@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/states/statemgr"
-
 	"github.com/mitchellh/cli"
 
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )

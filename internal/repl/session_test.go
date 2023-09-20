@@ -15,11 +15,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/initwd"
+	_ "github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	_ "github.com/opentofu/opentofu/internal/logging"
 )
 
 func TestMain(m *testing.M) {

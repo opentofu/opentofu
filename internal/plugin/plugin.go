@@ -5,6 +5,7 @@ package plugin
 
 import (
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/opentofu/opentofu/internal/plugin6"
 )
 

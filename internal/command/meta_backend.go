@@ -23,19 +23,18 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.

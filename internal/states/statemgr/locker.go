@@ -17,6 +17,7 @@ import (
 	"time"
 
 	uuid "github.com/hashicorp/go-uuid"
+
 	"github.com/opentofu/opentofu/version"
 )
 

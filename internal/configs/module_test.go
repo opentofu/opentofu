@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // TestNewModule_provider_fqns exercises module.gatherProviderLocalNames()

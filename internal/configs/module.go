@@ -10,7 +10,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/experiments"
-
 	tfversion "github.com/opentofu/opentofu/version"
 )
 

@@ -13,13 +13,14 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/impersonate"
+	"google.golang.org/api/option"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 	"github.com/opentofu/opentofu/version"
-	"golang.org/x/oauth2"
-	"google.golang.org/api/impersonate"
-	"google.golang.org/api/option"
 )
 
 // Backend implements "backend".Backend for GCS.

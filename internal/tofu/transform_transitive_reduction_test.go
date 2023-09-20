@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestTransitiveReductionTransformer(t *testing.T) {

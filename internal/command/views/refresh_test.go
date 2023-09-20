@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Ensure that the correct view type and in-automation settings propagate to the

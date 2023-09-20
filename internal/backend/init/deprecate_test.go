@@ -6,8 +6,9 @@ package init
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 )
 
 func TestDeprecateBackend(t *testing.T) {

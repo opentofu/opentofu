@@ -27,6 +27,7 @@ import (
 
 	"github.com/mitchellh/copystructure"
 	"github.com/mitchellh/mapstructure"
+
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )

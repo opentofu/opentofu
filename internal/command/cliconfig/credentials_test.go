@@ -10,10 +10,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/zclconf/go-cty/cty"
-
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestCredentialsForHost(t *testing.T) {

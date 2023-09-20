@@ -8,10 +8,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
 	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
 )
 
 func TestRemoteClient_impl(t *testing.T) {

@@ -4,8 +4,9 @@
 package states
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // OutputValue represents the state of a particular output value.

@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/masterzen/winrm"
-	"github.com/opentofu/opentofu/internal/communicator/remote"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/packer-community/winrmcp/winrmcp"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/communicator/remote"
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 // Communicator represents the WinRM communicator

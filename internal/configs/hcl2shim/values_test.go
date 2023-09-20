@@ -8,8 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 func TestConfigValueFromHCL2Block(t *testing.T) {

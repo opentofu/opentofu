@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func TestLongestCommonSubsequence(t *testing.T) {

@@ -20,18 +20,17 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
+	uuid "github.com/hashicorp/go-uuid"
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
+	"golang.org/x/oauth2"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	uuid "github.com/hashicorp/go-uuid"
-	"golang.org/x/oauth2"
 )
 
 // LoginCommand is a Command implementation that runs an interactive login

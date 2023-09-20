@@ -9,7 +9,6 @@ import (
 	"sort"
 
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-
 	"github.com/opentofu/opentofu/internal/plans"
 )
 

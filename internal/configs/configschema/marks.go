@@ -6,8 +6,9 @@ package configschema
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 // copyAndExtendPath returns a copy of a cty.Path with some additional

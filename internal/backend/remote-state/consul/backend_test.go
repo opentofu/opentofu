@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/sdk/testutil"
+
 	"github.com/opentofu/opentofu/internal/backend"
 )
 

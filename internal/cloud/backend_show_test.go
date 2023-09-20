@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
+
 	"github.com/opentofu/opentofu/internal/plans"
 )
 

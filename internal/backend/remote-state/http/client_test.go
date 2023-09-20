@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-retryablehttp"
+
 	"github.com/opentofu/opentofu/internal/states/remote"
 )
 

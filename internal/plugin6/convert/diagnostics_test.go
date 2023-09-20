@@ -9,9 +9,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
-	"github.com/zclconf/go-cty/cty"
 )
 
 var ignoreUnexported = cmpopts.IgnoreUnexported(

@@ -10,11 +10,11 @@ import (
 	"sort"
 	"strings"
 
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
 	"github.com/mitchellh/colorstring"
 	wordwrap "github.com/mitchellh/go-wordwrap"
+
+	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 var disabledColorize = &colorstring.Colorize{

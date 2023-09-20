@@ -4,8 +4,9 @@
 package objchange
 
 import (
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 // NormalizeObjectFromLegacySDK takes an object that may have been generated

@@ -5,6 +5,7 @@ package plugin6
 
 import (
 	"github.com/hashicorp/go-plugin"
+
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 

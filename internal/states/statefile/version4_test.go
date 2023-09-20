@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // This test verifies that modules are sorted before resources:

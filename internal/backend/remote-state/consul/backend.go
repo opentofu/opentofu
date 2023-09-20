@@ -10,6 +10,7 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )

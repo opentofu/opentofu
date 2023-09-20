@@ -14,6 +14,7 @@ import (
 
 	expect "github.com/Netflix/go-expect"
 	tfe "github.com/hashicorp/go-tfe"
+
 	"github.com/opentofu/opentofu/internal/e2e"
 	tfversion "github.com/opentofu/opentofu/version"
 )

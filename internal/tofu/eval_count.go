@@ -7,9 +7,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // evaluateCountExpression is our standard mechanism for interpreting an

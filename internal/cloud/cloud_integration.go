@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/backend"
 )
 

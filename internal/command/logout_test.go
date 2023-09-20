@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
-
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 )
 

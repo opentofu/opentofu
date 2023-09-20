@@ -14,6 +14,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/go-uuid"
 	goversion "github.com/hashicorp/go-version"
+
 	tfversion "github.com/opentofu/opentofu/version"
 )
 

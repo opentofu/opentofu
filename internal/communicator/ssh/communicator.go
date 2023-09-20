@@ -21,13 +21,13 @@ import (
 	"time"
 
 	"github.com/apparentlymart/go-shquot/shquot"
-	"github.com/opentofu/opentofu/internal/communicator/remote"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
+	"github.com/opentofu/opentofu/internal/communicator/remote"
 	_ "github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 const (

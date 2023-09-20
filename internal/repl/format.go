@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 // FormatValue formats a value in a way that resembles Terraform language syntax

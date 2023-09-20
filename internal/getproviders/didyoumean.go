@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 

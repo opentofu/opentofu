@@ -6,12 +6,13 @@ package grpcwrap
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/plugin6/convert"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfplugin6"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
+
+	"github.com/opentofu/opentofu/internal/plugin6/convert"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 // New wraps a providers.Interface to implement a grpc ProviderServer using

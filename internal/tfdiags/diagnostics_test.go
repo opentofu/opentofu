@@ -10,9 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/go-multierror"
-
 	"github.com/davecgh/go-spew/spew"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
 )
 

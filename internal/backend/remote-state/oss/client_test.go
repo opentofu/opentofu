@@ -4,13 +4,12 @@
 package oss
 
 import (
+	"bytes"
+	"crypto/md5"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
-
-	"bytes"
-	"crypto/md5"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states/remote"

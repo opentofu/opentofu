@@ -17,7 +17,6 @@ import (
 
 	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/lang/marks"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 

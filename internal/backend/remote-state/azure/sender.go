@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 
 	"github.com/Azure/go-autorest/autorest"
+
 	"github.com/opentofu/opentofu/internal/logging"
 )
 

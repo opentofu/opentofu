@@ -8,10 +8,11 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // ConfigSchemaToProto takes a *configschema.Block and converts it to a

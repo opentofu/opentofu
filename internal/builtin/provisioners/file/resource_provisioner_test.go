@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 func TestResourceProvider_Validate_good_source(t *testing.T) {

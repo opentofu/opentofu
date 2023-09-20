@@ -4,9 +4,10 @@
 package convert
 
 import (
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // WarnsAndErrorsToProto converts the warnings and errors return by the legacy

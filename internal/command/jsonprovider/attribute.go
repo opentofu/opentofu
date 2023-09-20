@@ -6,8 +6,9 @@ package jsonprovider
 import (
 	"encoding/json"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 type Attribute struct {

@@ -9,8 +9,9 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 var ReservedDataSourceFields = []string{

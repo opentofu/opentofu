@@ -6,11 +6,11 @@ package configs
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // The methods in this file are used by Module.mergeFile to apply overrides

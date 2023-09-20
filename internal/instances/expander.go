@@ -8,8 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // Expander instances serve as a coordination point for gathering object

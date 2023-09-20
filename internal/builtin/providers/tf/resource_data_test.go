@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
+
+	"github.com/opentofu/opentofu/internal/providers"
 )
 
 func TestManagedDataValidate(t *testing.T) {

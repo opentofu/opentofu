@@ -12,6 +12,7 @@ import (
 	awsbase "github.com/hashicorp/aws-sdk-go-base"
 	mockdata "github.com/hashicorp/aws-sdk-go-base"
 	servicemocks "github.com/hashicorp/aws-sdk-go-base"
+
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )

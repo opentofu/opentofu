@@ -13,9 +13,10 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/spf13/afero"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/modsdir"
-	"github.com/spf13/afero"
 )
 
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously

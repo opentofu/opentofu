@@ -6,8 +6,9 @@ package schema
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 // The functions and methods in this file are concerned with the conversion

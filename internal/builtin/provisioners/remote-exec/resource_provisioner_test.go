@@ -9,16 +9,16 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"testing"
 	"time"
 
-	"strings"
-
 	"github.com/mitchellh/cli"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/communicator"
 	"github.com/opentofu/opentofu/internal/communicator/remote"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestResourceProvider_Validate_good(t *testing.T) {

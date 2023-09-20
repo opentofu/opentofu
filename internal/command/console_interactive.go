@@ -14,10 +14,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/opentofu/opentofu/internal/repl"
-
 	"github.com/chzyer/readline"
 	"github.com/mitchellh/cli"
+
+	"github.com/opentofu/opentofu/internal/repl"
 )
 
 func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {

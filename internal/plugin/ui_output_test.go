@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 

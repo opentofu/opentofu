@@ -15,12 +15,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mitchellh/copystructure"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/zclconf/go-cty/cty"
-
-	"github.com/mitchellh/copystructure"
 )
 
 // DiffChangeType is an enum with the kind of changes a diff has planned.

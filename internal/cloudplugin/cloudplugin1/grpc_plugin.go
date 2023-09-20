@@ -6,9 +6,10 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
+	"google.golang.org/grpc"
+
 	"github.com/opentofu/opentofu/internal/cloudplugin"
 	"github.com/opentofu/opentofu/internal/cloudplugin/cloudproto1"
-	"google.golang.org/grpc"
 )
 
 // GRPCCloudPlugin is the go-plugin implementation, but only the client

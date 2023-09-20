@@ -3,10 +3,9 @@ package configschema
 import (
 	"testing"
 
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestFilter(t *testing.T) {

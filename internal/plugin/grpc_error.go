@@ -8,9 +8,10 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // grpcErr extracts some known error types and formats them into better

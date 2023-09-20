@@ -13,9 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
 	_ "github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestMain(m *testing.M) {

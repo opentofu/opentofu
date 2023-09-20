@@ -9,14 +9,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/repl"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	"github.com/mitchellh/cli"
 )
 
 // ConsoleCommand is a Command implementation that starts an interactive

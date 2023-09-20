@@ -7,11 +7,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNodeExpandModuleExecute(t *testing.T) {

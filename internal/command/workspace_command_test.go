@@ -10,14 +10,14 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestWorkspace_createAndChange(t *testing.T) {

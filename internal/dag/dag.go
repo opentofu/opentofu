@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
 	"github.com/hashicorp/go-multierror"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // AcyclicGraph is a specialization of Graph that cannot have cycles.

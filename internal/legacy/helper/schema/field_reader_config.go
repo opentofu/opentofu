@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/mitchellh/mapstructure"
+
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 

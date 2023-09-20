@@ -23,10 +23,9 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
+	_ "github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-
-	_ "github.com/opentofu/opentofu/internal/logging"
 )
 
 func TestMain(m *testing.M) {

@@ -8,9 +8,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestEvalReplaceTriggeredBy(t *testing.T) {

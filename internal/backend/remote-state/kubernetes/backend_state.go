@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"sort"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Workspaces returns a list of names for the workspaces found in k8s. The default

@@ -17,16 +17,15 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
+	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-
-	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 )
 
 // Test empty directory with no config/state creates a local state.

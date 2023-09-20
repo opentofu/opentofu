@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Test various single output values for human-readable UI. Note that since

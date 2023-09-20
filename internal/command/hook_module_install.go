@@ -8,6 +8,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/initwd"
 )
 

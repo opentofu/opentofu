@@ -26,11 +26,12 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const sampleState = `

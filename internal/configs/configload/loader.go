@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/spf13/afero"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/registry"
-	"github.com/spf13/afero"
 )
 
 // A Loader instance is the main entry-point for loading configurations via

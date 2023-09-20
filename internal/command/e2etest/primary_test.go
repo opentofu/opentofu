@@ -11,9 +11,10 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // The tests in this file are for the "primary workflow", which includes

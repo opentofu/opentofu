@@ -11,9 +11,10 @@ import (
 	"testing"
 
 	"github.com/dylanmei/winrmtest"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/communicator/remote"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func newMockWinRMServer(t *testing.T) *winrmtest.Remote {

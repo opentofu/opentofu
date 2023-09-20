@@ -11,14 +11,8 @@ import (
 	"os"
 	"syscall"
 
-	"golang.org/x/sys/windows"
-
-	// We're continuing to use this third-party library on Windows because it
-	// has the additional IsCygwinTerminal function, which includes some useful
-	// heuristics for recognizing when a pipe seems to be connected to a
-	// legacy terminal emulator on Windows versions that lack true pty support.
-	// We now use golang.org/x/term's functionality on other platforms.
 	isatty "github.com/mattn/go-isatty"
+	"golang.org/x/sys/windows"
 )
 
 func configureOutputHandle(f *os.File) (*OutputStream, error) {

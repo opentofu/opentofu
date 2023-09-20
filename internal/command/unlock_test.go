@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 
+	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 

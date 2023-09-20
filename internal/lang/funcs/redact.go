@@ -6,8 +6,9 @@ package funcs
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func redactIfSensitive(value interface{}, markses ...cty.ValueMarks) string {

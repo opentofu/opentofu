@@ -5,6 +5,7 @@ package views
 
 import (
 	"github.com/mitchellh/colorstring"
+
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/terminal"

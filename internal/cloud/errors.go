@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // String based errors

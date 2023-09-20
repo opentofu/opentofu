@@ -6,10 +6,9 @@ package views
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 

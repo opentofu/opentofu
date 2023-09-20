@@ -8,9 +8,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestBuiltinEvalContextProviderInput(t *testing.T) {

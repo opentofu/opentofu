@@ -8,10 +8,11 @@ import (
 	"math/big"
 
 	"github.com/apparentlymart/go-cidr/cidr"
-	"github.com/opentofu/opentofu/internal/ipaddr"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/gocty"
+
+	"github.com/opentofu/opentofu/internal/ipaddr"
 )
 
 // CidrHostFunc contructs a function that calculates a full host IP address

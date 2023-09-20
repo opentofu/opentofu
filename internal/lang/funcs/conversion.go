@@ -6,11 +6,12 @@ package funcs
 import (
 	"strconv"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/opentofu/opentofu/internal/lang/types"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/lang/types"
 )
 
 // MakeToFunc constructs a "to..." function, like "tostring", which converts

@@ -7,9 +7,8 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/zclconf/go-cty/cty"
-
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/zclconf/go-cty/cty"
 )
 
 var validName = regexp.MustCompile(`^[a-z0-9_]+$`)

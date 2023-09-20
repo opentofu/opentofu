@@ -6,12 +6,13 @@ package tofu
 import (
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // contextTestFixture is a container for a set of objects that work together

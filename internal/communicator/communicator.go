@@ -12,12 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/communicator/remote"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/communicator/ssh"
 	"github.com/opentofu/opentofu/internal/communicator/winrm"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Communicator is an interface that must be implemented by all communicators

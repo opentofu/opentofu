@@ -11,10 +11,9 @@ import (
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	_ "github.com/opentofu/opentofu/internal/logging"
 	statespkg "github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
-
-	_ "github.com/opentofu/opentofu/internal/logging"
 )
 
 func TestMain(m *testing.M) {

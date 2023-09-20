@@ -10,13 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	tfaddr "github.com/opentofu/registry-address"
-
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
 	svchost "github.com/hashicorp/terraform-svchost"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 func TestSourceAvailableVersions(t *testing.T) {

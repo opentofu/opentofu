@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/opentofu/opentofu/internal/states"

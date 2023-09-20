@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 )

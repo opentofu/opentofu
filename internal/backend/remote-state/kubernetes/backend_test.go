@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (

@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/lib/pq"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )

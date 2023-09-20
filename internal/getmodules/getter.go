@@ -11,6 +11,7 @@ import (
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
+
 	"github.com/opentofu/opentofu/internal/copy"
 )
 

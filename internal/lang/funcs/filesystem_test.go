@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func TestFile(t *testing.T) {

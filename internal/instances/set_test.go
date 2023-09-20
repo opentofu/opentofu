@@ -6,8 +6,9 @@ package instances
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 func TestSet(t *testing.T) {

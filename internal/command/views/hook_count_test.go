@@ -10,11 +10,10 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestCountHook_impl(t *testing.T) {

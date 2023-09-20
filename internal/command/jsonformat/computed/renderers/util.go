@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/command/format"
-
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
+	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/plans"
 )

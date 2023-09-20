@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )

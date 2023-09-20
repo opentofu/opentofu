@@ -10,6 +10,7 @@ import (
 
 	uuid "github.com/hashicorp/go-uuid"
 	_ "github.com/lib/pq"
+
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )

@@ -15,13 +15,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/communicator/shared"
 	sshagent "github.com/xanzy/ssh-agent"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
+
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 )
 
 const (

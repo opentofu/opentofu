@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // ProviderConfig is an interface type whose dynamic type can be either

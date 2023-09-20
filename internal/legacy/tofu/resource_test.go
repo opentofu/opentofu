@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/mitchellh/reflectwalk"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/mitchellh/reflectwalk"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 )
 

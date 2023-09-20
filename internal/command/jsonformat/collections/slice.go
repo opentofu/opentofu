@@ -7,7 +7,6 @@ import (
 	"reflect"
 
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 )

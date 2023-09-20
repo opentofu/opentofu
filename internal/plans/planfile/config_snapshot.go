@@ -14,6 +14,7 @@ import (
 	"time"
 
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/configs/configload"
 )
 

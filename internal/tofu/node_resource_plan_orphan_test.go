@@ -6,12 +6,13 @@ package tofu
 import (
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNodeResourcePlanOrphanExecute(t *testing.T) {

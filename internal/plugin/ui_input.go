@@ -8,6 +8,7 @@ import (
 	"net/rpc"
 
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 

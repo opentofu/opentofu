@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-
 	"github.com/opentofu/opentofu/internal/dag"
 )
 

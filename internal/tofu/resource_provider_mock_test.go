@@ -4,9 +4,10 @@
 package tofu
 
 import (
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // mockProviderWithConfigSchema is a test helper to concisely create a mock

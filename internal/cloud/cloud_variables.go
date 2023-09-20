@@ -5,6 +5,7 @@ package cloud
 
 import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"

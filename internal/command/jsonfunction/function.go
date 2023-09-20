@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // FormatVersion represents the version of the json format and will be

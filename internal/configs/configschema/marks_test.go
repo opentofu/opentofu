@@ -6,8 +6,9 @@ package configschema
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func TestBlockValueMarks(t *testing.T) {

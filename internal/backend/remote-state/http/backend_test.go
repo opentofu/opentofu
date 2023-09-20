@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/configs"
 )
 
 func TestBackend_impl(t *testing.T) {

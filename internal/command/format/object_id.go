@@ -4,8 +4,9 @@
 package format
 
 import (
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 // ObjectValueID takes a value that is assumed to be an object representation

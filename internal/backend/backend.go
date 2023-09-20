@@ -15,6 +15,8 @@ import (
 
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/mitchellh/go-homedir"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -28,7 +30,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // DefaultStateName is the name of the default, initial state that every

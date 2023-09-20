@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 func TestResourceProvider_Apply(t *testing.T) {

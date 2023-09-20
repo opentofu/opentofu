@@ -11,9 +11,10 @@ import (
 
 	"cloud.google.com/go/storage"
 	multierror "github.com/hashicorp/go-multierror"
+	"golang.org/x/net/context"
+
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"golang.org/x/net/context"
 )
 
 // remoteClient is used by "state/remote".State to read and write

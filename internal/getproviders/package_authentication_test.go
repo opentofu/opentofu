@@ -13,12 +13,10 @@ import (
 	"testing"
 	"time"
 
-	tfaddr "github.com/opentofu/registry-address"
-
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
+	"github.com/google/go-cmp/cmp"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 func TestMain(m *testing.M) {

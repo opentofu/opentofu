@@ -7,9 +7,10 @@ import (
 	"log"
 	"sync"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // SyncState is a wrapper around State that provides concurrency-safe access to

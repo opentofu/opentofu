@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/grpcwrap"
 	tfplugin5 "github.com/opentofu/opentofu/internal/plugin"

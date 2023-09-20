@@ -9,11 +9,10 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 // StateMeta is the meta struct that should be embedded in state subcommands.

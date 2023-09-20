@@ -10,10 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
-
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/mitchellh/cli"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"

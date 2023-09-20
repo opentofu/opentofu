@@ -12,11 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zclconf/go-cty/cty"
-	ctyjson "github.com/zclconf/go-cty/cty/json"
-
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
