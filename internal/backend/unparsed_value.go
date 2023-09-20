@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -25,7 +25,7 @@ type UnparsedVariableValue interface {
 	//
 	// If error diagnostics are returned, the resulting value may be invalid
 	// or incomplete.
-	ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics)
+	ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics)
 }
 
 // ParseUndeclaredVariableValues processes a map of unparsed variable values
@@ -34,9 +34,9 @@ type UnparsedVariableValue interface {
 // variables being present, depending on the source of these values. If more
 // than two undeclared values are present in file form (config, auto, -var-file)
 // the remaining errors are summarized to avoid a massive list of errors.
-func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*configs.Variable) (opentf.InputValues, tfdiags.Diagnostics) {
+func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*configs.Variable) (tofu.InputValues, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	ret := make(opentf.InputValues, len(vv))
+	ret := make(tofu.InputValues, len(vv))
 	seenUndeclaredInFile := 0
 
 	for name, rv := range vv {
@@ -53,7 +53,7 @@ func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls ma
 		ret[name] = val
 
 		switch val.SourceType {
-		case opentf.ValueFromConfig, opentf.ValueFromAutoFile, opentf.ValueFromNamedFile:
+		case tofu.ValueFromConfig, tofu.ValueFromAutoFile, tofu.ValueFromNamedFile:
 			// We allow undeclared names for variable values from files and warn in case
 			// users have forgotten a variable {} declaration or have a typo in their var name.
 			// Some users will actively ignore this warning because they use a .tfvars file
@@ -67,12 +67,12 @@ func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls ma
 			}
 			seenUndeclaredInFile++
 
-		case opentf.ValueFromEnvVar:
+		case tofu.ValueFromEnvVar:
 			// We allow and ignore undeclared names for environment
 			// variables, because users will often set these globally
 			// when they are used across many (but not necessarily all)
 			// configurations.
-		case opentf.ValueFromCLIArg:
+		case tofu.ValueFromCLIArg:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Value for undeclared variable",
@@ -105,9 +105,9 @@ func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls ma
 // and returns an input values map of the ones declared in the specified
 // variable declaration mapping. Diagnostics will be populating with
 // any variable parsing errors encountered within this collection.
-func ParseDeclaredVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*configs.Variable) (opentf.InputValues, tfdiags.Diagnostics) {
+func ParseDeclaredVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*configs.Variable) (tofu.InputValues, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	ret := make(opentf.InputValues, len(vv))
+	ret := make(tofu.InputValues, len(vv))
 
 	for name, rv := range vv {
 		var mode configs.VariableParsingMode
@@ -132,9 +132,9 @@ func ParseDeclaredVariableValues(vv map[string]UnparsedVariableValue, decls map[
 	return ret, diags
 }
 
-// Checks all given opentf.InputValues variable maps for the existance of
+// Checks all given tofu.InputValues variable maps for the existance of
 // a named variable
-func isDefinedAny(name string, maps ...opentf.InputValues) bool {
+func isDefinedAny(name string, maps ...tofu.InputValues) bool {
 	for _, m := range maps {
 		if _, defined := m[name]; defined {
 			return true
@@ -155,11 +155,11 @@ func isDefinedAny(name string, maps ...opentf.InputValues) bool {
 //
 // If this function returns without any errors in the diagnostics, the
 // resulting input values map is guaranteed to be valid and ready to pass
-// to opentf.NewContext. If the diagnostics contains errors, the returned
+// to tofu.NewContext. If the diagnostics contains errors, the returned
 // InputValues may be incomplete but will include the subset of variables
 // that were successfully processed, allowing for careful analysis of the
 // partial result.
-func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*configs.Variable) (opentf.InputValues, tfdiags.Diagnostics) {
+func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*configs.Variable) (tofu.InputValues, tfdiags.Diagnostics) {
 	ret, diags := ParseDeclaredVariableValues(vv, decls)
 	undeclared, diagsUndeclared := ParseUndeclaredVariableValues(vv, decls)
 
@@ -191,9 +191,9 @@ func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*
 			// result is complete for any calling code that wants to cautiously
 			// analyze it for diagnostic purposes. Since our diagnostics now
 			// includes an error, normal processing will ignore this result.
-			ret[name] = &opentf.InputValue{
+			ret[name] = &tofu.InputValue{
 				Value:       cty.DynamicVal,
-				SourceType:  opentf.ValueFromConfig,
+				SourceType:  tofu.ValueFromConfig,
 				SourceRange: tfdiags.SourceRangeFromHCL(vc.DeclRange),
 			}
 		} else {
@@ -203,9 +203,9 @@ func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*
 			// that it wasn't set at all at this layer, and so OpenTF Core
 			// should substitute a default if available, or generate an error
 			// if not.
-			ret[name] = &opentf.InputValue{
+			ret[name] = &tofu.InputValue{
 				Value:       cty.NilVal,
-				SourceType:  opentf.ValueFromConfig,
+				SourceType:  tofu.ValueFromConfig,
 				SourceRange: tfdiags.SourceRangeFromHCL(vc.DeclRange),
 			}
 		}

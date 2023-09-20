@@ -14,8 +14,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -116,7 +116,7 @@ type providerSchema struct {
 
 // testProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/providers-schema.
-func providersSchemaFixtureProvider() *opentf.MockProvider {
+func providersSchemaFixtureProvider() *tofu.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = providersSchemaFixtureSchema()
 	return p

@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type taskStages map[tfe.Stage]*tfe.TaskStage
@@ -169,7 +169,7 @@ func processSummarizers(ctx *IntegrationContext, output IntegrationOutputWriter,
 }
 
 func (b *Cloud) processStageOverrides(context *IntegrationContext, output IntegrationOutputWriter, taskStageID string) (bool, error) {
-	opts := &opentf.InputOpts{
+	opts := &tofu.InputOpts{
 		Id:          fmt.Sprintf("%c%c [bold]Override", Arrow, Arrow),
 		Query:       "\nDo you want to override the failed policy check?",
 		Description: "Only 'override' will be accepted to override.",

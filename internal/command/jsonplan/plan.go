@@ -18,10 +18,10 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonconfig"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -171,7 +171,7 @@ type Variable struct {
 // the part of the plan required by the jsonformat.Plan renderer.
 func MarshalForRenderer(
 	p *plans.Plan,
-	schemas *opentf.Schemas,
+	schemas *tofu.Schemas,
 ) (map[string]Change, []ResourceChange, []ResourceChange, []ResourceAttr, error) {
 	output := newPlan()
 
@@ -218,7 +218,7 @@ func MarshalForLog(
 	config *configs.Config,
 	p *plans.Plan,
 	sf *statefile.File,
-	schemas *opentf.Schemas,
+	schemas *tofu.Schemas,
 ) (*Plan, error) {
 	output := newPlan()
 	output.TerraformVersion = version.String()
@@ -302,7 +302,7 @@ func Marshal(
 	config *configs.Config,
 	p *plans.Plan,
 	sf *statefile.File,
-	schemas *opentf.Schemas,
+	schemas *tofu.Schemas,
 ) ([]byte, error) {
 	output, err := MarshalForLog(config, p, sf, schemas)
 	if err != nil {
@@ -372,7 +372,7 @@ func (p *Plan) marshalPlanVariables(vars map[string]plans.DynamicValue, decls ma
 // This function is referenced directly from the structured renderer tests, to
 // ensure parity between the renderers. It probably shouldn't be used anywhere
 // else.
-func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schemas *opentf.Schemas) ([]ResourceChange, error) {
+func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schemas *tofu.Schemas) ([]ResourceChange, error) {
 	var ret []ResourceChange
 
 	var sortedResources []*plans.ResourceInstanceChangeSrc
@@ -654,7 +654,7 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 	return outputChanges, nil
 }
 
-func (p *Plan) marshalPlannedValues(changes *plans.Changes, schemas *opentf.Schemas) error {
+func (p *Plan) marshalPlannedValues(changes *plans.Changes, schemas *tofu.Schemas) error {
 	// marshal the planned changes into a module
 	plan, err := marshalPlannedValues(changes, schemas)
 	if err != nil {

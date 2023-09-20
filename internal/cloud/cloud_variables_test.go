@@ -10,24 +10,24 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestParseCloudRunVariables(t *testing.T) {
 	t.Run("populates variables from allowed sources", func(t *testing.T) {
 		vv := map[string]backend.UnparsedVariableValue{
-			"undeclared":                      testUnparsedVariableValue{source: opentf.ValueFromCLIArg, value: cty.StringVal("0")},
-			"declaredFromConfig":              testUnparsedVariableValue{source: opentf.ValueFromConfig, value: cty.StringVal("1")},
-			"declaredFromNamedFileMapString":  testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.StringVal("bar")})},
-			"declaredFromNamedFileBool":       testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.BoolVal(true)},
-			"declaredFromNamedFileNumber":     testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.NumberIntVal(2)},
-			"declaredFromNamedFileListString": testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.ListVal([]cty.Value{cty.StringVal("2a"), cty.StringVal("2b")})},
-			"declaredFromNamedFileNull":       testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.NullVal(cty.String)},
-			"declaredFromNamedMapComplex":     testUnparsedVariableValue{source: opentf.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.ObjectVal(map[string]cty.Value{"qux": cty.ListVal([]cty.Value{cty.BoolVal(true), cty.BoolVal(false)})})})},
-			"declaredFromCLIArg":              testUnparsedVariableValue{source: opentf.ValueFromCLIArg, value: cty.StringVal("3")},
-			"declaredFromEnvVar":              testUnparsedVariableValue{source: opentf.ValueFromEnvVar, value: cty.StringVal("4")},
+			"undeclared":                      testUnparsedVariableValue{source: tofu.ValueFromCLIArg, value: cty.StringVal("0")},
+			"declaredFromConfig":              testUnparsedVariableValue{source: tofu.ValueFromConfig, value: cty.StringVal("1")},
+			"declaredFromNamedFileMapString":  testUnparsedVariableValue{source: tofu.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.StringVal("bar")})},
+			"declaredFromNamedFileBool":       testUnparsedVariableValue{source: tofu.ValueFromNamedFile, value: cty.BoolVal(true)},
+			"declaredFromNamedFileNumber":     testUnparsedVariableValue{source: tofu.ValueFromNamedFile, value: cty.NumberIntVal(2)},
+			"declaredFromNamedFileListString": testUnparsedVariableValue{source: tofu.ValueFromNamedFile, value: cty.ListVal([]cty.Value{cty.StringVal("2a"), cty.StringVal("2b")})},
+			"declaredFromNamedFileNull":       testUnparsedVariableValue{source: tofu.ValueFromNamedFile, value: cty.NullVal(cty.String)},
+			"declaredFromNamedMapComplex":     testUnparsedVariableValue{source: tofu.ValueFromNamedFile, value: cty.MapVal(map[string]cty.Value{"foo": cty.ObjectVal(map[string]cty.Value{"qux": cty.ListVal([]cty.Value{cty.BoolVal(true), cty.BoolVal(false)})})})},
+			"declaredFromCLIArg":              testUnparsedVariableValue{source: tofu.ValueFromCLIArg, value: cty.StringVal("3")},
+			"declaredFromEnvVar":              testUnparsedVariableValue{source: tofu.ValueFromEnvVar, value: cty.StringVal("4")},
 		}
 
 		decls := map[string]*configs.Variable{
@@ -169,12 +169,12 @@ func TestParseCloudRunVariables(t *testing.T) {
 }
 
 type testUnparsedVariableValue struct {
-	source opentf.ValueSourceType
+	source tofu.ValueSourceType
 	value  cty.Value
 }
 
-func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
-	return &opentf.InputValue{
+func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
+	return &tofu.InputValue{
 		Value:      v.value,
 		SourceType: v.source,
 		SourceRange: tfdiags.SourceRange{

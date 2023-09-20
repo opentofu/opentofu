@@ -9,18 +9,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestUIInput_impl(t *testing.T) {
-	var _ opentf.UIInput = new(UIInput)
+	var _ tofu.UIInput = new(UIInput)
 }
 
 func TestUIInput_input(t *testing.T) {
 	client, server := plugin.TestRPCConn(t)
 	defer client.Close()
 
-	i := new(opentf.MockUIInput)
+	i := new(tofu.MockUIInput)
 	i.InputReturnString = "foo"
 
 	err := server.RegisterName("Plugin", &UIInputServer{
@@ -32,7 +32,7 @@ func TestUIInput_input(t *testing.T) {
 
 	input := &UIInput{Client: client}
 
-	opts := &opentf.InputOpts{
+	opts := &tofu.InputOpts{
 		Id: "foo",
 	}
 

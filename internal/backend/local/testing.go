@@ -12,10 +12,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // TestLocal returns a configured Local struct with temporary paths and
@@ -35,16 +35,16 @@ func TestLocal(t *testing.T) *Local {
 	local.StateOutPath = filepath.Join(tempDir, "state.tfstate")
 	local.StateBackupPath = filepath.Join(tempDir, "state.tfstate.bak")
 	local.StateWorkspaceDir = filepath.Join(tempDir, "state.tfstate.d")
-	local.ContextOpts = &opentf.ContextOpts{}
+	local.ContextOpts = &tofu.ContextOpts{}
 
 	return local
 }
 
 // TestLocalProvider modifies the ContextOpts of the *Local parameter to
 // have a provider with the given name.
-func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.ProviderSchema) *opentf.MockProvider {
+func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.ProviderSchema) *tofu.MockProvider {
 	// Build a mock resource provider for in-memory operations
-	p := new(opentf.MockProvider)
+	p := new(tofu.MockProvider)
 
 	p.GetProviderSchemaResponse = &schema
 
@@ -89,7 +89,7 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 
 	// Initialize the opts
 	if b.ContextOpts == nil {
-		b.ContextOpts = &opentf.ContextOpts{}
+		b.ContextOpts = &tofu.ContextOpts{}
 	}
 
 	// Set up our provider

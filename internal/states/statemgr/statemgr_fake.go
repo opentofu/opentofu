@@ -7,8 +7,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // NewFullFake returns a full state manager that really only supports transient
@@ -65,7 +65,7 @@ func (m *fakeFull) RefreshState() error {
 	return m.t.WriteState(m.fakeP.State())
 }
 
-func (m *fakeFull) PersistState(schemas *opentf.Schemas) error {
+func (m *fakeFull) PersistState(schemas *tofu.Schemas) error {
 	return m.fakeP.WriteState(m.t.State())
 }
 
@@ -131,7 +131,7 @@ func (m *fakeErrorFull) RefreshState() error {
 	return errors.New("fake state manager error")
 }
 
-func (m *fakeErrorFull) PersistState(schemas *opentf.Schemas) error {
+func (m *fakeErrorFull) PersistState(schemas *tofu.Schemas) error {
 	return errors.New("fake state manager error")
 }
 

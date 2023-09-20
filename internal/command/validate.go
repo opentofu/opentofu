@@ -12,8 +12,8 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // ValidateCommand is a Command implementation that validates the terraform files
@@ -88,7 +88,7 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 			return diags
 		}
 
-		tfCtx, ctxDiags := opentf.NewContext(opts)
+		tfCtx, ctxDiags := tofu.NewContext(opts)
 		diags = diags.Append(ctxDiags)
 		if ctxDiags.HasErrors() {
 			return diags

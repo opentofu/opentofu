@@ -20,9 +20,9 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type backendMigrateOpts struct {
@@ -167,7 +167,7 @@ func (m *Meta) backendMigrateState_S_S(opts *backendMigrateOpts) error {
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id: "backend-migrate-multistate-to-multistate",
 			Query: fmt.Sprintf(
 				"Do you want to migrate all workspaces to %q?",
@@ -227,7 +227,7 @@ func (m *Meta) backendMigrateState_S_s(opts *backendMigrateOpts) error {
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id: "backend-migrate-multistate-to-single",
 			Query: fmt.Sprintf(
 				"Destination state %q doesn't support workspaces.\n"+
@@ -460,15 +460,15 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 }
 
 func (m *Meta) backendMigrateEmptyConfirm(source, destination statemgr.Full, opts *backendMigrateOpts) (bool, error) {
-	var inputOpts *opentf.InputOpts
+	var inputOpts *tofu.InputOpts
 	if opts.DestinationType == "cloud" {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:          "backend-migrate-copy-to-empty-cloud",
 			Query:       "Do you want to copy existing state to Terraform Cloud?",
 			Description: fmt.Sprintf(strings.TrimSpace(inputBackendMigrateEmptyCloud), opts.SourceType),
 		}
 	} else {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:    "backend-migrate-copy-to-empty",
 			Query: "Do you want to copy existing state to the new backend?",
 			Description: fmt.Sprintf(
@@ -510,9 +510,9 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	}
 
 	// Ask for confirmation
-	var inputOpts *opentf.InputOpts
+	var inputOpts *tofu.InputOpts
 	if opts.DestinationType == "cloud" {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:    "backend-migrate-to-tfc",
 			Query: "Do you want to copy existing state to Terraform Cloud?",
 			Description: fmt.Sprintf(
@@ -520,7 +520,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 				opts.SourceType, sourcePath, destinationPath),
 		}
 	} else {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:    "backend-migrate-to-backend",
 			Query: "Do you want to copy existing state to the new backend?",
 			Description: fmt.Sprintf(
@@ -807,7 +807,7 @@ func (m *Meta) promptSingleToCloudSingleStateMigration(opts *backendMigrateOpts)
 	migrate := opts.force
 	if !migrate {
 		var err error
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id:          "backend-migrate-state-single-to-cloud-single",
 			Query:       "Do you wish to proceed?",
 			Description: strings.TrimSpace(tfcInputBackendMigrateStateSingleToCloudSingle),
@@ -828,7 +828,7 @@ func (m *Meta) promptRemotePrefixToCloudTagsMigration(opts *backendMigrateOpts) 
 	migrate := opts.force
 	if !migrate {
 		var err error
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id:          "backend-migrate-remote-multistate-to-cloud",
 			Query:       "Do you wish to proceed?",
 			Description: strings.TrimSpace(tfcInputBackendMigrateRemoteMultiToCloud),
@@ -855,7 +855,7 @@ func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id:    "backend-migrate-multistate-to-single",
 			Query: "Do you want to copy only your current workspace?",
 			Description: fmt.Sprintf(
@@ -884,7 +884,7 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 		}
 		message = `[reset][bold][yellow]Terraform Cloud requires all workspaces to be given an explicit name.[reset]`
 	}
-	name, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	name, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "new-state-name",
 		Query:       message,
 		Description: strings.TrimSpace(inputBackendNewWorkspaceName),
@@ -899,7 +899,7 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, error) {
 	// This is not the first prompt a user would be presented with in the migration to TFC, so no
 	// guard on m.input is needed here.
-	renameWorkspaces, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	renameWorkspaces, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "backend-migrate-multistate-to-tfc",
 		Query:       fmt.Sprintf("[reset][bold][yellow]%s[reset]", "Would you like to rename your workspaces?"),
 		Description: fmt.Sprintf(strings.TrimSpace(tfcInputBackendMigrateMultiToMulti), sourceType),
@@ -917,7 +917,7 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 		return "*", nil
 	}
 
-	pattern, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	pattern, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "backend-migrate-multistate-to-tfc-pattern",
 		Query:       fmt.Sprintf("[reset][bold][yellow]%s[reset]", "How would you like to rename your workspaces?"),
 		Description: strings.TrimSpace(tfcInputBackendMigrateMultiToMultiPattern),

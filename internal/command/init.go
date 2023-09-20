@@ -27,10 +27,10 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -256,7 +256,7 @@ func (c *InitCommand) Run(args []string) int {
 	// the configuration declare that they don't support this Terraform
 	// version, so we can produce a version-related error message rather than
 	// potentially-confusing downstream errors.
-	versionDiags := opentf.CheckCoreVersionRequirements(config)
+	versionDiags := tofu.CheckCoreVersionRequirements(config)
 	if versionDiags.HasErrors() {
 		c.showDiagnostics(versionDiags)
 		return 1

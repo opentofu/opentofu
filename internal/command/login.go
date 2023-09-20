@@ -27,8 +27,8 @@ import (
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 
 	uuid "github.com/hashicorp/go-uuid"
 	"golang.org/x/oauth2"
@@ -540,7 +540,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
 	c.Ui.Output("OpenTF must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
 
-	username, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	username, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:    "username",
 		Query: fmt.Sprintf("Username for %s:", hostname.ForDisplay()),
 	})
@@ -548,7 +548,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		diags = diags.Append(fmt.Errorf("Failed to request username: %w", err))
 		return nil, diags
 	}
-	password, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	password, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:     "password",
 		Query:  fmt.Sprintf("Password for %s:", hostname.ForDisplay()),
 		Secret: true,
@@ -631,7 +631,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 		}
 	}
 
-	token, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	token, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:     "token",
 		Query:  fmt.Sprintf("Token for %s:", hostname.ForDisplay()),
 		Secret: true,
@@ -692,7 +692,7 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 		}
 	}
 
-	v, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	v, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "approve",
 		Query:       "Do you want to proceed?",
 		Description: `Only 'yes' will be accepted to confirm.`,

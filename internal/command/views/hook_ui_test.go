@@ -15,11 +15,11 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Test the PreApply hook for creating a new resource
@@ -55,7 +55,7 @@ func TestUiHookPreApply_create(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 
@@ -113,7 +113,7 @@ func TestUiHookPreApply_periodicTimer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 
@@ -177,7 +177,7 @@ func TestUiHookPreApply_destroy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 
@@ -228,7 +228,7 @@ func TestUiHookPostApply_colorInterpolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -281,7 +281,7 @@ func TestUiHookPostApply_emptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -314,7 +314,7 @@ func TestPreProvisionInstanceStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -430,7 +430,7 @@ func TestPreRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -462,7 +462,7 @@ func TestPreRefresh_noID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -489,7 +489,7 @@ func TestPreImportState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)
@@ -537,7 +537,7 @@ func TestPostImportState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 	result := done(t)

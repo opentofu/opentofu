@@ -12,12 +12,12 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func (b *Local) opPlan(
@@ -73,7 +73,7 @@ func (b *Local) opPlan(
 	}
 
 	if b.ContextOpts == nil {
-		b.ContextOpts = new(opentf.ContextOpts)
+		b.ContextOpts = new(tofu.ContextOpts)
 	}
 
 	// Get our context

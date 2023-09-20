@@ -6,7 +6,7 @@ package plugin
 import (
 	"net/rpc"
 
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // UIOutput is an implementatin of terraform.UIOutput that communicates
@@ -21,7 +21,7 @@ func (o *UIOutput) Output(v string) {
 
 // UIOutputServer is the RPC server for serving UIOutput.
 type UIOutputServer struct {
-	UIOutput opentf.UIOutput
+	UIOutput tofu.UIOutput
 }
 
 func (s *UIOutputServer) Output(

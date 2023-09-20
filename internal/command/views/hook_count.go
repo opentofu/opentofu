@@ -9,9 +9,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // countHook is a hook that counts the number of resources
@@ -30,10 +30,10 @@ type countHook struct {
 	pending map[string]plans.Action
 
 	sync.Mutex
-	opentf.NilHook
+	tofu.NilHook
 }
 
-var _ opentf.Hook = (*countHook)(nil)
+var _ tofu.Hook = (*countHook)(nil)
 
 func (h *countHook) Reset() {
 	h.Lock()
@@ -46,7 +46,7 @@ func (h *countHook) Reset() {
 	h.Imported = 0
 }
 
-func (h *countHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (opentf.HookAction, error) {
+func (h *countHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -56,10 +56,10 @@ func (h *countHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generati
 
 	h.pending[addr.String()] = action
 
-	return opentf.HookActionContinue, nil
+	return tofu.HookActionContinue, nil
 }
 
-func (h *countHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generation, newState cty.Value, err error) (opentf.HookAction, error) {
+func (h *countHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generation, newState cty.Value, err error) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -84,16 +84,16 @@ func (h *countHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generat
 		}
 	}
 
-	return opentf.HookActionContinue, nil
+	return tofu.HookActionContinue, nil
 }
 
-func (h *countHook) PostDiff(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (opentf.HookAction, error) {
+func (h *countHook) PostDiff(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
 	// We don't count anything for data resources
 	if addr.Resource.Resource.Mode == addrs.DataResourceMode {
-		return opentf.HookActionContinue, nil
+		return tofu.HookActionContinue, nil
 	}
 
 	switch action {
@@ -107,13 +107,13 @@ func (h *countHook) PostDiff(addr addrs.AbsResourceInstance, gen states.Generati
 		h.ToChange += 1
 	}
 
-	return opentf.HookActionContinue, nil
+	return tofu.HookActionContinue, nil
 }
 
-func (h *countHook) PostApplyImport(addr addrs.AbsResourceInstance, importing plans.ImportingSrc) (opentf.HookAction, error) {
+func (h *countHook) PostApplyImport(addr addrs.AbsResourceInstance, importing plans.ImportingSrc) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
 	h.Imported++
-	return opentf.HookActionContinue, nil
+	return tofu.HookActionContinue, nil
 }

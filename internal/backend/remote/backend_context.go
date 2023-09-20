@@ -14,9 +14,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,7 +24,7 @@ import (
 func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &backend.LocalRun{
-		PlanOpts: &opentf.PlanOpts{
+		PlanOpts: &tofu.PlanOpts{
 			Mode:    op.PlanMode,
 			Targets: op.Targets,
 		},
@@ -63,7 +63,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 	}
 
 	// Initialize our context options
-	var opts opentf.ContextOpts
+	var opts tofu.ContextOpts
 	if v := b.ContextOpts; v != nil {
 		opts = *v
 	}
@@ -142,7 +142,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 		}
 	}
 
-	tfCtx, ctxDiags := opentf.NewContext(&opts)
+	tfCtx, ctxDiags := tofu.NewContext(&opts)
 	diags = diags.Append(ctxDiags)
 	ret.Core = tfCtx
 
@@ -186,24 +186,24 @@ func (b *Remote) getRemoteWorkspaceID(ctx context.Context, localWorkspaceName st
 	return remoteWorkspace.ID, nil
 }
 
-func stubAllVariables(vv map[string]backend.UnparsedVariableValue, decls map[string]*configs.Variable) opentf.InputValues {
-	ret := make(opentf.InputValues, len(decls))
+func stubAllVariables(vv map[string]backend.UnparsedVariableValue, decls map[string]*configs.Variable) tofu.InputValues {
+	ret := make(tofu.InputValues, len(decls))
 
 	for name, cfg := range decls {
 		raw, exists := vv[name]
 		if !exists {
-			ret[name] = &opentf.InputValue{
+			ret[name] = &tofu.InputValue{
 				Value:      cty.UnknownVal(cfg.Type),
-				SourceType: opentf.ValueFromConfig,
+				SourceType: tofu.ValueFromConfig,
 			}
 			continue
 		}
 
 		val, diags := raw.ParseVariableValue(cfg.ParsingMode)
 		if diags.HasErrors() {
-			ret[name] = &opentf.InputValue{
+			ret[name] = &tofu.InputValue{
 				Value:      cty.UnknownVal(cfg.Type),
-				SourceType: opentf.ValueFromConfig,
+				SourceType: tofu.ValueFromConfig,
 			}
 			continue
 		}
@@ -222,7 +222,7 @@ type remoteStoredVariableValue struct {
 
 var _ backend.UnparsedVariableValue = (*remoteStoredVariableValue)(nil)
 
-func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
+func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var val cty.Value
 
@@ -285,7 +285,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		val = cty.StringVal(v.definition.Value)
 	}
 
-	return &opentf.InputValue{
+	return &tofu.InputValue{
 		Value: val,
 
 		// We mark these as "from input" with the rationale that entering
@@ -293,6 +293,6 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		// roughly speaking, a similar idea to entering variable values at
 		// the interactive CLI prompts. It's not a perfect correspondance,
 		// but it's closer than the other options.
-		SourceType: opentf.ValueFromInput,
+		SourceType: tofu.ValueFromInput,
 	}, diags
 }

@@ -19,8 +19,8 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // ImportCommand is a cli.Command implementation that imports resources
@@ -194,7 +194,7 @@ func (c *ImportCommand) Run(args []string) int {
 		c.showDiagnostics(diags)
 		return 1
 	}
-	opReq.Hooks = []opentf.Hook{c.uiHook()}
+	opReq.Hooks = []tofu.Hook{c.uiHook()}
 	{
 		var moreDiags tfdiags.Diagnostics
 		opReq.Variables, moreDiags = c.collectVariableValues()
@@ -233,8 +233,8 @@ func (c *ImportCommand) Run(args []string) int {
 	// Perform the import. Note that as you can see it is possible for this
 	// API to import more than one resource at once. For now, we only allow
 	// one while we stabilize this feature.
-	newState, importDiags := lr.Core.Import(lr.Config, lr.InputState, &opentf.ImportOpts{
-		Targets: []*opentf.ImportTarget{
+	newState, importDiags := lr.Core.Import(lr.Config, lr.InputState, &tofu.ImportOpts{
+		Targets: []*tofu.ImportTarget{
 			{
 				Addr: addr,
 
@@ -256,7 +256,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Get schemas, if possible, before writing state
-	var schemas *opentf.Schemas
+	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
 		schemas, schemaDiags = c.MaybeGetSchemas(newState, nil)

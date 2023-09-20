@@ -12,10 +12,10 @@ import (
 	uuid "github.com/hashicorp/go-uuid"
 
 	"github.com/opentofu/opentofu/internal/backend/local"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // State implements the State interfaces in the state package to handle
@@ -166,7 +166,7 @@ func (s *State) refreshState() error {
 }
 
 // statemgr.Persister impl.
-func (s *State) PersistState(schemas *opentf.Schemas) error {
+func (s *State) PersistState(schemas *tofu.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

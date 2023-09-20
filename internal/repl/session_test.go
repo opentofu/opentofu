@@ -15,9 +15,9 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/initwd"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu"
 
 	_ "github.com/opentofu/opentofu/internal/logging"
 )
@@ -261,7 +261,7 @@ func TestSession_stateless(t *testing.T) {
 func testSession(t *testing.T, test testSessionTest) {
 	t.Helper()
 
-	p := &opentf.MockProvider{}
+	p := &tofu.MockProvider{}
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"test_instance": {
@@ -281,7 +281,7 @@ func testSession(t *testing.T, test testSessionTest) {
 	}
 
 	// Build the TF context
-	ctx, diags := opentf.NewContext(&opentf.ContextOpts{
+	ctx, diags := tofu.NewContext(&tofu.ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): providers.FactoryFixed(p),
 		},
@@ -294,7 +294,7 @@ func testSession(t *testing.T, test testSessionTest) {
 	if state == nil {
 		state = states.NewState()
 	}
-	scope, diags := ctx.Eval(config, state, addrs.RootModuleInstance, &opentf.EvalOpts{})
+	scope, diags := ctx.Eval(config, state, addrs.RootModuleInstance, &tofu.EvalOpts{})
 	if diags.HasErrors() {
 		t.Fatalf("failed to create scope: %s", diags.Err())
 	}

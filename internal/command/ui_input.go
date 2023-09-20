@@ -21,7 +21,7 @@ import (
 	"github.com/bgentry/speakeasy"
 	"github.com/mattn/go-isatty"
 	"github.com/mitchellh/colorstring"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 var defaultInputReader io.Reader
@@ -49,7 +49,7 @@ type UIInput struct {
 	once        sync.Once
 }
 
-func (i *UIInput) Input(ctx context.Context, opts *opentf.InputOpts) (string, error) {
+func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, error) {
 	i.once.Do(i.init)
 
 	r := i.Reader

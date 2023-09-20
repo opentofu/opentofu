@@ -14,12 +14,12 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // test hook called between plan+apply during opApply
@@ -163,7 +163,7 @@ func (b *Local) opApply(
 				diags = nil // reset so we won't show the same diagnostics again later
 			}
 
-			v, err := op.UIIn.Input(stopCtx, &opentf.InputOpts{
+			v, err := op.UIIn.Input(stopCtx, &tofu.InputOpts{
 				Id:          "approve",
 				Query:       "\n" + query,
 				Description: desc,

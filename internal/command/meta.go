@@ -34,12 +34,12 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	legacy "github.com/opentofu/opentofu/internal/legacy/opentf"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Meta are the meta-options that are available on all or most commands.
@@ -334,8 +334,8 @@ const (
 )
 
 // InputMode returns the type of input we should ask for in the form of
-// opentf.InputMode which is passed directly to Context.Input.
-func (m *Meta) InputMode() opentf.InputMode {
+// tofu.InputMode which is passed directly to Context.Input.
+func (m *Meta) InputMode() tofu.InputMode {
 	if test || !m.input {
 		return 0
 	}
@@ -348,14 +348,14 @@ func (m *Meta) InputMode() opentf.InputMode {
 		}
 	}
 
-	var mode opentf.InputMode
-	mode |= opentf.InputModeProvider
+	var mode tofu.InputMode
+	mode |= tofu.InputModeProvider
 
 	return mode
 }
 
 // UIInput returns a UIInput object to be used for asking for input.
-func (m *Meta) UIInput() opentf.UIInput {
+func (m *Meta) UIInput() tofu.UIInput {
 	return &UIInput{
 		Colorize: m.Colorize(),
 	}
@@ -518,13 +518,13 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 
 // contextOpts returns the options to use to initialize a Terraform
 // context with the settings from this Meta.
-func (m *Meta) contextOpts() (*opentf.ContextOpts, error) {
+func (m *Meta) contextOpts() (*tofu.ContextOpts, error) {
 	workspace, err := m.Workspace()
 	if err != nil {
 		return nil, err
 	}
 
-	var opts opentf.ContextOpts
+	var opts tofu.ContextOpts
 
 	opts.UIInput = m.UIInput()
 	opts.Parallelism = m.parallelism
@@ -542,7 +542,7 @@ func (m *Meta) contextOpts() (*opentf.ContextOpts, error) {
 		opts.Provisioners = m.provisionerFactories()
 	}
 
-	opts.Meta = &opentf.ContextMeta{
+	opts.Meta = &tofu.ContextMeta{
 		Env:                workspace,
 		OriginalWorkingDir: m.WorkingDir.OriginalWorkingDir(),
 	}
@@ -651,7 +651,7 @@ func (m *Meta) uiHook() *views.UiHook {
 }
 
 // confirm asks a yes/no confirmation.
-func (m *Meta) confirm(opts *opentf.InputOpts) (bool, error) {
+func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	if !m.Input() {
 		return false, errors.New("input is disabled")
 	}
@@ -833,7 +833,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 		return diags
 	}
 
-	versionDiags := opentf.CheckCoreVersionRequirements(config)
+	versionDiags := tofu.CheckCoreVersionRequirements(config)
 	if versionDiags.HasErrors() {
 		diags = diags.Append(versionDiags)
 		return diags
@@ -847,7 +847,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*opentf.Schemas, tfdiags.Diagnostics) {
+func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -870,7 +870,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*op
 			diags = diags.Append(err)
 			return nil, diags
 		}
-		tfCtx, ctxDiags := opentf.NewContext(opts)
+		tfCtx, ctxDiags := tofu.NewContext(opts)
 		diags = diags.Append(ctxDiags)
 		if ctxDiags.HasErrors() {
 			return nil, diags

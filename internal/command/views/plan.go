@@ -7,14 +7,14 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // The Plan view is used for the plan command.
 type Plan interface {
 	Operation() Operation
-	Hooks() []opentf.Hook
+	Hooks() []tofu.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
@@ -51,8 +51,8 @@ func (v *PlanHuman) Operation() Operation {
 	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
 }
 
-func (v *PlanHuman) Hooks() []opentf.Hook {
-	return []opentf.Hook{
+func (v *PlanHuman) Hooks() []tofu.Hook {
+	return []tofu.Hook{
 		NewUiHook(v.view),
 	}
 }
@@ -77,8 +77,8 @@ func (v *PlanJSON) Operation() Operation {
 	return &OperationJSON{view: v.view}
 }
 
-func (v *PlanJSON) Hooks() []opentf.Hook {
-	return []opentf.Hook{
+func (v *PlanJSON) Hooks() []tofu.Hook {
+	return []tofu.Hook{
 		newJSONHook(v.view),
 	}
 }

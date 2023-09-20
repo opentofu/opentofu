@@ -29,11 +29,11 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/version"
 
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
@@ -63,7 +63,7 @@ type mockInput struct {
 	answers map[string]string
 }
 
-func (m *mockInput) Input(ctx context.Context, opts *opentf.InputOpts) (string, error) {
+func (m *mockInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, error) {
 	v, ok := m.answers[opts.Id]
 	if !ok {
 		return "", fmt.Errorf("unexpected input request in test: %s", opts.Id)
@@ -589,18 +589,18 @@ func testDisco(s *httptest.Server) *disco.Disco {
 
 type unparsedVariableValue struct {
 	value  string
-	source opentf.ValueSourceType
+	source tofu.ValueSourceType
 }
 
-func (v *unparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
-	return &opentf.InputValue{
+func (v *unparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
+	return &tofu.InputValue{
 		Value:      cty.StringVal(v.value),
 		SourceType: v.source,
 	}, tfdiags.Diagnostics{}
 }
 
 // testVariable returns a backend.UnparsedVariableValue used for testing.
-func testVariables(s opentf.ValueSourceType, vs ...string) map[string]backend.UnparsedVariableValue {
+func testVariables(s tofu.ValueSourceType, vs ...string) map[string]backend.UnparsedVariableValue {
 	vars := make(map[string]backend.UnparsedVariableValue, len(vs))
 	for _, v := range vs {
 		vars[v] = &unparsedVariableValue{

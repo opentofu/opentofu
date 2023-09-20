@@ -8,9 +8,9 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views/json"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // The Refresh view is used for the refresh command.
@@ -18,7 +18,7 @@ type Refresh interface {
 	Outputs(outputValues map[string]*states.OutputValue)
 
 	Operation() Operation
-	Hooks() []opentf.Hook
+	Hooks() []tofu.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
@@ -65,8 +65,8 @@ func (v *RefreshHuman) Operation() Operation {
 	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
 }
 
-func (v *RefreshHuman) Hooks() []opentf.Hook {
-	return []opentf.Hook{
+func (v *RefreshHuman) Hooks() []tofu.Hook {
+	return []tofu.Hook{
 		v.countHook,
 		NewUiHook(v.view),
 	}
@@ -101,8 +101,8 @@ func (v *RefreshJSON) Operation() Operation {
 	return &OperationJSON{view: v.view}
 }
 
-func (v *RefreshJSON) Hooks() []opentf.Hook {
-	return []opentf.Hook{
+func (v *RefreshJSON) Hooks() []tofu.Hook {
+	return []tofu.Hook{
 		newJSONHook(v.view),
 	}
 }

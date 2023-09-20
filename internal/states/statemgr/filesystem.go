@@ -16,9 +16,9 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Filesystem is a full state manager that uses a file in the local filesystem
@@ -226,7 +226,7 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 
 // PersistState is an implementation of Persister that does nothing because
 // this type's Writer implementation does its own persistence.
-func (s *Filesystem) PersistState(schemas *opentf.Schemas) error {
+func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
 	return nil
 }
 

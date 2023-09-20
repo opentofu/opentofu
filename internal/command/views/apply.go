@@ -9,9 +9,9 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/views/json"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // The Apply view is used for the apply command.
@@ -20,7 +20,7 @@ type Apply interface {
 	Outputs(outputValues map[string]*states.OutputValue)
 
 	Operation() Operation
-	Hooks() []opentf.Hook
+	Hooks() []tofu.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
@@ -99,8 +99,8 @@ func (v *ApplyHuman) Operation() Operation {
 	return NewOperation(arguments.ViewHuman, v.inAutomation, v.view)
 }
 
-func (v *ApplyHuman) Hooks() []opentf.Hook {
-	return []opentf.Hook{
+func (v *ApplyHuman) Hooks() []tofu.Hook {
+	return []tofu.Hook{
 		v.countHook,
 		NewUiHook(v.view),
 	}
@@ -159,8 +159,8 @@ func (v *ApplyJSON) Operation() Operation {
 	return &OperationJSON{view: v.view}
 }
 
-func (v *ApplyJSON) Hooks() []opentf.Hook {
-	return []opentf.Hook{
+func (v *ApplyJSON) Hooks() []tofu.Hook {
+	return []tofu.Hook{
 		v.countHook,
 		newJSONHook(v.view),
 	}

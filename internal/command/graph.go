@@ -10,10 +10,10 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // GraphCommand is a Command implementation that takes a Terraform
@@ -123,7 +123,7 @@ func (c *GraphCommand) Run(args []string) int {
 		}
 	}
 
-	var g *opentf.Graph
+	var g *tofu.Graph
 	var graphDiags tfdiags.Diagnostics
 	switch graphTypeStr {
 	case "plan":
@@ -171,7 +171,7 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
-	graphStr, err := opentf.GraphDot(g, &dag.DotOpts{
+	graphStr, err := tofu.GraphDot(g, &dag.DotOpts{
 		DrawCycles: drawCycles,
 		MaxDepth:   moduleDepth,
 		Verbose:    verbose,

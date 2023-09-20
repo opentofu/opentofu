@@ -17,9 +17,9 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -67,7 +67,7 @@ type Local struct {
 
 	// OpenTF context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *opentf.ContextOpts
+	ContextOpts *tofu.ContextOpts
 
 	// OpInput will ask for necessary input prior to performing any operations.
 	//
@@ -269,7 +269,7 @@ func (b *Local) StateMgr(name string) (statemgr.Full, error) {
 
 // Operation implements backend.Enhanced
 //
-// This will initialize an in-memory opentf.Context to perform the
+// This will initialize an in-memory tofu.Context to perform the
 // operation within this process.
 //
 // The given operation parameter will be merged with the ContextOpts on
@@ -339,7 +339,7 @@ func (b *Local) opWait(
 	doneCh <-chan struct{},
 	stopCtx context.Context,
 	cancelCtx context.Context,
-	tfCtx *opentf.Context,
+	tfCtx *tofu.Context,
 	opStateMgr statemgr.Persister,
 	view views.Operation) (canceled bool) {
 	// Wait for the operation to finish or for us to be interrupted so

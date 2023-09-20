@@ -42,7 +42,6 @@ import (
 	"github.com/opentofu/opentofu/internal/initwd"
 	legacy "github.com/opentofu/opentofu/internal/legacy/opentf"
 	_ "github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -51,6 +50,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -523,8 +523,8 @@ func testStateOutput(t *testing.T, path string, expected string) {
 	}
 }
 
-func testProvider() *opentf.MockProvider {
-	p := new(opentf.MockProvider)
+func testProvider() *tofu.MockProvider {
+	p := new(tofu.MockProvider)
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		resp.PlannedState = req.ProposedNewState
 		return resp

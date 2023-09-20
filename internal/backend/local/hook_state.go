@@ -8,15 +8,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // StateHook is a hook that continuously updates the state by calling
 // WriteState on a statemgr.Full.
 type StateHook struct {
-	opentf.NilHook
+	tofu.NilHook
 	sync.Mutex
 
 	StateMgr statemgr.Writer
@@ -31,7 +31,7 @@ type StateHook struct {
 	// Schemas are the schemas to use when persisting state due to
 	// PersistInterval. This is ignored if PersistInterval is zero,
 	// and PersistInterval is ignored if this is nil.
-	Schemas *opentf.Schemas
+	Schemas *tofu.Schemas
 
 	intermediatePersist IntermediateStatePersistInfo
 }
@@ -59,9 +59,9 @@ type IntermediateStatePersistInfo struct {
 	ForcePersist bool
 }
 
-var _ opentf.Hook = (*StateHook)(nil)
+var _ tofu.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error) {
+func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -75,13 +75,13 @@ func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error
 
 	if h.StateMgr != nil {
 		if err := h.StateMgr.WriteState(new); err != nil {
-			return opentf.HookActionHalt, err
+			return tofu.HookActionHalt, err
 		}
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
 			if h.shouldPersist() {
 				err := mgrPersist.PersistState(h.Schemas)
 				if err != nil {
-					return opentf.HookActionHalt, err
+					return tofu.HookActionHalt, err
 				}
 				h.intermediatePersist.LastPersist = time.Now()
 			} else {
@@ -90,7 +90,7 @@ func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error
 		}
 	}
 
-	return opentf.HookActionContinue, nil
+	return tofu.HookActionContinue, nil
 }
 
 func (h *StateHook) Stopping() {

@@ -14,8 +14,8 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // VarEnvPrefix is the prefix for environment variables that represent values
@@ -55,7 +55,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			ret[name] = unparsedVariableValueString{
 				str:        rawVal,
 				name:       name,
-				sourceType: opentf.ValueFromEnvVar,
+				sourceType: tofu.ValueFromEnvVar,
 			}
 		}
 	}
@@ -65,12 +65,12 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	// (DefaultVarsFilename) along with the later-added search for all files
 	// ending in .auto.tfvars.
 	if _, err := os.Stat(DefaultVarsFilename); err == nil {
-		moreDiags := m.addVarsFromFile(DefaultVarsFilename, opentf.ValueFromAutoFile, ret)
+		moreDiags := m.addVarsFromFile(DefaultVarsFilename, tofu.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
 	}
 	const defaultVarsFilenameJSON = DefaultVarsFilename + ".json"
 	if _, err := os.Stat(defaultVarsFilenameJSON); err == nil {
-		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, opentf.ValueFromAutoFile, ret)
+		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, tofu.ValueFromAutoFile, ret)
 		diags = diags.Append(moreDiags)
 	}
 	if infos, err := os.ReadDir("."); err == nil {
@@ -80,7 +80,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			if !isAutoVarFile(name) {
 				continue
 			}
-			moreDiags := m.addVarsFromFile(name, opentf.ValueFromAutoFile, ret)
+			moreDiags := m.addVarsFromFile(name, tofu.ValueFromAutoFile, ret)
 			diags = diags.Append(moreDiags)
 		}
 	}
@@ -116,11 +116,11 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			ret[name] = unparsedVariableValueString{
 				str:        rawVal,
 				name:       name,
-				sourceType: opentf.ValueFromCLIArg,
+				sourceType: tofu.ValueFromCLIArg,
 			}
 
 		case "-var-file":
-			moreDiags := m.addVarsFromFile(rawFlag.Value, opentf.ValueFromNamedFile, ret)
+			moreDiags := m.addVarsFromFile(rawFlag.Value, tofu.ValueFromNamedFile, ret)
 			diags = diags.Append(moreDiags)
 
 		default:
@@ -133,7 +133,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	return ret, diags
 }
 
-func (m *Meta) addVarsFromFile(filename string, sourceType opentf.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
+func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	src, err := os.ReadFile(filename)
@@ -228,17 +228,17 @@ func (m *Meta) addVarsFromFile(filename string, sourceType opentf.ValueSourceTyp
 // intended to deal with expressions inside "tfvars" files.
 type unparsedVariableValueExpression struct {
 	expr       hcl.Expression
-	sourceType opentf.ValueSourceType
+	sourceType tofu.ValueSourceType
 }
 
-func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
+func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	val, hclDiags := v.expr.Value(nil) // nil because no function calls or variable references are allowed here
 	diags = diags.Append(hclDiags)
 
 	rng := tfdiags.SourceRangeFromHCL(v.expr.Range())
 
-	return &opentf.InputValue{
+	return &tofu.InputValue{
 		Value:       val,
 		SourceType:  v.sourceType,
 		SourceRange: rng,
@@ -252,16 +252,16 @@ func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.Variabl
 type unparsedVariableValueString struct {
 	str        string
 	name       string
-	sourceType opentf.ValueSourceType
+	sourceType tofu.ValueSourceType
 }
 
-func (v unparsedVariableValueString) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
+func (v unparsedVariableValueString) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	val, hclDiags := mode.Parse(v.name, v.str)
 	diags = diags.Append(hclDiags)
 
-	return &opentf.InputValue{
+	return &tofu.InputValue{
 		Value:      val,
 		SourceType: v.sourceType,
 	}, diags

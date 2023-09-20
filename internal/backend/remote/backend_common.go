@@ -17,8 +17,8 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 var (
@@ -242,7 +242,7 @@ func (b *Remote) hasExplicitVariableValues(op *backend.Operation) bool {
 	// their final values will come from the _remote_ execution context.
 	for _, v := range variables {
 		switch v.SourceType {
-		case opentf.ValueFromCLIArg, opentf.ValueFromNamedFile:
+		case tofu.ValueFromCLIArg, tofu.ValueFromNamedFile:
 			return true
 		}
 	}
@@ -431,7 +431,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 					return generalError(fmt.Sprintf("Failed to override policy check.\n%s", runUrl), err)
 				}
 			} else {
-				opts := &opentf.InputOpts{
+				opts := &tofu.InputOpts{
 					Id:          "override",
 					Query:       "\nDo you want to override the soft failed policy check?",
 					Description: "Only 'override' will be accepted to override.",
@@ -461,7 +461,7 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 	return nil
 }
 
-func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *opentf.InputOpts, r *tfe.Run, keyword string) error {
+func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *tofu.InputOpts, r *tfe.Run, keyword string) error {
 	doneCtx, cancel := context.WithCancel(stopCtx)
 	result := make(chan error, 2)
 

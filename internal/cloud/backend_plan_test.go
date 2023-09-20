@@ -27,11 +27,11 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/initwd"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
@@ -309,7 +309,7 @@ func TestCloud_planWithParallelism(t *testing.T) {
 	defer configCleanup()
 
 	if b.ContextOpts == nil {
-		b.ContextOpts = &opentf.ContextOpts{}
+		b.ContextOpts = &tofu.ContextOpts{}
 	}
 	b.ContextOpts.Parallelism = 3
 	op.Workspace = testBackendSingleWorkspaceName
@@ -610,7 +610,7 @@ func TestCloud_planWithRequiredVariables(t *testing.T) {
 	defer configCleanup()
 	defer done(t)
 
-	op.Variables = testVariables(opentf.ValueFromCLIArg, "foo") // "bar" variable defined in config is  missing
+	op.Variables = testVariables(tofu.ValueFromCLIArg, "foo") // "bar" variable defined in config is  missing
 	op.Workspace = testBackendSingleWorkspaceName
 
 	run, err := b.Operation(context.Background(), op)

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -329,13 +329,13 @@ func TestJSONHook_refresh(t *testing.T) {
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
 }
 
-func testHookReturnValues(t *testing.T, action opentf.HookAction, err error) {
+func testHookReturnValues(t *testing.T, action tofu.HookAction, err error) {
 	t.Helper()
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != opentf.HookActionContinue {
+	if action != tofu.HookActionContinue {
 		t.Fatalf("Expected hook to continue, given: %#v", action)
 	}
 }

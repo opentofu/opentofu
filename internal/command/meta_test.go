@@ -16,7 +16,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestMetaColorize(t *testing.T) {
@@ -89,7 +89,7 @@ func TestMetaInputMode(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	if m.InputMode() != opentf.InputModeStd {
+	if m.InputMode() != tofu.InputModeStd {
 		t.Fatalf("bad: %#v", m.InputMode())
 	}
 }
@@ -108,11 +108,11 @@ func TestMetaInputMode_envVar(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	off := opentf.InputMode(0)
-	on := opentf.InputModeStd
+	off := tofu.InputMode(0)
+	on := tofu.InputModeStd
 	cases := []struct {
 		EnvVar   string
-		Expected opentf.InputMode
+		Expected tofu.InputMode
 	}{
 		{"false", off},
 		{"0", off},

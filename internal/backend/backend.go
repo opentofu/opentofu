@@ -22,12 +22,12 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -173,7 +173,7 @@ type Local interface {
 // calculate from an Operation object, which we can then use for local
 // operations.
 //
-// The operation methods on opentf.Context (Plan, Apply, Import, etc) each
+// The operation methods on tofu.Context (Plan, Apply, Import, etc) each
 // generate new artifacts which supersede parts of the LocalRun object that
 // started the operation, so callers should be careful to use those subsequent
 // artifacts instead of the fields of LocalRun where appropriate. The LocalRun
@@ -189,7 +189,7 @@ type Local interface {
 type LocalRun struct {
 	// Core is an already-initialized OpenTF Core context, ready to be
 	// used to run operations such as Plan and Apply.
-	Core *opentf.Context
+	Core *tofu.Context
 
 	// Config is the configuration we're working with, which typically comes
 	// from either config files directly on local disk (when we're creating
@@ -207,7 +207,7 @@ type LocalRun struct {
 	//
 	// This is nil when we're applying a saved plan, because the plan itself
 	// contains enough information about its options to apply it.
-	PlanOpts *opentf.PlanOpts
+	PlanOpts *tofu.PlanOpts
 
 	// Plan is a plan loaded from a saved plan file, if our operation is to
 	// apply that saved plan.
@@ -265,7 +265,7 @@ type Operation struct {
 
 	// Hooks can be used to perform actions triggered by various events during
 	// the operation's lifecycle.
-	Hooks []opentf.Hook
+	Hooks []tofu.Hook
 
 	// Plan is a plan that was passed as an argument. This is valid for
 	// plan and apply arguments but may not work for all backends.
@@ -293,8 +293,8 @@ type Operation struct {
 	View views.Operation
 
 	// Input/output/control options.
-	UIIn  opentf.UIInput
-	UIOut opentf.UIOutput
+	UIIn  tofu.UIInput
+	UIOut tofu.UIOutput
 
 	// StateLocker is used to lock the state while providing UI feedback to the
 	// user. This will be replaced by the Backend to update the context.

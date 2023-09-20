@@ -9,10 +9,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -130,17 +130,17 @@ func testPlanWithDatasource(t *testing.T) *plans.Plan {
 	return plan
 }
 
-func testSchemas() *opentf.Schemas {
+func testSchemas() *tofu.Schemas {
 	provider := testProvider()
-	return &opentf.Schemas{
+	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
 		},
 	}
 }
 
-func testProvider() *opentf.MockProvider {
-	p := new(opentf.MockProvider)
+func testProvider() *tofu.MockProvider {
+	p := new(tofu.MockProvider)
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
 		return providers.ReadResourceResponse{NewState: req.PriorState}
 	}

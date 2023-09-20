@@ -28,10 +28,10 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/opentf"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	tfversion "github.com/opentofu/opentofu/version"
 
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
@@ -57,7 +57,7 @@ type Cloud struct {
 	// ContextOpts are the base context options to set when initializing a
 	// new Terraform context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *opentf.ContextOpts
+	ContextOpts *tofu.ContextOpts
 
 	// client is the cloud backend API client.
 	client *tfe.Client
@@ -879,7 +879,7 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 		// Only ask if the remote operation should be canceled
 		// if the auto approve flag is not set.
 		if !op.AutoApprove {
-			v, err := op.UIIn.Input(cancelCtx, &opentf.InputOpts{
+			v, err := op.UIIn.Input(cancelCtx, &tofu.InputOpts{
 				Id:          "cancel",
 				Query:       "\nDo you want to cancel the remote operation?",
 				Description: "Only 'yes' will be accepted to cancel.",
