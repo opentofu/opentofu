@@ -17,8 +17,8 @@ import (
 const panicOutput = `
 !!!!!!!!!!!!!!!!!!!!!!!!!!! OPENTOFU CRASH !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-OPENTOFU crashed! This is always indicative of a bug within OpenTF.
-Please report the crash with OPENTOFU[1] so that we can fix this.
+OpenTofu crashed! This is always indicative of a bug within OpenTF.
+Please report the crash with OpenTofu[1] so that we can fix this.
 
 When reporting bugs, please include your terraform version, the stack trace
 shown below, and any additional information which may help replicate the issue.
