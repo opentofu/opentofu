@@ -1,7 +1,7 @@
-# __generated__ by OpenTF
+# __generated__ by OpenTofu
 # Please review these resources and move them into your main configuration files.
 
-# __generated__ by OpenTF from "bar"
+# __generated__ by OpenTofu from "bar"
 resource "test_instance" "foo" {
   ami = null
 }
