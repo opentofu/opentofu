@@ -7,18 +7,18 @@ description: The base64encode function applies Base64 encoding to a string.
 
 `base64encode` applies Base64 encoding to a string.
 
-OpenTF uses the "standard" Base64 alphabet as defined in
+OpenTofu uses the "standard" Base64 alphabet as defined in
 [RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
 
-Strings in the OpenTF language are sequences of unicode characters rather
+Strings in the OpenTofu language are sequences of unicode characters rather
 than bytes, so this function will first encode the characters from the string
 as UTF-8, and then apply Base64 encoding to the result.
 
-The OpenTF language applies Unicode normalization to all strings, and so
+The OpenTofu language applies Unicode normalization to all strings, and so
 passing a string through `base64decode` and then `base64encode` may not yield
 the original result exactly.
 
-While we do not recommend manipulating large, raw binary data in the OpenTF
+While we do not recommend manipulating large, raw binary data in the OpenTofu
 language, Base64 encoding is the standard way to represent arbitrary byte
 sequences, and so resource types that accept or return binary data will use
 Base64 themselves, and so this function exists primarily to allow string

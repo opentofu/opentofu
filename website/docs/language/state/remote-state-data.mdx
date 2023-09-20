@@ -1,13 +1,13 @@
 ---
 description: >-
-  Retrieves the root module output values from an OpenTF state snapshot stored
+  Retrieves the root module output values from an OpenTofu state snapshot stored
   in a remote backend.
 ---
 
 # The `terraform_remote_state` Data Source
 
 The `terraform_remote_state` data source uses the latest state snapshot from a specified state backend to retrieve the root module output values
-from some other OpenTF configuration.
+from some other OpenTofu configuration.
 
 You can use the `terraform_remote_state` data source without requiring or configuring a provider. It is always available through a built-in provider with the [source address](/docs/language/providers/requirements#source-addresses) `terraform.io/builtin/terraform`. That provider does not include any other resources or data sources.
 
@@ -42,17 +42,17 @@ limited to) the following:
 | OCI Object Storage                                                     | [`oci_objectstorage_bucket` resource type](https://registry.terraform.io/providers/hashicorp/oci/latest/docs/resources/objectstorage_object)                     | [`oci_objectstorage_bucket` data source](https://registry.terraform.io/providers/hashicorp/oci/latest/docs/data-sources/objectstorage_object)                                                                                                                        |
 
 :::note
-These are some common options from the Official OpenTF providers, but
+These are some common options from the Official OpenTofu providers, but
 there are too many configuration storage options for us to list them all
 here, including some in partner and community providers.
 Any pair of managed resource type and corresponding data source can potentially
-be used to share data between OpenTF configurations. See individual provider
+be used to share data between OpenTofu configurations. See individual provider
 documentation to find other possibilities.
 :::
 
 A key advantage of using a separate explicit configuration store instead of
 `terraform_remote_state` is that the data can potentially also be read by
-systems other than OpenTF, such as configuration management or scheduler
+systems other than OpenTofu, such as configuration management or scheduler
 systems within your compute instances. For that reason, we recommend selecting
 a configuration store that your other infrastructure could potentially make
 use of. For example:
@@ -84,7 +84,7 @@ configuration data by writing a
 containing the necessary data source configuration and any necessary
 post-processing such as JSON decoding. You can then change that module later
 if you switch to a different strategy for sharing data between multiple
-OpenTF configurations.
+OpenTofu configurations.
 
 ## Example Usage (`remote` Backend)
 
@@ -128,7 +128,7 @@ resource "aws_instance" "foo" {
 The following arguments are supported:
 
 * `backend` - (Required) The remote backend to use.
-* `workspace` - (Optional) The OpenTF workspace to use, if the backend
+* `workspace` - (Optional) The OpenTofu workspace to use, if the backend
   supports workspaces.
 * `config` - (Optional; object) The configuration of the remote backend.
   Although this argument is listed as optional, most backends require

@@ -9,10 +9,10 @@ description: The yamlencode function encodes a given value as a YAML string.
 [YAML 1.2](https://yaml.org/spec/1.2/spec.html) block syntax.
 
 This function maps
-[OpenTF language values](/docs/language/expressions/types)
+[OpenTofu language values](/docs/language/expressions/types)
 to YAML tags in the following way:
 
-| OpenTF type | YAML type            |
+| OpenTofu type | YAML type            |
 | -------------- | -------------------- |
 | `string`       | `!!str`              |
 | `number`       | `!!float` or `!!int` |
@@ -27,16 +27,16 @@ to YAML tags in the following way:
 `yamlencode` uses the implied syntaxes for all of the above types, so it does
 not generate explicit YAML tags.
 
-Because the YAML format cannot fully represent all of the OpenTF language
+Because the YAML format cannot fully represent all of the OpenTofu language
 types, passing the `yamlencode` result to `yamldecode` will not produce an
-identical value, but the OpenTF language automatic type conversion rules
+identical value, but the OpenTofu language automatic type conversion rules
 mean that this is rarely a problem in practice.
 
 YAML is a superset of JSON, and so where possible we recommend generating
 JSON using [`jsonencode`](/docs/language/functions/jsonencode) instead, even if
 a remote system supports YAML. JSON syntax is equivalent to flow-style YAML
-and OpenTF can present detailed structural change information for JSON
-values in plans, whereas OpenTF will treat block-style YAML just as a normal
+and OpenTofu can present detailed structural change information for JSON
+values in plans, whereas OpenTofu will treat block-style YAML just as a normal
 multi-line string. However, generating YAML may improve readability if the
 resulting value will be directly read or modified in the remote system by
 humans.

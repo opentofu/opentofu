@@ -12,7 +12,7 @@ applied to it.
 
 ## Types
 
-The OpenTF language uses the following types for its values:
+The OpenTofu language uses the following types for its values:
 
 * `string`: a sequence of Unicode characters representing some text, like
   `"hello"`.
@@ -35,7 +35,7 @@ description of complex types.
 Finally, there is one special value that has _no_ type:
 
 * `null`: a value that represents _absence_ or _omission._ If you set an
-  argument of a resource to `null`, OpenTF behaves as though you
+  argument of a resource to `null`, OpenTofu behaves as though you
   had completely omitted it — it will use the argument's default value if it has
   one, or raise an error if the argument is mandatory. `null` is most useful in
   conditional expressions, so you can dynamically omit an argument if a
@@ -44,7 +44,7 @@ Finally, there is one special value that has _no_ type:
 ## Literal Expressions
 
 A _literal expression_ is an expression that directly represents a particular
-constant value. OpenTF has a literal expression syntax for each of the value
+constant value. OpenTofu has a literal expression syntax for each of the value
 types described above.
 
 ### Strings
@@ -54,7 +54,7 @@ characters, `"like this"`. There is also a "heredoc" syntax for more complex
 strings.
 
 String literals are the most complex kind of literal expression in
-OpenTF, and have their own page of documentation. See [Strings](/docs/language/expressions/strings)
+OpenTofu, and have their own page of documentation. See [Strings](/docs/language/expressions/strings)
 for information about escape sequences, the heredoc syntax, interpolation, and
 template directives.
 
@@ -117,7 +117,7 @@ using only the square-bracket index notation (`local.map["keyname"]`).
 ## More About Complex Types
 
 In most situations, lists and tuples behave identically, as do maps and objects.
-Whenever the distinction isn't relevant, the OpenTF documentation uses each
+Whenever the distinction isn't relevant, the OpenTofu documentation uses each
 pair of terms interchangeably (with a historical preference for "list" and
 "map").
 
@@ -135,12 +135,12 @@ Expressions are most often used to set values for the arguments of resources and
 child modules. In these cases, the argument has an expected type and the given
 expression must produce a value of that type.
 
-Where possible, OpenTF automatically converts values from one type to
-another in order to produce the expected type. If this isn't possible, OpenTF
+Where possible, OpenTofu automatically converts values from one type to
+another in order to produce the expected type. If this isn't possible, OpenTofu
 will produce a type mismatch error and you must update the configuration with a
 more suitable expression.
 
-OpenTF automatically converts number and bool values to strings when needed.
+OpenTofu automatically converts number and bool values to strings when needed.
 It also converts strings to numbers or bools, as long as the string contains a
 valid representation of a number or bool value.
 

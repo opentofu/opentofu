@@ -6,39 +6,39 @@ description: >-
 
 # Moving Resources
 
-OpenTF's state associates each real-world object with a configured resource
+OpenTofu's state associates each real-world object with a configured resource
 at a specific [resource address](/docs/cli/state/resource-addressing). This
-is seamless when changing a resource's attributes, but OpenTF will lose track
+is seamless when changing a resource's attributes, but OpenTofu will lose track
 of a resource if you change its name, move it to a different module, or change
 its provider.
 
-Usually that's fine: OpenTF will destroy the old resource, replace it with a
+Usually that's fine: OpenTofu will destroy the old resource, replace it with a
 new one (using the new resource address), and update any resources that rely on
 its attributes.
 
 In cases where it's important to preserve an existing infrastructure object, you
-can explicitly tell OpenTF to associate it with a different configured
+can explicitly tell OpenTofu to associate it with a different configured
 resource.
 
 For most cases we recommend using
-[the OpenTF language's refactoring features](/docs/language/modules/develop/refactoring)
+[the OpenTofu language's refactoring features](/docs/language/modules/develop/refactoring)
 to document in your module exactly how the resource names have changed over
-time. OpenTF reacts to this information automatically during planning, so users of your module do not need to take any unusual extra steps.
+time. OpenTofu reacts to this information automatically during planning, so users of your module do not need to take any unusual extra steps.
 
 There are some other situations which require explicit state modifications,
-though. For those, consider the following OpenTF commands:
+though. For those, consider the following OpenTofu commands:
 
-- [The `opentf state mv` command](/docs/cli/commands/state/mv) changes
+- [The `tofu state mv` command](/docs/cli/commands/state/mv) changes
   which resource address in your configuration is associated with a particular
   real-world object. Use this to preserve an object when renaming a resource, or
   when moving a resource into or out of a child module.
 
-- [The `opentf state rm` command](/docs/cli/commands/state/rm) tells
-  OpenTF to stop managing a resource as part of the current working directory
+- [The `tofu state rm` command](/docs/cli/commands/state/rm) tells
+  OpenTofu to stop managing a resource as part of the current working directory
   and workspace, _without_ destroying the corresponding real-world object. (You
-  can later use `opentf import` to start managing that resource in a
-  different workspace or a different OpenTF configuration.)
+  can later use `tofu import` to start managing that resource in a
+  different workspace or a different OpenTofu configuration.)
 
-- [The `opentf state replace-provider` command](/docs/cli/commands/state/replace-provider)
+- [The `tofu state replace-provider` command](/docs/cli/commands/state/replace-provider)
   transfers existing resources to a new provider without requiring them to be
   re-created.

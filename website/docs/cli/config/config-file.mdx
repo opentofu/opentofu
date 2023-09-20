@@ -5,10 +5,10 @@ description: >-
   including credentials, plugin caching, provider installation methods, etc.
 ---
 
-# CLI Configuration File (`.opentfrc` or `opentf.rc`)
+# CLI Configuration File (`.tofurc` or `tofu.rc`)
 
 The CLI configuration file configures per-user settings for CLI behaviors,
-which apply across all OpenTF working directories. This is separate from
+which apply across all OpenTofu working directories. This is separate from
 [your infrastructure configuration](/docs/language).
 
 ## Locations
@@ -16,25 +16,25 @@ which apply across all OpenTF working directories. This is separate from
 The configuration can be placed in a single file whose location depends
 on the host operating system:
 
-* On Windows, the file must be named `opentf.rc` and placed
+* On Windows, the file must be named `tofu.rc` and placed
   in the relevant user's `%APPDATA%` directory. The physical location
   of this directory depends on your Windows version and system configuration;
   use `$env:APPDATA` in PowerShell to find its location on your system.
   The `terraform.rc` is supported for backward-compatability purposes.
-  If both `terraform.rc` and `opentf.rc` files exists, the later would take precedence.
-* On all other systems, the file must be named `.opentfrc` (note
+  If both `terraform.rc` and `tofu.rc` files exists, the later would take precedence.
+* On all other systems, the file must be named `.tofurc` (note
   the leading period) and placed directly in the home directory
   of the relevant user.
   The `.terraformrc` is supported for backward-compatability purposes.
-  If both `.terraformrc` and `.opentfrc` files exists, the later would take precedence.
+  If both `.terraformrc` and `.tofurc` files exists, the later would take precedence.
 
 On Windows, beware of Windows Explorer's default behavior of hiding filename
-extensions. OpenTF will not recognize a file named `opentfc.rc.txt` as a
+extensions. OpenTofu will not recognize a file named `tofuc.rc.txt` as a
 CLI configuration file, even though Windows Explorer may _display_ its name
-as just `opentf.rc`. Use `dir` from PowerShell or Command Prompt to
+as just `tofu.rc`. Use `dir` from PowerShell or Command Prompt to
 confirm the filename.
 
-The location of the OpenTF CLI configuration file can also be specified
+The location of the OpenTofu CLI configuration file can also be specified
 using the `TF_CLI_CONFIG_FILE` [environment variable](/docs/cli/config/environment-variables).
 Any such file should follow the naming pattern `*.tfrc`.
 
@@ -65,12 +65,12 @@ The following settings can be set in the CLI configuration file:
   and specifies, as a string, the location of the plugin cache directory.
 
 * `provider_installation` - customizes the installation methods used by
-  `opentf init` when installing provider plugins. See
+  `tofu init` when installing provider plugins. See
   [Provider Installation](#provider-installation) below for more information.
 
 ## Credentials
 
-When interacting with OpenTF-specific network services, OpenTF expects
+When interacting with OpenTofu-specific network services, OpenTofu expects
 to find API tokens in CLI configuration files in `credentials` blocks:
 
 ```hcl
@@ -79,7 +79,7 @@ credentials "app.placeholderplaceholderplaceholder.io" {
 }
 ```
 
-If you are running the OpenTF CLI interactively on a computer with a web browser, you can use [the `opentf login` command](/docs/cli/commands/login)
+If you are running the OpenTofu CLI interactively on a computer with a web browser, you can use [the `tofu login` command](/docs/cli/commands/login)
 to get credentials and automatically save them in the CLI configuration. If
 not, you can manually write `credentials` blocks.
 
@@ -107,12 +107,12 @@ called `TF_TOKEN_xn--r8j3dr99h_com`.
 Hyphens are also valid within host names but usually invalid as variable names and
 may be encoded as double underscores. For example, you can set a token for the domain name
 `café.fr` as `TF_TOKEN_xn--caf-dma.fr`, `TF_TOKEN_xn--caf-dma_fr`,  or `TF_TOKEN_xn____caf__dma_fr`.
-If multiple variables evaluate to the same hostname, OpenTF will choose the one defined last
+If multiple variables evaluate to the same hostname, OpenTofu will choose the one defined last
 in the operating system's variable table.
 
 ### Credentials Helpers
 
-You can configure a `credentials_helper` to instruct OpenTF to use a different credentials storage mechanism.
+You can configure a `credentials_helper` to instruct OpenTofu to use a different credentials storage mechanism.
 
 ```hcl
 credentials_helper "example" {
@@ -133,7 +133,7 @@ Conversely, this means you can override the credentials returned by the helper
 for a specific hostname by writing a `credentials` block alongside the
 `credentials_helper` block.
 
-OpenTF does not include any credentials helpers in the main distribution.
+OpenTofu does not include any credentials helpers in the main distribution.
 To learn how to write and install your own credentials helpers to integrate
 with existing in-house credentials management systems, see
 [the guide to Credentials Helper internals](/docs/internals/credentials-helpers).
@@ -141,7 +141,7 @@ with existing in-house credentials management systems, see
 ### Credentials Source Priority Order
 
 Credentials found in an environment variable for a particular service host
-as described above will be preferred over those in CLI config as set by `opentf login`.
+as described above will be preferred over those in CLI config as set by `tofu login`.
 If neither are set, any configured credentials helper will be consulted.
 
 ## Provider Installation
@@ -149,23 +149,23 @@ If neither are set, any configured credentials helper will be consulted.
 The default way to install provider plugins is from a provider registry. The
 origin registry for a provider is encoded in the provider's source address,
 like `registry.terraform.io/hashicorp/aws`. For convenience in the common case,
-OpenTF allows omitting the hostname portion for providers on
+OpenTofu allows omitting the hostname portion for providers on
 `registry.terraform.io`, so you can write shorter public provider addresses like
 `hashicorp/aws`.
 
 Downloading a plugin directly from its origin registry is not always
-appropriate, though. For example, the system where you are running OpenTF
+appropriate, though. For example, the system where you are running OpenTofu
 may not be able to access an origin registry due to firewall restrictions
 within your organization or your locality.
 
-To allow using OpenTF providers in these situations, there are some
-alternative options for making provider plugins available to OpenTF which
+To allow using OpenTofu providers in these situations, there are some
+alternative options for making provider plugins available to OpenTofu which
 we'll describe in the following sections.
 
 ### Explicit Installation Method Configuration
 
 A `provider_installation` block in the CLI configuration allows overriding
-OpenTF's default installation behaviors, so you can force OpenTF to use
+OpenTofu's default installation behaviors, so you can force OpenTofu to use
 a local mirror for some or all of the providers you intend to use.
 
 The general structure of a `provider_installation` block is as follows:
@@ -214,7 +214,7 @@ The following are the two supported installation method types:
   providers. This method requires the additional argument `path` to indicate
   which directory to look in.
 
-  OpenTF expects the given directory to contain a nested directory structure
+  OpenTofu expects the given directory to contain a nested directory structure
   where the path segments together provide metadata about the available
   providers. The following two directory structures are supported:
 
@@ -227,10 +227,10 @@ The following are the two supported installation method types:
   specifies a particular target platform using a format like `darwin_amd64`,
   `linux_arm`, `windows_amd64`, etc.
 
-  If you use the unpacked layout, OpenTF will attempt to create a symbolic
+  If you use the unpacked layout, OpenTofu will attempt to create a symbolic
   link to the mirror directory when installing the provider, rather than
   creating a deep copy of the directory. The packed layout prevents this
-  because OpenTF must extract the zip file during installation.
+  because OpenTofu must extract the zip file during installation.
 
   You can include multiple `filesystem_mirror` blocks in order to specify
   several different directories to search.
@@ -240,7 +240,7 @@ The following are the two supported installation method types:
   additional argument `url` to indicate the mirror base URL, which should
   use the `https:` scheme and end with a trailing slash.
 
-  OpenTF expects the given URL to be a base URL for an implementation of
+  OpenTofu expects the given URL to be a base URL for an implementation of
   [the provider network mirror protocol](/docs/internals/provider-network-mirror-protocol),
   which is designed to be relatively easy to implement using typical static
   website hosting mechanisms.
@@ -252,23 +252,23 @@ identity, but a network mirror with a TLS certificate can potentially serve
 modified copies of upstream providers with malicious content.
 :::
 
-OpenTF will try all of the specified methods whose include and exclude
+OpenTofu will try all of the specified methods whose include and exclude
 patterns match a given provider, and select the newest version available across
 all of those methods that matches the version constraint given in each
-OpenTF configuration. If you have a local mirror of a particular provider
-and intend OpenTF to use that local mirror exclusively, you must either
+OpenTofu configuration. If you have a local mirror of a particular provider
+and intend OpenTofu to use that local mirror exclusively, you must either
 remove the `direct` installation method altogether or use its `exclude`
 argument to disable its use for specific providers.
 
 ### Implied Local Mirror Directories
 
 If your CLI configuration does not include a `provider_installation` block at
-all, OpenTF produces an _implied_ configuration. The implied configuration
+all, OpenTofu produces an _implied_ configuration. The implied configuration
 includes a selection of `filesystem_mirror` methods and then the `direct`
 method.
 
-The set of directories OpenTF can select as filesystem mirrors depends on
-the operating system where you are running OpenTF:
+The set of directories OpenTofu can select as filesystem mirrors depends on
+the operating system where you are running OpenTofu:
 
 * **Windows:** `%APPDATA%/terraform.d/plugins` and `%APPDATA%/HashiCorp/Terraform/plugins`
 * **Mac OS X:** `$HOME/.terraform.d/plugins`,
@@ -278,21 +278,21 @@ the operating system where you are running OpenTF:
   `terraform/plugins` located within a valid
   [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   data directory such as `$XDG_DATA_HOME/terraform/plugins`.
-  Without any XDG environment variables set, OpenTF will use
+  Without any XDG environment variables set, OpenTofu will use
   `~/.local/share/terraform/plugins`,
   `/usr/local/share/terraform/plugins`, and `/usr/share/terraform/plugins`.
 
 If a `terraform.d/plugins` directory exists in the current working directory
-then OpenTF will also include that directory, regardless of your operating
-system. This behavior changes when you use the `-chdir` option with the `init` command. In that case, OpenTF checks for the `terraform.d/plugins` directory in the launch directory and not in the directory you specified with `-chdir`.
+then OpenTofu will also include that directory, regardless of your operating
+system. This behavior changes when you use the `-chdir` option with the `init` command. In that case, OpenTofu checks for the `terraform.d/plugins` directory in the launch directory and not in the directory you specified with `-chdir`.
 
-OpenTF will check each of the paths above to see if it exists, and if so
+OpenTofu will check each of the paths above to see if it exists, and if so
 treat it as a filesystem mirror. The directory structure inside each one must
 therefore match one of the two structures described for `filesystem_mirror`
 blocks in [Explicit Installation Method Configuration](#explicit-installation-method-configuration).
 
-In addition to the zero or more implied `filesystem_mirror` blocks, OpenTF
-also creates an implied `direct` block. OpenTF will scan all of the
+In addition to the zero or more implied `filesystem_mirror` blocks, OpenTofu
+also creates an implied `direct` block. OpenTofu will scan all of the
 filesystem mirror directories to see which providers are placed there and
 automatically exclude all of those providers from the implied `direct` block.
 (This automatic `exclude` behavior applies only to _implicit_ `direct` blocks;
@@ -301,14 +301,14 @@ exclusions out yourself.)
 
 ### Provider Plugin Cache
 
-By default, `opentf init` downloads plugins into a subdirectory of the
+By default, `tofu init` downloads plugins into a subdirectory of the
 working directory so that each working directory is self-contained. As a
 consequence, if you have multiple configurations that use the same provider
 then a separate copy of its plugin will be downloaded for each configuration.
 
 Given that provider plugins can be quite large (on the order of hundreds of
 megabytes), this default behavior can be inconvenient for those with slow
-or metered Internet connections. Therefore OpenTF optionally allows the
+or metered Internet connections. Therefore OpenTofu optionally allows the
 use of a local directory as a shared plugin cache, which then allows each
 distinct plugin binary to be downloaded only once.
 
@@ -319,8 +319,8 @@ the CLI configuration file. For example:
 plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"
 ```
 
-This directory must already exist before OpenTF will cache plugins;
-OpenTF will not create the directory itself.
+This directory must already exist before OpenTofu will cache plugins;
+OpenTofu will not create the directory itself.
 
 Please note that on Windows it is necessary to use forward slash separators
 (`/`) rather than the conventional backslash (`\`) since the configuration
@@ -335,16 +335,16 @@ directory within a particular shell session:
 export TF_PLUGIN_CACHE_DIR="$HOME/.terraform.d/plugin-cache"
 ```
 
-When a plugin cache directory is enabled, the `opentf init` command will
+When a plugin cache directory is enabled, the `tofu init` command will
 still use the configured or implied installation methods to obtain metadata
 about which plugins are available, but once a suitable version has been
 selected it will first check to see if the chosen plugin is already available
-in the cache directory. If so, OpenTF will use the previously-downloaded
+in the cache directory. If so, OpenTofu will use the previously-downloaded
 copy.
 
-If the selected plugin is not already in the cache, OpenTF will download
+If the selected plugin is not already in the cache, OpenTofu will download
 it into the cache first and then copy it from there into the correct location
-under your current working directory. When possible OpenTF will use
+under your current working directory. When possible OpenTofu will use
 symbolic links to avoid storing a separate copy of a cached plugin in multiple
 directories.
 
@@ -352,13 +352,13 @@ The plugin cache directory _must not_ also be one of the configured or implied
 filesystem mirror directories, since the cache management logic conflicts with
 the filesystem mirror logic when operating on the same directory.
 
-OpenTF will never itself delete a plugin from the plugin cache once it has
+OpenTofu will never itself delete a plugin from the plugin cache once it has
 been placed there. Over time, as plugins are upgraded, the cache directory may
 grow to contain several unused versions which you must delete manually.
 
 :::note
 The plugin cache directory is not guaranteed to be concurrency
-safe. The provider installer's behavior in environments with multiple `opentf
+safe. The provider installer's behavior in environments with multiple `tofu
 init` calls is undefined.
 :::
 
@@ -370,21 +370,21 @@ only. Do not set this option unless you are sure you need it and you fully
 understand the consequences of enabling it.
 :::
 
-By default OpenTF will use packages from the global cache directory only
+By default OpenTofu will use packages from the global cache directory only
 if they match at least one of the checksums recorded in the
 [dependency lock file](/docs/language/files/dependency-lock)
-for that provider. This ensures that OpenTF can always
+for that provider. This ensures that OpenTofu can always
 generate a complete and correct dependency lock file entry the first time you
 use a new provider in a particular configuration.
 
 However, we know that in some special situations teams have been unable to use
 the dependency lock file as intended, and so they don't include it in their
-version control as recommended and instead let OpenTF re-generate it each
+version control as recommended and instead let OpenTofu re-generate it each
 time it installs providers.
 
 For those teams that don't preserve the dependency lock file in their version
-control systems between runs, OpenTF allows an additional CLI Configuration
-setting which tells OpenTF to always treat a package in the cache directory
+control systems between runs, OpenTofu allows an additional CLI Configuration
+setting which tells OpenTofu to always treat a package in the cache directory
 as valid even if there isn't already an entry in the dependency lock file
 to confirm it:
 
@@ -396,20 +396,20 @@ Alternatively, you can set the environment variable
 `TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE` to any value other than the
 empty string or `0`, which is equivalent to the above setting.
 
-Setting this option gives OpenTF CLI permission to create an incomplete
-dependency lock file entry for a provider if that would allow OpenTF to
+Setting this option gives OpenTofu CLI permission to create an incomplete
+dependency lock file entry for a provider if that would allow OpenTofu to
 use the cache to install that provider. In that situation the dependency lock
 file will be valid for use on the current system but may not be valid for use on
 another computer with a different operating system or CPU architecture, because
 it will include only a checksum of the package in the global cache.
 
-We recommend that most users leave this option unset, in which case OpenTF
+We recommend that most users leave this option unset, in which case OpenTofu
 will always install a provider from upstream the first time you use it with
 a particular configuration, but can then re-use the cache entry on later runs
 once the dependency lock file records valid checksums for the provider package.
 
 :::warning Note
-The OpenTF team intends to improve the dependency lock file
+The OpenTofu team intends to improve the dependency lock file
 mechanism in future versions so that it will be usable in more situations. At
 that time this option will become silently ignored. If your workflow relies on
 the use of this option, please open a GitHub issue to share details about your
@@ -419,7 +419,7 @@ dependency lock file.
 
 ### Development Overrides for Provider Developers
 
-Normally OpenTF verifies version selections and checksums for providers
+Normally OpenTofu verifies version selections and checksums for providers
 in order to help ensure that all operations are made with the intended version
 of a provider, and that authors can gradually upgrade to newer provider versions
 in a controlled manner.
@@ -429,7 +429,7 @@ though, because we often want to try a test configuration against a development
 build of a provider that doesn't even have an associated version number yet,
 and doesn't have an official set of checksums listed in a provider registry.
 
-As a convenience for provider development, OpenTF supports a special
+As a convenience for provider development, OpenTofu supports a special
 additional block `dev_overrides` in `provider_installation` blocks. The contents
 of this block effectively override all of the other configured installation
 methods, so a block of this type must always appear first in the sequence:
@@ -439,27 +439,27 @@ provider_installation {
 
   # Use /home/developer/tmp/terraform-null as an overridden package directory
   # for the hashicorp/null provider. This disables the version and checksum
-  # verifications for this provider and forces OpenTF to look for the
+  # verifications for this provider and forces OpenTofu to look for the
   # null provider plugin in the given directory.
   dev_overrides {
     "hashicorp/null" = "/home/developer/tmp/terraform-null"
   }
 
   # For all other providers, install them directly from their origin provider
-  # registries as normal. If you omit this, OpenTF will _only_ use
+  # registries as normal. If you omit this, OpenTofu will _only_ use
   # the dev_overrides block, and so no other providers will be available.
   direct {}
 }
 ```
 
-With development overrides in effect, the `opentf init` command will still
+With development overrides in effect, the `tofu init` command will still
 attempt to select a suitable published version of your provider to install and
 record in
 [the dependency lock file](/docs/language/files/dependency-lock)
 for future use, but other commands like
-`opentf apply` will disregard the lock file's entry for `hashicorp/null` and
+`tofu apply` will disregard the lock file's entry for `hashicorp/null` and
 will use the given directory instead. Once your new changes are included in a
-published release of the provider, you can use `opentf init -upgrade` to
+published release of the provider, you can use `tofu init -upgrade` to
 select the new version in the dependency lock file and remove your development
 override.
 
@@ -474,7 +474,7 @@ You may wish to enable a development override only for shell sessions where
 you are actively working on provider development. If so, you can write a
 local CLI configuration file with content like the above in your development
 directory, perhaps called `dev.tfrc` for the sake of example, and then use the
-`TF_CLI_CONFIG_FILE` environment variable to instruct OpenTF to use that
+`TF_CLI_CONFIG_FILE` environment variable to instruct OpenTofu to use that
 localized CLI configuration instead of the default one:
 
 ```
@@ -482,7 +482,7 @@ export TF_CLI_CONFIG_FILE=/home/developer/tmp/dev.tfrc
 ```
 
 Development overrides are not intended for general use as a way to have
-OpenTF look for providers on the local filesystem. If you wish to put
+OpenTofu look for providers on the local filesystem. If you wish to put
 copies of _released_ providers in your local filesystem, see
 [Implied Local Mirror Directories](#implied-local-mirror-directories)
 or
@@ -492,6 +492,6 @@ instead.
 This development overrides mechanism is intended as a pragmatic way to enable
 smoother provider development. The details of how it behaves, how to
 configure it, and how it interacts with the dependency lock file may all evolve
-in future OpenTF releases, including possible breaking changes. We therefore
+in future OpenTofu releases, including possible breaking changes. We therefore
 recommend using development overrides only temporarily during provider
 development work.

@@ -1,17 +1,17 @@
 ---
-description: The opentf import command brings existing resources into OpenTF state.
+description: The tofu import command brings existing resources into OpenTofu state.
 ---
 
 # Command: import
 
-The `opentf import` command [imports existing resources](/docs/cli/import)
-into OpenTF.
+The `tofu import` command [imports existing resources](/docs/cli/import)
+into OpenTofu.
 
 ## Usage
 
-Usage: `opentf import [options] ADDRESS ID`
+Usage: `tofu import [options] ADDRESS ID`
 
-Import will find the existing resource from ID and import it into your OpenTF
+Import will find the existing resource from ID and import it into your OpenTofu
 state at the given ADDRESS.
 
 ADDRESS must be a valid [resource address](/docs/cli/state/resource-addressing).
@@ -25,20 +25,20 @@ on the ID format. If you're unsure, feel free to just try an ID. If the ID
 is invalid, you'll just receive an error message.
 
 :::warning
-OpenTF expects that each remote object it is managing will be
-bound to only one resource address, which is normally guaranteed by OpenTF
-itself having created all objects. If you import existing objects into OpenTF,
-be careful to import each remote object to only one OpenTF resource address.
-If you import the same object multiple times, OpenTF may exhibit unwanted
+OpenTofu expects that each remote object it is managing will be
+bound to only one resource address, which is normally guaranteed by OpenTofu
+itself having created all objects. If you import existing objects into OpenTofu,
+be careful to import each remote object to only one OpenTofu resource address.
+If you import the same object multiple times, OpenTofu may exhibit unwanted
 behavior. For more information on this assumption, see
 [the State section](/docs/language/state).
 :::
 
 The command-line flags are all optional. The following flags are available:
 
-- `-config=path` - Path to directory of OpenTF configuration files that
+- `-config=path` - Path to directory of OpenTofu configuration files that
   configure the provider for import. This defaults to your working directory.
-  If this directory contains no OpenTF configuration files, the provider
+  If this directory contains no OpenTofu configuration files, the provider
   must be configured via manual input or environmental variables.
 
 - `-input=true` - Whether to ask for input for provider configuration.
@@ -51,20 +51,20 @@ The command-line flags are all optional. The following flags are available:
 
 - `-no-color` - If specified, output won't contain any color.
 
-- `-parallelism=n` - Limit the number of concurrent operation as OpenTF
+- `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
   [walks the graph](/docs/internals/graph#walking-the-graph). Defaults
   to 10.
 
 - `-provider=provider` - **Deprecated** Override the provider configuration to
-  use when importing the object. By default, OpenTF uses the provider specified
+  use when importing the object. By default, OpenTofu uses the provider specified
   in the configuration for the target resource, and that is the best behavior in most cases.
 
-- `-var 'foo=bar'` - Set a variable in the OpenTF configuration. This flag
+- `-var 'foo=bar'` - Set a variable in the OpenTofu configuration. This flag
   can be set multiple times. Variable values are interpreted as
   [literal expressions](/docs/language/expressions/types) in the
-  OpenTF language, so list and map values can be specified via this flag.
+  OpenTofu language, so list and map values can be specified via this flag.
 
-- `-var-file=foo` - Set variables in the OpenTF configuration from
+- `-var-file=foo` - Set variables in the OpenTofu configuration from
   a [variable file](/docs/language/values/variables#variable-definitions-tfvars-files). If
   a `terraform.tfvars` or any `.auto.tfvars` files are present in the current
   directory, they will be automatically loaded. `terraform.tfvars` is loaded
@@ -74,30 +74,30 @@ The command-line flags are all optional. The following flags are available:
   useful with the `-config` flag.
 
 For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
-only, `opentf import`
+only, `tofu import`
 also accepts the option
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
 [the `local` backend](/docs/language/settings/backends/local) only,
-`opentf import` also accepts the legacy options
+`tofu import` also accepts the legacy options
 [`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Provider Configuration
 
-OpenTF will attempt to load configuration files that configure the
+OpenTofu will attempt to load configuration files that configure the
 provider being used for import. If no configuration files are present or
-no configuration for that specific provider is present, OpenTF will
+no configuration for that specific provider is present, OpenTofu will
 prompt you for access credentials. You may also specify environmental variables
 to configure the provider.
 
-The only limitation OpenTF has when reading the configuration files
+The only limitation OpenTofu has when reading the configuration files
 is that the import provider configurations must not depend on non-variable
 inputs. For example, a provider configuration cannot depend on a data
 source.
 
 As a working example, if you're importing AWS resources and you have a
-configuration file with the contents below, then OpenTF will configure
+configuration file with the contents below, then OpenTofu will configure
 the AWS provider with this file.
 
 ```hcl
@@ -115,7 +115,7 @@ provider "aws" {
 This example will import an AWS instance into the `aws_instance` resource named `foo`:
 
 ```shell
-$ opentf import aws_instance.foo i-abcd1234
+$ tofu import aws_instance.foo i-abcd1234
 ```
 
 ## Example: Import into Module
@@ -123,7 +123,7 @@ $ opentf import aws_instance.foo i-abcd1234
 The example below will import an AWS instance into the `aws_instance` resource named `bar` into a module named `foo`:
 
 ```shell
-$ opentf import module.foo.aws_instance.bar i-abcd1234
+$ tofu import module.foo.aws_instance.bar i-abcd1234
 ```
 
 ## Example: Import into Resource configured with count
@@ -132,7 +132,7 @@ The example below will import an AWS instance into the first instance of the `aw
 [`count`](/docs/language/meta-arguments/count):
 
 ```shell
-$ opentf import 'aws_instance.baz[0]' i-abcd1234
+$ tofu import 'aws_instance.baz[0]' i-abcd1234
 ```
 
 ## Example: Import into Resource configured with for_each
@@ -143,17 +143,17 @@ The example below will import an AWS instance into the `"example"` instance of t
 Linux, Mac OS, and UNIX:
 
 ```shell
-$ opentf import 'aws_instance.baz["example"]' i-abcd1234
+$ tofu import 'aws_instance.baz["example"]' i-abcd1234
 ```
 
 PowerShell:
 
 ```shell
-$ opentf import 'aws_instance.baz[\"example\"]' i-abcd1234
+$ tofu import 'aws_instance.baz[\"example\"]' i-abcd1234
 ```
 
 Windows `cmd.exe`:
 
 ```shell
-$ opentf import aws_instance.baz[\"example\"] i-abcd1234
+$ tofu import aws_instance.baz[\"example\"] i-abcd1234
 ```

@@ -1,7 +1,7 @@
 ---
 description: |-
   The provider registry protocol is implemented by a host intending to be the
-  origin host for one or more OpenTF providers, specifying which providers
+  origin host for one or more OpenTofu providers, specifying which providers
   are available and where to find their distribution packages.
 ---
 
@@ -19,18 +19,18 @@ alternative to publishing them on the public Terraform Registry.
 
 This page describes the provider _registry_ protocol, which is the protocol
 for finding providers available for installation. It _doesn't_ describe the
-API that provider plugins themselves implement to serve requests from OpenTF
-CLI at runtime. For more information on the provider API, see the OpenTF
+API that provider plugins themselves implement to serve requests from OpenTofu
+CLI at runtime. For more information on the provider API, see the OpenTofu
 SDK documentation.
 
 ## Provider Addresses
 
-Each OpenTF provider has an associated address which uniquely identifies it
-within OpenTF. A provider address has the syntax `hostname/namespace/type`,
+Each OpenTofu provider has an associated address which uniquely identifies it
+within OpenTofu. A provider address has the syntax `hostname/namespace/type`,
 where:
 
 * `hostname` is the registry host that the provider is considered to have
-  originated from, and the default location OpenTF will consult for
+  originated from, and the default location OpenTofu will consult for
   information about the provider
   [unless overridden in the CLI configuration](/docs/cli/config/config-file#provider-installation).
 * `namespace` is the name of a namespace, unique on a particular hostname, that
@@ -54,16 +54,16 @@ For example:
   third-party provider registry on `example.com`.
 
 If you intend only to share a provider you've developed for use by all
-OpenTF users, please consider publishing it into the public
+OpenTofu users, please consider publishing it into the public
 [Terraform Registry](https://registry.terraform.io/), which will make your
 provider discoverable. You only need to implement this provider registry
 protocol if you wish to publish providers whose addresses include a different
 hostname that is under your control.
 
-OpenTF uses the full address (after normalization to always include a
+OpenTofu uses the full address (after normalization to always include a
 hostname) as its global identifier for providers internally, and so it's
 important to note that re-uploading the `hashicorp/azurerm` provider into
-another namespace or publishing it on a different hostname will cause OpenTF
+another namespace or publishing it on a different hostname will cause OpenTofu
 to see it as an entirely separate provider that will _not_ be usable by modules
 that declare a dependency on `hashicorp/azurerm`. If your goal is to create
 an alternative local distribution source for an existing provider -- that is,
@@ -74,21 +74,21 @@ instead.
 ## Provider Versions
 
 Each distinct provider address has associated with it a set of versions, each
-of which has an associated version number. OpenTF assumes version numbers
+of which has an associated version number. OpenTofu assumes version numbers
 follow the [Semantic Versioning 2.0](https://semver.org/) conventions, with
 the schema and behavior of the provider as documented from the perspective of
-an end-user of OpenTF serving as the "public API".
+an end-user of OpenTofu serving as the "public API".
 
 All available versions for a particular provider address are considered to be
-the same provider by OpenTF. Each OpenTF configuration selects only one
+the same provider by OpenTofu. Each OpenTofu configuration selects only one
 version of each provider for use in the entire configuration, so the version
 constraints across all modules are considered together for the purposes of
 version selection.
 
 ## Service Discovery
 
-The providers protocol begins with OpenTF CLI using
-[OpenTF's remote service discovery protocol](/docs/internals/remote-service-discovery),
+The providers protocol begins with OpenTofu CLI using
+[OpenTofu's remote service discovery protocol](/docs/internals/remote-service-discovery),
 with the hostname in the provider address acting as the "User-facing Hostname".
 
 The service identifier for the provider registry protocol is `providers.v1`.
@@ -100,18 +100,18 @@ the provider registry protocol might contain the following:
 
 ```json
 {
-  "providers.v1": "/opentf/providers/v1/"
+  "providers.v1": "/tofu/providers/v1/"
 }
 ```
 
-If the given URL is a relative URL then OpenTF will interpret it as relative
+If the given URL is a relative URL then OpenTofu will interpret it as relative
 to the discovery document itself. The specific provider registry protocol
 endpoints are defined as URLs relative to the given base URL, and so the
 specified base URL should generally end with a slash to ensure that those
 relative paths will be resolved as expected.
 
 The following sections describe the various operations that a provider
-registry must implement to be compatible with OpenTF CLI's provider
+registry must implement to be compatible with OpenTofu CLI's provider
 installer. The indicated URLs are all relative to the URL resulting from
 service discovery, as described above. We use a hypothetical URL for a provider
 registry, assuming that the caller already performed service discovery on a hypothetical
@@ -182,15 +182,15 @@ with the following properties:
 * `version` (required): the version number this object is describing, using
   the semantic versioning string notation. `version` must be unique across
   all objects in the response.
-* `protocols` (recommended): an array of OpenTF provider API versions that
+* `protocols` (recommended): an array of OpenTofu provider API versions that
   this version supports, each given in `MAJOR.MINOR` format where each major
   version appears only once and the given minor version is the highest minor
   version supported. For example, `5.1` means that the provider supports both
   protocol `5.0` and protocol `5.1`.
 
-  OpenTF uses this information, when available, to provide hints to users
+  OpenTofu uses this information, when available, to provide hints to users
   about upgrading or downgrading their version of a particular provider to
-  work with their current version of OpenTF, if their currently-selected
+  work with their current version of OpenTofu, if their currently-selected
   versions are not compatible.
 
   Which API versions are supported is, for most providers, decided by which
@@ -216,7 +216,7 @@ This operation returns the download URL of and associated metadata about the
 distribution package for a particular version of a provider for a particular
 operating system and architecture.
 
-OpenTF CLI uses this operation after it has selected the newest available
+OpenTofu CLI uses this operation after it has selected the newest available
 version matching the configured version constraints, in order to find the zip
 archive containing the plugin itself.
 
@@ -273,12 +273,12 @@ curl 'https://registry.example.io/v1/providers/hashicorp/random/2.0.0/download/l
 
 A successful result is a JSON object with the following properties:
 
-* `protocols` (required): an array of OpenTF provider API versions that
+* `protocols` (required): an array of OpenTofu provider API versions that
   the provider supports, in the same format as for
   [List Available Versions](#list-available-versions).
 
   While this property is optional when listing available options, it is
-  _required_ for describing an individual provider package so that OpenTF
+  _required_ for describing an individual provider package so that OpenTofu
   CLI can avoid downloading a package that will not be compatible with it.
 
 * `os` (required): this must echo back the `os` parameter from the
@@ -288,14 +288,14 @@ A successful result is a JSON object with the following properties:
   request. 
 
 * `filename` (required): the filename for this provider's zip archive as
-  recorded in the "shasums" document, so that OpenTF CLI can determine which
+  recorded in the "shasums" document, so that OpenTofu CLI can determine which
   of the given checksums should be used for this specific package.
 
-* `download_url` (required): a URL from which OpenTF can retrieve the
+* `download_url` (required): a URL from which OpenTofu can retrieve the
   provider's zip archive. If this is a relative URL then it will be resolved
   relative to the URL that returned the containing JSON object.
 
-* `shasums_url` (required): a URL from which OpenTF can retrieve a text
+* `shasums_url` (required): a URL from which OpenTofu can retrieve a text
   document recording expected SHA256 checksums for this package and possibly
   other packages for the same provider version on other platforms.
 
@@ -303,7 +303,7 @@ A successful result is a JSON object with the following properties:
   command available on many Unix systems, with one entry recording the
   same filename given in the `filename` property (case sensitive).
 
-* `shasums_signature_url` (required): a URL from which OpenTF can retrieve
+* `shasums_signature_url` (required): a URL from which OpenTofu can retrieve
   a binary, detached GPG signature for the document at `shasums_url`, signed
   by one of the keys indicated in the `signing_keys` property.
   
@@ -326,6 +326,6 @@ A successful result is a JSON object with the following properties:
       associated with this GPG key.
 
 Return `404 Not Found` to signal that the given provider version isn't
-available for the requested operating system and/or architecture. OpenTF
+available for the requested operating system and/or architecture. OpenTofu
 CLI will only attempt to download versions that it has previously seen in
 response to [List Available Versions](#list-available-versions).

@@ -1,20 +1,20 @@
 ---
 description: >-
-  The OpenTF APT repositories contain distribution-specific OpenTF
+  The OpenTofu APT repositories contain distribution-specific OpenTofu
   packages for both Debian and Ubuntu systems.
 ---
 
 # APT Packages for Debian and Ubuntu
 
-The primary distribution packages for OpenTF are `.zip` archives containing
+The primary distribution packages for OpenTofu are `.zip` archives containing
 single executable files that you can extract anywhere on your system. However,
 for easier integration with configuration management tools and other systematic
 system configuration strategies, we also offer package repositories for
-Debian and Ubuntu systems, which allow you to install OpenTF using the
+Debian and Ubuntu systems, which allow you to install OpenTofu using the
 `apt install` command or any other APT frontend.
 
 If you are instead using Red Hat Enterprise Linux, CentOS, or Fedora, you
-might prefer to [install OpenTF from our Yum repositories](/docs/cli/install/yum).
+might prefer to [install OpenTofu from our Yum repositories](/docs/cli/install/yum).
 
 ## Repository Configuration
 
@@ -22,29 +22,29 @@ Please follow the instructions in the [Official Packaging Guide](https://www.pla
 
 ## Supported Architectures
 
-The OpenTF APT server has packages only for the `amd64`
+The OpenTofu APT server has packages only for the `amd64`
 architecture, which is also sometimes known as `x86_64`.
 
 There are no official packages available for other architectures, such as
-`arm64`. If you wish to use OpenTF on a non-`amd64` system,
+`arm64`. If you wish to use OpenTofu on a non-`amd64` system,
 [download a normal release `.zip` file](/docs/downloads) instead.
 
-## Installing a Specific Version of OpenTF
+## Installing a Specific Version of OpenTofu
 
-The OpenTF APT repositories contain multiple versions of OpenTF, but
-because the packages are all named `opentf` it is impossible to install
+The OpenTofu APT repositories contain multiple versions of OpenTofu, but
+because the packages are all named `tofu` it is impossible to install
 more than one version at a time, and `apt install` will default to selecting
 the latest version.
 
-It's often necessary to match your OpenTF version with what a particular
+It's often necessary to match your OpenTofu version with what a particular
 configuration is currently expecting. You can use the following command to
 see which versions are currently available in the repository index:
 
 ```bash
-apt policy opentf
+apt policy tofu
 ```
 
-If your workflow requires using multiple versions of OpenTF at the same
+If your workflow requires using multiple versions of OpenTofu at the same
 time, for example when working through a gradual upgrade where not all
 of your configurations are upgraded yet, we recommend that you use the
 official release `.zip` files instead of the APT packages, so you can install
@@ -60,5 +60,5 @@ You can install the latest revision for a particular version by including the
 version in the `apt install` command, as follows:
 
 ```bash
-sudo apt install opentf=1.4.4-*
+sudo apt install tofu=1.4.4-*
 ```

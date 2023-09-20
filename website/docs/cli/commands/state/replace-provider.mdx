@@ -1,17 +1,17 @@
 ---
 description: >-
-  The `opentf state replace-provider` command replaces the provider for
-  resources in the OpenTF state.
+  The `tofu state replace-provider` command replaces the provider for
+  resources in the OpenTofu state.
 ---
 
 # Command: state replace-provider
 
-The `opentf state replace-provider` command is used to replace the provider
-for resources in a [OpenTF state](/docs/language/state).
+The `tofu state replace-provider` command is used to replace the provider
+for resources in a [OpenTofu state](/docs/language/state).
 
 ## Usage
 
-Usage: `opentf state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN`
+Usage: `tofu state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN`
 
 This command will update all resources using the "from" provider, setting the
 provider to the specified "to" provider. This allows changing the source of a
@@ -32,13 +32,13 @@ This command also accepts the following options:
 - `-lock-timeout=0s` - Duration to retry a state lock.
 
 For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
-only, `opentf state replace-provider`
+only, `tofu state replace-provider`
 also accepts the option
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
 [the `local` state](/docs/language/settings/backends/local) only,
-`opentf state replace-provider` also accepts the legacy options
+`tofu state replace-provider` also accepts the legacy options
 [`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Example
@@ -46,5 +46,5 @@ For configurations using
 The example below replaces the `hashicorp/aws` provider with a fork by `acme`, hosted at a private registry at `registry.acme.corp`:
 
 ```shell
-$ opentf state replace-provider hashicorp/aws registry.acme.corp/acme/aws
+$ tofu state replace-provider hashicorp/aws registry.acme.corp/acme/aws
 ```

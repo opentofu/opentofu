@@ -1,45 +1,45 @@
 ---
 description: >-
-  Learn how to use the OpenTF CLI to migrate local or remote state to a Cloud Backend.
+  Learn how to use the OpenTofu CLI to migrate local or remote state to a Cloud Backend.
 ---
 
 # Initializing and Migrating
 
-After [configuring cloud backend settings](/docs/cli/cloud/settings) for a working directory, you must run `opentf init` to finish setting up. If the working directory has no existing OpenTF state, you can start using OpenTF with a cloud backend right away.
+After [configuring cloud backend settings](/docs/cli/cloud/settings) for a working directory, you must run `tofu init` to finish setting up. If the working directory has no existing OpenTofu state, you can start using OpenTofu with a cloud backend right away.
 
-When you run `opentf init` in the following scenarios, OpenTF will ask you to choose whether or not to migrate state from any existing workspaces.
+When you run `tofu init` in the following scenarios, OpenTofu will ask you to choose whether or not to migrate state from any existing workspaces.
 
-1. [**Migrating from local state or state backends:**](#migrating-from-local-state-or-state-backends) If the working directory already has state data in one or more workspaces, OpenTF will ask if you would like to migrate that state to new cloud backend workspaces.
+1. [**Migrating from local state or state backends:**](#migrating-from-local-state-or-state-backends) If the working directory already has state data in one or more workspaces, OpenTofu will ask if you would like to migrate that state to new cloud backend workspaces.
 
-1. [**Migrating from the `remote` backend:**](#migrating-from-the-remote-backend) If the working directory was already connected to a cloud backend with the `remote` backend, OpenTF can continue using the same cloud backend workspaces. You will need to switch the `remote` backend block to the `cloud` block.
+1. [**Migrating from the `remote` backend:**](#migrating-from-the-remote-backend) If the working directory was already connected to a cloud backend with the `remote` backend, OpenTofu can continue using the same cloud backend workspaces. You will need to switch the `remote` backend block to the `cloud` block.
 
 ## Migrating from Local State or State Backends
 
 If the working directory already has state data available (using either local state or a [state
-backend](/docs/language/settings/backends/configuration)), OpenTF asks your approval to migrate
+backend](/docs/language/settings/backends/configuration)), OpenTofu asks your approval to migrate
 that state to the cloud backend. You will need permission to manage workspaces in the destination cloud backend organization. This process is interactive and self-documenting, and resembles
 moving between state backends.
 
-OpenTF may also prompt you to rename your workspaces during the migration, to either give a name to
+OpenTofu may also prompt you to rename your workspaces during the migration, to either give a name to
 the unnamed `default` workspace (the cloud backend requires all workspaces to have a name) or give
-your workspace names more contextual information. Unlike OpenTF CLI-only workspaces, which represent
+your workspace names more contextual information. Unlike OpenTofu CLI-only workspaces, which represent
 multiple environments associated with the same configuration (e.g. production, staging, development),
 cloud backend workspaces can represent totally independent configurations, and must have unique names within the cloud backend organization.
 
-Because of this, OpenTF will prompt you to rename the working directory's workspaces
+Because of this, OpenTofu will prompt you to rename the working directory's workspaces
 according to a pattern relative to their existing names. This can indicate the fact that these specific workspaces share configuration. A typical strategy is
 `<COMPONENT>-<ENVIRONMENT>-<REGION>` (e.g.,  `networking-prod-us-east`,
 `networking-staging-us-east`).
 
 ## Migrating from the `remote` Backend
 
-If the working directory was already connected to a cloud backend with the `remote` backend, OpenTF can continue using the same cloud backend workspaces. The local names shown for those workspaces will change to match their remote names.
+If the working directory was already connected to a cloud backend with the `remote` backend, OpenTofu can continue using the same cloud backend workspaces. The local names shown for those workspaces will change to match their remote names.
 
-The [`remote` backend](/docs/language/settings/backends/remote) was the primary implementation for cloud backends for Terraform versions 0.11.13 through 1.0.x. We recommend using the native `cloud` integration for OpenTF and Terraform versions 1.1 or later, as it provides an improved user experience and various enhancements.
+The [`remote` backend](/docs/language/settings/backends/remote) was the primary implementation for cloud backends for Terraform versions 0.11.13 through 1.0.x. We recommend using the native `cloud` integration for OpenTofu and Terraform versions 1.1 or later, as it provides an improved user experience and various enhancements.
 
 ### Block Replacement
 
-When switching from the `remote` backend to a `cloud` block, OpenTF will continue using the same
+When switching from the `remote` backend to a `cloud` block, OpenTofu will continue using the same
 set of cloud backend workspaces. Replace your `backend "remote"` block with an equivalent `cloud`
 block.
 
@@ -65,7 +65,7 @@ terraform {
 
 If you were using multiple workspaces with the `prefix` argument, replace it with a `cloud` block that uses the `tags` argument. You may specify any number of tags to distinguish the workspaces for your working directory, but a good starting point may be to use whatever the prefix was before.
 
-The tags you configure do not need to be present on the existing workspaces. When you initialize, OpenTF will add the specified tags to the workspaces if necessary.
+The tags you configure do not need to be present on the existing workspaces. When you initialize, OpenTofu will add the specified tags to the workspaces if necessary.
 
 ```diff
 terraform {
@@ -82,5 +82,5 @@ terraform {
 ```
 
 :::warning
-Because the `cloud` block does not support the `prefix` argument, once you migrate, you must refer to workspaces by their full name when using the OpenTF CLI. For example, rather than `opentf workspace select prod`, you must run the command `opentf workspace select my-app-prod`.
+Because the `cloud` block does not support the `prefix` argument, once you migrate, you must refer to workspaces by their full name when using the OpenTofu CLI. For example, rather than `tofu workspace select prod`, you must run the command `tofu workspace select my-app-prod`.
 :::
