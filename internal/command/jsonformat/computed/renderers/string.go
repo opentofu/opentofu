@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 )
 
 type evaluatedString struct {

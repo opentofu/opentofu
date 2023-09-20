@@ -6,7 +6,7 @@ package opentf
 import (
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 var _ provisioners.Interface = (*MockProvisioner)(nil)

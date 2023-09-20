@@ -10,14 +10,14 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	legacy "github.com/opentofu/opentofu/internal/legacy/opentf"
 )
 
 func TestWorkspace_createAndChange(t *testing.T) {

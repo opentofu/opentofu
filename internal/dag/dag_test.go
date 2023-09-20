@@ -13,9 +13,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
-	_ "github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	_ "github.com/opentofu/opentofu/internal/logging"
 )
 
 func TestMain(m *testing.M) {

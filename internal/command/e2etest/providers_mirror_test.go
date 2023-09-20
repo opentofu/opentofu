@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentofu/opentofu/internal/e2e"
 )
 
 // The tests in this file are for the "opentf providers mirror" command,

@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend/remote"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
-	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 )
 
 func dataSourceRemoteStateGetSchema() providers.Schema {

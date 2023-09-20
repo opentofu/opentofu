@@ -34,7 +34,7 @@ GOEXE="$(go env GOEXE)"
 OUTDIR="build/${GOOS}_${GOARCH}"
 OUTFILE="opentf-e2etest_${GOOS}_${GOARCH}.zip"
 
-LDFLAGS="-X github.com/placeholderplaceholderplaceholder/opentf/internal/command/e2etest.terraformBin=./opentf$GOEXE"
+LDFLAGS="-X github.com/opentofu/opentofu/internal/command/e2etest.terraformBin=./opentf$GOEXE"
 # Caller may pass in the environment variable GO_LDFLAGS with additional
 # flags we'll use when building.
 if [ -n "${GO_LDFLAGS+set}" ]; then
@@ -47,7 +47,7 @@ mkdir -p "$OUTDIR"
 cp -r testdata "$OUTDIR/testdata"
 
 # Build the test program
-go test -o "$OUTDIR/e2etest$GOEXE" -c -ldflags "$LDFLAGS" github.com/placeholderplaceholderplaceholder/opentf/internal/command/e2etest
+go test -o "$OUTDIR/e2etest$GOEXE" -c -ldflags "$LDFLAGS" github.com/opentofu/opentofu/internal/command/e2etest
 
 # Now bundle it all together for easy shipping!
 cd "$OUTDIR"

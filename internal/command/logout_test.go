@@ -13,7 +13,7 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/command/cliconfig"
 )
 
 func TestLogout(t *testing.T) {

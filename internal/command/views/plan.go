@@ -6,9 +6,9 @@ package views
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // The Plan view is used for the plan command.

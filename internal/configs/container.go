@@ -3,7 +3,7 @@
 
 package configs
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+import "github.com/opentofu/opentofu/internal/addrs"
 
 // Container provides an interface for scoped resources.
 //

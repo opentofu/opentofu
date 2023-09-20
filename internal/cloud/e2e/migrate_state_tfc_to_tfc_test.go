@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	tfversion "github.com/opentofu/opentofu/version"
 )
 
 func Test_migrate_tfc_to_tfc_single_workspace(t *testing.T) {

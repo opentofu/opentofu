@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud/cloudplan"
+	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 )
 
 // WrappedPlanFile is a sum type that represents a saved plan, loaded from a

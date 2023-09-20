@@ -20,11 +20,11 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/regsrc"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/response"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/registry/regsrc"
+	"github.com/opentofu/opentofu/internal/registry/response"
+	"github.com/opentofu/opentofu/version"
 )
 
 const (

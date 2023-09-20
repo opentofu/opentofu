@@ -4,8 +4,8 @@
 package structured
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 type ProcessSensitiveInner func(change Change) computed.Diff

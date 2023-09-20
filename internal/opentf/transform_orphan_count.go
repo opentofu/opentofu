@@ -6,9 +6,9 @@ package opentf
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/dag"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // OrphanResourceInstanceCountTransformer is a GraphTransformer that adds orphans

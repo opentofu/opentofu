@@ -18,15 +18,15 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/modsdir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/regsrc"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/response"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/getmodules"
+	"github.com/opentofu/opentofu/internal/modsdir"
+	"github.com/opentofu/opentofu/internal/registry"
+	"github.com/opentofu/opentofu/internal/registry/regsrc"
+	"github.com/opentofu/opentofu/internal/registry/response"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type ModuleInstaller struct {

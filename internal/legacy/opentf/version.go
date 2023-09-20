@@ -4,7 +4,7 @@
 package opentf
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/version"
 )
 
 // Deprecated: Providers should use schema.Provider.TerraformVersion instead

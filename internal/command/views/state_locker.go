@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 )
 
 // The StateLocker view is used to display locking/unlocking status messages

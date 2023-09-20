@@ -14,15 +14,15 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	terraformProvider "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/providers/tf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	tfplugin "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin"
-	tfplugin6 "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin6"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providercache"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
+	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/logging"
+	tfplugin "github.com/opentofu/opentofu/internal/plugin"
+	tfplugin6 "github.com/opentofu/opentofu/internal/plugin6"
+	"github.com/opentofu/opentofu/internal/providercache"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // The TF_DISABLE_PLUGIN_TLS environment variable is intended only for use by

@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {

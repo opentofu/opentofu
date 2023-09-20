@@ -9,7 +9,7 @@ import (
 	"net/http/httputil"
 
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 func buildSender() autorest.Sender {

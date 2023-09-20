@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/opentofu/opentofu/internal/opentf"
 )
 
 func TestUIOutput_impl(t *testing.T) {

@@ -16,7 +16,7 @@ OpenTF accepts certain options passed using `ldflags` at build time which contro
 OpenTF will include a `-dev` flag when reporting its own version (ex: 1.5.0-dev) unless `version.dev` is set to `no`:
 
 ```
-go build -ldflags "-w -s -X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'" -o bin/ .
+go build -ldflags "-w -s -X 'github.com/opentofu/opentofu/version.dev=no'" -o bin/ .
 ```
 
 ### Experimental Features

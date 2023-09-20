@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/opentf"
 )
 
 // newValueWriter is a minor re-implementation of MapFieldWriter to include

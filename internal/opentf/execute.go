@@ -3,7 +3,7 @@
 
 package opentf
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+import "github.com/opentofu/opentofu/internal/tfdiags"
 
 // GraphNodeExecutable is the interface that graph nodes must implement to
 // enable execution.

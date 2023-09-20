@@ -12,7 +12,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/version"
 )
 
 // If this environment variable is set to "otlp" when running OpenTF CLI
@@ -30,7 +30,7 @@ const openTelemetryExporterEnvVar = "OTEL_TRACES_EXPORTER"
 var tracer trace.Tracer
 
 func init() {
-	tracer = otel.Tracer("github.com/placeholderplaceholderplaceholder/opentf")
+	tracer = otel.Tracer("github.com/opentofu/opentofu")
 }
 
 // openTelemetryInit initializes the optional OpenTelemetry exporter.

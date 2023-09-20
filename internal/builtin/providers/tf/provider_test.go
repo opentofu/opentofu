@@ -4,7 +4,7 @@
 package tf
 
 import (
-	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 )
 
 func init() {

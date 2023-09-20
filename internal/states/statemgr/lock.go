@@ -4,8 +4,8 @@
 package statemgr
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // LockDisabled implements State and Locker but disables state locking.

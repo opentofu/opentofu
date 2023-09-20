@@ -7,7 +7,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // MemoizeSource is a Source that wraps another Source and remembers its

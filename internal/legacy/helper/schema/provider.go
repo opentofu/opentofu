@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/legacy/opentf"
 )
 
 var ReservedProviderFields = []string{

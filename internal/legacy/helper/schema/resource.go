@@ -9,7 +9,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/opentf"
 	"github.com/zclconf/go-cty/cty"
 )
 

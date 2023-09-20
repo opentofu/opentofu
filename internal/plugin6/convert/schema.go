@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	proto "github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin6"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
+	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 	"github.com/zclconf/go-cty/cty"
 )
 
