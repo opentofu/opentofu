@@ -1,4 +1,4 @@
-# OpenTF Core Resource Destruction Notes
+# OpenTofu Core Resource Destruction Notes
 
 This document intends to describe some of the details and complications
 involved in the destruction of resources. It covers the ordering defined for
@@ -8,7 +8,7 @@ all possible combinations of dependency ordering, only to outline the basics
 and document some of the more complicated aspects of resource destruction.
 
 The graph diagrams here will continue to use the inverted graph structure used
-internally by OpenTF, where edges represent dependencies rather than order
+internally by OpenTofu, where edges represent dependencies rather than order
 of operations. 
 
 ## Simple Resource Creation
