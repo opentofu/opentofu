@@ -7,8 +7,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // NewFullFake returns a full state manager that really only supports transient

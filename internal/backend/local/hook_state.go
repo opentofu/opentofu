@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // StateHook is a hook that continuously updates the state by calling
