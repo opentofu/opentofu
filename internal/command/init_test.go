@@ -2038,7 +2038,7 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Unsupported OpenTF Core version`) {
+		if !strings.Contains(errStr, `Unsupported OpenTofu Core version`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})
@@ -2062,7 +2062,7 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Unsupported OpenTF Core version`) {
+		if !strings.Contains(errStr, `Unsupported OpenTofu Core version`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})
@@ -2108,7 +2108,7 @@ func TestInit_providerLockFile(t *testing.T) {
 	// The hash in here is for the fake package that newMockProviderSource produces
 	// (so it'll change if newMockProviderSource starts producing different contents)
 	wantLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "opentf init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2135,7 +2135,7 @@ func TestInit_providerLockFileReadonly(t *testing.T) {
 	// The hash in here is for the fake package that newMockProviderSource produces
 	// (so it'll change if newMockProviderSource starts producing different contents)
 	inputLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "opentf init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2148,7 +2148,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	badLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "opentf init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2161,7 +2161,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	updatedLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "opentf init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -2175,7 +2175,7 @@ provider "registry.terraform.io/hashicorp/test" {
 `)
 
 	emptyUpdatedLockFile := strings.TrimSpace(`
-# This file is maintained automatically by "opentf init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 `)
 

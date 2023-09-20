@@ -41,7 +41,7 @@ func TestProvidersLock(t *testing.T) {
 	// This test depends on the -fs-mirror argument, so we always know what results to expect
 	t.Run("basic", func(t *testing.T) {
 		testDirectory := "providers-lock/basic"
-		expected := `# This file is maintained automatically by "opentf init".
+		expected := `# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
@@ -57,7 +57,7 @@ provider "registry.terraform.io/hashicorp/test" {
 	// This test depends on the -fs-mirror argument, so we always know what results to expect
 	t.Run("append", func(t *testing.T) {
 		testDirectory := "providers-lock/append"
-		expected := `# This file is maintained automatically by "opentf init".
+		expected := `# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
 provider "registry.terraform.io/hashicorp/test" {
