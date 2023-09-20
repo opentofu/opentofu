@@ -456,7 +456,7 @@ var OneFunc = function.New(&function.Spec{
 				// It would be very strange to get here, because that would
 				// suggest that the length is either not a number or isn't
 				// an integer, which would suggest a bug in cty.
-				return cty.NilVal, fmt.Errorf("invalid collection length: %s", err)
+				return cty.NilVal, fmt.Errorf("invalid collection length: %w", err)
 			}
 			switch l {
 			case 0:

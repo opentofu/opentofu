@@ -65,7 +65,7 @@ var UUIDV5Func = function.New(&function.Spec{
 			namespace = uuidv5.NameSpaceX500
 		default:
 			if namespace, err = uuidv5.Parse(args[0].AsString()); err != nil {
-				return cty.UnknownVal(cty.String), fmt.Errorf("uuidv5() doesn't support namespace %s (%v)", args[0].AsString(), err)
+				return cty.UnknownVal(cty.String), fmt.Errorf("uuidv5() doesn't support namespace %s (%w)", args[0].AsString(), err)
 			}
 		}
 		val := args[1].AsString()
@@ -125,7 +125,7 @@ var BcryptFunc = function.New(&function.Spec{
 		input := args[0].AsString()
 		out, err := bcrypt.GenerateFromPassword([]byte(input), defaultCost)
 		if err != nil {
-			return cty.UnknownVal(cty.String), fmt.Errorf("error occurred generating password %s", err.Error())
+			return cty.UnknownVal(cty.String), fmt.Errorf("error occurred generating password %w", err)
 		}
 
 		return cty.StringVal(string(out)), nil
@@ -184,7 +184,7 @@ var RsaDecryptFunc = function.New(&function.Spec{
 
 		out, err := rsa.DecryptPKCS1v15(nil, privateKey, b)
 		if err != nil {
-			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decrypt: %s", err)
+			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decrypt: %w", err)
 		}
 
 		return cty.StringVal(string(out)), nil
