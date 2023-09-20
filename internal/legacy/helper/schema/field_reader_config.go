@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // ConfigFieldReader reads fields out of an untyped map[string]string to the
@@ -19,7 +19,7 @@ import (
 // field readers do not need default handling because they source fully
 // populated data structures.)
 type ConfigFieldReader struct {
-	Config *opentf.ResourceConfig
+	Config *tofu.ResourceConfig
 	Schema map[string]*Schema
 
 	indexMaps map[string]map[string]int

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/configs"
-	legacy "github.com/opentofu/opentofu/internal/legacy/opentf"
+	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestDetectConfigChangeType(t *testing.T) {

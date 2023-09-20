@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestProvisioner_impl(t *testing.T) {
-	var _ opentf.ResourceProvisioner = new(Provisioner)
+	var _ tofu.ResourceProvisioner = new(Provisioner)
 }
 
 func noopApply(ctx context.Context) error {
@@ -114,7 +114,7 @@ func TestProvisionerValidate(t *testing.T) {
 			P: &Provisioner{
 				Schema:    nil,
 				ApplyFunc: noopApply,
-				ValidateFunc: func(*opentf.ResourceConfig) (ws []string, errors []error) {
+				ValidateFunc: func(*tofu.ResourceConfig) (ws []string, errors []error) {
 					ws = append(ws, "Simple warning from provisioner ValidateFunc")
 					return
 				},
@@ -127,7 +127,7 @@ func TestProvisionerValidate(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, tc.Name), func(t *testing.T) {
-			c := opentf.NewResourceConfigRaw(tc.Config)
+			c := tofu.NewResourceConfigRaw(tc.Config)
 			ws, es := tc.P.Validate(c)
 			if len(es) > 0 != tc.Err {
 				t.Fatalf("%d: %#v %s", i, es, es)
@@ -189,10 +189,10 @@ func TestProvisionerApply(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%d-%s", i, tc.Name), func(t *testing.T) {
-			c := opentf.NewResourceConfigRaw(tc.Config)
+			c := tofu.NewResourceConfigRaw(tc.Config)
 
-			state := &opentf.InstanceState{
-				Ephemeral: opentf.EphemeralState{
+			state := &tofu.InstanceState{
+				Ephemeral: tofu.EphemeralState{
 					ConnInfo: tc.Conn,
 				},
 			}
@@ -230,7 +230,7 @@ func TestProvisionerApply_nilState(t *testing.T) {
 		"foo": 42,
 	}
 
-	c := opentf.NewResourceConfigRaw(conf)
+	c := tofu.NewResourceConfigRaw(conf)
 	err := p.Apply(nil, nil, c)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -290,9 +290,9 @@ func TestProvisionerStop_apply(t *testing.T) {
 		"foo": 42,
 	}
 
-	c := opentf.NewResourceConfigRaw(conf)
-	state := &opentf.InstanceState{
-		Ephemeral: opentf.EphemeralState{
+	c := tofu.NewResourceConfigRaw(conf)
+	state := &tofu.InstanceState{
+		Ephemeral: tofu.EphemeralState{
 			ConnInfo: conn,
 		},
 	}

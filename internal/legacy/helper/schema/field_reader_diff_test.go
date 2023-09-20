@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestDiffFieldReader_impl(t *testing.T) {
@@ -61,14 +61,14 @@ func TestDiffFieldReader_NestedSetUpdate(t *testing.T) {
 
 	r := &DiffFieldReader{
 		Schema: schema,
-		Diff: &opentf.InstanceDiff{
-			Attributes: map[string]*opentf.ResourceAttrDiff{
-				"list_of_sets_1.0.nested_set.1.val": &opentf.ResourceAttrDiff{
+		Diff: &tofu.InstanceDiff{
+			Attributes: map[string]*tofu.ResourceAttrDiff{
+				"list_of_sets_1.0.nested_set.1.val": &tofu.ResourceAttrDiff{
 					Old:        "1",
 					New:        "0",
 					NewRemoved: true,
 				},
-				"list_of_sets_1.0.nested_set.2.val": &opentf.ResourceAttrDiff{
+				"list_of_sets_1.0.nested_set.2.val": &tofu.ResourceAttrDiff{
 					New: "2",
 				},
 			},
@@ -121,13 +121,13 @@ func TestDiffFieldReader_MapHandling(t *testing.T) {
 	}
 	r := &DiffFieldReader{
 		Schema: schema,
-		Diff: &opentf.InstanceDiff{
-			Attributes: map[string]*opentf.ResourceAttrDiff{
-				"tags.%": &opentf.ResourceAttrDiff{
+		Diff: &tofu.InstanceDiff{
+			Attributes: map[string]*tofu.ResourceAttrDiff{
+				"tags.%": &tofu.ResourceAttrDiff{
 					Old: "1",
 					New: "2",
 				},
-				"tags.baz": &opentf.ResourceAttrDiff{
+				"tags.baz": &tofu.ResourceAttrDiff{
 					Old: "",
 					New: "qux",
 				},
@@ -217,28 +217,28 @@ func TestDiffFieldReader_extra(t *testing.T) {
 
 	r := &DiffFieldReader{
 		Schema: schema,
-		Diff: &opentf.InstanceDiff{
-			Attributes: map[string]*opentf.ResourceAttrDiff{
-				"stringComputed": &opentf.ResourceAttrDiff{
+		Diff: &tofu.InstanceDiff{
+			Attributes: map[string]*tofu.ResourceAttrDiff{
+				"stringComputed": &tofu.ResourceAttrDiff{
 					Old:         "foo",
 					New:         "bar",
 					NewComputed: true,
 				},
 
-				"listMap.0.bar": &opentf.ResourceAttrDiff{
+				"listMap.0.bar": &tofu.ResourceAttrDiff{
 					NewRemoved: true,
 				},
 
-				"mapRemove.bar": &opentf.ResourceAttrDiff{
+				"mapRemove.bar": &tofu.ResourceAttrDiff{
 					NewRemoved: true,
 				},
 
-				"setChange.10.value": &opentf.ResourceAttrDiff{
+				"setChange.10.value": &tofu.ResourceAttrDiff{
 					Old: "50",
 					New: "80",
 				},
 
-				"setEmpty.#": &opentf.ResourceAttrDiff{
+				"setEmpty.#": &tofu.ResourceAttrDiff{
 					Old: "2",
 					New: "0",
 				},
@@ -355,158 +355,158 @@ func TestDiffFieldReader(t *testing.T) {
 	testFieldReader(t, func(s map[string]*Schema) FieldReader {
 		return &DiffFieldReader{
 			Schema: s,
-			Diff: &opentf.InstanceDiff{
-				Attributes: map[string]*opentf.ResourceAttrDiff{
-					"bool": &opentf.ResourceAttrDiff{
+			Diff: &tofu.InstanceDiff{
+				Attributes: map[string]*tofu.ResourceAttrDiff{
+					"bool": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "true",
 					},
 
-					"int": &opentf.ResourceAttrDiff{
+					"int": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "42",
 					},
 
-					"float": &opentf.ResourceAttrDiff{
+					"float": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "3.1415",
 					},
 
-					"string": &opentf.ResourceAttrDiff{
+					"string": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "string",
 					},
 
-					"stringComputed": &opentf.ResourceAttrDiff{
+					"stringComputed": &tofu.ResourceAttrDiff{
 						Old:         "foo",
 						New:         "bar",
 						NewComputed: true,
 					},
 
-					"list.#": &opentf.ResourceAttrDiff{
+					"list.#": &tofu.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"list.0": &opentf.ResourceAttrDiff{
+					"list.0": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "foo",
 					},
 
-					"list.1": &opentf.ResourceAttrDiff{
+					"list.1": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "bar",
 					},
 
-					"listInt.#": &opentf.ResourceAttrDiff{
+					"listInt.#": &tofu.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"listInt.0": &opentf.ResourceAttrDiff{
+					"listInt.0": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "21",
 					},
 
-					"listInt.1": &opentf.ResourceAttrDiff{
+					"listInt.1": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "42",
 					},
 
-					"map.foo": &opentf.ResourceAttrDiff{
+					"map.foo": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "bar",
 					},
 
-					"map.bar": &opentf.ResourceAttrDiff{
+					"map.bar": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "baz",
 					},
 
-					"mapInt.%": &opentf.ResourceAttrDiff{
+					"mapInt.%": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
-					"mapInt.one": &opentf.ResourceAttrDiff{
+					"mapInt.one": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "1",
 					},
-					"mapInt.two": &opentf.ResourceAttrDiff{
+					"mapInt.two": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
 
-					"mapIntNestedSchema.%": &opentf.ResourceAttrDiff{
+					"mapIntNestedSchema.%": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
-					"mapIntNestedSchema.one": &opentf.ResourceAttrDiff{
+					"mapIntNestedSchema.one": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "1",
 					},
-					"mapIntNestedSchema.two": &opentf.ResourceAttrDiff{
+					"mapIntNestedSchema.two": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
 
-					"mapFloat.%": &opentf.ResourceAttrDiff{
+					"mapFloat.%": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "1",
 					},
-					"mapFloat.oneDotTwo": &opentf.ResourceAttrDiff{
+					"mapFloat.oneDotTwo": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "1.2",
 					},
 
-					"mapBool.%": &opentf.ResourceAttrDiff{
+					"mapBool.%": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "2",
 					},
-					"mapBool.True": &opentf.ResourceAttrDiff{
+					"mapBool.True": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "true",
 					},
-					"mapBool.False": &opentf.ResourceAttrDiff{
+					"mapBool.False": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "false",
 					},
 
-					"set.#": &opentf.ResourceAttrDiff{
+					"set.#": &tofu.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"set.10": &opentf.ResourceAttrDiff{
+					"set.10": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "10",
 					},
 
-					"set.50": &opentf.ResourceAttrDiff{
+					"set.50": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "50",
 					},
 
-					"setDeep.#": &opentf.ResourceAttrDiff{
+					"setDeep.#": &tofu.ResourceAttrDiff{
 						Old: "0",
 						New: "2",
 					},
 
-					"setDeep.10.index": &opentf.ResourceAttrDiff{
+					"setDeep.10.index": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "10",
 					},
 
-					"setDeep.10.value": &opentf.ResourceAttrDiff{
+					"setDeep.10.value": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "foo",
 					},
 
-					"setDeep.50.index": &opentf.ResourceAttrDiff{
+					"setDeep.50.index": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "50",
 					},
 
-					"setDeep.50.value": &opentf.ResourceAttrDiff{
+					"setDeep.50.value": &tofu.ResourceAttrDiff{
 						Old: "",
 						New: "bar",
 					},

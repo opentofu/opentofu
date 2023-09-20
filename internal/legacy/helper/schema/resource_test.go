@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
@@ -37,11 +37,11 @@ func TestResourceApply_create(t *testing.T) {
 		return nil
 	}
 
-	var s *opentf.InstanceState = nil
+	var s *tofu.InstanceState = nil
 
-	d := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	d := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New: "42",
 			},
 		},
@@ -56,7 +56,7 @@ func TestResourceApply_create(t *testing.T) {
 		t.Fatal("not called")
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -95,11 +95,11 @@ func TestResourceApply_Timeout_state(t *testing.T) {
 		return nil
 	}
 
-	var s *opentf.InstanceState = nil
+	var s *tofu.InstanceState = nil
 
-	d := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	d := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New: "42",
 			},
 		},
@@ -124,7 +124,7 @@ func TestResourceApply_Timeout_state(t *testing.T) {
 		t.Fatal("not called")
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -169,7 +169,7 @@ func TestResourceApply_Timeout_destroy(t *testing.T) {
 		return nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 	}
 
@@ -177,7 +177,7 @@ func TestResourceApply_Timeout_destroy(t *testing.T) {
 		t.Fatalf("Error encoding to state: %s", err)
 	}
 
-	d := &opentf.InstanceDiff{
+	d := &tofu.InstanceDiff{
 		Destroy: true,
 	}
 
@@ -219,7 +219,7 @@ func TestResourceDiff_Timeout_diff(t *testing.T) {
 		return nil
 	}
 
-	conf := opentf.NewResourceConfigRaw(
+	conf := tofu.NewResourceConfigRaw(
 		map[string]interface{}{
 			"foo": 42,
 			TimeoutsConfigKey: map[string]interface{}{
@@ -227,16 +227,16 @@ func TestResourceDiff_Timeout_diff(t *testing.T) {
 			},
 		},
 	)
-	var s *opentf.InstanceState
+	var s *tofu.InstanceState
 
 	actual, err := r.Diff(s, conf, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	expected := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New: "42",
 			},
 		},
@@ -274,13 +274,13 @@ func TestResourceDiff_CustomizeFunc(t *testing.T) {
 		return nil
 	}
 
-	conf := opentf.NewResourceConfigRaw(
+	conf := tofu.NewResourceConfigRaw(
 		map[string]interface{}{
 			"foo": 42,
 		},
 	)
 
-	var s *opentf.InstanceState
+	var s *tofu.InstanceState
 
 	_, err := r.Diff(s, conf, nil)
 	if err != nil {
@@ -308,11 +308,11 @@ func TestResourceApply_destroy(t *testing.T) {
 		return nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 	}
 
-	d := &opentf.InstanceDiff{
+	d := &tofu.InstanceDiff{
 		Destroy: true,
 	}
 
@@ -356,7 +356,7 @@ func TestResourceApply_destroyCreate(t *testing.T) {
 		return nil
 	}
 
-	var s *opentf.InstanceState = &opentf.InstanceState{
+	var s *tofu.InstanceState = &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"foo":       "bar",
@@ -364,13 +364,13 @@ func TestResourceApply_destroyCreate(t *testing.T) {
 		},
 	}
 
-	d := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	d := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New:         "42",
 				RequiresNew: true,
 			},
-			"tags.Name": &opentf.ResourceAttrDiff{
+			"tags.Name": &tofu.ResourceAttrDiff{
 				Old:         "foo",
 				New:         "foo",
 				RequiresNew: true,
@@ -387,7 +387,7 @@ func TestResourceApply_destroyCreate(t *testing.T) {
 		t.Fatal("should have change")
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":        "foo",
@@ -418,14 +418,14 @@ func TestResourceApply_destroyPartial(t *testing.T) {
 		return fmt.Errorf("some error")
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"foo": "12",
 		},
 	}
 
-	d := &opentf.InstanceDiff{
+	d := &tofu.InstanceDiff{
 		Destroy: true,
 	}
 
@@ -434,7 +434,7 @@ func TestResourceApply_destroyPartial(t *testing.T) {
 		t.Fatal("should error")
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"id":  "bar",
@@ -465,16 +465,16 @@ func TestResourceApply_update(t *testing.T) {
 		return nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"foo": "12",
 		},
 	}
 
-	d := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	d := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New: "13",
 			},
 		},
@@ -485,7 +485,7 @@ func TestResourceApply_update(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -510,16 +510,16 @@ func TestResourceApply_updateNoCallback(t *testing.T) {
 
 	r.Update = nil
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"foo": "12",
 		},
 	}
 
-	d := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	d := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New: "13",
 			},
 		},
@@ -530,7 +530,7 @@ func TestResourceApply_updateNoCallback(t *testing.T) {
 		t.Fatal("should error")
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"foo": "12",
@@ -566,23 +566,23 @@ func TestResourceApply_isNewResource(t *testing.T) {
 	}
 	r.Update = updateFunc
 
-	d := &opentf.InstanceDiff{
-		Attributes: map[string]*opentf.ResourceAttrDiff{
-			"foo": &opentf.ResourceAttrDiff{
+	d := &tofu.InstanceDiff{
+		Attributes: map[string]*tofu.ResourceAttrDiff{
+			"foo": &tofu.ResourceAttrDiff{
 				New: "bla-blah",
 			},
 		},
 	}
 
 	// positive test
-	var s *opentf.InstanceState = nil
+	var s *tofu.InstanceState = nil
 
 	actual, err := r.Apply(s, d, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -596,7 +596,7 @@ func TestResourceApply_isNewResource(t *testing.T) {
 	}
 
 	// negative test
-	s = &opentf.InstanceState{
+	s = &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -609,7 +609,7 @@ func TestResourceApply_isNewResource(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected = &opentf.InstanceState{
+	expected = &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -903,14 +903,14 @@ func TestResourceRefresh(t *testing.T) {
 		return d.Set("foo", d.Get("foo").(int)+1)
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"foo": "12",
 		},
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"id":  "bar",
@@ -946,7 +946,7 @@ func TestResourceRefresh_blankId(t *testing.T) {
 		return nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID:         "",
 		Attributes: map[string]string{},
 	}
@@ -975,7 +975,7 @@ func TestResourceRefresh_delete(t *testing.T) {
 		return nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"foo": "12",
@@ -1010,7 +1010,7 @@ func TestResourceRefresh_existsError(t *testing.T) {
 		panic("shouldn't be called")
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"foo": "12",
@@ -1044,7 +1044,7 @@ func TestResourceRefresh_noExists(t *testing.T) {
 		panic("shouldn't be called")
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"foo": "12",
@@ -1078,8 +1078,8 @@ func TestResourceRefresh_needsMigration(t *testing.T) {
 
 	r.MigrateState = func(
 		v int,
-		s *opentf.InstanceState,
-		meta interface{}) (*opentf.InstanceState, error) {
+		s *tofu.InstanceState,
+		meta interface{}) (*tofu.InstanceState, error) {
 		// Real state migration functions will probably switch on this value,
 		// but we'll just assert on it for now.
 		if v != 1 {
@@ -1102,7 +1102,7 @@ func TestResourceRefresh_needsMigration(t *testing.T) {
 
 	// State is v1 and deals in oldfoo, which tracked foo as a float at 1/10th
 	// the scale of newfoo
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"oldfoo": "1.2",
@@ -1117,7 +1117,7 @@ func TestResourceRefresh_needsMigration(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"id":     "bar",
@@ -1150,13 +1150,13 @@ func TestResourceRefresh_noMigrationNeeded(t *testing.T) {
 
 	r.MigrateState = func(
 		v int,
-		s *opentf.InstanceState,
-		meta interface{}) (*opentf.InstanceState, error) {
+		s *tofu.InstanceState,
+		meta interface{}) (*tofu.InstanceState, error) {
 		t.Fatal("Migrate function shouldn't be called!")
 		return nil, nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"newfoo": "12",
@@ -1171,7 +1171,7 @@ func TestResourceRefresh_noMigrationNeeded(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"id":     "bar",
@@ -1205,13 +1205,13 @@ func TestResourceRefresh_stateSchemaVersionUnset(t *testing.T) {
 
 	r.MigrateState = func(
 		v int,
-		s *opentf.InstanceState,
-		meta interface{}) (*opentf.InstanceState, error) {
+		s *tofu.InstanceState,
+		meta interface{}) (*tofu.InstanceState, error) {
 		s.Attributes["newfoo"] = s.Attributes["oldfoo"]
 		return s, nil
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"oldfoo": "12",
@@ -1223,7 +1223,7 @@ func TestResourceRefresh_stateSchemaVersionUnset(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := &opentf.InstanceState{
+	expected := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"id":     "bar",
@@ -1257,12 +1257,12 @@ func TestResourceRefresh_migrateStateErr(t *testing.T) {
 
 	r.MigrateState = func(
 		v int,
-		s *opentf.InstanceState,
-		meta interface{}) (*opentf.InstanceState, error) {
+		s *tofu.InstanceState,
+		meta interface{}) (*tofu.InstanceState, error) {
 		return s, fmt.Errorf("triggering an error")
 	}
 
-	s := &opentf.InstanceState{
+	s := &tofu.InstanceState{
 		ID: "bar",
 		Attributes: map[string]string{
 			"oldfoo": "12",
@@ -1286,7 +1286,7 @@ func TestResourceData(t *testing.T) {
 		},
 	}
 
-	state := &opentf.InstanceState{
+	state := &tofu.InstanceState{
 		ID: "foo",
 		Attributes: map[string]string{
 			"id":  "foo",
@@ -1548,7 +1548,7 @@ func TestResource_migrateAndUpgrade(t *testing.T) {
 			},
 		},
 		// this MigrateState will take the state to version 2
-		MigrateState: func(v int, is *opentf.InstanceState, _ interface{}) (*opentf.InstanceState, error) {
+		MigrateState: func(v int, is *tofu.InstanceState, _ interface{}) (*tofu.InstanceState, error) {
 			switch v {
 			case 0:
 				_, ok := is.Attributes["zero"]
@@ -1611,7 +1611,7 @@ func TestResource_migrateAndUpgrade(t *testing.T) {
 		},
 	}
 
-	testStates := []*opentf.InstanceState{
+	testStates := []*tofu.InstanceState{
 		{
 			ID: "bar",
 			Attributes: map[string]string{
@@ -1671,7 +1671,7 @@ func TestResource_migrateAndUpgrade(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expected := &opentf.InstanceState{
+			expected := &tofu.InstanceState{
 				ID: "bar",
 				Attributes: map[string]string{
 					"id":   "bar",

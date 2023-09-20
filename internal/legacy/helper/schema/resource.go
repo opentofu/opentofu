@@ -9,7 +9,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -178,11 +178,11 @@ type Resource struct {
 }
 
 // ShimInstanceStateFromValue converts a cty.Value to a
-// opentf.InstanceState.
-func (r *Resource) ShimInstanceStateFromValue(state cty.Value) (*opentf.InstanceState, error) {
+// tofu.InstanceState.
+func (r *Resource) ShimInstanceStateFromValue(state cty.Value) (*tofu.InstanceState, error) {
 	// Get the raw shimmed value. While this is correct, the set hashes don't
 	// match those from the Schema.
-	s := opentf.NewInstanceStateShimmedFromValue(state, r.SchemaVersion)
+	s := tofu.NewInstanceStateShimmedFromValue(state, r.SchemaVersion)
 
 	// We now rebuild the state through the ResourceData, so that the set indexes
 	// match what helper/schema expects.
@@ -193,7 +193,7 @@ func (r *Resource) ShimInstanceStateFromValue(state cty.Value) (*opentf.Instance
 
 	s = data.State()
 	if s == nil {
-		s = &opentf.InstanceState{}
+		s = &tofu.InstanceState{}
 	}
 	return s, nil
 }
@@ -215,7 +215,7 @@ type ExistsFunc func(*ResourceData, interface{}) (bool, error)
 
 // See Resource documentation.
 type StateMigrateFunc func(
-	int, *opentf.InstanceState, interface{}) (*opentf.InstanceState, error)
+	int, *tofu.InstanceState, interface{}) (*tofu.InstanceState, error)
 
 type StateUpgrader struct {
 	// Version is the version schema that this Upgrader will handle, converting
@@ -243,9 +243,9 @@ type CustomizeDiffFunc func(*ResourceDiff, interface{}) error
 
 // Apply creates, updates, and/or deletes a resource.
 func (r *Resource) Apply(
-	s *opentf.InstanceState,
-	d *opentf.InstanceDiff,
-	meta interface{}) (*opentf.InstanceState, error) {
+	s *tofu.InstanceState,
+	d *tofu.InstanceDiff,
+	meta interface{}) (*tofu.InstanceState, error) {
 	data, err := schemaMap(r.Schema).Data(s, d)
 	if err != nil {
 		return s, err
@@ -275,7 +275,7 @@ func (r *Resource) Apply(
 	if s == nil {
 		// The Terraform API dictates that this should never happen, but
 		// it doesn't hurt to be safe in this case.
-		s = new(opentf.InstanceState)
+		s = new(tofu.InstanceState)
 	}
 
 	if d.Destroy || d.RequiresNew() {
@@ -322,9 +322,9 @@ func (r *Resource) Apply(
 
 // Diff returns a diff of this resource.
 func (r *Resource) Diff(
-	s *opentf.InstanceState,
-	c *opentf.ResourceConfig,
-	meta interface{}) (*opentf.InstanceDiff, error) {
+	s *tofu.InstanceState,
+	c *tofu.ResourceConfig,
+	meta interface{}) (*tofu.InstanceDiff, error) {
 
 	t := &ResourceTimeout{}
 	err := t.ConfigDecode(r, c)
@@ -350,9 +350,9 @@ func (r *Resource) Diff(
 }
 
 func (r *Resource) simpleDiff(
-	s *opentf.InstanceState,
-	c *opentf.ResourceConfig,
-	meta interface{}) (*opentf.InstanceDiff, error) {
+	s *tofu.InstanceState,
+	c *tofu.ResourceConfig,
+	meta interface{}) (*tofu.InstanceDiff, error) {
 
 	instanceDiff, err := schemaMap(r.Schema).Diff(s, c, r.CustomizeDiff, meta, false)
 	if err != nil {
@@ -360,7 +360,7 @@ func (r *Resource) simpleDiff(
 	}
 
 	if instanceDiff == nil {
-		instanceDiff = opentf.NewInstanceDiff()
+		instanceDiff = tofu.NewInstanceDiff()
 	}
 
 	// Make sure the old value is set in each of the instance diffs.
@@ -378,7 +378,7 @@ func (r *Resource) simpleDiff(
 }
 
 // Validate validates the resource configuration against the schema.
-func (r *Resource) Validate(c *opentf.ResourceConfig) ([]string, []error) {
+func (r *Resource) Validate(c *tofu.ResourceConfig) ([]string, []error) {
 	warns, errs := schemaMap(r.Schema).Validate(c)
 
 	if r.DeprecationMessage != "" {
@@ -391,9 +391,9 @@ func (r *Resource) Validate(c *opentf.ResourceConfig) ([]string, []error) {
 // ReadDataApply loads the data for a data source, given a diff that
 // describes the configuration arguments and desired computed attributes.
 func (r *Resource) ReadDataApply(
-	d *opentf.InstanceDiff,
+	d *tofu.InstanceDiff,
 	meta interface{},
-) (*opentf.InstanceState, error) {
+) (*tofu.InstanceState, error) {
 	// Data sources are always built completely from scratch
 	// on each read, so the source state is always nil.
 	data, err := schemaMap(r.Schema).Data(nil, d)
@@ -419,8 +419,8 @@ func (r *Resource) ReadDataApply(
 // separate API call.
 // RefreshWithoutUpgrade is part of the new plugin shims.
 func (r *Resource) RefreshWithoutUpgrade(
-	s *opentf.InstanceState,
-	meta interface{}) (*opentf.InstanceState, error) {
+	s *tofu.InstanceState,
+	meta interface{}) (*tofu.InstanceState, error) {
 	// If the ID is already somehow blank, it doesn't exist
 	if s.ID == "" {
 		return nil, nil
@@ -477,8 +477,8 @@ func (r *Resource) RefreshWithoutUpgrade(
 
 // Refresh refreshes the state of the resource.
 func (r *Resource) Refresh(
-	s *opentf.InstanceState,
-	meta interface{}) (*opentf.InstanceState, error) {
+	s *tofu.InstanceState,
+	meta interface{}) (*tofu.InstanceState, error) {
 	// If the ID is already somehow blank, it doesn't exist
 	if s.ID == "" {
 		return nil, nil
@@ -531,7 +531,7 @@ func (r *Resource) Refresh(
 	return r.recordCurrentSchemaVersion(state), err
 }
 
-func (r *Resource) upgradeState(s *opentf.InstanceState, meta interface{}) (*opentf.InstanceState, error) {
+func (r *Resource) upgradeState(s *tofu.InstanceState, meta interface{}) (*tofu.InstanceState, error) {
 	var err error
 
 	needsMigration, stateSchemaVersion := r.checkSchemaVersion(s)
@@ -744,7 +744,7 @@ func isReservedResourceFieldName(name string, s *Schema) bool {
 // itself (including the state given to this function).
 //
 // This function is useful for unit tests and ResourceImporter functions.
-func (r *Resource) Data(s *opentf.InstanceState) *ResourceData {
+func (r *Resource) Data(s *tofu.InstanceState) *ResourceData {
 	result, err := schemaMap(r.Schema).Data(s, nil)
 	if err != nil {
 		// At the time of writing, this isn't possible (Data never returns
@@ -791,7 +791,7 @@ func (r *Resource) isTopLevel() bool {
 
 // Determines if a given InstanceState needs to be migrated by checking the
 // stored version number with the current SchemaVersion
-func (r *Resource) checkSchemaVersion(is *opentf.InstanceState) (bool, int) {
+func (r *Resource) checkSchemaVersion(is *tofu.InstanceState) (bool, int) {
 	// Get the raw interface{} value for the schema version. If it doesn't
 	// exist or is nil then set it to zero.
 	raw := is.Meta["schema_version"]
@@ -820,7 +820,7 @@ func (r *Resource) checkSchemaVersion(is *opentf.InstanceState) (bool, int) {
 }
 
 func (r *Resource) recordCurrentSchemaVersion(
-	state *opentf.InstanceState) *opentf.InstanceState {
+	state *tofu.InstanceState) *tofu.InstanceState {
 	if state != nil && r.SchemaVersion > 0 {
 		if state.Meta == nil {
 			state.Meta = make(map[string]interface{})

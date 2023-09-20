@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
@@ -26,9 +26,9 @@ import (
 type ResourceData struct {
 	// Settable (internally)
 	schema       map[string]*Schema
-	config       *opentf.ResourceConfig
-	state        *opentf.InstanceState
-	diff         *opentf.InstanceDiff
+	config       *tofu.ResourceConfig
+	state        *tofu.InstanceState
+	diff         *tofu.InstanceDiff
 	meta         map[string]interface{}
 	timeouts     *ResourceTimeout
 	providerMeta cty.Value
@@ -36,7 +36,7 @@ type ResourceData struct {
 	// Don't set
 	multiReader *MultiLevelFieldReader
 	setWriter   *MapFieldWriter
-	newState    *opentf.InstanceState
+	newState    *tofu.InstanceState
 	partial     bool
 	partialMap  map[string]struct{}
 	once        sync.Once
@@ -289,8 +289,8 @@ func (d *ResourceData) SetType(t string) {
 
 // State returns the new InstanceState after the diff and any Set
 // calls.
-func (d *ResourceData) State() *opentf.InstanceState {
-	var result opentf.InstanceState
+func (d *ResourceData) State() *tofu.InstanceState {
+	var result tofu.InstanceState
 	result.ID = d.Id()
 	result.Meta = d.meta
 
@@ -425,7 +425,7 @@ func (d *ResourceData) Timeout(key string) time.Duration {
 
 func (d *ResourceData) init() {
 	// Initialize the field that will store our new state
-	var copyState opentf.InstanceState
+	var copyState tofu.InstanceState
 	if d.state != nil {
 		copyState = *d.state.DeepCopy()
 	}
