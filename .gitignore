@@ -18,7 +18,7 @@ website/node_modules
 *.test
 *.iml
 
-/opentf
+/opentofu
 
 website/vendor
 vendor/
