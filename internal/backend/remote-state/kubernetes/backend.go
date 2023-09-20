@@ -243,7 +243,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Overriding with static configuration
-	cfg.UserAgent = httpclient.OpenTfUserAgent(version.Version)
+	cfg.UserAgent = httpclient.OpenTofuUserAgent(version.Version)
 
 	if v, ok := data.GetOk("host"); ok {
 		cfg.Host = v.(string)
