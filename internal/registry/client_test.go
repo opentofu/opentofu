@@ -214,7 +214,7 @@ func TestAccLookupModuleVersions(t *testing.T) {
 		t.Skip()
 	}
 	regDisco := disco.New()
-	regDisco.SetUserAgent(httpclient.OpenTfUserAgent(tfversion.String()))
+	regDisco.SetUserAgent(httpclient.OpenTofuUserAgent(tfversion.String()))
 
 	// test with and without a hostname
 	for _, src := range []string{

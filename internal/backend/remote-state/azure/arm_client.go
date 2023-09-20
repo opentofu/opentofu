@@ -238,7 +238,7 @@ func (c *ArmClient) configureClient(client *autorest.Client, auth autorest.Autho
 }
 
 func buildUserAgent() string {
-	userAgent := httpclient.OpenTfUserAgent(version.Version)
+	userAgent := httpclient.OpenTofuUserAgent(version.Version)
 
 	// append the CloudShell version to the user agent if it exists
 	if azureAgent := os.Getenv("AZURE_HTTP_USER_AGENT"); azureAgent != "" {

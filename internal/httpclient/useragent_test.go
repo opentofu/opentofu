@@ -39,7 +39,7 @@ func TestUserAgentString_env(t *testing.T) {
 				os.Setenv(appendUaEnvVar, c.additional)
 			}
 
-			actual := OpenTfUserAgent(version.Version)
+			actual := OpenTofuUserAgent(version.Version)
 
 			if c.expected != actual {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", c.expected, actual)
@@ -55,7 +55,7 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 		defer os.Unsetenv(appendUaEnvVar)
 	}
 
-	expectedBase := "OpenTF/0.0.0"
+	expectedBase := "OpenTofu/0.0.0"
 
 	testCases := []struct {
 		envVarValue string
@@ -72,7 +72,7 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			os.Unsetenv(appendUaEnvVar)
 			os.Setenv(appendUaEnvVar, tc.envVarValue)
-			givenUA := OpenTfUserAgent("0.0.0")
+			givenUA := OpenTofuUserAgent("0.0.0")
 			if givenUA != tc.expected {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
 			}
@@ -99,7 +99,7 @@ func TestCustomUserAgentViaEnvVar(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			os.Unsetenv(customUaEnvVar)
 			os.Setenv(customUaEnvVar, tc.envVarValue)
-			givenUA := OpenTfUserAgent("0.0.0")
+			givenUA := OpenTofuUserAgent("0.0.0")
 			if givenUA != tc.envVarValue {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.envVarValue, givenUA)
 			}
@@ -123,11 +123,11 @@ func TestCustomUserAgentAndAppendViaEnvVar(t *testing.T) {
 		appendUaValue string
 		expected      string
 	}{
-		{"", "", "OpenTF/0.0.0"},
-		{"", " ", "OpenTF/0.0.0"},
-		{"", " \n", "OpenTF/0.0.0"},
-		{"", "testy test", "OpenTF/0.0.0 testy test"},
-		{"opensource", "opentf", "opensource opentf"},
+		{"", "", "OpenTofu/0.0.0"},
+		{"", " ", "OpenTofu/0.0.0"},
+		{"", " \n", "OpenTofu/0.0.0"},
+		{"", "testy test", "OpenTofu/0.0.0 testy test"},
+		{"opensource", "opentofu", "opensource opentofu"},
 	}
 
 	for i, tc := range testCases {
@@ -136,7 +136,7 @@ func TestCustomUserAgentAndAppendViaEnvVar(t *testing.T) {
 			os.Unsetenv(appendUaEnvVar)
 			os.Setenv(customUaEnvVar, tc.customUaValue)
 			os.Setenv(appendUaEnvVar, tc.appendUaValue)
-			givenUA := OpenTfUserAgent("0.0.0")
+			givenUA := OpenTofuUserAgent("0.0.0")
 			if givenUA != tc.expected {
 				t.Fatalf("Expected User-Agent '%s' does not match '%s'", tc.expected, givenUA)
 			}

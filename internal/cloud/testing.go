@@ -579,7 +579,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 		"tfe.v2": fmt.Sprintf("%s/api/v2/", s.URL),
 	}
 	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
+	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
 	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)

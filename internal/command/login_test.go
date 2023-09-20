@@ -52,7 +52,7 @@ func TestLogin(t *testing.T) {
 			browserLauncher := webbrowser.NewMockLauncher(ctx)
 			creds := cliconfig.EmptyCredentialsSourceForTests(filepath.Join(workDir, "credentials.tfrc.json"))
 			svcs := disco.NewWithCredentialsSource(creds)
-			svcs.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
+			svcs.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
 			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]interface{}{
 				"login.v1": map[string]interface{}{
