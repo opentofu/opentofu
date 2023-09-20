@@ -86,7 +86,7 @@ func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operatio
 					"Currently the only to way to pass variables to the remote backend is by "+
 					"creating a '*.auto.tfvars' variables file. This file will automatically "+
 					"be loaded by the \"remote\" backend when the workspace is configured to use "+
-					"OpenTF v0.10.0 or later.\n\nAdditionally you can also set variables on "+
+					"OpenTofu v0.10.0 or later.\n\nAdditionally you can also set variables on "+
 					"the workspace in the web UI:\nhttps://%s/app/%s/%s/variables",
 				b.hostname, b.organization, op.Workspace,
 			),
@@ -101,7 +101,7 @@ func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operatio
 				`would mark everything for destruction, which is normally not what is desired. `+
 				`If you would like to destroy everything, please run plan with the "-destroy" `+
 				`flag or create a single empty configuration file. Otherwise, please create `+
-				`a OpenTF configuration file in the path being executed and try again.`,
+				`a OpenTofu configuration file in the path being executed and try again.`,
 		))
 	}
 
@@ -229,7 +229,7 @@ func (b *Remote) plan(stopCtx, cancelCtx context.Context, op *backend.Operation,
 The remote workspace is configured to work with configuration at
 %s relative to the target repository.
 
-OpenTF will upload the contents of the following directory,
+OpenTofu will upload the contents of the following directory,
 excluding files or directories as defined by a .terraformignore file
 at %s/.terraformignore (if it is present),
 in order to capture the filesystem context the remote workspace expects:

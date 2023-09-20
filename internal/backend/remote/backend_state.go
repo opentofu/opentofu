@@ -92,7 +92,7 @@ func (r *remoteClient) uploadStateFallback(ctx context.Context, stateFile *state
 func (r *remoteClient) Put(state []byte) error {
 	ctx := context.Background()
 
-	// Read the raw state into a OpenTF state.
+	// Read the raw state into a OpenTofu state.
 	stateFile, err := statefile.Read(bytes.NewReader(state))
 	if err != nil {
 		return fmt.Errorf("error reading state: %w", err)
@@ -164,7 +164,7 @@ func (r *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 	// Lock the workspace.
 	_, err := r.client.Workspaces.Lock(ctx, r.workspace.ID, tfe.WorkspaceLockOptions{
-		Reason: tfe.String("Locked by OpenTF"),
+		Reason: tfe.String("Locked by OpenTofu"),
 	})
 	if err != nil {
 		if err == tfe.ErrWorkspaceLocked {

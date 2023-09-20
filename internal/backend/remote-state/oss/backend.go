@@ -350,7 +350,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	if sessionName == "" {
-		sessionName = "opentf"
+		sessionName = "tofu"
 	}
 	if sessionExpiration == 0 {
 		if v := os.Getenv("ALICLOUD_ASSUME_ROLE_SESSION_EXPIRATION"); v != "" {

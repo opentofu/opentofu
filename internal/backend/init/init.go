@@ -29,13 +29,13 @@ import (
 )
 
 // backends is the list of available backends. This is a global variable
-// because backends are currently hardcoded into OpenTF and can't be
+// because backends are currently hardcoded into OpenTofu and can't be
 // modified without recompilation.
 //
 // To read an available backend, use the Backend function. This ensures
 // safe concurrent read access to the list of built-in backends.
 //
-// Backends are hardcoded into OpenTF because the API for backends uses
+// Backends are hardcoded into OpenTofu because the API for backends uses
 // complex structures and supporting that over the plugin system is currently
 // prohibitively difficult. For those wanting to implement a custom backend,
 // they can do so with recompilation.
@@ -73,12 +73,12 @@ func Init(services *disco.Disco) {
 	}
 
 	RemovedBackends = map[string]string{
-		"artifactory": `The "artifactory" backend is not supported in OpenTF v1.3 or later.`,
+		"artifactory": `The "artifactory" backend is not supported in OpenTofu v1.3 or later.`,
 		"azure":       `The "azure" backend name has been removed, please use "azurerm".`,
-		"etcd":        `The "etcd" backend is not supported in OpenTF v1.3 or later.`,
-		"etcdv3":      `The "etcdv3" backend is not supported in OpenTF v1.3 or later.`,
-		"manta":       `The "manta" backend is not supported in OpenTF v1.3 or later.`,
-		"swift":       `The "swift" backend is not supported in OpenTF v1.3 or later.`,
+		"etcd":        `The "etcd" backend is not supported in OpenTofu v1.3 or later.`,
+		"etcdv3":      `The "etcdv3" backend is not supported in OpenTofu v1.3 or later.`,
+		"manta":       `The "manta" backend is not supported in OpenTofu v1.3 or later.`,
+		"swift":       `The "swift" backend is not supported in OpenTofu v1.3 or later.`,
 	}
 }
 
@@ -95,7 +95,7 @@ func Backend(name string) backend.InitFn {
 // then it will be overwritten.
 //
 // This method sets this backend globally and care should be taken to do
-// this only before OpenTF is executing to prevent odd behavior of backends
+// this only before OpenTofu is executing to prevent odd behavior of backends
 // changing mid-execution.
 func Set(name string, f backend.InitFn) {
 	backendsLock.Lock()
