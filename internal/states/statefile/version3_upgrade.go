@@ -63,9 +63,9 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				//
 				// This is a user-facing usage of Terraform but refers to a very
 				// old historical version of Terraform which has no corresponding
-				// OpenTF version yet.
-				// If we ever get OpenTF 0.11.x and 0.12.x, we should update this
-				// message to mention OpenTF instead.
+				// OpenTofu version yet.
+				// If we ever get OpenTofu 0.11.x and 0.12.x, we should update this
+				// message to mention OpenTofu instead.
 				return nil, fmt.Errorf("state contains invalid module path %#v: %q is not a valid identifier; rename it in Terraform 0.11 before upgrading to Terraform 0.12", msOld.Path, name)
 			}
 			moduleAddr[i] = addrs.ModuleInstanceStep{
@@ -124,9 +124,9 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 							//
 							// This is a user-facing usage of Terraform but refers
 							// to a very old historical version of Terraform
-							// which has no corresponding OpenTF version.
-							// If we ever get OpenTF 0.11.x and 0.12.x, we should
-							// update this message to mention OpenTF instead.
+							// which has no corresponding OpenTofu version.
+							// If we ever get OpenTofu 0.11.x and 0.12.x, we should
+							// update this message to mention OpenTofu instead.
 							return nil, fmt.Errorf("invalid provider config reference %q for %s: this alias seems to contain a template interpolation sequence, which was not supported but also not error-checked in Terraform 0.11. To proceed, rename the associated provider alias to a valid identifier and apply the change with Terraform 0.11 before upgrading to Terraform 0.12", oldProviderAddr, instAddr)
 						}
 						return nil, fmt.Errorf("invalid provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
@@ -148,9 +148,9 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 								//
 								// This is a user-facing usage of Terraform but refers
 								// to a very old historical version of Terraform
-								// which has no corresponding OpenTF version.
-								// If we ever get OpenTF 0.11.x and 0.12.x, we should
-								// update this message to mention OpenTF instead.
+								// which has no corresponding OpenTofu version.
+								// If we ever get OpenTofu 0.11.x and 0.12.x, we should
+								// update this message to mention OpenTofu instead.
 								return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: this alias seems to contain a template interpolation sequence, which was not supported but also not error-checked in Terraform 0.11. To proceed, rename the associated provider alias to a valid identifier and apply the change with Terraform 0.11 before upgrading to Terraform 0.12", oldProviderAddr, instAddr)
 							}
 							return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
