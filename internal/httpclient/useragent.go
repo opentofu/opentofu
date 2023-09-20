@@ -13,7 +13,7 @@ import (
 
 const (
 	appendUaEnvVar         = "TF_APPEND_USER_AGENT"
-	customUaEnvVar         = "OpenTofu_USER_AGENT"
+	customUaEnvVar         = "OPENTOFU_USER_AGENT"
 	DefaultApplicationName = "OpenTofu"
 )
 
