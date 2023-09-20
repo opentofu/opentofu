@@ -4,7 +4,8 @@
 - About the OpenTF fork: https://opentf.org/fork
 - [Join our Slack community!](https://join.slack.com/t/opentfcommunity/shared_invite/zt-237chyryd-mFULiefrbYGMYQoG72BUpQ)
 
-<img alt="OpenTF" src="https://raw.githubusercontent.com/opentffoundation/brand-artifacts/main/full/transparent/SVG/on-light.svg" width="600px">
+![](https://raw.githubusercontent.com/opentofu/brand-artifacts/main/full/transparent/SVG/on-dark.svg#gh-dark-mode-only)
+![](https://raw.githubusercontent.com/opentofu/brand-artifacts/main/full/transparent/SVG/on-light.svg#gh-light-mode-only)
 
 **Important Note: This repository is currently a work in progress while we're preparing it for the first alpha release and fine-tuning the community contribution process. Please read the [announcement post](https://opentf.org/fork) for important context and the [contributing docs](CONTRIBUTING.md) for instructions on how to contribute. Additionally, please be mindful that building this repository in its current state and running it might put you in violation of the [Terraform Registry ToS](https://web.archive.org/web/https://registry.terraform.io/terms), if that's where you fetch your providers or modules from.**
 
