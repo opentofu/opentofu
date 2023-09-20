@@ -6,7 +6,7 @@ package statemgr
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -81,7 +81,7 @@ type Refresher interface {
 // state. For example, when representing state in an external JSON
 // representation.
 type Persister interface {
-	PersistState(*opentf.Schemas) error
+	PersistState(*tofu.Schemas) error
 }
 
 // PersistentMeta is an optional extension to Persistent that allows inspecting

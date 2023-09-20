@@ -19,7 +19,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -29,12 +29,12 @@ func TestState(t *testing.T) {
 
 	tests := []struct {
 		State   *states.State
-		Schemas *opentf.Schemas
+		Schemas *tofu.Schemas
 		Want    string
 	}{
 		{
 			State:   &states.State{},
-			Schemas: &opentf.Schemas{},
+			Schemas: &tofu.Schemas{},
 			Want:    "The state file is empty. No resources are represented.\n",
 		},
 		{
@@ -98,8 +98,8 @@ func TestState(t *testing.T) {
 	}
 }
 
-func testProvider() *opentf.MockProvider {
-	p := new(opentf.MockProvider)
+func testProvider() *tofu.MockProvider {
+	p := new(tofu.MockProvider)
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
 		return providers.ReadResourceResponse{NewState: req.PriorState}
 	}
@@ -153,9 +153,9 @@ func testProviderSchema() *providers.GetProviderSchemaResponse {
 	}
 }
 
-func testSchemas() *opentf.Schemas {
+func testSchemas() *tofu.Schemas {
 	provider := testProvider()
-	return &opentf.Schemas{
+	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
 		},

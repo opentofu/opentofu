@@ -12,7 +12,7 @@ import (
 
 	"github.com/mitchellh/cli"
 
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -94,7 +94,7 @@ func (c *UnlockCommand) Run(args []string) int {
 			"This will allow local OpenTF commands to modify this state, even though it\n" +
 			"may still be in use. Only 'yes' will be accepted to confirm."
 
-		v, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+		v, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 			Id:          "force-unlock",
 			Query:       "Do you really want to force-unlock?",
 			Description: desc,

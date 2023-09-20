@@ -7,18 +7,18 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestUIOutput_impl(t *testing.T) {
-	var _ opentf.UIOutput = new(UIOutput)
+	var _ tofu.UIOutput = new(UIOutput)
 }
 
 func TestUIOutput_input(t *testing.T) {
 	client, server := plugin.TestRPCConn(t)
 	defer client.Close()
 
-	o := new(opentf.MockUIOutput)
+	o := new(tofu.MockUIOutput)
 
 	err := server.RegisterName("Plugin", &UIOutputServer{
 		UIOutput: o,

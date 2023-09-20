@@ -27,7 +27,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -157,7 +157,7 @@ func (s *State) WriteState(state *states.State) error {
 }
 
 // PersistState uploads a snapshot of the latest state as a StateVersion to Terraform Cloud
-func (s *State) PersistState(schemas *opentf.Schemas) error {
+func (s *State) PersistState(schemas *tofu.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

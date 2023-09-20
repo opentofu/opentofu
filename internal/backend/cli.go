@@ -7,7 +7,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/terminal"
 )
 
@@ -73,7 +73,7 @@ type CLIOpts struct {
 	// ContextOpts are the base context options to set when initializing a
 	// OpenTF context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *opentf.ContextOpts
+	ContextOpts *tofu.ContextOpts
 
 	// Input will ask for necessary input prior to performing any operations.
 	//

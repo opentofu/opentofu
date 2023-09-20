@@ -15,7 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/moduletest"
-	"github.com/opentofu/opentofu/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -140,7 +140,7 @@ func (t *TestHuman) Run(run *moduletest.Run, file *moduletest.File) {
 		// We're going to be more verbose about what we print, here's the plan
 		// or the state depending on the type of run we did.
 
-		schemas := &opentf.Schemas{
+		schemas := &tofu.Schemas{
 			Providers:    run.Verbose.Providers,
 			Provisioners: run.Verbose.Provisioners,
 		}
@@ -402,7 +402,7 @@ func (t *TestJSON) Run(run *moduletest.Run, file *moduletest.File) {
 
 	if run.Verbose != nil {
 
-		schemas := &opentf.Schemas{
+		schemas := &tofu.Schemas{
 			Providers:    run.Verbose.Providers,
 			Provisioners: run.Verbose.Provisioners,
 		}
