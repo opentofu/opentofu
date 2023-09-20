@@ -14,11 +14,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestProvider_impl(t *testing.T) {
-	var _ opentf.ResourceProvider = new(Provider)
+	var _ tofu.ResourceProvider = new(Provider)
 }
 
 func TestProviderGetSchema(t *testing.T) {
@@ -53,7 +53,7 @@ func TestProviderGetSchema(t *testing.T) {
 		},
 	}
 
-	want := &opentf.ProviderSchema{
+	want := &tofu.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"bar": &configschema.Attribute{
@@ -86,7 +86,7 @@ func TestProviderGetSchema(t *testing.T) {
 			}),
 		},
 	}
-	got, err := p.GetSchema(&opentf.ProviderSchemaRequest{
+	got, err := p.GetSchema(&tofu.ProviderSchemaRequest{
 		ResourceTypes: []string{"foo", "bar"},
 		DataSources:   []string{"baz", "bar"},
 	})
@@ -159,7 +159,7 @@ func TestProviderConfigure(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		c := opentf.NewResourceConfigRaw(tc.Config)
+		c := tofu.NewResourceConfigRaw(tc.Config)
 		err := tc.P.Configure(c)
 		if err != nil != tc.Err {
 			t.Fatalf("%d: %s", i, err)
@@ -170,11 +170,11 @@ func TestProviderConfigure(t *testing.T) {
 func TestProviderResources(t *testing.T) {
 	cases := []struct {
 		P      *Provider
-		Result []opentf.ResourceType
+		Result []tofu.ResourceType
 	}{
 		{
 			P:      &Provider{},
-			Result: []opentf.ResourceType{},
+			Result: []tofu.ResourceType{},
 		},
 
 		{
@@ -184,9 +184,9 @@ func TestProviderResources(t *testing.T) {
 					"bar": nil,
 				},
 			},
-			Result: []opentf.ResourceType{
-				opentf.ResourceType{Name: "bar", SchemaAvailable: true},
-				opentf.ResourceType{Name: "foo", SchemaAvailable: true},
+			Result: []tofu.ResourceType{
+				tofu.ResourceType{Name: "bar", SchemaAvailable: true},
+				tofu.ResourceType{Name: "foo", SchemaAvailable: true},
 			},
 		},
 
@@ -198,10 +198,10 @@ func TestProviderResources(t *testing.T) {
 					"baz": nil,
 				},
 			},
-			Result: []opentf.ResourceType{
-				opentf.ResourceType{Name: "bar", Importable: true, SchemaAvailable: true},
-				opentf.ResourceType{Name: "baz", SchemaAvailable: true},
-				opentf.ResourceType{Name: "foo", SchemaAvailable: true},
+			Result: []tofu.ResourceType{
+				tofu.ResourceType{Name: "bar", Importable: true, SchemaAvailable: true},
+				tofu.ResourceType{Name: "baz", SchemaAvailable: true},
+				tofu.ResourceType{Name: "foo", SchemaAvailable: true},
 			},
 		},
 	}
@@ -217,11 +217,11 @@ func TestProviderResources(t *testing.T) {
 func TestProviderDataSources(t *testing.T) {
 	cases := []struct {
 		P      *Provider
-		Result []opentf.DataSource
+		Result []tofu.DataSource
 	}{
 		{
 			P:      &Provider{},
-			Result: []opentf.DataSource{},
+			Result: []tofu.DataSource{},
 		},
 
 		{
@@ -231,9 +231,9 @@ func TestProviderDataSources(t *testing.T) {
 					"bar": nil,
 				},
 			},
-			Result: []opentf.DataSource{
-				opentf.DataSource{Name: "bar", SchemaAvailable: true},
-				opentf.DataSource{Name: "foo", SchemaAvailable: true},
+			Result: []tofu.DataSource{
+				tofu.DataSource{Name: "bar", SchemaAvailable: true},
+				tofu.DataSource{Name: "foo", SchemaAvailable: true},
 			},
 		},
 	}
@@ -264,7 +264,7 @@ func TestProviderValidate(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		c := opentf.NewResourceConfigRaw(tc.Config)
+		c := tofu.NewResourceConfigRaw(tc.Config)
 		_, es := tc.P.Validate(c)
 		if len(es) > 0 != tc.Err {
 			t.Fatalf("%d: %#v", i, es)
@@ -297,9 +297,9 @@ func TestProviderDiff_legacyTimeoutType(t *testing.T) {
 			},
 		},
 	}
-	ic := opentf.NewResourceConfigRaw(invalidCfg)
+	ic := tofu.NewResourceConfigRaw(invalidCfg)
 	_, err := p.Diff(
-		&opentf.InstanceInfo{
+		&tofu.InstanceInfo{
 			Type: "blah",
 		},
 		nil,
@@ -333,9 +333,9 @@ func TestProviderDiff_timeoutInvalidValue(t *testing.T) {
 			"create": "invalid",
 		},
 	}
-	ic := opentf.NewResourceConfigRaw(invalidCfg)
+	ic := tofu.NewResourceConfigRaw(invalidCfg)
 	_, err := p.Diff(
-		&opentf.InstanceInfo{
+		&tofu.InstanceInfo{
 			Type: "blah",
 		},
 		nil,
@@ -379,7 +379,7 @@ func TestProviderValidateResource(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		c := opentf.NewResourceConfigRaw(tc.Config)
+		c := tofu.NewResourceConfigRaw(tc.Config)
 		_, es := tc.P.ValidateResource(tc.Type, c)
 		if len(es) > 0 != tc.Err {
 			t.Fatalf("%d: %#v", i, es)
@@ -396,7 +396,7 @@ func TestProviderImportState_default(t *testing.T) {
 		},
 	}
 
-	states, err := p.ImportState(&opentf.InstanceInfo{
+	states, err := p.ImportState(&tofu.InstanceInfo{
 		Type: "foo",
 	}, "bar")
 	if err != nil {
@@ -428,7 +428,7 @@ func TestProviderImportState_setsId(t *testing.T) {
 		},
 	}
 
-	_, err := p.ImportState(&opentf.InstanceInfo{
+	_, err := p.ImportState(&tofu.InstanceInfo{
 		Type: "foo",
 	}, "bar")
 	if err != nil {
@@ -458,7 +458,7 @@ func TestProviderImportState_setsType(t *testing.T) {
 		},
 	}
 
-	_, err := p.ImportState(&opentf.InstanceInfo{
+	_, err := p.ImportState(&tofu.InstanceInfo{
 		Type: "foo",
 	}, "bar")
 	if err != nil {

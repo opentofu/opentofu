@@ -12,7 +12,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 var ReservedProviderFields = []string{
@@ -180,7 +180,7 @@ func (p *Provider) stopInit() {
 	p.stopCtx, p.stopCtxCancel = context.WithCancel(context.Background())
 }
 
-// Stop implementation of opentf.ResourceProvider interface.
+// Stop implementation of tofu.ResourceProvider interface.
 func (p *Provider) Stop() error {
 	p.stopOnce.Do(p.stopInit)
 
@@ -203,8 +203,8 @@ func (p *Provider) TestReset() error {
 	return nil
 }
 
-// GetSchema implementation of opentf.ResourceProvider interface
-func (p *Provider) GetSchema(req *opentf.ProviderSchemaRequest) (*opentf.ProviderSchema, error) {
+// GetSchema implementation of tofu.ResourceProvider interface
+func (p *Provider) GetSchema(req *tofu.ProviderSchemaRequest) (*tofu.ProviderSchema, error) {
 	resourceTypes := map[string]*configschema.Block{}
 	dataSources := map[string]*configschema.Block{}
 
@@ -219,22 +219,22 @@ func (p *Provider) GetSchema(req *opentf.ProviderSchemaRequest) (*opentf.Provide
 		}
 	}
 
-	return &opentf.ProviderSchema{
+	return &tofu.ProviderSchema{
 		Provider:      schemaMap(p.Schema).CoreConfigSchema(),
 		ResourceTypes: resourceTypes,
 		DataSources:   dataSources,
 	}, nil
 }
 
-// Input implementation of opentf.ResourceProvider interface.
+// Input implementation of tofu.ResourceProvider interface.
 func (p *Provider) Input(
-	input opentf.UIInput,
-	c *opentf.ResourceConfig) (*opentf.ResourceConfig, error) {
+	input tofu.UIInput,
+	c *tofu.ResourceConfig) (*tofu.ResourceConfig, error) {
 	return schemaMap(p.Schema).Input(input, c)
 }
 
-// Validate implementation of opentf.ResourceProvider interface.
-func (p *Provider) Validate(c *opentf.ResourceConfig) ([]string, []error) {
+// Validate implementation of tofu.ResourceProvider interface.
+func (p *Provider) Validate(c *tofu.ResourceConfig) ([]string, []error) {
 	if err := p.InternalValidate(); err != nil {
 		return nil, []error{fmt.Errorf(
 			"Internal validation of the provider failed! This is always a bug\n"+
@@ -245,9 +245,9 @@ func (p *Provider) Validate(c *opentf.ResourceConfig) ([]string, []error) {
 	return schemaMap(p.Schema).Validate(c)
 }
 
-// ValidateResource implementation of opentf.ResourceProvider interface.
+// ValidateResource implementation of tofu.ResourceProvider interface.
 func (p *Provider) ValidateResource(
-	t string, c *opentf.ResourceConfig) ([]string, []error) {
+	t string, c *tofu.ResourceConfig) ([]string, []error) {
 	r, ok := p.ResourcesMap[t]
 	if !ok {
 		return nil, []error{fmt.Errorf(
@@ -257,8 +257,8 @@ func (p *Provider) ValidateResource(
 	return r.Validate(c)
 }
 
-// Configure implementation of opentf.ResourceProvider interface.
-func (p *Provider) Configure(c *opentf.ResourceConfig) error {
+// Configure implementation of tofu.ResourceProvider interface.
+func (p *Provider) Configure(c *tofu.ResourceConfig) error {
 	// No configuration
 	if p.ConfigureFunc == nil {
 		return nil
@@ -287,11 +287,11 @@ func (p *Provider) Configure(c *opentf.ResourceConfig) error {
 	return nil
 }
 
-// Apply implementation of opentf.ResourceProvider interface.
+// Apply implementation of tofu.ResourceProvider interface.
 func (p *Provider) Apply(
-	info *opentf.InstanceInfo,
-	s *opentf.InstanceState,
-	d *opentf.InstanceDiff) (*opentf.InstanceState, error) {
+	info *tofu.InstanceInfo,
+	s *tofu.InstanceState,
+	d *tofu.InstanceDiff) (*tofu.InstanceState, error) {
 	r, ok := p.ResourcesMap[info.Type]
 	if !ok {
 		return nil, fmt.Errorf("unknown resource type: %s", info.Type)
@@ -300,11 +300,11 @@ func (p *Provider) Apply(
 	return r.Apply(s, d, p.meta)
 }
 
-// Diff implementation of opentf.ResourceProvider interface.
+// Diff implementation of tofu.ResourceProvider interface.
 func (p *Provider) Diff(
-	info *opentf.InstanceInfo,
-	s *opentf.InstanceState,
-	c *opentf.ResourceConfig) (*opentf.InstanceDiff, error) {
+	info *tofu.InstanceInfo,
+	s *tofu.InstanceState,
+	c *tofu.ResourceConfig) (*tofu.InstanceDiff, error) {
 	r, ok := p.ResourcesMap[info.Type]
 	if !ok {
 		return nil, fmt.Errorf("unknown resource type: %s", info.Type)
@@ -316,9 +316,9 @@ func (p *Provider) Diff(
 // SimpleDiff is used by the new protocol wrappers to get a diff that doesn't
 // attempt to calculate ignore_changes.
 func (p *Provider) SimpleDiff(
-	info *opentf.InstanceInfo,
-	s *opentf.InstanceState,
-	c *opentf.ResourceConfig) (*opentf.InstanceDiff, error) {
+	info *tofu.InstanceInfo,
+	s *tofu.InstanceState,
+	c *tofu.ResourceConfig) (*tofu.InstanceDiff, error) {
 	r, ok := p.ResourcesMap[info.Type]
 	if !ok {
 		return nil, fmt.Errorf("unknown resource type: %s", info.Type)
@@ -327,10 +327,10 @@ func (p *Provider) SimpleDiff(
 	return r.simpleDiff(s, c, p.meta)
 }
 
-// Refresh implementation of opentf.ResourceProvider interface.
+// Refresh implementation of tofu.ResourceProvider interface.
 func (p *Provider) Refresh(
-	info *opentf.InstanceInfo,
-	s *opentf.InstanceState) (*opentf.InstanceState, error) {
+	info *tofu.InstanceInfo,
+	s *tofu.InstanceState) (*tofu.InstanceState, error) {
 	r, ok := p.ResourcesMap[info.Type]
 	if !ok {
 		return nil, fmt.Errorf("unknown resource type: %s", info.Type)
@@ -339,15 +339,15 @@ func (p *Provider) Refresh(
 	return r.Refresh(s, p.meta)
 }
 
-// Resources implementation of opentf.ResourceProvider interface.
-func (p *Provider) Resources() []opentf.ResourceType {
+// Resources implementation of tofu.ResourceProvider interface.
+func (p *Provider) Resources() []tofu.ResourceType {
 	keys := make([]string, 0, len(p.ResourcesMap))
 	for k := range p.ResourcesMap {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	result := make([]opentf.ResourceType, 0, len(keys))
+	result := make([]tofu.ResourceType, 0, len(keys))
 	for _, k := range keys {
 		resource := p.ResourcesMap[k]
 
@@ -357,7 +357,7 @@ func (p *Provider) Resources() []opentf.ResourceType {
 			resource = &Resource{}
 		}
 
-		result = append(result, opentf.ResourceType{
+		result = append(result, tofu.ResourceType{
 			Name:       k,
 			Importable: resource.Importer != nil,
 
@@ -371,8 +371,8 @@ func (p *Provider) Resources() []opentf.ResourceType {
 }
 
 func (p *Provider) ImportState(
-	info *opentf.InstanceInfo,
-	id string) ([]*opentf.InstanceState, error) {
+	info *tofu.InstanceInfo,
+	id string) ([]*tofu.InstanceState, error) {
 	// Find the resource
 	r, ok := p.ResourcesMap[info.Type]
 	if !ok {
@@ -400,7 +400,7 @@ func (p *Provider) ImportState(
 	}
 
 	// Convert the results to InstanceState values and return it
-	states := make([]*opentf.InstanceState, len(results))
+	states := make([]*tofu.InstanceState, len(results))
 	for i, r := range results {
 		states[i] = r.State()
 	}
@@ -419,9 +419,9 @@ func (p *Provider) ImportState(
 	return states, nil
 }
 
-// ValidateDataSource implementation of opentf.ResourceProvider interface.
+// ValidateDataSource implementation of tofu.ResourceProvider interface.
 func (p *Provider) ValidateDataSource(
-	t string, c *opentf.ResourceConfig) ([]string, []error) {
+	t string, c *tofu.ResourceConfig) ([]string, []error) {
 	r, ok := p.DataSourcesMap[t]
 	if !ok {
 		return nil, []error{fmt.Errorf(
@@ -431,10 +431,10 @@ func (p *Provider) ValidateDataSource(
 	return r.Validate(c)
 }
 
-// ReadDataDiff implementation of opentf.ResourceProvider interface.
+// ReadDataDiff implementation of tofu.ResourceProvider interface.
 func (p *Provider) ReadDataDiff(
-	info *opentf.InstanceInfo,
-	c *opentf.ResourceConfig) (*opentf.InstanceDiff, error) {
+	info *tofu.InstanceInfo,
+	c *tofu.ResourceConfig) (*tofu.InstanceDiff, error) {
 
 	r, ok := p.DataSourcesMap[info.Type]
 	if !ok {
@@ -444,10 +444,10 @@ func (p *Provider) ReadDataDiff(
 	return r.Diff(nil, c, p.meta)
 }
 
-// RefreshData implementation of opentf.ResourceProvider interface.
+// RefreshData implementation of tofu.ResourceProvider interface.
 func (p *Provider) ReadDataApply(
-	info *opentf.InstanceInfo,
-	d *opentf.InstanceDiff) (*opentf.InstanceState, error) {
+	info *tofu.InstanceInfo,
+	d *tofu.InstanceDiff) (*tofu.InstanceState, error) {
 
 	r, ok := p.DataSourcesMap[info.Type]
 	if !ok {
@@ -457,17 +457,17 @@ func (p *Provider) ReadDataApply(
 	return r.ReadDataApply(d, p.meta)
 }
 
-// DataSources implementation of opentf.ResourceProvider interface.
-func (p *Provider) DataSources() []opentf.DataSource {
+// DataSources implementation of tofu.ResourceProvider interface.
+func (p *Provider) DataSources() []tofu.DataSource {
 	keys := make([]string, 0, len(p.DataSourcesMap))
 	for k, _ := range p.DataSourcesMap {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	result := make([]opentf.DataSource, 0, len(keys))
+	result := make([]tofu.DataSource, 0, len(keys))
 	for _, k := range keys {
-		result = append(result, opentf.DataSource{
+		result = append(result, tofu.DataSource{
 			Name: k,
 
 			// Indicates that a provider is compiled against a new enough

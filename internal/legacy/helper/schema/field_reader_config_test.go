@@ -11,7 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/helper/hashcode"
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestConfigFieldReader_impl(t *testing.T) {
@@ -80,7 +80,7 @@ func TestConfigFieldReader_custom(t *testing.T) {
 	cases := map[string]struct {
 		Addr   []string
 		Result FieldReadResult
-		Config *opentf.ResourceConfig
+		Config *tofu.ResourceConfig
 		Err    bool
 	}{
 		"basic": {
@@ -146,7 +146,7 @@ func TestConfigFieldReader_DefaultHandling(t *testing.T) {
 	cases := map[string]struct {
 		Addr   []string
 		Result FieldReadResult
-		Config *opentf.ResourceConfig
+		Config *tofu.ResourceConfig
 		Err    bool
 	}{
 		"gets default value when no config set": {
@@ -236,7 +236,7 @@ func TestConfigFieldReader_ComputedMap(t *testing.T) {
 		Name   string
 		Addr   []string
 		Result FieldReadResult
-		Config *opentf.ResourceConfig
+		Config *tofu.ResourceConfig
 		Err    bool
 	}{
 		{
@@ -403,7 +403,7 @@ func TestConfigFieldReader_ComputedSet(t *testing.T) {
 	cases := map[string]struct {
 		Addr   []string
 		Result FieldReadResult
-		Config *opentf.ResourceConfig
+		Config *tofu.ResourceConfig
 		Err    bool
 	}{
 		"set, normal": {
@@ -489,7 +489,7 @@ func TestConfigFieldReader_computedComplexSet(t *testing.T) {
 	cases := map[string]struct {
 		Addr   []string
 		Result FieldReadResult
-		Config *opentf.ResourceConfig
+		Config *tofu.ResourceConfig
 		Err    bool
 	}{
 		"set, normal": {
@@ -538,6 +538,6 @@ func TestConfigFieldReader_computedComplexSet(t *testing.T) {
 	}
 }
 
-func testConfig(t *testing.T, raw map[string]interface{}) *opentf.ResourceConfig {
-	return opentf.NewResourceConfigRaw(raw)
+func testConfig(t *testing.T, raw map[string]interface{}) *tofu.ResourceConfig {
+	return tofu.NewResourceConfigRaw(raw)
 }

@@ -6,7 +6,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // TestResourceDataRaw creates a ResourceData from a raw configuration map.
@@ -14,7 +14,7 @@ func TestResourceDataRaw(
 	t *testing.T, schema map[string]*Schema, raw map[string]interface{}) *ResourceData {
 	t.Helper()
 
-	c := opentf.NewResourceConfigRaw(raw)
+	c := tofu.NewResourceConfigRaw(raw)
 
 	sm := schemaMap(schema)
 	diff, err := sm.Diff(nil, c, nil, nil, true)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // Provisioner represents a resource provisioner in Terraform and properly
@@ -46,7 +46,7 @@ type Provisioner struct {
 
 	// ValidateFunc is a function for extended validation. This is optional
 	// and should be used when individual field validation is not enough.
-	ValidateFunc func(*opentf.ResourceConfig) ([]string, []error)
+	ValidateFunc func(*tofu.ResourceConfig) ([]string, []error)
 
 	stopCtx       context.Context
 	stopCtxCancel context.CancelFunc
@@ -117,23 +117,23 @@ func (p *Provisioner) stopInit() {
 	p.stopCtx, p.stopCtxCancel = context.WithCancel(context.Background())
 }
 
-// Stop implementation of opentf.ResourceProvisioner interface.
+// Stop implementation of tofu.ResourceProvisioner interface.
 func (p *Provisioner) Stop() error {
 	p.stopOnce.Do(p.stopInit)
 	p.stopCtxCancel()
 	return nil
 }
 
-// GetConfigSchema implementation of opentf.ResourceProvisioner interface.
+// GetConfigSchema implementation of tofu.ResourceProvisioner interface.
 func (p *Provisioner) GetConfigSchema() (*configschema.Block, error) {
 	return schemaMap(p.Schema).CoreConfigSchema(), nil
 }
 
-// Apply implementation of opentf.ResourceProvisioner interface.
+// Apply implementation of tofu.ResourceProvisioner interface.
 func (p *Provisioner) Apply(
-	o opentf.UIOutput,
-	s *opentf.InstanceState,
-	c *opentf.ResourceConfig) error {
+	o tofu.UIOutput,
+	s *tofu.InstanceState,
+	c *tofu.ResourceConfig) error {
 	var connData, configData *ResourceData
 
 	{
@@ -148,7 +148,7 @@ func (p *Provisioner) Apply(
 			}
 		}
 
-		c := opentf.NewResourceConfigRaw(raw)
+		c := tofu.NewResourceConfigRaw(raw)
 		sm := schemaMap(p.ConnSchema)
 		diff, err := sm.Diff(nil, c, nil, nil, true)
 		if err != nil {
@@ -183,8 +183,8 @@ func (p *Provisioner) Apply(
 	return p.ApplyFunc(ctx)
 }
 
-// Validate implements the opentf.ResourceProvisioner interface.
-func (p *Provisioner) Validate(c *opentf.ResourceConfig) (ws []string, es []error) {
+// Validate implements the tofu.ResourceProvisioner interface.
+func (p *Provisioner) Validate(c *tofu.ResourceConfig) (ws []string, es []error) {
 	if err := p.InternalValidate(); err != nil {
 		return nil, []error{fmt.Errorf(
 			"Internal validation of the provisioner failed! This is always a bug\n"+
