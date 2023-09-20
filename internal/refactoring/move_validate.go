@@ -228,7 +228,7 @@ func validateMoveStatementGraph(g *dag.AcyclicGraph) tfdiags.Diagnostics {
 				tfdiags.Error,
 				"Self reference in move statements",
 				fmt.Sprintf(
-					"The move statement %s refers to itself the move dependency graph, which is invalid. This is a bug in OpenTF; please report it!",
+					"The move statement %s refers to itself the move dependency graph, which is invalid. This is a bug in OpenTofu; please report it!",
 					src.(*MoveStatement).Name(),
 				),
 			))
