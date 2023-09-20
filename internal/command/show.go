@@ -69,7 +69,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		diags = diags.Append(fmt.Errorf("error loading plugin path: %s", err))
+		diags = diags.Append(fmt.Errorf("error loading plugin path: %w", err))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -160,7 +160,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot() (*statefile.File, tfdiags.Di
 	// Load the workspace
 	workspace, err := c.Workspace()
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("error selecting workspace: %s", err))
+		diags = diags.Append(fmt.Errorf("error selecting workspace: %w", err))
 		return nil, diags
 	}
 
