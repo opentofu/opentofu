@@ -61,6 +61,16 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "AWS region of the S3 Bucket and DynamoDB Table (if used).",
 			},
+			"allowed_account_ids": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "List of allowed AWS account IDs.",
+			},
+			"forbidden_account_ids": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "List of forbidden AWS account IDs.",
+			},
 			"dynamodb_endpoint": {
 				Type:        cty.String,
 				Optional:    true,

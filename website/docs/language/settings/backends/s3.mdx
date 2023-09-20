@@ -158,6 +158,8 @@ The following configuration is required:
 The following configuration is optional:
 
 * `access_key` - (Optional) AWS access key. If configured, must also configure `secret_key`. This can also be sourced from the `AWS_ACCESS_KEY_ID` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
+* `allowed_account_ids` - (Optional) List of allowed AWS account IDs to prevent potential destruction of a live environment. Conflicts with `forbidden_account_ids`.
+* `forbidden_account_ids` - (Optional) List of forbidden AWS account IDs to prevent potential destruction of a live environment. Conflicts with `allowed_account_ids`.
 * `secret_key` - (Optional) AWS access key. If configured, must also configure `access_key`. This can also be sourced from the `AWS_SECRET_ACCESS_KEY` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
 * `iam_endpoint` - (Optional) Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the `AWS_IAM_ENDPOINT` environment variable.
 * `max_retries` - (Optional) The maximum number of times an AWS API request is retried on retryable failure. Defaults to 5.
