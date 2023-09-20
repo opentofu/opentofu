@@ -40,7 +40,7 @@ var (
 	)
 )
 
-const ignoreRemoteVersionHelp = "If you're sure you want to upgrade the state, you can force OpenTF to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
+const ignoreRemoteVersionHelp = "If you're sure you want to upgrade the state, you can force OpenTofu to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
 
 func missingConfigAttributeAndEnvVar(attribute string, envVar string) tfdiags.Diagnostic {
 	detail := strings.TrimSpace(fmt.Sprintf("\"%s\" must be set in the cloud configuration or as an environment variable: %s.\n", attribute, envVar))

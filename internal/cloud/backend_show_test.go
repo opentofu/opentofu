@@ -39,7 +39,7 @@ func TestCloud_showMissingRun(t *testing.T) {
 
 	absentRunID := "run-WwwwXxxxYyyyZzzz"
 	_, err := b.ShowPlanForRun(context.Background(), absentRunID, "app.terraform.io", true)
-	if !strings.Contains(err.Error(), "opentf login") {
+	if !strings.Contains(err.Error(), "tofu login") {
 		t.Fatalf("expected error message to suggest checking your login status, instead got: %s", err)
 	}
 }

@@ -76,7 +76,7 @@ type State struct {
 
 var ErrStateVersionUnauthorizedUpgradeState = errors.New(strings.TrimSpace(`
 You are not authorized to read the full state version containing outputs.
-State versions created by opentf v1.3.0 and newer do not require this level
+State versions created by tofu v1.3.0 and newer do not require this level
 of authorization and therefore this error can usually be fixed by upgrading the
 remote state version.
 `))
@@ -338,7 +338,7 @@ func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
 
 	// Lock the workspace.
 	_, err := s.tfeClient.Workspaces.Lock(ctx, s.workspace.ID, tfe.WorkspaceLockOptions{
-		Reason: tfe.String("Locked by OpenTF"),
+		Reason: tfe.String("Locked by OpenTofu"),
 	})
 	if err != nil {
 		if err == tfe.ErrWorkspaceLocked {

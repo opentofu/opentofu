@@ -947,7 +947,7 @@ func TestCloud_planWithWorkingDirectory(t *testing.T) {
 	defer bCleanup()
 
 	options := tfe.WorkspaceUpdateOptions{
-		WorkingDirectory: tfe.String("opentf"),
+		WorkingDirectory: tfe.String("tofu"),
 	}
 
 	// Configure the workspace to use a custom working directory.
@@ -956,7 +956,7 @@ func TestCloud_planWithWorkingDirectory(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-with-working-directory/opentf")
+	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
 	defer configCleanup()
 	defer done(t)
 
@@ -992,7 +992,7 @@ func TestCloud_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 	defer bCleanup()
 
 	options := tfe.WorkspaceUpdateOptions{
-		WorkingDirectory: tfe.String("opentf"),
+		WorkingDirectory: tfe.String("tofu"),
 	}
 
 	// Configure the workspace to use a custom working directory.
@@ -1008,7 +1008,7 @@ func TestCloud_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 
 	// We need to change into the configuration directory to make sure
 	// the logic to upload the correct slug is working as expected.
-	if err := os.Chdir("./testdata/plan-with-working-directory/opentf"); err != nil {
+	if err := os.Chdir("./testdata/plan-with-working-directory/tofu"); err != nil {
 		t.Fatalf("error changing directory: %v", err)
 	}
 	defer os.Chdir(wd) // Make sure we change back again when were done.

@@ -389,7 +389,7 @@ func WithEnvVars(t *testing.T) {
 			vars: map[string]string{
 				"TF_WORKSPACE": "i-dont-exist-in-org",
 			},
-			expectedErr: `Invalid workspace selection: OpenTF failed to find workspace "i-dont-exist-in-org" in organization hashicorp`,
+			expectedErr: `Invalid workspace selection: OpenTofu failed to find workspace "i-dont-exist-in-org" in organization hashicorp`,
 		},
 		"workspaces and env var specified": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -432,7 +432,7 @@ func WithEnvVars(t *testing.T) {
 			vars: map[string]string{
 				"TF_WORKSPACE": "shire",
 			},
-			expectedErr: "OpenTF failed to find workspace \"shire\" with the tags specified in your configuration:\n[cloud]",
+			expectedErr: "OpenTofu failed to find workspace \"shire\" with the tags specified in your configuration:\n[cloud]",
 		},
 		"env var workspace has specified tag": {
 			setup: func(b *Cloud) {
@@ -643,7 +643,7 @@ func TestCloud_config(t *testing.T) {
 					"project": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "opentf login localhost",
+			confErr: "tofu login localhost",
 		},
 		"with_tags": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -1109,7 +1109,7 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 	}
 
 	// This should fail
-	want := `Remote workspace TF version "0.13.5" does not match local OpenTF version "0.14.0"`
+	want := `Remote workspace TF version "0.13.5" does not match local OpenTofu version "0.14.0"`
 	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
@@ -1327,7 +1327,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	if got, want := diags[0].Description().Summary, "Incompatible TF version"; got != want {
 		t.Errorf("wrong summary: got %s, want %s", got, want)
 	}
-	wantDetail := "The local OpenTF version (0.14.0) does not meet the version requirements for remote workspace hashicorp/app-prod (0.13.5)."
+	wantDetail := "The local OpenTofu version (0.14.0) does not meet the version requirements for remote workspace hashicorp/app-prod (0.13.5)."
 	if got := diags[0].Description().Detail; got != wantDetail {
 		t.Errorf("wrong summary: got %s, want %s", got, wantDetail)
 	}
