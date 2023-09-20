@@ -110,7 +110,7 @@ func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operatio
 	// equivalent to an API version < 2.3.
 	currentAPIVersion, parseErr := version.NewVersion(b.client.RemoteAPIVersion())
 
-	if len(op.Targets) != 0 {
+	if len(op.Targets) != 0 || len(op.Excludes) != 0 {
 		desiredAPIVersion, _ := version.NewVersion("2.3")
 
 		if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
@@ -311,6 +311,13 @@ in order to capture the filesystem context the remote workspace expects:
 	if len(op.Targets) != 0 {
 		runOptions.TargetAddrs = make([]string, 0, len(op.Targets))
 		for _, addr := range op.Targets {
+			runOptions.TargetAddrs = append(runOptions.TargetAddrs, addr.String())
+		}
+	}
+
+	if len(op.Excludes) != 0 {
+		runOptions.TargetAddrs = make([]string, 0, len(op.Excludes))
+		for _, addr := range op.Excludes {
 			runOptions.TargetAddrs = append(runOptions.TargetAddrs, addr.String())
 		}
 	}

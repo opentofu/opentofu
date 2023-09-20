@@ -143,7 +143,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 		}
 	}
 
-	if len(op.Targets) != 0 {
+	if len(op.Targets) != 0 || len(op.Excludes) != 0 {
 		desiredAPIVersion, _ := version.NewVersion("2.3")
 
 		if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {

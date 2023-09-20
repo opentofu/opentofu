@@ -157,6 +157,7 @@ func (c *PlanCommand) OperationRequest(
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypePlan
 	opReq.View = view.Operation()
