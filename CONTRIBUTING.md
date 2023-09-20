@@ -57,13 +57,13 @@ Use Git to clone this repository into a location of your choice. OpenTofu is usi
 Switch into the root directory of the cloned repository and build OpenTofu using the Go toolchain in the standard way:
 
 ```
-cd OpenTofu
+cd opentf
 go install .
 ```
 
 The first time you run the `go install` command, the Go toolchain will download any library dependencies that you don't already have in your Go modules cache. Subsequent builds will be faster because these dependencies will already be available on your local disk.
 
-Once the compilation process succeeds, you can find a `OpenTofu` executable in the Go executable directory. If you haven't overridden it with the `GOBIN` environment variable, the executable directory is the `bin` directory inside the directory returned by the following command:
+Once the compilation process succeeds, you can find a `opentf` executable in the Go executable directory. If you haven't overridden it with the `GOBIN` environment variable, the executable directory is the `bin` directory inside the directory returned by the following command:
 
 ```
 go env GOPATH
