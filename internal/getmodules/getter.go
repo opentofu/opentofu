@@ -22,7 +22,7 @@ import (
 // executable.
 //
 // Note that over time we've found go-getter's design to be not wholly fit
-// for OpenTF's purposes in various ways, and so we're continuing to use
+// for OpenTofu's purposes in various ways, and so we're continuing to use
 // it here because our backward compatibility with earlier versions depends
 // on it, but we use go-getter very carefully and always only indirectly via
 // the public API of this package so that we can get the subset of the
