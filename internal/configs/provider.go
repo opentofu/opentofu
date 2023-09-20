@@ -80,7 +80,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Summary:  "Version constraints inside provider configuration blocks are deprecated",
-			Detail:   "OpenTF 0.13 and earlier allowed provider version constraints inside the provider configuration block, but that is now deprecated and will be removed in a future version of OpenTF. To silence this warning, move the provider version constraint into the required_providers block.",
+			Detail:   "OpenTofu 0.13 and earlier allowed provider version constraints inside the provider configuration block, but that is now deprecated and will be removed in a future version of OpenTofu. To silence this warning, move the provider version constraint into the required_providers block.",
 			Subject:  attr.Expr.Range().Ptr(),
 		})
 		var versionDiags hcl.Diagnostics
@@ -94,7 +94,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved argument name in provider block",
-				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTF in a future version.", name),
+				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
 				Subject:  &attr.NameRange,
 			})
 		}
@@ -129,7 +129,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved block type name in provider block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTF in a future version.", block.Type),
+				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
 				Subject:  &block.TypeRange,
 			})
 		}

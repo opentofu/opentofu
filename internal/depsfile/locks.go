@@ -23,13 +23,13 @@ type Locks struct {
 
 	// overriddenProviders is a subset of providers which we might be tracking
 	// in field providers but whose lock information we're disregarding for
-	// this particular run due to some feature that forces OpenTF to not
+	// this particular run due to some feature that forces OpenTofu to not
 	// use a normally-installed plugin for it. For example, the "provider dev
 	// overrides" feature means that we'll be using an arbitrary directory on
 	// disk as the package, regardless of what might be selected in "providers".
 	//
 	// overriddenProviders is an in-memory-only annotation, never stored as
-	// part of a lock file and thus not persistent between OpenTF runs.
+	// part of a lock file and thus not persistent between OpenTofu runs.
 	// The CLI layer is generally the one responsible for populating this,
 	// by calling SetProviderOverridden in response to CLI Configuration
 	// settings, environment variables, or whatever similar sources.
@@ -118,7 +118,7 @@ func (l *Locks) RemoveProvider(addr addrs.Provider) {
 	delete(l.providers, addr)
 }
 
-// SetProviderOverridden records that this particular OpenTF process will
+// SetProviderOverridden records that this particular OpenTofu process will
 // not pay attention to the recorded lock entry for the given provider, and
 // will instead access that provider's functionality in some other special
 // way that isn't sensitive to provider version selections or checksums.
@@ -333,7 +333,7 @@ type ProviderLock struct {
 	// version is the specific version that was previously selected, while
 	// versionConstraints is the constraint that was used to make that
 	// selection, which we can potentially use to hint to run
-	// e.g. opentf init -upgrade if a user has changed a version
+	// e.g. tofu init -upgrade if a user has changed a version
 	// constraint but the previous selection still remains valid.
 	// "version" is therefore authoritative, while "versionConstraints" is
 	// just for a UI hint and not used to make any real decisions.
@@ -384,9 +384,9 @@ func (l *ProviderLock) Version() getproviders.Version {
 // being used to choose the version returned by Version.
 //
 // These version constraints are not authoritative for future selections and
-// are included only so OpenTF can detect if the constraints in
+// are included only so OpenTofu can detect if the constraints in
 // configuration have changed since a selection was made, and thus hint to the
-// user that they may need to run opentf init -upgrade to apply the new
+// user that they may need to run tofu init -upgrade to apply the new
 // constraints.
 func (l *ProviderLock) VersionConstraints() getproviders.VersionConstraints {
 	return l.versionConstraints
@@ -398,7 +398,7 @@ func (l *ProviderLock) VersionConstraints() getproviders.VersionConstraints {
 //
 // If your intent is to verify a package against the recorded hashes, use
 // PreferredHashes to get only the hashes which the current version
-// of OpenTF considers the strongest of the available hashing schemes, one
+// of OpenTofu considers the strongest of the available hashing schemes, one
 // of which must match in order for verification to be considered successful.
 //
 // Do not modify the backing array of the returned slice.
