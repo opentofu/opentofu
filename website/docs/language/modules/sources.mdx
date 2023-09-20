@@ -1,17 +1,17 @@
 ---
 description: >-
-  The source argument tells OpenTF where to find child modules's
-  configurations in locations like GitHub, the OpenTF Registry, Bitbucket,
+  The source argument tells OpenTofu where to find child modules's
+  configurations in locations like GitHub, the OpenTofu Registry, Bitbucket,
   Git, Mercurial, S3, and GCS.
 ---
 
 # Module Sources
 
 The `source` argument in [a `module` block](/docs/language/modules/syntax)
-tells OpenTF where to find the source code for the desired child module.
+tells OpenTofu where to find the source code for the desired child module.
 
-OpenTF uses this during the module installation step of `opentf init`
-to download the source code to a directory on local disk so that other OpenTF commands can use it.
+OpenTofu uses this during the module installation step of `tofu init`
+to download the source code to a directory on local disk so that other OpenTofu commands can use it.
 
 The module installer supports installation from a number of different source
 types.
@@ -40,12 +40,12 @@ of sources and additional features.
 
 We recommend using local file paths for closely-related modules used primarily
 for the purpose of factoring out repeated code elements, and using a native
-OpenTF module registry for modules intended to be shared by multiple calling
+OpenTofu module registry for modules intended to be shared by multiple calling
 configurations. We support other sources so that you can potentially distribute
-OpenTF modules internally with existing infrastructure.
+OpenTofu modules internally with existing infrastructure.
 
 Many of the source types will make use of "ambient" credentials available
-when OpenTF is run, such as from environment variables or credentials files
+when OpenTofu is run, such as from environment variables or credentials files
 in your home directory. This is covered in more detail in each of the following
 sections.
 
@@ -73,9 +73,9 @@ that other sources are: the files are already present on local disk (possibly
 as a result of installing a parent module) and so can just be used directly.
 Their source code is automatically updated if the parent module is upgraded.
 
-Note that OpenTF does not consider an _absolute_ filesystem path (starting
+Note that OpenTofu does not consider an _absolute_ filesystem path (starting
 with a slash, a drive letter, or similar) to be a local path. Instead,
-OpenTF will treat that in a similar way as a remote module and copy it into
+OpenTofu will treat that in a similar way as a remote module and copy it into
 the local module cache. An absolute path is a "package" in the sense described
 in [Modules in Package Sub-directories](#modules-in-package-sub-directories).
 We don't recommend using absolute filesystem paths to refer to modules,
@@ -85,12 +85,12 @@ layout of a particular computer.
 ## Module Registry
 
 A module registry is the native way of distributing modules for use
-across multiple configurations, using an OpenTF-specific protocol that
+across multiple configurations, using an OpenTofu-specific protocol that
 has full support for module versioning.
 
 The [Public Terraform Registry](https://registry.terraform.io/) is an index of modules
 shared publicly using this protocol. This public registry is the easiest way
-to get started with OpenTF and find modules created by others in the
+to get started with OpenTofu and find modules created by others in the
 community.
 
 You can also use a
@@ -140,7 +140,7 @@ use with the API or command-line clients.
 
 ## GitHub
 
-OpenTF will recognize unprefixed `github.com` URLs and interpret them
+OpenTofu will recognize unprefixed `github.com` URLs and interpret them
 automatically as Git repository sources.
 
 ```hcl
@@ -166,19 +166,19 @@ particular to access private repositories.
 
 ## Bitbucket
 
-OpenTF will recognize unprefixed `bitbucket.org` URLs and interpret them
+OpenTofu will recognize unprefixed `bitbucket.org` URLs and interpret them
 automatically as BitBucket repositories:
 
 ```hcl
 module "consul" {
-  source = "bitbucket.org/example-corp/opentf-consul-aws"
+  source = "bitbucket.org/example-corp/tofu-consul-aws"
 }
 ```
 
-This shorthand works only for public repositories, because OpenTF must
+This shorthand works only for public repositories, because OpenTofu must
 access the BitBucket API to learn if the given repository uses Git or Mercurial.
 
-OpenTF treats the result either as [a Git source](#generic-git-repository)
+OpenTofu treats the result either as [a Git source](#generic-git-repository)
 or [a Mercurial source](#generic-mercurial-repository) depending on the
 repository type. See the sections on each version control type for information
 on how to configure credentials for private repositories and how to specify
@@ -203,7 +203,7 @@ module "storage" {
 }
 ```
 
-OpenTF installs modules from Git repositories by running `git clone`, and
+OpenTofu installs modules from Git repositories by running `git clone`, and
 so it will respect any local Git configuration set on your system, including
 credentials. To access a non-public Git repository, configure Git with
 suitable credentials for that repository.
@@ -220,7 +220,7 @@ to select a suitable source of credentials for your environment.
 
 ### Selecting a Revision
 
-By default, OpenTF will clone and use the default branch (referenced by
+By default, OpenTofu will clone and use the default branch (referenced by
 `HEAD`) in the selected repository. You can override this using the
 `ref` argument. The value of the `ref` argument can be any reference that would be accepted
 by the `git checkout` command, such as branch, SHA-1 hash (short or full), or tag names.
@@ -251,13 +251,13 @@ telling Git to create a shallow clone with the history truncated to only
 the specified number of commits.
 
 However, because shallow clone requires different Git protocol behavior,
-setting the `depth` argument makes OpenTF pass your [`ref` argument](#selecting-a-revision),
+setting the `depth` argument makes OpenTofu pass your [`ref` argument](#selecting-a-revision),
 if any, to
 [the `--branch` argument to `git clone`](https://git-scm.com/docs/git-clone#Documentation/git-clone.txt---branchltnamegt)
 instead. That means it must specify a named branch or tag known to the remote
 repository, and that raw commit IDs are not acceptable.
 
-Because OpenTF only uses the most recent selected commit to find the source
+Because OpenTofu only uses the most recent selected commit to find the source
 code of your specified module, it is not typically useful to set `depth`
 to any value other than `1`.
 
@@ -275,10 +275,10 @@ module "storage" {
 }
 ```
 
-If you use the `ssh://` URL scheme then OpenTF will assume that the colon
+If you use the `ssh://` URL scheme then OpenTofu will assume that the colon
 marks the beginning of a port number, rather than the beginning of the path.
 This matches how Git itself interprets these different forms, aside from
-the OpenTF-specific `git::` selector prefix.
+the OpenTofu-specific `git::` selector prefix.
 
 ## Generic Mercurial Repository
 
@@ -293,7 +293,7 @@ module "vpc" {
 }
 ```
 
-OpenTF installs modules from Mercurial repositories by running `hg clone`, and
+OpenTofu installs modules from Mercurial repositories by running `hg clone`, and
 so it will respect any local Mercurial configuration set on your system,
 including credentials. To access a non-public repository, configure Mercurial
 with suitable credentials for that repository.
@@ -315,39 +315,39 @@ module "vpc" {
 
 ## HTTP URLs
 
-When you use an HTTP or HTTPS URL, OpenTF will make a `GET` request to
+When you use an HTTP or HTTPS URL, OpenTofu will make a `GET` request to
 the given URL, which can return _another_ source address. This indirection
 allows using HTTP URLs as a sort of "vanity redirect" over a more complicated
 module source address.
 
-OpenTF will append an additional query string argument `opentf-get=1` to
+OpenTofu will append an additional query string argument `tofu-get=1` to
 the given URL before sending the `GET` request, allowing the server to
-optionally return a different result when OpenTF is requesting it.
+optionally return a different result when OpenTofu is requesting it.
 
-If the response is successful (`200`-range status code), OpenTF looks in
+If the response is successful (`200`-range status code), OpenTofu looks in
 the following locations in order for the next address to access:
 
-- The value of a response header field named `X-OpenTF-Get`.
+- The value of a response header field named `X-OpenTofu-Get`.
 
-- If the response is an HTML page, a `meta` element with the name `opentf-get`:
+- If the response is an HTML page, a `meta` element with the name `tofu-get`:
 
   ```html
-  <meta name="opentf-get" content="github.com/hashicorp/example" />
+  <meta name="tofu-get" content="github.com/hashicorp/example" />
   ```
 
 In either case, the result is interpreted as another module source address
 using one of the forms documented elsewhere on this page.
 
 If an HTTP/HTTPS URL requires authentication credentials, use a `.netrc`
-file to configure the credentials. By default, OpenTF searches for the `.netrc` file
+file to configure the credentials. By default, OpenTofu searches for the `.netrc` file
 in your HOME directory. However, you can override the default filesystem location by setting the `NETRC` environment variable. For information on the `.netrc` format,
 refer to [the documentation for using it in `curl`](https://everything.curl.dev/usingcurl/netrc).
 
 ### Fetching archives over HTTP
 
-As a special case, if OpenTF detects that the URL has a common file
+As a special case, if OpenTofu detects that the URL has a common file
 extension associated with an archive file format then it will bypass the
-special `opentf-get=1` redirection described above and instead just use
+special `tofu-get=1` redirection described above and instead just use
 the contents of the referenced archive as the module source code:
 
 ```hcl
@@ -356,7 +356,7 @@ module "vpc" {
 }
 ```
 
-The extensions that OpenTF recognizes for this special behavior are:
+The extensions that OpenTofu recognizes for this special behavior are:
 
 - `zip`
 - `tar.bz2` and `tbz2`
@@ -387,7 +387,7 @@ prefix, followed by
 
 ```hcl
 module "consul" {
-  source = "s3::https://s3-eu-west-1.amazonaws.com/examplecorp-opentf-modules/vpc.zip"
+  source = "s3::https://s3-eu-west-1.amazonaws.com/examplecorp-tofu-modules/vpc.zip"
 }
 ```
 
@@ -395,14 +395,14 @@ module "consul" {
 Buckets in AWS's us-east-1 region must use the hostname `s3.amazonaws.com` (instead of `s3-us-east-1.amazonaws.com`).
 :::
 
-The `s3::` prefix causes OpenTF to use AWS-style authentication when
+The `s3::` prefix causes OpenTofu to use AWS-style authentication when
 accessing the given URL. As a result, this scheme may also work for other
 services that mimic the S3 API, as long as they handle authentication in the
 same way as AWS.
 
 The resulting object must be an archive with one of the same file
 extensions as for [archives over standard HTTP](#fetching-archives-over-http).
-OpenTF will extract the archive to obtain the module source tree.
+OpenTofu will extract the archive to obtain the module source tree.
 
 The module installer looks for AWS credentials in the following locations,
 preferring those earlier in the list when multiple are available:
@@ -434,7 +434,7 @@ use any of the following methods to set Google Cloud Platform credentials:
 
 * Set the `GOOGLE_OAUTH_ACCESS_TOKEN` environment variable to a raw Google Cloud Platform OAuth access token.
 * Enter the path of your service account key file in the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
-* If you're running OpenTF from a GCE instance, default credentials are automatically available. See [Creating and Enabling Service Accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances) for Instances for more details.
+* If you're running OpenTofu from a GCE instance, default credentials are automatically available. See [Creating and Enabling Service Accounts](https://cloud.google.com/compute/docs/access/create-enable-service-accounts-for-instances) for Instances for more details.
 * On your computer, you can make your Google identity available by running `gcloud auth application-default login`.
 
 ## Modules in Package Sub-directories
@@ -443,14 +443,14 @@ When the source of a module is a version control repository or archive file
 (generically, a "package"), the module itself may be in a sub-directory relative
 to the root of the package.
 
-A special double-slash syntax is interpreted by OpenTF to indicate that
+A special double-slash syntax is interpreted by OpenTofu to indicate that
 the remaining path after that point is a sub-directory within the package.
 For example:
 
 - `hashicorp/consul/aws//modules/consul-cluster`
 - `git::https://example.com/network.git//modules/vpc`
 - `https://example.com/network-module.zip//modules/vpc`
-- `s3::https://s3-eu-west-1.amazonaws.com/examplecorp-opentf-modules/network.zip//modules/vpc`
+- `s3::https://s3-eu-west-1.amazonaws.com/examplecorp-tofu-modules/network.zip//modules/vpc`
 
 If the source address has arguments, such as the `ref` argument supported for
 the version control sources, the sub-directory portion must be _before_ those
@@ -459,7 +459,7 @@ arguments:
 - `git::https://example.com/network.git//modules/vpc?ref=v1.2.0`
 - `github.com/hashicorp/example//modules/vpc?ref=v1.2.0`
 
-OpenTF will still extract the entire package to local disk, but will read
+OpenTofu will still extract the entire package to local disk, but will read
 the module from the subdirectory. As a result, it is safe for a module in
 a sub-directory of a package to use [a local path](#local-paths) to another
 module as long as it is in the _same_ package.

@@ -1,26 +1,26 @@
 ---
 description: |-
-  The `opentf untaint` command tells OpenTF that an object is functioning
+  The `tofu untaint` command tells OpenTofu that an object is functioning
   correctly, even though its creation failed or it was previously manually
   marked as degraded.
 ---
 
 # Command: untaint
 
-OpenTF has a marker called "tainted" which it uses to track that an object
-might be damaged and so a future OpenTF plan ought to replace it.
+OpenTofu has a marker called "tainted" which it uses to track that an object
+might be damaged and so a future OpenTofu plan ought to replace it.
 
-OpenTF automatically marks an object as "tainted" if an error occurs during
-a multi-step "create" action, because OpenTF can't be sure that the object
+OpenTofu automatically marks an object as "tainted" if an error occurs during
+a multi-step "create" action, because OpenTofu can't be sure that the object
 was left in a fully-functional state.
 
 You can also manually mark an object as "tainted" using the deprecated command
-[`opentf taint`](/docs/cli/commands/taint), although we no longer recommend that
+[`tofu taint`](/docs/cli/commands/taint), although we no longer recommend that
 workflow.
 
-If OpenTF currently considers a particular object as tainted but you've
+If OpenTofu currently considers a particular object as tainted but you've
 determined that it's actually functioning correctly and need _not_ be replaced,
-you can use `opentf untaint` to remove the taint marker from that object.
+you can use `tofu untaint` to remove the taint marker from that object.
 
 This command _will not_ modify any real remote objects, but will modify the
 state in order to remove the tainted status.
@@ -30,12 +30,12 @@ was degraded after all, you can create and apply a plan to replace it without
 first re-tainting the object, by using a command like the following:
 
 ```
-opentf apply -replace="aws_instance.example[0]"
+tofu apply -replace="aws_instance.example[0]"
 ```
 
 ## Usage
 
-Usage: `opentf untaint [options] address`
+Usage: `tofu untaint [options] address`
 
 The `address` argument is a [resource address](/docs/cli/state/resource-addressing)
 identifying a particular resource instance which is currently tainted.
@@ -52,20 +52,20 @@ This command also accepts the following options:
   workspace.
 
 - `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
-  instructs OpenTF to retry acquiring a lock for a period of time before
+  instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
 - `-no-color` - Disables terminal formatting sequences in the output. Use this
-  if you are running OpenTF in a context where its output will be
+  if you are running OpenTofu in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
 
 For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
-only, `opentf untaint`
+only, `tofu untaint`
 also accepts the option
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
 [the `local` backend](/docs/language/settings/backends/local) only,
-`opentf untaint` also accepts the legacy options
+`tofu untaint` also accepts the legacy options
 [`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).

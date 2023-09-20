@@ -11,8 +11,8 @@ You can use modules to create lightweight abstractions, so that you can
 describe your infrastructure in terms of its architecture, rather than
 directly in terms of physical objects.
 
-The `.tf` files in your working directory when you run [`opentf plan`](/docs/cli/commands/plan)
-or [`opentf apply`](/docs/cli/commands/apply) together form the _root_
+The `.tf` files in your working directory when you run [`tofu plan`](/docs/cli/commands/plan)
+or [`tofu apply`](/docs/cli/commands/apply) together form the _root_
 module. That module may [call other modules](/docs/language/modules/syntax#calling-a-child-module)
 and connect them together by passing output values from one to input values
 of another.
@@ -35,7 +35,7 @@ Most commonly, modules use:
   infrastructure objects that the module will manage.
 
 To define a module, create a new directory for it and place one or more `.tf`
-files inside just as you would do for a root module. OpenTF can load modules
+files inside just as you would do for a root module. OpenTofu can load modules
 either from local relative paths or from remote repositories; if a module will
 be re-used by lots of configurations you may wish to place it in its own
 version control repository.
@@ -48,7 +48,7 @@ the individual modules easier to re-use in different combinations.
 ## When to write a module
 
 In principle any combination of resources and other constructs can be factored
-out into a module, but over-using modules can make your overall OpenTF
+out into a module, but over-using modules can make your overall OpenTofu
 configuration harder to understand and maintain, so we recommend moderation.
 
 A good module should raise the level of abstraction by describing a new concept
@@ -71,6 +71,6 @@ calling module instead.
 
 You can include [refactoring blocks](/docs/language/modules/develop/refactoring) to record how resource
 names and module structure have changed from previous module versions.
-OpenTF uses that information during planning to reinterpret existing objects
+OpenTofu uses that information during planning to reinterpret existing objects
 as if they had been created at the corresponding new addresses, eliminating a
 separate workflow step to replace or migrate existing objects.

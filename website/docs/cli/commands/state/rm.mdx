@@ -1,34 +1,34 @@
 ---
 description: >-
-  The `opentf state rm` command removes bindings from the OpenTF state,
-  causing OpenTF to "forget about" existing objects.
+  The `tofu state rm` command removes bindings from the OpenTofu state,
+  causing OpenTofu to "forget about" existing objects.
 ---
 
 # Command: state rm
 
-The main function of [OpenTF state](/docs/language/state) is
+The main function of [OpenTofu state](/docs/language/state) is
 to track the bindings between resource instance addresses in your configuration
-and the remote objects they represent. Normally OpenTF automatically
+and the remote objects they represent. Normally OpenTofu automatically
 updates the state in response to actions taken when applying a plan, such as
 removing a binding for a remote object that has now been deleted.
 
-You can use `opentf state rm` in the less common situation where you wish
+You can use `tofu state rm` in the less common situation where you wish
 to remove a binding to an existing remote object without first destroying it,
-which will effectively make OpenTF "forget" the object while it continues
+which will effectively make OpenTofu "forget" the object while it continues
 to exist in the remote system.
 
 ## Usage
 
-Usage: `opentf state rm [options] ADDRESS...`
+Usage: `tofu state rm [options] ADDRESS...`
 
-OpenTF will search the state for any instances matching the given
+OpenTofu will search the state for any instances matching the given
 [resource address](/docs/cli/state/resource-addressing), and remove
-the record of each one so that OpenTF will no longer be tracking the
+the record of each one so that OpenTofu will no longer be tracking the
 corresponding remote objects.
 
 This means that although the objects will still continue to exist in the
 remote system, a subsequent
-[`opentf plan`](/docs/cli/commands/plan)
+[`tofu plan`](/docs/cli/commands/plan)
 will include an action to create a new object for each of the "forgotten"
 instances. Depending on the constraints imposed by the remote system, creating
 those objects might fail if their names or other identifiers conflict with
@@ -44,27 +44,27 @@ This command also accepts the following options:
   workspace.
 
 - `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
-  instructs OpenTF to retry acquiring a lock for a period of time before
+  instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
 For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
-only, `opentf state rm`
+only, `tofu state rm`
 also accepts the option
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
 [the `local` state rm](/docs/language/settings/backends/local) only,
-`opentf state rm` also accepts the legacy options
+`tofu state rm` also accepts the legacy options
 [`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Example: Remove all Instances of a Resource
 
-The following example will cause OpenTF to "forget" all of the instances
+The following example will cause OpenTofu to "forget" all of the instances
 of the `packet_device` resource named "worker".
 
 ```shell
-$ opentf state rm 'packet_device.worker'
+$ tofu state rm 'packet_device.worker'
 ```
 
 A resource that doesn't use `count` or `for_each` has only one instance, so
@@ -76,17 +76,17 @@ To select a resource that you've defined in a child module you must specify
 the path of that module as part of the resource address:
 
 ```shell
-$ opentf state rm 'module.foo.packet_device.worker'
+$ tofu state rm 'module.foo.packet_device.worker'
 ```
 
 ## Example: Remove all Instances of all Resources in a Module
 
-The following example will cause OpenTF to "forget" all of the instances
+The following example will cause OpenTofu to "forget" all of the instances
 associated with all resources defined in all instances of the module named
 `foo`:
 
 ```shell
-$ opentf state rm 'module.foo'
+$ tofu state rm 'module.foo'
 ```
 
 ## Example: Remove a Particular Instance of a Resource using `count`
@@ -97,11 +97,11 @@ select a particular instance by including an explicit index in your given
 address:
 
 ```shell
-$ opentf state rm 'packet_device.worker[0]'
+$ tofu state rm 'packet_device.worker[0]'
 ```
 
 Brackets (`[`, `]`) have a special meaning in some shells, so you may need to
-quote or escape the address in order to pass it literally to OpenTF.
+quote or escape the address in order to pass it literally to OpenTofu.
 The above shows the typical quoting syntax for Unix-style shells.
 
 ## Example: Remove a Particular Instance of a Resource using `for_each`
@@ -118,17 +118,17 @@ quoting and/or escaping syntax for the shell you are using. For example:
 Unix-style shells, such as on Linux or macOS:
 
 ```shell
-$ opentf state rm 'packet_device.worker["example"]'
+$ tofu state rm 'packet_device.worker["example"]'
 ```
 
 Windows Command Prompt (`cmd.exe`):
 
 ```shell
-$ opentf state rm packet_device.worker[\"example\"]
+$ tofu state rm packet_device.worker[\"example\"]
 ```
 
 PowerShell:
 
 ```shell
-$ opentf state rm 'packet_device.worker[\"example\"]'
+$ tofu state rm 'packet_device.worker[\"example\"]'
 ```

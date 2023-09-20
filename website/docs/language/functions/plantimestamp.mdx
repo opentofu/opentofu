@@ -9,7 +9,7 @@ description: |-
 
 `plantimestamp` returns a UTC timestamp string in [RFC 3339](https://tools.ietf.org/html/rfc3339) format.
 
-In the OpenTF language, timestamps are conventionally represented as
+In the OpenTofu language, timestamps are conventionally represented as
 strings using [RFC 3339](https://tools.ietf.org/html/rfc3339)
 "Date and Time format" syntax, and so `plantimestamp` returns a string
 in this format.
@@ -18,13 +18,13 @@ The result of this function will change for every plan operation. It is intended
 for use within [Custom Conditions](/docs/language/expressions/custom-conditions)
 as a way to validate time sensitive resources such as TLS certificates.
 
-There are circumstances, such as during an OpenTF [Refresh-only](/docs/cli/commands/plan#planning-modes) plan, where
+There are circumstances, such as during an OpenTofu [Refresh-only](/docs/cli/commands/plan#planning-modes) plan, where
 the value for this function will be recomputed but not propagated to resources
 defined within the configuration. As such, it is recommended that this function
 only be used to compare against timestamps exported by providers and not against
 timestamps generated in the configuration.
 
-The `plantimestamp` function is not available within the OpenTF console.
+The `plantimestamp` function is not available within the OpenTofu console.
 
 ## Examples
 

@@ -10,16 +10,16 @@ description: |-
 `base64gzip` compresses a string with gzip and then encodes the result in
 Base64 encoding.
 
-OpenTF uses the "standard" Base64 alphabet as defined in
+OpenTofu uses the "standard" Base64 alphabet as defined in
 [RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
 
-Strings in the OpenTF language are sequences of unicode characters rather
+Strings in the OpenTofu language are sequences of unicode characters rather
 than bytes, so this function will first encode the characters from the string
 as UTF-8, then apply gzip compression, and then finally apply Base64 encoding.
 
-While we do not recommend manipulating large, raw binary data in the OpenTF
+While we do not recommend manipulating large, raw binary data in the OpenTofu
 language, this function can be used to compress reasonably sized text strings
-generated within the OpenTF language. For example, the result of this
+generated within the OpenTofu language. For example, the result of this
 function can be used to create a compressed object in Amazon S3 as part of
 an S3 website.
 

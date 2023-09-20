@@ -1,25 +1,25 @@
 ---
 description: >-
-  An overview of how to install and use providers, OpenTF plugins that
+  An overview of how to install and use providers, OpenTofu plugins that
   interact with services, cloud providers, and other APIs.
 ---
 
 # Providers
 
-OpenTF relies on plugins called providers to interact with cloud providers,
+OpenTofu relies on plugins called providers to interact with cloud providers,
 SaaS providers, and other APIs.
 
-OpenTF configurations must declare which providers they require so that
-OpenTF can install and use them. Additionally, some providers require
+OpenTofu configurations must declare which providers they require so that
+OpenTofu can install and use them. Additionally, some providers require
 configuration (like endpoint URLs or cloud regions) before they can be used.
 
 ## What Providers Do
 
 Each provider adds a set of [resource types](/docs/language/resources)
-and/or [data sources](/docs/language/data-sources) that OpenTF can
+and/or [data sources](/docs/language/data-sources) that OpenTofu can
 manage.
 
-Every resource type is implemented by a provider; without providers, OpenTF
+Every resource type is implemented by a provider; without providers, OpenTofu
 can't manage any kind of infrastructure.
 
 Most providers configure a specific infrastructure platform (either cloud or
@@ -28,7 +28,7 @@ generating random numbers for unique resource names.
 
 ## Where Providers Come From
 
-Providers are distributed separately from OpenTF itself, and each provider
+Providers are distributed separately from OpenTofu itself, and each provider
 has its own release cadence and version numbers.
 
 The [Public Terraform Registry](https://registry.terraform.io/browse/providers)
@@ -41,7 +41,7 @@ Each provider has its own documentation, describing its resource
 types and their arguments.
 
 The [Public Terraform Registry](https://registry.terraform.io/browse/providers)
-includes documentation for a wide range of providers developed by HashiCorp, third-party vendors, and our OpenTF community. Use the
+includes documentation for a wide range of providers developed by HashiCorp, third-party vendors, and our OpenTofu community. Use the
 "Documentation" link in a provider's header to browse its documentation.
 
 Provider documentation in the Registry is versioned; you can use the version
@@ -52,40 +52,40 @@ see the [provider publishing documentation](/docs/registry/providers/docs).
 
 ## How to Use Providers
 
-Providers are released separately from OpenTF itself and have their own version numbers. In production we recommend constraining the acceptable provider versions in the configuration's provider requirements block, to make sure that `opentf init` does not install newer versions of the provider that are incompatible with the configuration.
+Providers are released separately from OpenTofu itself and have their own version numbers. In production we recommend constraining the acceptable provider versions in the configuration's provider requirements block, to make sure that `tofu init` does not install newer versions of the provider that are incompatible with the configuration.
 
 To use resources from a given provider, you need to include some information
 about it in your configuration. See the following pages for details:
 
 - [Provider Requirements](/docs/language/providers/requirements)
-  documents how to declare providers so OpenTF can install them.
+  documents how to declare providers so OpenTofu can install them.
 
 - [Provider Configuration](/docs/language/providers/configuration)
   documents how to configure settings for providers.
 
 - [Dependency Lock File](/docs/language/files/dependency-lock)
   documents an additional HCL file that can be included with a configuration,
-  which tells OpenTF to always use a specific set of provider versions.
+  which tells OpenTofu to always use a specific set of provider versions.
 
 ## Provider Installation
 
 - TACOS (TF Automation and Collaboration Software) install providers as part of every run.
 
-- OpenTF CLI finds and installs providers when
+- OpenTofu CLI finds and installs providers when
   [initializing a working directory](/docs/cli/init). It can
   automatically download providers from a provider registry, or load them from
   a local mirror or cache. If you are using a persistent working directory, you
   must reinitialize whenever you change a configuration's providers.
 
-  To save time and bandwidth, OpenTF CLI supports an optional plugin
+  To save time and bandwidth, OpenTofu CLI supports an optional plugin
   cache. You can enable the cache using the `plugin_cache_dir` setting in
   [the CLI configuration file](/docs/cli/config/config-file).
 
-To ensure OpenTF always installs the same provider versions for a given
-configuration, you can use OpenTF CLI to create a
+To ensure OpenTofu always installs the same provider versions for a given
+configuration, you can use OpenTofu CLI to create a
 [dependency lock file](/docs/language/files/dependency-lock)
 and commit it to version control along with your configuration. If a lock file
-is present, OpenTF CLI, and TACOS (TF Automation and Collaboration Software) will all obey it when
+is present, OpenTofu CLI, and TACOS (TF Automation and Collaboration Software) will all obey it when
 installing providers.
 
 ## How to Find Providers

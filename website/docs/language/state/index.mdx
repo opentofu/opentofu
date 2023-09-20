@@ -1,13 +1,13 @@
 ---
 description: >-
-  An introduction to state, information that OpenTF uses to map resources to
+  An introduction to state, information that OpenTofu uses to map resources to
   a configuration, track metadata, and improve performance.
 ---
 
 # State
 
-OpenTF must store state about your managed infrastructure and
-configuration. This state is used by OpenTF to map real world
+OpenTofu must store state about your managed infrastructure and
+configuration. This state is used by OpenTofu to map real world
 resources to your configuration, keep track of metadata, and to improve
 performance for large infrastructures.
 
@@ -15,51 +15,51 @@ This state is stored by default in a local file named "terraform.tfstate",
 but we recommend storing it in TACOS (TF Automation and Collaboration Software)
 to version, encrypt, and securely share it with your team.
 
-OpenTF uses state to determine which changes to make to your
-infrastructure. Prior to any operation, OpenTF does a
+OpenTofu uses state to determine which changes to make to your
+infrastructure. Prior to any operation, OpenTofu does a
 [refresh](/docs/cli/commands/refresh) to update the state with the
 real infrastructure.
 
-The primary purpose of OpenTF state is to store bindings between objects in
+The primary purpose of OpenTofu state is to store bindings between objects in
 a remote system and resource instances declared in your configuration.
-When OpenTF creates a remote object in response to a change of configuration,
+When OpenTofu creates a remote object in response to a change of configuration,
 it will record the identity of that remote object against a particular
 resource instance, and then potentially update or delete that object in
 response to future configuration changes.
 
-For more information on why OpenTF requires state and why OpenTF cannot
+For more information on why OpenTofu requires state and why OpenTofu cannot
 function without state, please see the page [state purpose](/docs/language/state/purpose).
 
 ## Inspection and Modification
 
 While the format of the state files are just JSON, direct file editing
-of the state is discouraged. OpenTF provides the
-[opentf state](/docs/cli/commands/state) command to perform
+of the state is discouraged. OpenTofu provides the
+[tofu state](/docs/cli/commands/state) command to perform
 basic modifications of the state using the CLI.
 
 The CLI usage and output of the state commands is structured to be
 friendly for Unix tools such as grep, awk, etc. Additionally, the CLI
-insulates users from any format changes within the state itself. The OpenTF
+insulates users from any format changes within the state itself. The OpenTofu
 project will keep the CLI working while the state format underneath it may
 shift.
 
-OpenTF expects a one-to-one mapping between configured resource instances
-and remote objects. Normally that is guaranteed by OpenTF being the one
+OpenTofu expects a one-to-one mapping between configured resource instances
+and remote objects. Normally that is guaranteed by OpenTofu being the one
 to create each object and record its identity in the state, or to destroy
 an object and then remove the binding for it.
 
 If you add or remove bindings in the state by other means, such as by importing
-externally-created objects with `opentf import`, or by asking OpenTF to
-"forget" an existing object with `opentf state rm`, you'll then need to
+externally-created objects with `tofu import`, or by asking OpenTofu to
+"forget" an existing object with `tofu state rm`, you'll then need to
 ensure for yourself that this one-to-one rule is followed, such as by manually
-deleting an object that you asked OpenTF to "forget", or by re-importing it
+deleting an object that you asked OpenTofu to "forget", or by re-importing it
 to bind it to some other resource instance.
 
 ## Format
 
-State snapshots are stored in JSON format and new OpenTF versions are
+State snapshots are stored in JSON format and new OpenTofu versions are
 generally backward compatible with state snapshots produced by earlier versions.
-However, the state format is subject to change in new OpenTF versions, so
+However, the state format is subject to change in new OpenTofu versions, so
 if you build software that parses or modifies it directly you should expect
 to perform ongoing maintenance of that software as the state format evolves
 in new versions.
@@ -67,16 +67,16 @@ in new versions.
 Alternatively, there are several integration points which produce JSON output
 that is specifically intended for consumption by external software:
 
-* [The `opentf output` command](/docs/cli/commands/output)
+* [The `tofu output` command](/docs/cli/commands/output)
   has a `-json` option, for obtaining either the full set of root module output
   values or a specific named output value from the latest state snapshot.
-* [The `opentf show` command](/docs/cli/commands/show) has a `-json`
+* [The `tofu show` command](/docs/cli/commands/show) has a `-json`
   option for inspecting the latest state snapshot in full, and also for
   inspecting saved plan files which include a copy of the prior state at the
   time the plan was made.
 
-A typical way to use these in situations where OpenTF is running in
-automation is to run them immediately after a successful `opentf apply`
+A typical way to use these in situations where OpenTofu is running in
+automation is to run them immediately after a successful `tofu apply`
 to obtain a representation of the latest state snapshot, and then store that
 result as an artifact associated with the automated run so that other software
-can potentially consume it without needing to run OpenTF itself.
+can potentially consume it without needing to run OpenTofu itself.

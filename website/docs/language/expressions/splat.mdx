@@ -60,7 +60,7 @@ tuple value. If the value is _null_ then the splat expression will return an
 empty tuple.
 
 This special behavior can be useful for modules that accept optional input
-variables whose default value is `null` to represent the absence of any value. This allows the module to adapt the variable value for OpenTF language features designed to work with collections. For example:
+variables whose default value is `null` to represent the absence of any value. This allows the module to adapt the variable value for OpenTofu language features designed to work with collections. For example:
 
 ```
 variable "website_setting" {
@@ -98,8 +98,8 @@ the meaning of the expression may be unclear to future readers.
 
 ## Legacy (Attribute-only) Splat Expressions
 
-Earlier versions of the OpenTF language had a slightly different version
-of splat expressions, which OpenTF continues to support for backward
+Earlier versions of the OpenTofu language had a slightly different version
+of splat expressions, which OpenTofu continues to support for backward
 compatibility. This older variant is less useful than the modern form described
 above, and so we recommend against using it in new configurations.
 
@@ -121,5 +121,5 @@ Notice that with the attribute-only splat expression the index operation
 `[0]` is applied to the result of the iteration, rather than as part of
 the iteration itself. Only the attribute lookups apply to each element of
 the input. This limitation was confusing some people using older versions of
-OpenTF and so we recommend always using the new-style splat expressions,
+OpenTofu and so we recommend always using the new-style splat expressions,
 with `[*]`, to get the more consistent behavior.

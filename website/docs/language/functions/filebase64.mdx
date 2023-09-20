@@ -15,19 +15,19 @@ filebase64(path)
 ```
 
 The result is a Base64 representation of the raw bytes in the given file.
-Strings in the OpenTF language are sequences of Unicode characters, so
+Strings in the OpenTofu language are sequences of Unicode characters, so
 Base64 is the standard way to represent raw binary data that cannot be
 interpreted as Unicode characters. Resource types that operate on binary
 data will accept this data encoded in Base64, thus avoiding the need to
 decode the result of this function.
 
-OpenTF uses the "standard" Base64 alphabet as defined in
+OpenTofu uses the "standard" Base64 alphabet as defined in
 [RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
 
 This function can be used only with functions that already exist as static
-files on disk at the beginning of an OpenTF run. Language functions do not
+files on disk at the beginning of an OpenTofu run. Language functions do not
 participate in the dependency graph, so this function cannot be used with
-files that are generated dynamically during an OpenTF operation.
+files that are generated dynamically during an OpenTofu operation.
 
 ## Examples
 

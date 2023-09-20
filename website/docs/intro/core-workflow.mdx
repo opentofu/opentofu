@@ -1,10 +1,10 @@
 ---
-description: 'An overview of how individuals, teams, and organizations can use OpenTF. '
+description: 'An overview of how individuals, teams, and organizations can use OpenTofu. '
 ---
 
-# The Core OpenTF Workflow
+# The Core OpenTofu Workflow
 
-The core OpenTF workflow has three steps:
+The core OpenTofu workflow has three steps:
 
 1. **Write** - Author infrastructure as code.
 1. **Plan** - Preview changes before applying.
@@ -22,7 +22,7 @@ on infrastructure as code.
 
 ### Write
 
-You write OpenTF configuration just like you write code: in your editor of
+You write OpenTofu configuration just like you write code: in your editor of
 choice. It's common practice to store your work in a version controlled
 repository even when you're just operating as an individual.
 
@@ -35,12 +35,12 @@ Initialized empty Git repository in /.../my-infra/.git/
 # Write initial config
 $ vim main.tf
 
-# Initialize OpenTF
-$ opentf init
+# Initialize OpenTofu
+$ tofu init
 
 Initializing provider plugins...
 # ...
-OpenTF has been successfully initialized!
+OpenTofu has been successfully initialized!
 ```
 
 As you make progress on authoring your config, repeatedly running plans can help
@@ -52,7 +52,7 @@ expect.
 $ vim main.tf
 
 # Review plan
-$ opentf plan
+$ tofu plan
 
 # Make additional edits, and repeat
 $ vim main.tf
@@ -74,12 +74,12 @@ $ git commit -m 'Managing infrastructure as code!'
  1 file changed, 1 insertion(+)
 ```
 
-Because `opentf apply` will display a plan for confirmation before
+Because `tofu apply` will display a plan for confirmation before
 proceeding to change any infrastructure, that's the command you run for final
 review.
 
 ```sh
-$ opentf apply
+$ tofu apply
 
 An execution plan has been generated and is shown below.
 # ...
@@ -87,13 +87,13 @@ An execution plan has been generated and is shown below.
 
 ### Apply
 
-After one last check, you are ready to tell OpenTF to provision real
+After one last check, you are ready to tell OpenTofu to provision real
 infrastructure.
 
 ```sh
 Do you want to perform these actions?
 
-  OpenTF will perform the actions described above.
+  OpenTofu will perform the actions described above.
   Only 'yes' will be accepted to approve.
   Enter a value: yes
 
@@ -115,11 +115,11 @@ the process over from the beginning.
 
 Notice how closely this workflow parallels the process of writing application
 code or scripts as an individual? This is what we mean when we talk about
-OpenTF enabling infrastructure as code.
+OpenTofu enabling infrastructure as code.
 
 ## Working as a Team
 
-Once multiple people are collaborating on OpenTF configuration, new steps
+Once multiple people are collaborating on OpenTofu configuration, new steps
 must be added to each part of the core workflow to ensure everyone is working
 together smoothly. You'll see that many of these steps parallel the workflow
 changes we make when we work on application code as teams rather than as
@@ -127,7 +127,7 @@ individuals.
 
 ### Write
 
-While each individual on a team still makes changes to OpenTF configuration
+While each individual on a team still makes changes to OpenTofu configuration
 in their editor of choice, they save their changes to version control _branches_
 to avoid colliding with each other's work. Working in branches enables team
 members to resolve mutually incompatible infrastructure changes using their
@@ -147,20 +147,20 @@ required to run a plan.
 
 To avoid the burden and the security risk of each team member arranging all
 sensitive inputs locally, it's common for teams to migrate to a model in which
-OpenTF operations are executed in a shared Continuous Integration (CI)
+OpenTofu operations are executed in a shared Continuous Integration (CI)
 environment. The work needed to create such a CI environment is nontrivial, and
 is outside the scope of this core workflow overview.
 
 This longer iteration cycle of committing changes to version control and then
 waiting for the CI pipeline to execute is often lengthy enough to prohibit using
-speculative plans as a feedback loop while authoring individual OpenTF
-configuration changes. Speculative plans are still useful before new OpenTF
+speculative plans as a feedback loop while authoring individual OpenTofu
+configuration changes. Speculative plans are still useful before new OpenTofu
 changes are applied or even merged to the main development branch, however, as
 we'll see in a minute.
 
 ### Plan
 
-For teams collaborating on infrastructure, OpenTF's plan output creates an
+For teams collaborating on infrastructure, OpenTofu's plan output creates an
 opportunity for team members to review each other's work. This allows the team
 to ask questions, evaluate risks, and catch mistakes before any potentially
 harmful changes are made.
@@ -172,7 +172,7 @@ config changes alongside speculative plan output, they can evaluate whether the
 intent of the change is being achieved by the plan.
 
 The problem becomes producing that speculative plan output for the team to
-review. Some teams that still run OpenTF locally make a practice that pull
+review. Some teams that still run OpenTofu locally make a practice that pull
 requests should include an attached copy of speculative plan output generated
 by the change author. Others arrange for their CI system to post speculative
 plan output to pull requests automatically.
@@ -201,8 +201,8 @@ anything in our system that we should be watching as we apply this? Is there
 anyone we need to notify that this change is happening?
 
 Depending on the change, sometimes team members will want to watch the apply
-output as it is happening. For teams that are running OpenTF locally, this
-may involve a screen share with the team. For teams running OpenTF in CI,
+output as it is happening. For teams that are running OpenTofu locally, this
+may involve a screen share with the team. For teams running OpenTofu in CI,
 this may involve gathering around the build log.
 
 Just like the workflow for individuals, the core workflow for teams is a loop
@@ -211,9 +211,9 @@ week, for others, many times a day.
 
 ## Conclusion
 
-There are many different ways to use OpenTF: as an individual user, a single
+There are many different ways to use OpenTofu: as an individual user, a single
 team, or an entire organization at scale. Choosing the best approach for the
 density of collaboration needed will provide the most return on your investment
-in the core OpenTF workflow. For organizations using OpenTF at scale,
+in the core OpenTofu workflow. For organizations using OpenTofu at scale,
 TACOS (TF Automation and Collaboration Software) introduces new layers that build on this core workflow to
 solve problems unique to teams and organizations.

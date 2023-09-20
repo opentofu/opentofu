@@ -1,32 +1,32 @@
 ---
 description: |-
-  Remote service discovery is a protocol used to locate OpenTF-native
+  Remote service discovery is a protocol used to locate OpenTofu-native
   services provided at a user-friendly hostname.
 ---
 
 # Remote Service Discovery
 
-OpenTF implements much of its functionality in terms of remote services.
+OpenTofu implements much of its functionality in terms of remote services.
 While in many cases these are generic third-party services that are useful
 to many applications, some of these services are tailored specifically to
-OpenTF's needs. We call these _OpenTF-native services_, and OpenTF
+OpenTofu's needs. We call these _OpenTofu-native services_, and OpenTofu
 interacts with them via the remote service discovery protocol described below.
 
 ## User-facing Hostname
 
-OpenTF-native services are provided, from a user's perspective, at a
+OpenTofu-native services are provided, from a user's perspective, at a
 user-facing "friendly hostname" which serves as the key for configuration and
 for any authentication credentials required.
 
 The discovery protocol's purpose is to map from a user-provided hostname to
 the base URL of a particular service. Each host can provide different
 combinations of services -- or no services at all! -- and so the discovery
-protocol has a secondary purpose of allowing OpenTF to identify _which_
+protocol has a secondary purpose of allowing OpenTofu to identify _which_
 services are valid for a given hostname.
 
 For example, module source strings can include a module registry hostname
 as their first segment, like `example.com/namespace/name/provider`, and
-OpenTF uses service discovery to determine whether `example.com` _has_
+OpenTofu uses service discovery to determine whether `example.com` _has_
 a module registry, and if so where its API is available.
 
 A user-facing hostname is a fully-specified
@@ -50,17 +50,17 @@ using that hostname with the `https:` scheme and the fixed path
 For example, given the hostname `example.com` the initial discovery URL
 would be `https://example.com/.well-known/terraform.json`.
 
-OpenTF then sends a `GET` request to this discovery URL and expects a
+OpenTofu then sends a `GET` request to this discovery URL and expects a
 JSON response. If the response does not have status 200, does not have a media
 type of `application/json` or, if the body cannot be parsed as a JSON object,
-then discovery fails and OpenTF considers the host to not support _any_
-OpenTF-native services.
+then discovery fails and OpenTofu considers the host to not support _any_
+OpenTofu-native services.
 
-If the response is an HTTP redirect then OpenTF repeats this step with the
-new location as its discovery URL. OpenTF is guaranteed to follow at least
+If the response is an HTTP redirect then OpenTofu repeats this step with the
+new location as its discovery URL. OpenTofu is guaranteed to follow at least
 one redirect, but nested redirects are not guaranteed nor recommended.
 
-If the response is a valid JSON object then its keys are OpenTF native
+If the response is a valid JSON object then its keys are OpenTofu native
 service identifiers, consisting of a service type name and a version string
 separated by a period. For example, the service identifier for version 1 of
 the module registry protocol is `modules.v1`.
@@ -98,7 +98,7 @@ document, depending on the requirements of the service in question.
 
 It is strongly recommended to provide the discovery document for a hostname
 on the standard HTTPS port 443. However, in development environments this is
-not always possible or convenient, so OpenTF allows a hostname to end
+not always possible or convenient, so OpenTofu allows a hostname to end
 with a port specification consisting of a colon followed by one or more
 decimal digits.
 

@@ -1,25 +1,25 @@
 ---
 description: >-
-  The login protocol is used for authenticating OpenTF against servers
-  providing OpenTF-native services.
+  The login protocol is used for authenticating OpenTofu against servers
+  providing OpenTofu-native services.
 ---
 
 # Server-side Login Protocol
 
 :::warning Note
 You don't need to read these docs to _use_
-[`opentf login`](/docs/cli/commands/login).  The information below is for
-anyone intending to implement the server side of `opentf login` in order to
-offer OpenTF-native services in a third-party system.
+[`tofu login`](/docs/cli/commands/login).  The information below is for
+anyone intending to implement the server side of `tofu login` in order to
+offer OpenTofu-native services in a third-party system.
 :::
 
-The `opentf login` command supports performing an OAuth 2.0 authorization
+The `tofu login` command supports performing an OAuth 2.0 authorization
 request using configuration provided by the target host. You may wish to
 implement this protocol if you are producing a third-party implementation of
-any [OpenTF-native services](/docs/internals/remote-service-discovery),
-such as an OpenTF module registry.
+any [OpenTofu-native services](/docs/internals/remote-service-discovery),
+such as an OpenTofu module registry.
 
-First, OpenTF uses
+First, OpenTofu uses
 [remote service discovery](/docs/internals/remote-service-discovery) to
 find the OAuth configuration for the host. The host must support the service
 name `login.v1` and define for it an object containing OAuth client
@@ -28,7 +28,7 @@ configuration values, like this:
 ```json
 {
   "login.v1": {
-    "client": "opentf-cli",
+    "client": "tofu-cli",
     "grant_types": ["authz_code"],
     "authz": "/oauth/authorization",
     "token": "/oauth/token",
@@ -42,17 +42,17 @@ The properties within the discovery object are as follows:
 * `client` (Required): The `client_id` value to use when making requests, as
   defined in [RFC 6749 section 2.2](https://tools.ietf.org/html/rfc6749#section-2.2).
 
-  Because OpenTF is a _public client_ (it is installed on end-user systems
+  Because OpenTofu is a _public client_ (it is installed on end-user systems
   and thus cannot protect an OAuth client secret), the `client_id` is purely
   advisory and the server must not use it as a guarantee that an authorization
-  request is truly coming from OpenTF.
+  request is truly coming from OpenTofu.
 
 * `grant_types` (Optional): A JSON array of strings describing a set of OAuth
   2.0 grant types the server is able to support. A "grant type" selects a
   specific mechanism by which an OAuth server authenticates the request and
   issues an authorization token.
 
-  OpenTF CLI supports a single grant type:
+  OpenTofu CLI supports a single grant type:
 
   * `authz_code`: [authorization code grant](https://tools.ietf.org/html/rfc6749#section-4.1).
     Both the `authz` and `token` properties are required when `authz_code` is
@@ -71,16 +71,16 @@ The properties within the discovery object are as follows:
   service discovery document.
 
 * `ports` (Optional): A two-element JSON array giving an inclusive range of
-  TCP ports that OpenTF may use for the temporary HTTP server it will start
+  TCP ports that OpenTofu may use for the temporary HTTP server it will start
   to provide the [redirection endpoint](https://tools.ietf.org/html/rfc6749#section-3.1.2)
-  for the first step of an authorization code grant. OpenTF opens a TCP
+  for the first step of an authorization code grant. OpenTofu opens a TCP
   listen port on the loopback interface in order to receive the response from
   the server's authorization endpoint.
 
-  If not specified, OpenTF is free to select any TCP port greater than or
+  If not specified, OpenTofu is free to select any TCP port greater than or
   equal to 1024.
 
-  OpenTF allows constraining this port range for interoperability with OAuth
+  OpenTofu allows constraining this port range for interoperability with OAuth
   server implementations that require each `client_id` to be associated with
   a fixed set of valid redirection endpoint URLs. Configure such a server
   to expect a range of URLs of the form `http://localhost:10000/`
@@ -92,14 +92,14 @@ The properties within the discovery object are as follows:
   risk that all of the possible ports will already be in use on a particular
   system.
 
-When requesting an authorization code grant, OpenTF CLI implements the
+When requesting an authorization code grant, OpenTofu CLI implements the
 [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636) extension in
 order to protect against other applications on the system intercepting the
 incoming request to the redirection endpoint. We strongly recommend that you
 select an OAuth server implementation that also implements this extension and
 verifies the code challenge sent to the token endpoint.
 
-OpenTF CLI does not support OAuth refresh tokens or token expiration. If your
-server issues time-limited tokens, OpenTF CLI will simply begin receiving
+OpenTofu CLI does not support OAuth refresh tokens or token expiration. If your
+server issues time-limited tokens, OpenTofu CLI will simply begin receiving
 authorization errors once the token expires, after which the user can run
-`opentf login` again to obtain a new token.
+`tofu login` again to obtain a new token.

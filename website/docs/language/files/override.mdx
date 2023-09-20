@@ -6,25 +6,25 @@ description: >-
 
 # Override Files
 
-OpenTF normally loads all of the `.tf` and `.tf.json` files within a
+OpenTofu normally loads all of the `.tf` and `.tf.json` files within a
 directory and expects each one to define a distinct set of configuration
-objects. If two files attempt to define the same object, OpenTF returns
+objects. If two files attempt to define the same object, OpenTofu returns
 an error.
 
 In some rare cases, it is convenient to be able to override specific portions
 of an existing configuration object in a separate file. For example, a
-human-edited configuration file in the OpenTF language native syntax
+human-edited configuration file in the OpenTofu language native syntax
 could be partially overridden using a programmatically-generated file
 in JSON syntax.
 
-For these rare situations, OpenTF has special handling of any configuration
+For these rare situations, OpenTofu has special handling of any configuration
 file whose name ends in `_override.tf` or `_override.tf.json`. This special
 handling also applies to a file named literally `override.tf` or
 `override.tf.json`.
 
-OpenTF initially skips these _override files_ when loading configuration,
+OpenTofu initially skips these _override files_ when loading configuration,
 and then afterwards processes each one in turn (in lexicographical order). For
-each top-level block defined in an override file, OpenTF attempts to find
+each top-level block defined in an override file, OpenTofu attempts to find
 an already-defined object corresponding to that block and then merges the
 override block contents into the existing object.
 
@@ -37,7 +37,7 @@ override files apply changes to each block.
 
 ## Example
 
-If you have an OpenTF configuration `example.tf` with the following contents:
+If you have an OpenTofu configuration `example.tf` with the following contents:
 
 ```hcl
 resource "aws_instance" "web" {
@@ -54,7 +54,7 @@ resource "aws_instance" "web" {
 }
 ```
 
-OpenTF will merge the latter into the former, behaving as if the original
+OpenTofu will merge the latter into the former, behaving as if the original
 configuration had been as follows:
 
 ```hcl
@@ -118,7 +118,7 @@ described above, but some special considerations apply due to the interactions
 between the `type` and `default` arguments.
 
 If the original block defines a `default` value and an override block changes
-the variable's `type`, OpenTF attempts to convert the default value to
+the variable's `type`, OpenTofu attempts to convert the default value to
 the overridden type, producing an error if this conversion is not possible.
 
 Conversely, if the original block defines a `type` and an override block changes
@@ -153,7 +153,7 @@ original block. If both the base block and the override block both set
 The presence of a block defining a backend (either `cloud` or `backend`) in an override
 file always takes precedence over a block defining a backend in the original configuration.
 That is, if a `cloud` block is set within the original configuration and a `backend` block is
-set in the override file, OpenTF will use the `backend` block specified in the override file upon merging.
+set in the override file, OpenTofu will use the `backend` block specified in the override file upon merging.
 Similarly, if a `backend` block is set within the original configuration and a `cloud` block
-is set in the override file, OpenTF will use the `cloud` block specified in the override
+is set in the override file, OpenTofu will use the `cloud` block specified in the override
 file upon merging.

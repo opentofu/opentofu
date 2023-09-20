@@ -1,15 +1,15 @@
 ---
-description: The opentf workspace select command is used to choose a workspace.
+description: The tofu workspace select command is used to choose a workspace.
 ---
 
 # Command: workspace select
 
-The `opentf workspace select` command is used to choose a different
+The `tofu workspace select` command is used to choose a different
 workspace to use for further operations.
 
 ## Usage
 
-Usage: `opentf workspace select NAME [DIR]`
+Usage: `tofu workspace select NAME [DIR]`
 
 This command will select another workspace. The named workspace must already
 exist.
@@ -21,11 +21,11 @@ The supported flags are:
 ## Example
 
 ```
-$ opentf workspace list
+$ tofu workspace list
   default
 * development
   jsmith-test
 
-$ opentf workspace select default
+$ tofu workspace select default
 Switched to workspace "default".
 ```

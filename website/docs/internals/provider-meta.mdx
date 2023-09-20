@@ -24,8 +24,8 @@ rather than the module developer.
 
 :::warning Advanced Topic!
 This page covers technical details
-of OpenTF. You don't need to understand these details to
-effectively use OpenTF. The details are documented here for
+of OpenTofu. You don't need to understand these details to
+effectively use OpenTofu. The details are documented here for
 module authors and provider developers working on advanced
 functionality.
 :::
@@ -33,7 +33,7 @@ functionality.
 :::warning Experimental Feature!
 This functionality is still considered
 experimental, and anyone taking advantage of it should [coordinate
-with the OpenTF team](https://github.com/opentofu/opentofu/issues/new)
+with the OpenTofu team](https://github.com/opentofu/opentofu/issues/new)
 to help the team understand how the feature is being used and to make
 sure their use case is taken into account as the feature develops.
 :::
@@ -48,7 +48,7 @@ functions similarly to the provider config: a map of strings to the
 
 ## Using the Data
 
-When OpenTF calls your provider, you can use the `schema.ResourceData`
+When OpenTofu calls your provider, you can use the `schema.ResourceData`
 that your `Create`, `Read`, and `Update` functions already use to get
 access to the provider metadata being passed. First define a struct
 that matches your schema, then call the `GetProviderSchema` method on
@@ -76,9 +76,9 @@ The `provider_meta` block must match the schema the provider has defined.
 
 Any module taking advantage of this functionality must make sure that the
 provider metadata supplied matches the schema defined in the provider, and
-that the version of OpenTF that is being run has support for the provider
+that the version of OpenTofu that is being run has support for the provider
 metadata functionality. It's therefore recommended that any module taking
-advantage of this functionality should specify a minimum OpenTF version of
+advantage of this functionality should specify a minimum OpenTofu version of
 0.13.0 or higher, and a minimum version of each of the providers it specifies
 metadata as the first version the schema being used was supported by the
 provider.

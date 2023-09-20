@@ -134,7 +134,7 @@ some unusual situations, even though this is just an implementation detail
 in typical use.
 
 Most importantly, there must be a suitable location in the remote filesystem
-where the provisioner can create the script file. By default, OpenTF
+where the provisioner can create the script file. By default, OpenTofu
 chooses a path containing a random number using the following patterns
 depending on how `target_platform` is set:
 
@@ -146,7 +146,7 @@ some randomly-chosen decimal digits.
 
 Provisioners cannot react directly to remote environment variables such as
 `TMPDIR` or use functions like `mktemp` because they run on the system where
-OpenTF is running, not on the remote system. Therefore if your remote
+OpenTofu is running, not on the remote system. Therefore if your remote
 system doesn't use the filesystem layout expected by these default paths
 then you can override it using the `script_path` option in your `connection`
 block:
@@ -154,7 +154,7 @@ block:
 ```hcl
 connection {
   # ...
-  script_path = "H:/opentf-temp/script_%RAND%.sh"
+  script_path = "H:/tofu-temp/script_%RAND%.sh"
 }
 ```
 
@@ -164,7 +164,7 @@ between multiple provisioners running concurrently.
 
 If your target system is running Windows, we recommend using forward slashes
 instead of backslashes, despite the typical convention on Windows, because
-the OpenTF language uses backslash as the quoted string escape character.
+the OpenTofu language uses backslash as the quoted string escape character.
 
 ### Executing Scripts using SSH/SCP
 
@@ -182,6 +182,6 @@ user by specifying a relative path:
 connection {
   type = "ssh"
   # ...
-  script_path = "opentf_provisioner_%RAND%.sh"
+  script_path = "tofu_provisioner_%RAND%.sh"
 }
 ```

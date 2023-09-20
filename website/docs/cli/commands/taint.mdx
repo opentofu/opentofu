@@ -1,34 +1,34 @@
 ---
 description: |-
-  The `opentf taint` command informs OpenTF that a particular object
+  The `tofu taint` command informs OpenTofu that a particular object
   is damaged or degraded.
 ---
 
 # Command: taint
 
-The `opentf taint` command informs OpenTF that a particular object has
-become degraded or damaged. OpenTF represents this by marking the
-object as "tainted" in the OpenTF state, and OpenTF will
+The `tofu taint` command informs OpenTofu that a particular object has
+become degraded or damaged. OpenTofu represents this by marking the
+object as "tainted" in the OpenTofu state, and OpenTofu will
 propose to replace it in the next plan you create.
 
 :::warning
-This command is deprecated, we recommend using the `-replace` option with `opentf apply` instead (details below).
+This command is deprecated, we recommend using the `-replace` option with `tofu apply` instead (details below).
 :::
 
 ## Recommended Alternative
 
-We recommend using the [`-replace` option](/docs/cli/commands/plan#replace-address) with `opentf apply` to force OpenTF to replace an object even though there are no configuration changes that would require it.
+We recommend using the [`-replace` option](/docs/cli/commands/plan#replace-address) with `tofu apply` to force OpenTofu to replace an object even though there are no configuration changes that would require it.
 
 ```
-$ opentf apply -replace="aws_instance.example[0]"
+$ tofu apply -replace="aws_instance.example[0]"
 ```
 
-We recommend the `-replace` option because the change will be reflected in the OpenTF plan, letting you understand how it will affect your infrastructure before you take any externally-visible action. When you use `opentf taint`, other users could create a new plan against your tainted object before you can review the effects.
+We recommend the `-replace` option because the change will be reflected in the OpenTofu plan, letting you understand how it will affect your infrastructure before you take any externally-visible action. When you use `tofu taint`, other users could create a new plan against your tainted object before you can review the effects.
 
 ## Usage
 
 ```
-$ opentf taint [options] <address>
+$ tofu taint [options] <address>
 ```
 
 The `address` argument is the address of the resource to mark as tainted.
@@ -48,19 +48,19 @@ This command accepts the following options:
   for other situations, such as if there is a problem reading or writing
   the state.
 
-- `-lock=false` - Disables OpenTF's default behavior of attempting to take
+- `-lock=false` - Disables OpenTofu's default behavior of attempting to take
   a read/write lock on the state for the duration of the operation.
 
 - `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
-  instructs OpenTF to retry acquiring a lock for a period of time before
+  instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
-For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote) only, `opentf taint`
+For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote) only, `tofu taint`
 also accepts the option
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
 For configurations using
 [the `local` backend](/docs/language/settings/backends/local) only,
-`opentf taint` also accepts the legacy options
+`tofu taint` also accepts the legacy options
 [`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).

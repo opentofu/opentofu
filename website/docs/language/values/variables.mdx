@@ -8,7 +8,7 @@ description: >-
 
 Input variables let you customize aspects of modules without altering
 the module's own source code. This functionality allows you to share modules across different
-OpenTF configurations, making your module composable and reusable.
+OpenTofu configurations, making your module composable and reusable.
 
 When you declare variables in the root module of your configuration, you can
 set their values using CLI options and environment variables.
@@ -24,9 +24,9 @@ compare modules to function definitions:
 
 :::note
 For brevity, input variables are often referred to as just
-"variables" or "OpenTF variables" when it is clear from context what sort of
-variable is being discussed. Other kinds of variables in OpenTF include
-_environment variables_ (set by the shell where OpenTF runs) and _expression
+"variables" or "OpenTofu variables" when it is clear from context what sort of
+variable is being discussed. Other kinds of variables in OpenTofu include
+_environment variables_ (set by the shell where OpenTofu runs) and _expression
 variables_ (used to indirectly represent a value in an
 [expression](/docs/language/expressions)).
 :::
@@ -76,13 +76,13 @@ declared as variable names.
 
 ## Arguments
 
-OpenTF CLI defines the following optional arguments for variable declarations:
+OpenTofu CLI defines the following optional arguments for variable declarations:
 
 * [`default`][inpage-default] - A default value which then makes the variable optional.
 * [`type`][inpage-type] - This argument specifies what value types are accepted for the variable.
 * [`description`][inpage-description] - This specifies the input variable's documentation.
 * [`validation`][inpage-validation] - A block to define validation rules, usually in addition to type constraints.
-* [`sensitive`][inpage-sensitive] - Limits OpenTF UI output when the variable is used in configuration.
+* [`sensitive`][inpage-sensitive] - Limits OpenTofu UI output when the variable is used in configuration.
 * [`nullable`][inpage-nullable] - Specify if the variable can be `null` within the module.
 
 ### Default values
@@ -91,7 +91,7 @@ OpenTF CLI defines the following optional arguments for variable declarations:
 
 The variable declaration can also include a `default` argument. If present,
 the variable is considered to be _optional_ and the default value will be used
-if no value is set when calling the module or running OpenTF. The `default`
+if no value is set when calling the module or running OpenTofu. The `default`
 argument requires a literal value and cannot reference other objects in the
 configuration.
 
@@ -106,7 +106,7 @@ is accepted.
 
 While type constraints are optional, we recommend specifying them; they
 can serve as helpful reminders for users of the module, and they
-allow OpenTF to return a helpful error message if the wrong type is used.
+allow OpenTofu to return a helpful error message if the wrong type is used.
 
 Type constraints are created from a mixture of type keywords and type
 constructors. The supported type keywords are:
@@ -176,11 +176,11 @@ Refer to [Custom Condition Checks](/docs/language/expressions/custom-conditions#
 
 [inpage-sensitive]: #suppressing-values-in-cli-output
 
-Setting a variable as `sensitive` prevents OpenTF from showing its value in
+Setting a variable as `sensitive` prevents OpenTofu from showing its value in
 the `plan` or `apply` output, when you use that variable elsewhere in your
 configuration.
 
-OpenTF will still record sensitive values in the [state](/docs/language/state),
+OpenTofu will still record sensitive values in the [state](/docs/language/state),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](/docs/language/state/sensitive-data).
@@ -207,7 +207,7 @@ as sensitive themselves, and so in the above example the two arguments of
 `resource "some_resource" "a"` will also be hidden in the plan output:
 
 ```
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # some_resource.a will be created
   + resource "some_resource" "a" {
@@ -218,7 +218,7 @@ OpenTF will perform the following actions:
 Plan: 1 to add, 0 to change, 0 to destroy.
 ```
 
-In some cases where you use a sensitive variable inside a nested block, OpenTF
+In some cases where you use a sensitive variable inside a nested block, OpenTofu
 may treat the entire block as redacted. This happens for resource types where
 all of the blocks of a particular type are required to be unique, and so
 disclosing the content of one block might imply the content of a sibling block.
@@ -235,16 +235,16 @@ disclosing the content of one block might imply the content of a sibling block.
 
 A provider can also
 [declare an attribute as sensitive](/docs/plugin/sdkv2/best-practices/sensitive-state#using-the-sensitive-flag),
-which will cause OpenTF to hide it from regular output regardless of how
+which will cause OpenTofu to hide it from regular output regardless of how
 you assign it a value. For more information, see
 [Sensitive Resource Attributes](/docs/language/expressions/references#sensitive-resource-attributes).
 
 If you use a sensitive value as part of an
-[output value](/docs/language/values/outputs) then OpenTF will require
+[output value](/docs/language/values/outputs) then OpenTofu will require
 you to also mark the output value itself as sensitive, to confirm that you
 intended to export it.
 
-#### Cases where OpenTF may disclose a sensitive variable
+#### Cases where OpenTofu may disclose a sensitive variable
 
 A `sensitive` variable is a configuration-centered concept, and values are sent to providers without any obfuscation. A provider error could disclose a value if that value is included in the error message. For example, a provider might return the following error even if "foo" is a sensitive value: `"Invalid value 'foo' for field"`
 
@@ -288,7 +288,7 @@ account for the possibility of the variable value being `null`. Passing a
 
 Setting `nullable` to `false` ensures that the variable value will never be
 `null` within the module. If `nullable` is `false` and the variable has a
-`default` value, then OpenTF uses the default when a module input argument is `null`.
+`default` value, then OpenTofu uses the default when a module input argument is `null`.
 
 The `nullable` argument only controls where the direct value of the variable may be `null`.
 For variables of collection or structural types, such as lists or objects,
@@ -334,12 +334,12 @@ assigned in the configuration of their parent module, as described in
 ### Variables on the Command Line
 
 To specify individual variables on the command line, use the `-var` option
-when running the `opentf plan` and `opentf apply` commands:
+when running the `tofu plan` and `tofu apply` commands:
 
 ```
-opentf apply -var="image_id=ami-abc123"
-opentf apply -var='image_id_list=["ami-abc123","ami-def456"]' -var="instance_type=t2.micro"
-opentf apply -var='image_id_map={"us-east-1":"ami-abc123","us-east-2":"ami-def456"}'
+tofu apply -var="image_id=ami-abc123"
+tofu apply -var='image_id_list=["ami-abc123","ami-def456"]' -var="instance_type=t2.micro"
+tofu apply -var='image_id_map={"us-east-1":"ami-abc123","us-east-2":"ami-def456"}'
 ```
 
 The above examples show appropriate syntax for Unix-style shells, such as on
@@ -360,10 +360,10 @@ or `.tfvars.json`) and then specify that file on the command line with
 `-var-file`:
 
 ```
-opentf apply -var-file="testing.tfvars"
+tofu apply -var-file="testing.tfvars"
 ```
 
-A variable definitions file uses the same basic syntax as OpenTF language
+A variable definitions file uses the same basic syntax as OpenTofu language
 files, but consists only of variable name assignments:
 
 ```hcl
@@ -374,7 +374,7 @@ availability_zone_names = [
 ]
 ```
 
-OpenTF also automatically loads a number of variable definitions files
+OpenTofu also automatically loads a number of variable definitions files
 if they are present:
 
 * Files named exactly `terraform.tfvars` or `terraform.tfvars.json`.
@@ -392,43 +392,43 @@ the root object properties corresponding to variable names:
 
 ### Environment Variables
 
-As a fallback for the other ways of defining variables, OpenTF searches
+As a fallback for the other ways of defining variables, OpenTofu searches
 the environment of its own process for environment variables named `TF_VAR_`
 followed by the name of a declared variable.
 
-This can be useful when running OpenTF in automation, or when running a
-sequence of OpenTF commands in succession with the same variables.
+This can be useful when running OpenTofu in automation, or when running a
+sequence of OpenTofu commands in succession with the same variables.
 For example, at a `bash` prompt on a Unix system:
 
 ```
 $ export TF_VAR_image_id=ami-abc123
-$ opentf plan
+$ tofu plan
 ...
 ```
 
 On operating systems where environment variable names are case-sensitive,
-OpenTF matches the variable name exactly as given in configuration, and
+OpenTofu matches the variable name exactly as given in configuration, and
 so the required environment variable name will usually have a mix of upper
 and lower case letters as in the above example.
 
 ### Complex-typed Values
 
 When variable values are provided in a variable definitions file, you can use
-OpenTF's usual syntax for
+OpenTofu's usual syntax for
 [literal expressions](/docs/language/expressions/types#literal-expressions)
 to assign complex-typed values, like lists and maps.
 
 Some special rules apply to the `-var` command line option and to environment
-variables. For convenience, OpenTF defaults to interpreting `-var` and
+variables. For convenience, OpenTofu defaults to interpreting `-var` and
 environment variable values as literal strings, which need only shell quoting,
-and no special quoting for OpenTF. For example, in a Unix-style shell:
+and no special quoting for OpenTofu. For example, in a Unix-style shell:
 
 ```
 $ export TF_VAR_image_id='ami-abc123'
 ```
 
 However, if a root module variable uses a [type constraint](#type-constraints)
-to require a complex value (list, set, map, object, or tuple), OpenTF will
+to require a complex value (list, set, map, object, or tuple), OpenTofu will
 instead attempt to parse its value using the same syntax used within variable
 definitions files, which requires careful attention to the string escaping rules
 in your shell:
@@ -470,7 +470,7 @@ And the following `.tfvars` file:
 mosse = "Moose"
 ```
 
-Will cause OpenTF to warn you that there is no variable declared `"mosse"`, which can help
+Will cause OpenTofu to warn you that there is no variable declared `"mosse"`, which can help
 you spot this mistake.
 
 If you use `.tfvars` files across multiple configurations and expect to continue to see this warning,
@@ -478,17 +478,17 @@ you can use the [`-compact-warnings`](/docs/cli/commands/plan#compact-warnings)
 option to simplify your output.
 
 If you provide values for undeclared variables on the [command line](#variables-on-the-command-line),
-OpenTF will return an error. To avoid this error, either declare a variable block for the value, or remove
-the variable value from your OpenTF call.
+OpenTofu will return an error. To avoid this error, either declare a variable block for the value, or remove
+the variable value from your OpenTofu call.
 
 ### Variable Definition Precedence
 
 The above mechanisms for setting variables can be used together in any
-combination. If the same variable is assigned multiple values, OpenTF uses
+combination. If the same variable is assigned multiple values, OpenTofu uses
 the _last_ value it finds, overriding any previous values. Note that the same
 variable cannot be assigned multiple values within a single source.
 
-OpenTF loads variables in the following order, with later sources taking
+OpenTofu loads variables in the following order, with later sources taking
 precedence over earlier ones:
 
 * Environment variables
@@ -502,6 +502,6 @@ precedence over earlier ones:
 :::warning Important
 Variables with map and object
 values behave the same way as other variables: the last value found overrides
-the previous values. This is a change from previous versions of OpenTF, which
+the previous values. This is a change from previous versions of OpenTofu, which
 would _merge_ map values instead of overriding them.
 :::

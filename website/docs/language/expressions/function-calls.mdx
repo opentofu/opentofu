@@ -1,12 +1,12 @@
 ---
 description: >-
-  Functions transform and combine values. Learn about OpenTF's built-in
+  Functions transform and combine values. Learn about OpenTofu's built-in
   functions.
 ---
 
 # Function Calls
 
-The OpenTF language has a number of
+The OpenTofu language has a number of
 [built-in functions](/docs/language/functions) that can be used
 in expressions to transform and combine values. These
 are similar to the operators but all follow a common syntax:
@@ -67,16 +67,16 @@ the `keys()` function will result in a list that is sensitive:
 (sensitive value)
 ```
 
-## When OpenTF Calls Functions
+## When OpenTofu Calls Functions
 
-Most of OpenTF's built-in functions are, in programming language terms,
+Most of OpenTofu's built-in functions are, in programming language terms,
 [pure functions](https://en.wikipedia.org/wiki/Pure_function). This means that
 their result is based only on their arguments and so it doesn't make any
-practical difference when OpenTF would call them.
+practical difference when OpenTofu would call them.
 
 However, a small subset of functions interact with outside state and so for
-those it can be helpful to know when OpenTF will call them in relation to
-other events that occur in an OpenTF run.
+those it can be helpful to know when OpenTofu will call them in relation to
+other events that occur in an OpenTofu run.
 
 The small set of special functions includes
 [`file`](/docs/language/functions/file),
@@ -88,24 +88,24 @@ to read this section, although the information here may still be interesting
 background information.
 
 The `file` and `templatefile` functions are intended for reading files that
-are included as a static part of the configuration and so OpenTF will
+are included as a static part of the configuration and so OpenTofu will
 execute these functions as part of initial configuration validation, before
 taking any other actions with the configuration. That means you cannot use
 either function to read files that your configuration might generate
 dynamically on disk as part of the plan or apply steps.
 
 The `timestamp` function returns a representation of the current system time
-at the point when OpenTF calls it, and the `uuid` function returns a random
+at the point when OpenTofu calls it, and the `uuid` function returns a random
 result which differs on each call. Without any special behavior, these would
 both cause the final configuration during the apply step not to match the
-actions shown in the plan, which violates the OpenTF execution model.
+actions shown in the plan, which violates the OpenTofu execution model.
 
-For that reason, OpenTF arranges for both of those functions to produce
+For that reason, OpenTofu arranges for both of those functions to produce
 [unknown value](/docs/language/expressions/references#values-not-yet-known) results during the
 plan step, with the real result being decided only during the apply step.
 For `timestamp` in particular, this means that the recorded time will be
-the instant when OpenTF began applying the change, rather than when
-OpenTF _planned_ the change.
+the instant when OpenTofu began applying the change, rather than when
+OpenTofu _planned_ the change.
 
 For more details on the behavior of these functions, refer to their own
 documentation pages.

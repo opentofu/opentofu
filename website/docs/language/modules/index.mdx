@@ -11,17 +11,17 @@ consists of a collection of `.tf` and/or `.tf.json` files kept together in a
 directory.
 
 Modules are the main way to package and reuse resource configurations with
-OpenTF.
+OpenTofu.
 
 ## The Root Module
 
-Every OpenTF configuration has at least one module, known as its
+Every OpenTofu configuration has at least one module, known as its
 _root module_, which consists of the resources defined in the `.tf` files in
 the main working directory.
 
 ## Child Modules
 
-An OpenTF module (usually the root module of a configuration) can _call_ other
+An OpenTofu module (usually the root module of a configuration) can _call_ other
 modules to include their resources into the configuration. A module that has
 been called by another module is often referred to as a _child module._
 
@@ -30,13 +30,13 @@ multiple configurations can use the same child module.
 
 ## Published Modules
 
-In addition to modules from the local filesystem, OpenTF can load modules
+In addition to modules from the local filesystem, OpenTofu can load modules
 from a public or private registry. This makes it possible to publish modules for
 others to use, and to use modules that others have published.
 
 The [Public Terraform Registry](https://registry.terraform.io/browse/modules) hosts a
-broad collection of publicly available OpenTF modules for configuring many
-kinds of common infrastructure. These modules are free to use, and OpenTF can
+broad collection of publicly available OpenTofu modules for configuring many
+kinds of common infrastructure. These modules are free to use, and OpenTofu can
 download them automatically if you specify the appropriate source and version in
 a module call block.
 

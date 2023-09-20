@@ -1,22 +1,22 @@
 ---
 description: >-
-  The opentf init command initializes a working directory containing
+  The tofu init command initializes a working directory containing
   configuration files and installs plugins for required providers.
 ---
 
 # Command: init
 
-The `opentf init` command initializes a working directory
-containing OpenTF configuration files. This is the first command that should
-be run after writing a new OpenTF configuration or cloning an existing one
+The `tofu init` command initializes a working directory
+containing OpenTofu configuration files. This is the first command that should
+be run after writing a new OpenTofu configuration or cloning an existing one
 from version control. It is safe to run this command multiple times.
 
 ## Usage
 
-Usage: `opentf init [options]`
+Usage: `tofu init [options]`
 
 This command performs several different initialization steps in order to
-prepare the current working directory for use with OpenTF. More details on
+prepare the current working directory for use with OpenTofu. More details on
 these are in the sections below, but in most cases it is not necessary to worry
 about these individual steps.
 
@@ -34,7 +34,7 @@ The following options apply to all of (or several of) the initialization steps:
 
 * `-lock=false` Disable locking of state files during state-related operations.
 
-* `-lock-timeout=<duration>` Override the time OpenTF will wait to acquire
+* `-lock-timeout=<duration>` Override the time OpenTofu will wait to acquire
   a state lock. The default is `0s` (zero seconds), which causes immediate
   failure if the lock is already held by another process.
 
@@ -45,7 +45,7 @@ The following options apply to all of (or several of) the initialization steps:
 
 ## Copy a Source Module
 
-By default, `opentf init` assumes that the working directory already
+By default, `tofu init` assumes that the working directory already
 contains a configuration and will attempt to initialize that configuration.
 
 Optionally, init can be run against an empty directory with the
@@ -66,7 +66,7 @@ For routine use it is recommended to check out configuration from version
 control separately, using the version control system's own commands. This way
 it is possible to pass extra flags to the version control system when necessary,
 and to perform other preparation steps (such as configuration generation, or
-activating credentials) before running `opentf init`.
+activating credentials) before running `tofu init`.
 
 ## Backend Initialization
 
@@ -115,40 +115,40 @@ initialized with its child modules.
 
 ## Plugin Installation
 
-Most OpenTF providers are published separately from OpenTF as plugins.
-During init, OpenTF searches the configuration for both direct and indirect
+Most OpenTofu providers are published separately from OpenTofu as plugins.
+During init, OpenTofu searches the configuration for both direct and indirect
 references to providers and attempts to install the plugins for those providers.
 
 For providers that are published in either
 [the public Terraform Registry](https://registry.terraform.io/) or in a
-third-party provider registry, `opentf init` will automatically find,
+third-party provider registry, `tofu init` will automatically find,
 download, and install the necessary provider plugins. If you cannot or do not
 wish to install providers from their origin registries, you can customize how
-OpenTF installs providers using
+OpenTofu installs providers using
 [the provider installation settings in the CLI configuration](/docs/cli/config/config-file#provider-installation).
 
 For more information about specifying which providers are required for each
 of your modules, see [Provider Requirements](/docs/language/providers/requirements).
 
-After successful installation, OpenTF writes information about the selected
+After successful installation, OpenTofu writes information about the selected
 providers to [the dependency lock file](/docs/language/files/dependency-lock).
 You should commit this file to your version control system to ensure that
-when you run `opentf init` again in future OpenTF will select exactly
-the same provider versions. Use the `-upgrade` option if you want OpenTF
+when you run `tofu init` again in future OpenTofu will select exactly
+the same provider versions. Use the `-upgrade` option if you want OpenTofu
 to ignore the dependency lock file and consider installing newer versions.
 
-You can modify `opentf init`'s plugin behavior with the following options:
+You can modify `tofu init`'s plugin behavior with the following options:
 
 * `-upgrade` Upgrade all previously-selected plugins to the newest version
   that complies with the configuration's version constraints. This will
-  cause OpenTF to ignore any selections recorded in the dependency lock
+  cause OpenTofu to ignore any selections recorded in the dependency lock
   file, and to take the newest available version matching the configured
   version constraints.
 * `-plugin-dir=PATH` — Force plugin installation to read plugins _only_ from
   the specified directory, as if it had been configured as a `filesystem_mirror`
   in the CLI configuration. If you intend to routinely use a particular
   filesystem mirror then we recommend
-  [configuring OpenTF's installation methods globally](/docs/cli/config/config-file#provider-installation).
+  [configuring OpenTofu's installation methods globally](/docs/cli/config/config-file#provider-installation).
   You can use `-plugin-dir` as a one-time override for exceptional situations,
   such as if you are testing a local build of a provider plugin you are
   currently developing.
@@ -161,10 +161,10 @@ The valid values for the lockfile mode are as follows:
   update the lockfile with third-party dependency management tools, it would be
   useful to control when it changes explicitly.
 
-## Running `opentf init` in automation
+## Running `tofu init` in automation
 
-For teams that use OpenTF as a key part of a change management and
-deployment pipeline, it can be desirable to orchestrate OpenTF runs in some
+For teams that use OpenTofu as a key part of a change management and
+deployment pipeline, it can be desirable to orchestrate OpenTofu runs in some
 sort of automation in order to ensure consistency between runs, and provide
 other interesting features such as integration with version control hooks.
 
@@ -177,6 +177,6 @@ re-installation.
 If your workflow relies on overriding
 the root module directory, use
 [the `-chdir` global option](/docs/cli/commands#switching-working-directory-with-chdir)
-instead, which works across all commands and makes OpenTF consistently look
+instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.

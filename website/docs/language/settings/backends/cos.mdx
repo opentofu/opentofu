@@ -1,7 +1,7 @@
 ---
 sidebar_label: cos
 description: >-
-  OpenTF can store the state remotely, making it easier to version and work
+  OpenTofu can store the state remotely, making it easier to version and work
   with in a team.
 ---
 
@@ -25,14 +25,14 @@ on the COS bucket to allow for state recovery in the case of accidental deletion
 terraform {
   backend "cos" {
     region = "ap-guangzhou"
-    bucket = "bucket-for-opentf-state-1258798060"
-    prefix = "opentf/state"
+    bucket = "bucket-for-tofu-state-1258798060"
+    prefix = "tofu/state"
   }
 }
 ```
 
-This assumes we have a [COS Bucket](https://registry.terraform.io/providers/tencentcloudstack/tencentcloud/latest/docs/resources/cos_bucket) created named `bucket-for-opentf-state-1258798060`,
-OpenTF state will be written into the file `opentf/state/terraform.tfstate`.
+This assumes we have a [COS Bucket](https://registry.terraform.io/providers/tencentcloudstack/tencentcloud/latest/docs/resources/cos_bucket) created named `bucket-for-tofu-state-1258798060`,
+OpenTofu state will be written into the file `tofu/state/terraform.tfstate`.
 
 ## Data Source Configuration
 
@@ -44,8 +44,8 @@ data "terraform_remote_state" "foo" {
 
   config = {
     region = "ap-guangzhou"
-    bucket = "bucket-for-opentf-state-1258798060"
-    prefix = "opentf/state"
+    bucket = "bucket-for-tofu-state-1258798060"
+    prefix = "tofu/state"
   }
 }
 ```
@@ -53,7 +53,7 @@ data "terraform_remote_state" "foo" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
@@ -70,10 +70,10 @@ The following configuration options or environment variables are supported:
 - `accelerate` - (Optional) Whether to enable global Acceleration. Defaults to `false`.
 
 ### Assume Role
-If provided with an assume role, OpenTF will attempt to assume this role using the supplied credentials.
+If provided with an assume role, OpenTofu will attempt to assume this role using the supplied credentials.
 Assume role can be provided by adding an `assume_role` block in the cos backend block.
 
-- `assume_role` - (Optional) The `assume_role` block. If provided, OpenTF will attempt to assume this role using the supplied credentials.
+- `assume_role` - (Optional) The `assume_role` block. If provided, OpenTofu will attempt to assume this role using the supplied credentials.
 
 The details of `assume_role` block as following:
 - `role_arn` - (Required) The ARN of the role to assume. It can be sourced from the `TENCENTCLOUD_ASSUME_ROLE_ARN`.
@@ -87,8 +87,8 @@ Usage:
 terraform {
   backend "cos" {
     region = "ap-guangzhou"
-    bucket = "bucket-for-opentf-state-{appid}"
-    prefix = "opentf/state"
+    bucket = "bucket-for-tofu-state-{appid}"
+    prefix = "tofu/state"
     assume_role {
       role_arn = "qcs::cam::uin/xxx:roleName/yyy"
       session_name = "my-session-name"
@@ -109,5 +109,5 @@ $ export TENCENTCLOUD_REGION="ap-guangzhou"
 $ export TENCENTCLOUD_ASSUME_ROLE_ARN="qcs::cam::uin/xxx:roleName/yyy"
 $ export TENCENTCLOUD_ASSUME_ROLE_SESSION_NAME="my-session-name"
 $ export TENCENTCLOUD_ASSUME_ROLE_SESSION_DURATION=3600
-$ opentf plan
+$ tofu plan
 ```

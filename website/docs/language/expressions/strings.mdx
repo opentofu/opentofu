@@ -7,9 +7,9 @@ description: >-
 # Strings and Templates
 
 String literals are the most complex kind of literal expression in
-OpenTF, and also the most commonly used.
+OpenTofu, and also the most commonly used.
 
-OpenTF supports both a quoted syntax and a "heredoc" syntax for strings.
+OpenTofu supports both a quoted syntax and a "heredoc" syntax for strings.
 Both of these syntaxes support template sequences for interpolating values and
 manipulating text.
 
@@ -46,7 +46,7 @@ There are also two special escape sequences that do not use backslashes:
 
 ## Heredoc Strings
 
-OpenTF also supports a "heredoc" style of string literal inspired by Unix
+OpenTofu also supports a "heredoc" style of string literal inspired by Unix
 shell languages, which allows multi-line strings to be expressed more clearly.
 
 ```hcl
@@ -66,7 +66,7 @@ A heredoc string consists of:
 - The delimiter word you chose, alone on its own line (with indentation allowed for indented heredocs)
 
 The `<<` marker followed by any identifier at the end of a line introduces the
-sequence. OpenTF then processes the following lines until it finds one that
+sequence. OpenTofu then processes the following lines until it finds one that
 consists entirely of the identifier given in the introducer.
 
 In the above example, `EOT` is the identifier selected. Any identifier is
@@ -77,7 +77,7 @@ allowed, but conventionally this identifier is in all-uppercase and begins with
 
 Don't use "heredoc" strings to generate JSON or YAML. Instead, use
 [the `jsonencode` function](/docs/language/functions/jsonencode) or
-[the `yamlencode` function](/docs/language/functions/yamlencode) so that OpenTF
+[the `yamlencode` function](/docs/language/functions/yamlencode) so that OpenTofu
 can be responsible for guaranteeing valid JSON or YAML syntax.
 
 ```hcl
@@ -103,7 +103,7 @@ EOT
 }
 ```
 
-To improve on this, OpenTF also accepts an _indented_ heredoc string variant
+To improve on this, OpenTofu also accepts an _indented_ heredoc string variant
 that is introduced by the `<<-` sequence:
 
 ```hcl
@@ -115,7 +115,7 @@ block {
 }
 ```
 
-In this case, OpenTF analyses the lines in the sequence to find the one
+In this case, OpenTofu analyses the lines in the sequence to find the one
 with the smallest number of leading spaces, and then trims that many spaces
 from the beginning of all of the lines, leading to the following result:
 
