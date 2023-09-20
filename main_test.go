@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -310,5 +311,81 @@ func TestWarnOutput(t *testing.T) {
 
 	if stdout != "WARNING\n" {
 		t.Fatalf("unexpected stdout: %q\n", stdout)
+	}
+}
+
+func TestCreateConfigDir_new(t *testing.T) {
+	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
+
+	err := createConfigDir(tmpConfigDir)
+	if err != nil {
+		t.Fatalf("Failed to create the new config directory: %v", err)
+	}
+
+	info, err := os.Stat(tmpConfigDir)
+	if err != nil {
+		t.Fatalf("Directory does not exist after creation: %v", err)
+	}
+
+	if !info.IsDir() {
+		t.Fatalf("%s should be a directory but it's not", tmpConfigDir)
+	}
+
+	mode := int(info.Mode().Perm())
+	expectedMode := 0755
+	if mode != expectedMode {
+		t.Fatalf("Expected mode: %04o, but got: %04o", expectedMode, mode)
+	}
+}
+
+func TestCreateConfigDir_exists(t *testing.T) {
+	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
+	os.Mkdir(tmpConfigDir, os.ModePerm)
+
+	err := createConfigDir(tmpConfigDir)
+	if err != nil {
+		t.Fatalf("Failed to create the new config directory: %v", err)
+	}
+
+	_, err = os.Stat(tmpConfigDir)
+	if err != nil {
+		t.Fatalf("Directory does not exist after creation: %v", err)
+	}
+}
+
+func TestCreateConfigDir_nondir(t *testing.T) {
+	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
+
+	// Creating a file instead of directory
+	file, err := os.Create(tmpConfigDir)
+	if err != nil {
+		t.Fatalf("Failed to create a temp file for testing: %v", err)
+	}
+	defer file.Close()
+
+	err = createConfigDir(tmpConfigDir)
+	if err == nil {
+		t.Fatal("Expected an error, but got none")
+	}
+
+	expectedError := "path for the config directory is not a directory"
+	if err.Error() != expectedError {
+		t.Fatalf("Expected error: %s, but got: %v", expectedError, err)
+	}
+}
+
+func TestCreateConfigDir_noparent(t *testing.T) {
+	tmpConfigDir := filepath.Join(t.TempDir(), "nonexistenthomedir", ".terraform.d")
+
+	err := createConfigDir(tmpConfigDir)
+	if err == nil {
+		t.Fatal("Expected an error, but got none")
+	}
+
+	// We wouldn't dare creating the home dir. If the parent of our config dir
+	// is missing, it's likely an issue with the system.
+	expectedError := fmt.Sprintf("mkdir %s: no such file or directory", tmpConfigDir)
+	if err.Error() != expectedError {
+		t.Fatalf("Expected error: %s, but got: %v", expectedError, err)
 	}
 }
