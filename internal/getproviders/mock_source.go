@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // MockSource is an in-memory-only, statically-configured source intended for

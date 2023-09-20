@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend"
 )
 
 // IntegrationOutputWriter is an interface used to to write output tailored for

@@ -15,7 +15,7 @@
 // These tests can be used in two ways. The simplest way is to just run them
 // with "go test" as normal:
 //
-//	go test -v github.com/placeholderplaceholderplaceholder/opentf/internal/command/e2etest
+//	go test -v github.com/opentofu/opentofu/internal/command/e2etest
 //
 // This will compile on the fly a Terraform binary and run the tests against
 // it.

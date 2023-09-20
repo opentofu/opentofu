@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 var _ computed.DiffRenderer = (*objectRenderer)(nil)

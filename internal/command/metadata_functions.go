@@ -8,8 +8,8 @@ import (
 
 	"github.com/zclconf/go-cty/cty/function"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonfunction"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
+	"github.com/opentofu/opentofu/internal/command/jsonfunction"
+	"github.com/opentofu/opentofu/internal/lang"
 )
 
 var (

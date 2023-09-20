@@ -6,7 +6,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/opentf"
 )
 
 // TestResourceDataRaw creates a ResourceData from a raw configuration map.

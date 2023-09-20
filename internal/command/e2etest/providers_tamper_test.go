@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 // TestProviderTampering tests various ways that the provider plugins in the

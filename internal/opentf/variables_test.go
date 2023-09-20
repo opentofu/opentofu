@@ -6,7 +6,7 @@ package opentf
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 )
 

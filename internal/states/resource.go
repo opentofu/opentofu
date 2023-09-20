@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // Resource represents the state of a resource.

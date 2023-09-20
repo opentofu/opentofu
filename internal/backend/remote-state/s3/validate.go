@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

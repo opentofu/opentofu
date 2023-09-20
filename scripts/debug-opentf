@@ -10,7 +10,7 @@
 #    https://github.com/derekparker/delve/tree/master/Documentation/installation
 #
 # For more convenient use, you may wish to put this script in your PATH:
-#    ln -s ../src/github.com/placeholderplaceholderplaceholder/opentf/scripts/debug-opentf $GOPATH/bin/debug-opentf
+#    ln -s ../src/github.com/opentofu/opentofu/scripts/debug-opentf $GOPATH/bin/debug-opentf
 #
 # Note that when running this script the OpenTF binary is NOT in $GOPATH/bin,
 # so any providers installed there won't be found unless OpenTF searches
@@ -23,4 +23,4 @@ echo "Connect to it using: dlv connect 127.0.0.1:2345"
 echo "(OpenTF takes a long time to build and launch in this mode; some logs will appear below)"
 echo "---------------------------"
 
-exec dlv debug github.com/placeholderplaceholderplaceholder/opentf --headless --listen :2345 --log -- "$@"
+exec dlv debug github.com/opentofu/opentofu --headless --listen :2345 --log -- "$@"

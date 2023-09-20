@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/hashcode"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/helper/hashcode"
+	"github.com/opentofu/opentofu/internal/legacy/opentf"
 )
 
 func TestEnvDefaultFunc(t *testing.T) {

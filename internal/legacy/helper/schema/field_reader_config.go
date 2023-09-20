@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/opentf"
 )
 
 // ConfigFieldReader reads fields out of an untyped map[string]string to the

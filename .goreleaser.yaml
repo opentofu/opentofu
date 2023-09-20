@@ -16,7 +16,7 @@ builds:
 
     ldflags:
       - "-s -w"
-      - "-X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'"
+      - "-X 'github.com/opentofu/opentofu/version.dev=no'"
 
     goos:
       - linux

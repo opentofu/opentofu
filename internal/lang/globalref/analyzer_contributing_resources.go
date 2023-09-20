@@ -6,7 +6,7 @@ package globalref
 import (
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // ContributingResources analyzes all of the given references and

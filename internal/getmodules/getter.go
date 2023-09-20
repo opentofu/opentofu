@@ -11,7 +11,7 @@ import (
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
+	"github.com/opentofu/opentofu/internal/copy"
 )
 
 // We configure our own go-getter detector and getter sets here, because

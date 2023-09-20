@@ -6,7 +6,7 @@ package providers
 import (
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // SchemaCache is a global cache of Schemas.

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/opentofu/opentofu/internal/providers"
 )
 
 // Provider is an implementation of providers.Interface

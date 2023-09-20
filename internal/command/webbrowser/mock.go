@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/httpclient"
 )
 
 // NewMockLauncher creates and returns a mock implementation of Launcher,

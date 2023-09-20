@@ -6,7 +6,7 @@ package local
 import (
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend"
 )
 
 // backend.CLI impl.

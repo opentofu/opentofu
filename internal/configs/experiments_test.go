@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
+	"github.com/opentofu/opentofu/internal/experiments"
 )
 
 func TestExperimentsConfig(t *testing.T) {
