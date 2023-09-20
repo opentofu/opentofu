@@ -15,7 +15,7 @@ import (
 // Reference combines an addrs.Reference with the address of the module
 // instance or resource instance where it was found.
 //
-// Because of the design of the OpenTF language, our main model of
+// Because of the design of the OpenTofu language, our main model of
 // references only captures the module-local part of the reference and assumes
 // that it's always clear from context which module a reference belongs to.
 // That's not true for globalref because our whole purpose is to work across
@@ -112,7 +112,7 @@ func (r Reference) ResourceInstance() (addrs.AbsResourceInstance, bool) {
 	}
 }
 
-// DebugString returns an internal (but still somewhat OpenTF-language-like)
+// DebugString returns an internal (but still somewhat OpenTofu-language-like)
 // compact string representation of the reciever, which isn't an address that
 // any of our usual address parsers could accept but still captures the
 // essence of what the reference represents.

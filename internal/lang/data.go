@@ -15,7 +15,7 @@ import (
 // the addrs package.
 //
 // This interface will grow each time a new type of reference is added, and so
-// implementations outside of the OpenTF codebases are not advised.
+// implementations outside of the OpenTofu codebases are not advised.
 //
 // Each method returns a suitable value and optionally some diagnostics. If the
 // returned diagnostics contains errors then the type of the returned value is
