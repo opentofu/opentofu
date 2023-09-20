@@ -1117,11 +1117,11 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 
 	// Verify that the log starts with a version message
 	type versionMessage struct {
-		Level   string `json:"@level"`
-		Message string `json:"@message"`
-		Type    string `json:"type"`
-		OpenTF  string `json:"opentf"`
-		UI      string `json:"ui"`
+		Level    string `json:"@level"`
+		Message  string `json:"@message"`
+		Type     string `json:"type"`
+		OpenTofu string `json:"tofu"`
+		UI       string `json:"ui"`
 	}
 	var gotVersion versionMessage
 	if err := json.Unmarshal([]byte(gotLines[0]), &gotVersion); err != nil {
@@ -1129,7 +1129,7 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 	wantVersion := versionMessage{
 		"info",
-		fmt.Sprintf("OpenTF %s", version.String()),
+		fmt.Sprintf("OpenTofu %s", version.String()),
 		"version",
 		version.String(),
 		views.JSON_UI_VERSION,

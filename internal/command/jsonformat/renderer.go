@@ -85,7 +85,7 @@ type Renderer struct {
 func (renderer Renderer) RenderHumanPlan(plan Plan, mode plans.Mode, opts ...plans.Quality) {
 	if incompatibleVersions(jsonplan.FormatVersion, plan.PlanFormatVersion) || incompatibleVersions(jsonprovider.FormatVersion, plan.ProviderFormatVersion) {
 		renderer.Streams.Println(format.WordWrap(
-			renderer.Colorize.Color("\n[bold][red]Warning:[reset][bold] This plan was generated using a different version of OpenTF, the diff presented here may be missing representations of recent features."),
+			renderer.Colorize.Color("\n[bold][red]Warning:[reset][bold] This plan was generated using a different version of OpenTofu, the diff presented here may be missing representations of recent features."),
 			renderer.Streams.Stdout.Columns()))
 	}
 
@@ -95,7 +95,7 @@ func (renderer Renderer) RenderHumanPlan(plan Plan, mode plans.Mode, opts ...pla
 func (renderer Renderer) RenderHumanState(state State) {
 	if incompatibleVersions(jsonstate.FormatVersion, state.StateFormatVersion) || incompatibleVersions(jsonprovider.FormatVersion, state.ProviderFormatVersion) {
 		renderer.Streams.Println(format.WordWrap(
-			renderer.Colorize.Color("\n[bold][red]Warning:[reset][bold] This state was retrieved using a different version of OpenTF, the state presented here maybe missing representations of recent features."),
+			renderer.Colorize.Color("\n[bold][red]Warning:[reset][bold] This state was retrieved using a different version of OpenTofu, the state presented here maybe missing representations of recent features."),
 			renderer.Streams.Stdout.Columns()))
 	}
 

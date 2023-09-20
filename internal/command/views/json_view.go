@@ -21,7 +21,7 @@ const JSON_UI_VERSION = "1.2"
 
 func NewJSONView(view *View) *JSONView {
 	log := hclog.New(&hclog.LoggerOptions{
-		Name:       "opentf.ui",
+		Name:       "tofu.ui",
 		Output:     view.streams.Stdout.File,
 		JSONFormat: true,
 	})
@@ -51,9 +51,9 @@ type JSONView struct {
 func (v *JSONView) Version() {
 	version := tfversion.String()
 	v.log.Info(
-		fmt.Sprintf("OpenTF %s", version),
+		fmt.Sprintf("OpenTofu %s", version),
 		"type", json.MessageVersion,
-		"opentf", version,
+		"tofu", version,
 		"ui", JSON_UI_VERSION,
 	)
 }

@@ -23,10 +23,10 @@ type Reference struct {
 }
 
 // DisplayString returns a string that approximates the subject and remaining
-// traversal of the reciever in a way that resembles the OpenTF language
+// traversal of the reciever in a way that resembles the OpenTofu language
 // syntax that could've produced it.
 //
-// It's not guaranteed to actually be a valid OpenTF language expression,
+// It's not guaranteed to actually be a valid OpenTofu language expression,
 // since the intended use here is primarily for UI messages such as
 // diagnostics.
 func (r *Reference) DisplayString() string {
@@ -209,7 +209,7 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 	case "resource":
 		// This is an alias for the normal case of just using a managed resource
 		// type as a top-level symbol, which will serve as an escape mechanism
-		// if a later edition of the OpenTF language introduces a new
+		// if a later edition of the OpenTofu language introduces a new
 		// reference prefix that conflicts with a resource type name in an
 		// existing provider. In that case, the edition upgrade tool can
 		// rewrite foo.bar into resource.foo.bar to ensure that "foo" remains
@@ -346,7 +346,7 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Reserved symbol name",
-			Detail:   fmt.Sprintf("The symbol name %q is reserved for use in a future OpenTF version. If you are using a provider that already uses this as a resource type name, add the prefix \"resource.\" to force interpretation as a resource type name.", root),
+			Detail:   fmt.Sprintf("The symbol name %q is reserved for use in a future OpenTofu version. If you are using a provider that already uses this as a resource type name, add the prefix \"resource.\" to force interpretation as a resource type name.", root),
 			Subject:  rootRange.Ptr(),
 		})
 		return nil, diags

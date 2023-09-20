@@ -103,7 +103,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 				renderer.Streams.Println()
 			}
 			renderer.Streams.Print(
-				renderer.Colorize.Color("\n[reset][bold][red]Planning failed.[reset][bold] OpenTF encountered an error while generating this plan.[reset]\n\n"),
+				renderer.Colorize.Color("\n[reset][bold][red]Planning failed.[reset][bold] OpenTofu encountered an error while generating this plan.[reset]\n\n"),
 			)
 		} else {
 			switch mode {
@@ -117,7 +117,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 
 				renderer.Streams.Print(renderer.Colorize.Color("\n[reset][bold][green]No changes.[reset][bold] Your infrastructure still matches the configuration.[reset]\n\n"))
 				renderer.Streams.Println(format.WordWrap(
-					"OpenTF has checked that the real remote objects still match the result of your most recent changes, and found no differences.",
+					"OpenTofu has checked that the real remote objects still match the result of your most recent changes, and found no differences.",
 					renderer.Streams.Stdout.Columns()))
 			case plans.DestroyMode:
 				if haveRefreshChanges {
@@ -126,7 +126,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 				}
 				renderer.Streams.Print(renderer.Colorize.Color("\n[reset][bold][green]No changes.[reset][bold] No objects need to be destroyed.[reset]\n\n"))
 				renderer.Streams.Println(format.WordWrap(
-					"Either you have not created any objects yet or the existing objects were already deleted outside of OpenTF.",
+					"Either you have not created any objects yet or the existing objects were already deleted outside of OpenTofu.",
 					renderer.Streams.Stdout.Columns()))
 			default:
 				if haveRefreshChanges {
@@ -155,10 +155,10 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 						suggestion := "."
 						if !renderer.RunningInAutomation {
 							// The normal message includes a specific command line to run.
-							suggestion = ":\n  opentf apply -refresh-only"
+							suggestion = ":\n  tofu apply -refresh-only"
 						}
 						renderer.Streams.Println(format.WordWrap(
-							"Your configuration already matches the changes detected above. If you'd like to update the OpenTF state to match, create and apply a refresh-only plan"+suggestion,
+							"Your configuration already matches the changes detected above. If you'd like to update the OpenTofu state to match, create and apply a refresh-only plan"+suggestion,
 							renderer.Streams.Stdout.Columns(),
 						))
 					}
@@ -168,7 +168,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 				// If we get down here then we're just in the simple situation where
 				// the plan isn't applyable at all.
 				renderer.Streams.Println(format.WordWrap(
-					"OpenTF has compared your real infrastructure against your configuration and found no differences, so no changes are needed.",
+					"OpenTofu has compared your real infrastructure against your configuration and found no differences, so no changes are needed.",
 					renderer.Streams.Stdout.Columns(),
 				))
 			}
@@ -182,7 +182,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 
 	if willPrintResourceChanges {
 		renderer.Streams.Println(format.WordWrap(
-			"\nOpenTF used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:",
+			"\nOpenTofu used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:",
 			renderer.Streams.Stdout.Columns()))
 		if counts[plans.Create] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Create)))
@@ -206,9 +206,9 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 
 	if len(changes) > 0 {
 		if checkOpts(plans.Errored) {
-			renderer.Streams.Printf("\nOpenTF planned the following actions, but then encountered a problem:\n")
+			renderer.Streams.Printf("\nOpenTofu planned the following actions, but then encountered a problem:\n")
 		} else {
-			renderer.Streams.Printf("\nOpenTF will perform the following actions:\n")
+			renderer.Streams.Printf("\nOpenTofu will perform the following actions:\n")
 		}
 
 		for _, change := range changes {
@@ -245,7 +245,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			// so we need some extra context about what it would mean to
 			// apply a change that _only_ includes output changes.
 			renderer.Streams.Println(format.WordWrap(
-				"\nYou can apply this plan to save these new output values to the OpenTF state, without changing any real infrastructure.",
+				"\nYou can apply this plan to save these new output values to the OpenTofu state, without changing any real infrastructure.",
 				renderer.Streams.Stdout.Columns()))
 		}
 	}
@@ -304,10 +304,10 @@ func renderHumanDiffDrift(renderer Renderer, diffs diffs, mode plans.Mode) bool 
 		return false
 	}
 
-	renderer.Streams.Print(renderer.Colorize.Color("\n[bold][cyan]Note:[reset][bold] Objects have changed outside of OpenTF\n"))
+	renderer.Streams.Print(renderer.Colorize.Color("\n[bold][cyan]Note:[reset][bold] Objects have changed outside of OpenTofu\n"))
 	renderer.Streams.Println()
 	renderer.Streams.Print(format.WordWrap(
-		"OpenTF detected the following changes made outside of OpenTF since the last \"opentf apply\" which may have affected this plan:\n",
+		"OpenTofu detected the following changes made outside of OpenTofu since the last \"tofu apply\" which may have affected this plan:\n",
 		renderer.Streams.Stdout.Columns()))
 
 	for _, drift := range drs {
@@ -321,7 +321,7 @@ func renderHumanDiffDrift(renderer Renderer, diffs diffs, mode plans.Mode) bool 
 	switch mode {
 	case plans.RefreshOnlyMode:
 		renderer.Streams.Println(format.WordWrap(
-			"\n\nThis is a refresh-only plan, so OpenTF will not take any actions to undo these. If you were expecting these changes then you can apply this plan to record the updated values in the OpenTF state without changing any remote objects.",
+			"\n\nThis is a refresh-only plan, so OpenTofu will not take any actions to undo these. If you were expecting these changes then you can apply this plan to record the updated values in the OpenTofu state without changing any remote objects.",
 			renderer.Streams.Stdout.Columns(),
 		))
 	default:
@@ -426,7 +426,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			// FIXME: Ideally we'd truncate addr.Module to reflect the earliest
 			// step that doesn't exist, so it's clearer which call this refers
 			// to, but we don't have enough information out here in the UI layer
-			// to decide that; only the "expander" in OpenTF Core knows
+			// to decide that; only the "expander" in OpenTofu Core knows
 			// which module instance keys are actually declared.
 			buf.WriteString(fmt.Sprintf("\n  # (because %s is not in configuration)", resource.ModuleAddress))
 		case jsonplan.ResourceInstanceDeleteBecauseWrongRepetition:

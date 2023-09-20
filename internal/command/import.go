@@ -41,7 +41,7 @@ func (c *ImportCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
 	cmdFlags := c.Meta.extendedFlagSet("import")
-	cmdFlags.BoolVar(&c.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTF versions are incompatible")
+	cmdFlags.BoolVar(&c.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 	cmdFlags.IntVar(&c.Meta.parallelism, "parallelism", DefaultParallelism, "parallelism")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
 	cmdFlags.StringVar(&c.Meta.stateOutPath, "state-out", "", "path")
@@ -91,9 +91,9 @@ func (c *ImportCommand) Run(args []string) int {
 	if !c.dirIsConfigPath(configPath) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "No OpenTF configuration files",
+			Summary:  "No OpenTofu configuration files",
 			Detail: fmt.Sprintf(
-				"The directory %s does not contain any OpenTF configuration files (.tf or .tf.json). To specify a different configuration directory, use the -config=\"...\" command line option.",
+				"The directory %s does not contain any OpenTofu configuration files (.tf or .tf.json). To specify a different configuration directory, use the -config=\"...\" command line option.",
 				configPath,
 			),
 		})
@@ -286,13 +286,13 @@ func (c *ImportCommand) Run(args []string) int {
 
 func (c *ImportCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] import [options] ADDR ID
+Usage: tofu [global options] import [options] ADDR ID
 
-  Import existing infrastructure into your OpenTF state.
+  Import existing infrastructure into your OpenTofu state.
 
-  This will find and import the specified resource into your OpenTF
-  state, allowing existing infrastructure to come under OpenTF
-  management without having to be initially created by OpenTF.
+  This will find and import the specified resource into your OpenTofu
+  state, allowing existing infrastructure to come under OpenTofu
+  management without having to be initially created by OpenTofu.
 
   The ADDR specified is the address to import the resource to. Please
   see the documentation online for resource addresses. The ID is a
@@ -307,7 +307,7 @@ Usage: opentf [global options] import [options] ADDR ID
 
 Options:
 
-  -config=path            Path to a directory of OpenTF configuration files
+  -config=path            Path to a directory of OpenTofu configuration files
                           to use to configure the provider. Defaults to pwd.
                           If no config files are present, they must be provided
                           via the input prompts or env vars.
@@ -322,11 +322,11 @@ Options:
 
   -no-color               If specified, output won't contain any color.
 
-  -var 'foo=bar'          Set a variable in the OpenTF configuration. This
+  -var 'foo=bar'          Set a variable in the OpenTofu configuration. This
                           flag can be set multiple times. This is only useful
                           with the "-config" flag.
 
-  -var-file=foo           Set variables in the OpenTF configuration from
+  -var-file=foo           Set variables in the OpenTofu configuration from
                           a file. If "terraform.tfvars" or any ".auto.tfvars"
                           files are present, they will be automatically loaded.
 
@@ -341,7 +341,7 @@ Options:
 }
 
 func (c *ImportCommand) Synopsis() string {
-	return "Associate existing infrastructure with a OpenTF resource"
+	return "Associate existing infrastructure with a OpenTofu resource"
 }
 
 const importCommandInvalidAddressReference = `For information on valid syntax, see:
@@ -359,5 +359,5 @@ resource %q %q {
 const importCommandSuccessMsg = `Import successful!
 
 The resources that were imported are shown above. These resources are now in
-your OpenTF state and will henceforth be managed by OpenTF.
+your OpenTofu state and will henceforth be managed by OpenTofu.
 `

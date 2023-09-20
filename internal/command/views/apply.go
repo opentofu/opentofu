@@ -118,7 +118,7 @@ func (v *ApplyHuman) HelpPrompt() {
 	v.view.HelpPrompt(command)
 }
 
-const stateOutPathPostApply = "The state of your infrastructure has been saved to the path below. This state is required to modify and destroy your infrastructure, so keep it safe. To inspect the complete state use the `opentf show` command."
+const stateOutPathPostApply = "The state of your infrastructure has been saved to the path below. This state is required to modify and destroy your infrastructure, so keep it safe. To inspect the complete state use the `tofu show` command."
 
 // The ApplyJSON implementation renders streaming JSON logs, suitable for
 // integrating with other software.

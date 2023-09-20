@@ -106,7 +106,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Creating...",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "apply_start",
 			"hook": map[string]interface{}{
 				"action":   string("create"),
@@ -116,7 +116,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Provisioning with 'local-exec'...",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "provision_start",
 			"hook": map[string]interface{}{
 				"provisioner": "local-exec",
@@ -126,7 +126,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `test_instance.boop: (local-exec): Executing: ["/bin/sh" "-c" "touch /etc/motd"]`,
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "provision_progress",
 			"hook": map[string]interface{}{
 				"output":      `Executing: ["/bin/sh" "-c" "touch /etc/motd"]`,
@@ -137,7 +137,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: (local-exec) Provisioning complete",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "provision_complete",
 			"hook": map[string]interface{}{
 				"provisioner": "local-exec",
@@ -147,7 +147,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Still creating... [10s elapsed]",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "apply_progress",
 			"hook": map[string]interface{}{
 				"action":          string("create"),
@@ -158,7 +158,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Still creating... [20s elapsed]",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "apply_progress",
 			"hook": map[string]interface{}{
 				"action":          string("create"),
@@ -169,7 +169,7 @@ func TestJSONHook_create(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Creation complete after 22s [id=test]",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "apply_complete",
 			"hook": map[string]interface{}{
 				"action":          string("create"),
@@ -237,7 +237,7 @@ func TestJSONHook_errors(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Destroying...",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "apply_start",
 			"hook": map[string]interface{}{
 				"action":   string("delete"),
@@ -247,7 +247,7 @@ func TestJSONHook_errors(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: (local-exec) Provisioning errored",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "provision_errored",
 			"hook": map[string]interface{}{
 				"provisioner": "local-exec",
@@ -257,7 +257,7 @@ func TestJSONHook_errors(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop: Destruction errored after 0s",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "apply_errored",
 			"hook": map[string]interface{}{
 				"action":          string("delete"),
@@ -305,7 +305,7 @@ func TestJSONHook_refresh(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "data.test_data_source.beep: Refreshing state... [id=honk]",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "refresh_start",
 			"hook": map[string]interface{}{
 				"resource": wantResource,
@@ -316,7 +316,7 @@ func TestJSONHook_refresh(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "data.test_data_source.beep: Refresh complete [id=honk]",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "refresh_complete",
 			"hook": map[string]interface{}{
 				"resource": wantResource,

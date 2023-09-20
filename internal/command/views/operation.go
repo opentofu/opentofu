@@ -287,21 +287,21 @@ Two interrupts received. Exiting immediately. Note that data loss may have occur
 
 const interrupted = `
 Interrupt received.
-Please wait for OpenTF to exit or data loss may occur.
+Please wait for OpenTofu to exit or data loss may occur.
 Gracefully shutting down...
 `
 
 const planHeaderNoOutput = `
-Note: You didn't use the -out option to save this plan, so OpenTF can't guarantee to take exactly these actions if you run "opentf apply" now.
+Note: You didn't use the -out option to save this plan, so OpenTofu can't guarantee to take exactly these actions if you run "tofu apply" now.
 `
 
 const planHeaderYesOutput = `
 Saved the plan to: %s
 
 To perform exactly these actions, run the following command to apply:
-    opentf apply %q
+    tofu apply %q
 `
 
 const planHeaderGenConfig = `
-OpenTF has generated configuration and written it to %s. Please review the configuration and edit it as necessary before adding it to version control.
+OpenTofu has generated configuration and written it to %s. Please review the configuration and edit it as necessary before adding it to version control.
 `

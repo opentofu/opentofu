@@ -83,7 +83,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Plan file or auto-approve required",
-			"OpenTF cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
+			"OpenTofu cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
 		))
 	}
 
@@ -100,13 +100,13 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 }
 
 // ParseApplyDestroy is a special case of ParseApply that deals with the
-// "opentf destroy" command, which is effectively an alias for
-// "opentf apply -destroy".
+// "tofu destroy" command, which is effectively an alias for
+// "tofu apply -destroy".
 func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
 	apply, diags := ParseApply(args)
 
 	// So far ParseApply was using the command line options like -destroy
-	// and -refresh-only to determine the plan mode. For "opentf destroy"
+	// and -refresh-only to determine the plan mode. For "tofu destroy"
 	// we expect neither of those arguments to be set, and so the plan mode
 	// should currently be set to NormalMode, which we'll replace with
 	// DestroyMode here. If it's already set to something else then that
@@ -121,13 +121,13 @@ func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid mode option",
-			"The -destroy option is not valid for \"opentf destroy\", because this command always runs in destroy mode.",
+			"The -destroy option is not valid for \"tofu destroy\", because this command always runs in destroy mode.",
 		))
 	case plans.RefreshOnlyMode:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid mode option",
-			"The -refresh-only option is not valid for \"opentf destroy\".",
+			"The -refresh-only option is not valid for \"tofu destroy\".",
 		))
 	default:
 		// This is a non-ideal error message for if we forget to handle a
@@ -136,7 +136,7 @@ func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid mode option",
-			fmt.Sprintf("The \"opentf destroy\" command doesn't support %s.", apply.Operation.PlanMode),
+			fmt.Sprintf("The \"tofu destroy\" command doesn't support %s.", apply.Operation.PlanMode),
 		))
 	}
 

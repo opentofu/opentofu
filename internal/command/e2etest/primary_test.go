@@ -18,10 +18,10 @@ import (
 
 // The tests in this file are for the "primary workflow", which includes
 // variants of the following sequence, with different details:
-// opentf init
-// opentf plan
-// opentf apply
-// opentf destroy
+// tofu init
+// tofu plan
+// tofu apply
+// tofu destroy
 
 func TestPrimarySeparatePlan(t *testing.T) {
 	t.Parallel()
@@ -64,7 +64,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 	if !strings.Contains(stdout, "Saved the plan to: tfplan") {
 		t.Errorf("missing \"Saved the plan to...\" message in plan output\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "opentf apply \"tfplan\"") {
+	if !strings.Contains(stdout, "tofu apply \"tfplan\"") {
 		t.Errorf("missing next-step instruction in plan output\n%s", stdout)
 	}
 
@@ -173,7 +173,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 	if !strings.Contains(stdout, "Saved the plan to: tfplan") {
 		t.Errorf("missing \"Saved the plan to...\" message in plan output\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "opentf apply \"tfplan\"") {
+	if !strings.Contains(stdout, "tofu apply \"tfplan\"") {
 		t.Errorf("missing next-step instruction in plan output\n%s", stdout)
 	}
 

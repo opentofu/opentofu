@@ -1246,7 +1246,7 @@ func TestPlan_init_required(t *testing.T) {
 		t.Fatalf("expected error, got success")
 	}
 	got := output.Stderr()
-	if !(strings.Contains(got, "opentf init") && strings.Contains(got, "provider registry.terraform.io/hashicorp/test: required by this configuration but no version is selected")) {
+	if !(strings.Contains(got, "tofu init") && strings.Contains(got, "provider registry.terraform.io/hashicorp/test: required by this configuration but no version is selected")) {
 		t.Fatal("wrong error message in output:", got)
 	}
 }
@@ -1545,7 +1545,7 @@ func TestPlan_warnings(t *testing.T) {
 			"warning 1",
 			"warning 2",
 			"warning 3",
-			"To see the full warning notes, run OpenTF without -compact-warnings.",
+			"To see the full warning notes, run OpenTofu without -compact-warnings.",
 		}
 		for _, want := range wantWarnings {
 			if !strings.Contains(output.Stdout(), want) {
