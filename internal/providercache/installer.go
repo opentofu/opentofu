@@ -228,7 +228,7 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 					err = fmt.Errorf("built-in providers do not support explicit version constraints")
 				}
 			} else {
-				err = fmt.Errorf("this OpenTF release has no built-in provider named %q", provider.Type)
+				err = fmt.Errorf("this OpenTofu release has no built-in provider named %q", provider.Type)
 			}
 			if err != nil {
 				errs[provider] = err
@@ -250,7 +250,7 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 			if lock := locks.Provider(provider); lock != nil {
 				if !acceptableVersions.Has(lock.Version()) {
 					err := fmt.Errorf(
-						"locked provider %s %s does not match configured version constraint %s; must use opentf init -upgrade to allow selection of new versions",
+						"locked provider %s %s does not match configured version constraint %s; must use tofu init -upgrade to allow selection of new versions",
 						provider, lock.Version(), getproviders.VersionConstraintsString(versionConstraints),
 					)
 					errs[provider] = err
@@ -464,7 +464,7 @@ NeedProvider:
 					// did show up there.
 					new := i.targetDir.ProviderVersion(provider, version)
 					if new == nil {
-						err := fmt.Errorf("after linking %s from provider cache at %s it is still not detected in the target directory; this is a bug in OpenTF", provider, i.globalCacheDir.baseDir)
+						err := fmt.Errorf("after linking %s from provider cache at %s it is still not detected in the target directory; this is a bug in OpenTofu", provider, i.globalCacheDir.baseDir)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
@@ -585,7 +585,7 @@ NeedProvider:
 		}
 		new := installTo.ProviderVersion(provider, version)
 		if new == nil {
-			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTF", provider, installTo.BasePath())
+			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, installTo.BasePath())
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
@@ -622,7 +622,7 @@ NeedProvider:
 			// cache directory.
 			new = linkTo.ProviderVersion(provider, version)
 			if new == nil {
-				err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTF", provider, linkTo.BasePath())
+				err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, linkTo.BasePath())
 				errs[provider] = err
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
@@ -677,7 +677,7 @@ NeedProvider:
 		var signedHashes []getproviders.Hash
 		// For now, we will temporarily trust the hashes returned by the
 		// installation process that are "SigningSkipped" or "Signed".
-		// This is only intended to be temporary, see https://github.com/opentffoundation/opentf/issues/266 for more information
+		// This is only intended to be temporary, see https://github.com/opentofu/opentofu/issues/266 for more information
 		if authResult.Signed() || authResult.SigningSkipped() {
 			// We'll trust new hashes from upstream only if they were verified
 			// as signed by a suitable key or if the signing validation was skipped.
