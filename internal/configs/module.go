@@ -735,9 +735,9 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 			case len(path) == 0:
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Unsupported OpenTF Core version",
+					Summary:  "Unsupported OpenTofu Core version",
 					Detail: fmt.Sprintf(
-						"This configuration does not support OpenTF version %s. To proceed, either choose another supported OpenTF version or update this version constraint. Version constraints are normally set for good reason, so updating the constraint may lead to other errors or unexpected behavior.",
+						"This configuration does not support OpenTofu version %s. To proceed, either choose another supported OpenTofu version or update this version constraint. Version constraints are normally set for good reason, so updating the constraint may lead to other errors or unexpected behavior.",
 						tfversion.String(),
 					),
 					Subject: constraint.DeclRange.Ptr(),
@@ -745,9 +745,9 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 			default:
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Unsupported OpenTF Core version",
+					Summary:  "Unsupported OpenTofu Core version",
 					Detail: fmt.Sprintf(
-						"Module %s (from %s) does not support OpenTF version %s. To proceed, either choose another supported OpenTF version or update this version constraint. Version constraints are normally set for good reason, so updating the constraint may lead to other errors or unexpected behavior.",
+						"Module %s (from %s) does not support OpenTofu version %s. To proceed, either choose another supported OpenTofu version or update this version constraint. Version constraints are normally set for good reason, so updating the constraint may lead to other errors or unexpected behavior.",
 						path, sourceAddr, tfversion.String(),
 					),
 					Subject: constraint.DeclRange.Ptr(),

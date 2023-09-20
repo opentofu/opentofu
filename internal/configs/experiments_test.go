@@ -34,7 +34,7 @@ func TestExperimentsConfig(t *testing.T) {
 		want := &hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Summary:  `Experimental feature "current" is active`,
-			Detail:   "Experimental features are available only in alpha releases of OpenTF and are subject to breaking changes or total removal in later versions, based on feedback. We recommend against using experimental features in production.\n\nIf you have feedback on the design of this feature, please open a GitHub issue to discuss it.",
+			Detail:   "Experimental features are available only in alpha releases of OpenTofu and are subject to breaking changes or total removal in later versions, based on feedback. We recommend against using experimental features in production.\n\nIf you have feedback on the design of this feature, please open a GitHub issue to discuss it.",
 			Subject: &hcl.Range{
 				Filename: "testdata/experiments/current/current_experiment.tf",
 				Start:    hcl.Pos{Line: 2, Column: 18, Byte: 29},
@@ -128,7 +128,7 @@ func TestExperimentsConfig(t *testing.T) {
 		want := &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Module uses experimental features`,
-			Detail:   `Experimental features are intended only for gathering early feedback on new language designs, and so are available only in alpha releases of OpenTF.`,
+			Detail:   `Experimental features are intended only for gathering early feedback on new language designs, and so are available only in alpha releases of OpenTofu.`,
 			Subject: &hcl.Range{
 				Filename: "testdata/experiments/current/current_experiment.tf",
 				Start:    hcl.Pos{Line: 2, Column: 3, Byte: 14},

@@ -339,7 +339,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved block type name in resource block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTF in a future version.", block.Type),
+				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
 				Subject:  &block.TypeRange,
 			})
 		}
@@ -526,7 +526,7 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved block type name in data block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTF in a future version.", block.Type),
+				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
 				Subject:  block.TypeRange.Ptr(),
 			})
 		}
