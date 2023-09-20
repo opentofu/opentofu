@@ -314,10 +314,10 @@ func TestWarnOutput(t *testing.T) {
 	}
 }
 
-func TestCreateConfigDir_new(t *testing.T) {
+func TestMkConfigDir_new(t *testing.T) {
 	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
 
-	err := createConfigDir(tmpConfigDir)
+	err := mkConfigDir(tmpConfigDir)
 	if err != nil {
 		t.Fatalf("Failed to create the new config directory: %v", err)
 	}
@@ -338,11 +338,11 @@ func TestCreateConfigDir_new(t *testing.T) {
 	}
 }
 
-func TestCreateConfigDir_exists(t *testing.T) {
+func TestMkConfigDir_exists(t *testing.T) {
 	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
 	os.Mkdir(tmpConfigDir, os.ModePerm)
 
-	err := createConfigDir(tmpConfigDir)
+	err := mkConfigDir(tmpConfigDir)
 	if err != nil {
 		t.Fatalf("Failed to create the new config directory: %v", err)
 	}
@@ -353,31 +353,10 @@ func TestCreateConfigDir_exists(t *testing.T) {
 	}
 }
 
-func TestCreateConfigDir_nondir(t *testing.T) {
-	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
-
-	// Creating a file instead of directory
-	file, err := os.Create(tmpConfigDir)
-	if err != nil {
-		t.Fatalf("Failed to create a temp file for testing: %v", err)
-	}
-	defer file.Close()
-
-	err = createConfigDir(tmpConfigDir)
-	if err == nil {
-		t.Fatal("Expected an error, but got none")
-	}
-
-	expectedError := "path for the config directory is not a directory"
-	if err.Error() != expectedError {
-		t.Fatalf("Expected error: %s, but got: %v", expectedError, err)
-	}
-}
-
-func TestCreateConfigDir_noparent(t *testing.T) {
+func TestMkConfigDir_noparent(t *testing.T) {
 	tmpConfigDir := filepath.Join(t.TempDir(), "nonexistenthomedir", ".terraform.d")
 
-	err := createConfigDir(tmpConfigDir)
+	err := mkConfigDir(tmpConfigDir)
 	if err == nil {
 		t.Fatal("Expected an error, but got none")
 	}

@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -254,7 +253,7 @@ func realMain() int {
 	configDir, err := cliconfig.ConfigDir()
 	if err != nil {
 		log.Printf("[ERROR] Failed to find the path to the config directory: %v", err)
-	} else if err := createConfigDir(configDir); err != nil {
+	} else if err := mkConfigDir(configDir); err != nil {
 		log.Printf("[ERROR] Failed to create the config directory at path %s: %v", configDir, err)
 	}
 
@@ -504,24 +503,18 @@ func extractChdirOption(args []string) (string, []string, error) {
 // Creates the the configuration directory.
 // `configDir` should refer to `~/.terraform.d` or its equivalent
 // on non-UNIX platforms.
-func createConfigDir(configDir string) error {
-	configDirInfo, err := os.Stat(configDir)
-	if os.IsNotExist(err) {
-		if err := os.Mkdir(configDir, os.ModePerm); err != nil {
-			return err
-		}
+func mkConfigDir(configDir string) error {
+	err := os.Mkdir(configDir, os.ModePerm)
+
+	if err == nil {
 		log.Printf("[DEBUG] Created the config directory: %s", configDir)
 		return nil
 	}
 
-	if err != nil {
-		return err
+	if os.IsExist(err) {
+		log.Printf("[DEBUG] Found the config directory: %s", configDir)
+		return nil
 	}
 
-	if !configDirInfo.IsDir() {
-		return errors.New("path for the config directory is not a directory")
-	}
-
-	log.Printf("[DEBUG] Found the config directory: %s", configDir)
-	return nil
+	return err
 }
