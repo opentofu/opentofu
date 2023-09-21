@@ -134,7 +134,7 @@ jobs:
         arch: ["amd64", "386", "arm", "arm64"]
       fail-fast: false
     env:
-      repo: "opentf"
+      repo: "opentofu"
       version: ${{needs.get-product-version.outputs.product-version}}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -149,8 +149,8 @@ jobs:
           dockerfile: .github/workflows/build-Dockerfile
           smoke_test: .github/scripts/verify_docker v${{ env.version }}
           tags: |
-            docker.io/hashicorp/${{env.repo}}:${{env.version}}
-            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}
+            docker.io/opentofu/${{env.repo}}:${{env.version}}
+            public.ecr.aws/opentofu/${{env.repo}}:${{env.version}}
 
   e2etest-build:
     name: Build e2etest for ${{ matrix.goos }}_${{ matrix.goarch }}
