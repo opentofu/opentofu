@@ -14,7 +14,7 @@ provider "too/many/parts/here" { # ERROR: Invalid provider source address
 
 }
 
-provider "registry.opentofu.org/example/example" { # ERROR: Non-normalized provider source address
+provider "Registry.opentofu.org/example/example" { # ERROR: Non-normalized provider source address
 
 }
 

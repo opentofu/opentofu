@@ -1706,7 +1706,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.4"),
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("sdp/7iAr4wNHnH60b7ZpfNqh3amB76aW5OILWe5tdf0="),
+				getproviders.HashScheme1.New("vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI="),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -1714,7 +1714,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("2ubXL7FSbQAmUwuCWgK2XEZtPgrmWJKXSeyY9IshLms="),
+				getproviders.HashScheme1.New("8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI="),
 			},
 		),
 		addrs.NewDefaultProvider("source"): depsfile.NewProviderLock(
@@ -1722,7 +1722,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("B9fr2hal6CDsWIJAu1QEa62Nk6H1Bu9rGmkKoeVIHq0="),
+				getproviders.HashScheme1.New("ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0="),
 			},
 		),
 	}
@@ -1922,7 +1922,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("LpxYjPkFw7lGkyba+rVNnu+0pq0wXrOlYLRSCMSGCNw="),
+				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -1930,7 +1930,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("rPih7hp3HWoGQfsbhTfbJkd+SIi7b75urngcKqrpXs4="),
+				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -1938,7 +1938,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("UwF+5uUatjLRKI+W/w7o5eX7NZzgSkQO4f0X/TMvLUw="),
+				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
 			},
 		),
 	}
@@ -2115,7 +2115,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "h1:2ubXL7FSbQAmUwuCWgK2XEZtPgrmWJKXSeyY9IshLms=",
+    "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
   ]
 }
 `)
@@ -2142,7 +2142,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "zh:865c1d916ea1705fdd0e798156b6665329fddf38d7ca23183190c3e6e7e765e3",
+    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
   ]
 }
 `)
@@ -2168,8 +2168,8 @@ provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "h1:2ubXL7FSbQAmUwuCWgK2XEZtPgrmWJKXSeyY9IshLms=",
-    "zh:865c1d916ea1705fdd0e798156b6665329fddf38d7ca23183190c3e6e7e765e3",
+    "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
   ]
 }
 `)
@@ -2438,7 +2438,7 @@ func TestInit_pluginDirProviders(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("LpxYjPkFw7lGkyba+rVNnu+0pq0wXrOlYLRSCMSGCNw="),
+				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -2446,7 +2446,7 @@ func TestInit_pluginDirProviders(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("rPih7hp3HWoGQfsbhTfbJkd+SIi7b75urngcKqrpXs4="),
+				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -2454,7 +2454,7 @@ func TestInit_pluginDirProviders(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("UwF+5uUatjLRKI+W/w7o5eX7NZzgSkQO4f0X/TMvLUw="),
+				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
 			},
 		),
 	}
