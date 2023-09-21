@@ -71,11 +71,11 @@ func realMain() int {
 
 	err = openTelemetryInit()
 	if err != nil {
-		// openTelemetryInit can only fail if OpenTF was run with an
+		// openTelemetryInit can only fail if OpenTofu was run with an
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
 		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
-		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTF.", openTelemetryExporterEnvVar))
+		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", openTelemetryExporterEnvVar))
 		return 1
 	}
 	var ctx context.Context
@@ -83,7 +83,7 @@ func realMain() int {
 	{
 		// At minimum we emit a span covering the entire command execution.
 		_, displayArgs := shquot.POSIXShellSplit(os.Args)
-		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("opentf %s", displayArgs))
+		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("tofu %s", displayArgs))
 		defer otelSpan.End()
 	}
 
@@ -109,7 +109,7 @@ func realMain() int {
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
 	log.Printf("[INFO] CLI args: %#v", os.Args)
 	if ExperimentsAllowed() {
-		log.Printf("[INFO] This build of OpenTF allows using experimental features")
+		log.Printf("[INFO] This build of OpenTofu allows using experimental features")
 	}
 
 	streams, err := terminal.Init()
@@ -157,8 +157,8 @@ func realMain() int {
 			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
 		}
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTF may not behave as intended.\n\n")
-			// We continue to run anyway, since OpenTF has reasonable defaults.
+			Ui.Error("As a result of the above problems, OpenTofu may not behave as intended.\n\n")
+			// We continue to run anyway, since OpenTofu has reasonable defaults.
 		}
 	}
 
@@ -195,14 +195,14 @@ func realMain() int {
 			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
 		}
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTF's provider installer may not behave as intended.\n\n")
+			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
 			// We continue to run anyway, because most commands don't do provider installation.
 		}
 	}
 	providerDevOverrides := providerDevOverrides(config.ProviderInstallation)
 
 	// The user can declare that certain providers are being managed on
-	// OpenTF's behalf using this environment variable. This is used
+	// OpenTofu's behalf using this environment variable. This is used
 	// primarily by the SDK's acceptance testing framework.
 	unmanagedProviders, err := parseReattachProviders(os.Getenv("TF_REATTACH_PROVIDERS"))
 	if err != nil {
@@ -224,7 +224,7 @@ func realMain() int {
 		return 1
 	}
 
-	// The arguments can begin with a -chdir option to ask OpenTF to switch
+	// The arguments can begin with a -chdir option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work. If that
 	// option is present then extractChdirOption returns a trimmed args with that option removed.
 	overrideWd, args, err := extractChdirOption(args)
@@ -317,7 +317,7 @@ func realMain() int {
 	if cmd := cliRunner.Subcommand(); cmd != "" && !autoComplete {
 		// Due to the design of cli.CLI, this special error message only works
 		// for typos of top-level commands. For a subcommand typo, like
-		// "opentf state push", cmd would be "state" here and thus would
+		// "tofu state push", cmd would be "state" here and thus would
 		// be considered to exist, and it would print out its own usage message.
 		if _, exists := Commands[cmd]; !exists {
 			suggestions := make([]string, 0, len(Commands))
@@ -328,7 +328,7 @@ func realMain() int {
 			if suggestion != "" {
 				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
 			}
-			fmt.Fprintf(os.Stderr, "OpenTF has no command named %q.%s\n\nTo see all of OpenTF's top-level commands, run:\n  opentf -help\n\n", cmd, suggestion)
+			fmt.Fprintf(os.Stderr, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", cmd, suggestion)
 			return 1
 		}
 	}
