@@ -37,7 +37,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid import id argument",
-			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTF cannot plan to import this resource.`, // FIXME and what should I do about that?
+			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
 			Subject:  expr.Range().Ptr(),
 			//	Expression:
 			//	EvalContext:
