@@ -21,7 +21,7 @@ to [the main OpenTofu CLI documentation](https://opentofu.org/docs/cli/index.htm
   SDK and so wish to conform to them.
 
   (If you are planning to write a new provider using the _official_ SDK then
-  please refer to [the Extend documentation](https://www.placeholderplaceholderplaceholder.io/docs/extend/index.html)
+  please refer to [the Extend documentation](https://github.com/hashicorp/terraform-docs-common)
   instead; it presents similar information from the perspective of the SDK
   API, rather than the plugin wire protocol.)
 

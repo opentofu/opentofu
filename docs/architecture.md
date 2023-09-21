@@ -41,7 +41,7 @@ object that describes an action to be taken.
 An _operation_ consists of:
 
 * The action to be taken (e.g. "plan", "apply").
-* The name of the [workspace](https://www.placeholderplaceholderplaceholder.io/docs/state/workspaces.html)
+* The name of the [workspace](https://opentofu.org/docs/language/state/workspaces)
   where the action will be taken.
 * Root module input variables to use for the action.
 * For the "plan" operation, a path to the directory containing the configuration's root module.
@@ -50,7 +50,7 @@ An _operation_ consists of:
 "force" flag, etc.
 
 The operation is then passed to the currently-selected
-[backend](https://www.placeholderplaceholderplaceholder.io/docs/backends/index.html). Each backend name
+[backend](https://opentofu.org/docs/language/settings/backends/configuration). Each backend name
 corresponds to an implementation of
 [`backend.Backend`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/backend#Backend), using a
 mapping table in
@@ -145,7 +145,7 @@ The implementation
 [`statemgr.Filesystem`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/states/statemgr#Filesystem) is used
 by default (by the `local` backend) and is responsible for the familiar
 `terraform.tfstate` local file that most OpenTofu users start with, before
-they switch to [remote state](https://www.placeholderplaceholderplaceholder.io/docs/language/state/remote.html).
+they switch to [remote state](https://opentofu.org/docs/language/state/remote).
 Other implementations of `statemgr.Full` are used to implement remote state.
 Each of these saves and retrieves state via a remote network service
 appropriate to the backend that creates it.
@@ -206,7 +206,7 @@ important examples include:
 * [`ProviderTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ProviderTransformer),
   which associates each resource or resource instance with exactly one
   provider configuration (implementing
-  [the inheritance rules](https://www.placeholderplaceholderplaceholder.io/docs/language/modules/develop/providers.html))
+  [the inheritance rules](https://opentofu.org/docs/language/providers/))
   and then creates "happens after" edges to ensure that the providers are
   initialized before taking any actions with the resources that belong to
   them.
