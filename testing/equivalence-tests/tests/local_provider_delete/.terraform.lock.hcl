@@ -1,7 +1,7 @@
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentf.org/hashicorp/local" {
+provider "registry.opentofu.org/hashicorp/local" {
   version     = "2.2.3"
   constraints = "2.2.3"
   hashes = [

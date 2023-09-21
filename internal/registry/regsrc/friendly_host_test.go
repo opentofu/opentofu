@@ -19,18 +19,18 @@ func TestFriendlyHost(t *testing.T) {
 	}{
 		{
 			name:        "simple ascii",
-			source:      "registry.opentf.org",
-			wantHost:    "registry.opentf.org",
-			wantDisplay: "registry.opentf.org",
-			wantNorm:    "registry.opentf.org",
+			source:      "registry.opentofu.org",
+			wantHost:    "registry.opentofu.org",
+			wantDisplay: "registry.opentofu.org",
+			wantNorm:    "registry.opentofu.org",
 			wantValid:   true,
 		},
 		{
 			name:        "mixed-case ascii",
-			source:      "Registry.OpenTF.org",
-			wantHost:    "Registry.OpenTF.org",
-			wantDisplay: "registry.opentf.org", // Display case folded
-			wantNorm:    "registry.opentf.org",
+			source:      "Registry.OpenTofu.org",
+			wantHost:    "Registry.OpenTofu.org",
+			wantDisplay: "registry.opentofu.org", // Display case folded
+			wantNorm:    "registry.opentofu.org",
 			wantValid:   true,
 		},
 		{

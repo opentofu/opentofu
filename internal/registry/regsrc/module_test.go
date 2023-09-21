@@ -34,8 +34,8 @@ func TestModule(t *testing.T) {
 		},
 		{
 			name:        "public registry, explicit host",
-			source:      "registry.opentf.org/hashicorp/consul/aws",
-			wantString:  "registry.opentf.org/hashicorp/consul/aws",
+			source:      "registry.opentofu.org/hashicorp/consul/aws",
+			wantString:  "registry.opentofu.org/hashicorp/consul/aws",
 			wantDisplay: "hashicorp/consul/aws",
 			wantNorm:    "hashicorp/consul/aws",
 			wantErr:     false,

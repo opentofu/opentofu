@@ -246,21 +246,21 @@ func TestSaveLocksToFile(t *testing.T) {
 	wantContent := `# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentf.org/test/bar" {
+provider "registry.opentofu.org/test/bar" {
   version     = "1.2.0"
   constraints = "~> 1.0"
 }
 
-provider "registry.opentf.org/test/baz" {
+provider "registry.opentofu.org/test/baz" {
   version = "1.2.0"
 }
 
-provider "registry.opentf.org/test/boo" {
+provider "registry.opentofu.org/test/boo" {
   version     = "1.2.0"
   constraints = "1.2.0"
 }
 
-provider "registry.opentf.org/test/foo" {
+provider "registry.opentofu.org/test/foo" {
   version     = "1.0.0"
   constraints = ">= 1.0.0"
   hashes = [

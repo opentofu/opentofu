@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     nonexist = {
-      source = "registry.opentf.org/hashicorp/nonexist"
+      source = "registry.opentofu.org/hashicorp/nonexist"
     }
   }
 }

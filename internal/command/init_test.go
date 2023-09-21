@@ -1343,15 +1343,15 @@ func TestInit_getProvider(t *testing.T) {
 	}
 
 	// check that we got the providers for our config
-	exactPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/exact/1.2.3/%s", getproviders.CurrentPlatform)
+	exactPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/exact/1.2.3/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(exactPath); os.IsNotExist(err) {
 		t.Fatal("provider 'exact' not downloaded")
 	}
-	greaterThanPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/greater-than/2.3.4/%s", getproviders.CurrentPlatform)
+	greaterThanPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/greater-than/2.3.4/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(greaterThanPath); os.IsNotExist(err) {
 		t.Fatal("provider 'greater-than' not downloaded")
 	}
-	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/between/2.3.4/%s", getproviders.CurrentPlatform)
+	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/between/2.3.4/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(betweenPath); os.IsNotExist(err) {
 		t.Fatal("provider 'between' not downloaded")
 	}
@@ -1447,7 +1447,7 @@ func TestInit_getProviderSource(t *testing.T) {
 	}
 
 	// check that we got the providers for our config
-	exactPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/acme/alpha/1.2.3/%s", getproviders.CurrentPlatform)
+	exactPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/acme/alpha/1.2.3/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(exactPath); os.IsNotExist(err) {
 		t.Error("provider 'alpha' not downloaded")
 	}
@@ -1455,7 +1455,7 @@ func TestInit_getProviderSource(t *testing.T) {
 	if _, err := os.Stat(greaterThanPath); os.IsNotExist(err) {
 		t.Error("provider 'beta' not downloaded")
 	}
-	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/gamma/2.0.0/%s", getproviders.CurrentPlatform)
+	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/gamma/2.0.0/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(betweenPath); os.IsNotExist(err) {
 		t.Error("provider 'gamma' not downloaded")
 	}
@@ -1547,7 +1547,7 @@ func TestInit_getProviderInvalidPackage(t *testing.T) {
 	}
 
 	// invalid provider should be installed
-	packagePath := fmt.Sprintf(".terraform/providers/registry.opentf.org/invalid/package/1.0.0/%s/terraform-package", getproviders.CurrentPlatform)
+	packagePath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/invalid/package/1.0.0/%s/terraform-package", getproviders.CurrentPlatform)
 	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
 		t.Fatal("provider 'invalid/package' not downloaded")
 	}
@@ -1606,12 +1606,12 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	}
 
 	// foo should be installed
-	fooPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/foo/1.2.3/%s", getproviders.CurrentPlatform)
+	fooPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/foo/1.2.3/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(fooPath); os.IsNotExist(err) {
 		t.Error("provider 'foo' not installed")
 	}
 	// baz should not be installed
-	bazPath := fmt.Sprintf(".terraform/providers/registry.opentf.org/terraform-providers/baz/2.3.4/%s", getproviders.CurrentPlatform)
+	bazPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/terraform-providers/baz/2.3.4/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(bazPath); !os.IsNotExist(err) {
 		t.Error("provider 'baz' installed, but should not be")
 	}
@@ -1621,8 +1621,8 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	errors := []string{
 		"Failed to query available provider packages",
 		"Could not retrieve the list of available versions",
-		"registry.opentf.org/hashicorp/baz",
-		"registry.opentf.org/hashicorp/frob",
+		"registry.opentofu.org/hashicorp/baz",
+		"registry.opentofu.org/hashicorp/frob",
 	}
 	for _, want := range errors {
 		if !strings.Contains(errOutput, want) {
@@ -2111,7 +2111,7 @@ func TestInit_providerLockFile(t *testing.T) {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentf.org/hashicorp/test" {
+provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2138,7 +2138,7 @@ func TestInit_providerLockFileReadonly(t *testing.T) {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentf.org/hashicorp/test" {
+provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2151,7 +2151,7 @@ provider "registry.opentf.org/hashicorp/test" {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentf.org/hashicorp/test" {
+provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2164,7 +2164,7 @@ provider "registry.opentf.org/hashicorp/test" {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentf.org/hashicorp/test" {
+provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2861,7 +2861,7 @@ func TestInit_testsWithModule(t *testing.T) {
 //
 // Provider addresses must be valid source strings, and passing only the
 // provider name will be interpreted as a "default" provider under
-// registry.opentf.org/hashicorp. If you need more control over the
+// registry.opentofu.org/hashicorp. If you need more control over the
 // provider addresses, pass a full provider source string.
 //
 // This function also registers providers as belonging to the current platform,
@@ -2980,13 +2980,13 @@ func expectedPackageInstallPath(name, version string, exe bool) string {
 	platform := getproviders.CurrentPlatform
 	baseDir := ".terraform/providers"
 	if exe {
-		p := fmt.Sprintf("registry.opentf.org/hashicorp/%s/%s/%s/terraform-provider-%s_%s", name, version, platform, name, version)
+		p := fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s/terraform-provider-%s_%s", name, version, platform, name, version)
 		if platform.OS == "windows" {
 			p += ".exe"
 		}
 		return filepath.ToSlash(filepath.Join(baseDir, p))
 	}
 	return filepath.ToSlash(filepath.Join(
-		baseDir, fmt.Sprintf("registry.opentf.org/hashicorp/%s/%s/%s", name, version, platform),
+		baseDir, fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s", name, version, platform),
 	))
 }
