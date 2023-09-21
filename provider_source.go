@@ -21,7 +21,7 @@ import (
 
 // providerSource constructs a provider source based on a combination of the
 // CLI configuration and some default search locations. This will be the
-// provider source used for provider installation in the "opentf init"
+// provider source used for provider installation in the "tofu init"
 // command, unless overridden by the special -plugin-dir option.
 func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {

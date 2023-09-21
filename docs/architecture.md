@@ -1,26 +1,26 @@
-# OpenTF Core Architecture Summary
+# OpenTofu Core Architecture Summary
 
-This document is a summary of the main components of OpenTF Core and how
+This document is a summary of the main components of OpenTofu Core and how
 data and requests flow between these components. It's intended as a primer
 to help navigate the codebase to dig into more details.
 
-We assume some familiarity with user-facing OpenTF concepts like
-configuration, state, CLI workflow, etc. The OpenTF website has
+We assume some familiarity with user-facing OpenTofu concepts like
+configuration, state, CLI workflow, etc. The OpenTofu website has
 documentation on these ideas.
 
-## OpenTF Request Flow
+## OpenTofu Request Flow
 
 The following diagram shows an approximation of how a user command is
-executed in OpenTF:
+executed in OpenTofu:
 
-![OpenTF Architecture Diagram, described in text below](./images/architecture-overview.png)
+![OpenTofu Architecture Diagram, described in text below](./images/architecture-overview.png)
 
 Each of the different subsystems (solid boxes) in this diagram is described
 in more detail in a corresponding section below.
 
 ## CLI (`command` package)
 
-Each time a user runs the `opentf` program, aside from some initial
+Each time a user runs the `tofu` program, aside from some initial
 bootstrapping in the root package (not shown in the diagram) execution
 transfers immediately into one of the "command" implementations in
 [the `command` package](https://pkg.go.dev/github.com/opentofu/opentofu/internal/command).
@@ -29,8 +29,8 @@ their corresponding `command` package types can be found in the `commands.go`
 file in the root of the repository.
 
 The full flow illustrated above does not actually apply to _all_ commands,
-but it applies to the main OpenTF workflow commands `opentf plan` and
-`opentf apply`, along with a few others.
+but it applies to the main OpenTofu workflow commands `tofu plan` and
+`tofu apply`, along with a few others.
 
 For these commands, the role of the command implementation is to read and parse
 any command line arguments, command line options, and environment variables
@@ -41,7 +41,7 @@ object that describes an action to be taken.
 An _operation_ consists of:
 
 * The action to be taken (e.g. "plan", "apply").
-* The name of the [workspace](https://www.placeholderplaceholderplaceholder.io/docs/state/workspaces.html)
+* The name of the [workspace](https://opentofu.org/docs/language/state/workspaces)
   where the action will be taken.
 * Root module input variables to use for the action.
 * For the "plan" operation, a path to the directory containing the configuration's root module.
@@ -50,7 +50,7 @@ An _operation_ consists of:
 "force" flag, etc.
 
 The operation is then passed to the currently-selected
-[backend](https://www.placeholderplaceholderplaceholder.io/docs/backends/index.html). Each backend name
+[backend](https://opentofu.org/docs/language/settings/backends/configuration). Each backend name
 corresponds to an implementation of
 [`backend.Backend`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/backend#Backend), using a
 mapping table in
@@ -62,18 +62,18 @@ the command-handling code calls `Operation` with the operation it has
 constructed, and then the backend is responsible for executing that action.
 
 Backends that execute operations, however, do so as an architectural implementation detail and not a
-general feature of backends. That is, the term 'backend' as a OpenTF feature is used to refer to
-a plugin that determines where OpenTF stores its state snapshots - only the default `local`
+general feature of backends. That is, the term 'backend' as a OpenTofu feature is used to refer to
+a plugin that determines where OpenTofu stores its state snapshots - only the default `local`
 backend and Terraform Cloud's backends (`remote`, `cloud`) perform operations.
 
 Thus, most backends do _not_ implement this interface, and so the `command` package wraps these
 backends in an instance of
 [`local.Local`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/backend/local#Local),
-causing the operation to be executed locally within the `opentf` process itself.
+causing the operation to be executed locally within the `tofu` process itself.
 
 ## Backends
 
-A _backend_ determines where OpenTF should store its state snapshots.
+A _backend_ determines where OpenTofu should store its state snapshots.
 
 As described above, the `local` backend also executes operations on behalf of most other
 backends. It uses a _state manager_
@@ -85,14 +85,14 @@ specified in the operation, then uses the _config loader_ to load and do
 initial processing/validation of the configuration specified in the
 operation. It then uses these, along with the other settings given in the
 operation, to construct a
-[`terraform.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#Context),
-which is the main object that actually performs OpenTF operations.
+[`terraform.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context),
+which is the main object that actually performs OpenTofu operations.
 
 The `local` backend finally calls an appropriate method on that context to
 begin execution of the relevant command, such as
-[`Plan`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#Context.Plan)
+[`Plan`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context.Plan)
 or
-[`Apply`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#Context.Apply), which in turn constructs a graph using a _graph builder_,
+[`Apply`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context.Apply), which in turn constructs a graph using a _graph builder_,
 described in a later section.
 
 ## Configuration Loader
@@ -109,13 +109,13 @@ configuration objects, but the main entry point is in the sub-package
 via
 [`configload.Loader`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/configs/configload#Loader).
 A loader deals with all of the details of installing child modules
-(during `opentf init`) and then locating those modules again when a
+(during `tofu init`) and then locating those modules again when a
 configuration is loaded by a backend. It takes the path to a root module
 and recursively loads all of the child modules to produce a single
 [`configs.Config`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/configs#Config)
 representing the entire configuration.
 
-OpenTF expects configuration files written in the OpenTF language, which
+OpenTofu expects configuration files written in the OpenTofu language, which
 is a DSL built on top of
 [HCL](https://github.com/hashicorp/hcl). Some parts of the configuration
 cannot be interpreted until we build and walk the graph, since they depend
@@ -124,12 +124,12 @@ the configuration remain represented as the low-level HCL types
 [`hcl.Body`](https://pkg.go.dev/github.com/hashicorp/hcl/v2/#Body)
 and
 [`hcl.Expression`](https://pkg.go.dev/github.com/hashicorp/hcl/v2/#Expression),
-allowing OpenTF to interpret them at a more appropriate time.
+allowing OpenTofu to interpret them at a more appropriate time.
 
 ## State Manager
 
 A _state manager_ is responsible for storing and retrieving snapshots of the
-[OpenTF state](https://www.placeholderplaceholderplaceholder.io/docs/language/state/index.html)
+[OpenTofu state](https://opentofu.org/docs/language/state/index.html)
 for a particular workspace. Each manager is an implementation of
 some combination of interfaces in
 [the `statemgr` package](https://pkg.go.dev/github.com/opentofu/opentofu/internal/states/statemgr),
@@ -144,8 +144,8 @@ that does not implement all of `statemgr.Full`.
 The implementation
 [`statemgr.Filesystem`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/states/statemgr#Filesystem) is used
 by default (by the `local` backend) and is responsible for the familiar
-`terraform.tfstate` local file that most OpenTF users start with, before
-they switch to [remote state](https://www.placeholderplaceholderplaceholder.io/docs/language/state/remote.html).
+`terraform.tfstate` local file that most OpenTofu users start with, before
+they switch to [remote state](https://opentofu.org/docs/language/state/remote).
 Other implementations of `statemgr.Full` are used to implement remote state.
 Each of these saves and retrieves state via a remote network service
 appropriate to the backend that creates it.
@@ -160,18 +160,18 @@ kind of arbitrary blob store.
 ## Graph Builder
 
 A _graph builder_ is called by a
-[`terraform.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#Context)
+[`terraform.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context)
 method (e.g. `Plan` or `Apply`) to produce the graph that will be used
 to represent the necessary steps for that operation and the dependency
 relationships between them.
 
 In most cases, the
-[vertices](https://en.wikipedia.org/wiki/Vertex_(graph_theory)) of OpenTF's
+[vertices](https://en.wikipedia.org/wiki/Vertex_(graph_theory)) of OpenTofu's
 graphs each represent a specific object in the configuration, or something
 derived from those configuration objects. For example, each `resource` block
 in the configuration has one corresponding
-[`GraphNodeConfigResource`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#GraphNodeConfigResource)
-vertex representing it in the "plan" graph. (OpenTF Core uses terminology
+[`GraphNodeConfigResource`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeConfigResource)
+vertex representing it in the "plan" graph. (OpenTofu Core uses terminology
 inconsistently, describing graph _vertices_ also as graph _nodes_ in various
 places. These both describe the same concept.)
 
@@ -187,26 +187,26 @@ graph from the set of changes described in the plan that is being applied.
 
 The graph builders all work in terms of a sequence of _transforms_, which
 are implementations of
-[`terraform.GraphTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#GraphTransformer).
+[`terraform.GraphTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphTransformer).
 Implementations of this interface just take a graph and mutate it in any
 way needed, and so the set of available transforms is quite varied. Some
 important examples include:
 
-* [`ConfigTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#ConfigTransformer),
+* [`ConfigTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ConfigTransformer),
   which creates a graph vertex for each `resource` block in the configuration.
 
-* [`StateTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#StateTransformer),
+* [`StateTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#StateTransformer),
   which creates a graph vertex for each resource instance currently tracked
   in the state.
 
-* [`ReferenceTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#ReferenceTransformer),
+* [`ReferenceTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ReferenceTransformer),
   which analyses the configuration to find dependencies between resources and
   other objects and creates any necessary "happens after" edges for these.
 
-* [`ProviderTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#ProviderTransformer),
+* [`ProviderTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ProviderTransformer),
   which associates each resource or resource instance with exactly one
   provider configuration (implementing
-  [the inheritance rules](https://www.placeholderplaceholderplaceholder.io/docs/language/modules/develop/providers.html))
+  [the inheritance rules](https://opentofu.org/docs/language/providers/))
   and then creates "happens after" edges to ensure that the providers are
   initialized before taking any actions with the resources that belong to
   them.
@@ -217,7 +217,7 @@ builder uses a different subset of these depending on the needs of the
 operation that is being performed.
 
 The result of graph building is a
-[`terraform.Graph`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#Graph), which
+[`terraform.Graph`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Graph), which
 can then be processed using a _graph walker_.
 
 ## Graph Walk
@@ -228,14 +228,14 @@ itself is implemented in
 [the low-level `dag` package](https://pkg.go.dev/github.com/opentofu/opentofu/internal/dag#AcyclicGraph.Walk)
 (where "DAG" is short for [_Directed Acyclic Graph_](https://en.wikipedia.org/wiki/Directed_acyclic_graph)), in
 [`AcyclicGraph.Walk`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/dag#AcyclicGraph.Walk).
-However, the "interesting" OpenTF walk functionality is implemented in
-[`terraform.ContextGraphWalker`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#ContextGraphWalker),
+However, the "interesting" OpenTofu walk functionality is implemented in
+[`terraform.ContextGraphWalker`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ContextGraphWalker),
 which implements a small set of higher-level operations that are performed
 during the graph walk:
 
 * `EnterPath` is called once for each module in the configuration, taking a
   module address and returning a
-  [`terraform.EvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#EvalContext)
+  [`terraform.EvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#EvalContext)
   that tracks objects within that module. `terraform.Context` is the _global_
   context for the entire operation, while `terraform.EvalContext` is a
   context for processing within a single module, and is the primary means
@@ -287,20 +287,20 @@ implementation can take any action against the `EvalContext`.
 
 The implementation of `terraform.EvalContext` used in real processing
 (as opposed to testing) is
-[`terraform.BuiltinEvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#BuiltinEvalContext).
+[`terraform.BuiltinEvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#BuiltinEvalContext).
 It provides coordinated access to plugins, the current state, and the current
 plan via the `EvalContext` interface methods.
 
 In order to be executed, a vertex must implement
-[`terraform.GraphNodeExecutable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#GraphNodeExecutable),
+[`terraform.GraphNodeExecutable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeExecutable),
 which has a single `Execute` method that handles. There are numerous `Execute`
 implementations with different behaviors, but some prominent examples are:
 
-* [NodePlannableResource.Execute](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#NodePlannableResourceInstance.Execute), which handles the `plan` operation.
+* [NodePlannableResource.Execute](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#NodePlannableResourceInstance.Execute), which handles the `plan` operation.
 
-* [`NodeApplyableResourceInstance.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#NodeApplyableResourceInstance.Execute), which handles the main `apply` operation.
+* [`NodeApplyableResourceInstance.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#NodeApplyableResourceInstance.Execute), which handles the main `apply` operation.
 
-* [`NodeDestroyResourceInstance.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#EvalWriteState), which handles the main `destroy` operation.
+* [`NodeDestroyResourceInstance.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#EvalWriteState), which handles the main `destroy` operation.
 
 A vertex must complete successfully before the graph walk will begin evaluation
 for other vertices that have "happens after" edges. Evaluation can fail with one
@@ -346,7 +346,7 @@ or
 
 Expression evaluation produces a dynamic value represented as a
 [`cty.Value`](https://pkg.go.dev/github.com/zclconf/go-cty/cty#Value).
-This Go type represents values from the OpenTF language and such values
+This Go type represents values from the OpenTofu language and such values
 are eventually passed to provider plugins.
 
 ### Sub-graphs
@@ -367,7 +367,7 @@ known when the main graph is constructed, but become known while evaluating
 other vertices in the main graph.
 
 This special behavior applies to vertex objects that implement
-[`terraform.GraphNodeDynamicExpandable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/opentf#GraphNodeDynamicExpandable).
+[`terraform.GraphNodeDynamicExpandable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeDynamicExpandable).
 Such vertices have their own nested _graph builder_, _graph walk_,
 and _vertex evaluation_ steps, with the same behaviors as described in these
 sections for the main graph. The difference is in which graph transforms
