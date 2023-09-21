@@ -590,8 +590,8 @@ func TestTest_Verbose(t *testing.T) {
 	expected := `main.tftest.hcl... pass
   run "validate_test_resource"... pass
 
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
 
 OpenTofu will perform the following actions:
