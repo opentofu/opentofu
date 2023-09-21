@@ -893,8 +893,8 @@ resource "test_resource" "resource" {
 }
   run "plan_second_example"... pass
 
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
 
 OpenTofu will perform the following actions:
@@ -908,8 +908,8 @@ OpenTofu will perform the following actions:
 Plan: 1 to add, 0 to change, 0 to destroy.
   run "plan_update"... pass
 
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
 OpenTofu will perform the following actions:
@@ -923,8 +923,8 @@ OpenTofu will perform the following actions:
 Plan: 0 to add, 1 to change, 0 to destroy.
   run "plan_update_example"... pass
 
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
 OpenTofu will perform the following actions:
