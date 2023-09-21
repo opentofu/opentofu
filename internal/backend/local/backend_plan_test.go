@@ -420,8 +420,8 @@ func TestLocal_planDeposedOnly(t *testing.T) {
 	// it's also possible for there to be _multiple_ deposed objects, in the
 	// unlikely event that create_before_destroy _keeps_ crashing across
 	// subsequent runs.
-	expectedOutput := `OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+	expectedOutput := `OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
   - destroy
 
@@ -492,8 +492,8 @@ func TestLocal_planTainted_createBeforeDestroy(t *testing.T) {
 		t.Fatal("plan should not be empty")
 	}
 
-	expectedOutput := `OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+	expectedOutput := `OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
 +/- create replacement and then destroy
 
 OpenTofu will perform the following actions:
