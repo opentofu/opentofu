@@ -162,7 +162,7 @@ docker_manifests:
 
 nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}'
-    maintainer: 'https://github.com/orgs/opentofu/teams/opentf-core-team'
+    maintainer: 'https://github.com/orgs/opentofu/teams/opentofu-core-team'
     homepage: https://opentofu.org
     description: >-
       OpenTofu lets you declaratively manage your cloud infrastructure.
