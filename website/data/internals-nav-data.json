@@ -1,5 +1,5 @@
 [
-  { "heading": "OpenTF Internals" },
+  { "heading": "OpenTofu Internals" },
   {
     "title": "Overview",
     "path": "internals/index"
@@ -9,7 +9,7 @@
     "path": "internals/credentials-helpers"
   },
   {
-    "title": "Debugging OpenTF",
+    "title": "Debugging OpenTofu",
     "path": "internals/debugging"
   },
   {

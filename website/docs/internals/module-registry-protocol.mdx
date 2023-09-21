@@ -1,13 +1,13 @@
 ---
 description: |-
   The module registry protocol is implemented by a host intending to be the
-  host of one or more OpenTF modules, specifying which modules are available
+  host of one or more OpenTofu modules, specifying which modules are available
   and where to find their distribution packages.
 ---
 
 # Module Registry Protocol
 
-The module registry protocol is what OpenTF CLI uses to discover metadata
+The module registry protocol is what OpenTofu CLI uses to discover metadata
 about modules available for installation and to locate the distribution
 package for a selected module.
 
@@ -20,13 +20,13 @@ publishing them on the public Terraform Registry.
 The public Terraform Registry implements a superset of the API described on
 this page, in order to capture additional information used in the registry UI.
 For information on those extensions, see
-[OpenTF Registry HTTP API](/docs/registry/api-docs). Third-party registry
+[OpenTofu Registry HTTP API](/docs/registry/api-docs). Third-party registry
 implementations may choose to implement those extensions if desired, but
-OpenTF CLI itself does not use them.
+OpenTofu CLI itself does not use them.
 
 ## Module Addresses
 
-Each OpenTF module has an associated address. A module address has the
+Each OpenTofu module has an associated address. A module address has the
 syntax `hostname/namespace/name/system`, where:
 
 - `hostname` is the hostname of the module registry that serves this module.
@@ -58,7 +58,7 @@ For example:
 - `example.com/awesomecorp/consul/happycloud` is a hypothetical module published
   on a third-party registry.
 
-If you intend to share a module you've developed for use by all OpenTF
+If you intend to share a module you've developed for use by all OpenTofu
 users, please consider publishing it into the public
 [Terraform Registry](https://registry.terraform.io/) to make your module more
 discoverable. You only need to implement this module registry protocol if you
@@ -68,7 +68,7 @@ under your control.
 ## Module Versions
 
 Each distinct module address has associated with it a set of versions, each
-of which has an associated version number. OpenTF assumes version numbers
+of which has an associated version number. OpenTofu assumes version numbers
 follow the [Semantic Versioning 2.0](https://semver.org/) conventions, with
 the user-facing behavior of the module serving as the "public API".
 
@@ -77,8 +77,8 @@ blocks have the same source address.
 
 ## Service Discovery
 
-The module registry protocol begins with OpenTF CLI using
-[OpenTF's remote service discovery protocol](/docs/internals/remote-service-discovery),
+The module registry protocol begins with OpenTofu CLI using
+[OpenTofu's remote service discovery protocol](/docs/internals/remote-service-discovery),
 with the hostname in the module address acting as the "User-facing Hostname".
 
 The service identifier for the module registry protocol is `modules.v1`.
@@ -90,18 +90,18 @@ the module registry protocol might contain the following:
 
 ```json
 {
-  "modules.v1": "/opentf/modules/v1/"
+  "modules.v1": "/tofu/modules/v1/"
 }
 ```
 
-If the given URL is a relative URL then OpenTF will interpret it as relative
+If the given URL is a relative URL then OpenTofu will interpret it as relative
 to the discovery document itself. The specific module registry protocol
 endpoints are defined as URLs relative to the given base URL, and so the
 specified base URL should generally end with a slash to ensure that those
 relative paths will be resolved as expected.
 
 The following sections describe the various operations that a module
-registry must implement to be compatible with OpenTF CLI's module
+registry must implement to be compatible with OpenTofu CLI's module
 installer. The indicated URLs are all relative to the URL resulting from
 service discovery, as described above. We use a hypothetical URL for a provider
 registry, assuming that the caller already performed service discovery on a hypothetical
@@ -144,9 +144,9 @@ $ curl 'https://registry.example.io/v1/modules/hashicorp/consul/aws/versions'
 The `modules` array in the response always includes the requested module as the
 first element.
 
-OpenTF does not use the other elements of this list. However, third-party implementations should always use a single-element list for forward compatiblity.
+OpenTofu does not use the other elements of this list. However, third-party implementations should always use a single-element list for forward compatiblity.
 
-Each returned module has an array of available versions, which OpenTF
+Each returned module has an array of available versions, which OpenTofu
 matches against any version constraints given in configuration.
 
 ```json
@@ -205,7 +205,7 @@ X-Terraform-Get: https://api.github.com/repos/hashicorp/terraform-aws-consul/tar
 A successful response has no body, and includes the location from which the
 module version's source can be downloaded in the `X-Terraform-Get` header.
 The value of this header accepts the same values as the `source` argument
-in a `module` block in OpenTF configuration, as described in
+in a `module` block in OpenTofu configuration, as described in
 [Module Sources](/docs/language/modules/sources),
 except that it may not recursively refer to another module registry address.
 

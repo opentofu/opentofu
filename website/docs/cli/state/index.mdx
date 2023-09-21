@@ -4,19 +4,19 @@ description: >-
   Inspect state, move or import resources, and more.
 ---
 
-# Manipulating OpenTF State
+# Manipulating OpenTofu State
 
-OpenTF uses [state data](/docs/language/state) to remember which
+OpenTofu uses [state data](/docs/language/state) to remember which
 real-world object corresponds to each resource in the configuration;
 this allows it to modify an existing object when its resource declaration
 changes.
 
-OpenTF updates state automatically during plans and applies. However, it's
-sometimes necessary to make deliberate adjustments to OpenTF's state data,
+OpenTofu updates state automatically during plans and applies. However, it's
+sometimes necessary to make deliberate adjustments to OpenTofu's state data,
 usually to compensate for changes to the configuration or the real managed
 infrastructure.
 
-OpenTF CLI supports several workflows for interacting with state:
+OpenTofu CLI supports several workflows for interacting with state:
 
 - [Inspecting State](/docs/cli/state/inspect)
 - [Forcing Re-creation](/docs/cli/state/taint)
@@ -27,7 +27,7 @@ OpenTF CLI supports several workflows for interacting with state:
 
 :::warning Important
 Modifying state data outside a normal plan or apply can cause
-OpenTF to lose track of managed resources, which might waste money, annoy
+OpenTofu to lose track of managed resources, which might waste money, annoy
 your colleagues, or even compromise the security of your operations. Make sure
 to keep backups of your state data when modifying state out-of-band.
 :::

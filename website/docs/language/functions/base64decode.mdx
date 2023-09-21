@@ -8,15 +8,15 @@ description: The base64decode function decodes a string containing a base64 sequ
 `base64decode` takes a string containing a Base64 character sequence and
 returns the original string.
 
-OpenTF uses the "standard" Base64 alphabet as defined in
+OpenTofu uses the "standard" Base64 alphabet as defined in
 [RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
 
-Strings in the OpenTF language are sequences of unicode characters rather
+Strings in the OpenTofu language are sequences of unicode characters rather
 than bytes, so this function will also interpret the resulting bytes as
 UTF-8. If the bytes after Base64 decoding are _not_ valid UTF-8, this function
 produces an error.
 
-While we do not recommend manipulating large, raw binary data in the OpenTF
+While we do not recommend manipulating large, raw binary data in the OpenTofu
 language, Base64 encoding is the standard way to represent arbitrary byte
 sequences, and so resource types that accept or return binary data will use
 Base64 themselves, which avoids the need to encode or decode it directly in

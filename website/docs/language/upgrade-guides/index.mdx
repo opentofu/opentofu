@@ -1,13 +1,13 @@
 ---
-description: Upgrading to OpenTF v1.6
+description: Upgrading to OpenTofu v1.6
 ---
 
-# Upgrading to OpenTF v1.6
+# Upgrading to OpenTofu v1.6
 
-OpenTF v1.6 is the first release in the stable OpenTF v1.0 series.
+OpenTofu v1.6 is the first release in the stable OpenTofu v1.0 series.
 
-OpenTF v1.6 honors the
-[OpenTF v1.0 Compatibility Promises](/docs/language/v1-compatibility-promises),
+OpenTofu v1.6 honors the
+[OpenTofu v1.0 Compatibility Promises](/docs/language/v1-compatibility-promises),
 but there are some behavior changes outside of those promises that may affect a
 small number of users. Specifically, the following updates may require
 additional upgrade steps:
@@ -16,28 +16,28 @@ additional upgrade steps:
 See [the full changelog](https://github.com/opentofu/opentofu/blob/v1.6/CHANGELOG.md)
 for more details. If you encounter any problems during upgrading which are not
 covered this guide, please start a new topic in
-[the OpenTF community forum](https://github.com/opentofu/opentofu/discussions)
+[the OpenTofu community forum](https://github.com/opentofu/opentofu/discussions)
 to discuss it.
 
 ## Linux DNS resolver changes
 
-OpenTF on Linux uses a built-in DNS resolver rather than using the DNS
-resolver from the platform's C library, because this allows OpenTF to run
+OpenTofu on Linux uses a built-in DNS resolver rather than using the DNS
+resolver from the platform's C library, because this allows OpenTofu to run
 on systems with many different C libraries.
 
-In OpenTF v1.6, the DNS resolver will now notice when you have set the
+In OpenTofu v1.6, the DNS resolver will now notice when you have set the
 `trust-ad` option in your `/etc/resolve.conf` file, and will respond by setting
 the "authentic data" option in outgoing DNS requests to better match the
 behavior of the GNU libc DNS resolver.
 
-OpenTF does not pay any attention to the corresponding option in responses,
+OpenTofu does not pay any attention to the corresponding option in responses,
 but some DNSSEC-aware recursive resolvers return different responses when the
 request option isn't set. This should therefore avoid some potential situations
-where a DNS request from OpenTF might get a different response than a
+where a DNS request from OpenTofu might get a different response than a
 similar request from other software on your system.
 
-We don't expect this behavior change to be significant for most OpenTF users.
+We don't expect this behavior change to be significant for most OpenTofu users.
 
-Note that this change affects only DNS requests made by OpenTF CLI itself,
+Note that this change affects only DNS requests made by OpenTofu CLI itself,
 and not requests made by providers. Provider plugins are separate programs
 which handle DNS resolution themselves and so may have different behavior.

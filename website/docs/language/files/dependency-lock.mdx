@@ -1,96 +1,96 @@
 ---
 title: Dependency Lock File
 description: >-
-  OpenTF uses the dependency lock file .teraform.lock.hcl to track and select
+  OpenTofu uses the dependency lock file .teraform.lock.hcl to track and select
   provider versions. Learn about dependency installation and lock file changes.
 ---
 
 # Dependency Lock File
 
-An OpenTF configuration may refer to two different kinds of external
+An OpenTofu configuration may refer to two different kinds of external
 dependency that come from outside of its own codebase:
 
-- [Providers](/docs/language/providers/requirements), which are plugins for OpenTF
+- [Providers](/docs/language/providers/requirements), which are plugins for OpenTofu
   that extend it with support for interacting with various external systems.
 - [Modules](/docs/language/modules), which allow
-  splitting out groups of OpenTF configuration constructs (written in the
-  OpenTF language) into reusable abstractions.
+  splitting out groups of OpenTofu configuration constructs (written in the
+  OpenTofu language) into reusable abstractions.
 
 Both of these dependency types can be published and updated independently from
-OpenTF itself and from the configurations that depend on them. For that
-reason, OpenTF must determine which versions of those dependencies are
+OpenTofu itself and from the configurations that depend on them. For that
+reason, OpenTofu must determine which versions of those dependencies are
 potentially compatible with the current configuration and which versions are
 currently selected for use.
 
 [Version constraints](/docs/language/expressions/version-constraints) within the configuration
 itself determine which versions of dependencies are _potentially_ compatible,
-but after selecting a specific version of each dependency OpenTF remembers
+but after selecting a specific version of each dependency OpenTofu remembers
 the decisions it made in a _dependency lock file_ so that it can (by default)
 make the same decisions again in future.
 
 At present, the dependency lock file tracks only _provider_ dependencies.
-OpenTF does not remember version selections for remote modules, and so
-OpenTF will always select the newest available module version that meets
+OpenTofu does not remember version selections for remote modules, and so
+OpenTofu will always select the newest available module version that meets
 the specified version constraints. You can use an _exact_ version constraint
-to ensure that OpenTF will always select the same module version.
+to ensure that OpenTofu will always select the same module version.
 
 ## Lock File Location
 
 The dependency lock file is a file that belongs to the configuration as a
 whole, rather than to each separate module in the configuration. For that reason
-OpenTF creates it and expects to find it in your current working directory
-when you run OpenTF, which is also the directory containing the `.tf` files
+OpenTofu creates it and expects to find it in your current working directory
+when you run OpenTofu, which is also the directory containing the `.tf` files
 for the root module of your configuration.
 
 The lock file is always named `.terraform.lock.hcl`, and this name is intended
-to signify that it is a lock file for various items that OpenTF caches in
+to signify that it is a lock file for various items that OpenTofu caches in
 the `.terraform` subdirectory of your working directory.
 
-OpenTF automatically creates or updates the dependency lock file each time
-you run [the `opentf init` command](/docs/cli/commands/init). You should
+OpenTofu automatically creates or updates the dependency lock file each time
+you run [the `tofu init` command](/docs/cli/commands/init). You should
 include this file in your version control repository so that you can discuss
 potential changes to your external dependencies via code review, just as you
 would discuss potential changes to your configuration itself.
 
-The dependency lock file uses the same low-level syntax as the main OpenTF
-language, but the dependency lock file is not itself an OpenTF language
+The dependency lock file uses the same low-level syntax as the main OpenTofu
+language, but the dependency lock file is not itself an OpenTofu language
 configuration file. It is named with the suffix `.hcl` instead of `.tf` in
 order to signify that difference.
 
 ## Dependency Installation Behavior
 
-When `opentf init` is working on installing all of the providers needed for
-a configuration, OpenTF considers both the version constraints in the
+When `tofu init` is working on installing all of the providers needed for
+a configuration, OpenTofu considers both the version constraints in the
 configuration _and_ the version selections recorded in the lock file.
 
-If a particular provider has no existing recorded selection, OpenTF will
+If a particular provider has no existing recorded selection, OpenTofu will
 select the newest available version that matches the given version constraint,
 and then update the lock file to include that selection.
 
 If a particular provider already has a selection recorded in the lock file,
-OpenTF will always re-select that version for installation, even if a
+OpenTofu will always re-select that version for installation, even if a
 newer version has become available. You can override that behavior by adding
-the `-upgrade` option when you run `opentf init`, in which case OpenTF
+the `-upgrade` option when you run `tofu init`, in which case OpenTofu
 will disregard the existing selections and once again select the newest
 available version matching the version constraint.
 
-If a particular `opentf init` call makes changes to the lock file, OpenTF
+If a particular `tofu init` call makes changes to the lock file, OpenTofu
 will mention that as part of its output:
 
 ```
-OpenTF has made some changes to the provider dependency selections recorded
+OpenTofu has made some changes to the provider dependency selections recorded
 in the .terraform.lock.hcl file. Review those changes and commit them to your
 version control system if they represent changes you intended to make.
 ```
 
 When you see this message, you can use your version control system to
-[review the changes OpenTF has proposed in the file](#understanding-lock-file-changes),
+[review the changes OpenTofu has proposed in the file](#understanding-lock-file-changes),
 and if they represent changes you made intentionally you can send the change
 through your team's usual code review process.
 
 ### Checksum verification
 
-OpenTF will also verify that each package it installs matches at least one
+OpenTofu will also verify that each package it installs matches at least one
 of the checksums it previously recorded in the lock file, if any, returning an
 error if none of the checksums match:
 
@@ -106,20 +106,20 @@ This checksum verification is intended to represent a
 _[trust on first use](https://en.wikipedia.org/wiki/Trust_on_first_use)_
 approach. When you add a new provider for the first time you can verify it
 in whatever way you choose or any way you are required to by relevant
-regulations, and then trust that OpenTF will raise an error if a future
-run of `opentf init` encounters a non-matching package for the same
+regulations, and then trust that OpenTofu will raise an error if a future
+run of `tofu init` encounters a non-matching package for the same
 provider version.
 
 There are two special considerations with the "trust on first use" model:
 
 - If you install a provider from an origin registry which provides checksums
-  that are signed with a cryptographic signature, OpenTF will treat all
+  that are signed with a cryptographic signature, OpenTofu will treat all
   of the signed checksums as valid as long as one checksum matches. The lock
   file will therefore include checksums for both the package you installed for
   your current platform _and_ any other packages that might be available for
   other platforms.
 
-  In this case, the `opentf init` output will include the fingerprint of
+  In this case, the `tofu init` output will include the fingerprint of
   the key that signed the checksums, with a message like
   `(signed by a HashiCorp partner, key ID DC9FC6B1FCE47986)`. You may wish to
   confirm that you trust the holder of the given key before committing the
@@ -127,26 +127,26 @@ There are two special considerations with the "trust on first use" model:
   full set of available packages for the given provider version.
 
 - If you install a provider for the first time using an alternative
-  installation method, such as a filesystem or network mirror, OpenTF will
+  installation method, such as a filesystem or network mirror, OpenTofu will
   not be able to verify the checksums for any platform other than the one
-  where you ran `opentf init`, and so it will not record the checksums
+  where you ran `tofu init`, and so it will not record the checksums
   for other platforms and so the configuration will not be usable on any other
   platform.
 
   To avoid this problem you can pre-populate checksums for a variety of
   different platforms in your lock file using
-  [the `opentf providers lock` command](/docs/cli/commands/providers/lock),
-  which will then allow future calls to `opentf init` to verify that the
+  [the `tofu providers lock` command](/docs/cli/commands/providers/lock),
+  which will then allow future calls to `tofu init` to verify that the
   packages available in your chosen mirror match the official packages from
   the provider's origin registry.
 
 ## Understanding Lock File Changes
 
 Because the dependency lock file is primarily maintained automatically by
-OpenTF itself, rather than being updated manually by you or your team,
+OpenTofu itself, rather than being updated manually by you or your team,
 your version control system may show you that the file has changed.
 
-There are a few different types of changes that OpenTF can potentially make
+There are a few different types of changes that OpenTofu can potentially make
 to your lock file, which you may need to understand in order to review the
 proposed changes. The following sections will describe these common situations.
 
@@ -155,7 +155,7 @@ proposed changes. The following sections will describe these common situations.
 If you add a new entry to the
 [provider requirements](/docs/language/providers/requirements) for any module in your
 configuration, or if you add an external module that includes a new provider
-dependency itself, `opentf init` will respond to that by selecting the
+dependency itself, `tofu init` will respond to that by selecting the
 newest version of that provider which meets all of the version constraints
 in the configuration, and it will record its decision as a new `provider`
 block in the dependency lock file.
@@ -194,10 +194,10 @@ block in the dependency lock file.
 
 The new lock file entry records several pieces of information:
 
-- `version`: the exact version that OpenTF selected based on the version
+- `version`: the exact version that OpenTofu selected based on the version
   constraints in the configuration.
-- `constraints`: all of the version constraints that OpenTF considered when
-  making this selection. (OpenTF doesn't actually use this information to
+- `constraints`: all of the version constraints that OpenTofu considered when
+  making this selection. (OpenTofu doesn't actually use this information to
   make installation decisions, but includes it to help explain to human readers
   how the previous decision was made.)
 - `hashes`: a number of checksums that are all considered to be valid for
@@ -207,8 +207,8 @@ The new lock file entry records several pieces of information:
 
 ### New version of an existing provider
 
-If you run `opentf init -upgrade` to ask OpenTF to consider newer provider
-versions that still match the configured version constraints, OpenTF may
+If you run `tofu init -upgrade` to ask OpenTofu to consider newer provider
+versions that still match the configured version constraints, OpenTofu may
 then select a newer version for a provider and update its existing `provider`
 block to reflect that change.
 
@@ -256,7 +256,7 @@ block to reflect that change.
 
 The primary effect of selecting a new provider version is to change the
 value of `version` in the `provider` block. If the upgrade came along with
-a change to the configured version constraints, OpenTF will also record
+a change to the configured version constraints, OpenTofu will also record
 that change in the `constraints` value.
 
 Because each version has its own set of distribution packages, switching to
@@ -282,7 +282,7 @@ in the `provider` block has changed:
      "zh:4c5682ba1e0fc7e2e602d3f103af1638f868c31fe80cc1a884a97f6dad6e1c11",
 ```
 
-The addition of a new checksum into the `hashes` value represents OpenTF
+The addition of a new checksum into the `hashes` value represents OpenTofu
 gradually transitioning between different _hashing schemes_. The `h1:` and
 `zh:` prefixes on these values represent different hashing schemes, each
 of which represents calculating a checksum using a different algorithm.
@@ -293,7 +293,7 @@ additional benefit.
 The two hashing schemes currently supported are:
 
 - `zh:`: a mnemonic for "zip hash", this is a legacy hash format which is
-  part of the OpenTF provider registry protocol and is therefore used for
+  part of the OpenTofu provider registry protocol and is therefore used for
   providers that you install directly from an origin registry.
 
   This hashing scheme captures a SHA256 hash of each of the official `.zip`
@@ -313,38 +313,38 @@ The two hashing schemes currently supported are:
   same contents, or a recompressed `.zip` file which contains the same files
   but potentially different metadata or compression schemes.
 
-  Due to the limited scope of the `zh:` scheme, OpenTF will
+  Due to the limited scope of the `zh:` scheme, OpenTofu will
   opportunistically add in the corresponding `h1:` checksums as it learns
   of them, which is what caused the addition of a second `h1:` checksum
   in the example change shown above.
 
-OpenTF will add a new hash to an existing provider only if the hash is
+OpenTofu will add a new hash to an existing provider only if the hash is
 calculated from a package that _also_ matches one of the existing hashes. In
-the above example, OpenTF installed a `hashicorp/azurerm` package for a
+the above example, OpenTofu installed a `hashicorp/azurerm` package for a
 different platform than that which produced the original `h1:` checksum, but was
 able to match it against one of the `zh:` checksums recorded previously.
-After confirming the `zh:` checksum match, OpenTF then recorded the
+After confirming the `zh:` checksum match, OpenTofu then recorded the
 corresponding `h1:` checksum in order to gradually migrate from the old scheme
 to the new scheme.
 
 When installing a particular provider for the first time (where there is no
-existing `provider` block for it), OpenTF will pre-populate the `hashes`
+existing `provider` block for it), OpenTofu will pre-populate the `hashes`
 value with any checksums that are covered by the provider developer's
 cryptographic signature, which usually covers all of the available packages
 for that provider version across all supported platforms. However, because
 the provider registry protocol still uses the `zh:` scheme, the initial set
-will consist primarily of hashes using that scheme, which OpenTF will then
+will consist primarily of hashes using that scheme, which OpenTofu will then
 upgrade opportunistically as you install the packages on different platforms.
 
 If you wish to avoid ongoing additions of new `h1:` hashes as you work with
 your configuration on new target platforms, or if you are installing providers
 from a mirror that therefore can't provide official signed checksums, you
-can ask OpenTF to pre-populate hashes for a chosen set of platforms
+can ask OpenTofu to pre-populate hashes for a chosen set of platforms
 using
-[the `opentf providers lock` command](/docs/cli/commands/providers/lock):
+[the `tofu providers lock` command](/docs/cli/commands/providers/lock):
 
 ```
-opentf providers lock \
+tofu providers lock \
   -platform=linux_arm64 \
   -platform=linux_amd64 \
   -platform=darwin_amd64 \
@@ -354,16 +354,16 @@ opentf providers lock \
 The above command will download and verify the official packages for all of
 the required providers across all four of the given platforms, and then record
 both `zh:` and `h1:` checksums for each of them in the lock file, thus avoiding
-the case where OpenTF will learn about a `h1:` equivalent only at a later
-time. See the `opentf providers lock` documentation for more information on
+the case where OpenTofu will learn about a `h1:` equivalent only at a later
+time. See the `tofu providers lock` documentation for more information on
 this command.
 
 ### Providers that are no longer required
 
 To determine whether there still exists a dependency on a given provider,
-OpenTF uses two sources of truth: the configuration itself, and the state.
+OpenTofu uses two sources of truth: the configuration itself, and the state.
 If you remove the last dependency on a particular provider from both your
-configuration and state, then `opentf init` will remove any existing lock
+configuration and state, then `tofu init` will remove any existing lock
 file entry for that provider.
 
 ```diff
@@ -399,7 +399,7 @@ file entry for that provider.
 ```
 
 If you add a new requirement for the same provider at a later date and run
-`opentf init` again, OpenTF will treat it as if it were
+`tofu init` again, OpenTofu will treat it as if it were
 [an entirely new provider](#dependency-on-a-new-provider)
 and so will not necessarily select the same version that was previously
 selected and will not be able to verify that the checksums remained unchanged.

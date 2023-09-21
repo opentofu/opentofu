@@ -7,7 +7,7 @@ description: >-
 
 The `check` block can validate your infrastructure outside the usual resource lifecycle. Check blocks address a gap between post-apply and functional validation of infrastructure.
 
-Check blocks allow you to define [custom conditions](/docs/language/expressions/custom-conditions) that execute on every OpenTF plan or apply operation without affecting the overall status of an operation. Check blocks execute as the last step of a plan or apply after OpenTF has planned or provisioned your infrastructure.
+Check blocks allow you to define [custom conditions](/docs/language/expressions/custom-conditions) that execute on every OpenTofu plan or apply operation without affecting the overall status of an operation. Check blocks execute as the last step of a plan or apply after OpenTofu has planned or provisioned your infrastructure.
 
 ## Syntax
 
@@ -32,9 +32,9 @@ check "health_check" {
 
 You can use any data source from any provider as a scoped data source within a `check` block.
 
-A `check` block can optionally contain a nested (a.k.a. scoped) data source. This `data` block behaves like an external [data source](/docs/language/data-sources), except you can not reference it outside its enclosing `check` block. Additionally, if a scoped data source's provider raises any errors, they are masked as warnings and do not prevent OpenTF from continuing operation execution.
+A `check` block can optionally contain a nested (a.k.a. scoped) data source. This `data` block behaves like an external [data source](/docs/language/data-sources), except you can not reference it outside its enclosing `check` block. Additionally, if a scoped data source's provider raises any errors, they are masked as warnings and do not prevent OpenTofu from continuing operation execution.
 
-You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual OpenTF resource lifecycle. [In the above example](#syntax), if the `placeholderplaceholderplaceholder_io` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
+You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual OpenTofu resource lifecycle. [In the above example](#syntax), if the `placeholderplaceholderplaceholder_io` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
 
 #### Meta-Arguments
 
@@ -44,11 +44,11 @@ Scoped data sources support the `depends_on` and `provider` [meta-arguments](/do
 
 The `depends_on` meta-argument can be particularly powerful when used within scoped data sources.
 
-The first time OpenTF creates the _initial_ plan for our [previous example](#syntax), the plan fails because OpenTF has not applied its configuration yet. Meaning this test fails because OpenTF must still create the resources to make this website exist. Therefore, the first time OpenTF runs this check, it always throws a potentially distracting error message.
+The first time OpenTofu creates the _initial_ plan for our [previous example](#syntax), the plan fails because OpenTofu has not applied its configuration yet. Meaning this test fails because OpenTofu must still create the resources to make this website exist. Therefore, the first time OpenTofu runs this check, it always throws a potentially distracting error message.
 
 You can fix this by adding [`depends_on`](/docs/language/meta-arguments/depends_on) to your scoped data source, ensuring it depends on an essential piece of your site's infrastructure, such as the load balancer. The check returns  `known after apply` until that crucial piece of your website is ready. This strategy avoids producing unnecessary warnings during setup, and the check executes during subsequent plans and applies.
 
-One problem with this strategy is that if the resource your scoped data source `depends_on` changes, the check block returns `known after apply` until OpenTF has updated that resource. Depending on your use case, this behavior could be acceptable or problematic.
+One problem with this strategy is that if the resource your scoped data source `depends_on` changes, the check block returns `known after apply` until OpenTofu has updated that resource. Depending on your use case, this behavior could be acceptable or problematic.
 
 We recommend implementing the `depends_on` meta-argument if your scoped data source depends on the existence of another resource without referencing it directly.
 
@@ -56,7 +56,7 @@ We recommend implementing the `depends_on` meta-argument if your scoped data sou
 
 Check blocks validate your custom assertions using `assert` blocks. Each `check` block must have at least one, but potentially many, `assert` blocks. Each `assert` block has a [`condition` attribute](/docs/language/expressions/custom-conditions#condition-expressions) and an [`error_message` attribute](/docs/language/expressions/custom-conditions#error-messages).
 
-Unlike other [custom conditions](/docs/language/expressions/custom-conditions), assertions do not affect OpenTF's execution of an operation. A failed assertion reports a warning without halting the ongoing operation. This contrasts with other custom conditions, such as a postcondition, where OpenTF produces an error immediately, halting the operation and blocking the application or planning of future resources.
+Unlike other [custom conditions](/docs/language/expressions/custom-conditions), assertions do not affect OpenTofu's execution of an operation. A failed assertion reports a warning without halting the ongoing operation. This contrasts with other custom conditions, such as a postcondition, where OpenTofu produces an error immediately, halting the operation and blocking the application or planning of future resources.
 
 Condition arguments within `assert` blocks can refer to scoped data sources within the enclosing `check` block and any variables, resources, data sources, or module outputs within the current module.
 
@@ -68,21 +68,21 @@ Check blocks do not currently support [meta-arguments](/docs/language/resources/
 
 ## Continuous validation in TACOS (TF Automation and Collaboration Software)
 
-TACOS (TF Automation and Collaboration Software) can automatically validate whether checks in a workspace’s configuration continue to pass after OpenTF provisions new infrastructure.
+TACOS (TF Automation and Collaboration Software) can automatically validate whether checks in a workspace’s configuration continue to pass after OpenTofu provisions new infrastructure.
 
 ## Choosing Checks or other Custom Conditions
 
-Check blocks offer the most _flexible_ validation solution within OpenTF. You can reference outputs, variables, resources, and data sources within check assertions. You can also use checks to model every alternate [Custom Condition](/docs/language/expressions/custom-conditions). However, that does not mean you should replace all your custom conditions with check blocks.
+Check blocks offer the most _flexible_ validation solution within OpenTofu. You can reference outputs, variables, resources, and data sources within check assertions. You can also use checks to model every alternate [Custom Condition](/docs/language/expressions/custom-conditions). However, that does not mean you should replace all your custom conditions with check blocks.
 
-There are major behavioral differences between check block assertions and other custom conditions, the main one being that check blocks do _not_ affect OpenTF's execution of an operation. You can use this non-blocking behavior to decide the best type of validation for your use case.
+There are major behavioral differences between check block assertions and other custom conditions, the main one being that check blocks do _not_ affect OpenTofu's execution of an operation. You can use this non-blocking behavior to decide the best type of validation for your use case.
 
 ### Outputs and variables
 
 [Output postconditions](/docs/language/expressions/custom-conditions#outputs) and [variable validations](/docs/language/expressions/custom-conditions#input-variable-validation) both make assertions around inputs and outputs.
 
-This is one of the cases where you might want OpenTF to block further execution.
+This is one of the cases where you might want OpenTofu to block further execution.
 
-For example, it is not helpful for OpenTF to warn that an input variable is invalid after it applies an entire configuration with that input variable. In this case, a check block would warn of the invalid input variable _without_ interrupting the operation. A validation block for the same input variable would alert you of the invalid variable and halt the plan or apply operation.
+For example, it is not helpful for OpenTofu to warn that an input variable is invalid after it applies an entire configuration with that input variable. In this case, a check block would warn of the invalid input variable _without_ interrupting the operation. A validation block for the same input variable would alert you of the invalid variable and halt the plan or apply operation.
 
 ### Resource Preconditions and Postconditions
 
@@ -109,8 +109,8 @@ data "http" "placeholderplaceholderplaceholder_io" {
 
 Both the `check` and `postcondition` block examples validate that the website returns a `200` status code during a plan or an apply operation. The difference between the two blocks is how each handles failure.
 
-If a `postcondition` block fails, it _blocks_ OpenTF from executing the current operation. If a `check` block fails, it _does not_ block OpenTF from executing an operation.
+If a `postcondition` block fails, it _blocks_ OpenTofu from executing the current operation. If a `check` block fails, it _does not_ block OpenTofu from executing an operation.
 
-If the above example's postcondition fails, it is impossible to recover from. OpenTF blocks any future plan or apply operations if your postcondition is unsatisfied during the planning stage. This problem occurs because the postcondition does not directly depend on OpenTF configuration, but instead on the complex interactions between multiple resources.
+If the above example's postcondition fails, it is impossible to recover from. OpenTofu blocks any future plan or apply operations if your postcondition is unsatisfied during the planning stage. This problem occurs because the postcondition does not directly depend on OpenTofu configuration, but instead on the complex interactions between multiple resources.
 
 We recommend using check blocks to validate the status of infrastructure as a whole. We only recommend using postconditions when you want a guarantee on a single resource based on that resource's configuration.

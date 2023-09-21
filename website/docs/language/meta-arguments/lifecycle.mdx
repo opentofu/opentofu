@@ -29,9 +29,9 @@ for all `resource` blocks regardless of type.
 The arguments available within a `lifecycle` block are `create_before_destroy`,
 `prevent_destroy`, `ignore_changes`, and `replace_triggered_by`.
 
-* `create_before_destroy` (bool) - By default, when OpenTF must change
+* `create_before_destroy` (bool) - By default, when OpenTofu must change
   a resource argument that cannot be updated in-place due to
-  remote API limitations, OpenTF will instead destroy the existing object
+  remote API limitations, OpenTofu will instead destroy the existing object
   and then create a new replacement object with the new configured arguments.
 
   The `create_before_destroy` meta-argument changes this behavior so that
@@ -42,12 +42,12 @@ The arguments available within a `lifecycle` block are `create_before_destroy`,
   name requirements or other constraints that must be accommodated for
   both a new and an old object to exist concurrently. Some resource types
   offer special options to append a random suffix onto each object name to
-  avoid collisions, for example. OpenTF CLI cannot automatically activate
+  avoid collisions, for example. OpenTofu CLI cannot automatically activate
   such features, so you must understand the constraints for each resource
   type before using `create_before_destroy` with it.
 
-  Note that OpenTF propagates and applies the `create_before_destroy` meta-attribute
-  behaviour to all resource dependencies. For example, if `create_before_destroy` is enabled on resource A but not on resource B, but resource A is dependent on resource B, then OpenTF enables `create_before_destroy` for resource B
+  Note that OpenTofu propagates and applies the `create_before_destroy` meta-attribute
+  behaviour to all resource dependencies. For example, if `create_before_destroy` is enabled on resource A but not on resource B, but resource A is dependent on resource B, then OpenTofu enables `create_before_destroy` for resource B
   implicitly by default and stores it to the state file. You cannot override `create_before_destroy`
   to `false` on resource B because that would imply dependency cycles in the graph.
 
@@ -55,34 +55,34 @@ The arguments available within a `lifecycle` block are `create_before_destroy`,
   is set to `true`. This [GitHub issue](https://github.com/hashicorp/terraform/issues/13549) contains more details.
 
 * `prevent_destroy` (bool) - This meta-argument, when set to `true`, will
-  cause OpenTF to reject with an error any plan that would destroy the
+  cause OpenTofu to reject with an error any plan that would destroy the
   infrastructure object associated with the resource, as long as the argument
   remains present in the configuration.
 
   This can be used as a measure of safety against the accidental replacement
   of objects that may be costly to reproduce, such as database instances.
   However, it will make certain configuration changes impossible to apply,
-  and will prevent the use of the `opentf destroy` command once such
+  and will prevent the use of the `tofu destroy` command once such
   objects are created, and so this option should be used sparingly.
 
   Since this argument must be present in configuration for the protection to
   apply, note that this setting does not prevent the remote object from
   being destroyed if the `resource` block were removed from configuration
   entirely: in that case, the `prevent_destroy` setting is removed along
-  with it, and so OpenTF will allow the destroy operation to succeed.
+  with it, and so OpenTofu will allow the destroy operation to succeed.
 
-* `ignore_changes` (list of attribute names) - By default, OpenTF detects
+* `ignore_changes` (list of attribute names) - By default, OpenTofu detects
   any difference in the current settings of a real infrastructure object
   and plans to update the remote object to match configuration.
 
   The `ignore_changes` feature is intended to be used when a resource is
   created with references to data that may change in the future, but should
   not affect said resource after its creation. In some rare cases, settings
-  of a remote object are modified by processes outside of OpenTF, which
-  OpenTF would then attempt to "fix" on the next run. In order to make
-  OpenTF share management responsibilities of a single object with a
+  of a remote object are modified by processes outside of OpenTofu, which
+  OpenTofu would then attempt to "fix" on the next run. In order to make
+  OpenTofu share management responsibilities of a single object with a
   separate process, the `ignore_changes` meta-argument specifies resource
-  attributes that OpenTF should ignore when planning updates to the
+  attributes that OpenTofu should ignore when planning updates to the
   associated remote object.
 
   The arguments corresponding to the given attribute names are considered
@@ -106,7 +106,7 @@ The arguments available within a `lifecycle` block are `create_before_destroy`,
   ```
 
   Instead of a list, the special keyword `all` may be used to instruct
-  OpenTF to ignore _all_ attributes, which means that OpenTF can
+  OpenTofu to ignore _all_ attributes, which means that OpenTofu can
   create and destroy the remote object but will never propose updates to it.
 
   Only attributes defined by the resource type can be ignored.
@@ -174,6 +174,6 @@ Refer to [Custom Conditions](/docs/language/expressions/custom-conditions#precon
 
 ## Literal Values Only
 
-The `lifecycle` settings all affect how OpenTF constructs and traverses
+The `lifecycle` settings all affect how OpenTofu constructs and traverses
 the dependency graph. As a result, only literal values can be used because
 the processing happens too early for arbitrary expression evaluation.

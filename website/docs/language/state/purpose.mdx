@@ -1,108 +1,108 @@
 ---
 description: >-
-  OpenTF must store state about your managed infrastructure and
-  configuration. This state is used by OpenTF to map real world resources to
+  OpenTofu must store state about your managed infrastructure and
+  configuration. This state is used by OpenTofu to map real world resources to
   your configuration, keep track of metadata, and to improve performance for
   large infrastructures.
 ---
 
-# Purpose of OpenTF State
+# Purpose of OpenTofu State
 
-State is a necessary requirement for OpenTF to function. It is often
-asked if it is possible for OpenTF to work without state, or for OpenTF
+State is a necessary requirement for OpenTofu to function. It is often
+asked if it is possible for OpenTofu to work without state, or for OpenTofu
 to not use state and just inspect real world resources on every run. This page
-will help explain why OpenTF state is required.
+will help explain why OpenTofu state is required.
 
 As you'll see from the reasons below, state is required. And in the scenarios
-where OpenTF may be able to get away without state, doing so would require
+where OpenTofu may be able to get away without state, doing so would require
 shifting massive amounts of complexity from one place (state) to another place
 (the replacement concept).
 
 ## Mapping to the Real World
 
-OpenTF requires some sort of database to map OpenTF config to the real
+OpenTofu requires some sort of database to map OpenTofu config to the real
 world. For example, when you have a resource `resource "aws_instance" "foo"` in your
-configuration, OpenTF uses this mapping to know that the resource `resource "aws_instance" "foo"`
+configuration, OpenTofu uses this mapping to know that the resource `resource "aws_instance" "foo"`
 represents a real world object with the instance ID `i-abcd1234` on a remote system.
 
-For some providers like AWS, OpenTF could theoretically use something like
-AWS tags. Early prototypes of OpenTF actually had no state files and used
+For some providers like AWS, OpenTofu could theoretically use something like
+AWS tags. Early prototypes of OpenTofu actually had no state files and used
 this method. However, we quickly ran into problems. The first major issue was
 a simple one: not all resources support tags, and not all cloud providers
 support tags.
 
 Therefore, for mapping configuration to resources in the real world,
-OpenTF uses its own state structure.
+OpenTofu uses its own state structure.
 
-OpenTF expects that each remote object is bound to only one resource instance in the configuration.
+OpenTofu expects that each remote object is bound to only one resource instance in the configuration.
 If a remote object is bound to multiple resource instances, the mapping from configuration to the remote
-object in the state becomes ambiguous, and OpenTF may behave unexpectedly. OpenTF can guarantee
+object in the state becomes ambiguous, and OpenTofu may behave unexpectedly. OpenTofu can guarantee
 a one-to-one mapping when it creates objects and records their identities in the state. 
-When importing objects created outside of OpenTF, you must make sure that each distinct object
+When importing objects created outside of OpenTofu, you must make sure that each distinct object
 is imported to only one resource instance.
 
 ## Metadata
 
-Alongside the mappings between resources and remote objects, OpenTF must
+Alongside the mappings between resources and remote objects, OpenTofu must
 also track metadata such as resource dependencies.
 
-OpenTF typically uses the configuration to determine dependency order.
-However, when you delete a resource from an OpenTF configuration, OpenTF
-must know how to delete that resource from the remote system. OpenTF can see that a mapping exists
+OpenTofu typically uses the configuration to determine dependency order.
+However, when you delete a resource from an OpenTofu configuration, OpenTofu
+must know how to delete that resource from the remote system. OpenTofu can see that a mapping exists
 in the state file for a resource not in your configuration and plan to destroy. However, since
 the configuration no longer exists, the order cannot be determined from the
 configuration alone.
 
-To ensure correct operation, OpenTF retains a copy of the most recent set
-of dependencies within the state. Now OpenTF can still determine the correct
+To ensure correct operation, OpenTofu retains a copy of the most recent set
+of dependencies within the state. Now OpenTofu can still determine the correct
 order for destruction from the state when you delete one or more items from
 the configuration.
 
-One way to avoid this would be for OpenTF to know a required ordering
-between resource types. For example, OpenTF could know that servers must be
+One way to avoid this would be for OpenTofu to know a required ordering
+between resource types. For example, OpenTofu could know that servers must be
 deleted before the subnets they are a part of. The complexity for this approach
-quickly explodes, however: in addition to OpenTF having to understand the
-ordering semantics of every resource for every _provider_, OpenTF must also
+quickly explodes, however: in addition to OpenTofu having to understand the
+ordering semantics of every resource for every _provider_, OpenTofu must also
 understand the ordering _across providers_.
 
-OpenTF also stores other metadata for similar reasons, such as a pointer
+OpenTofu also stores other metadata for similar reasons, such as a pointer
 to the provider configuration that was most recently used with the resource
 in situations where multiple aliased providers are present.
 
 ## Performance
 
-In addition to basic mapping, OpenTF stores a cache of the attribute
+In addition to basic mapping, OpenTofu stores a cache of the attribute
 values for all resources in the state. This is the most optional feature of
-OpenTF state and is done only as a performance improvement.
+OpenTofu state and is done only as a performance improvement.
 
-When running a `opentf plan`, OpenTF must know the current state of
+When running a `tofu plan`, OpenTofu must know the current state of
 resources in order to effectively determine the changes that it needs to make
 to reach your desired configuration.
 
-For small infrastructures, OpenTF can query your providers and sync the
+For small infrastructures, OpenTofu can query your providers and sync the
 latest attributes from all your resources. This is the default behavior
-of OpenTF: for every plan and apply, OpenTF will sync all resources in
+of OpenTofu: for every plan and apply, OpenTofu will sync all resources in
 your state.
 
 For larger infrastructures, querying every resource is too slow. Many cloud
 providers do not provide APIs to query multiple resources at once, and the
 round trip time for each resource is hundreds of milliseconds. On top of this,
-cloud providers almost always have API rate limiting so OpenTF can only
+cloud providers almost always have API rate limiting so OpenTofu can only
 request a certain number of resources in a period of time. Larger users
-of OpenTF make heavy use of the `-refresh=false` flag as well as the
+of OpenTofu make heavy use of the `-refresh=false` flag as well as the
 `-target` flag in order to work around this. In these scenarios, the cached
 state is treated as the record of truth.
 
 ## Syncing
 
-In the default configuration, OpenTF stores the state in a file in the
-current working directory where OpenTF was run. This is okay for getting
-started, but when using OpenTF in a team it is important for everyone
+In the default configuration, OpenTofu stores the state in a file in the
+current working directory where OpenTofu was run. This is okay for getting
+started, but when using OpenTofu in a team it is important for everyone
 to be working with the same state so that operations will be applied to the
 same remote objects.
 
 [Remote state](/docs/language/state/remote) is the recommended solution
-to this problem. With a fully-featured state backend, OpenTF can use
+to this problem. With a fully-featured state backend, OpenTofu can use
 remote locking as a measure to avoid two or more different users accidentally
-running OpenTF at the same time, and thus ensure that each OpenTF run
+running OpenTofu at the same time, and thus ensure that each OpenTofu run
 begins with the most recent updated state.

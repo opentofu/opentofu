@@ -1,46 +1,46 @@
 ---
 description: |-
-  The `opentf providers lock` command adds new provider selection information
+  The `tofu providers lock` command adds new provider selection information
   to the dependency lock file without initializing the referenced providers.
 ---
 
 # Command: providers lock
 
-The `opentf providers lock` consults upstream registries (by default) in
+The `tofu providers lock` consults upstream registries (by default) in
 order to write provider dependency information into
 [the dependency lock file](/docs/language/files/dependency-lock).
 
 The common way to update the dependency lock file is as a side-effect of normal
 provider installation during
-[`opentf init`](/docs/cli/commands/init), but there are several situations where that
+[`tofu init`](/docs/cli/commands/init), but there are several situations where that
 automatic approach may not be sufficient:
 
-* If you are running OpenTF in an environment that uses
+* If you are running OpenTofu in an environment that uses
   [alternative provider installation methods](/docs/cli/config/config-file#provider-installation),
   such as filesystem or network mirrors, normal provider installation will not
-  access the origin registry for a provider and therefore OpenTF will not
+  access the origin registry for a provider and therefore OpenTofu will not
   be able to populate all of the possible package checksums for the selected
   provider versions.
 
-  If you use `opentf lock` to write the official release checksums for a
-  provider into the dependency lock file then future `opentf init` runs
+  If you use `tofu lock` to write the official release checksums for a
+  provider into the dependency lock file then future `tofu init` runs
   will verify the packages available in your selected mirror against the
   official checksums previously recorded, giving additional certainty that
   the mirror is serving the provider packages it is claiming to.
 
-* If your team runs OpenTF across a number of different platforms (e.g.
+* If your team runs OpenTofu across a number of different platforms (e.g.
   on both Windows and Linux) and the upstream registry for a provider is unable
   to provide signed checksums using the latest hashing scheme, subsequent runs
-  of OpenTF on other platforms may
+  of OpenTofu on other platforms may
   [add additional checksums to the lock file](/docs/language/files/dependency-lock#new-provider-package-checksums).
   You can avoid that by pre-populating hashes for all of the platforms you
-  intend to use, using the `opentf providers lock` command.
+  intend to use, using the `tofu providers lock` command.
 
 ## Usage
 
-Usage: `opentf providers lock [options] [providers...]`
+Usage: `tofu providers lock [options] [providers...]`
 
-With no additional command line arguments, `opentf providers lock` will
+With no additional command line arguments, `tofu providers lock` will
 analyze the configuration in the current working directory to find all of
 the providers it depends on, and it will fetch the necessary data about those
 providers from their origin registries and then update
@@ -49,7 +49,7 @@ include a selected version for each provider and all of the package checksums
 that are covered by the provider developer's cryptographic signature.
 
 :::warning
-The `opentf providers lock` command prints information
+The `tofu providers lock` command prints information
 about what it has fetched and whether each package was signed using a
 cryptographic signature, but it cannot automatically verify that the
 providers are trustworthy and that they comply with your local system
@@ -59,22 +59,22 @@ the updated lock file to your version control system.
 :::
 
 If you list one or more provider source addresses on the command line then
-`opentf providers lock` will restrict its work only to those providers,
+`tofu providers lock` will restrict its work only to those providers,
 leaving the lock entries for other providers (if any) unchanged.
 
 You can customize the default behavior using the following additional option:
 
-* `-fs-mirror=PATH` - Direct OpenTF to look for provider packages in the
+* `-fs-mirror=PATH` - Direct OpenTofu to look for provider packages in the
   given local filesystem mirror directory, instead of in upstream registries.
   The given directory must use the usual filesystem mirror directory layout.
 
-* `-net-mirror=URL` - Direct OpenTF to look for provider packages in the
+* `-net-mirror=URL` - Direct OpenTofu to look for provider packages in the
   given network mirror service, instead of in upstream registries. The
   given URL must implement
-  [the OpenTF provider network mirror protocol](/docs/internals/provider-network-mirror-protocol).
+  [the OpenTofu provider network mirror protocol](/docs/internals/provider-network-mirror-protocol).
 
 * `-platform=OS_ARCH` - Specify a platform you intend to use to work with this
-  OpenTF configuration. OpenTF will ensure that the providers are all
+  OpenTofu configuration. OpenTofu will ensure that the providers are all
   available for the given platform and will save enough package checksums in
   the lock file to support _at least_ the specified platforms.
 
@@ -90,16 +90,16 @@ You can customize the default behavior using the following additional option:
 ## Specifying Target Platforms
 
 In your environment you may, for example, have both developers who work with
-your OpenTF configuration on their Windows or macOS workstations _and_
+your OpenTofu configuration on their Windows or macOS workstations _and_
 automated systems that apply the configuration while running on Linux.
 
 In that situation, you could choose to verify that all of your providers support
 all of those platforms, and to pre-populate the lock file with the necessary
-checksums, by running `opentf providers lock` and specifying those three
+checksums, by running `tofu providers lock` and specifying those three
 platforms:
 
 ```
-opentf providers lock \
+tofu providers lock \
   -platform=windows_amd64 \ # 64-bit Windows
   -platform=darwin_amd64 \  # 64-bit macOS
   -platform=linux_amd64     # 64-bit Linux
@@ -111,12 +111,12 @@ arguments on a single line, and remove the backslashes and comments.)
 
 ## Lock Entries for In-house Providers
 
-An _in-house provider_ is one that isn't published on a real OpenTF provider
+An _in-house provider_ is one that isn't published on a real OpenTofu provider
 registry because it's developed and used only within a particular organization and
 distributed via either a filesystem mirror or network mirror.
 
-By default, `opentf providers lock` assumes all providers are available
-at a OpenTF provider registry and tries to contact the origin registries
+By default, `tofu providers lock` assumes all providers are available
+at a OpenTofu provider registry and tries to contact the origin registries
 in order to get access to the most detailed information about the provider
 packages.
 
@@ -126,8 +126,8 @@ line options to override the default behavior of consulting the provider's
 origin registry:
 
 ```
-opentf providers lock \
-  -fs-mirror=/usr/local/opentf/providers
+tofu providers lock \
+  -fs-mirror=/usr/local/tofu/providers
   -platform=windows_amd64 \
   -platform=darwin_amd64 \
   -platform=linux_amd64 \
@@ -139,10 +139,10 @@ you are running the command on Windows then you will need to put all of the
 arguments on a single line, and remove the backslashes.)
 
 Because the command above includes the provider source address
-`tf.example.com/ourcompany/ourplatform`, `opentf providers lock` will only
+`tf.example.com/ourcompany/ourplatform`, `tofu providers lock` will only
 attempt to access that particular provider and will leave the lock entries
 for any other providers unchanged. If you have a variety of different providers
-available from different sources, you can run `opentf providers lock`
+available from different sources, you can run `tofu providers lock`
 multiple times and specify a different subset of your providers each time.
 
 The `-fs-mirror` and `-net-mirror` options have the same meaning as

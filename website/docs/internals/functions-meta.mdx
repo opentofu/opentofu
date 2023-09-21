@@ -1,16 +1,16 @@
 ---
 description: >-
-  The `opentf metadata functions` command prints signatures for all the
-  functions available in the current OpenTF version.
+  The `tofu metadata functions` command prints signatures for all the
+  functions available in the current OpenTofu version.
 ---
 
 # Functions Metadata
 
-The `opentf metadata functions` command is used to print signatures for the functions available in the current OpenTF version.
+The `tofu metadata functions` command is used to print signatures for the functions available in the current OpenTofu version.
 
 ## Usage
 
-Usage: `opentf metadata functions [options]`
+Usage: `tofu metadata functions [options]`
 
 The following flags are available:
 
@@ -29,7 +29,7 @@ value `"1.0"`. The semantics of this version are:
   version.
 
 We will introduce new major versions only within the bounds of
-[the OpenTF 1.0 Compatibility Promises](/docs/language/v1-compatibility-promises).
+[the OpenTofu 1.0 Compatibility Promises](/docs/language/v1-compatibility-promises).
 
 ## Format Summary
 
@@ -39,7 +39,7 @@ To avoid excessive repetition, we've split the complete format into several disc
 
 The JSON output format consists of the following objects and sub-objects:
 
-- [Function Signature Representation](#function-signature-representation) - the top-level object returned by `opentf metadata functions -json`
+- [Function Signature Representation](#function-signature-representation) - the top-level object returned by `tofu metadata functions -json`
 - [Parameter Representation](#parameter-representation) - a sub-object of signatures that describes their parameters
 
 ## Function Signature Representation
