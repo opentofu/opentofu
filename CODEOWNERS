@@ -4,4 +4,4 @@
 # We currently do not have any specific code owners
 # In the future, we will have a Github team of global code owners of the entire package
 # Later on, we will start splitting up the responsibilities, and packages will be assigned more specific code owners
-# * @opentf-code-owners
+# * @opentofu-code-owners
