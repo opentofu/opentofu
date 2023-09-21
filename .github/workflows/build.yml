@@ -16,7 +16,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 env:
-  PKG_NAME: "opentf"
+  PKG_NAME: "opentofu"
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   get-product-version:
-    name: "Determine intended OpenTF version"
+    name: "Determine intended OpenTofu version"
     runs-on: ubuntu-latest
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
@@ -53,7 +53,7 @@ jobs:
       - name: Report chosen version number
         run: |
           [ -n "${{steps.get-product-version.outputs.product-version}}" ]
-          echo "::notice title=OpenTF CLI Version::${{ steps.get-product-version.outputs.product-version }}"
+          echo "::notice title=OpenTofu CLI Version::${{ steps.get-product-version.outputs.product-version }}"
 
   get-go-version:
     name: "Determine Go toolchain version"
@@ -93,7 +93,7 @@ jobs:
     needs:
       - get-product-version
       - get-go-version
-    uses: ./.github/workflows/build-opentf-oss.yml
+    uses: ./.github/workflows/build-opentofu-oss.yml
     with:
       goarch: ${{ matrix.goarch }}
       goos: ${{ matrix.goos }}
@@ -134,16 +134,16 @@ jobs:
         arch: ["amd64", "386", "arm", "arm64"]
       fail-fast: false
     env:
-      repo: "opentf"
+      repo: "opentofu"
       version: ${{needs.get-product-version.outputs.product-version}}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - name: Build Docker images
         uses: hashicorp/actions-docker-build@v1
         with:
-          pkg_name: "opentf_${{env.version}}"
+          pkg_name: "opentofu_${{env.version}}"
           version: ${{env.version}}
-          bin_name: opentf
+          bin_name: tofu
           target: default
           arch: ${{matrix.arch}}
           dockerfile: .github/workflows/build-Dockerfile
@@ -201,7 +201,7 @@ jobs:
           # NOTE: This script reacts to the GOOS, GOARCH, and GO_LDFLAGS
           # environment variables defined above. The e2e test harness
           # needs to know the version we're building for so it can verify
-          # that "opentf version" is returning that version number.
+          # that "tofu version" is returning that version number.
           bash ./internal/command/e2etest/make-archive.sh
 
       - name: Save test harness to cache
@@ -252,17 +252,17 @@ jobs:
           key: ${{ needs.e2etest-build.outputs.e2e-cache-key }}_${{ matrix.goos }}_${{ matrix.goarch }}
           fail-on-cache-miss: true
           enableCrossOsArchive: true
-      - name: "Download OpenTF CLI package"
+      - name: "Download OpenTofu CLI package"
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         id: clipkg
         with:
-          name: opentf_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip
+          name: opentofu_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip
           path: .
       - name: Extract packages
         if: ${{ matrix.goos == 'windows' }}
         run: |
-          unzip "${{ needs.e2etest-build.outputs.e2e-cache-path }}/opentf-e2etest_${{ env.os }}_${{ env.arch }}.zip"
-          unzip "./opentf_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
+          unzip "${{ needs.e2etest-build.outputs.e2e-cache-path }}/tofu-e2etest_${{ env.os }}_${{ env.arch }}.zip"
+          unzip "./opentofu_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
         if: ${{ contains(matrix.goarch, 'arm') }}
@@ -284,7 +284,7 @@ jobs:
 
 
   e2e-test-exec:
-    name: Run opentf-exec test for linux amd64
+    name: Run tofu-exec test for linux amd64
     runs-on: ubuntu-latest
     needs:
       - get-product-version
@@ -301,21 +301,21 @@ jobs:
         uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
-      - name: Download OpenTF CLI package
+      - name: Download OpenTofu CLI package
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         id: clipkg
         with:
-          name: opentf_${{ env.version }}_linux_amd64.zip
+          name: opentofu_${{ env.version }}_linux_amd64.zip
           path: .
-      - name: Checkout opentf-exec repo
+      - name: Checkout tofu-exec repo
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
           repository: hashicorp/terraform-exec
-          path: opentf-exec
-      - name: Run opentf-exec end-to-end tests
+          path: tofu-exec
+      - name: Run tofu-exec end-to-end tests
         run: |
           FULL_RELEASE_VERSION="${{ env.version }}"
-          unzip opentf_${FULL_RELEASE_VERSION}_linux_amd64.zip
-          export TFEXEC_E2ETEST_TERRAFORM_PATH="$(pwd)/opentf"
-          cd opentf-exec
+          unzip opentofu_${FULL_RELEASE_VERSION}_linux_amd64.zip
+          export TFEXEC_E2ETEST_TERRAFORM_PATH="$(pwd)/tofu"
+          cd tofu-exec
           go test -race -timeout=30m -v ./tfexec/internal/e2etest

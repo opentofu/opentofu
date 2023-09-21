@@ -10,7 +10,7 @@ body:
       value: |
         # Thank you for opening an issue.
 
-        The [OpenTF](https://github.com/opentffoundation/opentf) issue tracker is reserved for bug reports relating to the core OpenTF CLI application and configuration language.
+        The [OpenTofu](https://github.com/opentofu/opentofu) issue tracker is reserved for bug reports relating to the core OpenTofu CLI application and configuration language.
 
         ## Filing a bug report
 
@@ -19,16 +19,16 @@ body:
         * A short example can be directly copy-pasteable; longer examples should be in separate git repositories, especially if multiple files are needed
         * Please include all needed context. For example, if you figured out that an expression can cause a crash, put the expression in a variable definition or a resource
         * Set defaults on (or omit) any variables. The person reproducing it should not need to invent variable settings
-        * If multiple steps are required, such as running opentf twice, consider scripting it in a simple shell script. Providing a script can be easier than explaining what changes to make to the config between runs.
+        * If multiple steps are required, such as running tofu twice, consider scripting it in a simple shell script. Providing a script can be easier than explaining what changes to make to the config between runs.
         * Omit any unneeded complexity: remove variables, conditional statements, functions, modules, providers, and resources that are not needed to trigger the bug
 
   - type: textarea
     id: tf-version
     attributes:
-      label: OpenTF Version
-      description: Run `opentf version` to show the version, and paste the result below. If you are not running the latest version of OpenTF, please try upgrading because your issue may have already been fixed.
+      label: OpenTofu Version
+      description: Run `tofu version` to show the version, and paste the result below. If you are not running the latest version of OpenTofu, please try upgrading because your issue may have already been fixed.
       render: shell
-      placeholder: ...output of `opentf version`...
+      placeholder: ...output of `tofu version`...
       value:
     validations:
       required: true
@@ -36,12 +36,12 @@ body:
   - type: textarea
     id: tf-config
     attributes:
-      label: OpenTF Configuration Files
-      description: Paste the relevant parts of your OpenTF configuration between the ``` marks below. For OpenTF configs larger than a few resources, or that involve multiple files, please make a GitHub repository that we can clone, rather than copy-pasting multiple files in here.
+      label: OpenTofu Configuration Files
+      description: Paste the relevant parts of your OpenTofu configuration between the ``` marks below. For OpenTofu configs larger than a few resources, or that involve multiple files, please make a GitHub repository that we can clone, rather than copy-pasting multiple files in here.
       placeholder:
       value: |
         ```hcl
-        ...opentf config...
+        ...tofu config...
         ```
     validations:
       required: true
@@ -50,7 +50,7 @@ body:
     id: tf-debug
     attributes:
       label: Debug Output
-      description: Full debug output can be obtained by running OpenTF with the environment variable `TF_LOG=trace`. Please create a GitHub Gist containing the debug output. Please do _not_ paste the debug output in the issue, since debug output is long. Debug output may contain sensitive information. Please review it before posting publicly.
+      description: Full debug output can be obtained by running OpenTofu with the environment variable `TF_LOG=trace`. Please create a GitHub Gist containing the debug output. Please do _not_ paste the debug output in the issue, since debug output is long. Debug output may contain sensitive information. Please review it before posting publicly.
       placeholder: ...link to gist...
       value:
     validations:
@@ -79,11 +79,11 @@ body:
       label: Steps to Reproduce
       description: |
         Please list the full steps required to reproduce the issue, for example:
-          1. `opentf init`
-          2. `opentf apply`
+          1. `tofu init`
+          2. `tofu apply`
       placeholder: |
-        1. `opentf init`
-        2. `opentf apply`
+        1. `tofu init`
+        2. `tofu apply`
       value:
     validations:
       required: true
@@ -93,7 +93,7 @@ body:
       label: Additional Context
       description: |
         Are there anything atypical about your situation that we should know?
-        For example: is OpenTF running in a wrapper script or in a CI system? Are you passing any unusual command line options or environment variables to opt-in to non-default behavior?"
+        For example: is OpenTofu running in a wrapper script or in a CI system? Are you passing any unusual command line options or environment variables to opt-in to non-default behavior?"
       placeholder: Additional context...
       value:
     validations:

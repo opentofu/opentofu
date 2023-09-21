@@ -9,7 +9,7 @@ body:
       value: |
         Thank you for opening an RFC!
         
-        RFCs are a highly-structured format for submitting change requests. All major changes to OpenTF should first go through an RFC, to have a place for the community to discuss.
+        RFCs are a highly-structured format for submitting change requests. All major changes to OpenTofu should first go through an RFC, to have a place for the community to discuss.
         
         The template has a lot of fields and is inspired by the Rust RFC template. Please take your time to fill it out carefully.
         
@@ -58,7 +58,7 @@ body:
       label: Technical Description
       description: |
         Please describe in detail how the feature would work from a technical perspective:
-          - Which components of OpenTF would be involved in the change?
+          - Which components of OpenTofu would be involved in the change?
           - How would the components need to change?
           - Are there any interactions with other features that should be mentioned?
           - Are the any edge cases of the feature that should be discussed?
@@ -74,7 +74,7 @@ body:
       description: |
         - What would be the impact of this feature?
         - Why is this solution better than alternative solutions to this problem, if there are any?
-        - How would the OpenTF user experience suffer if we didn't do this.
+        - How would the OpenTofu user experience suffer if we didn't do this.
       placeholder:
       value:
     validations:

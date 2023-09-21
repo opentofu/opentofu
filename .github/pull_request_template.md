@@ -4,7 +4,7 @@ Describe in detail the changes you are proposing, and the rationale.
 
 See the contributing guide:
 
-https://github.com/opentffoundation/opentf/blob/main/CONTRIBUTING.md
+https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md
 
 -->
 
@@ -48,8 +48,8 @@ Choose a category, delete the others:
 
 Write a short description of the user-facing change. Examples:
 
-- `opentf show -json`: Fixed crash with sensitive set values.
-- When rendering a diff, OpenTF now quotes the name of any object attribute whose string representation is not a valid identifier.
+- `tofu show -json`: Fixed crash with sensitive set values.
+- When rendering a diff, OpenTofu now quotes the name of any object attribute whose string representation is not a valid identifier.
 - The local token configuration in the cloud and remote backend now has higher priority than a token specified in a credentials block in the CLI configuration.
 
 --> 
