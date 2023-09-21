@@ -339,8 +339,8 @@ func TestOperation_plan(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
 
 OpenTofu will perform the following actions:
@@ -368,8 +368,8 @@ func TestOperation_planWithDatasource(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
@@ -404,8 +404,8 @@ func TestOperation_planWithDatasourceAndDrift(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
