@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	tfaddr "github.com/opentffoundation/registry-address"
+	tfaddr "github.com/opentofu/registry-address"
 	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
 )
 

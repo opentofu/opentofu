@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	tfaddr "github.com/opentffoundation/registry-address"
+	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/google/go-cmp/cmp"
 
