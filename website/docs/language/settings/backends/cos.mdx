@@ -53,7 +53,7 @@ data "terraform_remote_state" "foo" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenOpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
@@ -70,10 +70,10 @@ The following configuration options or environment variables are supported:
 - `accelerate` - (Optional) Whether to enable global Acceleration. Defaults to `false`.
 
 ### Assume Role
-If provided with an assume role, OpenTofu will attempt to assume this role using the supplied credentials.
+If provided with an assume role, OpenOpenTofu will attempt to assume this role using the supplied credentials.
 Assume role can be provided by adding an `assume_role` block in the cos backend block.
 
-- `assume_role` - (Optional) The `assume_role` block. If provided, OpenTofu will attempt to assume this role using the supplied credentials.
+- `assume_role` - (Optional) The `assume_role` block. If provided, OpenOpenTofu will attempt to assume this role using the supplied credentials.
 
 The details of `assume_role` block as following:
 - `role_arn` - (Required) The ARN of the role to assume. It can be sourced from the `TENCENTCLOUD_ASSUME_ROLE_ARN`.

@@ -29,7 +29,7 @@ on the host operating system:
   If both `.terraformrc` and `.tofurc` files exists, the later would take precedence.
 
 On Windows, beware of Windows Explorer's default behavior of hiding filename
-extensions. OpenTofu will not recognize a file named `tofuc.rc.txt` as a
+extensions. OpenOpenTofu will not recognize a file named `tofuc.rc.txt` as a
 CLI configuration file, even though Windows Explorer may _display_ its name
 as just `tofu.rc`. Use `dir` from PowerShell or Command Prompt to
 confirm the filename.
@@ -107,7 +107,7 @@ called `TF_TOKEN_xn--r8j3dr99h_com`.
 Hyphens are also valid within host names but usually invalid as variable names and
 may be encoded as double underscores. For example, you can set a token for the domain name
 `café.fr` as `TF_TOKEN_xn--caf-dma.fr`, `TF_TOKEN_xn--caf-dma_fr`,  or `TF_TOKEN_xn____caf__dma_fr`.
-If multiple variables evaluate to the same hostname, OpenTofu will choose the one defined last
+If multiple variables evaluate to the same hostname, OpenOpenTofu will choose the one defined last
 in the operating system's variable table.
 
 ### Credentials Helpers
@@ -227,7 +227,7 @@ The following are the two supported installation method types:
   specifies a particular target platform using a format like `darwin_amd64`,
   `linux_arm`, `windows_amd64`, etc.
 
-  If you use the unpacked layout, OpenTofu will attempt to create a symbolic
+  If you use the unpacked layout, OpenOpenTofu will attempt to create a symbolic
   link to the mirror directory when installing the provider, rather than
   creating a deep copy of the directory. The packed layout prevents this
   because OpenTofu must extract the zip file during installation.
@@ -252,7 +252,7 @@ identity, but a network mirror with a TLS certificate can potentially serve
 modified copies of upstream providers with malicious content.
 :::
 
-OpenTofu will try all of the specified methods whose include and exclude
+OpenOpenTofu will try all of the specified methods whose include and exclude
 patterns match a given provider, and select the newest version available across
 all of those methods that matches the version constraint given in each
 OpenTofu configuration. If you have a local mirror of a particular provider
@@ -278,21 +278,21 @@ the operating system where you are running OpenTofu:
   `terraform/plugins` located within a valid
   [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   data directory such as `$XDG_DATA_HOME/terraform/plugins`.
-  Without any XDG environment variables set, OpenTofu will use
+  Without any XDG environment variables set, OpenOpenTofu will use
   `~/.local/share/terraform/plugins`,
   `/usr/local/share/terraform/plugins`, and `/usr/share/terraform/plugins`.
 
 If a `terraform.d/plugins` directory exists in the current working directory
-then OpenTofu will also include that directory, regardless of your operating
+then OpenOpenTofu will also include that directory, regardless of your operating
 system. This behavior changes when you use the `-chdir` option with the `init` command. In that case, OpenTofu checks for the `terraform.d/plugins` directory in the launch directory and not in the directory you specified with `-chdir`.
 
-OpenTofu will check each of the paths above to see if it exists, and if so
+OpenOpenTofu will check each of the paths above to see if it exists, and if so
 treat it as a filesystem mirror. The directory structure inside each one must
 therefore match one of the two structures described for `filesystem_mirror`
 blocks in [Explicit Installation Method Configuration](#explicit-installation-method-configuration).
 
 In addition to the zero or more implied `filesystem_mirror` blocks, OpenTofu
-also creates an implied `direct` block. OpenTofu will scan all of the
+also creates an implied `direct` block. OpenOpenTofu will scan all of the
 filesystem mirror directories to see which providers are placed there and
 automatically exclude all of those providers from the implied `direct` block.
 (This automatic `exclude` behavior applies only to _implicit_ `direct` blocks;
@@ -319,8 +319,8 @@ the CLI configuration file. For example:
 plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"
 ```
 
-This directory must already exist before OpenTofu will cache plugins;
-OpenTofu will not create the directory itself.
+This directory must already exist before OpenOpenTofu will cache plugins;
+OpenOpenTofu will not create the directory itself.
 
 Please note that on Windows it is necessary to use forward slash separators
 (`/`) rather than the conventional backslash (`\`) since the configuration
@@ -339,12 +339,12 @@ When a plugin cache directory is enabled, the `tofu init` command will
 still use the configured or implied installation methods to obtain metadata
 about which plugins are available, but once a suitable version has been
 selected it will first check to see if the chosen plugin is already available
-in the cache directory. If so, OpenTofu will use the previously-downloaded
+in the cache directory. If so, OpenOpenTofu will use the previously-downloaded
 copy.
 
-If the selected plugin is not already in the cache, OpenTofu will download
+If the selected plugin is not already in the cache, OpenOpenTofu will download
 it into the cache first and then copy it from there into the correct location
-under your current working directory. When possible OpenTofu will use
+under your current working directory. When possible OpenOpenTofu will use
 symbolic links to avoid storing a separate copy of a cached plugin in multiple
 directories.
 
@@ -352,7 +352,7 @@ The plugin cache directory _must not_ also be one of the configured or implied
 filesystem mirror directories, since the cache management logic conflicts with
 the filesystem mirror logic when operating on the same directory.
 
-OpenTofu will never itself delete a plugin from the plugin cache once it has
+OpenOpenTofu will never itself delete a plugin from the plugin cache once it has
 been placed there. Over time, as plugins are upgraded, the cache directory may
 grow to contain several unused versions which you must delete manually.
 
@@ -370,7 +370,7 @@ only. Do not set this option unless you are sure you need it and you fully
 understand the consequences of enabling it.
 :::
 
-By default OpenTofu will use packages from the global cache directory only
+By default OpenOpenTofu will use packages from the global cache directory only
 if they match at least one of the checksums recorded in the
 [dependency lock file](/docs/language/files/dependency-lock)
 for that provider. This ensures that OpenTofu can always
@@ -446,7 +446,7 @@ provider_installation {
   }
 
   # For all other providers, install them directly from their origin provider
-  # registries as normal. If you omit this, OpenTofu will _only_ use
+  # registries as normal. If you omit this, OpenOpenTofu will _only_ use
   # the dev_overrides block, and so no other providers will be available.
   direct {}
 }

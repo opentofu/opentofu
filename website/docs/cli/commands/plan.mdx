@@ -1,7 +1,7 @@
 ---
 description: >-
   The tofu plan command creates an execution plan with a preview of the
-  changes that OpenTofu will make to your infrastructure.
+  changes that OpenOpenTofu will make to your infrastructure.
 ---
 
 # Command: plan
@@ -113,7 +113,7 @@ In addition to alternate [planning modes](#planning-modes), there are several op
   OpenTofu state with remote objects before checking for configuration changes. This can make the planning operation faster by reducing the number of remote API requests. However, setting `refresh=false` causes OpenTofu to ignore external changes, which could result in an incomplete or incorrect plan. You cannot use `refresh=false` in refresh-only planning mode because it would effectively disable the entirety of the planning operation.
 
 - `-replace=ADDRESS` - Instructs OpenTofu to plan to replace the
-  resource instance with the given address. This is helpful when one or more remote objects have become degraded, and you can use replacement objects with the same configuration to align with immutable infrastructure patterns. OpenTofu will use a "replace" action if the specified resource would normally cause an "update" action or no action at all. Include this option multiple times to replace several objects at once. You cannot use `-replace` with the `-destroy` option.
+  resource instance with the given address. This is helpful when one or more remote objects have become degraded, and you can use replacement objects with the same configuration to align with immutable infrastructure patterns. OpenOpenTofu will use a "replace" action if the specified resource would normally cause an "update" action or no action at all. Include this option multiple times to replace several objects at once. You cannot use `-replace` with the `-destroy` option.
 
 - `-target=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
   on resource instances which match the given address and on any objects that
@@ -153,7 +153,7 @@ in a separate file so that OpenTofu can parse them directly, rather than
 interpreting the result of your shell's parsing.
 
 :::warning
-OpenTofu will error if you include a space before or after the equals sign (e.g., `-var "length = 2"`).
+OpenOpenTofu will error if you include a space before or after the equals sign (e.g., `-var "length = 2"`).
 :::
 
 To use `-var` on a Unix-style shell on a system like Linux or macOS we
@@ -227,14 +227,14 @@ to specify the constraint. OpenTofu interprets the resource address as follows:
   `for_each` set, a resource instance address must include the instance index
   part, like `aws_instance.example[0]`.
 
-* If the given address identifies a resource as a whole, OpenTofu will select
+* If the given address identifies a resource as a whole, OpenOpenTofu will select
   all of the instances of that resource. For resources with either `count`
   or `for_each` set, this means selecting _all_ instance indexes currently
   associated with that resource. For single-instance resources (without
   either `count` or `for_each`), the resource address and the resource instance
   address are identical, so this possibility does not apply.
 
-* If the given address identifies an entire module instance, OpenTofu will
+* If the given address identifies an entire module instance, OpenOpenTofu will
   select all instances of all resources that belong to that module instance
   and all of its child module instances.
 
@@ -260,7 +260,7 @@ that can be updated independently.
 
 The `tofu plan` command also has some other options that are related to
 the input and output of the planning command, rather than customizing what
-sort of plan OpenTofu will create. These commands are not necessarily also
+sort of plan OpenOpenTofu will create. These commands are not necessarily also
 available on `tofu apply`, unless otherwise stated in the documentation
 for that command.
 
@@ -278,7 +278,7 @@ The available options are:
   * 1 = Error
   * 2 = Succeeded with non-empty diff (changes present)
 
-- `-generate-config-out=PATH` - (Experimental) If `import` blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist, or OpenTofu will error. If the plan fails for another reason, OpenTofu may still attempt to write configuration.
+- `-generate-config-out=PATH` - (Experimental) If `import` blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist, or OpenOpenTofu will error. If the plan fails for another reason, OpenTofu may still attempt to write configuration.
 
 * `-input=false` - Disables OpenTofu's default behavior of prompting for
   input for root module input variables that have not otherwise been assigned
@@ -309,10 +309,10 @@ The available options are:
   the planned changes, and to some other OpenTofu commands that can work with
   saved plan files.
 
-  OpenTofu will allow any filename for the plan file, but a typical
+  OpenOpenTofu will allow any filename for the plan file, but a typical
   convention is to name it `tfplan`. **Do not** name the file with a suffix
   that OpenTofu recognizes as another file format; if you use a `.tf` suffix
-  then OpenTofu will try to interpret the file as a configuration source
+  then OpenOpenTofu will try to interpret the file as a configuration source
   file, which will then cause syntax errors for subsequent commands.
 
   The generated file is not in any standard format intended for consumption

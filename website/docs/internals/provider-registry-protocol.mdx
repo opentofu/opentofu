@@ -30,7 +30,7 @@ within OpenTofu. A provider address has the syntax `hostname/namespace/type`,
 where:
 
 * `hostname` is the registry host that the provider is considered to have
-  originated from, and the default location OpenTofu will consult for
+  originated from, and the default location OpenOpenTofu will consult for
   information about the provider
   [unless overridden in the CLI configuration](/docs/cli/config/config-file#provider-installation).
 * `namespace` is the name of a namespace, unique on a particular hostname, that
@@ -104,7 +104,7 @@ the provider registry protocol might contain the following:
 }
 ```
 
-If the given URL is a relative URL then OpenTofu will interpret it as relative
+If the given URL is a relative URL then OpenOpenTofu will interpret it as relative
 to the discovery document itself. The specific provider registry protocol
 endpoints are defined as URLs relative to the given base URL, and so the
 specified base URL should generally end with a slash to ensure that those

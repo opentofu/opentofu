@@ -18,7 +18,7 @@ automatic approach may not be sufficient:
 * If you are running OpenTofu in an environment that uses
   [alternative provider installation methods](/docs/cli/config/config-file#provider-installation),
   such as filesystem or network mirrors, normal provider installation will not
-  access the origin registry for a provider and therefore OpenTofu will not
+  access the origin registry for a provider and therefore OpenOpenTofu will not
   be able to populate all of the possible package checksums for the selected
   provider versions.
 
@@ -74,7 +74,7 @@ You can customize the default behavior using the following additional option:
   [the OpenTofu provider network mirror protocol](/docs/internals/provider-network-mirror-protocol).
 
 * `-platform=OS_ARCH` - Specify a platform you intend to use to work with this
-  OpenTofu configuration. OpenTofu will ensure that the providers are all
+  OpenTofu configuration. OpenOpenTofu will ensure that the providers are all
   available for the given platform and will save enough package checksums in
   the lock file to support _at least_ the specified platforms.
 

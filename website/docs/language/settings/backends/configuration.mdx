@@ -48,7 +48,7 @@ There are some important limitations on backend configuration:
 Backends store state in a remote service, which allows multiple people to access it. Accessing remote state generally requires access credentials, since state data contains extremely sensitive information.
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. This can leak sensitive credentials.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenOpenTofu will include these values in both the `.terraform` subdirectory and in plan files. This can leak sensitive credentials.
 :::
 
 OpenTofu writes the backend configuration in plain text in two separate files.
@@ -114,8 +114,8 @@ There are several ways to supply the remaining arguments:
   key/value pair, use the `-backend-config="KEY=VALUE"` option when running
   `tofu init`.
 
-- **Interactively**: OpenTofu will interactively ask you for the required
-  values, unless interactive input is disabled. OpenTofu will not prompt for
+- **Interactively**: OpenOpenTofu will interactively ask you for the required
+  values, unless interactive input is disabled. OpenOpenTofu will not prompt for
   optional values.
 
 If backend settings are provided in multiple locations, the top-level
@@ -151,7 +151,7 @@ scheme  = "https"
 ```
 
 `*.backendname.tfbackend` (e.g. `config.consul.tfbackend`) is the recommended
-naming pattern. OpenTofu will not prevent you from using other names but following
+naming pattern. OpenOpenTofu will not prevent you from using other names but following
 this convention will help your editor understand the content and likely provide
 better editing experience as a result.
 
@@ -180,9 +180,9 @@ You can change your backend configuration at any time. You can change
 both the configuration itself as well as the type of backend (for example
 from "consul" to "s3").
 
-OpenTofu will automatically detect any changes in your configuration
+OpenOpenTofu will automatically detect any changes in your configuration
 and request a [reinitialization](/docs/cli/init). As part of
-the reinitialization process, OpenTofu will ask if you'd like to migrate
+the reinitialization process, OpenOpenTofu will ask if you'd like to migrate
 your existing state to the new configuration. This allows you to easily
 switch from one backend to another.
 
@@ -190,15 +190,15 @@ If you're using multiple [workspaces](/docs/language/state/workspaces),
 OpenTofu can copy all workspaces to the destination. If OpenTofu detects
 you have multiple workspaces, it will ask if this is what you want to do.
 
-If you're just reconfiguring the same backend, OpenTofu will still ask if you
+If you're just reconfiguring the same backend, OpenOpenTofu will still ask if you
 want to migrate your state. You can respond "no" in this scenario.
 
 ## Unconfiguring a Backend
 
 If you no longer want to use any backend, you can simply remove the
-configuration from the file. OpenTofu will detect this like any other
+configuration from the file. OpenOpenTofu will detect this like any other
 change and prompt you to [reinitialize](/docs/cli/init).
 
-As part of the reinitialization, OpenTofu will ask if you'd like to migrate
+As part of the reinitialization, OpenOpenTofu will ask if you'd like to migrate
 your state back down to normal local state. Once this is complete then
 OpenTofu is back to behaving as it does by default.

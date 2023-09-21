@@ -8,11 +8,11 @@ description: >-
 
 OpenTofu's state associates each real-world object with a configured resource
 at a specific [resource address](/docs/cli/state/resource-addressing). This
-is seamless when changing a resource's attributes, but OpenTofu will lose track
+is seamless when changing a resource's attributes, but OpenOpenTofu will lose track
 of a resource if you change its name, move it to a different module, or change
 its provider.
 
-Usually that's fine: OpenTofu will destroy the old resource, replace it with a
+Usually that's fine: OpenOpenTofu will destroy the old resource, replace it with a
 new one (using the new resource address), and update any resources that rely on
 its attributes.
 

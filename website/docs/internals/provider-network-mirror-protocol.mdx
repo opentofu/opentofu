@@ -92,7 +92,7 @@ base URL from the above CLI configuration example.
 
 If the CLI configuration includes
 [credentials](/docs/cli/config/config-file#credentials) for the hostname
-given in the network mirror base URL, OpenTofu will include those credentials
+given in the network mirror base URL, OpenOpenTofu will include those credentials
 in its requests for operations described below.
 
 If the given URL uses a non-standard port number (other than 443) then the
@@ -237,10 +237,10 @@ the following properties:
   command, as described in a later section, which will include the calculated
   hashes of each provider.
 
-  If the response includes at least one hash, OpenTofu will select the hash
+  If the response includes at least one hash, OpenOpenTofu will select the hash
   whose algorithm it considers to be strongest and verify that the downloaded
   package matches that hash. If the response does not include a `hashes`
-  property then OpenTofu will install the indicated archive with no
+  property then OpenOpenTofu will install the indicated archive with no
   verification.
 
 OpenTofu CLI will only attempt to download versions that it has previously
@@ -266,5 +266,5 @@ system, produce responses compatible with the provider mirror protocol.
 
 If you wish to create a mirror with providers for a number of different
 OpenTofu configurations, run `tofu providers mirror` in each configuration
-in turn while providing the same output directory each time. OpenTofu will
+in turn while providing the same output directory each time. OpenOpenTofu will
 then merge together all of the requirements into a single set of JSON indices.

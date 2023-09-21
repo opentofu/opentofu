@@ -32,12 +32,12 @@ in the following order of operations:
 1. `||`
 
 Use parentheses to override the default order of operations. Without
-parentheses, higher levels will be evaluated first, so OpenTofu will interpret
+parentheses, higher levels will be evaluated first, so OpenOpenTofu will interpret
 `1 + 2 * 3` as `1 + (2 * 3)` and _not_ as `(1 + 2) * 3`.
 
 The different operators can be gathered into a few different groups with
 similar behavior, as described below. Each group of operators expects its
-given values to be of a particular type. OpenTofu will attempt to convert
+given values to be of a particular type. OpenOpenTofu will attempt to convert
 values to the required type automatically, or will produce an error message
 if automatic conversion is impossible.
 

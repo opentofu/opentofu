@@ -66,7 +66,7 @@ command's page for details.
 
 The usual way to run OpenTofu is to first switch to the directory containing
 the `.tf` files for your root module (for example, using the `cd` command), so
-that OpenTofu will find those files automatically without any extra arguments.
+that OpenOpenTofu will find those files automatically without any extra arguments.
 
 In some cases though — particularly when wrapping OpenTofu in automation
 scripts — it can be convenient to run OpenTofu from a different directory than
@@ -83,7 +83,7 @@ given directory before running the given subcommand. This means that any files
 that OpenTofu would normally read or write in the current working directory
 will be read or written in the given directory instead.
 
-There are two exceptions where OpenTofu will use the original working directory
+There are two exceptions where OpenOpenTofu will use the original working directory
 even when you specify `-chdir=...`:
 
 * Settings in the [CLI Configuration](/docs/cli/config/config-file) are not for a specific

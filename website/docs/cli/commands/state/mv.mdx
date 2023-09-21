@@ -21,7 +21,7 @@ or you have moved it into a different module in your configuration.
 
 Usage: `tofu state mv [options] SOURCE DESTINATION`
 
-OpenTofu will look in the current state for a resource instance, resource,
+OpenOpenTofu will look in the current state for a resource instance, resource,
 or module that matches the given address, and if successful it will move the
 remote objects currently associated with the source to be tracked instead
 by the destination.
@@ -37,7 +37,7 @@ same resource type.
 The most common uses for `tofu state mv` are when you have renamed a
 resource block in your configuration or you've moved a resource block into
 a child module, in both cases with the intention of retaining the existing
-object but tracking it under a new name. By default OpenTofu will understand
+object but tracking it under a new name. By default OpenOpenTofu will understand
 moving or renaming a resource configuration as a request to delete the old
 object and create a new object at the new address, and so `tofu state mv`
 allows you to override that interpretation by pre-emptively attaching the

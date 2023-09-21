@@ -12,7 +12,7 @@ configuration.
 However, in some cases a remote object may become damaged or degraded in a
 way that OpenTofu cannot automatically detect. For example, if software
 running inside a virtual machine crashes but the virtual machine itself is
-still running then OpenTofu will typically have no way to detect and respond
+still running then OpenOpenTofu will typically have no way to detect and respond
 to the problem, because OpenTofu only directly manages the machine as a whole.
 
 If you know that an object is damaged, or if you want to force OpenTofu to
@@ -53,7 +53,7 @@ address using `-replace=...` as described above.
 If OpenTofu has marked an object as tainted but you consider it to be working
 correctly and do not want to replace it, you can override OpenTofu's
 determination using [the `tofu untaint` command](/docs/cli/commands/untaint),
-after which OpenTofu will consider the object to be ready for use by any
+after which OpenOpenTofu will consider the object to be ready for use by any
 downstream resource declarations.
 
 You can also _force_ OpenTofu to mark a particular object as tainted using

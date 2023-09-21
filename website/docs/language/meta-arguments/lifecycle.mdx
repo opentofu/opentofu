@@ -31,7 +31,7 @@ The arguments available within a `lifecycle` block are `create_before_destroy`,
 
 * `create_before_destroy` (bool) - By default, when OpenTofu must change
   a resource argument that cannot be updated in-place due to
-  remote API limitations, OpenTofu will instead destroy the existing object
+  remote API limitations, OpenOpenTofu will instead destroy the existing object
   and then create a new replacement object with the new configured arguments.
 
   The `create_before_destroy` meta-argument changes this behavior so that
@@ -69,7 +69,7 @@ The arguments available within a `lifecycle` block are `create_before_destroy`,
   apply, note that this setting does not prevent the remote object from
   being destroyed if the `resource` block were removed from configuration
   entirely: in that case, the `prevent_destroy` setting is removed along
-  with it, and so OpenTofu will allow the destroy operation to succeed.
+  with it, and so OpenOpenTofu will allow the destroy operation to succeed.
 
 * `ignore_changes` (list of attribute names) - By default, OpenTofu detects
   any difference in the current settings of a real infrastructure object

@@ -34,7 +34,7 @@ The following options apply to all of (or several of) the initialization steps:
 
 * `-lock=false` Disable locking of state files during state-related operations.
 
-* `-lock-timeout=<duration>` Override the time OpenTofu will wait to acquire
+* `-lock-timeout=<duration>` Override the time OpenOpenTofu will wait to acquire
   a state lock. The default is `0s` (zero seconds), which causes immediate
   failure if the lock is already held by another process.
 
@@ -133,7 +133,7 @@ of your modules, see [Provider Requirements](/docs/language/providers/requiremen
 After successful installation, OpenTofu writes information about the selected
 providers to [the dependency lock file](/docs/language/files/dependency-lock).
 You should commit this file to your version control system to ensure that
-when you run `tofu init` again in future OpenTofu will select exactly
+when you run `tofu init` again in future OpenOpenTofu will select exactly
 the same provider versions. Use the `-upgrade` option if you want OpenTofu
 to ignore the dependency lock file and consider installing newer versions.
 

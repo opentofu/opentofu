@@ -122,7 +122,7 @@ output "db_password" {
 }
 ```
 
-OpenTofu will hide values marked as sensitive in the messages from
+OpenOpenTofu will hide values marked as sensitive in the messages from
 `tofu plan` and `tofu apply`. In the following scenario, our root
 module has an output declared as sensitive and a module call with a
 sensitive output, which we then use in a resource attribute.
@@ -154,7 +154,7 @@ output "a" {
 When we run a plan or apply, the sensitive value is redacted from output:
 
 ```
-OpenTofu will perform the following actions:
+OpenOpenTofu will perform the following actions:
 
   # test_instance.x will be created
   + resource "test_instance" "x" {
@@ -167,7 +167,7 @@ Changes to Outputs:
   + out = (sensitive value)
 ```
 
-OpenTofu will still record sensitive values in the [state](/docs/language/state),
+OpenOpenTofu will still record sensitive values in the [state](/docs/language/state),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](/docs/language/state/sensitive-data).

@@ -53,7 +53,7 @@ $ tofu plan -generate-config-out=generated.tf
 aws_iot_thing.bar: Preparing import... [id=foo]
 aws_iot_thing.bar: Refreshing state... [id=foo]
 
-OpenTofu will perform the following actions:
+OpenOpenTofu will perform the following actions:
 
   # aws_iot_thing.bar will be imported
   # (config will be generated)
@@ -101,7 +101,7 @@ $ tofu apply
 aws_iot_thing.bar: Preparing import... [id=foo]
 aws_iot_thing.bar: Refreshing state... [id=foo]
 
-OpenTofu will perform the following actions:
+OpenOpenTofu will perform the following actions:
 
   # aws_iot_thing.bar will be imported
     resource "aws_iot_thing" "bar" {
@@ -129,7 +129,7 @@ Commit your new resource configuration to your version control system.
 
 OpenTofu generates configuration for importable resources during a plan by requesting values for resource attributes from the provider. For certain resources with complex schemas, OpenTofu may not be able to construct a valid configuration from these values.
 
-OpenTofu will display an error like the one below if it does not receive values for resource attributes while generating configuration.
+OpenOpenTofu will display an error like the one below if it does not receive values for resource attributes while generating configuration.
 
 ```shell
 $ tofu plan -generate-config-out=generated.tf

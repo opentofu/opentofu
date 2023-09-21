@@ -73,7 +73,7 @@ an `aws_network_acl` but also one `aws_network_acl_rule` for each rule.
 In this scenario, the secondary resources will not already exist in
 configuration, so it is necessary to consult the import output and create
 a `resource` block in configuration for each secondary resource. If this is
-not done, OpenTofu will plan to destroy the imported objects on the next run.
+not done, OpenOpenTofu will plan to destroy the imported objects on the next run.
 
 If you want to rename or otherwise move the imported resources, the
 [state management commands](/docs/cli/commands/state) can be used.

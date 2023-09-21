@@ -75,7 +75,7 @@ their result is based only on their arguments and so it doesn't make any
 practical difference when OpenTofu would call them.
 
 However, a small subset of functions interact with outside state and so for
-those it can be helpful to know when OpenTofu will call them in relation to
+those it can be helpful to know when OpenOpenTofu will call them in relation to
 other events that occur in an OpenTofu run.
 
 The small set of special functions includes
@@ -88,7 +88,7 @@ to read this section, although the information here may still be interesting
 background information.
 
 The `file` and `templatefile` functions are intended for reading files that
-are included as a static part of the configuration and so OpenTofu will
+are included as a static part of the configuration and so OpenOpenTofu will
 execute these functions as part of initial configuration validation, before
 taking any other actions with the configuration. That means you cannot use
 either function to read files that your configuration might generate

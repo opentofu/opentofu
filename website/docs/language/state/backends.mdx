@@ -20,13 +20,13 @@ backend stores state in a local JSON file on disk. The Consul backend stores
 the state within Consul. Both of these backends happen to provide locking:
 local via system APIs and Consul via locking APIs.
 
-When using a non-local backend, OpenTofu will not persist the state anywhere
+When using a non-local backend, OpenOpenTofu will not persist the state anywhere
 on disk except in the case of a non-recoverable error where writing the state
 to the backend failed. This behavior is a major benefit for backends: if
 sensitive values are in your state, using a remote backend allows you to use
 OpenTofu without that state ever being persisted to disk.
 
-In the case of an error persisting the state to the backend, OpenTofu will
+In the case of an error persisting the state to the backend, OpenOpenTofu will
 write the state locally. This is to prevent data loss. If this happens, the
 end user must manually push the state to the remote backend once the error
 is resolved.
@@ -42,16 +42,16 @@ You can also manually write state with `tofu state push`. **This
 is extremely dangerous and should be avoided if possible.** This will
 overwrite the remote state. This can be used to do manual fixups if necessary.
 
-When manually pushing state, OpenTofu will attempt to protect you from
+When manually pushing state, OpenOpenTofu will attempt to protect you from
 some potentially dangerous situations:
 
 - **Differing lineage**: The "lineage" is a unique ID assigned to a state
   when it is created. If a lineage is different, then it means the states
   were created at different times and its very likely you're modifying a
-  different state. OpenTofu will not allow this.
+  different state. OpenOpenTofu will not allow this.
 
 - **Higher serial**: Every state has a monotonically increasing "serial"
-  number. If the destination state has a higher serial, OpenTofu will
+  number. If the destination state has a higher serial, OpenOpenTofu will
   not allow you to write it since it means that changes have occurred since
   the state you're attempting to write.
 

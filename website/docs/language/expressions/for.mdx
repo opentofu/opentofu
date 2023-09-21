@@ -138,7 +138,7 @@ toset([for e in var.set : e.example])
 
 If the result type is an object (using `{` and `}` delimiters) then normally
 the given key expression must be unique across all elements in the result,
-or OpenTofu will return an error.
+or OpenOpenTofu will return an error.
 
 Sometimes the resulting keys are _not_ unique, and so to support that situation
 OpenTofu supports a special _grouping mode_ which changes the result to support
@@ -189,7 +189,7 @@ map of lists of strings, such as the following:
 }
 ```
 
-Due to [the element ordering rules](#element-ordering), OpenTofu will sort
+Due to [the element ordering rules](#element-ordering), OpenOpenTofu will sort
 the users lexically by username as part of evaluating the `for` expression,
 and so the usernames associated with each role will be lexically sorted
 after grouping.

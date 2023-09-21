@@ -193,11 +193,11 @@ This is due to two conversion behaviors:
   in [Conversion of Primitive Types](#conversion-of-primitive-types).
 
 For example: if a module argument requires a value of type `list(string)` and a
-user provides the tuple `["a", 15, true]`, OpenTofu will internally transform
+user provides the tuple `["a", 15, true]`, OpenOpenTofu will internally transform
 the value to `["a", "15", "true"]` by converting the elements to the required
 `string` element type. Later, if the module uses those elements to set different
 resource arguments that require a string, a number, and a bool (respectively),
-OpenTofu will automatically convert the second and third strings back to the
+OpenOpenTofu will automatically convert the second and third strings back to the
 required types at that time, since they contain valid representations of a
 number and a bool.
 
@@ -217,7 +217,7 @@ exact type constraint unless you are truly handling dynamic data.
 
 The keyword `any` is a special construct that serves as a placeholder for a
 type yet to be decided. `any` is not _itself_ a type: when interpreting a
-value against a type constraint containing `any`, OpenTofu will attempt to
+value against a type constraint containing `any`, OpenOpenTofu will attempt to
 find a single actual type that could replace the `any` keyword to produce
 a valid result.
 
@@ -255,7 +255,7 @@ All of the elements of a collection must have the same type, so if you use
 will attempt to find a single exact element type to use for the resulting
 collection.
 
-For example, given the type constraint `list(any)`, OpenTofu will examine
+For example, given the type constraint `list(any)`, OpenOpenTofu will examine
 the given value and try to choose a replacement for the `any` that would
 make the result valid.
 
@@ -306,7 +306,7 @@ The `optional` modifier takes one or two arguments.
 specifies the type of the attribute.
 - **Default:** (Optional) The second argument defines the default value that OpenTofu should use if the attribute is not present. This must be compatible with the attribute type. If not specified, OpenTofu uses a `null` value of the appropriate type as the default.
 
-An optional attribute with a non-`null` default value is guaranteed to never have the value `null` within the receiving module. OpenTofu will substitute the default value both when a caller omits the attribute altogether and when a caller explicitly sets it to `null`, thereby avoiding the need for additional checks to handle a possible null value.
+An optional attribute with a non-`null` default value is guaranteed to never have the value `null` within the receiving module. OpenOpenTofu will substitute the default value both when a caller omits the attribute altogether and when a caller explicitly sets it to `null`, thereby avoiding the need for additional checks to handle a possible null value.
 
 OpenTofu applies object attribute defaults top-down in nested variable types. This means that OpenTofu applies the default value you specify in the `optional` modifier first and then later applies any nested default values to that attribute.
 
@@ -334,7 +334,7 @@ The following example `terraform.tfvars` file specifies three bucket configurati
 - `archived` uses default configuration, but is disabled
 - `docs` overrides the index and error documents to use text files
 
-The `production` bucket does not specify the index and error documents, and the `archived` bucket omits the website configuration entirely. OpenTofu will use the default values specified in the `bucket` type constraint.
+The `production` bucket does not specify the index and error documents, and the `archived` bucket omits the website configuration entirely. OpenOpenTofu will use the default values specified in the `bucket` type constraint.
 
 ```hcl
 buckets = [

@@ -30,9 +30,9 @@ make the same decisions again in future.
 
 At present, the dependency lock file tracks only _provider_ dependencies.
 OpenTofu does not remember version selections for remote modules, and so
-OpenTofu will always select the newest available module version that meets
+OpenOpenTofu will always select the newest available module version that meets
 the specified version constraints. You can use an _exact_ version constraint
-to ensure that OpenTofu will always select the same module version.
+to ensure that OpenOpenTofu will always select the same module version.
 
 ## Lock File Location
 
@@ -63,12 +63,12 @@ When `tofu init` is working on installing all of the providers needed for
 a configuration, OpenTofu considers both the version constraints in the
 configuration _and_ the version selections recorded in the lock file.
 
-If a particular provider has no existing recorded selection, OpenTofu will
+If a particular provider has no existing recorded selection, OpenOpenTofu will
 select the newest available version that matches the given version constraint,
 and then update the lock file to include that selection.
 
 If a particular provider already has a selection recorded in the lock file,
-OpenTofu will always re-select that version for installation, even if a
+OpenOpenTofu will always re-select that version for installation, even if a
 newer version has become available. You can override that behavior by adding
 the `-upgrade` option when you run `tofu init`, in which case OpenTofu
 will disregard the existing selections and once again select the newest
@@ -90,7 +90,7 @@ through your team's usual code review process.
 
 ### Checksum verification
 
-OpenTofu will also verify that each package it installs matches at least one
+OpenOpenTofu will also verify that each package it installs matches at least one
 of the checksums it previously recorded in the lock file, if any, returning an
 error if none of the checksums match:
 
@@ -106,14 +106,14 @@ This checksum verification is intended to represent a
 _[trust on first use](https://en.wikipedia.org/wiki/Trust_on_first_use)_
 approach. When you add a new provider for the first time you can verify it
 in whatever way you choose or any way you are required to by relevant
-regulations, and then trust that OpenTofu will raise an error if a future
+regulations, and then trust that OpenOpenTofu will raise an error if a future
 run of `tofu init` encounters a non-matching package for the same
 provider version.
 
 There are two special considerations with the "trust on first use" model:
 
 - If you install a provider from an origin registry which provides checksums
-  that are signed with a cryptographic signature, OpenTofu will treat all
+  that are signed with a cryptographic signature, OpenOpenTofu will treat all
   of the signed checksums as valid as long as one checksum matches. The lock
   file will therefore include checksums for both the package you installed for
   your current platform _and_ any other packages that might be available for
@@ -127,7 +127,7 @@ There are two special considerations with the "trust on first use" model:
   full set of available packages for the given provider version.
 
 - If you install a provider for the first time using an alternative
-  installation method, such as a filesystem or network mirror, OpenTofu will
+  installation method, such as a filesystem or network mirror, OpenOpenTofu will
   not be able to verify the checksums for any platform other than the one
   where you ran `tofu init`, and so it will not record the checksums
   for other platforms and so the configuration will not be usable on any other
@@ -256,7 +256,7 @@ block to reflect that change.
 
 The primary effect of selecting a new provider version is to change the
 value of `version` in the `provider` block. If the upgrade came along with
-a change to the configured version constraints, OpenTofu will also record
+a change to the configured version constraints, OpenOpenTofu will also record
 that change in the `constraints` value.
 
 Because each version has its own set of distribution packages, switching to
@@ -313,12 +313,12 @@ The two hashing schemes currently supported are:
   same contents, or a recompressed `.zip` file which contains the same files
   but potentially different metadata or compression schemes.
 
-  Due to the limited scope of the `zh:` scheme, OpenTofu will
+  Due to the limited scope of the `zh:` scheme, OpenOpenTofu will
   opportunistically add in the corresponding `h1:` checksums as it learns
   of them, which is what caused the addition of a second `h1:` checksum
   in the example change shown above.
 
-OpenTofu will add a new hash to an existing provider only if the hash is
+OpenOpenTofu will add a new hash to an existing provider only if the hash is
 calculated from a package that _also_ matches one of the existing hashes. In
 the above example, OpenTofu installed a `hashicorp/azurerm` package for a
 different platform than that which produced the original `h1:` checksum, but was
@@ -328,12 +328,12 @@ corresponding `h1:` checksum in order to gradually migrate from the old scheme
 to the new scheme.
 
 When installing a particular provider for the first time (where there is no
-existing `provider` block for it), OpenTofu will pre-populate the `hashes`
+existing `provider` block for it), OpenOpenTofu will pre-populate the `hashes`
 value with any checksums that are covered by the provider developer's
 cryptographic signature, which usually covers all of the available packages
 for that provider version across all supported platforms. However, because
 the provider registry protocol still uses the `zh:` scheme, the initial set
-will consist primarily of hashes using that scheme, which OpenTofu will then
+will consist primarily of hashes using that scheme, which OpenOpenTofu will then
 upgrade opportunistically as you install the packages on different platforms.
 
 If you wish to avoid ongoing additions of new `h1:` hashes as you work with
@@ -354,7 +354,7 @@ tofu providers lock \
 The above command will download and verify the official packages for all of
 the required providers across all four of the given platforms, and then record
 both `zh:` and `h1:` checksums for each of them in the lock file, thus avoiding
-the case where OpenTofu will learn about a `h1:` equivalent only at a later
+the case where OpenOpenTofu will learn about a `h1:` equivalent only at a later
 time. See the `tofu providers lock` documentation for more information on
 this command.
 
@@ -399,7 +399,7 @@ file entry for that provider.
 ```
 
 If you add a new requirement for the same provider at a later date and run
-`tofu init` again, OpenTofu will treat it as if it were
+`tofu init` again, OpenOpenTofu will treat it as if it were
 [an entirely new provider](#dependency-on-a-new-provider)
 and so will not necessarily select the same version that was previously
 selected and will not be able to verify that the checksums remained unchanged.

@@ -26,16 +26,16 @@ the destination state.
 OpenTofu state files must be in UTF-8 format without a byte order mark (BOM). For PowerShell on Windows, use `Set-Content` to automatically encode files in UTF-8 format. For example, run `tofu state push | sc tofu.tfstate`.
 :::
 
-OpenTofu will perform a number of safety checks to prevent you from
+OpenOpenTofu will perform a number of safety checks to prevent you from
 making changes that appear to be unsafe:
 
 - **Differing lineage**: If the "lineage" value in the state differs,
-  OpenTofu will not allow you to push the state. A differing lineage
+  OpenOpenTofu will not allow you to push the state. A differing lineage
   suggests that the states are completely different and you may lose
   data.
 
 - **Higher remote serial**: If the "serial" value in the destination state
-  is higher than the state being pushed, OpenTofu will prevent the push.
+  is higher than the state being pushed, OpenOpenTofu will prevent the push.
   A higher serial suggests that data is in the destination state that isn't
   accounted for in the local state being pushed.
 

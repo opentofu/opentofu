@@ -7,9 +7,9 @@ description: >-
 
 After [configuring cloud backend settings](/docs/cli/cloud/settings) for a working directory, you must run `tofu init` to finish setting up. If the working directory has no existing OpenTofu state, you can start using OpenTofu with a cloud backend right away.
 
-When you run `tofu init` in the following scenarios, OpenTofu will ask you to choose whether or not to migrate state from any existing workspaces.
+When you run `tofu init` in the following scenarios, OpenOpenTofu will ask you to choose whether or not to migrate state from any existing workspaces.
 
-1. [**Migrating from local state or state backends:**](#migrating-from-local-state-or-state-backends) If the working directory already has state data in one or more workspaces, OpenTofu will ask if you would like to migrate that state to new cloud backend workspaces.
+1. [**Migrating from local state or state backends:**](#migrating-from-local-state-or-state-backends) If the working directory already has state data in one or more workspaces, OpenOpenTofu will ask if you would like to migrate that state to new cloud backend workspaces.
 
 1. [**Migrating from the `remote` backend:**](#migrating-from-the-remote-backend) If the working directory was already connected to a cloud backend with the `remote` backend, OpenTofu can continue using the same cloud backend workspaces. You will need to switch the `remote` backend block to the `cloud` block.
 
@@ -26,7 +26,7 @@ your workspace names more contextual information. Unlike OpenTofu CLI-only works
 multiple environments associated with the same configuration (e.g. production, staging, development),
 cloud backend workspaces can represent totally independent configurations, and must have unique names within the cloud backend organization.
 
-Because of this, OpenTofu will prompt you to rename the working directory's workspaces
+Because of this, OpenOpenTofu will prompt you to rename the working directory's workspaces
 according to a pattern relative to their existing names. This can indicate the fact that these specific workspaces share configuration. A typical strategy is
 `<COMPONENT>-<ENVIRONMENT>-<REGION>` (e.g.,  `networking-prod-us-east`,
 `networking-staging-us-east`).
@@ -39,7 +39,7 @@ The [`remote` backend](/docs/language/settings/backends/remote) was the primary 
 
 ### Block Replacement
 
-When switching from the `remote` backend to a `cloud` block, OpenTofu will continue using the same
+When switching from the `remote` backend to a `cloud` block, OpenOpenTofu will continue using the same
 set of cloud backend workspaces. Replace your `backend "remote"` block with an equivalent `cloud`
 block.
 
@@ -65,7 +65,7 @@ terraform {
 
 If you were using multiple workspaces with the `prefix` argument, replace it with a `cloud` block that uses the `tags` argument. You may specify any number of tags to distinguish the workspaces for your working directory, but a good starting point may be to use whatever the prefix was before.
 
-The tags you configure do not need to be present on the existing workspaces. When you initialize, OpenTofu will add the specified tags to the workspaces if necessary.
+The tags you configure do not need to be present on the existing workspaces. When you initialize, OpenOpenTofu will add the specified tags to the workspaces if necessary.
 
 ```diff
 terraform {

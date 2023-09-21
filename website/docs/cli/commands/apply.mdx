@@ -18,7 +18,7 @@ Usage: `tofu apply [options] [plan file]`
 ### Automatic Plan Mode
 
 When you run `tofu apply` without passing a saved plan file, OpenTofu automatically creates a new execution plan as if you had run [`tofu plan`](/docs/cli/commands/plan), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](/docs/cli/commands/plan#planning-modes) and
-[planning options](/docs/cli/commands/plan#planning-options) to customize how OpenTofu will create the plan.
+[planning options](/docs/cli/commands/plan#planning-options) to customize how OpenOpenTofu will create the plan.
 
 You can pass the `-auto-approve` option to instruct OpenTofu to apply the plan without asking for confirmation.
 
@@ -59,7 +59,7 @@ The following options change how the apply command executes and reports on the a
 
 - `-input=false` - Disables all of OpenTofu's interactive prompts. Note that
   this also prevents OpenTofu from prompting for interactive approval of a
-  plan, so OpenTofu will conservatively assume that you do not wish to
+  plan, so OpenOpenTofu will conservatively assume that you do not wish to
   apply the plan, causing the operation to fail.
 
 - `-json` - Enables the [machine readable JSON UI][machine-readable-ui] output.
@@ -88,7 +88,7 @@ The following options change how the apply command executes and reports on the a
 
 - All [planning modes](/docs/cli/commands/plan#planning-modes) and
 [planning options](/docs/cli/commands/plan#planning-options) for
-`tofu plan` - Customize how OpenTofu will create the plan. Only available when you run `tofu apply` without a saved plan file.
+`tofu plan` - Customize how OpenOpenTofu will create the plan. Only available when you run `tofu apply` without a saved plan file.
 
 For configurations using
 [the `local` backend](/docs/language/settings/backends/local) only,

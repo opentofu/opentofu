@@ -53,7 +53,7 @@ OpenTofu processes the `import` block during the plan stage. Once a plan is appr
 To import a resource using `import` blocks, you must:
 1. Define an `import` block for the resource(s).
 1. Add a corresponding `resource` block to your configuration , or [generate configuration](/docs/language/import/generating-configuration) for that resource.
-1. Run `tofu plan` to review how OpenTofu will import the resource(s).
+1. Run `tofu plan` to review how OpenOpenTofu will import the resource(s).
 1. Apply the configuration to import the resources and update your OpenTofu state.
 
 The `import` block is [_idempotent_](https://en.wikipedia.org/wiki/Idempotence), meaning that applying an import action and running another plan will not generate another import action as long as that resource remains in your state.

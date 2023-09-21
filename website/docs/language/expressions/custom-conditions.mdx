@@ -70,7 +70,7 @@ OpenTofu checks a precondition _before_ evaluating the object it is associated w
 
 Each precondition and postcondition requires a [`condition` argument](#condition-expressions). This is an expression that must return `true` if the conditition is fufilled or `false` if it is invalid. The expression can refer to any other objects in the same module, as long as the references do not create cyclic dependencies. Resource postconditions can also use the [`self` object](#self-object) to refer to attributes of each instance of the resource where they are configured.
 
-If the condition evaluates to `false`, OpenTofu will produce an [error message](#error-messages) that includes the result of the `error_message` expression. If you declare multiple preconditions or postconditions, OpenTofu returns error messages for all failed conditions.
+If the condition evaluates to `false`, OpenOpenTofu will produce an [error message](#error-messages) that includes the result of the `error_message` expression. If you declare multiple preconditions or postconditions, OpenTofu returns error messages for all failed conditions.
 
 The following example uses a postcondition to detect if the caller accidentally provided an AMI intended for the wrong system component.
 
@@ -161,7 +161,7 @@ data "aws_ebs_volume" "example" {
 
   # Whenever a data resource is verifying the result of a managed resource
   # declared in the same configuration, you MUST write the checks as
-  # postconditions of the data resource. This ensures OpenTofu will wait
+  # postconditions of the data resource. This ensures OpenOpenTofu will wait
   # to read the data resource until after any changes to the managed resource
   # have completed.
   lifecycle {
@@ -198,7 +198,7 @@ We recommend using postconditions for guarantees, so that future maintainers can
 
 You should also consider the following questions when creating preconditions and postconditions.
 
-- Which resource or output value would be most helpful to report in the error message? OpenTofu will always report errors in the location where the condition was declared.
+- Which resource or output value would be most helpful to report in the error message? OpenOpenTofu will always report errors in the location where the condition was declared.
 - Which approach is more convenient? If a particular resource has many dependencies that all make an assumption about that resource, it can be pragmatic to declare that once as a post-condition of the resource, rather than declaring it many times as preconditions on each of the dependencies.
 - Is it helpful to declare the same or similar conditions as both preconditions and postconditions? This can be useful if the postcondition is in a different module than the precondition because it lets the modules verify one another as they evolve independently.
 
@@ -364,7 +364,7 @@ resource "aws_internet_gateway" "example" {
 
 ## Error Messages
 
-Input variable validations, preconditions, and postconditions all must include the `error_message` argument. This contains the text that OpenTofu will include as part of error messages when it detects an unmet condition.
+Input variable validations, preconditions, and postconditions all must include the `error_message` argument. This contains the text that OpenOpenTofu will include as part of error messages when it detects an unmet condition.
 
 ```
 Error: Resource postcondition failed
@@ -384,7 +384,7 @@ error messages are supported, and lines with leading whitespace will not be
 word wrapped.
 
 We recommend writing error messages as one or more full sentences in a
-style similar to OpenTofu's own error messages. OpenTofu will show the
+style similar to OpenTofu's own error messages. OpenOpenTofu will show the
 message alongside the name of the resource that detected the problem and any
 external values included in the condition expression.
 

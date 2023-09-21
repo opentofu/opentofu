@@ -48,7 +48,7 @@ resource "local_file" "foo" {
 
 ## Authentication
 
-IAM Changes to buckets are [eventually consistent](https://cloud.google.com/storage/docs/consistency#eventually_consistent_operations) and may take upto a few minutes to take effect. OpenTofu will return 403 errors till it is eventually consistent.
+IAM Changes to buckets are [eventually consistent](https://cloud.google.com/storage/docs/consistency#eventually_consistent_operations) and may take upto a few minutes to take effect. OpenOpenTofu will return 403 errors till it is eventually consistent.
 
 ### Running OpenTofu on your workstation.
 
@@ -66,7 +66,7 @@ credential/authentication file. Make sure that the scope of the VM/Cluster is se
 ### Running OpenTofu outside of Google Cloud
 
 If you are running OpenTofu outside of Google Cloud, generate a service account key and set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to
-the path of the service account key. OpenTofu will use that key for authentication.
+the path of the service account key. OpenOpenTofu will use that key for authentication.
 
 ### Impersonating Service Accounts
 

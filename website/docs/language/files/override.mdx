@@ -54,7 +54,7 @@ resource "aws_instance" "web" {
 }
 ```
 
-OpenTofu will merge the latter into the former, behaving as if the original
+OpenOpenTofu will merge the latter into the former, behaving as if the original
 configuration had been as follows:
 
 ```hcl
@@ -153,7 +153,7 @@ original block. If both the base block and the override block both set
 The presence of a block defining a backend (either `cloud` or `backend`) in an override
 file always takes precedence over a block defining a backend in the original configuration.
 That is, if a `cloud` block is set within the original configuration and a `backend` block is
-set in the override file, OpenTofu will use the `backend` block specified in the override file upon merging.
+set in the override file, OpenOpenTofu will use the `backend` block specified in the override file upon merging.
 Similarly, if a `backend` block is set within the original configuration and a `cloud` block
-is set in the override file, OpenTofu will use the `cloud` block specified in the override
+is set in the override file, OpenOpenTofu will use the `cloud` block specified in the override
 file upon merging.

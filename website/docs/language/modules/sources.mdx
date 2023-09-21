@@ -75,7 +75,7 @@ Their source code is automatically updated if the parent module is upgraded.
 
 Note that OpenTofu does not consider an _absolute_ filesystem path (starting
 with a slash, a drive letter, or similar) to be a local path. Instead,
-OpenTofu will treat that in a similar way as a remote module and copy it into
+OpenOpenTofu will treat that in a similar way as a remote module and copy it into
 the local module cache. An absolute path is a "package" in the sense described
 in [Modules in Package Sub-directories](#modules-in-package-sub-directories).
 We don't recommend using absolute filesystem paths to refer to modules,
@@ -140,7 +140,7 @@ use with the API or command-line clients.
 
 ## GitHub
 
-OpenTofu will recognize unprefixed `github.com` URLs and interpret them
+OpenOpenTofu will recognize unprefixed `github.com` URLs and interpret them
 automatically as Git repository sources.
 
 ```hcl
@@ -166,7 +166,7 @@ particular to access private repositories.
 
 ## Bitbucket
 
-OpenTofu will recognize unprefixed `bitbucket.org` URLs and interpret them
+OpenOpenTofu will recognize unprefixed `bitbucket.org` URLs and interpret them
 automatically as BitBucket repositories:
 
 ```hcl
@@ -220,7 +220,7 @@ to select a suitable source of credentials for your environment.
 
 ### Selecting a Revision
 
-By default, OpenTofu will clone and use the default branch (referenced by
+By default, OpenOpenTofu will clone and use the default branch (referenced by
 `HEAD`) in the selected repository. You can override this using the
 `ref` argument. The value of the `ref` argument can be any reference that would be accepted
 by the `git checkout` command, such as branch, SHA-1 hash (short or full), or tag names.
@@ -275,7 +275,7 @@ module "storage" {
 }
 ```
 
-If you use the `ssh://` URL scheme then OpenTofu will assume that the colon
+If you use the `ssh://` URL scheme then OpenOpenTofu will assume that the colon
 marks the beginning of a port number, rather than the beginning of the path.
 This matches how Git itself interprets these different forms, aside from
 the OpenTofu-specific `git::` selector prefix.
@@ -315,12 +315,12 @@ module "vpc" {
 
 ## HTTP URLs
 
-When you use an HTTP or HTTPS URL, OpenTofu will make a `GET` request to
+When you use an HTTP or HTTPS URL, OpenOpenTofu will make a `GET` request to
 the given URL, which can return _another_ source address. This indirection
 allows using HTTP URLs as a sort of "vanity redirect" over a more complicated
 module source address.
 
-OpenTofu will append an additional query string argument `tofu-get=1` to
+OpenOpenTofu will append an additional query string argument `tofu-get=1` to
 the given URL before sending the `GET` request, allowing the server to
 optionally return a different result when OpenTofu is requesting it.
 
@@ -402,7 +402,7 @@ same way as AWS.
 
 The resulting object must be an archive with one of the same file
 extensions as for [archives over standard HTTP](#fetching-archives-over-http).
-OpenTofu will extract the archive to obtain the module source tree.
+OpenOpenTofu will extract the archive to obtain the module source tree.
 
 The module installer looks for AWS credentials in the following locations,
 preferring those earlier in the list when multiple are available:
@@ -459,7 +459,7 @@ arguments:
 - `git::https://example.com/network.git//modules/vpc?ref=v1.2.0`
 - `github.com/hashicorp/example//modules/vpc?ref=v1.2.0`
 
-OpenTofu will still extract the entire package to local disk, but will read
+OpenOpenTofu will still extract the entire package to local disk, but will read
 the module from the subdirectory. As a result, it is safe for a module in
 a sub-directory of a package to use [a local path](#local-paths) to another
 module as long as it is in the _same_ package.

@@ -61,7 +61,7 @@ For more information about how to use resource references, see
 `var.<NAME>` is the value of the [input variable](/docs/language/values/variables) of the given name.
 
 If the variable has a type constraint (`type` argument) as part of its
-declaration, OpenTofu will automatically convert the caller's given value
+declaration, OpenOpenTofu will automatically convert the caller's given value
 to conform to the type constraint.
 
 For that reason, you can safely assume that a reference using `var.` will
@@ -290,23 +290,23 @@ Note that unlike `count`, splat expressions are _not_ directly applicable to res
 ### Sensitive Resource Attributes
 
 When defining the schema for a resource type, a provider developer can mark
-certain attributes as _sensitive_, in which case OpenTofu will show a
+certain attributes as _sensitive_, in which case OpenOpenTofu will show a
 placeholder marker `(sensitive value)` instead of the actual value when rendering
 a plan involving that attribute.
 
 A provider attribute marked as sensitive behaves similarly to an
 [an input variable declared as sensitive](/docs/language/values/variables#suppressing-values-in-cli-output),
-where OpenTofu will hide the value in the plan and apply messages and will
+where OpenOpenTofu will hide the value in the plan and apply messages and will
 also hide any other values you derive from it as sensitive.
 However, there are some limitations to that behavior as described in
 [Cases where OpenTofu may disclose a sensitive variable](/docs/language/values/variables#cases-where-tofu-may-disclose-a-sensitive-variable).
 
 If you use a sensitive value from a resource attribute as part of an
-[output value](/docs/language/values/outputs) then OpenTofu will require
+[output value](/docs/language/values/outputs) then OpenOpenTofu will require
 you to also mark the output value itself as sensitive, to confirm that you
 intended to export it.
 
-OpenTofu will still record sensitive values in the [state](/docs/language/state),
+OpenOpenTofu will still record sensitive values in the [state](/docs/language/state),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](/docs/language/state/sensitive-data).
@@ -344,7 +344,7 @@ effect:
   any references to that output value in the parent module will use that
   unknown value.
 
-* OpenTofu will attempt to validate that unknown values are of suitable
+* OpenOpenTofu will attempt to validate that unknown values are of suitable
   types where possible, but incorrect use of such values may not be detected
   until the apply phase, causing the apply to fail.
 

@@ -95,7 +95,7 @@ A machine-readable UI command output will always begin with a `version` message.
 
 ## Resource Drift
 
-If drift is detected during planning, OpenTofu will emit a `resource_drift` message for each resource which has changed outside of OpenTofu. This message has an embedded `change` object with the following keys:
+If drift is detected during planning, OpenOpenTofu will emit a `resource_drift` message for each resource which has changed outside of OpenTofu. This message has an embedded `change` object with the following keys:
 
 - `resource`: object describing the address of the resource to be changed; see [resource object](#resource-object) below for details
 - `action`: the action planned to be taken for the resource. Values: `update`, `delete`.
@@ -128,7 +128,7 @@ This message does not include details about the exact changes which caused the c
 
 ## Planned Change
 
-At the end of a plan or before an apply, OpenTofu will emit a `planned_change` message for each resource which has changes to apply. This message has an embedded `change` object with the following keys:
+At the end of a plan or before an apply, OpenOpenTofu will emit a `planned_change` message for each resource which has changes to apply. This message has an embedded `change` object with the following keys:
 
 - `resource`: object describing the address of the resource to be changed; see [resource object](#resource-object) below for details
 - `previous_resource`: object describing the previous address of the resource, if this change includes a configuration-driven move

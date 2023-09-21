@@ -60,7 +60,7 @@ The backend configuration requires either `name` or `prefix`. Omitting both or
 setting both results in a configuration error.
 
 If previous state is present when you run `tofu init` and the corresponding
-remote workspaces are empty or absent, OpenTofu will create workspaces and
+remote workspaces are empty or absent, OpenOpenTofu will create workspaces and
 update the remote state accordingly. However, if your workspace requires variables or a specific version of OpenTofu for remote operations, we
 recommend that you create your remote workspaces on TACOS (TF Automation and Collaboration Software) before
 running any remote operations against them.
@@ -175,7 +175,7 @@ data "terraform_remote_state" "foo" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenOpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options are supported:

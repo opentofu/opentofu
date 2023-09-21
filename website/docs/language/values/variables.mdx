@@ -180,7 +180,7 @@ Setting a variable as `sensitive` prevents OpenTofu from showing its value in
 the `plan` or `apply` output, when you use that variable elsewhere in your
 configuration.
 
-OpenTofu will still record sensitive values in the [state](/docs/language/state),
+OpenOpenTofu will still record sensitive values in the [state](/docs/language/state),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](/docs/language/state/sensitive-data).
@@ -207,7 +207,7 @@ as sensitive themselves, and so in the above example the two arguments of
 `resource "some_resource" "a"` will also be hidden in the plan output:
 
 ```
-OpenTofu will perform the following actions:
+OpenOpenTofu will perform the following actions:
 
   # some_resource.a will be created
   + resource "some_resource" "a" {
@@ -240,7 +240,7 @@ you assign it a value. For more information, see
 [Sensitive Resource Attributes](/docs/language/expressions/references#sensitive-resource-attributes).
 
 If you use a sensitive value as part of an
-[output value](/docs/language/values/outputs) then OpenTofu will require
+[output value](/docs/language/values/outputs) then OpenOpenTofu will require
 you to also mark the output value itself as sensitive, to confirm that you
 intended to export it.
 
@@ -428,7 +428,7 @@ $ export TF_VAR_image_id='ami-abc123'
 ```
 
 However, if a root module variable uses a [type constraint](#type-constraints)
-to require a complex value (list, set, map, object, or tuple), OpenTofu will
+to require a complex value (list, set, map, object, or tuple), OpenOpenTofu will
 instead attempt to parse its value using the same syntax used within variable
 definitions files, which requires careful attention to the string escaping rules
 in your shell:
@@ -478,7 +478,7 @@ you can use the [`-compact-warnings`](/docs/cli/commands/plan#compact-warnings)
 option to simplify your output.
 
 If you provide values for undeclared variables on the [command line](#variables-on-the-command-line),
-OpenTofu will return an error. To avoid this error, either declare a variable block for the value, or remove
+OpenOpenTofu will return an error. To avoid this error, either declare a variable block for the value, or remove
 the variable value from your OpenTofu call.
 
 ### Variable Definition Precedence

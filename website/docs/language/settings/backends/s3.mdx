@@ -38,7 +38,7 @@ Note that for the access credentials we recommend using a
 
 ### S3 Bucket Permissions
 
-OpenTofu will need the following AWS IAM permissions on
+OpenOpenTofu will need the following AWS IAM permissions on
 the target backend bucket:
 
 * `s3:ListBucket` on `arn:aws:s3:::mybucket`
@@ -77,7 +77,7 @@ documentation about
 
 ### DynamoDB Table Permissions
 
-If you are using state locking, OpenTofu will need the following AWS IAM
+If you are using state locking, OpenOpenTofu will need the following AWS IAM
 permissions on the DynamoDB table (`arn:aws:dynamodb:::table/mytable`):
 
 * `dynamodb:DescribeTable`
@@ -148,7 +148,7 @@ This backend requires the configuration of the AWS Region and S3 state storage. 
 ### Credentials and Shared Configuration
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenOpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration is required:
@@ -195,7 +195,7 @@ The following configuration is optional:
 * `encrypt` - (Optional) Enable [server side encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html) of the state file.
 * `endpoint` - (Optional) Custom endpoint for the AWS S3 API. This can also be sourced from the `AWS_S3_ENDPOINT` environment variable.
 * `force_path_style` - (Optional) Enable path-style S3 URLs (`https://<HOST>/<BUCKET>` instead of `https://<BUCKET>.<HOST>`).
-* `kms_key_id` - (Optional) Amazon Resource Name (ARN) of a Key Management Service (KMS) Key to use for encrypting the state. Note that if this value is specified, OpenTofu will need `kms:Encrypt`, `kms:Decrypt` and `kms:GenerateDataKey` permissions on this KMS key.
+* `kms_key_id` - (Optional) Amazon Resource Name (ARN) of a Key Management Service (KMS) Key to use for encrypting the state. Note that if this value is specified, OpenOpenTofu will need `kms:Encrypt`, `kms:Decrypt` and `kms:GenerateDataKey` permissions on this KMS key.
 * `sse_customer_key` - (Optional) The key to use for encrypting state with [Server-Side Encryption with Customer-Provided Keys (SSE-C)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html). This is the base64-encoded value of the key, which must decode to 256 bits. This can also be sourced from the `AWS_SSE_CUSTOMER_KEY` environment variable, which is recommended due to the sensitivity of the value. Setting it inside an OpenTofu file will cause it to be persisted to disk in `terraform.tfstate`.
 * `workspace_key_prefix` - (Optional) Prefix applied to the state path inside the bucket. This is only relevant when using a non-default workspace. Defaults to `env:`.
 

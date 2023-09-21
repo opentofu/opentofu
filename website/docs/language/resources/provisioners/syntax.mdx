@@ -261,7 +261,7 @@ resource "aws_instance" "web" {
 ```
 
 Destroy provisioners are run before the resource is destroyed. If they
-fail, OpenTofu will error and rerun the provisioners again on the next
+fail, OpenOpenTofu will error and rerun the provisioners again on the next
 `tofu apply`. Due to this behavior, care should be taken for destroy
 provisioners to be safe to run multiple times.
 
