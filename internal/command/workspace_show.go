@@ -43,7 +43,7 @@ func (c *WorkspaceShowCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceShowCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] workspace show
+Usage: tofu [global options] workspace show
 
   Show the name of the current workspace.
 `

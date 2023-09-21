@@ -39,7 +39,7 @@ func TestRenderHuman_EmptyPlan(t *testing.T) {
 	want := `
 No changes. Your infrastructure matches the configuration.
 
-OpenTF has compared your real infrastructure against your configuration and
+OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 `
 
@@ -70,7 +70,7 @@ func TestRenderHuman_EmptyOutputs(t *testing.T) {
 	want := `
 No changes. Your infrastructure matches the configuration.
 
-OpenTF has compared your real infrastructure against your configuration and
+OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 `
 
@@ -133,7 +133,7 @@ func TestRenderHuman_Imports(t *testing.T) {
 				},
 			},
 			output: `
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource will be imported
     resource "test_resource" "resource" {
@@ -175,7 +175,7 @@ Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
 				},
 			},
 			output: `
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource will be imported
   # (config will be generated)
@@ -215,7 +215,7 @@ Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
 				},
 			},
 			output: `
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.before has moved to test_resource.after
   # (imported from "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E")
@@ -255,11 +255,11 @@ Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
 				},
 			},
 			output: `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.after will be updated in-place
   # (moved from test_resource.before)
@@ -299,11 +299,11 @@ Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
 				},
 			},
 			output: `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource will be updated in-place
   # (imported from "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E")
@@ -340,11 +340,11 @@ Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
 				},
 			},
 			output: `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource will be updated in-place
   # (will be imported first)
@@ -385,11 +385,11 @@ Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
 				},
 			},
 			output: `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
 +/- create replacement and then destroy
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource must be replaced
   # (imported from "1D5F5E9E-F2E5-401B-9ED5-692A215AC67E")

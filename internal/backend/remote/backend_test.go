@@ -95,7 +95,7 @@ func TestRemote_config(t *testing.T) {
 					"prefix": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "opentf login localhost",
+			confErr: "tofu login localhost",
 		},
 		"with_a_name": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -198,7 +198,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 				}),
 			}),
 			version: "0.0.1",
-			result:  "upgrade OpenTF to >= 0.1.0",
+			result:  "upgrade OpenTofu to >= 0.1.0",
 		},
 		"version too new": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -211,7 +211,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 				}),
 			}),
 			version: "10.0.1",
-			result:  "downgrade OpenTF to <= 10.0.0",
+			result:  "downgrade OpenTofu to <= 10.0.0",
 		},
 	}
 
@@ -391,7 +391,7 @@ func TestRemote_checkConstraints(t *testing.T) {
 				Maximum: "0.11.11",
 			},
 			version: "0.10.1",
-			result:  "upgrade OpenTF to >= 0.11.0",
+			result:  "upgrade OpenTofu to >= 0.11.0",
 		},
 		"version too new": {
 			constraints: &disco.Constraints{
@@ -399,7 +399,7 @@ func TestRemote_checkConstraints(t *testing.T) {
 				Maximum: "0.11.11",
 			},
 			version: "0.12.0",
-			result:  "downgrade OpenTF to <= 0.11.11",
+			result:  "downgrade OpenTofu to <= 0.11.11",
 		},
 		"version excluded - ordered": {
 			constraints: &disco.Constraints{
@@ -408,7 +408,7 @@ func TestRemote_checkConstraints(t *testing.T) {
 				Maximum:   "0.11.11",
 			},
 			version: "0.11.7",
-			result:  "upgrade OpenTF to > 0.11.8",
+			result:  "upgrade OpenTofu to > 0.11.8",
 		},
 		"version excluded - unordered": {
 			constraints: &disco.Constraints{
@@ -417,7 +417,7 @@ func TestRemote_checkConstraints(t *testing.T) {
 				Maximum:   "0.11.11",
 			},
 			version: "0.11.6",
-			result:  "upgrade OpenTF to > 0.11.8",
+			result:  "upgrade OpenTofu to > 0.11.8",
 		},
 		"list versions": {
 			constraints: &disco.Constraints{
@@ -493,7 +493,7 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 	tfversion.Version = v0140.String()
 	tfversion.SemVer = v0140
 
-	// Update the mock remote workspace OpenTF version to match the local
+	// Update the mock remote workspace OpenTofu version to match the local
 	// Terraform version
 	if _, err := b.client.Workspaces.Update(
 		context.Background(),
@@ -524,7 +524,7 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 	}
 
 	// This should fail
-	want := `Remote workspace OpenTF version "0.13.5" does not match local OpenTF version "0.14.0"`
+	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
 	if _, err := b.StateMgr(backend.DefaultStateName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
@@ -609,7 +609,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion(t *testing.T) {
 			tfversion.Version = local.String()
 			tfversion.SemVer = local
 
-			// Update the mock remote workspace OpenTF version to the
+			// Update the mock remote workspace OpenTofu version to the
 			// specified remote version
 			if _, err := b.client.Workspaces.Update(
 				context.Background(),
@@ -628,7 +628,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion(t *testing.T) {
 				if len(diags) != 1 {
 					t.Fatal("expected diag, but none returned")
 				}
-				if got := diags.Err().Error(); !strings.Contains(got, "OpenTF version mismatch") {
+				if got := diags.Err().Error(); !strings.Contains(got, "OpenTofu version mismatch") {
 					t.Fatalf("unexpected error: %s", got)
 				}
 			} else {
@@ -661,7 +661,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 		t.Fatalf("unexpected error: %s", got)
 	}
 
-	// Update the mock remote workspace OpenTF version to an invalid version
+	// Update the mock remote workspace OpenTofu version to an invalid version
 	if _, err := b.client.Workspaces.Update(
 		context.Background(),
 		b.organization,
@@ -677,7 +677,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}
-	if got := diags.Err().Error(); !strings.Contains(got, "Error looking up workspace: Invalid OpenTF version") {
+	if got := diags.Err().Error(); !strings.Contains(got, "Error looking up workspace: Invalid OpenTofu version") {
 		t.Fatalf("unexpected error: %s", got)
 	}
 }
@@ -708,7 +708,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	tfversion.Version = local.String()
 	tfversion.SemVer = local
 
-	// Update the mock remote workspace OpenTF version to the
+	// Update the mock remote workspace OpenTofu version to the
 	// specified remote version
 	if _, err := b.client.Workspaces.Update(
 		context.Background(),
@@ -729,10 +729,10 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
 		t.Errorf("wrong severity: got %#v, want %#v", got, want)
 	}
-	if got, want := diags[0].Description().Summary, "OpenTF version mismatch"; got != want {
+	if got, want := diags[0].Description().Summary, "OpenTofu version mismatch"; got != want {
 		t.Errorf("wrong summary: got %s, want %s", got, want)
 	}
-	wantDetail := "The local OpenTF version (0.14.0) does not match the configured version for remote workspace hashicorp/prod (0.13.5)."
+	wantDetail := "The local OpenTofu version (0.14.0) does not match the configured version for remote workspace hashicorp/prod (0.13.5)."
 	if got := diags[0].Description().Detail; got != wantDetail {
 		t.Errorf("wrong summary: got %s, want %s", got, wantDetail)
 	}

@@ -44,7 +44,7 @@ func (c *MetadataFunctionsCommand) Run(args []string) int {
 
 	if !jsonOutput {
 		c.Ui.Error(
-			"The `opentf metadata functions` command requires the `-json` flag.\n")
+			"The `tofu metadata functions` command requires the `-json` flag.\n")
 		cmdFlags.Usage()
 		return 1
 	}
@@ -70,7 +70,7 @@ func (c *MetadataFunctionsCommand) Run(args []string) int {
 }
 
 const metadataFunctionsCommandHelp = `
-Usage: opentf [global options] metadata functions -json
+Usage: tofu [global options] metadata functions -json
 
   Prints out a json representation of the available function signatures.
 `

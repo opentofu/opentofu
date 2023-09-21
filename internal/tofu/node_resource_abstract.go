@@ -442,7 +442,7 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 	schema, currentVersion := (providerSchema).SchemaForResourceAddr(addr.Resource.ContainingResource())
 	if schema == nil {
 		// Shouldn't happen since we should've failed long ago if no schema is present
-		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTF and should be reported", addr))
+		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
 	src, upgradeDiags := upgradeResourceState(addr, provider, src, schema, currentVersion)
 	if n.Config != nil {
@@ -472,7 +472,7 @@ func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext,
 	}
 
 	if key == states.NotDeposed {
-		return nil, diags.Append(fmt.Errorf("readResourceInstanceStateDeposed used with no instance key; this is a bug in OpenTF and should be reported"))
+		return nil, diags.Append(fmt.Errorf("readResourceInstanceStateDeposed used with no instance key; this is a bug in OpenTofu and should be reported"))
 	}
 
 	log.Printf("[TRACE] readResourceInstanceStateDeposed: reading state for %s deposed object %s", addr, key)
@@ -487,7 +487,7 @@ func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext,
 	schema, currentVersion := (providerSchema).SchemaForResourceAddr(addr.Resource.ContainingResource())
 	if schema == nil {
 		// Shouldn't happen since we should've failed long ago if no schema is present
-		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTF and should be reported", addr))
+		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 
 	}
 

@@ -142,7 +142,7 @@ func New() backend.Backend {
 				Type:        schema.TypeSet,
 				Optional:    true,
 				MaxItems:    1,
-				Description: "The `assume_role` block. If provided, opentf will attempt to assume this role using the supplied credentials.",
+				Description: "The `assume_role` block. If provided, tofu will attempt to assume this role using the supplied credentials.",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"role_arn": {

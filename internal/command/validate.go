@@ -145,7 +145,7 @@ func (c *ValidateCommand) Synopsis() string {
 
 func (c *ValidateCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] validate [options]
+Usage: tofu [global options] validate [options]
 
   Validate the configuration files in a directory, referring only to the
   configuration and not accessing any remote services such as remote state,
@@ -163,10 +163,10 @@ Usage: opentf [global options] validate [options]
   Validation requires an initialized working directory with any referenced
   plugins and modules installed. To initialize a working directory for
   validation without accessing any configured remote backend, use:
-      opentf init -backend=false
+      tofu init -backend=false
 
   To verify configuration in the context of a particular run (a particular
-  target workspace, input variable values, etc), use the 'opentf plan'
+  target workspace, input variable values, etc), use the 'tofu plan'
   command instead, which includes an implied validation check.
 
 Options:
@@ -177,9 +177,9 @@ Options:
 
   -no-color             If specified, output won't contain any color.
 
-  -no-tests             If specified, OpenTF will not validate test files.
+  -no-tests             If specified, OpenTofu will not validate test files.
 
-  -test-directory=path	Set the OpenTF test directory, defaults to "tests".
+  -test-directory=path	Set the OpenTofu test directory, defaults to "tests".
 `
 	return strings.TrimSpace(helpText)
 }

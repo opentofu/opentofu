@@ -31,7 +31,7 @@ type ProviderInstallation struct {
 	// This is _not_ intended for "production" use because it bypasses the
 	// usual version selection and checksum verification mechanisms for
 	// the providers in question. To make that intent/effect clearer, some
-	// OpenTF commands emit warnings when overrides are present. Local
+	// OpenTofu commands emit warnings when overrides are present. Local
 	// mirror directories are a better way to distribute "released"
 	// providers, because they are still subject to version constraints and
 	// checksum verification.

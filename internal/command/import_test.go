@@ -189,7 +189,7 @@ func TestImport_remoteState(t *testing.T) {
 	}
 
 	// (Using log here rather than t.Log so that these messages interleave with other trace logs)
-	log.Print("[TRACE] TestImport_remoteState running: opentf init")
+	log.Print("[TRACE] TestImport_remoteState running: tofu init")
 	if code := ic.Run([]string{}); code != 0 {
 		t.Fatalf("init failed\n%s", ui.ErrorWriter)
 	}
@@ -250,7 +250,7 @@ func TestImport_remoteState(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	log.Printf("[TRACE] TestImport_remoteState running: opentf import %s %s", args[0], args[1])
+	log.Printf("[TRACE] TestImport_remoteState running: tofu import %s %s", args[0], args[1])
 	if code := c.Run(args); code != 0 {
 		fmt.Println(ui.OutputWriter)
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
@@ -301,7 +301,7 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	}
 
 	// (Using log here rather than t.Log so that these messages interleave with other trace logs)
-	log.Print("[TRACE] TestImport_initializationErrorShouldUnlock running: opentf init")
+	log.Print("[TRACE] TestImport_initializationErrorShouldUnlock running: tofu init")
 	if code := ic.Run([]string{}); code != 0 {
 		t.Fatalf("init failed\n%s", ui.ErrorWriter)
 	}
@@ -323,7 +323,7 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 		"unknown_instance.baz",
 		"bar",
 	}
-	log.Printf("[TRACE] TestImport_initializationErrorShouldUnlock running: opentf import %s %s", args[0], args[1])
+	log.Printf("[TRACE] TestImport_initializationErrorShouldUnlock running: tofu import %s %s", args[0], args[1])
 
 	// this should fail
 	if code := c.Run(args); code != 1 {
@@ -674,7 +674,7 @@ func TestImport_emptyConfig(t *testing.T) {
 	}
 
 	msg := ui.ErrorWriter.String()
-	if want := `No OpenTF configuration files`; !strings.Contains(msg, want) {
+	if want := `No OpenTofu configuration files`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
 }

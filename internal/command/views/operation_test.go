@@ -100,7 +100,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					Changes: plans.NewChanges(),
 				}
 			},
-			"OpenTF has checked that the real remote objects still match",
+			"OpenTofu has checked that the real remote objects still match",
 		},
 		"nothing at all in destroy mode": {
 			func(schemas *tofu.Schemas) *plans.Plan {
@@ -197,7 +197,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					}},
 				}
 			},
-			"Objects have changed outside of OpenTF",
+			"Objects have changed outside of OpenTofu",
 		},
 		"drift detected in refresh-only mode": {
 			func(schemas *tofu.Schemas) *plans.Plan {
@@ -339,11 +339,11 @@ func TestOperation_plan(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.foo will be created
   + resource "test_resource" "foo" {
@@ -368,12 +368,12 @@ func TestOperation_planWithDatasource(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # data.test_data_source.bar will be read during apply
  <= data "test_data_source" "bar" {
@@ -404,12 +404,12 @@ func TestOperation_planWithDatasourceAndDrift(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # data.test_data_source.bar will be read during apply
  <= data "test_data_source" "bar" {
@@ -442,7 +442,7 @@ func TestOperation_planNextStep(t *testing.T) {
 		},
 		"state path": {
 			path: "good plan.tfplan",
-			want: `opentf apply "good plan.tfplan"`,
+			want: `tofu apply "good plan.tfplan"`,
 		},
 	}
 	for name, tc := range testCases {
@@ -488,31 +488,31 @@ func TestOperationJSON_logs(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Apply cancelled",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": "Destroy cancelled",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": "Stopping operation...",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": interrupted,
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "log",
 		},
 		{
 			"@level":   "info",
 			"@message": fatalInterrupt,
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "log",
 		},
 	}
@@ -549,7 +549,7 @@ func TestOperationJSON_emergencyDumpState(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Emergency state dump",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "log",
 			"state":    stateJSON,
 		},
@@ -571,7 +571,7 @@ func TestOperationJSON_planNoChanges(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -643,7 +643,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop[0]: Plan to replace",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -662,7 +662,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop[1]: Plan to create",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "create",
@@ -681,7 +681,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.boop[0]: Plan to delete",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -700,7 +700,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Plan to replace",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -719,7 +719,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.beep: Plan to update",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -739,7 +739,7 @@ func TestOperationJSON_plan(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 3 to add, 1 to change, 3 to destroy.",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -799,7 +799,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.boop[0]: Plan to import",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "import",
@@ -821,7 +821,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "module.vpc.test_resource.boop[1]: Plan to delete",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -843,7 +843,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop[0]: Plan to replace",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -865,7 +865,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Plan to update",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -886,7 +886,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 4 to import, 1 to add, 1 to change, 2 to destroy.",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -948,7 +948,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Drift detected (delete)",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -967,7 +967,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop: Drift detected (update)",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -995,7 +995,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `test_resource.honk["bonk"]: Plan to move`,
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "move",
@@ -1023,7 +1023,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -1079,7 +1079,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.beep: Drift detected (delete)",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "delete",
@@ -1098,7 +1098,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_resource.boop: Drift detected (update)",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "update",
@@ -1126,7 +1126,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": `test_resource.honk["bonk"]: Drift detected (move)`,
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "resource_drift",
 			"change": map[string]interface{}{
 				"action": "move",
@@ -1154,7 +1154,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -1214,7 +1214,7 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Plan: 0 to add, 0 to change, 0 to destroy.",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "change_summary",
 			"changes": map[string]interface{}{
 				"operation": "plan",
@@ -1228,7 +1228,7 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Outputs: 4",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "outputs",
 			"outputs": map[string]interface{}{
 				"boop": map[string]interface{}{
@@ -1289,7 +1289,7 @@ func TestOperationJSON_plannedChange(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop[0]: Plan to replace",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "replace",
@@ -1308,7 +1308,7 @@ func TestOperationJSON_plannedChange(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "test_instance.boop[1]: Plan to create",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "planned_change",
 			"change": map[string]interface{}{
 				"action": "create",

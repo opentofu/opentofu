@@ -150,12 +150,12 @@ func collectCredentialsFromEnv() map[svchost.Hostname]string {
 		// libraries that might interfere with how they are encoded, we'll
 		// be tolerant of them being given either directly as UTF-8 IDNs
 		// or in Punycode form, normalizing to Punycode form here because
-		// that is what the OpenTF credentials helper protocol will
+		// that is what the OpenTofu credentials helper protocol will
 		// use in its requests.
 		//
-		// Using ForDisplay first here makes this more liberal than OpenTF
+		// Using ForDisplay first here makes this more liberal than OpenTofu
 		// itself would usually be in that it will tolerate pre-punycoded
-		// hostnames that OpenTF normally rejects in other contexts in order
+		// hostnames that OpenTofu normally rejects in other contexts in order
 		// to ensure stored hostnames are human-readable.
 		dispHost := svchost.ForDisplay(rawHost)
 		hostname, err := svchost.ForComparison(dispHost)

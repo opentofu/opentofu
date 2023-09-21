@@ -18,7 +18,7 @@ type Validate struct {
 	// Path.
 	TestDirectory string
 
-	// NoTests indicates that OpenTF should not validate any test files
+	// NoTests indicates that OpenTofu should not validate any test files
 	// included with the module.
 	NoTests bool
 

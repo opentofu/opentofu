@@ -260,7 +260,7 @@ func evalCheckErrorMessage(expr hcl.Expression, hclCtx *hcl.EvalContext) (string
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Summary:  "Error message refers to sensitive values",
-			Detail: `The error expression used to explain this condition refers to sensitive values, so OpenTF will not display the resulting message.
+			Detail: `The error expression used to explain this condition refers to sensitive values, so OpenTofu will not display the resulting message.
 
 You can correct this by removing references to sensitive values, or by carefully using the nonsensitive() function if the expression will not reveal the sensitive data.`,
 			Subject:     expr.Range().Ptr(),

@@ -13,18 +13,18 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
-// The tests in this file are for the "opentf providers mirror" command,
+// The tests in this file are for the "tofu providers mirror" command,
 // which is tested in an e2etest mode rather than a unit test mode because it
 // interacts directly with Terraform Registry and the full details of that are
 // tricky to mock. Such a mock is _possible_, but we're using e2etest as a
 // compromise for now to keep these tests relatively simple.
 
 func TestTerraformProvidersMirror(t *testing.T) {
-	testTerraformProvidersMirror(t, "opentf-providers-mirror")
+	testTerraformProvidersMirror(t, "tofu-providers-mirror")
 }
 
 func TestTerraformProvidersMirrorWithLockFile(t *testing.T) {
-	testTerraformProvidersMirror(t, "opentf-providers-mirror-with-lock-file")
+	testTerraformProvidersMirror(t, "tofu-providers-mirror-with-lock-file")
 }
 
 func testTerraformProvidersMirror(t *testing.T, fixture string) {

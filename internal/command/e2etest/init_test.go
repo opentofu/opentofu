@@ -39,7 +39,7 @@ func TestInitProviders(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	if !strings.Contains(stdout, "OpenTF has been successfully initialized!") {
+	if !strings.Contains(stdout, "OpenTofu has been successfully initialized!") {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
@@ -48,7 +48,7 @@ func TestInitProviders(t *testing.T) {
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
 
-	if !strings.Contains(stdout, "OpenTF has created a lock file") {
+	if !strings.Contains(stdout, "OpenTofu has created a lock file") {
 		t.Errorf("lock file notification is missing from output:\n%s", stdout)
 	}
 
@@ -58,7 +58,7 @@ func TestInitProvidersInternal(t *testing.T) {
 	t.Parallel()
 
 	// This test should _not_ reach out anywhere because the "terraform"
-	// provider is internal to the core opentf binary.
+	// provider is internal to the core tofu binary.
 
 	fixturePath := filepath.Join("testdata", "tf-provider")
 	tf := e2e.NewBinary(t, terraformBin, fixturePath)
@@ -72,7 +72,7 @@ func TestInitProvidersInternal(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	if !strings.Contains(stdout, "OpenTF has been successfully initialized!") {
+	if !strings.Contains(stdout, "OpenTofu has been successfully initialized!") {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
@@ -121,7 +121,7 @@ func TestInitProvidersVendored(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	if !strings.Contains(stdout, "OpenTF has been successfully initialized!") {
+	if !strings.Contains(stdout, "OpenTofu has been successfully initialized!") {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
@@ -145,7 +145,7 @@ func TestInitProvidersLocalOnly(t *testing.T) {
 	fixturePath := filepath.Join("testdata", "local-only-provider")
 	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 	// If you run this test on a workstation with a plugin-cache directory
-	// configured, it will leave a bad directory behind and opentf init will
+	// configured, it will leave a bad directory behind and tofu init will
 	// not work until you remove it.
 	//
 	// To avoid this, we will  "zero out" any existing cli config file.
@@ -170,7 +170,7 @@ func TestInitProvidersLocalOnly(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	if !strings.Contains(stdout, "OpenTF has been successfully initialized!") {
+	if !strings.Contains(stdout, "OpenTofu has been successfully initialized!") {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
@@ -218,7 +218,7 @@ func TestInitProvidersCustomMethod(t *testing.T) {
 				t.Errorf("unexpected stderr output:\n%s", stderr)
 			}
 
-			if !strings.Contains(stdout, "OpenTF has been successfully initialized!") {
+			if !strings.Contains(stdout, "OpenTofu has been successfully initialized!") {
 				t.Errorf("success message is missing from output:\n%s", stdout)
 			}
 
@@ -379,7 +379,7 @@ func TestInitProviderNotFound(t *testing.T) {
 │ consumers will get the correct providers when using a module. To see which
 │ modules are currently depending on hashicorp/nonexist, run the following
 │ command:
-│     opentf providers
+│     tofu providers
 ╵
 
 `

@@ -920,7 +920,7 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 }
 
 func TestInit_backendCloudInvalidOptions(t *testing.T) {
-	// There are various "opentf init" options that are only for
+	// There are various "tofu init" options that are only for
 	// traditional backends and not applicable to Terraform Cloud mode.
 	// For those, we want to return an explicit error rather than
 	// just silently ignoring them, so that users will be aware that
@@ -969,8 +969,8 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 
 		// We have -backend-config as a pragmatic way to dynamically set
 		// certain settings of backends that tend to vary depending on
-		// where OpenTF is running, such as AWS authentication profiles
-		// that are naturally local only to the machine where OpenTF is
+		// where OpenTofu is running, such as AWS authentication profiles
+		// that are naturally local only to the machine where OpenTofu is
 		// running. Those needs don't apply to Terraform Cloud, because
 		// the remote workspace encapsulates all of the details of how
 		// operations and state work in that case, and so the Cloud
@@ -1358,7 +1358,7 @@ func TestInit_getProvider(t *testing.T) {
 
 	t.Run("future-state", func(t *testing.T) {
 		// getting providers should fail if a state from a newer version of
-		// opentf exists, since InitCommand.getProviders needs to inspect that
+		// tofu exists, since InitCommand.getProviders needs to inspect that
 		// state.
 
 		f, err := os.Create(DefaultStateFilename)
@@ -1662,7 +1662,7 @@ func TestInit_providerSource(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
-	if strings.Contains(ui.OutputWriter.String(), "OpenTF has initialized, but configuration upgrades may be needed") {
+	if strings.Contains(ui.OutputWriter.String(), "OpenTofu has initialized, but configuration upgrades may be needed") {
 		t.Fatalf("unexpected \"configuration upgrade\" warning in output")
 	}
 
@@ -1740,7 +1740,7 @@ func TestInit_providerSource(t *testing.T) {
 }
 
 func TestInit_cancelModules(t *testing.T) {
-	// This test runs `opentf init` as if SIGINT (or similar on other
+	// This test runs `tofu init` as if SIGINT (or similar on other
 	// platforms) were sent to it, testing that it is interruptible.
 
 	td := t.TempDir()
@@ -1777,7 +1777,7 @@ func TestInit_cancelModules(t *testing.T) {
 }
 
 func TestInit_cancelProviders(t *testing.T) {
-	// This test runs `opentf init` as if SIGINT (or similar on other
+	// This test runs `tofu init` as if SIGINT (or similar on other
 	// platforms) were sent to it, testing that it is interruptible.
 
 	td := t.TempDir()
@@ -2575,8 +2575,8 @@ func TestInit_pluginDirWithBuiltIn(t *testing.T) {
 	}
 
 	outputStr := ui.OutputWriter.String()
-	if subStr := "terraform.io/builtin/terraform is built in to OpenTF"; !strings.Contains(outputStr, subStr) {
-		t.Errorf("output should mention the opentf provider\nwant substr: %s\ngot:\n%s", subStr, outputStr)
+	if subStr := "terraform.io/builtin/terraform is built in to OpenTofu"; !strings.Contains(outputStr, subStr) {
+		t.Errorf("output should mention the tofu provider\nwant substr: %s\ngot:\n%s", subStr, outputStr)
 	}
 }
 
@@ -2641,7 +2641,7 @@ func TestInit_invalidSyntaxNoBackend(t *testing.T) {
 	}
 
 	errStr := ui.ErrorWriter.String()
-	if subStr := "OpenTF encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
+	if subStr := "OpenTofu encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
 	if subStr := "Error: Unsupported block type"; !strings.Contains(errStr, subStr) {
@@ -2670,7 +2670,7 @@ func TestInit_invalidSyntaxWithBackend(t *testing.T) {
 	}
 
 	errStr := ui.ErrorWriter.String()
-	if subStr := "OpenTF encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
+	if subStr := "OpenTofu encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
 	if subStr := "Error: Unsupported block type"; !strings.Contains(errStr, subStr) {
@@ -2699,7 +2699,7 @@ func TestInit_invalidSyntaxInvalidBackend(t *testing.T) {
 	}
 
 	errStr := ui.ErrorWriter.String()
-	if subStr := "OpenTF encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
+	if subStr := "OpenTofu encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
 	if subStr := "Error: Unsupported block type"; !strings.Contains(errStr, subStr) {
@@ -2731,7 +2731,7 @@ func TestInit_invalidSyntaxBackendAttribute(t *testing.T) {
 	}
 
 	errStr := ui.ErrorWriter.String()
-	if subStr := "OpenTF encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
+	if subStr := "OpenTofu encountered problems during initialisation, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
 	if subStr := "Error: Invalid character"; !strings.Contains(errStr, subStr) {

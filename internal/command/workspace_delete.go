@@ -150,7 +150,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 			tfdiags.Error,
 			"Workspace is not empty",
 			fmt.Sprintf(
-				"Workspace %q is currently tracking the following resource instances:%s\n\nDeleting this workspace would cause OpenTF to lose track of any associated remote objects, which would then require you to delete them manually outside of OpenTF. You should destroy these objects with OpenTF before deleting the workspace.\n\nIf you want to delete this workspace anyway, and have OpenTF forget about these managed objects, use the -force option to disable this safety check.",
+				"Workspace %q is currently tracking the following resource instances:%s\n\nDeleting this workspace would cause OpenTofu to lose track of any associated remote objects, which would then require you to delete them manually outside of OpenTofu. You should destroy these objects with OpenTofu before deleting the workspace.\n\nIf you want to delete this workspace anyway, and have OpenTofu forget about these managed objects, use the -force option to disable this safety check.",
 				workspace, buf.String(),
 			),
 		))
@@ -207,15 +207,15 @@ func (c *WorkspaceDeleteCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceDeleteCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] workspace delete [OPTIONS] NAME
+Usage: tofu [global options] workspace delete [OPTIONS] NAME
 
-  Delete a OpenTF workspace
+  Delete a OpenTofu workspace
 
 
 Options:
 
   -force             Remove a workspace even if it is managing resources.
-                     OpenTF can no longer track or manage the workspace's
+                     OpenTofu can no longer track or manage the workspace's
                      infrastructure.
 
   -lock=false        Don't hold a state lock during the operation. This is

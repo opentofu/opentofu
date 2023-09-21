@@ -96,11 +96,11 @@ func (c *StateListCommand) Run(args []string) int {
 
 func (c *StateListCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] state list [options] [address...]
+Usage: tofu [global options] state list [options] [address...]
 
-  List resources in the OpenTF state.
+  List resources in the OpenTofu state.
 
-  This command lists resource instances in the OpenTF state. The address
+  This command lists resource instances in the OpenTofu state. The address
   argument can be used to filter the instances by resource or module. If
   no pattern is given, all resource instances are listed.
 
@@ -116,8 +116,8 @@ Usage: opentf [global options] state list [options] [address...]
 
 Options:
 
-  -state=statefile    Path to a OpenTF state file to use to look
-                      up OpenTF-managed resources. By default, OpenTF
+  -state=statefile    Path to a OpenTofu state file to use to look
+                      up OpenTofu-managed resources. By default, OpenTofu
                       will consult the state of the currently-selected
                       workspace.
 
@@ -135,12 +135,12 @@ func (c *StateListCommand) Synopsis() string {
 
 const errStateLoadingState = `Error loading the state: %[1]s
 
-Please ensure that your OpenTF state exists and that you've
+Please ensure that your OpenTofu state exists and that you've
 configured it properly. You can use the "-state" flag to point
-OpenTF at another state file.`
+OpenTofu at another state file.`
 
 const errStateNotFound = `No state file was found!
 
 State management commands require a state file. Run this command
-in a directory where OpenTF has been run or use the -state flag
+in a directory where OpenTofu has been run or use the -state flag
 to point the command to a specific state location.`

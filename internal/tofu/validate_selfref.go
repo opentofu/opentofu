@@ -37,7 +37,7 @@ func validateSelfRef(addr addrs.Referenceable, config hcl.Body, providerSchema p
 	}
 
 	if schema == nil {
-		diags = diags.Append(fmt.Errorf("no schema available for %s to validate for self-references; this is a bug in OpenTF and should be reported", addr))
+		diags = diags.Append(fmt.Errorf("no schema available for %s to validate for self-references; this is a bug in OpenTofu and should be reported", addr))
 		return diags
 	}
 

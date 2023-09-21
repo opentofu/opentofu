@@ -29,9 +29,9 @@ func (c *WorkspaceCommand) Run(args []string) int {
 
 func (c *WorkspaceCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] workspace
+Usage: tofu [global options] workspace
 
-  new, list, show, select and delete OpenTF workspaces.
+  new, list, show, select and delete OpenTofu workspaces.
 
 `
 	return strings.TrimSpace(helpText)
@@ -53,14 +53,14 @@ func envCommandShowWarning(ui cli.Ui, show bool) {
 		return
 	}
 
-	ui.Warn(`Warning: the "opentf env" family of commands is deprecated.
+	ui.Warn(`Warning: the "tofu env" family of commands is deprecated.
 
-"Workspace" is now the preferred term for what earlier OpenTF versions
+"Workspace" is now the preferred term for what earlier OpenTofu versions
 called "environment", to reduce ambiguity caused by the latter term colliding
 with other concepts.
 
-The "opentf workspace" commands should be used instead. "opentf env"
-will be removed in a future OpenTF version.
+The "tofu workspace" commands should be used instead. "tofu env"
+will be removed in a future OpenTofu version.
 `)
 }
 
@@ -79,7 +79,7 @@ or include the "-or-create" flag with the "select" subcommand.`
 [reset][green][bold]Created and switched to workspace %q![reset][green]
 
 You're now on a new, empty workspace. Workspaces isolate their state,
-so if you run "opentf plan" OpenTF will not see any existing state
+so if you run "tofu plan" OpenTofu will not see any existing state
 for this configuration.
 `
 
@@ -87,7 +87,7 @@ for this configuration.
 
 	envWarnNotEmpty = `[reset][yellow]WARNING: %q was non-empty.
 The resources managed by the deleted workspace may still exist,
-but are no longer manageable by OpenTF since the state has
+but are no longer manageable by OpenTofu since the state has
 been deleted.
 `
 

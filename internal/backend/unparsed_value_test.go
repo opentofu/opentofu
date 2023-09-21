@@ -207,7 +207,7 @@ func TestUnparsedValue(t *testing.T) {
 				},
 			},
 			"missing2": {
-				Value:      cty.NilVal, // OpenTF Core handles substituting the default
+				Value:      cty.NilVal, // OpenTofu Core handles substituting the default
 				SourceType: tofu.ValueFromConfig,
 				SourceRange: tfdiags.SourceRange{
 					Filename: "fake.tf",

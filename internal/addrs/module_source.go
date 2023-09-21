@@ -54,7 +54,7 @@ var moduleSourceLocalPrefixes = []string{
 // For historical reasons this syntax is a bit overloaded, supporting three
 // different address types:
 //   - Local paths starting with either ./ or ../, which are special because
-//     OpenTF considers them to belong to the same "package" as the caller.
+//     OpenTofu considers them to belong to the same "package" as the caller.
 //   - Module registry addresses, given as either NAMESPACE/NAME/SYSTEM or
 //     HOST/NAMESPACE/NAME/SYSTEM, in which case the remote registry serves
 //     as an indirection over the third address type that follows.
@@ -85,7 +85,7 @@ func ParseModuleSource(raw string) (ModuleSource, error) {
 	// parsed as one, and anything else must fall through to be
 	// parsed as a direct remote source, where go-getter might
 	// then recognize it as a filesystem path. This is odd
-	// but matches behavior we've had since OpenTF v0.10 which
+	// but matches behavior we've had since OpenTofu v0.10 which
 	// existing modules may be relying on.
 	// (Notice that this means that there's never any path where
 	// the registry source parse error gets returned to the caller,
@@ -142,7 +142,7 @@ func parseModuleSourceLocal(raw string) (ModuleSourceLocal, error) {
 	// produces.
 
 	// Although using backslashes (Windows-style) is non-idiomatic, we do
-	// allow it and just normalize it away, so the rest of OpenTF will
+	// allow it and just normalize it away, so the rest of OpenTofu will
 	// only see the forward-slash form.
 	if strings.Contains(raw, `\`) {
 		// Note: We use string replacement rather than filepath.ToSlash
@@ -192,12 +192,12 @@ func (s ModuleSourceLocal) ForDisplay() string {
 }
 
 // ModuleSourceRegistry is a ModuleSource representing a module listed in a
-// OpenTF module registry.
+// OpenTofu module registry.
 //
 // A registry source isn't a direct source location but rather an indirection
 // over a ModuleSourceRemote. The job of a registry is to translate the
 // combination of a ModuleSourceRegistry and a module version number into
-// a concrete ModuleSourceRemote that OpenTF will then download and
+// a concrete ModuleSourceRemote that OpenTofu will then download and
 // install.
 type ModuleSourceRegistry tfaddr.Module
 

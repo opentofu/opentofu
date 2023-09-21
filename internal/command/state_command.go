@@ -21,11 +21,11 @@ func (c *StateCommand) Run(args []string) int {
 
 func (c *StateCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] state <subcommand> [options] [args]
+Usage: tofu [global options] state <subcommand> [options] [args]
 
   This command has subcommands for advanced state management.
 
-  These subcommands can be used to slice and dice the OpenTF state.
+  These subcommands can be used to slice and dice the OpenTofu state.
   This is sometimes necessary in advanced cases. For your safety, all
   state management commands that modify the state create a timestamped
   backup of the state prior to making modifications.

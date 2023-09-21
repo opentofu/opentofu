@@ -133,7 +133,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	// Explain the changes
 	colorize := c.Colorize()
-	c.Ui.Output("OpenTF will perform the following actions:\n")
+	c.Ui.Output("OpenTofu will perform the following actions:\n")
 	c.Ui.Output(colorize.Color("  [yellow]~[reset] Updating provider:"))
 	c.Ui.Output(colorize.Color(fmt.Sprintf("    [red]-[reset] %s", from)))
 	c.Ui.Output(colorize.Color(fmt.Sprintf("    [green]+[reset] %s\n", to)))
@@ -197,9 +197,9 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 func (c *StateReplaceProviderCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN
+Usage: tofu [global options] state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN
 
-  Replace provider for resources in the OpenTF state.
+  Replace provider for resources in the OpenTofu state.
 
 Options:
 

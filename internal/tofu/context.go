@@ -370,7 +370,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 					tfdiags.Error,
 					"Missing required provider",
 					fmt.Sprintf(
-						"This configuration requires built-in provider %s, but that provider isn't available in this OpenTF version.",
+						"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
 						providerAddr,
 					),
 				))
@@ -401,7 +401,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 						tfdiags.Error,
 						"Missing required provisioner plugin",
 						fmt.Sprintf(
-							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTF.",
+							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
 							pc.Type,
 						),
 					))

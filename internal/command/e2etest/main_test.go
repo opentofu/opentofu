@@ -43,12 +43,12 @@ func setup() func() {
 		var err error
 		terraformBin, err = filepath.Abs(terraformBin)
 		if err != nil {
-			panic(fmt.Sprintf("failed to find absolute path of opentf executable: %s", err))
+			panic(fmt.Sprintf("failed to find absolute path of tofu executable: %s", err))
 		}
 		return func() {}
 	}
 
-	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu", "opentf")
+	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu", "tofu")
 
 	// Make the executable available for use in tests
 	terraformBin = tmpFilename

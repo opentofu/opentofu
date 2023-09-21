@@ -463,7 +463,7 @@ func TestShow_planErrored(t *testing.T) {
 	}
 
 	got := output.Stdout()
-	want := `Planning failed. OpenTF encountered an error while generating this plan.`
+	want := `Planning failed. OpenTofu encountered an error while generating this plan.`
 	if !strings.Contains(got, want) {
 		t.Fatalf("unexpected output\ngot: %s\nwant: %s", got, want)
 	}
@@ -595,7 +595,7 @@ func TestShow_json_output(t *testing.T) {
 			}
 
 			args := []string{
-				"-out=opentf.plan",
+				"-out=tofu.plan",
 			}
 
 			code := pc.Run(args)
@@ -624,9 +624,9 @@ func TestShow_json_output(t *testing.T) {
 
 			args = []string{
 				"-json",
-				"opentf.plan",
+				"tofu.plan",
 			}
-			defer os.Remove("opentf.plan")
+			defer os.Remove("tofu.plan")
 			code = sc.Run(args)
 			showOutput := showDone(t)
 
@@ -685,7 +685,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	}
 
 	args := []string{
-		"-out=opentf.plan",
+		"-out=tofu.plan",
 	}
 	code := pc.Run(args)
 	planOutput := planDone(t)
@@ -706,9 +706,9 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"opentf.plan",
+		"tofu.plan",
 	}
-	defer os.Remove("opentf.plan")
+	defer os.Remove("tofu.plan")
 	code = sc.Run(args)
 	showOutput := showDone(t)
 
@@ -779,7 +779,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	args := []string{
 		"-refresh-only",
-		"-out=opentf.plan",
+		"-out=tofu.plan",
 		"-var=ami=bad-ami",
 		"-state=for-refresh.tfstate",
 	}
@@ -802,9 +802,9 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"opentf.plan",
+		"tofu.plan",
 	}
-	defer os.Remove("opentf.plan")
+	defer os.Remove("tofu.plan")
 	code = sc.Run(args)
 	showOutput := showDone(t)
 

@@ -350,7 +350,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 					tfdiags.Error,
 					"Attempt to restore non-existent deposed object",
 					fmt.Sprintf(
-						"OpenTF has encountered a bug where it would need to restore a deposed object for %s without knowing a deposed object key for that object. This occurred during a %s action. This is a bug in Terraform; please report it!",
+						"OpenTofu has encountered a bug where it would need to restore a deposed object for %s without knowing a deposed object key for that object. This occurred during a %s action. This is a bug in Terraform; please report it!",
 						addr, diffApply.Action,
 					),
 				))
@@ -359,7 +359,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 					tfdiags.Error,
 					"Attempt to restore non-existent deposed object",
 					fmt.Sprintf(
-						"OpenTF has encountered a bug where it would need to restore a deposed object for %s without knowing a deposed object key for that object. This is a bug in Terraform; please report it!",
+						"OpenTofu has encountered a bug where it would need to restore a deposed object for %s without knowing a deposed object key for that object. This is a bug in Terraform; please report it!",
 						addr,
 					),
 				))
@@ -429,9 +429,9 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(ctx EvalContext, plan
 			// If the order of replacement changed, then that is a bug in terraform
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"OpenTF produced inconsistent final plan",
+				"OpenTofu produced inconsistent final plan",
 				fmt.Sprintf(
-					"When expanding the plan for %s to include new values learned so far during apply, the planned action changed from %s to %s.\n\nThis is a bug in OpenTF and should be reported.",
+					"When expanding the plan for %s to include new values learned so far during apply, the planned action changed from %s to %s.\n\nThis is a bug in OpenTofu and should be reported.",
 					absAddr, plannedChange.Action, actualChange.Action,
 				),
 			))

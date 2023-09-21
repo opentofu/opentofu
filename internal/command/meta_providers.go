@@ -175,7 +175,7 @@ func (m *Meta) providerDevOverrideInitWarnings() tfdiags.Diagnostics {
 	for addr, path := range m.ProviderDevOverrides {
 		detailMsg.WriteString(fmt.Sprintf(" - %s in %s\n", addr.ForDisplay(), path))
 	}
-	detailMsg.WriteString("\nSkip opentf init when using provider development overrides. It is not necessary and may error unexpectedly.")
+	detailMsg.WriteString("\nSkip tofu init when using provider development overrides. It is not necessary and may error unexpectedly.")
 	return tfdiags.Diagnostics{
 		tfdiags.Sourceless(
 			tfdiags.Warning,
