@@ -412,7 +412,7 @@ func (p *Provider) ImportState(
 			return nil, fmt.Errorf(
 				"nil entry in ImportState results. This is always a bug with\n" +
 					"the resource that is being imported. Please report this as\n" +
-					"a bug to OpenTF.")
+					"a bug to OpenTofu.")
 		}
 	}
 

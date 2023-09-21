@@ -49,7 +49,7 @@ func (c *Change) MaybeWriteConfig(writer io.Writer, out string) (io.Writer, bool
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to create target generated file",
-					fmt.Sprintf("OpenTofu could not create the generated file (%s) in the target directory: %v. Depending on the error message, this may be a bug in OpenTF itself. If so, please report it!", out, err)))
+					fmt.Sprintf("OpenTofu could not create the generated file (%s) in the target directory: %v. Depending on the error message, this may be a bug in OpenTofu itself. If so, please report it!", out, err)))
 				return nil, false, diags
 			} else {
 				writer = w
@@ -70,7 +70,7 @@ func (c *Change) MaybeWriteConfig(writer io.Writer, out string) (io.Writer, bool
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Failed to save generated config",
-				fmt.Sprintf("OpenTofu encountered an error while writing generated config: %v. The config for %s must be created manually before applying. Depending on the error message, this may be a bug in OpenTF itself. If so, please report it!", err, c.Addr)))
+				fmt.Sprintf("OpenTofu encountered an error while writing generated config: %v. The config for %s must be created manually before applying. Depending on the error message, this may be a bug in OpenTofu itself. If so, please report it!", err, c.Addr)))
 		}
 		wroteConfig = true
 	}
