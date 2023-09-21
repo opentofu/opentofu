@@ -2,7 +2,7 @@ tfcoremock_simple_resource.drift: Refreshing state... [id=cb79269e-dc39-1e68-0a9
 
 Note: Objects have changed outside of OpenTF
 
-OpenTF detected the following changes made outside of OpenTF since the last
+OpenTofu detected the following changes made outside of OpenTofu since the last
 "opentf apply" which may have affected this plan:
 
   # tfcoremock_simple_resource.drift has changed
@@ -22,4 +22,4 @@ objects.
 Saved the plan to: equivalence_test_plan
 
 To perform exactly these actions, run the following command to apply:
-    opentf apply "equivalence_test_plan"
+    tofu apply "equivalence_test_plan"

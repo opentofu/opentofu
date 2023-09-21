@@ -339,11 +339,11 @@ func TestOperation_plan(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   + create
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.foo will be created
   + resource "test_resource" "foo" {
@@ -368,12 +368,12 @@ func TestOperation_planWithDatasource(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # data.test_data_source.bar will be read during apply
  <= data "test_data_source" "bar" {
@@ -404,12 +404,12 @@ func TestOperation_planWithDatasourceAndDrift(t *testing.T) {
 	v.Plan(plan, schemas)
 
 	want := `
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   + create
  <= read (data resources)
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # data.test_data_source.bar will be read during apply
  <= data "test_data_source" "bar" {
@@ -442,7 +442,7 @@ func TestOperation_planNextStep(t *testing.T) {
 		},
 		"state path": {
 			path: "good plan.tfplan",
-			want: `opentf apply "good plan.tfplan"`,
+			want: `tofu apply "good plan.tfplan"`,
 		},
 	}
 	for name, tc := range testCases {

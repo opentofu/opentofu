@@ -299,7 +299,7 @@ const planHeaderYesOutput = `
 Saved the plan to: %s
 
 To perform exactly these actions, run the following command to apply:
-    opentf apply %q
+    tofu apply %q
 `
 
 const planHeaderGenConfig = `

@@ -590,11 +590,11 @@ func TestTest_Verbose(t *testing.T) {
 	expected := `main.tftest.hcl... pass
   run "validate_test_resource"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   + create
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.foo will be created
   + resource "test_resource" "foo" {
@@ -893,11 +893,11 @@ resource "test_resource" "resource" {
 }
   run "plan_second_example"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   + create
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.second_module_resource will be created
   + resource "test_resource" "second_module_resource" {
@@ -908,11 +908,11 @@ OpenTF will perform the following actions:
 Plan: 1 to add, 0 to change, 0 to destroy.
   run "plan_update"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource will be updated in-place
   ~ resource "test_resource" "resource" {
@@ -923,11 +923,11 @@ OpenTF will perform the following actions:
 Plan: 0 to add, 1 to change, 0 to destroy.
   run "plan_update_example"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
+OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.module_resource will be updated in-place
   ~ resource "test_resource" "module_resource" {

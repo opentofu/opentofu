@@ -182,7 +182,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 
 	if willPrintResourceChanges {
 		renderer.Streams.Println(format.WordWrap(
-			"\nOpenTF used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:",
+			"\nOpenTofu used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:",
 			renderer.Streams.Stdout.Columns()))
 		if counts[plans.Create] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Create)))
@@ -208,7 +208,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		if checkOpts(plans.Errored) {
 			renderer.Streams.Printf("\nOpenTF planned the following actions, but then encountered a problem:\n")
 		} else {
-			renderer.Streams.Printf("\nOpenTF will perform the following actions:\n")
+			renderer.Streams.Printf("\nOpenTofu will perform the following actions:\n")
 		}
 
 		for _, change := range changes {
@@ -307,7 +307,7 @@ func renderHumanDiffDrift(renderer Renderer, diffs diffs, mode plans.Mode) bool 
 	renderer.Streams.Print(renderer.Colorize.Color("\n[bold][cyan]Note:[reset][bold] Objects have changed outside of OpenTF\n"))
 	renderer.Streams.Println()
 	renderer.Streams.Print(format.WordWrap(
-		"OpenTF detected the following changes made outside of OpenTF since the last \"opentf apply\" which may have affected this plan:\n",
+		"OpenTofu detected the following changes made outside of OpenTofu since the last \"opentf apply\" which may have affected this plan:\n",
 		renderer.Streams.Stdout.Columns()))
 
 	for _, drift := range drs {

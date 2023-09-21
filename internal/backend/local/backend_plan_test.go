@@ -322,11 +322,11 @@ func TestLocal_planTainted(t *testing.T) {
 		t.Fatal("plan should not be empty")
 	}
 
-	expectedOutput := `OpenTF used the selected providers to generate the following execution plan.
+	expectedOutput := `OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
 -/+ destroy and then create replacement
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_instance.foo is tainted, so it must be replaced
 -/+ resource "test_instance" "foo" {
@@ -420,12 +420,12 @@ func TestLocal_planDeposedOnly(t *testing.T) {
 	// it's also possible for there to be _multiple_ deposed objects, in the
 	// unlikely event that create_before_destroy _keeps_ crashing across
 	// subsequent runs.
-	expectedOutput := `OpenTF used the selected providers to generate the following execution plan.
+	expectedOutput := `OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
   + create
   - destroy
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_instance.foo will be created
   + resource "test_instance" "foo" {
@@ -492,11 +492,11 @@ func TestLocal_planTainted_createBeforeDestroy(t *testing.T) {
 		t.Fatal("plan should not be empty")
 	}
 
-	expectedOutput := `OpenTF used the selected providers to generate the following execution plan.
+	expectedOutput := `OpenTofu used the selected providers to generate the following execution plan.
 Resource actions are indicated with the following symbols:
 +/- create replacement and then destroy
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_instance.foo is tainted, so it must be replaced
 +/- resource "test_instance" "foo" {
@@ -642,7 +642,7 @@ func TestLocal_planDestroy_withDataSources(t *testing.T) {
 	}
 
 	// Data source should not be rendered in the output
-	expectedOutput := `OpenTF will perform the following actions:
+	expectedOutput := `OpenTofu will perform the following actions:
 
   # test_instance.foo[0] will be destroyed
   - resource "test_instance" "foo" {
