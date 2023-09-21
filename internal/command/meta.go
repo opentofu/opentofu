@@ -823,7 +823,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error getting pwd: %s", err))
+		diags = diags.Append(fmt.Errorf("Error getting pwd: %w", err))
 		return diags
 	}
 

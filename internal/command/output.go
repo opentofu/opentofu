@@ -74,14 +74,14 @@ func (c *OutputCommand) Outputs(statePath string) (map[string]*states.OutputValu
 
 	env, err := c.Workspace()
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error selecting workspace: %s", err))
+		diags = diags.Append(fmt.Errorf("Error selecting workspace: %w", err))
 		return nil, diags
 	}
 
 	// Get the state
 	stateStore, err := b.StateMgr(env)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
 

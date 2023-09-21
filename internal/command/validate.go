@@ -44,13 +44,13 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 
 	dir, err := filepath.Abs(args.Path)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("unable to locate module: %s", err))
+		diags = diags.Append(fmt.Errorf("unable to locate module: %w", err))
 		return view.Results(diags)
 	}
 
 	// Check for user-supplied plugin path
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		diags = diags.Append(fmt.Errorf("error loading plugin path: %s", err))
+		diags = diags.Append(fmt.Errorf("error loading plugin path: %w", err))
 		return view.Results(diags)
 	}
 

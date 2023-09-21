@@ -191,7 +191,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 
 	err := os.MkdirAll(m.modulesDir(), os.ModePerm)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("failed to create local modules directory: %s", err))
+		diags = diags.Append(fmt.Errorf("failed to create local modules directory: %w", err))
 		return true, diags
 	}
 
@@ -294,7 +294,7 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 			val := cty.StringVal(strVal)
 			val, err = convert.Convert(val, attrS.Type)
 			if err != nil {
-				m.showDiagnostics(fmt.Errorf("Invalid value: %s", err))
+				m.showDiagnostics(fmt.Errorf("Invalid value: %w", err))
 				continue
 			}
 

@@ -164,7 +164,7 @@ func (c *PlanCommand) OperationRequest(
 	var err error
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to initialize config loader: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to initialize config loader: %w", err))
 		return nil, diags
 	}
 
