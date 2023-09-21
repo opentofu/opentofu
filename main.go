@@ -101,7 +101,7 @@ func realMain() int {
 	}
 
 	log.Printf(
-		"[INFO] OpenTF version: %s %s",
+		"[INFO] OpenTofu version: %s %s",
 		Version, VersionPrerelease)
 	for _, depMod := range version.InterestingDependencies() {
 		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
