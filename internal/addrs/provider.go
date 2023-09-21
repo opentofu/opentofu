@@ -6,8 +6,8 @@ package addrs
 import (
 	"github.com/hashicorp/hcl/v2"
 	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfaddr "github.com/opentofu/registry-address"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
 )
 
 // Provider encapsulates a single provider type. In the future this will be

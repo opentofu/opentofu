@@ -8,8 +8,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/getmodules"
 	tfaddr "github.com/opentofu/registry-address"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getmodules"
 )
 
 // ModuleSource is the general type for all three of the possible module source
