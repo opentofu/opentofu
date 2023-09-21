@@ -11,12 +11,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/jsonstate"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // StateValues is the common representation of resolved values for both the
@@ -93,7 +93,7 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
 
 }
 
-func marshalPlannedValues(changes *plans.Changes, schemas *opentf.Schemas) (Module, error) {
+func marshalPlannedValues(changes *plans.Changes, schemas *tofu.Schemas) (Module, error) {
 	var ret Module
 
 	// build two maps:
@@ -166,7 +166,7 @@ func marshalPlannedValues(changes *plans.Changes, schemas *opentf.Schemas) (Modu
 }
 
 // marshalPlanResources
-func marshalPlanResources(changes *plans.Changes, ris []addrs.AbsResourceInstance, schemas *opentf.Schemas) ([]Resource, error) {
+func marshalPlanResources(changes *plans.Changes, ris []addrs.AbsResourceInstance, schemas *tofu.Schemas) ([]Resource, error) {
 	var ret []Resource
 
 	for _, ri := range ris {
@@ -248,7 +248,7 @@ func marshalPlanResources(changes *plans.Changes, ris []addrs.AbsResourceInstanc
 // the full module tree.
 func marshalPlanModules(
 	changes *plans.Changes,
-	schemas *opentf.Schemas,
+	schemas *tofu.Schemas,
 	childModules []addrs.ModuleInstance,
 	moduleMap map[string][]addrs.ModuleInstance,
 	moduleResourceMap map[string][]addrs.AbsResourceInstance,

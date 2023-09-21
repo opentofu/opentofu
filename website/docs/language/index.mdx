@@ -1,31 +1,31 @@
 ---
 sidebar_position: 1
 description: >-
-  Use the OpenTF configuration language to describe the infrastructure that OpenTF manages.
+  Use the OpenTofu configuration language to describe the infrastructure that OpenTofu manages.
 ---
 
-# OpenTF Language Documentation
+# OpenTofu Language Documentation
 
-This is the documentation for OpenTF's configuration language. It is relevant
-to users of [OpenTF CLI](/docs/cli), and TACOS (TF Automation and Collaboration Software).
-OpenTF's language is its primary user interface. Configuration files you write in OpenTF
-language tell OpenTF what plugins to install, what infrastructure to create,
-and what data to fetch. OpenTF language also lets you define dependencies
+This is the documentation for OpenTofu's configuration language. It is relevant
+to users of [OpenTofu CLI](/docs/cli), and TACOS (TF Automation and Collaboration Software).
+OpenTofu's language is its primary user interface. Configuration files you write in OpenTofu
+language tell OpenTofu what plugins to install, what infrastructure to create,
+and what data to fetch. OpenTofu language also lets you define dependencies
 between resources and create multiple similar resources from a single
 configuration block.
 
-## About the OpenTF Language
+## About the OpenTofu Language
 
-The main purpose of the OpenTF language is declaring
+The main purpose of the OpenTofu language is declaring
 [resources](/docs/language/resources), which represent infrastructure objects. All other
 language features exist only to make the definition of resources more flexible
 and convenient.
 
-An _OpenTF configuration_ is a complete document in the OpenTF language
-that tells OpenTF how to manage a given collection of infrastructure. A
+An _OpenTofu configuration_ is a complete document in the OpenTofu language
+that tells OpenTofu how to manage a given collection of infrastructure. A
 configuration can consist of multiple files and directories.
 
-The syntax of the OpenTF language consists of only a few basic elements:
+The syntax of the OpenTofu language consists of only a few basic elements:
 
 ```hcl
 resource "aws_vpc" "main" {
@@ -41,16 +41,16 @@ resource "aws_vpc" "main" {
 - _Blocks_ are containers for other content and usually represent the
   configuration of some kind of object, like a resource. Blocks have a
   _block type,_ can have zero or more _labels,_ and have a _body_ that contains
-  any number of arguments and nested blocks. Most of OpenTF's features are
+  any number of arguments and nested blocks. Most of OpenTofu's features are
   controlled by top-level blocks in a configuration file.
 - _Arguments_ assign a value to a name. They appear within blocks.
 - _Expressions_ represent a value, either literally or by referencing and
   combining other values. They appear as values for arguments, or within other
   expressions.
 
-The OpenTF language is declarative, describing an intended goal rather than
+The OpenTofu language is declarative, describing an intended goal rather than
 the steps to reach that goal. The ordering of blocks and the files they are
-organized into are generally not significant; OpenTF only considers implicit
+organized into are generally not significant; OpenTofu only considers implicit
 and explicit relationships between resources when determining an order of
 operations.
 
@@ -58,7 +58,7 @@ operations.
 
 The following example describes a simple network topology for Amazon Web
 Services, just to give a sense of the overall structure and syntax of the
-OpenTF language. Similar configurations can be created for other virtual
+OpenTofu language. Similar configurations can be created for other virtual
 network services, using resource types defined by other providers, and a
 practical network configuration will often contain additional elements not
 shown here.
@@ -102,7 +102,7 @@ resource "aws_subnet" "az" {
   # For each subnet, use one of the specified availability zones.
   availability_zone = var.availability_zones[count.index]
 
-  # By referencing the aws_vpc.main object, OpenTF knows that the subnet
+  # By referencing the aws_vpc.main object, OpenTofu knows that the subnet
   # must be created only after the VPC is created.
   vpc_id = aws_vpc.main.id
 

@@ -1,19 +1,19 @@
 ---
 description: >-
-  The opentf version command displays the OpenTF version and the version
+  The tofu version command displays the OpenTofu version and the version
   of all installed plugins.
 ---
 
 # Command: version
 
-The `opentf version` displays the current version of OpenTF and all
+The `tofu version` displays the current version of OpenTofu and all
 installed plugins.
 
 ## Usage
 
-Usage: `opentf version [options]`
+Usage: `tofu version [options]`
 
-With no additional arguments, `version` will display the version of OpenTF,
+With no additional arguments, `version` will display the version of OpenTofu,
 the platform it's installed on, and installed providers.
 
 This command has one optional flag:
@@ -26,8 +26,8 @@ This command has one optional flag:
 Basic usage, with security information shown if relevant:
 
 ```shellsession
-$ opentf version
-OpenTF v1.6.0
+$ tofu version
+OpenTofu v1.6.0
 on darwin_amd64
 + provider registry.terraform.io/hashicorp/null v3.0.0
 ```
@@ -35,7 +35,7 @@ on darwin_amd64
 As JSON:
 
 ```shellsession
-$ opentf version -json
+$ tofu version -json
 {
   "terraform_version": "0.15.0",
   "platform": "darwin_amd64",

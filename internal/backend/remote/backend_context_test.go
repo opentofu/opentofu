@@ -8,20 +8,20 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/initwd"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/terminal"
 )
 
 func TestRemoteStoredVariableValue(t *testing.T) {
@@ -256,7 +256,7 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 	tests := map[string]struct {
 		localVariables    map[string]backend.UnparsedVariableValue
 		remoteVariables   []*tfe.VariableCreateOptions
-		expectedVariables opentf.InputValues
+		expectedVariables tofu.InputValues
 	}{
 		"no local variables": {
 			map[string]backend.UnparsedVariableValue{},
@@ -277,28 +277,28 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 					Category: &catTerraform,
 				},
 			},
-			opentf.InputValues{
-				varName1: &opentf.InputValue{
+			tofu.InputValues{
+				varName1: &tofu.InputValue{
 					Value:      cty.StringVal(varValue1),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName2: &opentf.InputValue{
+				varName2: &tofu.InputValue{
 					Value:      cty.StringVal(varValue2),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName3: &opentf.InputValue{
+				varName3: &tofu.InputValue{
 					Value:      cty.StringVal(varValue3),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
@@ -326,28 +326,28 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 					Category: &catTerraform,
 				},
 			},
-			opentf.InputValues{
-				varName1: &opentf.InputValue{
+			tofu.InputValues{
+				varName1: &tofu.InputValue{
 					Value:      cty.StringVal(varValue1),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName2: &opentf.InputValue{
+				varName2: &tofu.InputValue{
 					Value:      cty.StringVal(varValue2),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName3: &opentf.InputValue{
+				varName3: &tofu.InputValue{
 					Value:      cty.StringVal(varValue3),
-					SourceType: opentf.ValueFromNamedFile,
+					SourceType: tofu.ValueFromNamedFile,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "fake.tfvars",
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
@@ -371,28 +371,28 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 					Category: &catTerraform,
 				},
 			},
-			opentf.InputValues{
-				varName1: &opentf.InputValue{
+			tofu.InputValues{
+				varName1: &tofu.InputValue{
 					Value:      cty.StringVal(varValue1),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName2: &opentf.InputValue{
+				varName2: &tofu.InputValue{
 					Value:      cty.StringVal(varValue2),
-					SourceType: opentf.ValueFromInput,
+					SourceType: tofu.ValueFromInput,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "",
 						Start:    tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 						End:      tfdiags.SourcePos{Line: 0, Column: 0, Byte: 0},
 					},
 				},
-				varName3: &opentf.InputValue{
+				varName3: &tofu.InputValue{
 					Value:      cty.StringVal(varValue3),
-					SourceType: opentf.ValueFromNamedFile,
+					SourceType: tofu.ValueFromNamedFile,
 					SourceRange: tfdiags.SourceRange{
 						Filename: "fake.tfvars",
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
@@ -461,10 +461,10 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 
 type testUnparsedVariableValue string
 
-func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*opentf.InputValue, tfdiags.Diagnostics) {
-	return &opentf.InputValue{
+func (v testUnparsedVariableValue) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
+	return &tofu.InputValue{
 		Value:      cty.StringVal(string(v)),
-		SourceType: opentf.ValueFromNamedFile,
+		SourceType: tofu.ValueFromNamedFile,
 		SourceRange: tfdiags.SourceRange{
 			Filename: "fake.tfvars",
 			Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},

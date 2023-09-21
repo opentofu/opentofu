@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plugin/discovery"
+	"github.com/opentofu/opentofu/internal/plugin/discovery"
 )
 
 // Module represents the dependencies of a single module, as well being

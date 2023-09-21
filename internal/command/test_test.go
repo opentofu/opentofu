@@ -9,11 +9,11 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	testing_command "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testing"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentofu/opentofu/internal/addrs"
+	testing_command "github.com/opentofu/opentofu/internal/command/testing"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/terminal"
 )
 
 func TestTest(t *testing.T) {
@@ -1038,7 +1038,7 @@ The plan was created with the -target option in effect, so some changes
 requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
-    opentf plan
+    tofu plan
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
@@ -1069,7 +1069,7 @@ The plan was created with the -target option in effect, so some changes
 requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
-    opentf plan
+    tofu plan
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,

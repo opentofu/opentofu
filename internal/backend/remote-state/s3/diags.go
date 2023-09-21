@@ -3,7 +3,7 @@ package s3
 import (
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func diagnosticString(diag tfdiags.Diagnostic) string {

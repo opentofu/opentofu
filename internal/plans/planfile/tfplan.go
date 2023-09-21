@@ -11,14 +11,14 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/globalref"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/internal/planproto"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/lang/globalref"
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/internal/planproto"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/version"
 )
 
 const tfplanFormatVersion = 3
@@ -52,7 +52,7 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	if rawPlan.TerraformVersion != version.String() {
-		return nil, fmt.Errorf("plan file was created by OpenTF or Terraform %s, but this is %s; plan files cannot be transferred between different versions of OpenTF / Terraform", rawPlan.TerraformVersion, version.String())
+		return nil, fmt.Errorf("plan file was created by OpenTofu or Terraform %s, but this is %s; plan files cannot be transferred between different versions of OpenTofu / Terraform", rawPlan.TerraformVersion, version.String())
 	}
 
 	plan := &plans.Plan{
@@ -272,7 +272,7 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 		// file created by an earlier version of Terraform, which had the
 		// same information spread over various other fields:
 		// ModulePath, Mode, Name, Type, and InstanceKey.
-		return nil, fmt.Errorf("no instance address for resource instance change; perhaps this plan was created by a different version of OpenTF or a different version of Terraform?")
+		return nil, fmt.Errorf("no instance address for resource instance change; perhaps this plan was created by a different version of OpenTofu or a different version of Terraform?")
 	}
 
 	instAddr, diags := addrs.ParseAbsResourceInstanceStr(rawChange.Addr)

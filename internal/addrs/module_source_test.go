@@ -311,7 +311,7 @@ func TestParseModuleSource(t *testing.T) {
 			// just a general "this string doesn't match any of our source
 			// address patterns" situation, not _necessarily_ about relative
 			// local paths.
-			wantErr: `OpenTF cannot detect a supported external module source type for boop/bloop`,
+			wantErr: `OpenTofu cannot detect a supported external module source type for boop/bloop`,
 		},
 
 		"go-getter will accept all sorts of garbage": {

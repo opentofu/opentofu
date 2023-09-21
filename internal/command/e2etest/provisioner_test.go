@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentofu/opentofu/internal/e2e"
 )
 
 // TestProviderDevOverrides is a test that opentf can execute a 3rd party

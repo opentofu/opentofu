@@ -1,14 +1,14 @@
 ---
 description: >-
   The `local-exec` provisioner invokes a local executable after a resource is
-  created. This invokes a process on the machine running OpenTF, not on the
+  created. This invokes a process on the machine running OpenTofu, not on the
   resource. See the `remote-exec` provisioner to run commands on the resource.
 ---
 
 # local-exec Provisioner
 
 The `local-exec` provisioner invokes a local executable after a resource is
-created. This invokes a process on the machine running OpenTF, not on the
+created. This invokes a process on the machine running OpenTofu, not on the
 resource. See the `remote-exec`
 [provisioner](/docs/language/resources/provisioners/remote-exec) to run commands on the
 resource.
@@ -40,7 +40,7 @@ The following arguments are supported:
 
 * `command` - (Required) This is the command to execute. It can be provided
   as a relative path to the current working directory or as an absolute path.
-  It is evaluated in a shell, and can use environment variables or OpenTF
+  It is evaluated in a shell, and can use environment variables or OpenTofu
   variables.
 
 * `working_dir` - (Optional) If provided, specifies the working directory where
@@ -58,12 +58,12 @@ The following arguments are supported:
 * `environment` - (Optional) block of key value pairs representing the
   environment of the executed command. inherits the current process environment.
 
-* `when` - (Optional) If provided, specifies when OpenTF will execute the command.
+* `when` - (Optional) If provided, specifies when OpenTofu will execute the command.
   For example, `when = destroy` specifies that the provisioner will run when the associated resource
   is destroyed. Refer to [Destroy-Time Provisioners](/docs/language/resources/provisioners/syntax#destroy-time-provisioners)
   for details.
   
-* `quiet` - (Optional) If set to `true`, OpenTF will not print the command to be executed to stdout, and will instead print "Suppressed by quiet=true". Note that the output of the command will still be printed in any case.
+* `quiet` - (Optional) If set to `true`, OpenTofu will not print the command to be executed to stdout, and will instead print "Suppressed by quiet=true". Note that the output of the command will still be printed in any case.
 
 ### Interpreter Examples
 

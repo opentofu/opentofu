@@ -10,9 +10,9 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty/function"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/experiments"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type ParseRef func(traversal hcl.Traversal) (*addrs.Reference, tfdiags.Diagnostics)
@@ -27,7 +27,7 @@ type Scope struct {
 	// ParseRef is a function that the scope uses to extract references from
 	// a hcl.Traversal. This controls the type of references the scope currently
 	// supports. As an example, the testing scope can reference outputs directly
-	// while the main OpenTF context scope can not. This means that this
+	// while the main OpenTofu context scope can not. This means that this
 	// function for the testing scope will happily return outputs, while the
 	// main context scope would fail if a user attempts to reference an output.
 	ParseRef ParseRef

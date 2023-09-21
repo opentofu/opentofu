@@ -5,9 +5,9 @@ description: Part of the ongoing design research for module integration testing.
 # Module Testing Experiment
 
 This page is about some experimental features available in recent versions of
-OpenTF CLI related to integration testing of shared modules.
+OpenTofu CLI related to integration testing of shared modules.
 
-The OpenTF team is aiming to use these features to gather feedback as part
+The OpenTofu team is aiming to use these features to gather feedback as part
 of ongoing research into different strategies for testing modules.
 These features are likely to change significantly in future releases based on
 feedback.
@@ -15,7 +15,7 @@ feedback.
 ## Current Research Goals
 
 Our initial area of research is into the question of whether it's helpful and
-productive to write module integration tests in the OpenTF language itself,
+productive to write module integration tests in the OpenTofu language itself,
 or whether it's better to handle that as a separate concern orchestrated by
 code written in other languages.
 
@@ -26,26 +26,26 @@ Some existing efforts have piloted both approaches:
 both pioneered the idea of writing tests for modules with explicit
 orchestration written in the Go and Ruby programming languages, respectively.
 
-* The OpenTF provider
+* The OpenTofu provider
 [`apparentlymart/testing`](https://registry.terraform.io/providers/apparentlymart/testing/latest)
-introduced the idea of writing module tests in the OpenTF
+introduced the idea of writing module tests in the OpenTofu
 language itself, using a special provider that can evaluate assertions
-and fail `opentf apply` if they don't pass.
+and fail `tofu apply` if they don't pass.
 
 Both of these approaches have both advantages and disadvantages, and so it's
 likely that both will coexist for different situations, but the community
 efforts have already explored the external-language testing model quite deeply
-while the OpenTF-integrated testing model has not yet been widely trialled.
+while the OpenTofu-integrated testing model has not yet been widely trialled.
 For that reason, the current iteration of the module testing experiment is
-aimed at trying to make the OpenTF-integrated approach more accessible so
+aimed at trying to make the OpenTofu-integrated approach more accessible so
 that more module authors can hopefully try it and share their experiences.
 
 ## Current Experimental Features
 
 Our current area of interest is in what sorts of tests can and cannot be
-written using features integrated into the OpenTF language itself. As a
-means to investigate that without invasive, cross-cutting changes to OpenTF
-Core we're using a special built-in OpenTF provider as a placeholder for
+written using features integrated into the OpenTofu language itself. As a
+means to investigate that without invasive, cross-cutting changes to OpenTofu
+Core we're using a special built-in OpenTofu provider as a placeholder for
 potential new features.
 
 If this experiment is successful then we expect to run a second round of
@@ -53,17 +53,17 @@ research and design about exactly what syntax is most ergonomic for writing
 tests, but for the moment we're interested less in the specific syntax and more
 in the capabilities of this approach.
 
-The temporary extensions to OpenTF for this experiment consist of the
+The temporary extensions to OpenTofu for this experiment consist of the
 following parts:
 
 * A temporary experimental provider `terraform.io/builtin/test`, which acts as
 a placeholder for potential new language features related to test assertions.
 
-* A `opentf test` command for more conveniently running multiple tests in
+* A `tofu test` command for more conveniently running multiple tests in
 a single action.
 
 * An experimental convention of placing test configurations in subdirectories
-of a `tests` directory within your module, which `opentf test` will then
+of a `tests` directory within your module, which `tofu test` will then
 discover and run.
 
 We would like to invite adventurous module authors to try writing integration
@@ -79,7 +79,7 @@ likely not be required in a final design.
 ### Writing Tests for a Module
 
 For the purposes of the current experiment, module tests are arranged into
-_test suites_, each of which is a root OpenTF module which includes a
+_test suites_, each of which is a root OpenTofu module which includes a
 `module` block calling the module under test, and ideally also a number of
 test assertions to verify that the module outputs match expectations.
 
@@ -111,7 +111,7 @@ syntax for defining test assertions. For example:
 terraform {
   required_providers {
     # Because we're currently using a built-in provider as
-    # a substitute for dedicated OpenTF language syntax
+    # a substitute for dedicated OpenTofu language syntax
     # for now, test suite modules must always declare a
     # dependency on this provider. This provider is only
     # available when running tests, so you shouldn't use it
@@ -136,7 +136,7 @@ module "main" {
   # this module, so it doesn't set any input variables
   # and just lets their default values be selected instead.
 }
-# As with all OpenTF modules, we can use local values
+# As with all OpenTofu modules, we can use local values
 # to do any necessary post-processing of the results from
 # the module in preparation for writing test assertions.
 locals {
@@ -171,7 +171,7 @@ resource "test_assertions" "api_url" {
 }
 # We can also use data resources to respond to the
 # behavior of the real remote system, rather than
-# just to values within the OpenTF configuration.
+# just to values within the OpenTofu configuration.
 data "http" "api_response" {
   depends_on = [
     # make sure the syntax assertions run first, so
@@ -198,7 +198,7 @@ in the expected way.
 
 ### Running Your Tests
 
-The `opentf test` command aims to make it easier to exercise all of your
+The `tofu test` command aims to make it easier to exercise all of your
 defined test suites at once, and see only the output related to any test
 failures or errors.
 
@@ -209,7 +209,7 @@ suite directory containing `test_defaults.tf`.
 
 Because these test suites are integration tests rather than unit tests, you'll
 need to set up any credentials files or environment variables needed by the
-providers your module uses before running `opentf test`. The test command
+providers your module uses before running `tofu test`. The test command
 will, for each suite:
 
 * Install the providers and any external modules the test configuration depends
@@ -219,10 +219,10 @@ on.
 * Collect all of the test results from the apply step, which would also have
 "created" the `test_assertions` resources.
 * Destroy all of the objects recorded in the temporary test state, as if running
-`opentf destroy` against the test configuration.
+`tofu destroy` against the test configuration.
 
 ```shellsession
-$ opentf test
+$ tofu test
 ─── Failed: defaults.api_url.scheme (default scheme is https) ───────────────
 wrong value
     got:  "http"
@@ -232,19 +232,19 @@ wrong value
 
 In this case, it seems like the module returned an `http` rather than an
 `https` URL in the default case, and so the `defaults.api_url.scheme`
-assertion failed, and the `opentf test` command detected and reported it.
+assertion failed, and the `tofu test` command detected and reported it.
 
 The `test_assertions` resource captures any assertion failures but does not
 return an error, because that can then potentially allow downstream
 assertions to also run and thus capture as much context as possible.
-However, if OpenTF encounters any _errors_ while processing the test
+However, if OpenTofu encounters any _errors_ while processing the test
 configuration it will halt processing, which may cause some of the test
 assertions to be skipped.
 
 ## Known Limitations
 
 The design above is very much a prototype aimed at gathering more experience
-with the possibilities of testing inside the OpenTF language. We know it's
+with the possibilities of testing inside the OpenTofu language. We know it's
 currently somewhat non-ergonomic, and hope to improve on that in later phases
 of research and design, but the main focus of this iteration is on available
 functionality and so with that in mind there are some specific possibilities
@@ -262,11 +262,11 @@ failure if it doesn't. We'll hopefully be able to improve on this in a future
 iteration with the test assertions better integrated into the language.
 
 * Capturing context about failures. Due to this prototype using a provider as
-an approximation for new assertion syntax, the `opentf test` command is
+an approximation for new assertion syntax, the `tofu test` command is
 limited in how much context it's able to gather about failures. A design
 more integrated into the language could potentially capture the source
 expressions and input values to give better feedback about what went wrong,
-similar to what OpenTF typically returns from expression evaluation errors
+similar to what OpenTofu typically returns from expression evaluation errors
 in the main language.
 
 * Unit testing without creating real objects. Although we do hope to spend more
@@ -292,6 +292,6 @@ well in each and what didn't work so well.
 Our ultimate goal is to work towards an integration testing methodology which
 strikes the best compromise between the capabilities of these different
 approaches, ideally avoiding a hard requirement on any particular external
-language and fitting well into the OpenTF workflow.
+language and fitting well into the OpenTofu workflow.
 
 Any feedback you'd like to share would be very welcome!

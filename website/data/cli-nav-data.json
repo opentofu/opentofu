@@ -1,5 +1,5 @@
 [
-  { "heading": "OpenTF CLI" },
+  { "heading": "OpenTofu CLI" },
   { "title": "Overview", "path": "cli/index" },
   { "title": "Basic CLI Features", "path": "cli/commands/index" },
   {

@@ -4,7 +4,7 @@
 package arguments
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Plan represents the command-line arguments for the plan command.

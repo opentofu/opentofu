@@ -12,9 +12,9 @@ import (
 
 	getter "github.com/hashicorp/go-getter"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/copy"
+	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/httpclient"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from

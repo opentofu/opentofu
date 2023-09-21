@@ -1,7 +1,7 @@
 ---
 description: |-
   The provider network mirror protocol is implemented by a server intending
-  to provide a mirror or read-through caching proxy for OpenTF providers,
+  to provide a mirror or read-through caching proxy for OpenTofu providers,
   as an alternative distribution source from the provider's origin provider
   registry.
 ---
@@ -12,15 +12,15 @@ The provider network mirror protocol is an optional protocol which you can
 implement to provide an alternative installation source for Terraform providers,
 regardless of their origin registries.
 
-OpenTF uses network mirrors only if you activate them explicitly in
+OpenTofu uses network mirrors only if you activate them explicitly in
 [the CLI configuration's `provider_installation` block](/docs/cli/config/config-file#provider-installation).
 When enabled, a network mirror can serve providers belonging to any registry
-hostname, which can allow an organization to serve all of the OpenTF
+hostname, which can allow an organization to serve all of the OpenTofu
 providers they intend to use from an internal server, rather than from each
 provider's origin registry.
 
 This is _not_ the protocol that should be implemented by a host intending to
-serve as an origin registry for OpenTF Providers. To provide an origin
+serve as an origin registry for OpenTofu Providers. To provide an origin
 registry (whose hostname would then be included in the source addresses of the
 providers it hosts), implement
 [the provider registry protocol](/docs/internals/provider-registry-protocol)
@@ -28,14 +28,14 @@ instead.
 
 ## Provider Addresses
 
-Each OpenTF provider has an associated address which uniquely identifies it
-within OpenTF. A provider address has the syntax `hostname/namespace/type`,
+Each OpenTofu provider has an associated address which uniquely identifies it
+within OpenTofu. A provider address has the syntax `hostname/namespace/type`,
 which is described in more detail in
 [the Provider Requirements documentation](/docs/language/providers/requirements).
 
 By default, the `hostname` portion of a provider address serves both as part
 of its unique identifier _and_ as the location of the registry to retrieve it
-from. However, when you configure OpenTF to install providers from a network
+from. However, when you configure OpenTofu to install providers from a network
 mirror, the `hostname` serves _only_ as an identifier and no longer as
 an installation source. A provider mirror can therefore serve providers
 belonging to a variety of different provider registry hostnames, including
@@ -48,13 +48,13 @@ the hostname where the provider network mirror is deployed.
 
 ## Protocol Base URL
 
-Most OpenTF-native services use
+Most OpenTofu-native services use
 [the remote service discovery protocol](/docs/internals/remote-service-discovery) so
 that the physical location of the endpoints can potentially be separated from
 the hostname used in identifiers. The Provider Network Mirror protocol does
 _not_ use the service discovery indirection, because a network mirror location
 is only a physical location and is never used as part of the identifier of a
-dependency in a OpenTF configuration.
+dependency in a OpenTofu configuration.
 
 Instead, the provider installation section of the CLI configuration accepts
 a base URL directly. The given URL must use the scheme `https:`, and should
@@ -64,18 +64,18 @@ endpoints will be resolved beneath it.
 ```hcl
 provider_installation {
   network_mirror {
-    url = "https://opentf.example.com/providers/"
+    url = "https://tofu.example.com/providers/"
   }
 }
 ```
 
-OpenTF uses the base URL only as a stem to resolve the operation endpoint
+OpenTofu uses the base URL only as a stem to resolve the operation endpoint
 URLs against, and so it will never access the base URL directly. You can
 therefore, if desired, publish human-readable usage documentation for your
 network mirror at that URL.
 
 The following sections describe the various operations that a provider
-network mirror server must implement to be compatible with OpenTF CLI's
+network mirror server must implement to be compatible with OpenTofu CLI's
 provider installer. The indicated URLs are all relative to the given base URL,
 as described above.
 
@@ -92,14 +92,14 @@ base URL from the above CLI configuration example.
 
 If the CLI configuration includes
 [credentials](/docs/cli/config/config-file#credentials) for the hostname
-given in the network mirror base URL, OpenTF will include those credentials
+given in the network mirror base URL, OpenTofu will include those credentials
 in its requests for operations described below.
 
 If the given URL uses a non-standard port number (other than 443) then the
 credentials must be associated with a hostname that includes the port number,
-such as `opentf.example.com:8443`.
+such as `tofu.example.com:8443`.
 
-OpenTF does _not_ send credentials when retrieving the archives whose
+OpenTofu does _not_ send credentials when retrieving the archives whose
 URLs are given in the "List Available Installation Packages" response below.
 If a particular mirror considers the distribution packages themselves to be
 sensitive then it must use cryptographically-secure, user-specific, and
@@ -126,7 +126,7 @@ particular provider.
 ### Sample Request
 
 ```
-curl 'https://opentf.example.com/providers/registry.opentf.io/hashicorp/random/index.json'
+curl 'https://tofu.example.com/providers/registry.tofu.io/hashicorp/random/index.json'
 ```
 
 ### Sample Response
@@ -159,9 +159,9 @@ distribution packages for a particular version of a provider.
 Each distribution package is associated with a particular operating system
 and architecture. A network mirror may host only a subset of the available
 packages for a provider version, if the users of the mirror are known to all
-use only a subset of the target platforms that OpenTF supports.
+use only a subset of the target platforms that OpenTofu supports.
 
-OpenTF CLI uses this operation after it has selected the newest available
+OpenTofu CLI uses this operation after it has selected the newest available
 version matching the configured version constraints, in order to find a zip
 archive containing the plugin itself.
 
@@ -183,7 +183,7 @@ archive containing the plugin itself.
 ### Sample Request
 
 ```
-curl 'https://opentf.example.com/providers/registry.opentf.io/hashicorp/random/2.0.0.json'
+curl 'https://tofu.example.com/providers/registry.tofu.io/hashicorp/random/2.0.0.json'
 ```
 
 ### Sample Response
@@ -219,31 +219,31 @@ with an underscore (`_`).
 Each property value in the `archives` object is itself a nested object with
 the following properties:
 
-* `url` (required): a string specifying the URL from which OpenTF should
+* `url` (required): a string specifying the URL from which OpenTofu should
   download the `.zip` archive containing the requested provider plugin version.
 
-  OpenTF resolves the URL relative to the URL from which the current
+  OpenTofu resolves the URL relative to the URL from which the current
   JSON document was returned, so the examples above containing only a
-  filename would cause OpenTF to construct a URL like:
+  filename would cause OpenTofu to construct a URL like:
 
   ```
-  https://opentf.example.com/providers/registry.terraform.io/hashicorp/random/terraform-provider-random_2.0.0_darwin_amd64.zip
+  https://tofu.example.com/providers/registry.terraform.io/hashicorp/random/terraform-provider-random_2.0.0_darwin_amd64.zip
   ```
 
 * `hashes` (optional): a JSON array of strings containing one or more hash
-  values for the indicated archive. These hashes use OpenTF's provider
+  values for the indicated archive. These hashes use OpenTofu's provider
   package hashing algorithm. At present, the easiest way to populate these
-  is to construct a mirror's JSON indices using the `opentf providers mirror`
+  is to construct a mirror's JSON indices using the `tofu providers mirror`
   command, as described in a later section, which will include the calculated
   hashes of each provider.
 
-  If the response includes at least one hash, OpenTF will select the hash
+  If the response includes at least one hash, OpenTofu will select the hash
   whose algorithm it considers to be strongest and verify that the downloaded
   package matches that hash. If the response does not include a `hashes`
-  property then OpenTF will install the indicated archive with no
+  property then OpenTofu will install the indicated archive with no
   verification.
 
-OpenTF CLI will only attempt to download versions that it has previously
+OpenTofu CLI will only attempt to download versions that it has previously
 seen in response to [List Available Versions](#list-available-versions).
 
 ## Provider Mirror as a Static Website
@@ -254,17 +254,17 @@ strategy, implement the JSON index responses described above as `.json` files
 in the appropriate nested subdirectories, and ensure that your system is
 configured to serve `.json` files with the `application/json` media type.
 
-As a convenience, OpenTF CLI includes
-[the `opentf providers mirror` subcommand](/docs/cli/commands/providers/mirror),
+As a convenience, OpenTofu CLI includes
+[the `tofu providers mirror` subcommand](/docs/cli/commands/providers/mirror),
 which will analyze the current configuration for the providers it requires,
 download the packages for those providers from their origin registries, and
 place them into a local directory suitable for use as a mirror.
 
-The `opentf providers mirror` subcommand also generates `index.json` and
+The `tofu providers mirror` subcommand also generates `index.json` and
 version-specific `.json` files that can, when placed in a static website hosting
 system, produce responses compatible with the provider mirror protocol.
 
 If you wish to create a mirror with providers for a number of different
-OpenTF configurations, run `opentf providers mirror` in each configuration
-in turn while providing the same output directory each time. OpenTF will
+OpenTofu configurations, run `tofu providers mirror` in each configuration
+in turn while providing the same output directory each time. OpenTofu will
 then merge together all of the requirements into a single set of JSON indices.

@@ -11,7 +11,7 @@ generate:
 	go generate ./...
 
 # We separate the protobuf generation because most development tasks on
-# OpenTF do not involve changing protobuf files and protoc is not a
+# OpenTofu do not involve changing protobuf files and protoc is not a
 # go-gettable dependency and so getting it installed can be inconvenient.
 #
 # If you are working on changes to protobuf interfaces, run this Makefile

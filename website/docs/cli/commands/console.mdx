@@ -1,17 +1,17 @@
 ---
 description: >-
-  The opentf console command provides an interactive console for evaluating
+  The tofu console command provides an interactive console for evaluating
   expressions.
 ---
 
 # Command: console
 
-The `opentf console` command provides an interactive console for
+The `tofu console` command provides an interactive console for
 evaluating [expressions](/docs/language/expressions).
 
 ## Usage
 
-Usage: `opentf console [options]`
+Usage: `tofu console [options]`
 
 This command provides an interactive command-line console for evaluating and
 experimenting with [expressions](/docs/language/expressions).
@@ -25,19 +25,19 @@ or Control-D.
 
 For configurations using
 [the `local` backend](/docs/language/settings/backends/local) only,
-`opentf console` accepts the legacy command line option
+`tofu console` accepts the legacy command line option
 [`-state`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Scripting
 
-The `opentf console` command can be used in non-interactive scripts
+The `tofu console` command can be used in non-interactive scripts
 by piping newline-separated commands to it. Only the output from the
 final command is printed unless an error occurs earlier.
 
 For example:
 
 ```shell
-$ echo 'split(",", "foo,bar,baz")' | opentf console
+$ echo 'split(",", "foo,bar,baz")' | tofu console
 tolist([
   "foo",
   "bar",
@@ -48,13 +48,13 @@ tolist([
 ## Remote State
 
 If [remote state](/docs/language/state/remote) is used by the current backend,
-OpenTF will read the state for the current workspace from the backend
+OpenTofu will read the state for the current workspace from the backend
 before evaluating any expressions.
 
 ## Examples
 
-The `opentf console` command will read the OpenTF configuration in the
-current working directory and the OpenTF state file from the configured
+The `tofu console` command will read the OpenTofu configuration in the
+current working directory and the OpenTofu state file from the configured
 backend so that interpolations can be tested against both the values in the
 configuration and the state file.
 
@@ -81,7 +81,7 @@ resource "random_pet" "example" {
 }
 ```
 
-Executing `opentf console` will drop you into an interactive shell where you
+Executing `tofu console` will drop you into an interactive shell where you
 can test interpolations to:
 
 Print a value from a map:

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/sdk/testutil"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend"
 )
 
 func TestBackend_impl(t *testing.T) {

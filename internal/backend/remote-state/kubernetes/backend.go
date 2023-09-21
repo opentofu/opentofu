@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/version"
 	k8sSchema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -243,7 +243,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Overriding with static configuration
-	cfg.UserAgent = httpclient.OpenTfUserAgent(version.Version)
+	cfg.UserAgent = httpclient.OpenTofuUserAgent(version.Version)
 
 	if v, ok := data.GetOk("host"); ok {
 		cfg.Host = v.(string)

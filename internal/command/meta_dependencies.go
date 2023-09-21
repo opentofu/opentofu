@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // dependenclyLockFilename is the filename of the dependency lock file.

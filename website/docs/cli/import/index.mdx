@@ -1,27 +1,27 @@
 ---
 description: >-
-  OpenTF can import and manage existing infrastructure. This can help you
-  transition your infrastructure to OpenTF.
+  OpenTofu can import and manage existing infrastructure. This can help you
+  transition your infrastructure to OpenTofu.
 ---
 
 # Import
 
-OpenTF can import existing infrastructure resources. This functionality lets you bring existing resources under OpenTF management.
+OpenTofu can import existing infrastructure resources. This functionality lets you bring existing resources under OpenTofu management.
 
 :::note
-OpenTF supports `import` blocks. Unlike the `opentf import` command, you can use `import` blocks to import more than one resource at a time, and you can review imports as part of your normal plan and apply workflow. [Learn more about `import` blocks](/docs/language/import).
+OpenTofu supports `import` blocks. Unlike the `tofu import` command, you can use `import` blocks to import more than one resource at a time, and you can review imports as part of your normal plan and apply workflow. [Learn more about `import` blocks](/docs/language/import).
 :::
 
 ## State Only
 
 :::warning
-OpenTF expects that each remote object is bound to a _single_ resource address. You should import each remote object to _one_ OpenTF resource address. If you import the same object multiple times, OpenTF may exhibit unwanted behavior. See [State](/docs/language/state) for more details.
+OpenTofu expects that each remote object is bound to a _single_ resource address. You should import each remote object to _one_ OpenTofu resource address. If you import the same object multiple times, OpenTofu may exhibit unwanted behavior. See [State](/docs/language/state) for more details.
 :::
 
-The `opentf import` CLI command can only import resources into the [state](/docs/language/state). Importing via the CLI does _not_ generate configuration. If you want to generate the accompanying configuration for imported resources, [use the `import` block instead](/docs/language/import).
+The `tofu import` CLI command can only import resources into the [state](/docs/language/state). Importing via the CLI does _not_ generate configuration. If you want to generate the accompanying configuration for imported resources, [use the `import` block instead](/docs/language/import).
 
-Before you run `opentf import` you must manually write a `resource` configuration block for the resource. The resource block describes where OpenTF should map the imported object.
+Before you run `tofu import` you must manually write a `resource` configuration block for the resource. The resource block describes where OpenTofu should map the imported object.
 
 ## Cloud Backend
 
-When you use OpenTF on the command line with a cloud backend, many commands like `apply` run inside your cloud backend's environment. However, the `import` command runs locally, so it does not have access to information from the cloud backend. To successfully perform an import, you may need to set local variables equivalent to any remote workspace variables in the cloud backend.
+When you use OpenTofu on the command line with a cloud backend, many commands like `apply` run inside your cloud backend's environment. However, the `import` command runs locally, so it does not have access to information from the cloud backend. To successfully perform an import, you may need to set local variables equivalent to any remote workspace variables in the cloud backend.

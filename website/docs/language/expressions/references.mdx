@@ -7,14 +7,14 @@ description: >-
 
 # References to Named Values
 
-OpenTF makes several kinds of named values available. Each of these names is
+OpenTofu makes several kinds of named values available. Each of these names is
 an expression that references the associated value. You can use them as
 standalone expressions, or combine them with other expressions to compute new
 values.
 
 ## Types of Named Values
 
-The main kinds of named values available in OpenTF are:
+The main kinds of named values available in OpenTofu are:
 
 * Resources
 * Input variables
@@ -51,7 +51,7 @@ uses `count` or `for_each`:
   _map_ of objects representing its instances.
 
 Any named value that does not match another pattern listed below
-will be interpreted by OpenTF as a reference to a managed resource.
+will be interpreted by OpenTofu as a reference to a managed resource.
 
 For more information about how to use resource references, see
 [references to resource attributes](#references-to-resource-attributes) below.
@@ -61,7 +61,7 @@ For more information about how to use resource references, see
 `var.<NAME>` is the value of the [input variable](/docs/language/values/variables) of the given name.
 
 If the variable has a type constraint (`type` argument) as part of its
-declaration, OpenTF will automatically convert the caller's given value
+declaration, OpenTofu will automatically convert the caller's given value
 to conform to the type constraint.
 
 For that reason, you can safely assume that a reference using `var.` will
@@ -125,9 +125,9 @@ The following values are available:
   unexpected results.
 - `path.root` is the filesystem path of the root module of the configuration.
 - `path.cwd` is the filesystem path of the original working directory from where you
-  ran OpenTF before applying any `-chdir` argument. This path is an absolute path
+  ran OpenTofu before applying any `-chdir` argument. This path is an absolute path
   that includes details about the filesystem structure. It is also useful in some
-  advanced cases where OpenTF is run from a directory other than the root module
+  advanced cases where OpenTofu is run from a directory other than the root module
   directory. We recommend using `path.root` or `path.module` over `path.cwd` where
   possible.
 - `terraform.workspace` is the name of the currently selected
@@ -193,7 +193,7 @@ you'll refer to the key and value of each element differently. See the
 ## Named Values and Dependencies
 
 Constructs like resources and module calls often use references to named values
-in their block bodies, and OpenTF analyzes these expressions to automatically
+in their block bodies, and OpenTofu analyzes these expressions to automatically
 infer dependencies between objects. For example, an expression in a resource
 argument that refers to another managed resource creates an implicit dependency
 between the two resources.
@@ -290,37 +290,37 @@ Note that unlike `count`, splat expressions are _not_ directly applicable to res
 ### Sensitive Resource Attributes
 
 When defining the schema for a resource type, a provider developer can mark
-certain attributes as _sensitive_, in which case OpenTF will show a
+certain attributes as _sensitive_, in which case OpenTofu will show a
 placeholder marker `(sensitive value)` instead of the actual value when rendering
 a plan involving that attribute.
 
 A provider attribute marked as sensitive behaves similarly to an
 [an input variable declared as sensitive](/docs/language/values/variables#suppressing-values-in-cli-output),
-where OpenTF will hide the value in the plan and apply messages and will
+where OpenTofu will hide the value in the plan and apply messages and will
 also hide any other values you derive from it as sensitive.
 However, there are some limitations to that behavior as described in
-[Cases where OpenTF may disclose a sensitive variable](/docs/language/values/variables#cases-where-opentf-may-disclose-a-sensitive-variable).
+[Cases where OpenTofu may disclose a sensitive variable](/docs/language/values/variables#cases-where-tofu-may-disclose-a-sensitive-variable).
 
 If you use a sensitive value from a resource attribute as part of an
-[output value](/docs/language/values/outputs) then OpenTF will require
+[output value](/docs/language/values/outputs) then OpenTofu will require
 you to also mark the output value itself as sensitive, to confirm that you
 intended to export it.
 
-OpenTF will still record sensitive values in the [state](/docs/language/state),
+OpenTofu will still record sensitive values in the [state](/docs/language/state),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](/docs/language/state/sensitive-data).
 
 ### Values Not Yet Known
 
-When OpenTF is planning a set of changes that will apply your configuration,
+When OpenTofu is planning a set of changes that will apply your configuration,
 some resource attribute values cannot be populated immediately because their
 values are decided dynamically by the remote system. For example, if a
 particular remote object type is assigned a generated unique id on creation,
-OpenTF cannot predict the value of this id until the object has been created.
+OpenTofu cannot predict the value of this id until the object has been created.
 
-OpenTF uses special unknown value placeholders for information that it
-cannot predict during the plan phase. The OpenTF language automatically
+OpenTofu uses special unknown value placeholders for information that it
+cannot predict during the plan phase. The OpenTofu language automatically
 handles unknown values in expressions. For example, adding a known value to an
 unknown value automatically produces an unknown value as a result.
 
@@ -344,8 +344,8 @@ effect:
   any references to that output value in the parent module will use that
   unknown value.
 
-* OpenTF will attempt to validate that unknown values are of suitable
+* OpenTofu will attempt to validate that unknown values are of suitable
   types where possible, but incorrect use of such values may not be detected
   until the apply phase, causing the apply to fail.
 
-Unknown values appear in the `opentf plan` output as `(known after apply)`.
+Unknown values appear in the `tofu plan` output as `(known after apply)`.

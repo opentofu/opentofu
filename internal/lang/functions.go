@@ -12,8 +12,8 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/funcs"
+	"github.com/opentofu/opentofu/internal/experiments"
+	"github.com/opentofu/opentofu/internal/lang/funcs"
 )
 
 var impureFunctions = []string{
@@ -159,12 +159,12 @@ func (s *Scope) Functions() map[string]function.Function {
 		})
 
 		if s.ConsoleMode {
-			// The type function is only available in opentf console.
+			// The type function is only available in OpenTofu console.
 			s.funcs["type"] = funcs.TypeFunc
 		}
 
 		if !s.ConsoleMode {
-			// The plantimestamp function doesn't make sense in the opentf
+			// The plantimestamp function doesn't make sense in the OpenTofu
 			// console.
 			s.funcs["plantimestamp"] = funcs.MakeStaticTimestampFunc(s.PlanTimestamp)
 		}

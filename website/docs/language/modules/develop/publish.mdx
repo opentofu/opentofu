@@ -9,7 +9,7 @@ If you've built a module that you intend to be reused, we recommend
 [Public Terraform Registry](https://registry.terraform.io). This will version
 your module, generate documentation, and more.
 
-Published modules can be easily consumed by OpenTF, and users can
+Published modules can be easily consumed by OpenTofu, and users can
 [constrain module versions](/docs/language/modules/syntax#version)
 for safe and predictable updates. The following example shows how a caller
 might use a module from the Module Registry:
@@ -24,12 +24,12 @@ If you do not wish to publish your modules in the public registry, you can
 instead use a [private registry](/docs/registry/private) to get
 the same benefits.
 
-We welcome contributions of modules from our community members, partners, and customers. Our ecosystem is made richer by each new module created or an existing one updated, as they reflect the wide range of experience and technical requirements of the community that uses them. Our cloud provider partners often seek to develop specific modules for popular or challenging use cases on their platform and utilize them as valuable learning experiences to empathize with their users. Similarly, our community module developers incorporate a variety of opinions and use cases from the broader OpenTF community. Both types of modules have their place in the registry, accessible to practitioners who can decide which modules best fit their requirements.
+We welcome contributions of modules from our community members, partners, and customers. Our ecosystem is made richer by each new module created or an existing one updated, as they reflect the wide range of experience and technical requirements of the community that uses them. Our cloud provider partners often seek to develop specific modules for popular or challenging use cases on their platform and utilize them as valuable learning experiences to empathize with their users. Similarly, our community module developers incorporate a variety of opinions and use cases from the broader OpenTofu community. Both types of modules have their place in the registry, accessible to practitioners who can decide which modules best fit their requirements.
 
 ## Distribution via other sources
 
 Although the registry is the native mechanism for distributing re-usable
-modules, OpenTF can also install modules from
+modules, OpenTofu can also install modules from
 [various other sources](/docs/language/modules/sources). The alternative sources
 do not support the first-class versioning mechanism, but some sources have
 their own mechanisms for selecting particular VCS commits, etc.

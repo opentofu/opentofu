@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
 )
 
 // NOTE: Temporary file until this branch is cleaned up.

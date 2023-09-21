@@ -9,7 +9,7 @@ import (
 
 	svchost "github.com/hashicorp/terraform-svchost"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // ErrHostNoProviders is an error type used to indicate that a hostname given
@@ -30,9 +30,9 @@ type ErrHostNoProviders struct {
 func (err ErrHostNoProviders) Error() string {
 	switch {
 	case err.HasOtherVersion:
-		return fmt.Sprintf("host %s does not support the provider registry protocol required by this OpenTF version, but may be compatible with a different OpenTF version", err.Hostname.ForDisplay())
+		return fmt.Sprintf("host %s does not support the provider registry protocol required by this OpenTofu version, but may be compatible with a different OpenTofu version", err.Hostname.ForDisplay())
 	default:
-		return fmt.Sprintf("host %s does not offer a OpenTF provider registry", err.Hostname.ForDisplay())
+		return fmt.Sprintf("host %s does not offer a OpenTofu provider registry", err.Hostname.ForDisplay())
 	}
 }
 
@@ -168,7 +168,7 @@ type ErrProtocolNotSupported struct {
 
 func (err ErrProtocolNotSupported) Error() string {
 	return fmt.Sprintf(
-		"provider %s %s is not supported by this version of OpenTF",
+		"provider %s %s is not supported by this version of OpenTofu",
 		err.Provider,
 		err.Version,
 	)

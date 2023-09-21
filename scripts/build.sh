@@ -44,7 +44,7 @@ export GOFLAGS="-mod=readonly"
 # In release mode we don't want debug information in the binary and we don't
 # want the -dev version marker
 if [[ -n "${TF_RELEASE}" ]]; then
-    LD_FLAGS="-s -w -X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'"
+    LD_FLAGS="-s -w -X 'github.com/opentofu/opentofu/version.dev=no'"
 fi
 
 # Ensure all remote modules are downloaded and cached before build so that
@@ -58,7 +58,7 @@ gox \
     -arch="${XC_ARCH}" \
     -osarch="${XC_EXCLUDE_OSARCH}" \
     -ldflags "${LD_FLAGS}" \
-    -output "pkg/{{.OS}}_{{.Arch}}/opentf" \
+    -output "pkg/{{.OS}}_{{.Arch}}/tofu" \
     .
 
 # Move all the compiled things to the $GOPATH/bin

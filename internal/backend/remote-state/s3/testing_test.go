@@ -1,7 +1,7 @@
 package s3
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // diagnosticComparer is a Comparer function for use with cmp.Diff to compare two tfdiags.Diagnostic values

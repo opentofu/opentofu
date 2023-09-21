@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 // TestProviderProtocols verifies that Terraform can execute provider plugins
@@ -33,10 +33,10 @@ func TestProviderProtocols(t *testing.T) {
 	// actually run it. Here will build the simple and simple6 (built with
 	// protocol v6) providers.
 	simple6Provider := filepath.Join(tf.WorkDir(), "terraform-provider-simple6")
-	simple6ProviderExe := e2e.GoBuild("github.com/placeholderplaceholderplaceholder/opentf/internal/provider-simple-v6/main", simple6Provider)
+	simple6ProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provider-simple-v6/main", simple6Provider)
 
 	simpleProvider := filepath.Join(tf.WorkDir(), "terraform-provider-simple")
-	simpleProviderExe := e2e.GoBuild("github.com/placeholderplaceholderplaceholder/opentf/internal/provider-simple/main", simpleProvider)
+	simpleProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provider-simple/main", simpleProvider)
 
 	// Move the provider binaries into a directory that we will point opentf
 	// to using the -plugin-dir cli flag.

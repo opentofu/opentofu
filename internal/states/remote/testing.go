@@ -7,8 +7,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 // TestClient is a generic function to test any client.

@@ -11,8 +11,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	proto "github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin5"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	proto "github.com/opentofu/opentofu/internal/tfplugin5"
 	"github.com/zclconf/go-cty/cty"
 )
 

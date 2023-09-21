@@ -4,7 +4,7 @@
 package plans
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // PlannedState merges the set of changes described by the receiver into the

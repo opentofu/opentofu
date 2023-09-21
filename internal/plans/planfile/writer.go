@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 )
 
 type CreateArgs struct {
@@ -48,7 +48,7 @@ type CreateArgs struct {
 // file that might already exist there.
 //
 // A plan file contains both a snapshot of the configuration and of the latest
-// state file in addition to the plan itself, so that OpenTF can detect
+// state file in addition to the plan itself, so that OpenTofu can detect
 // if the world has changed since the plan was created and thus refuse to
 // apply it.
 func Create(filename string, args CreateArgs) error {

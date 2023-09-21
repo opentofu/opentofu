@@ -1,23 +1,23 @@
 ---
 description: >-
-  Find documentation about the CLI config file and customizing OpenTF
+  Find documentation about the CLI config file and customizing OpenTofu
   environment variables.
 ---
 
 # CLI Configuration
 
-OpenTF CLI can be configured with some global settings, which are separate
-from any OpenTF configuration and which apply across all working directories.
+OpenTofu CLI can be configured with some global settings, which are separate
+from any OpenTofu configuration and which apply across all working directories.
 
-We've designed OpenTF such that an average user running OpenTF CLI
+We've designed OpenTofu such that an average user running OpenTofu CLI
 interactively will not need to interact with any of these settings. As a result,
 most of the global settings relate to advanced or automated workflows, or
-unusual environmental conditions like running OpenTF on an airgapped
+unusual environmental conditions like running OpenTofu on an airgapped
 instance.
 
 - The [CLI config file](/docs/cli/config/config-file) configures provider
   installation and security features.
 - Several [environment variables](/docs/cli/config/environment-variables) can
-  configure OpenTF's inputs and outputs; this includes some alternate ways to
+  configure OpenTofu's inputs and outputs; this includes some alternate ways to
   provide information that is usually passed on the command line or read from
   the state of the shell.
