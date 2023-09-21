@@ -3,8 +3,8 @@
 
 FROM alpine:3.18
 
-LABEL maintainer="OpenTF Team <opentf@opentf.org>"
+LABEL maintainer="OpenTofu Team <opentf@opentf.org>"
 
-COPY opentf /usr/local/bin/opentf
+COPY tofu /usr/local/bin/tofu
 
-ENTRYPOINT ["/usr/local/bin/opentf"]
+ENTRYPOINT ["/usr/local/bin/tofu"]
