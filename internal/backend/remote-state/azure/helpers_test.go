@@ -125,7 +125,7 @@ func buildSasToken(accountName, accessKey string) (*string, error) {
 	sasToken, err := sasStorage.ComputeAccountSASToken(accountName, accessKey, permissions, services, resourceTypes,
 		startDate, endDate, signedProtocol, signedIp, signedVersion)
 	if err != nil {
-		return nil, fmt.Errorf("Error computing SAS Token: %+v", err)
+		return nil, fmt.Errorf("Error computing SAS Token: %w", err)
 	}
 	log.Printf("SAS Token should be %q", sasToken)
 	return &sasToken, nil
@@ -156,7 +156,7 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 	log.Printf("Creating Resource Group %q", names.resourceGroup)
 	_, err := c.groupsClient.CreateOrUpdate(ctx, names.resourceGroup, resources.Group{Location: &names.location})
 	if err != nil {
-		return fmt.Errorf("failed to create test resource group: %s", err)
+		return fmt.Errorf("failed to create test resource group: %w", err)
 	}
 
 	log.Printf("Creating Storage Account %q in Resource Group %q", names.storageAccountName, names.resourceGroup)
@@ -175,12 +175,12 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 	}
 	future, err := c.storageAccountsClient.Create(ctx, names.resourceGroup, names.storageAccountName, storageProps)
 	if err != nil {
-		return fmt.Errorf("failed to create test storage account: %s", err)
+		return fmt.Errorf("failed to create test storage account: %w", err)
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.storageAccountsClient.Client)
 	if err != nil {
-		return fmt.Errorf("failed waiting for the creation of storage account: %s", err)
+		return fmt.Errorf("failed waiting for the creation of storage account: %w", err)
 	}
 
 	containersClient := containers.NewWithEnvironment(c.environment)
@@ -190,7 +190,7 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 		log.Printf("fetching access key for storage account")
 		resp, err := c.storageAccountsClient.ListKeys(ctx, names.resourceGroup, names.storageAccountName, "")
 		if err != nil {
-			return fmt.Errorf("failed to list storage account keys %s:", err)
+			return fmt.Errorf("failed to list storage account keys %w:", err)
 		}
 
 		keys := *resp.Keys
@@ -199,7 +199,7 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 
 		storageAuth, err := autorest.NewSharedKeyAuthorizer(names.storageAccountName, accessKey, autorest.SharedKey)
 		if err != nil {
-			return fmt.Errorf("Error building Authorizer: %+v", err)
+			return fmt.Errorf("Error building Authorizer: %w", err)
 		}
 
 		containersClient.Client.Authorizer = storageAuth
@@ -208,7 +208,7 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 	log.Printf("Creating Container %q in Storage Account %q (Resource Group %q)", names.storageContainerName, names.storageAccountName, names.resourceGroup)
 	_, err = containersClient.Create(ctx, names.storageAccountName, names.storageContainerName, containers.CreateInput{})
 	if err != nil {
-		return fmt.Errorf("failed to create storage container: %s", err)
+		return fmt.Errorf("failed to create storage container: %w", err)
 	}
 
 	return nil
@@ -218,13 +218,13 @@ func (c ArmClient) destroyTestResources(ctx context.Context, resources resourceN
 	log.Printf("[DEBUG] Deleting Resource Group %q..", resources.resourceGroup)
 	future, err := c.groupsClient.Delete(ctx, resources.resourceGroup)
 	if err != nil {
-		return fmt.Errorf("Error deleting Resource Group: %+v", err)
+		return fmt.Errorf("Error deleting Resource Group: %w", err)
 	}
 
 	log.Printf("[DEBUG] Waiting for deletion of Resource Group %q..", resources.resourceGroup)
 	err = future.WaitForCompletionRef(ctx, c.groupsClient.Client)
 	if err != nil {
-		return fmt.Errorf("Error waiting for the deletion of Resource Group: %+v", err)
+		return fmt.Errorf("Error waiting for the deletion of Resource Group: %w", err)
 	}
 
 	return nil
