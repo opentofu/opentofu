@@ -229,8 +229,8 @@ Changes to Outputs:
   ~ sensitive_after  = (sensitive value)
   ~ sensitive_before = (sensitive value)
 
-You can apply this plan to save these new output values to the OpenTofu state,
-without changing any real infrastructure.
+You can apply this plan to save these new output values to the OpenTofu
+state, without changing any real infrastructure.
 `)
 
 	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {
@@ -322,8 +322,8 @@ func TestLocal_planTainted(t *testing.T) {
 		t.Fatal("plan should not be empty")
 	}
 
-	expectedOutput := `OpenTofu used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+	expectedOutput := `OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
 -/+ destroy and then create replacement
 
 OpenTofu will perform the following actions:
