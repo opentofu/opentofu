@@ -31,7 +31,7 @@ func (b *Cloud) ShowPlanForRun(ctx context.Context, runID, runHostname string, r
 	// Get run and plan
 	r, err := b.client.Runs.ReadWithOptions(ctx, runID, &tfe.RunReadOptions{Include: []tfe.RunIncludeOpt{tfe.RunPlan, tfe.RunWorkspace}})
 	if err == tfe.ErrResourceNotFound {
-		return nil, fmt.Errorf("couldn't read information for cloud run %s; make sure you've run `opentf login` and that you have permission to view the run", runID)
+		return nil, fmt.Errorf("couldn't read information for cloud run %s; make sure you've run `tofu login` and that you have permission to view the run", runID)
 	} else if err != nil {
 		return nil, fmt.Errorf("couldn't read information for cloud run %s: %w", runID, err)
 	}
@@ -67,9 +67,9 @@ func (b *Cloud) ShowPlanForRun(ctx context.Context, runID, runHostname string, r
 	}
 	if err == tfe.ErrResourceNotFound {
 		if redacted {
-			return nil, fmt.Errorf("couldn't read plan data for cloud run %s; make sure you've run `opentf login` and that you have permission to view the run", runID)
+			return nil, fmt.Errorf("couldn't read plan data for cloud run %s; make sure you've run `tofu login` and that you have permission to view the run", runID)
 		} else {
-			return nil, fmt.Errorf("couldn't read unredacted JSON plan data for cloud run %s; make sure you've run `opentf login` and that you have admin permissions on the workspace", runID)
+			return nil, fmt.Errorf("couldn't read unredacted JSON plan data for cloud run %s; make sure you've run `tofu login` and that you have admin permissions on the workspace", runID)
 		}
 	} else if err != nil {
 		return nil, fmt.Errorf("couldn't read plan data for cloud run %s: %w", runID, err)

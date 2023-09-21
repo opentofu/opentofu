@@ -73,7 +73,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 				`would mark everything for destruction, which is normally not what is desired. `+
 				`If you would like to destroy everything, please run plan with the "-destroy" `+
 				`flag or create a single empty configuration file. Otherwise, please create `+
-				`a OpenTF configuration file in the path being executed and try again.`,
+				`a OpenTofu configuration file in the path being executed and try again.`,
 		))
 	}
 
@@ -159,7 +159,7 @@ func (b *Cloud) plan(stopCtx, cancelCtx context.Context, op *backend.Operation, 
 The remote workspace is configured to work with configuration at
 %s relative to the target repository.
 
-OpenTF will upload the contents of the following directory,
+OpenTofu will upload the contents of the following directory,
 excluding files or directories as defined by a .terraformignore file
 at %s/.terraformignore (if it is present),
 in order to capture the filesystem context the remote workspace expects:
@@ -399,7 +399,7 @@ func (b *Cloud) AssertImportCompatible(config *configs.Config) error {
 		// First, check the remote API version is high enough.
 		currentAPIVersion, err := version.NewVersion(b.client.RemoteAPIVersion())
 		if err != nil {
-			return fmt.Errorf("Error parsing remote API version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: %w", err)
+			return fmt.Errorf("Error parsing remote API version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTofu team: %w", err)
 		}
 		desiredAPIVersion, _ := version.NewVersion("2.6")
 		if currentAPIVersion.LessThan(desiredAPIVersion) {
@@ -409,11 +409,11 @@ func (b *Cloud) AssertImportCompatible(config *configs.Config) error {
 		// Second, check the agent version is high enough.
 		agentEnv, isSet := os.LookupEnv("TFC_AGENT_VERSION")
 		if !isSet {
-			return fmt.Errorf("Error reading TFC agent version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: TFC_AGENT_VERSION not present.")
+			return fmt.Errorf("Error reading TFC agent version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTofu team: TFC_AGENT_VERSION not present.")
 		}
 		currentAgentVersion, err := version.NewVersion(agentEnv)
 		if err != nil {
-			return fmt.Errorf("Error parsing TFC agent version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTF team: %w", err)
+			return fmt.Errorf("Error parsing TFC agent version. To proceed, please remove any import blocks from your config. Please report the following error to the OpenTofu team: %w", err)
 		}
 		desiredAgentVersion, _ := version.NewVersion("1.10")
 		if currentAgentVersion.LessThan(desiredAgentVersion) {

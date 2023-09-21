@@ -147,7 +147,7 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 	diags = diags.Append(ctxDiags)
 	ret.Core = tfCtx
 
-	log.Printf("[TRACE] cloud: finished building opentf.Context")
+	log.Printf("[TRACE] cloud: finished building tofu.Context")
 
 	return ret, stateMgr, diags
 }

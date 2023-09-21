@@ -1948,7 +1948,7 @@ func TestCloud_applyVersionCheck(t *testing.T) {
 }
 
 const applySuccessOneResourceAdded = `
-OpenTF v0.11.10
+OpenTofu v0.11.10
 
 Initializing plugins and modules...
 null_resource.hello: Creating...
