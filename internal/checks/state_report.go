@@ -6,7 +6,7 @@ package checks
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // These are the "Report"-prefixed methods of Checks used by Terraform Core

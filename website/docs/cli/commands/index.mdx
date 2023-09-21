@@ -1,17 +1,17 @@
 ---
-description: An introduction to the opentf command and its available subcommands.
+description: An introduction to the tofu command and its available subcommands.
 ---
 
 # Basic CLI Features
 
-The command line interface to OpenTF is the `opentf` command, which
-accepts a variety of subcommands such as `opentf init` or `opentf plan`.
+The command line interface to OpenTofu is the `tofu` command, which
+accepts a variety of subcommands such as `tofu init` or `tofu plan`.
 
-To view a list of the commands available in your current OpenTF version,
-run `opentf` with no additional arguments:
+To view a list of the commands available in your current OpenTofu version,
+run `tofu` with no additional arguments:
 
 ```text
-Usage: opentf [global options] <subcommand> [args]
+Usage: tofu [global options] <subcommand> [args]
 
 The available commands for execution are listed below.
 The primary workflow commands are given first, followed by
@@ -25,12 +25,12 @@ Main commands:
   destroy       Destroy previously-created infrastructure
 
 All other commands:
-  console       Try OpenTF expressions at an interactive command prompt
+  console       Try OpenTofu expressions at an interactive command prompt
   fmt           Reformat your configuration in the standard style
   force-unlock  Release a stuck lock on the current workspace
-  get           Install or upgrade remote OpenTF modules
+  get           Install or upgrade remote OpenTofu modules
   graph         Generate a Graphviz graph of the steps in an operation
-  import        Associate existing infrastructure with a OpenTF resource
+  import        Associate existing infrastructure with a OpenTofu resource
   login         Obtain and save credentials for a remote host
   logout        Remove locally-stored credentials for a remote host
   metadata      Metadata related commands
@@ -41,7 +41,7 @@ All other commands:
   state         Advanced state management
   taint         Mark a resource instance as not fully functional
   untaint       Remove the 'tainted' state from a resource instance
-  version       Show the current OpenTF version
+  version       Show the current OpenTofu version
   workspace     Workspace management
 
 Global options (use these before the subcommand, if any):
@@ -51,43 +51,43 @@ Global options (use these before the subcommand, if any):
   -version      An alias for the "version" subcommand.
 ```
 
-(The output from your current OpenTF version may be different than the
+(The output from your current OpenTofu version may be different than the
 above example.)
 
 To get specific help for any specific command, use the `-help` option with the
 relevant subcommand. For example, to see help about the "validate" subcommand
-you can run `opentf validate -help`.
+you can run `tofu validate -help`.
 
-The inline help built in to OpenTF CLI describes the most important
+The inline help built in to OpenTofu CLI describes the most important
 characteristics of each command. For more detailed information, refer to each
 command's page for details.
 
 ## Switching working directory with `-chdir`
 
-The usual way to run OpenTF is to first switch to the directory containing
+The usual way to run OpenTofu is to first switch to the directory containing
 the `.tf` files for your root module (for example, using the `cd` command), so
-that OpenTF will find those files automatically without any extra arguments.
+that OpenTofu will find those files automatically without any extra arguments.
 
-In some cases though — particularly when wrapping OpenTF in automation
-scripts — it can be convenient to run OpenTF from a different directory than
-the root module directory. To allow that, OpenTF supports a global option
+In some cases though — particularly when wrapping OpenTofu in automation
+scripts — it can be convenient to run OpenTofu from a different directory than
+the root module directory. To allow that, OpenTofu supports a global option
 `-chdir=...` which you can include before the name of the subcommand you intend
 to run:
 
 ```
-opentf -chdir=environments/production apply
+tofu -chdir=environments/production apply
 ```
 
-The `chdir` option instructs OpenTF to change its working directory to the
+The `chdir` option instructs OpenTofu to change its working directory to the
 given directory before running the given subcommand. This means that any files
-that OpenTF would normally read or write in the current working directory
+that OpenTofu would normally read or write in the current working directory
 will be read or written in the given directory instead.
 
-There are two exceptions where OpenTF will use the original working directory
+There are two exceptions where OpenTofu will use the original working directory
 even when you specify `-chdir=...`:
 
 * Settings in the [CLI Configuration](/docs/cli/config/config-file) are not for a specific
-  subcommand and OpenTF processes them before acting on the `-chdir`
+  subcommand and OpenTofu processes them before acting on the `-chdir`
   option.
 
 * In case you need to use files from the original working directory as part
@@ -97,13 +97,13 @@ even when you specify `-chdir=...`:
 
 ## Shell Tab-completion
 
-If you use either `bash` or `zsh` as your command shell, OpenTF can provide
+If you use either `bash` or `zsh` as your command shell, OpenTofu can provide
 tab-completion support for all command names and some command arguments.
 
 To add the necessary commands to your shell profile, run the following command:
 
 ```bash
-opentf -install-autocomplete
+tofu -install-autocomplete
 ```
 
 After installation, it is necessary to restart your shell or to re-read its
@@ -113,5 +113,5 @@ To uninstall the completion hook, assuming that it has not been modified
 manually in the shell profile, run the following command:
 
 ```bash
-opentf -uninstall-autocomplete
+tofu -uninstall-autocomplete
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "opentf-docs-preview",
+  "name": "tofu-docs-preview",
   "private": "true",
   "scripts": {
     "lint": "eslint . --ext mdx"

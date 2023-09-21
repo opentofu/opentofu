@@ -1,14 +1,14 @@
 ---
 description: >-
-  Data sources allow OpenTF to use external data, function output, and data
+  Data sources allow OpenTofu to use external data, function output, and data
   from other configurations. Learn data resource arguments, behavior, and
   lifecycle.
 ---
 
 # Data Sources
 
-_Data sources_ allow OpenTF to use information defined outside of OpenTF,
-defined by another separate OpenTF configuration, or modified by functions.
+_Data sources_ allow OpenTofu to use information defined outside of OpenTofu,
+defined by another separate OpenTofu configuration, or modified by functions.
 
 Each [provider](/docs/language/providers) may offer data sources
 alongside its set of [resource](/docs/language/resources)
@@ -31,9 +31,9 @@ data "aws_ami" "example" {
 }
 ```
 
-A `data` block requests that OpenTF read from a given data source ("aws_ami")
+A `data` block requests that OpenTofu read from a given data source ("aws_ami")
 and export the result under the given local name ("example"). The name is used
-to refer to this resource from elsewhere in the same OpenTF module, but has
+to refer to this resource from elsewhere in the same OpenTofu module, but has
 no significance outside of the scope of a module.
 
 The data source and name together serve as an identifier for a given
@@ -47,8 +47,8 @@ all arguments defined specifically for [the `aws_ami` data source](https://regis
 When distinguishing from data resources, the primary kind of resource (as declared
 by a `resource` block) is known as a _managed resource_. Both kinds of resources
 take arguments and export attributes for use in configuration, but while
-managed resources cause OpenTF to create, update, and delete infrastructure
-objects, data resources cause OpenTF only to _read_ objects. For brevity,
+managed resources cause OpenTofu to create, update, and delete infrastructure
+objects, data resources cause OpenTofu only to _read_ objects. For brevity,
 managed resources are often referred to just as "resources" when the meaning
 is clear from context.
 
@@ -59,28 +59,28 @@ the kind of object (or objects) it reads and what query constraint arguments
 are available.
 
 Each data source in turn belongs to a [provider](/docs/language/providers),
-which is a plugin for OpenTF that offers a collection of resource types and
+which is a plugin for OpenTofu that offers a collection of resource types and
 data sources that most often belong to a single cloud or on-premises
 infrastructure platform.
 
 Most of the items within the body of a `data` block are defined by and
 specific to the selected data source, and these arguments can make full
 use of [expressions](/docs/language/expressions) and other dynamic
-OpenTF language features.
+OpenTofu language features.
 
-However, there are some "meta-arguments" that are defined by OpenTF itself
+However, there are some "meta-arguments" that are defined by OpenTofu itself
 and apply across all data sources. These arguments often have additional
 restrictions on what language features can be used with them, and are described
 in more detail in the following sections.
 
 ## Data Resource Behavior
 
-OpenTF reads data resources during the planning phase when possible, but
+OpenTofu reads data resources during the planning phase when possible, but
 announces in the plan when it must defer reading resources until the apply
-phase to preserve the order of operations. OpenTF defers reading data
+phase to preserve the order of operations. OpenTofu defers reading data
 resources in the following situations:
 * At least one of the given arguments is a managed resource attribute or
-  other value that OpenTF cannot predict until the apply step.
+  other value that OpenTofu cannot predict until the apply step.
 * The data resource depends directly on a managed resource that itself has
   planned changes in the current plan.
 * The data resource has
@@ -97,7 +97,7 @@ be used in situations where values must be fully known.
 
 While many data sources correspond to an infrastructure object type that
 is accessed via a remote network API, some specialized data sources operate
-only within OpenTF itself, calculating some results and exposing them
+only within OpenTofu itself, calculating some results and exposing them
 for use elsewhere.
 
 For example, local-only data sources exist for
@@ -106,7 +106,7 @@ For example, local-only data sources exist for
 [rendering AWS IAM policies](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document).
 
 The behavior of local-only data sources is the same as all other data
-sources, but their result data exists only temporarily during an OpenTF
+sources, but their result data exists only temporarily during an OpenTofu
 operation, and is re-calculated each time a new plan is created.
 
 ## Data Resource Dependencies
@@ -241,7 +241,7 @@ for more information.
 
 If the arguments of a data instance contain no references to computed values,
 such as attributes of resources that have not yet been created, then the
-data instance will be read and its state updated during OpenTF's "refresh"
+data instance will be read and its state updated during OpenTofu's "refresh"
 phase, which by default runs prior to creating a plan. This ensures that the
 retrieved data is available for use during planning and the diff will show
 the real values obtained.

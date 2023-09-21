@@ -1,4 +1,4 @@
-module github.com/placeholderplaceholderplaceholder/opentf
+module github.com/opentofu/opentofu
 
 require (
 	cloud.google.com/go/kms v1.10.1

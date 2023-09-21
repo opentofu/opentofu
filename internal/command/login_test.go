@@ -15,12 +15,12 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
-	oauthserver "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testdata/login-oauth-server"
-	tfeserver "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testdata/login-tfe-server"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/webbrowser"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"
+	tfeserver "github.com/opentofu/opentofu/internal/command/testdata/login-tfe-server"
+	"github.com/opentofu/opentofu/internal/command/webbrowser"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/version"
 )
 
 func TestLogin(t *testing.T) {
@@ -52,7 +52,7 @@ func TestLogin(t *testing.T) {
 			browserLauncher := webbrowser.NewMockLauncher(ctx)
 			creds := cliconfig.EmptyCredentialsSourceForTests(filepath.Join(workDir, "credentials.tfrc.json"))
 			svcs := disco.NewWithCredentialsSource(creds)
-			svcs.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
+			svcs.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
 			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]interface{}{
 				"login.v1": map[string]interface{}{

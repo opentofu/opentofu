@@ -47,15 +47,15 @@ Refer to [Custom Condition Checks](/docs/language/expressions/custom-conditions#
 ## Result Types
 
 The two result values may be of any type, but they must both
-be of the _same_ type so that OpenTF can determine what type the whole
+be of the _same_ type so that OpenTofu can determine what type the whole
 conditional expression will return without knowing the condition value.
 
-If the two result expressions don't produce the same type then OpenTF will
+If the two result expressions don't produce the same type then OpenTofu will
 attempt to find a type that they can both convert to, and make those
 conversions automatically if so.
 
 For example, the following expression is valid and will always return a string,
-because in OpenTF all numbers can convert automatically to a string using
+because in OpenTofu all numbers can convert automatically to a string using
 decimal digits:
 
 ```hcl
@@ -63,7 +63,7 @@ var.example ? 12 : "hello"
 ```
 
 Relying on this automatic conversion behavior can be confusing for those who
-are not familiar with OpenTF's conversion rules though, so we recommend
+are not familiar with OpenTofu's conversion rules though, so we recommend
 being explicit using type conversion functions in any situation where there may
 be some uncertainty about the expected result type.
 

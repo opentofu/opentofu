@@ -6,7 +6,7 @@ package init
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/zclconf/go-cty/cty"
 )
 

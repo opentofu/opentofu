@@ -5,7 +5,7 @@ description: Output values are the return values of a module.
 # Output Values
 
 Output values make information about your infrastructure available on the
-command line, and can expose information for other OpenTF configurations to
+command line, and can expose information for other OpenTofu configurations to
 use. Output values are similar to return values in programming languages.
 
 Output values have several uses:
@@ -13,12 +13,12 @@ Output values have several uses:
 - A child module can use outputs to expose a subset of its resource attributes
   to a parent module.
 - A root module can use outputs to print certain values in the CLI output after
-  running `opentf apply`.
+  running `tofu apply`.
 - When using [remote state](/docs/language/state/remote), root module outputs can be
   accessed by other configurations via a
   [`terraform_remote_state` data source](/docs/language/state/remote-state-data).
 
-Resource instances managed by OpenTF each export attributes whose values
+Resource instances managed by OpenTofu each export attributes whose values
 can be used elsewhere in configuration. Output values are a way to expose some
 of that information to the user of your module.
 
@@ -50,8 +50,8 @@ defined elsewhere in this module (not shown). Any valid expression is allowed
 as an output value.
 
 :::note
-Outputs are only rendered when OpenTF applies your plan. Running
-`opentf plan` will not render outputs.
+Outputs are only rendered when OpenTofu applies your plan. Running
+`tofu plan` will not render outputs.
 :::
 
 ## Accessing Child Module Outputs
@@ -122,8 +122,8 @@ output "db_password" {
 }
 ```
 
-OpenTF will hide values marked as sensitive in the messages from
-`opentf plan` and `opentf apply`. In the following scenario, our root
+OpenTofu will hide values marked as sensitive in the messages from
+`tofu plan` and `tofu apply`. In the following scenario, our root
 module has an output declared as sensitive and a module call with a
 sensitive output, which we then use in a resource attribute.
 
@@ -154,7 +154,7 @@ output "a" {
 When we run a plan or apply, the sensitive value is redacted from output:
 
 ```
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_instance.x will be created
   + resource "test_instance" "x" {
@@ -167,7 +167,7 @@ Changes to Outputs:
   + out = (sensitive value)
 ```
 
-OpenTF will still record sensitive values in the [state](/docs/language/state),
+OpenTofu will still record sensitive values in the [state](/docs/language/state),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](/docs/language/state/sensitive-data).
@@ -181,13 +181,13 @@ usually not necessary to worry about their relationships with other nodes in
 the dependency graph.
 
 However, when a parent module accesses an output value exported by one of its
-child modules, the dependencies of that output value allow OpenTF to
+child modules, the dependencies of that output value allow OpenTofu to
 correctly determine the dependencies between resources defined in different
 modules.
 
 Just as with
 [resource dependencies](/docs/language/resources/behavior#resource-dependencies),
-OpenTF analyzes the `value` expression for an output value and automatically
+OpenTofu analyzes the `value` expression for an output value and automatically
 determines a set of dependencies, but in less-common cases there are
 dependencies that cannot be recognized implicitly. In these rare cases, the
 `depends_on` argument can be used to create additional explicit dependencies:

@@ -242,7 +242,7 @@ func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*Tes
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagWarning,
 					Summary:  "Failed to calculate relative path",
-					Detail:   fmt.Sprintf("OpenTF could not calculate the relative path for test file %s and it has been skipped: %s", path, err),
+					Detail:   fmt.Sprintf("OpenTofu could not calculate the relative path for test file %s and it has been skipped: %s", path, err),
 				})
 				continue
 			}

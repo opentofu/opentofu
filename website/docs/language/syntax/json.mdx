@@ -6,11 +6,11 @@ description: >-
 
 # JSON Configuration Syntax
 
-Most OpenTF configurations are written in
-[the native OpenTF language syntax](/docs/language/syntax/configuration), which is designed to be
+Most OpenTofu configurations are written in
+[the native OpenTofu language syntax](/docs/language/syntax/configuration), which is designed to be
 relatively easy for humans to read and update.
 
-OpenTF also supports an alternative syntax that is JSON-compatible. This
+OpenTofu also supports an alternative syntax that is JSON-compatible. This
 syntax is useful when generating portions of a configuration programmatically,
 since existing JSON libraries can be used to prepare the generated
 configuration files.
@@ -20,21 +20,21 @@ be expressed in native syntax can also be expressed in JSON syntax, but some
 constructs are more complex to represent in JSON due to limitations of the
 JSON grammar.
 
-OpenTF expects native syntax for files named with a `.tf` suffix, and
+OpenTofu expects native syntax for files named with a `.tf` suffix, and
 JSON syntax for files named with a `.tf.json` suffix.
 
 The low-level JSON syntax, just as with the native syntax, is defined in terms
 of a specification called _HCL_. It is not necessary to know all of the details
-of HCL syntax or its JSON mapping in order to use OpenTF, and so this page
+of HCL syntax or its JSON mapping in order to use OpenTofu, and so this page
 summarizes the most important differences between native and JSON syntax.
 If you are interested, you can find a full definition of HCL's JSON syntax
 in [its specification](https://github.com/hashicorp/hcl/blob/main/json/spec.md).
 
 ## JSON File Structure
 
-At the root of any JSON-based OpenTF configuration is a JSON object. The
+At the root of any JSON-based OpenTofu configuration is a JSON object. The
 properties of this object correspond to the top-level block types of the
-OpenTF language. For example:
+OpenTofu language. For example:
 
 ```json
 {
@@ -107,11 +107,11 @@ different (see the [block-type-specific exceptions](#block-type-specific-excepti
 
 ## Expression Mapping
 
-Since JSON grammar is not able to represent all of the OpenTF language
+Since JSON grammar is not able to represent all of the OpenTofu language
 [expression syntax](/docs/language/expressions), JSON values interpreted as expressions
 are mapped as follows:
 
-| JSON    | OpenTF Language Interpretation                                                                             |
+| JSON    | OpenTofu Language Interpretation                                                                             |
 | ------- | ------------------------------------------------------------------------------------------------------------- |
 | Boolean | A literal `bool` value.                                                                                       |
 | Number  | A literal `number` value.                                                                                     |
@@ -278,7 +278,7 @@ block bodies using a special property name:
 ```
 
 In any object that represents a block body, properties named `"//"` are
-ignored by OpenTF entirely. This exception does _not_ apply to objects
+ignored by OpenTofu entirely. This exception does _not_ apply to objects
 that are being [interpreted as expressions](#expression-mapping), where this
 would be interpreted as an object type attribute named `"//"`.
 
@@ -300,7 +300,7 @@ configuration file. This can be useful to note which program created the file.
 ## Block-type-specific Exceptions
 
 Certain arguments within specific block types are processed in a special way
-by OpenTF, and so their mapping to the JSON syntax does not follow the
+by OpenTofu, and so their mapping to the JSON syntax does not follow the
 general rules described above. The following sub-sections describe the special
 mapping rules that apply to each top-level block type.
 
@@ -458,7 +458,7 @@ a single property whose name represents the backend type.
     "backend": {
       "s3": {
         "region": "us-west-2",
-        "bucket": "acme-opentf-states"
+        "bucket": "acme-tofu-states"
       }
     }
   }

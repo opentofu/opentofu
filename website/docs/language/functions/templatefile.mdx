@@ -16,29 +16,29 @@ templatefile(path, vars)
 
 The template syntax is the same as for
 [string templates](/docs/language/expressions/strings#string-templates)
-in the main OpenTF language, including interpolation sequences delimited with
+in the main OpenTofu language, including interpolation sequences delimited with
 `${` ... `}`. This function just allows longer template sequences to be factored
 out into a separate file for readability.
 
 The "vars" argument must be an object. Within the template file, each of the
 keys in the map is available as a variable for interpolation. The template may
-also use any other function available in the OpenTF language, except that
+also use any other function available in the OpenTofu language, except that
 recursive calls to `templatefile` are not permitted. Variable names must
 each start with a letter, followed by zero or more letters, digits, or
 underscores.
 
-Strings in the OpenTF language are sequences of Unicode characters, so
+Strings in the OpenTofu language are sequences of Unicode characters, so
 this function will interpret the file contents as UTF-8 encoded text and
 return the resulting Unicode characters. If the file contains invalid UTF-8
 sequences then this function will produce an error.
 
 This function can be used only with files that already exist on disk at the
-beginning of an OpenTF run. Functions do not participate in the dependency
+beginning of an OpenTofu run. Functions do not participate in the dependency
 graph, so this function cannot be used with files that are generated
-dynamically during an OpenTF operation.
+dynamically during an OpenTofu operation.
 
 `*.tftpl` is the recommended naming pattern to use for your template files.
-OpenTF will not prevent you from using other names, but following this
+OpenTofu will not prevent you from using other names, but following this
 convention will help your editor understand the content and likely provide
 better editing experience as a result.
 
@@ -101,7 +101,7 @@ interpolation sequences and directives.
 Instead, you can write a template that consists only of a single interpolated
 call to either [`jsonencode`](/docs/language/functions/jsonencode) or
 [`yamlencode`](/docs/language/functions/yamlencode), specifying the value to encode using
-[normal OpenTF expression syntax](/docs/language/expressions)
+[normal OpenTofu expression syntax](/docs/language/expressions)
 as in the following examples:
 
 ```

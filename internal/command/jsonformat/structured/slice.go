@@ -4,7 +4,7 @@
 package structured
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 )
 
 // ChangeSlice is a Change that represents a Tuple, Set, or List type, and has

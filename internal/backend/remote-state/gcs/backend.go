@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/version"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/impersonate"
 	"google.golang.org/api/option"
@@ -208,7 +208,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		opts = append(opts, credOptions...)
 	}
 
-	opts = append(opts, option.WithUserAgent(httpclient.OpenTfUserAgent(version.Version)))
+	opts = append(opts, option.WithUserAgent(httpclient.OpenTofuUserAgent(version.Version)))
 
 	// Custom endpoint for storage API
 	if storageEndpoint, ok := data.GetOk("storage_custom_endpoint"); ok {

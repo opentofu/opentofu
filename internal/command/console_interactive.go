@@ -14,7 +14,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/repl"
+	"github.com/opentofu/opentofu/internal/repl"
 
 	"github.com/chzyer/readline"
 	"github.com/mitchellh/cli"

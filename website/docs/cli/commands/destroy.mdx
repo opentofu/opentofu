@@ -1,32 +1,32 @@
 ---
 description: >-
-  The opentf destroy command destroys all objects managed by a OpenTF
+  The tofu destroy command destroys all objects managed by a OpenTofu
   configuration.
 ---
 
 # Command: destroy
 
-The `opentf destroy` command is a convenient way to destroy all remote
-objects managed by a particular OpenTF configuration.
+The `tofu destroy` command is a convenient way to destroy all remote
+objects managed by a particular OpenTofu configuration.
 
 While you will typically not want to destroy long-lived objects in a production
-environment, OpenTF is sometimes used to manage ephemeral infrastructure
-for development purposes, in which case you can use `opentf destroy` to
+environment, OpenTofu is sometimes used to manage ephemeral infrastructure
+for development purposes, in which case you can use `tofu destroy` to
 conveniently clean up all of those temporary objects once you are finished
 with your work.
 
 ## Usage
 
-Usage: `opentf destroy [options]`
+Usage: `tofu destroy [options]`
 
 This command is just a convenience alias for the following command:
 
 ```
-opentf apply -destroy
+tofu apply -destroy
 ```
 
 For that reason, this command accepts most of the options that
-[`opentf apply`](/docs/cli/commands/apply) accepts, although it does
+[`tofu apply`](/docs/cli/commands/apply) accepts, although it does
 not accept a plan file argument and forces the selection of the "destroy"
 planning mode.
 
@@ -34,8 +34,8 @@ You can also create a speculative destroy plan, to see what the effect of
 destroying would be, by running the following command:
 
 ```
-opentf plan -destroy
+tofu plan -destroy
 ```
 
-This will run [`opentf plan`](/docs/cli/commands/plan) in _destroy_ mode, showing
+This will run [`tofu plan`](/docs/cli/commands/plan) in _destroy_ mode, showing
 you the proposed destroy changes without executing them.

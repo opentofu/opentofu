@@ -29,7 +29,7 @@ const (
 )
 
 const (
-	enforceGPGValidationEnvName = "OPENTF_ENFORCE_GPG_VALIDATION"
+	enforceGPGValidationEnvName = "OPENTOFU_ENFORCE_GPG_VALIDATION"
 )
 
 var (
@@ -222,7 +222,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		// Indicates that none of the hashes given to
 		// NewPackageHashAuthentication were considered to be usable by this
 		// version of Terraform.
-		return nil, fmt.Errorf("this version of OpenTF does not support any of the checksum formats given for this provider")
+		return nil, fmt.Errorf("this version of OpenTofu does not support any of the checksum formats given for this provider")
 	}
 
 	matches, err := PackageMatchesAnyHash(localLocation, a.RequiredHashes)
@@ -412,7 +412,7 @@ func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (
 	if !shouldValidate {
 		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
 		// and why. This will be removed in a future release.
-		log.Printf("[WARN] Skipping GPG validation of provider package %s as no keys were provided by the registry. See https://github.com/opentffoundation/opentf/pull/309 for more information.", location)
+		log.Printf("[WARN] Skipping GPG validation of provider package %s as no keys were provided by the registry. See https://github.com/opentofu/opentofu/pull/309 for more information.", location)
 
 		// construct an empty keyID to indicate that we are not validating and return no errors
 		// this is to force a successful authentication

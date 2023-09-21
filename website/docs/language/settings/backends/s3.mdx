@@ -1,6 +1,6 @@
 ---
 sidebar_label: s3
-description: OpenTF can store state remotely in S3 and lock that state with DynamoDB.
+description: OpenTofu can store state remotely in S3 and lock that state with DynamoDB.
 ---
 
 # Backend Type: s3
@@ -10,7 +10,7 @@ Stores the state as a given key in a given bucket on
 This backend also supports state locking and consistency checking via
 [Dynamo DB](https://aws.amazon.com/dynamodb/), which can be enabled by setting
 the `dynamodb_table` field to an existing DynamoDB table name.
-A single DynamoDB table can be used to lock multiple remote state files. OpenTF generates key names that include the values of the `bucket` and `key` variables.
+A single DynamoDB table can be used to lock multiple remote state files. OpenTofu generates key names that include the values of the `bucket` and `key` variables.
 
 :::warning
 It is highly recommended that you enable
@@ -31,14 +31,14 @@ terraform {
 ```
 
 This assumes we have a bucket created called `mybucket`. The
-OpenTF state is written to the key `path/to/my/key`.
+OpenTofu state is written to the key `path/to/my/key`.
 
 Note that for the access credentials we recommend using a
 [partial configuration](/docs/language/settings/backends/configuration#partial-configuration).
 
 ### S3 Bucket Permissions
 
-OpenTF will need the following AWS IAM permissions on
+OpenTofu will need the following AWS IAM permissions on
 the target backend bucket:
 
 * `s3:ListBucket` on `arn:aws:s3:::mybucket`
@@ -77,7 +77,7 @@ documentation about
 
 ### DynamoDB Table Permissions
 
-If you are using state locking, OpenTF will need the following AWS IAM
+If you are using state locking, OpenTofu will need the following AWS IAM
 permissions on the DynamoDB table (`arn:aws:dynamodb:::table/mytable`):
 
 * `dynamodb:DescribeTable`
@@ -114,7 +114,7 @@ To make use of the S3 remote state in another configuration, use the
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
-    bucket = "opentf-state-prod"
+    bucket = "tofu-state-prod"
     key    = "network/terraform.tfstate"
     region = "us-east-1"
   }
@@ -134,7 +134,7 @@ data.terraform_remote_state.network:
   addresses.1 = 54.196.78.166
   backend = s3
   config.% = 3
-  config.bucket = opentf-state-prod
+  config.bucket = tofu-state-prod
   config.key = network/terraform.tfstate
   config.region = us-east-1
   elb_address = web-elb-790251200.us-east-1.elb.amazonaws.com
@@ -148,7 +148,7 @@ This backend requires the configuration of the AWS Region and S3 state storage. 
 ### Credentials and Shared Configuration
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration is required:
@@ -195,8 +195,8 @@ The following configuration is optional:
 * `encrypt` - (Optional) Enable [server side encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html) of the state file.
 * `endpoint` - (Optional) Custom endpoint for the AWS S3 API. This can also be sourced from the `AWS_S3_ENDPOINT` environment variable.
 * `force_path_style` - (Optional) Enable path-style S3 URLs (`https://<HOST>/<BUCKET>` instead of `https://<BUCKET>.<HOST>`).
-* `kms_key_id` - (Optional) Amazon Resource Name (ARN) of a Key Management Service (KMS) Key to use for encrypting the state. Note that if this value is specified, OpenTF will need `kms:Encrypt`, `kms:Decrypt` and `kms:GenerateDataKey` permissions on this KMS key.
-* `sse_customer_key` - (Optional) The key to use for encrypting state with [Server-Side Encryption with Customer-Provided Keys (SSE-C)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html). This is the base64-encoded value of the key, which must decode to 256 bits. This can also be sourced from the `AWS_SSE_CUSTOMER_KEY` environment variable, which is recommended due to the sensitivity of the value. Setting it inside an OpenTF file will cause it to be persisted to disk in `terraform.tfstate`.
+* `kms_key_id` - (Optional) Amazon Resource Name (ARN) of a Key Management Service (KMS) Key to use for encrypting the state. Note that if this value is specified, OpenTofu will need `kms:Encrypt`, `kms:Decrypt` and `kms:GenerateDataKey` permissions on this KMS key.
+* `sse_customer_key` - (Optional) The key to use for encrypting state with [Server-Side Encryption with Customer-Provided Keys (SSE-C)](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html). This is the base64-encoded value of the key, which must decode to 256 bits. This can also be sourced from the `AWS_SSE_CUSTOMER_KEY` environment variable, which is recommended due to the sensitivity of the value. Setting it inside an OpenTofu file will cause it to be persisted to disk in `terraform.tfstate`.
 * `workspace_key_prefix` - (Optional) Prefix applied to the state path inside the bucket. This is only relevant when using a non-default workspace. Defaults to `env:`.
 
 ### DynamoDB State Locking
@@ -219,7 +219,7 @@ The S3 backend can be used in a number of different ways that make different
 tradeoffs between convenience, security, and isolation in such an organization.
 This section describes one such approach that aims to find a good compromise
 between these tradeoffs, allowing use of
-[OpenTF's workspaces feature](/docs/language/state/workspaces) to switch
+[OpenTofu's workspaces feature](/docs/language/state/workspaces) to switch
 conveniently between multiple isolated deployments of the same configuration.
 
 Use this section as a starting-point for your approach, but note that
@@ -229,9 +229,9 @@ adjustments to this approach to account for _existing_ practices within your
 organization, if for example other tools have previously been used to manage
 infrastructure.
 
-OpenTF is an administrative tool that manages your infrastructure, and so
-ideally the infrastructure that is used by OpenTF should exist outside of
-the infrastructure that OpenTF manages. This can be achieved by creating a
+OpenTofu is an administrative tool that manages your infrastructure, and so
+ideally the infrastructure that is used by OpenTofu should exist outside of
+the infrastructure that OpenTofu manages. This can be achieved by creating a
 separate _administrative_ AWS account which contains the user accounts used by
 human operators and any infrastructure and tools used to manage the other
 accounts. Isolating shared administrative tools from your main environments
@@ -251,12 +251,12 @@ Your administrative AWS account will contain at least the following items:
   to differentiate between different groups of users that have different
   levels of access to the other AWS accounts.
 * An [S3 bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingBucket.html)
-  that will contain the OpenTF state files for each workspace.
+  that will contain the OpenTofu state files for each workspace.
 * A [DynamoDB table](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.CoreComponents.html#HowItWorks.CoreComponents.TablesItemsAttributes)
   that will be used for locking to prevent concurrent operations on a single
   workspace.
 
-Provide the S3 bucket name and DynamoDB table name to OpenTF within the
+Provide the S3 bucket name and DynamoDB table name to OpenTofu within the
 S3 backend configuration using the `bucket` and `dynamodb_table` arguments
 respectively, and configure a suitable `workspace_key_prefix` to contain
 the states of the various workspaces that will subsequently be created for
@@ -265,18 +265,18 @@ this configuration.
 ### Environment Account Setup
 
 For the sake of this section, the term "environment account" refers to one
-of the accounts whose contents are managed by OpenTF, separate from the
+of the accounts whose contents are managed by OpenTofu, separate from the
 administrative account described above.
 
 Your environment accounts will eventually contain your own product-specific
 infrastructure. Along with this it must contain one or more
 [IAM roles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html)
-that grant sufficient access for OpenTF to perform the desired management
+that grant sufficient access for OpenTofu to perform the desired management
 tasks.
 
 ### Delegating Access
 
-Each Administrator will run OpenTF using credentials for their IAM user
+Each Administrator will run OpenTofu using credentials for their IAM user
 in the administrative account.
 [IAM Role Delegation](https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html)
 is used to grant these users access to the roles created in each environment
@@ -295,14 +295,14 @@ above. The most important details are:
 Since the purpose of the administrative account is only to host tools for
 managing other accounts, it is useful to give the administrative accounts
 restricted access only to the specific operations needed to assume the
-environment account role and access the OpenTF state. By blocking all
+environment account role and access the OpenTofu state. By blocking all
 other access, you remove the risk that user error will lead to staging or
 production resources being created in the administrative account by mistake.
 
-When configuring OpenTF, use either environment variables or the standard
+When configuring OpenTofu, use either environment variables or the standard
 credentials file `~/.aws/credentials` to provide the administrator user's
 IAM credentials within the administrative account to both the S3 backend _and_
-to OpenTF's AWS provider.
+to OpenTofu's AWS provider.
 
 Use conditional configuration to pass a different `assume_role` value to
 the AWS provider depending on the selected workspace. For example:
@@ -310,8 +310,8 @@ the AWS provider depending on the selected workspace. For example:
 ```hcl
 variable "workspace_iam_roles" {
   default = {
-    staging    = "arn:aws:iam::STAGING-ACCOUNT-ID:role/OpenTF"
-    production = "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/OpenTF"
+    staging    = "arn:aws:iam::STAGING-ACCOUNT-ID:role/OpenTofu"
+    production = "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/OpenTofu"
   }
 }
 
@@ -326,28 +326,28 @@ provider "aws" {
 ```
 
 If workspace IAM roles are centrally managed and shared across many separate
-OpenTF configurations, the role ARNs could also be obtained via a data
+OpenTofu configurations, the role ARNs could also be obtained via a data
 source such as [`terraform_remote_state`](/docs/language/state/remote-state-data)
 to avoid repeating these values.
 
 ### Creating and Selecting Workspaces
 
 With the necessary objects created and the backend configured, run
-`opentf init` to initialize the backend and establish an initial workspace
+`tofu init` to initialize the backend and establish an initial workspace
 called "default". This workspace will not be used, but is created automatically
-by OpenTF as a convenience for users who are not using the workspaces
+by OpenTofu as a convenience for users who are not using the workspaces
 feature.
 
 Create a workspace corresponding to each key given in the `workspace_iam_roles`
 variable value above:
 
 ```
-$ opentf workspace new staging
+$ tofu workspace new staging
 Created and switched to workspace "staging"!
 
 ...
 
-$ opentf workspace new production
+$ tofu workspace new production
 Created and switched to workspace "production"!
 
 ...
@@ -360,25 +360,25 @@ as reading and writing the state from S3, will be performed directly as the
 administrator's own user within the administrative account.
 
 ```
-$ opentf workspace select staging
-$ opentf apply
+$ tofu workspace select staging
+$ tofu apply
 ...
 ```
 
-### Running OpenTF in Amazon EC2
+### Running OpenTofu in Amazon EC2
 
-Teams that make extensive use of OpenTF for infrastructure management
-often run OpenTF in automation
+Teams that make extensive use of OpenTofu for infrastructure management
+often run OpenTofu in automation
 to ensure a consistent operating environment and to limit access to the
-various secrets and other sensitive information that OpenTF configurations
+various secrets and other sensitive information that OpenTofu configurations
 tend to require.
 
-When running OpenTF in an automation tool running on an Amazon EC2 instance,
+When running OpenTofu in an automation tool running on an Amazon EC2 instance,
 consider running this instance in the administrative account and using an
 [instance profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)
 in place of the various administrator IAM users suggested above. An IAM
 instance profile can also be granted cross-account delegation access via
-an IAM policy, giving this instance the access it needs to run OpenTF.
+an IAM policy, giving this instance the access it needs to run OpenTofu.
 
 To isolate access to different environment accounts, use a separate EC2
 instance for each target account so that its access can be limited only to
@@ -392,7 +392,7 @@ services, such as ECS.
 In a simple implementation of the pattern described in the prior sections,
 all users have access to read and write states for all workspaces. In many
 cases it is desirable to apply more precise access constraints to the
-OpenTF state objects in S3, so that for example only trusted administrators
+OpenTofu state objects in S3, so that for example only trusted administrators
 are allowed to modify the production state, or to control _reading_ of a state
 that contains sensitive information.
 
@@ -408,19 +408,19 @@ to only a single state object within an S3 bucket is shown below:
     {
       "Effect": "Allow",
       "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::myorg-opentf-states"
+      "Resource": "arn:aws:s3:::myorg-tofu-states"
     },
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject"],
-      "Resource": "arn:aws:s3:::myorg-opentf-states/myapp/production/tfstate"
+      "Resource": "arn:aws:s3:::myorg-tofu-states/myapp/production/tfstate"
     }
   ]
 }
 ```
 
 It is also possible to apply fine-grained access control to the DynamoDB
-table used for locking. When OpenTF puts the state lock in place during `opentf plan`, it stores the full state file as a document and sets the s3 object key as the partition key for the document. After the state lock is released, OpenTF places a digest of the updated state file in DynamoDB. The key is similar to the one for the original state file, but is suffixed with `-md5`.
+table used for locking. When OpenTofu puts the state lock in place during `tofu plan`, it stores the full state file as a document and sets the s3 object key as the partition key for the document. After the state lock is released, OpenTofu places a digest of the updated state file in DynamoDB. The key is similar to the one for the original state file, but is suffixed with `-md5`.
 
 The example below shows a simple IAM policy that allows the backend operations role to perform these operations:
 
@@ -441,8 +441,8 @@ The example below shows a simple IAM policy that allows the backend operations r
         "Condition" : {
           "ForAllValues:StringEquals" : {
             "dynamodb:LeadingKeys" : [
-              "myorg-opentf-states/myapp/production/tfstate", // during a state lock the full state file is stored with this key
-              "myorg-opentf-states/myapp/production/tfstate-md5" // after the lock is released a hash of the statefile's contents are stored with this key
+              "myorg-tofu-states/myapp/production/tfstate", // during a state lock the full state file is stored with this key
+              "myorg-tofu-states/myapp/production/tfstate-md5" // after the lock is released a hash of the statefile's contents are stored with this key
             ]
           }
         }
@@ -457,7 +457,7 @@ Refer to the [AWS documentation on DynamoDB fine-grained locking](https://docs.a
 
 Note this feature is optional.
 
-By default, the underlying AWS client used by the OpenTF AWS Provider creates requests with User-Agent headers including information about OpenTF and AWS Go SDK versions. To provide additional information in the User-Agent headers, the `TF_APPEND_USER_AGENT` environment variable can be set and its value will be directly added to HTTP requests. e.g.
+By default, the underlying AWS client used by the OpenTofu AWS Provider creates requests with User-Agent headers including information about OpenTofu and AWS Go SDK versions. To provide additional information in the User-Agent headers, the `TF_APPEND_USER_AGENT` environment variable can be set and its value will be directly added to HTTP requests. e.g.
 
 ```sh
 $ export TF_APPEND_USER_AGENT="JenkinsAgent/i-12345678 BuildID/1234 (Optional Extra Information)"

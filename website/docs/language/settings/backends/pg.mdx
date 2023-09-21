@@ -1,6 +1,6 @@
 ---
 sidebar_label: pg
-description: OpenTF can store state remotely in a Postgres database with locking.
+description: OpenTofu can store state remotely in a Postgres database with locking.
 ---
 
 # Backend Type: pg
@@ -14,15 +14,15 @@ This backend supports [state locking](/docs/language/state/locking).
 ```hcl
 terraform {
   backend "pg" {
-    conn_str = "postgres://user:pass@db.example.com/opentf_backend"
+    conn_str = "postgres://user:pass@db.example.com/tofu_backend"
   }
 }
 ```
 
-Before initializing the backend with `opentf init`, the database must already exist:
+Before initializing the backend with `tofu init`, the database must already exist:
 
 ```
-createdb opentf_backend
+createdb tofu_backend
 ```
 
 This `createdb` command is found in [Postgres client applications](https://www.postgresql.org/docs/10/reference-client.html) which are installed along with the database server.
@@ -46,8 +46,8 @@ terraform {
 ```
 
 ```shellsession
-$ export PG_CONN_STR=postgres://user:pass@db.example.com/opentf_backend
-$ opentf init
+$ export PG_CONN_STR=postgres://user:pass@db.example.com/tofu_backend
+$ tofu init
 ```
 
 or just the sensitive parameters:
@@ -55,7 +55,7 @@ or just the sensitive parameters:
 ```hcl
 terraform {
   backend "pg" {
-    conn_str = "postgres://db.example.com/opentf_backend"
+    conn_str = "postgres://db.example.com/tofu_backend"
   }
 }
 ```
@@ -64,7 +64,7 @@ terraform {
 $ export PGUSER=user
 $ read -s PGPASSWORD
 $ export PGPASSWORD
-$ opentf init
+$ tofu init
 ```
 
 ## Data Source Configuration
@@ -75,7 +75,7 @@ To make use of the pg remote state in another configuration, use the [`terraform
 data "terraform_remote_state" "network" {
   backend = "pg"
   config = {
-    conn_str = "postgres://localhost/opentf_backend"
+    conn_str = "postgres://localhost/tofu_backend"
   }
 }
 ```
@@ -83,16 +83,16 @@ data "terraform_remote_state" "network" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
 
 - `conn_str` - Postgres connection string; a `postgres://` URL. The `PG_CONN_STR` and [standard `libpq`](https://www.postgresql.org/docs/current/libpq-envars.html) environment variables can also be used to indicate how to connect to the PostgreSQL database.
 - `schema_name` - Name of the automatically-managed Postgres schema, default to `terraform_remote_state`. Can also be set using the `PG_SCHEMA_NAME` environment variable.
-- `skip_schema_creation` - If set to `true`, the Postgres schema must already exist. Can also be set using the `PG_SKIP_SCHEMA_CREATION` environment variable. OpenTF won't try to create the schema, this is useful when it has already been created by a database administrator.
-- `skip_table_creation` - If set to `true`, the Postgres table must already exist. Can also be set using the `PG_SKIP_TABLE_CREATION` environment variable. OpenTF won't try to create the table, this is useful when it has already been created by a database administrator.
-- `skip_index_creation` - If set to `true`, the Postgres index must already exist. Can also be set using the `PG_SKIP_INDEX_CREATION` environment variable. OpenTF won't try to create the index, this is useful when it has already been created by a database administrator.
+- `skip_schema_creation` - If set to `true`, the Postgres schema must already exist. Can also be set using the `PG_SKIP_SCHEMA_CREATION` environment variable. OpenTofu won't try to create the schema, this is useful when it has already been created by a database administrator.
+- `skip_table_creation` - If set to `true`, the Postgres table must already exist. Can also be set using the `PG_SKIP_TABLE_CREATION` environment variable. OpenTofu won't try to create the table, this is useful when it has already been created by a database administrator.
+- `skip_index_creation` - If set to `true`, the Postgres index must already exist. Can also be set using the `PG_SKIP_INDEX_CREATION` environment variable. OpenTofu won't try to create the index, this is useful when it has already been created by a database administrator.
 
 ## Technical Design
 
@@ -106,4 +106,4 @@ The **states** table contains:
 
 - a serial integer `id`, used as the key for advisory locks
 - the workspace `name` key as _text_ with a unique index
-- the OpenTF state `data` as _text_
+- the OpenTofu state `data` as _text_

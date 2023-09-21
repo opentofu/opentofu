@@ -7,11 +7,11 @@ description: "The type function returns the type of a given value. "
 
 `type` returns the type of a given value.
 
-Sometimes an OpenTF configuration can result in confusing errors regarding
-inconsistent types. This function displays OpenTF's evaluation of a given
+Sometimes an OpenTofu configuration can result in confusing errors regarding
+inconsistent types. This function displays OpenTofu's evaluation of a given
 value's type, which is useful in understanding this error message.
 
-This is a special function which is only available in the `opentf console`
+This is a special function which is only available in the `tofu console`
 command. It can only be used to examine the type of a given value, and should
 not be used in more complex expressions.
 
@@ -57,7 +57,7 @@ expressions are tuple and tuple, respectively.
 ```
 
 While this error message does include some type information, it can be helpful
-to inspect the exact type that OpenTF has determined for each given input.
+to inspect the exact type that OpenTofu has determined for each given input.
 Examining both `var.list` and `local.default_list` using the `type` function
 provides more context for the error message:
 

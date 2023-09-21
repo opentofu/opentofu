@@ -1,17 +1,17 @@
 ---
 description: >-
-  The opentf logout command is used to remove credentials stored by opentf
+  The tofu logout command is used to remove credentials stored by tofu
   login.
 ---
 
 # Command: logout
 
-The `opentf logout` command is used to remove credentials stored by
-`opentf login`. These credentials are API tokens for any host that offers OpenTF-compatible services.
+The `tofu logout` command is used to remove credentials stored by
+`tofu login`. These credentials are API tokens for any host that offers OpenTofu-compatible services.
 
 ## Usage
 
-Usage: `opentf logout [hostname]`
+Usage: `tofu logout [hostname]`
 
 :::note
 The API token is only removed from local storage, not destroyed on
@@ -20,7 +20,7 @@ the remote server, so it will remain valid until manually revoked.
 
 ## Credentials Storage
 
-By default, OpenTF will remove the token stored in plain text in a local CLI
+By default, OpenTofu will remove the token stored in plain text in a local CLI
 configuration file called `credentials.tfrc.json`. If you have configured a
-[credentials helper program](/docs/cli/config/config-file#credentials-helpers), OpenTF
+[credentials helper program](/docs/cli/config/config-file#credentials-helpers), OpenTofu
 will use the helper's `forget` command to remove it.

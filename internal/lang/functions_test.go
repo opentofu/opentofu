@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/experiments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/experiments"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -138,7 +138,7 @@ func TestFunctions(t *testing.T) {
 				// Note: "can" only works with expressions that pass static
 				// validation, because it only gets an opportunity to run in
 				// that case. The following "works" (captures the error) because
-				// OpenTF understands it as a reference to an attribute
+				// OpenTofu understands it as a reference to an attribute
 				// that does not exist during dynamic evaluation.
 				//
 				// "can" doesn't work with references that could never possibly
@@ -1076,7 +1076,7 @@ func TestFunctions(t *testing.T) {
 				// Note: "try" only works with expressions that pass static
 				// validation, because it only gets an opportunity to run in
 				// that case. The following "works" (captures the error) because
-				// OpenTF understands it as a reference to an attribute
+				// OpenTofu understands it as a reference to an attribute
 				// that does not exist during dynamic evaluation.
 				//
 				// "try" doesn't work with references that could never possibly
@@ -1084,7 +1084,7 @@ func TestFunctions(t *testing.T) {
 				// as an expression like "foo" alone which would be understood
 				// as an invalid resource reference. That's okay because this
 				// function exists primarily to ease access to dynamically-typed
-				// structures that OpenTF can't statically validate by
+				// structures that OpenTofu can't statically validate by
 				// definition.
 				`try({}.baz, "fallback")`,
 				cty.StringVal("fallback"),

@@ -1,23 +1,23 @@
 ---
 description: >-
-  Import and manage existing resources with OpenTF using configuration-driven import.
+  Import and manage existing resources with OpenTofu using configuration-driven import.
 ---
 
 # Import
 
 :::warning Experimental
-While we do not expect to make backwards-incompatible changes to syntax, the `-generate-config-out` flag and how OpenTF processes imports during the plan stage and generates configuration may change in future releases.
+While we do not expect to make backwards-incompatible changes to syntax, the `-generate-config-out` flag and how OpenTofu processes imports during the plan stage and generates configuration may change in future releases.
 :::
 
-Use the `import` block to import existing infrastructure resources into OpenTF, bringing them under OpenTF's management. Unlike the `opentf import` command, configuration-driven import using `import` blocks is predictable, works with CICD pipelines, and lets you preview an import operation before modifying state.
+Use the `import` block to import existing infrastructure resources into OpenTofu, bringing them under OpenTofu's management. Unlike the `tofu import` command, configuration-driven import using `import` blocks is predictable, works with CICD pipelines, and lets you preview an import operation before modifying state.
 
-Once imported, OpenTF tracks the resource in your state file. You can then manage the imported resource like any other, updating its attributes and destroying it as part of a standard resource lifecycle.
+Once imported, OpenTofu tracks the resource in your state file. You can then manage the imported resource like any other, updating its attributes and destroying it as part of a standard resource lifecycle.
 
-The `import` block records that OpenTF imported the resource and did not create it. After importing, you can optionally remove import blocks from your configuration or leave them as a record of the resource's origin.
+The `import` block records that OpenTofu imported the resource and did not create it. After importing, you can optionally remove import blocks from your configuration or leave them as a record of the resource's origin.
 
 ## Syntax
 
-You can add an `import` block to any OpenTF configuration file. A common pattern is to create an `imports.tf` file, or to place each `import` block beside the `resource` block it imports into.
+You can add an `import` block to any OpenTofu configuration file. A common pattern is to create an `imports.tf` file, or to place each `import` block beside the `resource` block it imports into.
 
 ```hcl
 import {
@@ -38,31 +38,31 @@ The `import` block has the following arguments:
 - `id` - A string with the [import ID](#import-id) of the resource.
 - `provider` (optional) - An optional custom resource provider, see [The Resource provider Meta-Argument](/docs/language/meta-arguments/resource-provider) for details.
 
-If you do not set the `provider` argument, OpenTF attempts to import from the default provider.
+If you do not set the `provider` argument, OpenTofu attempts to import from the default provider.
 
 ### Import ID
 
-The import block requires you to provide the `id` argument with a literal string of your resource's import ID. OpenTF needs this import ID to locate the resource you want to import.
+The import block requires you to provide the `id` argument with a literal string of your resource's import ID. OpenTofu needs this import ID to locate the resource you want to import.
 
 The identifier you use for a resource's import ID is resource-specific. You can find the required ID in the [provider documentation](https://registry.terraform.io/browse/providers) for the resource you wish to import.
 
 ## Plan and apply an import
 
-OpenTF processes the `import` block during the plan stage. Once a plan is approved, OpenTF imports the resource into its state during the subsequent apply stage.
+OpenTofu processes the `import` block during the plan stage. Once a plan is approved, OpenTofu imports the resource into its state during the subsequent apply stage.
 
 To import a resource using `import` blocks, you must:
 1. Define an `import` block for the resource(s).
 1. Add a corresponding `resource` block to your configuration , or [generate configuration](/docs/language/import/generating-configuration) for that resource.
-1. Run `opentf plan` to review how OpenTF will import the resource(s).
-1. Apply the configuration to import the resources and update your OpenTF state.
+1. Run `tofu plan` to review how OpenTofu will import the resource(s).
+1. Apply the configuration to import the resources and update your OpenTofu state.
 
 The `import` block is [_idempotent_](https://en.wikipedia.org/wiki/Idempotence), meaning that applying an import action and running another plan will not generate another import action as long as that resource remains in your state.
 
-OpenTF only needs to import a given resource once. Attempting to import a resource into the same address again is a harmless no-op. You can remove `import` blocks after completing the import or safely leave them in your configuration as a record of the resource's origin for future module maintainers. For more information on maintaining configurations over time, see [Refactoring](/docs/language/modules/develop/refactoring).
+OpenTofu only needs to import a given resource once. Attempting to import a resource into the same address again is a harmless no-op. You can remove `import` blocks after completing the import or safely leave them in your configuration as a record of the resource's origin for future module maintainers. For more information on maintaining configurations over time, see [Refactoring](/docs/language/modules/develop/refactoring).
 
 ## Resource configuration
 
-Before importing, you must add configuration for every resource you want OpenTF to import. Otherwise, OpenTF throws an error during planning, insisting you add resource configuration before it can successfully import. You can create resource configuration manually or [generate it using OpenTF](/docs/language/import/generating-configuration).
+Before importing, you must add configuration for every resource you want OpenTofu to import. Otherwise, OpenTofu throws an error during planning, insisting you add resource configuration before it can successfully import. You can create resource configuration manually or [generate it using OpenTofu](/docs/language/import/generating-configuration).
 
 We recommend writing a `resource` block if you know what most of the [resource's arguments](/docs/language/resources/syntax#resource-arguments) will be. For example, your configuration may already contain a similar resource whose configuration you can copy and modify.
 
@@ -85,7 +85,7 @@ resource "aws_instance" "example" {
 
 ### Generate configuration
 
-OpenTF can generate HCL for resources that do not already exist in configuration.
+OpenTofu can generate HCL for resources that do not already exist in configuration.
 For more details, see [Generating Configuration](/docs/language/import/generating-configuration).
 
 ## Examples

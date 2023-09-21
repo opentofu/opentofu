@@ -4,7 +4,7 @@
 package jsonprovider
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/opentofu/opentofu/internal/providers"
 )
 
 type Schema struct {

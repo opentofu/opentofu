@@ -1,18 +1,18 @@
 ---
 description: >-
-  The `opentf state show` command is used to show the attributes of a single
-  resource in the OpenTF state.
+  The `tofu state show` command is used to show the attributes of a single
+  resource in the OpenTofu state.
 ---
 
 # Command: state show
 
-The `opentf state show` command is used to show the attributes of a
+The `tofu state show` command is used to show the attributes of a
 single resource in the
-[OpenTF state](/docs/language/state).
+[OpenTofu state](/docs/language/state).
 
 ## Usage
 
-Usage: `opentf state show [options] ADDRESS`
+Usage: `tofu state show [options] ADDRESS`
 
 The command will show the attributes of a single resource in the
 state file that matches the given address.
@@ -23,12 +23,12 @@ in [resource addressing format](/docs/cli/state/resource-addressing).
 
 The command-line flags are all optional. The following flags are available:
 
-* `-state=path` - Path to the state file. Defaults to "opentf.tfstate".
+* `-state=path` - Path to the state file. Defaults to "tofu.tfstate".
   Ignored when [remote state](/docs/language/state/remote) is used.
 
-The output of `opentf state show` is intended for human consumption, not
+The output of `tofu state show` is intended for human consumption, not
 programmatic consumption. To extract state data for use in other software, use
-[`opentf show -json`](/docs/cli/commands/show#json-output) and decode the result
+[`tofu show -json`](/docs/cli/commands/show#json-output) and decode the result
 using the documented structure.
 
 ## Example: Show a Resource
@@ -36,7 +36,7 @@ using the documented structure.
 The example below shows a `packet_device` resource named `worker`:
 
 ```
-$ opentf state show 'packet_device.worker'
+$ tofu state show 'packet_device.worker'
 # packet_device.worker:
 resource "packet_device" "worker" {
     billing_cycle = "hourly"
@@ -53,7 +53,7 @@ resource "packet_device" "worker" {
 The example below shows a `packet_device` resource named `worker` inside a module named `foo`:
 
 ```shell
-$ opentf state show 'module.foo.packet_device.worker'
+$ tofu state show 'module.foo.packet_device.worker'
 ```
 
 ## Example: Show a Resource configured with count
@@ -62,7 +62,7 @@ The example below shows the first instance of a `packet_device` resource named `
 [`count`](/docs/language/meta-arguments/count):
 
 ```shell
-$ opentf state show 'packet_device.worker[0]'
+$ tofu state show 'packet_device.worker[0]'
 ```
 
 ## Example: Show a Resource configured with for_each
@@ -72,17 +72,17 @@ The following example shows the `"example"` instance of a `packet_device` resour
 Linux, Mac OS, and UNIX:
 
 ```shell
-$ opentf state show 'packet_device.worker["example"]'
+$ tofu state show 'packet_device.worker["example"]'
 ```
 
 PowerShell:
 
 ```shell
-$ opentf state show 'packet_device.worker[\"example\"]'
+$ tofu state show 'packet_device.worker[\"example\"]'
 ```
 
 Windows `cmd.exe`:
 
 ```shell
-$ opentf state show packet_device.worker[\"example\"]
+$ tofu state show packet_device.worker[\"example\"]
 ```

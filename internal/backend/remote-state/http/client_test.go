@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/remote"
 )
 
 func TestHTTPClient_impl(t *testing.T) {

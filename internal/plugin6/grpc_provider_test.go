@@ -11,13 +11,13 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
-	mockproto "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin6/mock_proto"
-	proto "github.com/placeholderplaceholderplaceholder/opentf/internal/tfplugin6"
+	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
+	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 var _ providers.Interface = (*GRPCProvider)(nil)

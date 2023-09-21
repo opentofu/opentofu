@@ -6,7 +6,7 @@ package lang
 import (
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/funcs"
+	"github.com/opentofu/opentofu/internal/lang/funcs"
 )
 
 func TestFunctionDescriptions(t *testing.T) {

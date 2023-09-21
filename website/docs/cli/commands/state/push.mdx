@@ -1,10 +1,10 @@
 ---
-description: The `opentf state push` command pushes items to the OpenTF state.
+description: The `tofu state push` command pushes items to the OpenTofu state.
 ---
 
 # Command: state push
 
-The `opentf state push` command is used to manually upload a local
+The `tofu state push` command is used to manually upload a local
 state file to [remote state](/docs/language/state/remote). This command also
 works with local state.
 
@@ -13,7 +13,7 @@ manual intervention is necessary with the remote state.
 
 ## Usage
 
-Usage: `opentf state push [options] PATH`
+Usage: `tofu state push [options] PATH`
 
 This command pushes the state specified by PATH to the currently
 configured [backend](/docs/language/settings/backends/configuration).
@@ -23,19 +23,19 @@ is loaded completely into memory and verified prior to being written to
 the destination state.
 
 :::note
-OpenTF state files must be in UTF-8 format without a byte order mark (BOM). For PowerShell on Windows, use `Set-Content` to automatically encode files in UTF-8 format. For example, run `opentf state push | sc opentf.tfstate`.
+OpenTofu state files must be in UTF-8 format without a byte order mark (BOM). For PowerShell on Windows, use `Set-Content` to automatically encode files in UTF-8 format. For example, run `tofu state push | sc tofu.tfstate`.
 :::
 
-OpenTF will perform a number of safety checks to prevent you from
+OpenTofu will perform a number of safety checks to prevent you from
 making changes that appear to be unsafe:
 
 - **Differing lineage**: If the "lineage" value in the state differs,
-  OpenTF will not allow you to push the state. A differing lineage
+  OpenTofu will not allow you to push the state. A differing lineage
   suggests that the states are completely different and you may lose
   data.
 
 - **Higher remote serial**: If the "serial" value in the destination state
-  is higher than the state being pushed, OpenTF will prevent the push.
+  is higher than the state being pushed, OpenTofu will prevent the push.
   A higher serial suggests that data is in the destination state that isn't
   accounted for in the local state being pushed.
 
@@ -44,6 +44,6 @@ Both of these safety checks can be disabled with the `-force` flag.
 pushing state, the destination state will be overwritten.
 
 For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
-only, `opentf state push`
+only, `tofu state push`
 also accepts the option
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).

@@ -1,47 +1,47 @@
 ---
 description: >-
-  The opentf apply command executes the actions proposed in a OpenTF plan
+  The tofu apply command executes the actions proposed in a OpenTofu plan
   to create, update, or destroy infrastructure.
 ---
 
 # Command: apply
 
-The `opentf apply` command executes the actions proposed in a OpenTF
+The `tofu apply` command executes the actions proposed in a OpenTofu
 plan.
 
 ## Usage
 
-Usage: `opentf apply [options] [plan file]`
+Usage: `tofu apply [options] [plan file]`
 
 
 
 ### Automatic Plan Mode
 
-When you run `opentf apply` without passing a saved plan file, OpenTF automatically creates a new execution plan as if you had run [`opentf plan`](/docs/cli/commands/plan), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](/docs/cli/commands/plan#planning-modes) and
-[planning options](/docs/cli/commands/plan#planning-options) to customize how OpenTF will create the plan.
+When you run `tofu apply` without passing a saved plan file, OpenTofu automatically creates a new execution plan as if you had run [`tofu plan`](/docs/cli/commands/plan), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](/docs/cli/commands/plan#planning-modes) and
+[planning options](/docs/cli/commands/plan#planning-options) to customize how OpenTofu will create the plan.
 
-You can pass the `-auto-approve` option to instruct OpenTF to apply the plan without asking for confirmation.
+You can pass the `-auto-approve` option to instruct OpenTofu to apply the plan without asking for confirmation.
 
 :::danger Warning
-If you use `-auto-approve`, we recommend making sure that no one can change your infrastructure outside of your OpenTF workflow. This minimizes the risk of unpredictable changes and configuration drift.
+If you use `-auto-approve`, we recommend making sure that no one can change your infrastructure outside of your OpenTofu workflow. This minimizes the risk of unpredictable changes and configuration drift.
 :::
 
 ### Saved Plan Mode
 
-When you pass a [saved plan file](/docs/cli/commands/plan#out-filename) to `opentf apply`, OpenTF takes the actions in the saved plan without prompting you for confirmation. You may want to use this two-step workflow when running OpenTF in automation.
+When you pass a [saved plan file](/docs/cli/commands/plan#out-filename) to `tofu apply`, OpenTofu takes the actions in the saved plan without prompting you for confirmation. You may want to use this two-step workflow when running OpenTofu in automation.
 
-Use [`opentf show`](/docs/cli/commands/show) to inspect a saved plan file before applying it.
+Use [`tofu show`](/docs/cli/commands/show) to inspect a saved plan file before applying it.
 
-When using a saved plan, you cannot specify any additional planning modes or options. These options only affect OpenTF's decisions about which
+When using a saved plan, you cannot specify any additional planning modes or options. These options only affect OpenTofu's decisions about which
 actions to take, and the plan file contains the final results of those
 decisions.
 
 ### Plan Options
 
-Without a saved plan file, `opentf apply` supports all planning modes and planning options available for `opentf plan`.
+Without a saved plan file, `tofu apply` supports all planning modes and planning options available for `tofu plan`.
 
-- **[Planning Modes](/docs/cli/commands/plan#planning-modes):** These include `-destroy`, which creates a plan to destroy all remote objects, and `-refresh-only`, which creates a plan to update OpenTF state and root module output values.
-- **[Planning Options](/docs/cli/commands/plan#planning-options):** These include specifying which resource instances OpenTF should replace, setting OpenTF input variables, etc.
+- **[Planning Modes](/docs/cli/commands/plan#planning-modes):** These include `-destroy`, which creates a plan to destroy all remote objects, and `-refresh-only`, which creates a plan to update OpenTofu state and root module output values.
+- **[Planning Options](/docs/cli/commands/plan#planning-options):** These include specifying which resource instances OpenTofu should replace, setting OpenTofu input variables, etc.
 
 ### Apply Options
 
@@ -49,7 +49,7 @@ The following options change how the apply command executes and reports on the a
 
 - `-auto-approve` - Skips interactive approval of plan before applying. This
   option is ignored when you pass a previously-saved plan file, because
-  OpenTF considers you passing the plan file as the approval and so
+  OpenTofu considers you passing the plan file as the approval and so
   will never prompt in that case.
 
 - `-compact-warnings` - Shows any warning messages in a compact form which
@@ -57,9 +57,9 @@ The following options change how the apply command executes and reports on the a
   at least one error and thus the warning text might be useful context for
   the errors.
 
-- `-input=false` - Disables all of OpenTF's interactive prompts. Note that
-  this also prevents OpenTF from prompting for interactive approval of a
-  plan, so OpenTF will conservatively assume that you do not wish to
+- `-input=false` - Disables all of OpenTofu's interactive prompts. Note that
+  this also prevents OpenTofu from prompting for interactive approval of a
+  plan, so OpenTofu will conservatively assume that you do not wish to
   apply the plan, causing the operation to fail.
 
 - `-json` - Enables the [machine readable JSON UI][machine-readable-ui] output.
@@ -74,31 +74,31 @@ The following options change how the apply command executes and reports on the a
   workspace.
 
 - `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
-  instructs OpenTF to retry acquiring a lock for a period of time before
+  instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
 - `-no-color` - Disables terminal formatting sequences in the output. Use this
-  if you are running OpenTF in a context where its output will be
+  if you are running OpenTofu in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
 
-- `-parallelism=n` - Limit the number of concurrent operation as OpenTF
+- `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
   [walks the graph](/docs/internals/graph#walking-the-graph). Defaults to
   10\.
 
 - All [planning modes](/docs/cli/commands/plan#planning-modes) and
 [planning options](/docs/cli/commands/plan#planning-options) for
-`opentf plan` - Customize how OpenTF will create the plan. Only available when you run `opentf apply` without a saved plan file.
+`tofu plan` - Customize how OpenTofu will create the plan. Only available when you run `tofu apply` without a saved plan file.
 
 For configurations using
 [the `local` backend](/docs/language/settings/backends/local) only,
-`opentf apply` also accepts the legacy options
+`tofu apply` also accepts the legacy options
 [`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
 
 ## Passing a Different Configuration Directory
 
 If your workflow relies on overriding the root module directory, use
 [the `-chdir` global option](/docs/cli/commands#switching-working-directory-with-chdir)
-instead, which works across all commands and makes OpenTF consistently look
+instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.

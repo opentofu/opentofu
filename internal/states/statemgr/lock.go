@@ -4,8 +4,8 @@
 package statemgr
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // LockDisabled implements State and Locker but disables state locking.
@@ -33,7 +33,7 @@ func (s *LockDisabled) RefreshState() error {
 	return s.Inner.RefreshState()
 }
 
-func (s *LockDisabled) PersistState(schemas *opentf.Schemas) error {
+func (s *LockDisabled) PersistState(schemas *tofu.Schemas) error {
 	return s.Inner.PersistState(schemas)
 }
 

@@ -7,7 +7,7 @@ description: >-
 
 # Resource Blocks
 
-_Resources_ are the most important element in the OpenTF language.
+_Resources_ are the most important element in the OpenTofu language.
 Each resource block describes one or more infrastructure objects, such
 as virtual networks, compute instances, or higher-level components such
 as DNS records.
@@ -53,10 +53,10 @@ attributes the resource supports.
 ### Providers
 
 Each resource type is implemented by a [provider](/docs/language/providers/requirements),
-which is a plugin for OpenTF that offers a collection of resource types. A
+which is a plugin for OpenTofu that offers a collection of resource types. A
 provider usually provides resources to manage a single cloud or on-premises
-infrastructure platform. Providers are distributed separately from OpenTF
-itself, but OpenTF can automatically install most providers when initializing
+infrastructure platform. Providers are distributed separately from OpenTofu
+itself, but OpenTofu can automatically install most providers when initializing
 a working directory.
 
 In order to manage resources, a module must specify which providers it
@@ -69,7 +69,7 @@ For more information, see:
   providers a module uses.
 - [Provider Configuration](/docs/language/providers/configuration), for configuring provider settings.
 
-OpenTF usually automatically determines which provider to use based on a
+OpenTofu usually automatically determines which provider to use based on a
 resource type's name. (By convention, resource type names start with their
 provider's preferred local name.) When using multiple configurations of a
 provider (or non-preferred local provider names), you must use the `provider`
@@ -83,10 +83,10 @@ selected resource type. The resource type's documentation lists which arguments
 are available and how their values should be formatted.
 
 The values for resource arguments can make full use of
-[expressions](/docs/language/expressions) and other dynamic OpenTF
+[expressions](/docs/language/expressions) and other dynamic OpenTofu
 language features.
 
-There are also some _meta-arguments_ that are defined by OpenTF itself
+There are also some _meta-arguments_ that are defined by OpenTofu itself
 and apply across all resource types. (See [Meta-Arguments](#meta-arguments) below.)
 
 ### Documentation for Resource Types
@@ -96,7 +96,7 @@ types and their arguments.
 
 Most publicly available providers are distributed on the
 [Public Terraform Registry](https://registry.terraform.io/browse/providers), which also
-hosts their documentation. When viewing a provider's page on the OpenTF
+hosts their documentation. When viewing a provider's page on the OpenTofu
 Registry, you can click the "Documentation" link in the header to browse its
 documentation. Provider documentation on the registry is versioned, and you can
 use the dropdown version menu in the header to switch which version's
@@ -106,20 +106,20 @@ To browse the publicly available providers and their documentation, see the
 [Public Terraform Registry](https://registry.terraform.io/browse/providers).
 
 :::note
-Provider documentation previously existed as part of OpenTF's core documentation. Although some provider documentation
+Provider documentation previously existed as part of OpenTofu's core documentation. Although some provider documentation
 might still be hosted here, the Public Terraform Registry is now the main home for all
 public provider docs.
 :::
 
 ## Resource Behavior
 
-For more information about how OpenTF manages resources when applying a
+For more information about how OpenTofu manages resources when applying a
 configuration, see
 [Resource Behavior](/docs/language/resources/behavior).
 
 ## Meta-Arguments
 
-The OpenTF language defines several meta-arguments, which can be used with
+The OpenTofu language defines several meta-arguments, which can be used with
 any resource type to change the behavior of resources.
 
 The following meta-arguments are documented on separate pages:

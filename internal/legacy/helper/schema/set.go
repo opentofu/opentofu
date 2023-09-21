@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/hashcode"
+	"github.com/opentofu/opentofu/internal/legacy/helper/hashcode"
 )
 
 // HashString hashes strings. If you want a Set of strings, this is the

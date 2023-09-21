@@ -57,7 +57,7 @@ For default configurations, this is the local name of the provider; for
 alternate configurations, this is a `<PROVIDER>.<ALIAS>` reference.
 
 Within a child module, resources are assigned to provider configurations as
-normal — either OpenTF chooses a default based on the name of the resource
+normal — either OpenTofu chooses a default based on the name of the resource
 type, or the resource specifies an alternate configuration with the `provider`
 argument. If the module receives a `providers` map when it's called, the
 provider configuration names used within the module are effectively remapped to
@@ -75,7 +75,7 @@ There are two main reasons to use the `providers` argument:
 Most re-usable modules only use default provider configurations, which they can
 automatically inherit from their caller when `providers` is omitted.
 
-However, in OpenTF configurations that use multiple configurations of the
+However, in OpenTofu configurations that use multiple configurations of the
 same provider, you might want some child modules to use the default provider
 configuration and other ones to use an alternate. (This usually happens when
 using one configuration to manage resources in multiple different regions of the

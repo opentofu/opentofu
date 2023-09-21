@@ -1,21 +1,21 @@
 ---
 title: Yum Packages for Red Hat Enterprise Linux, Fedora, and Amazon Linux
 description: >-
-  The OpenTF Yum repositories contain distribution-specific OpenTF
+  The OpenTofu Yum repositories contain distribution-specific OpenTofu
   packages for Red Hat Enterprise Linux, Fedora, and Amazon Linux systems.
 ---
 
 # Yum/DNF Packages for RHEL, CentOS, and Fedora
 
-The primary distribution packages for OpenTF are `.zip` archives containing
+The primary distribution packages for OpenTofu are `.zip` archives containing
 single executable files that you can extract anywhere on your system. However,
 for easier integration with configuration management tools and other systematic
 system configuration strategies, we also offer package repositories for
 RedHat Enterprise Linux, Fedora, and Amazon Linux systems, which allow you to
-install OpenTF using the `yum install` or `dnf install` commands.
+install OpenTofu using the `yum install` or `dnf install` commands.
 
 If you are instead using Debian or Ubuntu, you
-might prefer to [install OpenTF from our APT repositories](/docs/cli/install/apt).
+might prefer to [install OpenTofu from our APT repositories](/docs/cli/install/apt).
 
 ## Repository Configuration
 
@@ -43,24 +43,24 @@ sudo dnf install -y dnf-plugins-core
 sudo dnf config-manager --add-repo https://rpm.releases.placeholderplaceholderplaceholder.com/$release/hashicorp.repo
 ```
 
-In both cases, the OpenTF package name is `opentf`. For example:
+In both cases, the OpenTofu package name is `tofu`. For example:
 
 ```bash
-yum install opentf
+yum install tofu
 ```
 
 ## Supported Architectures
 
-The OpenTF Yum/DNF server has packages only for the `x86_64`
+The OpenTofu Yum/DNF server has packages only for the `x86_64`
 architecture, which is also sometimes known as `amd64`.
 
 There are no official packages available for other architectures, such as
-`aarch64`. If you wish to use OpenTF on a non-`x86_64` system,
+`aarch64`. If you wish to use OpenTofu on a non-`x86_64` system,
 [download a normal release `.zip` file](/docs/downloads) instead.
 
 ## Supported Distribution Releases
 
-The OpenTF Yum server contains release repositories for the
+The OpenTofu Yum server contains release repositories for the
 following distribution releases:
 
 * AmazonLinux 2 and "latest"
@@ -78,35 +78,35 @@ any other RPM-based Linux distributions. If you add the repository using
 the above commands on other systems then you will see a 404 Not Found error.
 
 Over time we will change the set of supported distributions, including both
-adding support for new releases and ceasing to publish new OpenTF versions
+adding support for new releases and ceasing to publish new OpenTofu versions
 under older releases.
 
-## Choosing OpenTF Versions
+## Choosing OpenTofu Versions
 
-The OpenTF Yum repositories contain multiple versions of OpenTF, but
-because the packages are all named `opentf` it is impossible to install
+The OpenTofu Yum repositories contain multiple versions of OpenTofu, but
+because the packages are all named `tofu` it is impossible to install
 more than one version at a time, and `yum install` or `dnf install` will
 default to selecting the latest version.
 
-It's often necessary to match your OpenTF version with what a particular
+It's often necessary to match your OpenTofu version with what a particular
 configuration is currently expecting. Use the following command to
 retrieve the available versions in the repository index:
 
 ```bash
-yum --showduplicate list opentf
+yum --showduplicate list tofu
 ```
 
 You can select a specific version to install by including it in the
 `yum install` command line, as follows:
 
 ```bash
-yum install opentf-0.14.0-2.x86_64
+yum install tofu-0.14.0-2.x86_64
 ```
 
 If you are using a DNF-based distribution, similar use `dnf` instead of `yum`
 when following the above steps.
 
-If your workflow requires using multiple versions of OpenTF at the same
+If your workflow requires using multiple versions of OpenTofu at the same
 time, for example when working through a gradual upgrade where not all
 of your configurations are upgraded yet, we recommend that you use the
 official release `.zip` files instead of the Yum packages, so you can install

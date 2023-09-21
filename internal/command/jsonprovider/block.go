@@ -4,7 +4,7 @@
 package jsonprovider
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 type Block struct {

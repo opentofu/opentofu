@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // MarshalCheckStates is the main entry-point for this package, which takes

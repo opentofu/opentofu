@@ -12,7 +12,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/configs/configload"
 )
 
 func TestConfigSnapshotRoundtrip(t *testing.T) {
