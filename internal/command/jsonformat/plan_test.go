@@ -39,7 +39,7 @@ func TestRenderHuman_EmptyPlan(t *testing.T) {
 	want := `
 No changes. Your infrastructure matches the configuration.
 
-OpenTF has compared your real infrastructure against your configuration and
+OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 `
 
@@ -70,7 +70,7 @@ func TestRenderHuman_EmptyOutputs(t *testing.T) {
 	want := `
 No changes. Your infrastructure matches the configuration.
 
-OpenTF has compared your real infrastructure against your configuration and
+OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 `
 

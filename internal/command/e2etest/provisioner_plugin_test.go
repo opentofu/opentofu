@@ -12,7 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
-// TestProvisionerPlugin is a test that opentf can execute a 3rd party
+// TestProvisionerPlugin is a test that tofu can execute a 3rd party
 // provisioner plugin.
 func TestProvisionerPlugin(t *testing.T) {
 	if !canRunGoBuild {

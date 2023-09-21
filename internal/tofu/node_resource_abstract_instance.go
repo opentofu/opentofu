@@ -675,7 +675,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Resource has no configuration",
-			fmt.Sprintf("OpenTF attempted to process a resource at %s that has no configuration. This is a bug in Terraform; please report it!", n.Addr.String())))
+			fmt.Sprintf("OpenTofu attempted to process a resource at %s that has no configuration. This is a bug in Terraform; please report it!", n.Addr.String())))
 		return nil, nil, keyData, diags
 	}
 
@@ -2351,7 +2351,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			tfdiags.Error,
 			"Provider produced invalid object",
 			fmt.Sprintf(
-				"Provider %q produced an invalid value after apply for %s. The result cannot not be saved in the OpenTF state.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				"Provider %q produced an invalid value after apply for %s. The result cannot not be saved in the OpenTofu state.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
 				n.ResolvedProvider.String(), tfdiags.FormatErrorPrefixed(err, n.Addr.String()),
 			),
 		))
@@ -2387,7 +2387,7 @@ func (n *NodeAbstractResourceInstance) apply(
 					tfdiags.Error,
 					"Provider returned invalid result object after apply",
 					fmt.Sprintf(
-						"After the apply operation, the provider still indicated an unknown value for %s%s. All values must be known after apply, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTF will still save the other known object values in the state.",
+						"After the apply operation, the provider still indicated an unknown value for %s%s. All values must be known after apply, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTofu will still save the other known object values in the state.",
 						n.Addr, pathStr,
 					),
 				))
@@ -2460,7 +2460,7 @@ func (n *NodeAbstractResourceInstance) apply(
 				tfdiags.Error,
 				"Provider returned invalid result object after apply",
 				fmt.Sprintf(
-					"After applying a %s plan, the provider returned a non-null object for %s. Destroying should always produce a null value, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTF will still save this errant object in the state for debugging and recovery.",
+					"After applying a %s plan, the provider returned a non-null object for %s. Destroying should always produce a null value, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTofu will still save this errant object in the state for debugging and recovery.",
 					change.Action, n.Addr,
 				),
 			))

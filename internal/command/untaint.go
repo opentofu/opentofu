@@ -132,7 +132,7 @@ func (c *UntaintCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"No such resource instance",
-			fmt.Sprintf("There is no resource instance in the state with the address %s. If the resource configuration has just been added, you must run \"opentf apply\" once to create the corresponding instance(s) before they can be tainted.", addr),
+			fmt.Sprintf("There is no resource instance in the state with the address %s. If the resource configuration has just been added, you must run \"tofu apply\" once to create the corresponding instance(s) before they can be tainted.", addr),
 		))
 		c.showDiagnostics(diags)
 		return 1
@@ -144,7 +144,7 @@ func (c *UntaintCommand) Run(args []string) int {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"No such resource instance",
-				fmt.Sprintf("Resource instance %s is currently part-way through a create_before_destroy replacement action. Run \"opentf apply\" to complete its replacement before tainting it.", addr),
+				fmt.Sprintf("Resource instance %s is currently part-way through a create_before_destroy replacement action. Run \"tofu apply\" to complete its replacement before tainting it.", addr),
 			))
 		} else {
 			// Don't know why we're here, but we'll produce a generic error message anyway.
@@ -195,19 +195,19 @@ func (c *UntaintCommand) Run(args []string) int {
 
 func (c *UntaintCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] untaint [options] name
+Usage: tofu [global options] untaint [options] name
 
-  OpenTF uses the term "tainted" to describe a resource instance
+  OpenTofu uses the term "tainted" to describe a resource instance
   which may not be fully functional, either because its creation
   partially failed or because you've manually marked it as such using
-  the "opentf taint" command.
+  the "tofu taint" command.
 
   This command removes that state from a resource instance, causing
-  OpenTF to see it as fully-functional and not in need of
+  OpenTofu to see it as fully-functional and not in need of
   replacement.
 
   This will not modify your infrastructure directly. It only avoids
-  OpenTF planning to replace a tainted instance in a future operation.
+  OpenTofu planning to replace a tainted instance in a future operation.
 
 Options:
 

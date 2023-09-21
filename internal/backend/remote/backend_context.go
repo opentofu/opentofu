@@ -215,7 +215,7 @@ func stubAllVariables(vv map[string]backend.UnparsedVariableValue, decls map[str
 
 // remoteStoredVariableValue is a backend.UnparsedVariableValue implementation
 // that translates from the go-tfe representation of stored variables into
-// the OpenTF Core backend representation of variables.
+// the OpenTofu Core backend representation of variables.
 type remoteStoredVariableValue struct {
 	definition *tfe.Variable
 }
@@ -250,7 +250,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 	case v.definition.HCL:
 		// If the variable value is marked as being in HCL syntax, we need to
 		// parse it the same way as it would be interpreted in a .tfvars
-		// file because that is how it would get passed to OpenTF CLI for
+		// file because that is how it would get passed to OpenTofu CLI for
 		// a remote operation and we want to mimic that result as closely as
 		// possible.
 		var exprDiags hcl.Diagnostics

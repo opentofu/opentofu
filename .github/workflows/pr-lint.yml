@@ -18,7 +18,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq ".body")
-          ISSUES=$(echo $PR_BODY | tr '[:upper:]' '[:lower:]' | sed -n -E '\;((close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved|relates to|related to|part of) (#|https://github.com/opentffoundation/opentf/issues/)[0-9]+);p')
+          ISSUES=$(echo $PR_BODY | tr '[:upper:]' '[:lower:]' | sed -n -E '\;((close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved|relates to|related to|part of) (#|https://github.com/opentofu/opentofu/issues/)[0-9]+);p')
           if [ -z "$ISSUES" ]
           then
             gh pr comment ${{ github.event.pull_request.number }} -b "Please link the relevant issue that this PR handles using one of the following words

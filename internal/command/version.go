@@ -32,9 +32,9 @@ type VersionOutput struct {
 
 func (c *VersionCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] version [options]
+Usage: tofu [global options] version [options]
 
-  Displays the version of OpenTF and all installed plugins
+  Displays the version of OpenTofu and all installed plugins
 
 Options:
 
@@ -61,7 +61,7 @@ func (c *VersionCommand) Run(args []string) int {
 		return 1
 	}
 
-	fmt.Fprintf(&versionString, "OpenTF v%s", c.Version)
+	fmt.Fprintf(&versionString, "OpenTofu v%s", c.Version)
 	if c.VersionPrerelease != "" {
 		fmt.Fprintf(&versionString, "-%s", c.VersionPrerelease)
 	}
@@ -131,5 +131,5 @@ func (c *VersionCommand) Run(args []string) int {
 }
 
 func (c *VersionCommand) Synopsis() string {
-	return "Show the current OpenTF version"
+	return "Show the current OpenTofu version"
 }

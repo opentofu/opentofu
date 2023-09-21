@@ -271,7 +271,7 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid resource count attribute`,
-				Detail:   fmt.Sprintf(`The special "count" attribute is no longer supported after OpenTF v0.12. Instead, use length(%s) to count resource instances.`, addr),
+				Detail:   fmt.Sprintf(`The special "count" attribute is no longer supported after OpenTofu v0.12. Instead, use length(%s) to count resource instances.`, addr),
 				Subject:  rng.ToHCL().Ptr(),
 			})
 			return diags

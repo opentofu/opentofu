@@ -25,7 +25,7 @@ type Plan struct {
 	// OutPath contains an optional path to store the plan file
 	OutPath string
 
-	// GenerateConfigPath tells OpenTF that config should be generated for
+	// GenerateConfigPath tells OpenTofu that config should be generated for
 	// unmatched import target paths and which path the generated file should
 	// be written to.
 	GenerateConfigPath string

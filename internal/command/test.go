@@ -36,13 +36,13 @@ type TestCommand struct {
 
 func (c *TestCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] test [options]
+Usage: tofu [global options] test [options]
 
-  Executes automated integration tests against the current OpenTF 
+  Executes automated integration tests against the current OpenTofu 
   configuration.
 
-  OpenTF will search for .tftest.hcl files within the current configuration 
-  and testing directories. OpenTF will then execute the testing run blocks 
+  OpenTofu will search for .tftest.hcl files within the current configuration 
+  and testing directories. OpenTofu will then execute the testing run blocks 
   within any testing files in order, and verify conditional checks and 
   assertions against the created infrastructure. 
 
@@ -52,7 +52,7 @@ Usage: opentf [global options] test [options]
 
 Options:
 
-  -filter=testfile      If specified, OpenTF will only execute the test files
+  -filter=testfile      If specified, OpenTofu will only execute the test files
                         specified by this flag. You can use this option multiple
                         times to execute more than one test file.
 
@@ -61,7 +61,7 @@ Options:
 
   -no-color             If specified, output won't contain any color.
 
-  -test-directory=path	Set the OpenTF test directory, defaults to "tests".    
+  -test-directory=path	Set the OpenTofu test directory, defaults to "tests".    
 
   -var 'foo=bar'        Set a value for one of the input variables in the root
                         module of the configuration. Use this option more than
@@ -79,7 +79,7 @@ Options:
 }
 
 func (c *TestCommand) Synopsis() string {
-	return "Execute integration tests for OpenTF modules"
+	return "Execute integration tests for OpenTofu modules"
 }
 
 func (c *TestCommand) Run(rawArgs []string) int {
@@ -415,7 +415,7 @@ func (runner *TestFileRunner) ExecuteTestFile(file *moduletest.File) {
 				run.Diagnostics = run.Diagnostics.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid module source",
-					Detail:   fmt.Sprintf("The source for the selected module evaluated to %s which should not be possible. This is a bug in OpenTF - please report it!", key),
+					Detail:   fmt.Sprintf("The source for the selected module evaluated to %s which should not be possible. This is a bug in OpenTofu - please report it!", key),
 					Subject:  run.Config.Module.DeclRange.Ptr(),
 				})
 
@@ -519,7 +519,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Warning,
 					"Failed to print verbose output",
-					fmt.Sprintf("OpenTF failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
+					fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
 			} else {
 				run.Verbose = &moduletest.Verbose{
 					Plan:         plan,
@@ -592,7 +592,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Failed to print verbose output",
-				fmt.Sprintf("OpenTF failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
+				fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
 		} else {
 			run.Verbose = &moduletest.Verbose{
 				Plan:         plan,
@@ -909,7 +909,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 	if main.Run == nil {
 		if !main.State.Empty() {
 			log.Printf("[ERROR] TestFileRunner: found inconsistent run block and state file in %s", file.Name)
-			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTF - please report it", file.Name)))
+			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTofu - please report it", file.Name)))
 		}
 	} else {
 		reset, configDiags := runner.Suite.Config.TransformForTest(main.Run.Config, file.Config)
@@ -952,7 +952,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 			// print a diagnostic instead of panicking later.
 
 			var diags tfdiags.Diagnostics
-			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTF - please report it", file.Name)))
+			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTofu - please report it", file.Name)))
 			runner.Suite.View.DestroySummary(diags, nil, file, state.State)
 			continue
 		}

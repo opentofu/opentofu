@@ -300,7 +300,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 
 	if key == states.NotDeposed {
 		// should never happen
-		return fmt.Errorf("can't save deposed object for %s without a deposed key; this is a bug in OpenTF that should be reported", absAddr)
+		return fmt.Errorf("can't save deposed object for %s without a deposed key; this is a bug in OpenTofu that should be reported", absAddr)
 	}
 
 	if obj == nil {

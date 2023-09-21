@@ -18,10 +18,10 @@ import (
 
 // The tests in this file are for the "primary workflow", which includes
 // variants of the following sequence, with different details:
-// opentf init
-// opentf plan
-// opentf apply
-// opentf destroy
+// tofu init
+// tofu plan
+// tofu apply
+// tofu destroy
 
 func TestPrimarySeparatePlan(t *testing.T) {
 	t.Parallel()

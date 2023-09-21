@@ -99,7 +99,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Inconsistent dependency lock file",
-				fmt.Sprintf("To update the locked dependency selections to match a changed configuration, run:\n  opentf init -upgrade\n got:%v", errs),
+				fmt.Sprintf("To update the locked dependency selections to match a changed configuration, run:\n  tofu init -upgrade\n got:%v", errs),
 			))
 		}
 	}
@@ -138,7 +138,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 	for provider, constraints := range reqs {
 		if provider.IsBuiltIn() {
-			c.Ui.Output(fmt.Sprintf("- Skipping %s because it is built in to OpenTF CLI", provider.ForDisplay()))
+			c.Ui.Output(fmt.Sprintf("- Skipping %s because it is built in to OpenTofu CLI", provider.ForDisplay()))
 			continue
 		}
 		constraintsStr := getproviders.VersionConstraintsString(constraints)
@@ -187,7 +187,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Provider release not available",
-					fmt.Sprintf("Failed to download %s v%s for %s: OpenTF's provider registry client returned unexpected location type %T. This is a bug in OpenTF.", provider.String(), selected.String(), platform.String(), meta.Location),
+					fmt.Sprintf("Failed to download %s v%s for %s: OpenTofu's provider registry client returned unexpected location type %T. This is a bug in OpenTofu.", provider.String(), selected.String(), platform.String(), meta.Location),
 				))
 				continue
 			}
@@ -353,7 +353,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 func (c *ProvidersMirrorCommand) Help() string {
 	return `
-Usage: opentf [global options] providers mirror [options] <target-dir>
+Usage: tofu [global options] providers mirror [options] <target-dir>
 
   Populates a local directory with copies of the provider plugins needed for
   the current configuration, so that the directory can be used either directly
@@ -368,7 +368,7 @@ Usage: opentf [global options] providers mirror [options] <target-dir>
 Options:
 
   -platform=os_arch  Choose which target platform to build a mirror for.
-                     By default OpenTF will obtain plugin packages
+                     By default OpenTofu will obtain plugin packages
                      suitable for the platform where you run this command.
                      Use this flag multiple times to include packages for
                      multiple target systems.

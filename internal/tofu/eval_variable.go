@@ -228,7 +228,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "No final value for variable",
-			Detail:   fmt.Sprintf("OpenTF doesn't have a final value for %s during validation. This is a bug in Terraform; please report it!", addr),
+			Detail:   fmt.Sprintf("OpenTofu doesn't have a final value for %s during validation. This is a bug in Terraform; please report it!", addr),
 		})
 		return diags
 	}
@@ -302,7 +302,7 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 				&hcl.Diagnostic{
 					Severity:    hcl.DiagWarning,
 					Summary:     "Validation error message expression is invalid",
-					Detail:      fmt.Sprintf("The error message provided could not be evaluated as an expression, so OpenTF is interpreting it as a string literal.\n\nIn future versions of Terraform, this will be considered an error. Please file a GitHub issue if this would break your workflow.\n\n%s", errorDiags.Error()),
+					Detail:      fmt.Sprintf("The error message provided could not be evaluated as an expression, so OpenTofu is interpreting it as a string literal.\n\nIn future versions of Terraform, this will be considered an error. Please file a GitHub issue if this would break your workflow.\n\n%s", errorDiags.Error()),
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Context:     validation.DeclRange.Ptr(),
 					Expression:  validation.ErrorMessage,
@@ -378,7 +378,7 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 					Severity: hcl.DiagError,
 
 					Summary: "Error message refers to sensitive values",
-					Detail: `The error expression used to explain this condition refers to sensitive values. OpenTF will not display the resulting message.
+					Detail: `The error expression used to explain this condition refers to sensitive values. OpenTofu will not display the resulting message.
 
 You can correct this by removing references to sensitive values, or by carefully using the nonsensitive() function if the expression will not reveal the sensitive data.`,
 

@@ -17,7 +17,7 @@ import (
 //
 // This is related to but separate from ModuleCallOutput, which represents
 // a module output from the perspective of its parent module. Outputs are
-// referencable from the testing scope, in general opentf operation users
+// referencable from the testing scope, in general tofu operation users
 // will be referencing ModuleCallOutput.
 type OutputValue struct {
 	referenceable

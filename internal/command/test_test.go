@@ -347,10 +347,10 @@ func TestTest_DoubleInterrupt(t *testing.T) {
 		t.Errorf("output didn't produce the right output:\n\n%s", output)
 	}
 
-	cleanupMessage := `OpenTF was interrupted while executing main.tftest.hcl, and may not have
+	cleanupMessage := `OpenTofu was interrupted while executing main.tftest.hcl, and may not have
 performed the expected cleanup operations.
 
-OpenTF has already created the following resources from the module under
+OpenTofu has already created the following resources from the module under
 test:
   - test_resource.primary
   - test_resource.secondary
@@ -1030,7 +1030,7 @@ configuration.
 
 The -target option is not for routine use, and is provided only for
 exceptional situations such as recovering from errors or mistakes, or when
-OpenTF specifically suggests to use it as part of an error message.
+OpenTofu specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
@@ -1042,7 +1042,7 @@ changes are pending:
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
-or when OpenTF specifically suggests to use it as part of an error message.
+or when OpenTofu specifically suggests to use it as part of an error message.
   run "second"... pass
 
 Success! 2 passed, 0 failed.
@@ -1061,7 +1061,7 @@ configuration.
 
 The -target option is not for routine use, and is provided only for
 exceptional situations such as recovering from errors or mistakes, or when
-OpenTF specifically suggests to use it as part of an error message.
+OpenTofu specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
@@ -1073,7 +1073,7 @@ changes are pending:
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
-or when OpenTF specifically suggests to use it as part of an error message.
+or when OpenTofu specifically suggests to use it as part of an error message.
 
 Failure! 0 passed, 1 failed.
 `,

@@ -251,7 +251,7 @@ func TestApplyJSON_outputs(t *testing.T) {
 		{
 			"@level":   "info",
 			"@message": "Outputs: 2",
-			"@module":  "opentf.ui",
+			"@module":  "tofu.ui",
 			"type":     "outputs",
 			"outputs": map[string]interface{}{
 				"boop_count": map[string]interface{}{

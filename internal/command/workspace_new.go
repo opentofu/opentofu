@@ -34,7 +34,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	cmdFlags := c.Meta.defaultFlagSet("workspace new")
 	cmdFlags.BoolVar(&stateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&statePath, "state", "", "opentf state file")
+	cmdFlags.StringVar(&statePath, "state", "", "tofu state file")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -184,9 +184,9 @@ func (c *WorkspaceNewCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceNewCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] workspace new [OPTIONS] NAME
+Usage: tofu [global options] workspace new [OPTIONS] NAME
 
-  Create a new OpenTF workspace.
+  Create a new OpenTofu workspace.
 
 Options:
 

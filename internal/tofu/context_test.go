@@ -222,7 +222,7 @@ resource "implicit_thing" "b" {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provider",
-					"This configuration requires built-in provider terraform.io/builtin/nonexist, but that provider isn't available in this OpenTF version.",
+					"This configuration requires built-in provider terraform.io/builtin/nonexist, but that provider isn't available in this OpenTofu version.",
 				),
 				tfdiags.Sourceless(
 					tfdiags.Error,
@@ -242,7 +242,7 @@ resource "implicit_thing" "b" {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Missing required provisioner plugin",
-					`This configuration requires provisioner plugin "nonexist", which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTF.`,
+					`This configuration requires provisioner plugin "nonexist", which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.`,
 				),
 			)
 			assertDiagnosticsMatch(t, gotDiags, wantDiags)

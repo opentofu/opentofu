@@ -197,9 +197,9 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 func (c *StateReplaceProviderCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN
+Usage: tofu [global options] state replace-provider [options] FROM_PROVIDER_FQN TO_PROVIDER_FQN
 
-  Replace provider for resources in the OpenTF state.
+  Replace provider for resources in the OpenTofu state.
 
 Options:
 

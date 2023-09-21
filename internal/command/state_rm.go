@@ -147,7 +147,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid target address",
-			"No matching objects found. To view the available instances, use \"opentf state list\". Please modify the address to reference a specific instance.",
+			"No matching objects found. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
 		))
 		c.showDiagnostics(diags)
 		return 1
@@ -159,14 +159,14 @@ func (c *StateRmCommand) Run(args []string) int {
 
 func (c *StateRmCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] state rm [options] ADDRESS...
+Usage: tofu [global options] state rm [options] ADDRESS...
 
-  Remove one or more items from the OpenTF state, causing OpenTF to
+  Remove one or more items from the OpenTofu state, causing OpenTofu to
   "forget" those items without first destroying them in the remote system.
 
-  This command removes one or more resource instances from the OpenTF state
+  This command removes one or more resource instances from the OpenTofu state
   based on the addresses given. You can view and list the available instances
-  with "opentf state list".
+  with "tofu state list".
 
   If you give the address of an entire module then all of the instances in
   that module and any of its child modules will be removed from the state.
@@ -179,7 +179,7 @@ Options:
   -dry-run                If set, prints out what would've been removed but
                           doesn't actually remove anything.
 
-  -backup=PATH            Path where OpenTF should write the backup
+  -backup=PATH            Path where OpenTofu should write the backup
                           state.
 
   -lock=false             Don't hold a state lock during the operation. This is
@@ -191,7 +191,7 @@ Options:
   -state=PATH             Path to the state file to update. Defaults to the
                           current workspace state.
 
-  -ignore-remote-version  Continue even if remote and local OpenTF versions
+  -ignore-remote-version  Continue even if remote and local OpenTofu versions
                           are incompatible. This may result in an unusable
                           workspace, and should be used with extreme caution.
 

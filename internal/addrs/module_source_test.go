@@ -481,7 +481,7 @@ func TestParseModuleSourceRegistry(t *testing.T) {
 	// the user provided in the input, and so for backward compatibility
 	// we're continuing to do that here, at the expense of now making the
 	// "ForDisplay" output case-preserving where its predecessor in the
-	// old package wasn't. The main OpenTF Registry at registry.terraform.io
+	// old package wasn't. The main OpenTofu Registry at registry.terraform.io
 	// is itself case-insensitive anyway, so our case-preserving here is
 	// entirely for the benefit of existing third-party registry
 	// implementations that might be case-sensitive, which we must remain

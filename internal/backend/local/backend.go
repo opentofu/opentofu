@@ -31,7 +31,7 @@ const (
 )
 
 // Local is an implementation of EnhancedBackend that performs all operations
-// locally. This is the "default" backend and implements normal OpenTF
+// locally. This is the "default" backend and implements normal OpenTofu
 // behavior as it is well known.
 type Local struct {
 	// The State* paths are set from the backend config, and may be left blank
@@ -65,7 +65,7 @@ type Local struct {
 	// here as they're loaded.
 	states map[string]statemgr.Full
 
-	// OpenTF context. Many of these will be overridden or merged by
+	// OpenTofu context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
 	ContextOpts *tofu.ContextOpts
 
@@ -292,8 +292,8 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	default:
 		return nil, fmt.Errorf(
 			"unsupported operation type: %s\n\n"+
-				"This is a bug in OpenTF and should be reported. The local backend\n"+
-				"is built-in to OpenTF and should always support all operations.",
+				"This is a bug in OpenTofu and should be reported. The local backend\n"+
+				"is built-in to OpenTofu and should always support all operations.",
 			op.Type)
 	}
 
@@ -492,4 +492,4 @@ func (b *Local) stateWorkspaceDir() string {
 
 const earlyStateWriteErrorFmt = `Error: %s
 
-OpenTF encountered an error attempting to save the state before cancelling the current operation. Once the operation is complete another attempt will be made to save the final state.`
+OpenTofu encountered an error attempting to save the state before cancelling the current operation. Once the operation is complete another attempt will be made to save the final state.`

@@ -14,7 +14,7 @@ import (
 )
 
 // TestProviderTampering tests various ways that the provider plugins in the
-// local cache directory might be modified after an initial "opentf init",
+// local cache directory might be modified after an initial "tofu init",
 // which other Terraform commands which use those plugins should catch and
 // report early.
 func TestProviderTampering(t *testing.T) {
@@ -68,7 +68,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `registry.terraform.io/hashicorp/null: there is no package for registry.terraform.io/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `opentf init`; !strings.Contains(stderr, want) {
+		if want := `tofu init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 
@@ -103,7 +103,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `Initial configuration of the requested backend "local"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `opentf init`; !strings.Contains(stderr, want) {
+		if want := `tofu init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 
@@ -133,7 +133,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `registry.terraform.io/hashicorp/null: the cached package for registry.terraform.io/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `opentf init`; !strings.Contains(stderr, want) {
+		if want := `tofu init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
@@ -162,7 +162,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `provider registry.terraform.io/hashicorp/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `opentf init -upgrade`; !strings.Contains(stderr, want) {
+		if want := `tofu init -upgrade`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
@@ -188,7 +188,7 @@ func TestProviderTampering(t *testing.T) {
 		if want := `provider registry.terraform.io/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
-		if want := `opentf init`; !strings.Contains(stderr, want) {
+		if want := `tofu init`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})

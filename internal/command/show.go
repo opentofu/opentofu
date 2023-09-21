@@ -69,7 +69,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		diags = diags.Append(fmt.Errorf("error loading plugin path: %s", err))
+		diags = diags.Append(fmt.Errorf("error loading plugin path: %w", err))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -88,15 +88,15 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 
 func (c *ShowCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] show [options] [path]
+Usage: tofu [global options] show [options] [path]
 
-  Reads and outputs a OpenTF state or plan file in a human-readable
+  Reads and outputs a OpenTofu state or plan file in a human-readable
   form. If no path is specified, the current state will be shown.
 
 Options:
 
   -no-color           If specified, output won't contain any color.
-  -json               If specified, output the OpenTF plan or state in
+  -json               If specified, output the OpenTofu plan or state in
                       a machine-readable form.
 
 `
@@ -160,7 +160,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot() (*statefile.File, tfdiags.Di
 	// Load the workspace
 	workspace, err := c.Workspace()
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("error selecting workspace: %s", err))
+		diags = diags.Append(fmt.Errorf("error selecting workspace: %w", err))
 		return nil, diags
 	}
 

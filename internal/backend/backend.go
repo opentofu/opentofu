@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Package backend provides interfaces that the CLI uses to interact with
-// OpenTF. A backend provides the abstraction that allows the same CLI
+// OpenTofu. A backend provides the abstraction that allows the same CLI
 // to simultaneously support both local and remote operations for seamlessly
-// using OpenTF in a team environment.
+// using OpenTofu in a team environment.
 package backend
 
 import (
@@ -54,7 +54,7 @@ var (
 // InitFn is used to initialize a new backend.
 type InitFn func() Backend
 
-// Backend is the minimal interface that must be implemented to enable OpenTF.
+// Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {
 	// ConfigSchema returns a description of the expected configuration
 	// structure for the receiving backend.
@@ -135,7 +135,7 @@ type HostAlias struct {
 type Enhanced interface {
 	Backend
 
-	// Operation performs a OpenTF operation such as refresh, plan, apply.
+	// Operation performs a OpenTofu operation such as refresh, plan, apply.
 	// It is up to the implementation to determine what "performing" means.
 	// This DOES NOT BLOCK. The context returned as part of RunningOperation
 	// should be used to block for completion.
@@ -152,7 +152,7 @@ type Enhanced interface {
 // Local implements additional behavior on a Backend that allows local
 // operations in addition to remote operations.
 //
-// This enables more behaviors of OpenTF that require more data such
+// This enables more behaviors of OpenTofu that require more data such
 // as `console`, `import`, `graph`. These require direct access to
 // configurations, variables, and more. Not all backends may support this
 // so we separate it out into its own optional interface.
@@ -182,12 +182,12 @@ type Local interface {
 //
 // This type is a weird architectural wart resulting from the overly-general
 // way our backend API models operations, whereby we behave as if all
-// OpenTF operations have the same inputs and outputs even though they
+// OpenTofu operations have the same inputs and outputs even though they
 // are actually all rather different. The exact meaning of the fields in
 // this type therefore vary depending on which OperationType was passed to
 // Local.Context in order to create an object of this type.
 type LocalRun struct {
-	// Core is an already-initialized OpenTF Core context, ready to be
+	// Core is an already-initialized OpenTofu Core context, ready to be
 	// used to run operations such as Plan and Apply.
 	Core *tofu.Context
 
@@ -216,7 +216,7 @@ type LocalRun struct {
 	Plan *plans.Plan
 }
 
-// An operation represents an operation for OpenTF to execute.
+// An operation represents an operation for OpenTofu to execute.
 //
 // Note that not all fields are supported by all backends and can result
 // in an error if set. All backend implementations should show user-friendly
@@ -224,12 +224,12 @@ type LocalRun struct {
 // backend doesn't support a PlanId being set.
 //
 // The operation options are purposely designed to have maximal compatibility
-// between OpenTF and Terraform Servers (a commercial product offered by
+// between OpenTofu and Terraform Servers (a commercial product offered by
 // HashiCorp). Therefore, it isn't expected that other implementation support
 // every possible option. The struct here is generalized in order to allow
 // even partial implementations to exist in the open, without walling off
 // remote functionality 100% behind a commercial wall. Anyone can implement
-// against this interface and have OpenTF interact with it just as it
+// against this interface and have OpenTofu interact with it just as it
 // would with HashiCorp-provided Terraform Servers.
 type Operation struct {
 	// Type is the operation to perform.
@@ -314,7 +314,7 @@ type Operation struct {
 }
 
 // HasConfig returns true if and only if the operation has a ConfigDir value
-// that refers to a directory containing at least one OpenTF configuration
+// that refers to a directory containing at least one OpenTofu configuration
 // file.
 func (o *Operation) HasConfig() bool {
 	return o.ConfigLoader.IsConfigDir(o.ConfigDir)

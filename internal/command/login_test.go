@@ -160,7 +160,7 @@ func TestLogin(t *testing.T) {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
-		if got, want := ui.OutputWriter.String(), "OpenTF has obtained and saved an API token."; !strings.Contains(got, want) {
+		if got, want := ui.OutputWriter.String(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}))
@@ -195,7 +195,7 @@ func TestLogin(t *testing.T) {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
-		if got, want := ui.OutputWriter.String(), "OpenTF has obtained and saved an API token."; !strings.Contains(got, want) {
+		if got, want := ui.OutputWriter.String(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}))
@@ -268,7 +268,7 @@ func TestLogin(t *testing.T) {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Error: Host does not support OpenTF tokens API"; !strings.Contains(got, want) {
+		if got, want := ui.ErrorWriter.String(), "Error: Host does not support OpenTofu tokens API"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}))

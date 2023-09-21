@@ -697,7 +697,7 @@ func TestParseRef(t *testing.T) {
 		// the "resource" prefix forces interpreting the next name as a
 		// resource type name. This is an alias for just using a resource
 		// type name at the top level, to be used only if a later edition
-		// of the OpenTF language introduces a new reserved word that
+		// of the OpenTofu language introduces a new reserved word that
 		// overlaps with a resource type name.
 		{
 			`resource.boop_instance.foo`,
@@ -721,17 +721,17 @@ func TestParseRef(t *testing.T) {
 		{
 			`template.foo`,
 			nil,
-			`The symbol name "template" is reserved for use in a future OpenTF version. If you are using a provider that already uses this as a resource type name, add the prefix "resource." to force interpretation as a resource type name.`,
+			`The symbol name "template" is reserved for use in a future OpenTofu version. If you are using a provider that already uses this as a resource type name, add the prefix "resource." to force interpretation as a resource type name.`,
 		},
 		{
 			`lazy.foo`,
 			nil,
-			`The symbol name "lazy" is reserved for use in a future OpenTF version. If you are using a provider that already uses this as a resource type name, add the prefix "resource." to force interpretation as a resource type name.`,
+			`The symbol name "lazy" is reserved for use in a future OpenTofu version. If you are using a provider that already uses this as a resource type name, add the prefix "resource." to force interpretation as a resource type name.`,
 		},
 		{
 			`arg.foo`,
 			nil,
-			`The symbol name "arg" is reserved for use in a future OpenTF version. If you are using a provider that already uses this as a resource type name, add the prefix "resource." to force interpretation as a resource type name.`,
+			`The symbol name "arg" is reserved for use in a future OpenTofu version. If you are using a provider that already uses this as a resource type name, add the prefix "resource." to force interpretation as a resource type name.`,
 		},
 
 		// anything else, interpreted as a managed resource reference

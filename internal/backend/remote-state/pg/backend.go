@@ -51,21 +51,21 @@ func New() backend.Backend {
 			"skip_schema_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "If set to `true`, OpenTF won't try to create the Postgres schema",
+				Description: "If set to `true`, OpenTofu won't try to create the Postgres schema",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_SCHEMA_CREATION", false),
 			},
 
 			"skip_table_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "If set to `true`, OpenTF won't try to create the Postgres table",
+				Description: "If set to `true`, OpenTofu won't try to create the Postgres table",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_TABLE_CREATION", false),
 			},
 
 			"skip_index_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "If set to `true`, OpenTF won't try to create the Postgres index",
+				Description: "If set to `true`, OpenTofu won't try to create the Postgres index",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_INDEX_CREATION", false),
 			},
 		},

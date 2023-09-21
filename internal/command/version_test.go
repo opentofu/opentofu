@@ -57,7 +57,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "OpenTF v4.5.6-foo\non aros_riscv64\n+ provider registry.terraform.io/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.terraform.io/hashicorp/test2 v1.2.3"
+	expected := "OpenTofu v4.5.6-foo\non aros_riscv64\n+ provider registry.terraform.io/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.terraform.io/hashicorp/test2 v1.2.3"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot:\n%s\nwant:\n%s", actual, expected)
 	}
@@ -83,7 +83,7 @@ func TestVersion_flags(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "OpenTF v4.5.6-foo\non aros_riscv64"
+	expected := "OpenTofu v4.5.6-foo\non aros_riscv64"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot: %#v\nwant: %#v", actual, expected)
 	}

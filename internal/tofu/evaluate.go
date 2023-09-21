@@ -673,7 +673,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Missing resource type schema`,
-			Detail:   fmt.Sprintf("No schema is available for %s in %s. This is a bug in OpenTF and should be reported.", addr, config.Provider),
+			Detail:   fmt.Sprintf("No schema is available for %s in %s. This is a bug in OpenTofu and should be reported.", addr, config.Provider),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags
@@ -975,9 +975,9 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 
 	output := d.Evaluator.State.OutputValue(addr.Absolute(d.ModulePath))
 
-	// https://github.com/opentffoundation/opentf/issues/257
-	// If the output is null - it does not serialize as part of the node_output state https://github.com/opentffoundation/opentf/blob/4b623c56ffe9e6c1dc345e54470b71b0f261297a/internal/opentf/node_output.go#L592-L596
-	// In such a case, we should simply return a nil value because OpenTF test crash to evaluate for invalid memory address or nil pointer dereference
+	// https://github.com/opentofu/opentofu/issues/257
+	// If the output is null - it does not serialize as part of the node_output state https://github.com/opentofu/opentofu/blob/4b623c56ffe9e6c1dc345e54470b71b0f261297a/internal/tofu/node_output.go#L592-L596
+	// In such a case, we should simply return a nil value because OpenTofu test crash to evaluate for invalid memory address or nil pointer dereference
 	if output == nil {
 		return cty.NilVal, diags
 	} else {
@@ -1006,7 +1006,7 @@ func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.Source
 	diags = diags.Append(&hcl.Diagnostic{
 		Severity: hcl.DiagError,
 		Summary:  "Reference to \"check\" in invalid context",
-		Detail:   "The \"check\" object can only be referenced from an \"expect_failures\" attribute within a OpenTF testing \"run\" block.",
+		Detail:   "The \"check\" object can only be referenced from an \"expect_failures\" attribute within a OpenTofu testing \"run\" block.",
 		Subject:  rng.ToHCL().Ptr(),
 	})
 	return cty.NilVal, diags

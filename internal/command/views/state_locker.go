@@ -59,7 +59,7 @@ func (v *StateLockerJSON) Locking() {
 	json_data := map[string]string{
 		"@level":     "info",
 		"@message":   "Acquiring state lock. This may take a few moments...",
-		"@module":    "opentf.ui",
+		"@module":    "tofu.ui",
 		"@timestamp": current_timestamp,
 		"type":       "state_lock_acquire"}
 
@@ -73,7 +73,7 @@ func (v *StateLockerJSON) Unlocking() {
 	json_data := map[string]string{
 		"@level":     "info",
 		"@message":   "Releasing state lock. This may take a few moments...",
-		"@module":    "opentf.ui",
+		"@module":    "tofu.ui",
 		"@timestamp": current_timestamp,
 		"type":       "state_lock_release"}
 

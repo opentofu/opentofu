@@ -67,14 +67,14 @@ func NewProvider(hostname svchost.Hostname, namespace, typeName string) Provider
 // As a special case, the string "terraform" maps to
 // "terraform.io/builtin/terraform" because that is the more likely user
 // intent than the now-unmaintained "registry.terraform.io/hashicorp/terraform"
-// which remains only for compatibility with older OpenTF versions.
+// which remains only for compatibility with older OpenTofu versions.
 func ImpliedProviderForUnqualifiedType(typeName string) Provider {
 	switch typeName {
 	case "terraform":
 		// Note for future maintainers: any additional strings we add here
 		// as implied to be builtin must never also be use as provider names
 		// in the registry.terraform.io/hashicorp/... namespace, because
-		// otherwise older versions of OpenTF could implicitly select
+		// otherwise older versions of OpenTofu could implicitly select
 		// the registry name instead of the internal one.
 		return NewBuiltInProvider(typeName)
 	default:
