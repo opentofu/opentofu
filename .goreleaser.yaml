@@ -1,4 +1,5 @@
-project_name: opentf
+---
+project_name: opentofu
 
 before:
   hooks:
@@ -16,7 +17,7 @@ builds:
 
     ldflags:
       - "-s -w"
-      - "-X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'"
+      - "-X 'github.com/opentofu/opentofu/version.dev=no'"
 
     goos:
       - linux
@@ -65,17 +66,17 @@ dockers:
       - "--pull"
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTF"
-      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
       - "--label=org.opencontainers.image.licenses=MPL-2.0"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
     image_templates:
-      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64"
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-amd64"
 
   - use: buildx
     goarch: arm64
@@ -83,17 +84,17 @@ dockers:
       - "--pull"
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTF"
-      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
       - "--label=org.opencontainers.image.licenses=MPL-2.0"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
     image_templates:
-      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64"
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-arm64"
 
   - use: buildx
     goarch: arm
@@ -101,17 +102,17 @@ dockers:
       - "--pull"
       - "--platform=linux/arm"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTF"
-      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
       - "--label=org.opencontainers.image.licenses=MPL-2.0"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
     image_templates:
-      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-arm"
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-arm"
 
   - use: buildx
     goarch: "386"
@@ -119,46 +120,46 @@ dockers:
       - "--pull"
       - "--platform=linux/386"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTF"
-      - "--label=org.opencontainers.image.description=OpenTF {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentffoundation/opentf"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentffoundation/opentf/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentffoundation/opentf"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
       - "--label=org.opencontainers.image.licenses=MPL-2.0"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
       - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
     image_templates:
-      - "ghcr.io/opentffoundation/opentf:{{ .Version }}-386"
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-386"
 
 docker_manifests:
-  - name_template: ghcr.io/opentffoundation/opentf:v{{ .Version }}
+  - name_template: ghcr.io/opentofu/opentofu:v{{ .Version }}
     image_templates:
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
 
-  - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}
+  - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}
     image_templates:
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
 
-  - name_template: ghcr.io/opentffoundation/opentf:{{ .Major }}.{{ .Minor }}
+  - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}.{{ .Minor }}
     image_templates:
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
 
-  - name_template: ghcr.io/opentffoundation/opentf:latest
+  - name_template: ghcr.io/opentofu/opentofu:latest
     image_templates:
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-amd64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm64
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-arm
-      - ghcr.io/opentffoundation/opentf:{{ .Version }}-386
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
