@@ -4,7 +4,7 @@
 #
 # If you want to test this locally you'll need to set the three arguments
 # to values realistic for what the hashicorp/actions-docker-build GitHub
-# action would set, and ensure that there's a suitable "opentf" executable
+# action would set, and ensure that there's a suitable "tofu" executable
 # in the dist/linux/${TARGETARCH} directory.
 
 FROM docker.mirror.hashicorp.services/alpine:latest AS default
@@ -13,21 +13,21 @@ FROM docker.mirror.hashicorp.services/alpine:latest AS default
 # action, which sets these appropriately based on context.
 ARG PRODUCT_VERSION=UNSPECIFIED
 ARG PRODUCT_REVISION=UNSPECIFIED
-ARG BIN_NAME=opentf
+ARG BIN_NAME=tofu
 
 # This argument is set by the Docker toolchain itself, to the name
 # of the CPU architecture we're building an image for.
-# Our caller should've extracted the corresponding "opentf" executable
+# Our caller should've extracted the corresponding "tofu" executable
 # into dist/linux/${TARGETARCH} for us to use.
 ARG TARGETARCH
 
-LABEL maintainer="OpenTF Team"
+LABEL maintainer="OpenTofu Team"
 
 # New standard version label.
 LABEL version=$PRODUCT_VERSION
 
-# Historical OpenTF-specific label preserved for backward compatibility.
-LABEL "com.opentf.version"="${PRODUCT_VERSION}"
+# Historical OpenTofu-specific label preserved for backward compatibility.
+LABEL "com.tofu.version"="${PRODUCT_VERSION}"
 
 RUN apk add --no-cache git openssh
 
@@ -36,6 +36,6 @@ RUN apk add --no-cache git openssh
 # directory before running "docker build", which we'll then copy into the
 # Docker image to make sure that we use an identical binary as all of the
 # other official release channels.
-COPY ["dist/linux/${TARGETARCH}/opentf", "/bin/opentf"]
+COPY ["dist/linux/${TARGETARCH}/tofu", "/bin/tofu"]
 
-ENTRYPOINT ["/bin/opentf"]
+ENTRYPOINT ["/bin/tofu"]

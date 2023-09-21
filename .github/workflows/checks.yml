@@ -100,7 +100,7 @@ jobs:
 
   e2e-tests:
     # This is an intentionally-limited form of our E2E test run which only
-    # covers OpenTF running on Linux. The build.yml workflow runs these
+    # covers OpenTofu running on Linux. The build.yml workflow runs these
     # tests across various other platforms in order to catch the rare exception
     # that might leak through this.
     name: "End-to-end Tests"
