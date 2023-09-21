@@ -62,7 +62,7 @@ archives:
 dockers:
   - use: buildx
     goarch: amd64
-    build_flag_templates:
+    build_flag_templates: &default-container-labels
       - "--pull"
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.title={{ .ProjectName }}"
@@ -80,86 +80,38 @@ dockers:
 
   - use: buildx
     goarch: arm64
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTofu"
-      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
-      - "--label=org.opencontainers.image.licenses=MPL-2.0"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    build_flag_templates: *default-container-labels
     image_templates:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-arm64"
 
   - use: buildx
     goarch: arm
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTofu"
-      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
-      - "--label=org.opencontainers.image.licenses=MPL-2.0"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    build_flag_templates: *default-container-labels
     image_templates:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-arm"
 
   - use: buildx
     goarch: "386"
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/386"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.vendor=OpenTofu"
-      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
-      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
-      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
-      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
-      - "--label=org.opencontainers.image.licenses=MPL-2.0"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    build_flag_templates: *default-container-labels
     image_templates:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-386"
 
 docker_manifests:
   - name_template: ghcr.io/opentofu/opentofu:v{{ .Version }}
-    image_templates:
+    image_templates: &default-image-templates
       - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
 
   - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}
-    image_templates:
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    image_templates: *default-image-templates
 
   - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}.{{ .Minor }}
-    image_templates:
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    image_templates: *default-image-templates
 
   - name_template: ghcr.io/opentofu/opentofu:latest
-    image_templates:
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    image_templates: *default-image-templates
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
