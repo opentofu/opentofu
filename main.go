@@ -249,6 +249,14 @@ func realMain() int {
 		initCommands(ctx, originalWd, streams, config, services, providerSrc, providerDevOverrides, unmanagedProviders)
 	}
 
+	// Attempt to ensure the config directory exists.
+	configDir, err := cliconfig.ConfigDir()
+	if err != nil {
+		log.Printf("[ERROR] Failed to find the path to the config directory: %v", err)
+	} else if err := mkConfigDir(configDir); err != nil {
+		log.Printf("[ERROR] Failed to create the config directory at path %s: %v", configDir, err)
+	}
+
 	// Make sure we clean up any managed plugins at the end of this
 	defer plugin.CleanupClients()
 
@@ -490,4 +498,23 @@ func extractChdirOption(args []string) (string, []string, error) {
 	copy(newArgs, args[:argPos])
 	copy(newArgs[argPos:], args[argPos+1:])
 	return argValue, newArgs, nil
+}
+
+// Creates the the configuration directory.
+// `configDir` should refer to `~/.terraform.d` or its equivalent
+// on non-UNIX platforms.
+func mkConfigDir(configDir string) error {
+	err := os.Mkdir(configDir, os.ModePerm)
+
+	if err == nil {
+		log.Printf("[DEBUG] Created the config directory: %s", configDir)
+		return nil
+	}
+
+	if os.IsExist(err) {
+		log.Printf("[DEBUG] Found the config directory: %s", configDir)
+		return nil
+	}
+
+	return err
 }
