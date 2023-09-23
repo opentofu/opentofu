@@ -1,14 +1,14 @@
-{
-	"name": "Go",
+0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
+	"name": "Go",0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
 	"image": "mcr.microsoft.com/devcontainers/go:1-1.20-bullseye",
-	"customizations": {
-		"vscode": {
+	"customizations": {0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
+		"vscode": {0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
 			"extensions": [
 				"golang.Go"
-			]
-		}
-	},
-	"postStartCommand": {
+			]0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
+		}0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
+	},0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
+	"postStartCommand": {0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
 		"safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}"
-	}
-}
+	}0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
+}0xbAaBA861464F25f52c2eE10CC3AC024F4f77812a
