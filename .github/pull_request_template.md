@@ -18,21 +18,7 @@ All Pull Requests must have an issue attached to them
 
 Resolves #
 
-## Target Release
 
-<!--
-
-In normal circumstances we only target changes at the upcoming minor
-release, or as a patch to the current minor version. If you need to
-port a security fix to an older release, highlight this here by listing
-all targeted releases.
-
-If targeting the next patch release, also add the relevant x.y-backport
-label to enable the backport bot.
-
--->
-
-1.6.0
 
 ## Draft CHANGELOG entry
 
