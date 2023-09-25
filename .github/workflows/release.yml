@@ -50,6 +50,17 @@ jobs:
         with:
           cosign-release: v2.2.0
 
+      - name: Setup snapcraft
+        run: |
+          sudo snap install snapcraft --classic --channel=7.x/stable
+          snapcraft login
+
+          # See https://github.com/goreleaser/goreleaser/issues/1715
+          mkdir -p "$HOME/.cache/snapcraft/download"
+          mkdir -p "$HOME/.cache/snapcraft/stage-packages"
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:

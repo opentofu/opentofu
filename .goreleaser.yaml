@@ -179,6 +179,22 @@ nfpms:
         file_info:
           mode: 0444
 
+snapcrafts:
+  - name: opentofu
+    publish: true
+    summary: OpenTofu lets you declaratively manage your cloud infrastructure.
+    description: |
+      OpenTofu is an OSS tool for building, changing, and versioning infrastructure
+      safely and efficiently. OpenTofu can manage existing and popular service
+      providers as well as custom in-house solutions.
+    base: core22
+    grade: stable
+    confinement: classic
+    license: MPL-2.0
+    apps:
+      tofu:
+        command: tofu
+
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
 
