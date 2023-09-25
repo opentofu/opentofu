@@ -110,8 +110,7 @@ const (
 func (v *InputValue) GoString() string {
 	if (v.SourceRange != tfdiags.SourceRange{}) {
 		return fmt.Sprintf(
-			"&tofu.InputValue{Value: %#v, SourceType: %#v, SourceRange: %#v}", v.Value, v.SourceType,
-			v.SourceRange,
+			"&tofu.InputValue{Value: %#v, SourceType: %#v, SourceRange: %#v}", v.Value, v.SourceType, v.SourceRange,
 		)
 	} else {
 		return fmt.Sprintf("&tofu.InputValue{Value: %#v, SourceType: %#v}", v.Value, v.SourceType)
