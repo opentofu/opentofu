@@ -117,10 +117,10 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	par := opts.Parallelism
 	if par < 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid parallelism value",
-				fmt.Sprintf("The parallelism must be a positive value. Not %d.", par),
-			))
+			tfdiags.Error,
+			"Invalid parallelism value",
+			fmt.Sprintf("The parallelism must be a positive value. Not %d.", par),
+		))
 		return nil, diags
 	}
 
@@ -151,10 +151,10 @@ func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas
 	ret, err := loadSchemas(config, state, c.plugins)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Failed to load plugin schemas",
-				fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
-			))
+			tfdiags.Error,
+			"Failed to load plugin schemas",
+			fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
+		))
 		return nil, diags
 	}
 	return ret, diags
@@ -356,24 +356,24 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 		if !c.plugins.HasProvider(providerAddr) {
 			if !providerAddr.IsBuiltIn() {
 				diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Missing required provider",
-						fmt.Sprintf(
-							"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
-							providerAddr,
-						),
-					))
+					tfdiags.Error,
+					"Missing required provider",
+					fmt.Sprintf(
+						"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
+						providerAddr,
+					),
+				))
 			} else {
 				// Built-in providers can never be installed by "tofu init",
 				// so no point in confusing the user by suggesting that.
 				diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Missing required provider",
-						fmt.Sprintf(
-							"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
-							providerAddr,
-						),
-					))
+					tfdiags.Error,
+					"Missing required provider",
+					fmt.Sprintf(
+						"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
+						providerAddr,
+					),
+				))
 			}
 		}
 	}
@@ -382,32 +382,32 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// because they are in many ways a legacy system. We need to go hunting
 	// for them more directly in the configuration.
 	config.DeepEach(func(modCfg *configs.Config) {
-			if modCfg == nil || modCfg.Module == nil {
-				return // should not happen, but we'll be robust
+		if modCfg == nil || modCfg.Module == nil {
+			return // should not happen, but we'll be robust
+		}
+		for _, rc := range modCfg.Module.ManagedResources {
+			if rc.Managed == nil {
+				continue // should not happen, but we'll be robust
 			}
-			for _, rc := range modCfg.Module.ManagedResources {
-				if rc.Managed == nil {
-					continue // should not happen, but we'll be robust
-				}
-				for _, pc := range rc.Managed.Provisioners {
-					if !c.plugins.HasProvisioner(pc.Type) {
-						// This is not a very high-quality error, because really
-						// the caller of tofu.NewContext should've already
-						// done equivalent checks when doing plugin discovery.
-						// This is just to make sure we return a predictable
-						// error in a central place, rather than failing somewhere
-						// later in the non-deterministically-ordered graph walk.
-						diags = diags.Append(tfdiags.Sourceless(
-								tfdiags.Error,
-								"Missing required provisioner plugin",
-								fmt.Sprintf(
-									"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
-									pc.Type,
-								),
-							))
-					}
+			for _, pc := range rc.Managed.Provisioners {
+				if !c.plugins.HasProvisioner(pc.Type) {
+					// This is not a very high-quality error, because really
+					// the caller of tofu.NewContext should've already
+					// done equivalent checks when doing plugin discovery.
+					// This is just to make sure we return a predictable
+					// error in a central place, rather than failing somewhere
+					// later in the non-deterministically-ordered graph walk.
+					diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Error,
+							"Missing required provisioner plugin",
+							fmt.Sprintf(
+								"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
+								pc.Type,
+							),
+						))
 				}
 			}
+		}
 	})
 
 	// Because we were doing a lot of map iteration above, and we're only
