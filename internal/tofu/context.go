@@ -47,12 +47,12 @@ type ContextOpts struct {
 
 // ContextMeta is metadata about the running context. This is information
 // that this package or structure cannot determine on its own but exposes
-// into Terraform in various ways. This must be provided by the Context
+// into OpenTofu in various ways. This must be provided by the Context
 // initializer.
 type ContextMeta struct {
 	Env string // Env is the state environment
 
-	// OriginalWorkingDir is the working directory where the Terraform CLI
+	// OriginalWorkingDir is the working directory where the OpenTofu CLI
 	// was run from, which may no longer actually be the current working
 	// directory if the user included the -chdir=... option.
 	//
@@ -66,7 +66,7 @@ type ContextMeta struct {
 	OriginalWorkingDir string
 }
 
-// Context represents all the context that Terraform needs in order to
+// Context represents all the context that OpenTofu needs in order to
 // perform operations on infrastructure. This structure is built using
 // NewContext.
 type Context struct {
@@ -101,7 +101,7 @@ type Context struct {
 func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	log.Printf("[TRACE] terraform.NewContext: starting")
+	log.Printf("[TRACE] tofu.NewContext: starting")
 
 	// Copy all the hooks and add our stop hook. We don't append directly
 	// to the Config so that we're not modifying that in-place.
@@ -116,11 +116,13 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	// We throw an error in case of negative parallelism
 	par := opts.Parallelism
 	if par < 0 {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid parallelism value",
-			fmt.Sprintf("The parallelism must be a positive value. Not %d.", par),
-		))
+		diags = diags.Append(
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid parallelism value",
+				fmt.Sprintf("The parallelism must be a positive value. Not %d.", par),
+			),
+		)
 		return nil, diags
 	}
 
@@ -130,7 +132,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 
 	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
 
-	log.Printf("[TRACE] terraform.NewContext: complete")
+	log.Printf("[TRACE] tofu.NewContext: complete")
 
 	return &Context{
 		hooks:   hooks,
@@ -150,11 +152,13 @@ func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas
 
 	ret, err := loadSchemas(config, state, c.plugins)
 	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to load plugin schemas",
-			fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
-		))
+		diags = diags.Append(
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to load plugin schemas",
+				fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
+			),
+		)
 		return nil, diags
 	}
 	return ret, diags
@@ -283,7 +287,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 
 		{
 			// Copy the providers so that a misbehaved blocking Stop doesn't
-			// completely hang Terraform.
+			// completely hang OpenTofu.
 			walker.providerLock.Lock()
 			ps := make([]providers.Interface, 0, len(walker.providerCache))
 			for _, p := range walker.providerCache {
@@ -294,7 +298,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			for _, p := range ps {
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
-				// advisory: Terraform will exit once the graph node completes.
+				// advisory: OpenTofu will exit once the graph node completes.
 				p.Stop()
 			}
 		}
@@ -311,7 +315,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			for _, p := range ps {
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
-				// advisory: Terraform will exit once the graph node completes.
+				// advisory: OpenTofu will exit once the graph node completes.
 				p.Stop()
 			}
 		}
@@ -323,7 +327,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 // checkConfigDependencies checks whether the recieving context is able to
 // support the given configuration, returning error diagnostics if not.
 //
-// Currently this function checks whether the current Terraform CLI version
+// Currently this function checks whether the current OpenTofu CLI version
 // matches the version requirements of all of the modules, and whether our
 // plugin library contains all of the plugin names/addresses needed.
 //
@@ -340,7 +344,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// This checks the Terraform CLI version constraints specified in all of
+	// This checks the OpenTofu CLI version constraints specified in all of
 	// the modules.
 	diags = diags.Append(CheckCoreVersionRequirements(config))
 
@@ -355,25 +359,29 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	for providerAddr := range providerReqs {
 		if !c.plugins.HasProvider(providerAddr) {
 			if !providerAddr.IsBuiltIn() {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Missing required provider",
-					fmt.Sprintf(
-						"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
-						providerAddr,
+				diags = diags.Append(
+					tfdiags.Sourceless(
+						tfdiags.Error,
+						"Missing required provider",
+						fmt.Sprintf(
+							"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
+							providerAddr,
+						),
 					),
-				))
+				)
 			} else {
 				// Built-in providers can never be installed by "tofu init",
 				// so no point in confusing the user by suggesting that.
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Missing required provider",
-					fmt.Sprintf(
-						"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
-						providerAddr,
+				diags = diags.Append(
+					tfdiags.Sourceless(
+						tfdiags.Error,
+						"Missing required provider",
+						fmt.Sprintf(
+							"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
+							providerAddr,
+						),
 					),
-				))
+				)
 			}
 		}
 	}
@@ -381,34 +389,38 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// Our handling of provisioners is much less sophisticated than providers
 	// because they are in many ways a legacy system. We need to go hunting
 	// for them more directly in the configuration.
-	config.DeepEach(func(modCfg *configs.Config) {
-		if modCfg == nil || modCfg.Module == nil {
-			return // should not happen, but we'll be robust
-		}
-		for _, rc := range modCfg.Module.ManagedResources {
-			if rc.Managed == nil {
-				continue // should not happen, but we'll be robust
+	config.DeepEach(
+		func(modCfg *configs.Config) {
+			if modCfg == nil || modCfg.Module == nil {
+				return // should not happen, but we'll be robust
 			}
-			for _, pc := range rc.Managed.Provisioners {
-				if !c.plugins.HasProvisioner(pc.Type) {
-					// This is not a very high-quality error, because really
-					// the caller of terraform.NewContext should've already
-					// done equivalent checks when doing plugin discovery.
-					// This is just to make sure we return a predictable
-					// error in a central place, rather than failing somewhere
-					// later in the non-deterministically-ordered graph walk.
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Missing required provisioner plugin",
-						fmt.Sprintf(
-							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
-							pc.Type,
-						),
-					))
+			for _, rc := range modCfg.Module.ManagedResources {
+				if rc.Managed == nil {
+					continue // should not happen, but we'll be robust
+				}
+				for _, pc := range rc.Managed.Provisioners {
+					if !c.plugins.HasProvisioner(pc.Type) {
+						// This is not a very high-quality error, because really
+						// the caller of tofu.NewContext should've already
+						// done equivalent checks when doing plugin discovery.
+						// This is just to make sure we return a predictable
+						// error in a central place, rather than failing somewhere
+						// later in the non-deterministically-ordered graph walk.
+						diags = diags.Append(
+							tfdiags.Sourceless(
+								tfdiags.Error,
+								"Missing required provisioner plugin",
+								fmt.Sprintf(
+									"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
+									pc.Type,
+								),
+							),
+						)
+					}
 				}
 			}
-		}
-	})
+		},
+	)
 
 	// Because we were doing a lot of map iteration above, and we're only
 	// generating sourceless diagnostics anyway, our diagnostics will not be
@@ -416,18 +428,20 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// multiple errors to report, we'll sort these particular diagnostics
 	// so they are at least always consistent alone. This ordering is
 	// arbitrary and not a compatibility constraint.
-	sort.Slice(diags, func(i, j int) bool {
-		// Because these are sourcelss diagnostics and we know they are all
-		// errors, we know they'll only differ in their description fields.
-		descI := diags[i].Description()
-		descJ := diags[j].Description()
-		switch {
-		case descI.Summary != descJ.Summary:
-			return descI.Summary < descJ.Summary
-		default:
-			return descI.Detail < descJ.Detail
-		}
-	})
+	sort.Slice(
+		diags, func(i, j int) bool {
+			// Because these are sourcelss diagnostics and we know they are all
+			// errors, we know they'll only differ in their description fields.
+			descI := diags[i].Description()
+			descJ := diags[j].Description()
+			switch {
+			case descI.Summary != descJ.Summary:
+				return descI.Summary < descJ.Summary
+			default:
+				return descI.Detail < descJ.Detail
+			}
+		},
+	)
 
 	return diags
 }
