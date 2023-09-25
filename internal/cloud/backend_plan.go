@@ -116,7 +116,7 @@ func (b *Cloud) plan(stopCtx, cancelCtx context.Context, op *backend.Operation, 
 		b.CLI.Output(b.Colorize().Color(strings.TrimSpace(header) + "\n"))
 	}
 
-	// Plan-only means they ran terraform plan without -out.
+	// Plan-only means they ran tofu plan without -out.
 	provisional := op.PlanOutPath != ""
 	planOnly := op.Type == backend.OperationTypePlan && !provisional
 

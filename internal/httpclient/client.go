@@ -11,7 +11,7 @@ import (
 )
 
 // New returns the DefaultPooledClient from the cleanhttp
-// package that will also send a Terraform User-Agent string.
+// package that will also send a OpenTofu User-Agent string.
 func New() *http.Client {
 	cli := cleanhttp.DefaultPooledClient()
 	cli.Transport = &userAgentRoundTripper{

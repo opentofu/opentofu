@@ -1,5 +1,5 @@
 // Package tfeserver is a test stub implementing a subset of the TFE API used
-// only for the testing of the "terraform login" command.
+// only for the testing of the "tofu login" command.
 package tfeserver
 
 import (

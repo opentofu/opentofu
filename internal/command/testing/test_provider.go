@@ -51,7 +51,7 @@ var (
 	}
 )
 
-// TestProvider is a wrapper around terraform.MockProvider that defines dynamic
+// TestProvider is a wrapper around tofu.MockProvider that defines dynamic
 // schemas, and keeps track of the resources and data sources that it contains.
 type TestProvider struct {
 	Provider *tofu.MockProvider

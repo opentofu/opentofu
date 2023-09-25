@@ -463,7 +463,7 @@ func (c *StateMvCommand) sourceObjectAddrs(state *states.State, matched addrs.Ta
 		// If this refers to a resource without "count" or "for_each" set then
 		// we'll assume the user intended it to be a resource instance
 		// address instead, to allow for requests like this:
-		//   terraform state mv aws_instance.foo aws_instance.bar[1]
+		//   tofu state mv aws_instance.foo aws_instance.bar[1]
 		// That wouldn't be allowed if aws_instance.foo had multiple instances
 		// since we can't move multiple instances into one.
 		if rs := state.Resource(addr); rs != nil {

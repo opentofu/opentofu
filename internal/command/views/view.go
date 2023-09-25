@@ -20,7 +20,7 @@ type View struct {
 
 	compactWarnings bool
 
-	// When this is true it's a hint that Terraform is being run indirectly
+	// When this is true it's a hint that OpenTofu is being run indirectly
 	// via a wrapper script or other automation and so we may wish to replace
 	// direct examples of commands to run with more conceptual directions.
 	// However, we only do this on a best-effort basis, typically prioritizing

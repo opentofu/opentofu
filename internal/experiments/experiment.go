@@ -75,7 +75,7 @@ func (e Experiment) IsConcluded() bool {
 }
 
 // currentExperiments are those which are available to activate in the current
-// version of Terraform.
+// version of OpenTofu.
 //
 // Members of this set are registered in the init function above.
 var currentExperiments = make(Set)

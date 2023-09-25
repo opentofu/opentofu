@@ -29,7 +29,7 @@ var defaultInputWriter io.Writer
 var testInputResponse []string
 var testInputResponseMap map[string]string
 
-// UIInput is an implementation of terraform.UIInput that asks the CLI
+// UIInput is an implementation of tofu.UIInput that asks the CLI
 // for input stdin.
 type UIInput struct {
 	// Colorize will color the output.
@@ -67,7 +67,7 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 		w = os.Stdout
 	}
 
-	// Make sure we only ask for input once at a time. Terraform
+	// Make sure we only ask for input once at a time. OpenTofu
 	// should enforce this, but it doesn't hurt to verify.
 	i.l.Lock()
 	defer i.l.Unlock()

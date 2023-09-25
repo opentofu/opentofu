@@ -24,7 +24,7 @@ import (
 )
 
 // ImportCommand is a cli.Command implementation that imports resources
-// into the Terraform state.
+// into the OpenTofu state.
 type ImportCommand struct {
 	Meta
 }
@@ -112,7 +112,7 @@ func (c *ImportCommand) Run(args []string) int {
 
 	// Verify that the given address points to something that exists in config.
 	// This is to reduce the risk that a typo in the resource address will
-	// import something that Terraform will want to immediately destroy on
+	// import something that OpenTofu will want to immediately destroy on
 	// the next plan, and generally acts as a reassurance of user intent.
 	targetConfig := config.DescendentForInstance(addr.Module)
 	if targetConfig == nil {
@@ -206,7 +206,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 	opReq.View = views.NewOperation(arguments.ViewHuman, c.RunningInAutomation, c.View)
 
-	// Check remote Terraform version is compatible
+	// Check remote OpenTofu version is compatible
 	remoteVersionDiags := c.remoteVersionCheck(b, opReq.Workspace)
 	diags = diags.Append(remoteVersionDiags)
 	c.showDiagnostics(diags)

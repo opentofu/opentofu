@@ -334,7 +334,7 @@ func TestInit_backendConfigFile(t *testing.T) {
 		}
 	})
 
-	// the backend config file must not be a full terraform block
+	// the backend config file must not be a full tofu block
 	t.Run("full-backend-config-file", func(t *testing.T) {
 		ui := new(cli.MockUi)
 		view, _ := testView(t)

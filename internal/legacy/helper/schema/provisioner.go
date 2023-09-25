@@ -14,11 +14,11 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
-// Provisioner represents a resource provisioner in Terraform and properly
+// Provisioner represents a resource provisioner in OpenTofu and properly
 // implements all of the ResourceProvisioner API.
 //
 // This higher level structure makes it much easier to implement a new or
-// custom provisioner for Terraform.
+// custom provisioner for OpenTofu.
 //
 // The function callbacks for this structure are all passed a context object.
 // This context object has a number of pre-defined values that can be accessed
@@ -66,7 +66,7 @@ var (
 	// Guaranteed to never be nil.
 	ProvConfigDataKey = contextKey("provider config data")
 
-	// This returns a terraform.UIOutput. Guaranteed to never be nil.
+	// This returns a tofu.UIOutput. Guaranteed to never be nil.
 	ProvOutputKey = contextKey("provider output")
 
 	// This returns the raw InstanceState passed to Apply. Guaranteed to
@@ -138,7 +138,7 @@ func (p *Provisioner) Apply(
 
 	{
 		// We first need to turn the connection information into a
-		// terraform.ResourceConfig so that we can use that type to more
+		// tofu.ResourceConfig so that we can use that type to more
 		// easily build a ResourceData structure. We do this by simply treating
 		// the conn info as configuration input.
 		raw := make(map[string]interface{})

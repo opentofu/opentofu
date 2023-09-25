@@ -1487,7 +1487,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 			Check: func(t *testing.T, dir *Dir, locks *depsfile.Locks) {
 				// Built-in providers are neither included in the cache
 				// directory nor mentioned in the lock file, because they
-				// are compiled directly into the Terraform executable.
+				// are compiled directly into the OpenTofu executable.
 				if allCached := dir.AllAvailablePackages(); len(allCached) != 0 {
 					t.Errorf("wrong number of cache directory entries; want none\n%s", spew.Sdump(allCached))
 				}

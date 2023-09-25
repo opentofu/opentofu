@@ -58,7 +58,7 @@ var (
 	}
 )
 
-// mockInput is a mock implementation of terraform.UIInput.
+// mockInput is a mock implementation of tofu.UIInput.
 type mockInput struct {
 	answers map[string]string
 }

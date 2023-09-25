@@ -111,7 +111,7 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 }
 
 // dirIsConfigPath checks if the given path is a directory that contains at
-// least one Terraform configuration file (.tf or .tf.json), returning true
+// least one OpenTofu configuration file (.tf or .tf.json), returning true
 // if so.
 //
 // In the unlikely event that the underlying config loader cannot be initalized,
@@ -348,7 +348,7 @@ func (m *Meta) registerSynthConfigSource(filename string, src []byte) {
 // If the loader cannot be created for some reason then an error is returned
 // and no loader is created. Subsequent calls will presumably see the same
 // error. Loader initialization errors will tend to prevent any further use
-// of most Terraform features, so callers should report any error and safely
+// of most OpenTofu features, so callers should report any error and safely
 // terminate.
 func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	if m.configLoader == nil {

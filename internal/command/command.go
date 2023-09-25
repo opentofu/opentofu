@@ -23,8 +23,8 @@ const PluginPathFile = "plugin_path"
 const pluginMachineName = runtime.GOOS + "_" + runtime.GOARCH
 
 // DefaultPluginVendorDir is the location in the config directory to look for
-// user-added plugin binaries. Terraform only reads from this path if it
-// exists, it is never created by terraform.
+// user-added plugin binaries. OpenTofu only reads from this path if it
+// exists, it is never created by tofu.
 const DefaultPluginVendorDir = "terraform.d/plugins/" + pluginMachineName
 
 // DefaultStateFilename is the default filename used for the state file.

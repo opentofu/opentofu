@@ -10,7 +10,7 @@ import "github.com/opentofu/opentofu/internal/states"
 //
 // Transient snapshots are ones that are generally retained only locally and
 // to not create any historical version record when updated. Transient
-// snapshots are not expected to outlive a particular Terraform process,
+// snapshots are not expected to outlive a particular OpenTofu process,
 // and are not shared with any other process.
 //
 // A state manager type that is primarily concerned with persistent storage

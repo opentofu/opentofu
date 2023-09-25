@@ -329,7 +329,7 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 	hkCallback := ssh.InsecureIgnoreHostKey()
 
 	if opts.hostKey != "" {
-		// The knownhosts package only takes paths to files, but terraform
+		// The knownhosts package only takes paths to files, but tofu
 		// generally wants to handle config data in-memory. Rather than making
 		// the known_hosts file an exception, write out the data to a temporary
 		// file to create the HostKeyCallback.

@@ -48,7 +48,7 @@ var (
 	ProviderRe = regexp.MustCompile("^" + providerSubRe + "$")
 
 	// these hostnames are not allowed as registry sources, because they are
-	// already special case module sources in terraform.
+	// already special case module sources in tofu.
 	disallowed = map[string]bool{
 		"github.com":    true,
 		"bitbucket.org": true,

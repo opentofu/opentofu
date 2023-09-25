@@ -71,16 +71,16 @@ func (m *Meta) backendMigrateState(opts *backendMigrateOpts) error {
 	opts.destinationWorkspace = backend.DefaultStateName
 	opts.force = m.forceInitCopy
 
-	// Disregard remote Terraform version for the state source backend. If it's a
+	// Disregard remote OpenTofu version for the state source backend. If it's a
 	// Terraform Cloud remote backend, we don't care about the remote version,
 	// as we are migrating away and will not break a remote workspace.
 	m.ignoreRemoteVersionConflict(opts.Source)
 
-	// Disregard remote Terraform version if instructed to do so via CLI flag.
+	// Disregard remote OpenTofu version if instructed to do so via CLI flag.
 	if m.ignoreRemoteVersion {
 		m.ignoreRemoteVersionConflict(opts.Destination)
 	} else {
-		// Check the remote Terraform version for the state destination backend. If
+		// Check the remote OpenTofu version for the state destination backend. If
 		// it's a Terraform Cloud remote backend, we want to ensure that we don't
 		// break the workspace by uploading an incompatible state file.
 		for _, workspace := range destinationWorkspaces {

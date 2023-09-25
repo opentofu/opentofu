@@ -297,7 +297,7 @@ func MarshalForLog(
 	return output, nil
 }
 
-// Marshal returns the json encoding of a terraform plan.
+// Marshal returns the json encoding of a tofu plan.
 func Marshal(
 	config *configs.Config,
 	p *plans.Plan,

@@ -36,7 +36,7 @@ func NewValidate(vt arguments.ViewType, view *View) Validate {
 }
 
 // The ValidateHuman implementation renders diagnostics in a human-readable form,
-// along with a success/failure message if Terraform is able to execute the
+// along with a success/failure message if OpenTofu is able to execute the
 // validation walk.
 type ValidateHuman struct {
 	view *View

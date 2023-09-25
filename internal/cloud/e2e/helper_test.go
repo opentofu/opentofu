@@ -271,7 +271,7 @@ func skipWithoutRemoteTerraformVersion(t *testing.T) {
 
 findTfVersion:
 	for {
-		// TODO: update go-tfe Read() to retrieve a terraform version by name.
+		// TODO: update go-tfe Read() to retrieve a tofu version by name.
 		// Currently you can only retrieve by ID.
 		tfVersionList, err := tfeClient.Admin.TerraformVersions.List(context.Background(), opts)
 		if err != nil {

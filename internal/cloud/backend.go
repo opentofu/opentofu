@@ -46,7 +46,7 @@ const (
 )
 
 // Cloud is an implementation of EnhancedBackend in service of the cloud backend
-// integration for Terraform CLI. This backend is not intended to be surfaced at the user level and
+// integration for OpenTofu CLI. This backend is not intended to be surfaced at the user level and
 // is instead an implementation detail of cloud.Cloud.
 type Cloud struct {
 	// CLI and Colorize control the CLI output. If CLI is nil then no CLI
@@ -55,7 +55,7 @@ type Cloud struct {
 	CLIColor *colorstring.Colorize
 
 	// ContextOpts are the base context options to set when initializing a
-	// new Terraform context. Many of these will be overridden or merged by
+	// new OpenTofu context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
 	ContextOpts *tofu.ContextOpts
 
@@ -94,7 +94,7 @@ type Cloud struct {
 	opLock sync.Mutex
 
 	// ignoreVersionConflict, if true, will disable the requirement that the
-	// local Terraform version matches the remote workspace's configured
+	// local OpenTofu version matches the remote workspace's configured
 	// version. This will also cause VerifyWorkspaceTerraformVersion to return
 	// a warning diagnostic instead of an error.
 	ignoreVersionConflict bool
@@ -362,7 +362,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
 		log.Printf("[TRACE] API version check failed; want: >= %s, got: %s", desiredAPIVersion.Original(), currentAPIVersion)
 		if b.runningInAutomation {
-			// It should never be possible for this Terraform process to be mistakenly
+			// It should never be possible for this OpenTofu process to be mistakenly
 			// used internally within an unsupported Terraform Enterprise install - but
 			// just in case it happens, give an actionable error.
 			diags = diags.Append(
@@ -699,7 +699,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 
 		remoteTFVersion = workspace.TerraformVersion
 
-		// Attempt to set the new workspace to use this version of Terraform. This
+		// Attempt to set the new workspace to use this version of OpenTofu. This
 		// can fail if there's no enabled tool_version whose name matches our
 		// version string, but that's expected sometimes -- just warn and continue.
 		versionOptions := tfe.WorkspaceUpdateOptions{
@@ -914,8 +914,8 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 }
 
 // IgnoreVersionConflict allows commands to disable the fall-back check that
-// the local Terraform version matches the remote workspace's configured
-// Terraform version. This should be called by commands where this check is
+// the local OpenTofu version matches the remote workspace's configured
+// OpenTofu version. This should be called by commands where this check is
 // unnecessary, such as those performing remote operations, or read-only
 // operations. It will also be called if the user uses a command-line flag to
 // override this check.
@@ -923,8 +923,8 @@ func (b *Cloud) IgnoreVersionConflict() {
 	b.ignoreVersionConflict = true
 }
 
-// VerifyWorkspaceTerraformVersion compares the local Terraform version against
-// the workspace's configured Terraform version. If they are compatible, this
+// VerifyWorkspaceTerraformVersion compares the local OpenTofu version against
+// the workspace's configured OpenTofu version. If they are compatible, this
 // means that there are no state compatibility concerns, so it returns no
 // diagnostics.
 //
@@ -951,13 +951,13 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 	}
 
 	// If the workspace has the pseudo-version "latest", all bets are off. We
-	// cannot reasonably determine what the intended Terraform version is, so
+	// cannot reasonably determine what the intended OpenTofu version is, so
 	// we'll skip version verification.
 	if workspace.TerraformVersion == "latest" {
 		return nil
 	}
 
-	// If the workspace has execution-mode set to local, the remote Terraform
+	// If the workspace has execution-mode set to local, the remote OpenTofu
 	// version is effectively meaningless, so we'll skip version verification.
 	if isLocalExecutionMode(workspace.ExecutionMode) {
 		return nil

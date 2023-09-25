@@ -15,7 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// Schemas is a container for various kinds of schema that Terraform needs
+// Schemas is a container for various kinds of schema that OpenTofu needs
 // during processing.
 type Schemas struct {
 	Providers    map[addrs.Provider]*ProviderSchema

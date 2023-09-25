@@ -26,7 +26,7 @@ type config struct {
 
 // ProviderConfig describes all of the provider configurations throughout the
 // configuration tree, flattened into a single map for convenience since
-// provider configurations are the one concept in Terraform that can span across
+// provider configurations are the one concept in OpenTofu that can span across
 // module boundaries.
 type providerConfig struct {
 	Name              string                 `json:"name,omitempty"`
@@ -119,7 +119,7 @@ type provisioner struct {
 	Expressions map[string]interface{} `json:"expressions,omitempty"`
 }
 
-// Marshal returns the json encoding of terraform configuration.
+// Marshal returns the json encoding of tofu configuration.
 func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
 	var output config
 
@@ -333,7 +333,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 			dependencies := make([]string, len(v.DependsOn))
 			for i, d := range v.DependsOn {
 				ref, diags := addrs.ParseRef(d)
-				// we should not get an error here, because `terraform validate`
+				// we should not get an error here, because `tofu validate`
 				// would have complained well before this point, but if we do we'll
 				// silenty skip it.
 				if !diags.HasErrors() {
@@ -428,7 +428,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 		dependencies := make([]string, len(mc.DependsOn))
 		for i, d := range mc.DependsOn {
 			ref, diags := addrs.ParseRef(d)
-			// we should not get an error here, because `terraform validate`
+			// we should not get an error here, because `tofu validate`
 			// would have complained well before this point, but if we do we'll
 			// silenty skip it.
 			if !diags.HasErrors() {
@@ -501,7 +501,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 			dependencies := make([]string, len(v.DependsOn))
 			for i, d := range v.DependsOn {
 				ref, diags := addrs.ParseRef(d)
-				// we should not get an error here, because `terraform validate`
+				// we should not get an error here, because `tofu validate`
 				// would have complained well before this point, but if we do we'll
 				// silenty skip it.
 				if !diags.HasErrors() {
