@@ -398,13 +398,13 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 					// error in a central place, rather than failing somewhere
 					// later in the non-deterministically-ordered graph walk.
 					diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Error,
-							"Missing required provisioner plugin",
-							fmt.Sprintf(
-								"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
-								pc.Type,
-							),
-						))
+						tfdiags.Error,
+						"Missing required provisioner plugin",
+						fmt.Sprintf(
+							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
+							pc.Type,
+						),
+					))
 				}
 			}
 		}
@@ -417,16 +417,16 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// so they are at least always consistent alone. This ordering is
 	// arbitrary and not a compatibility constraint.
 	sort.Slice(diags, func(i, j int) bool {
-			// Because these are sourcelss diagnostics and we know they are all
-			// errors, we know they'll only differ in their description fields.
-			descI := diags[i].Description()
-			descJ := diags[j].Description()
-			switch {
-			case descI.Summary != descJ.Summary:
-				return descI.Summary < descJ.Summary
-			default:
-				return descI.Detail < descJ.Detail
-			}
+		// Because these are sourcelss diagnostics and we know they are all
+		// errors, we know they'll only differ in their description fields.
+		descI := diags[i].Description()
+		descJ := diags[j].Description()
+		switch {
+		case descI.Summary != descJ.Summary:
+			return descI.Summary < descJ.Summary
+		default:
+			return descI.Detail < descJ.Detail
+		}
 	})
 
 	return diags
