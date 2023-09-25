@@ -178,8 +178,11 @@ func (b *TestLocalNoDefaultState) StateMgr(name string) (statemgr.Full, error) {
 }
 
 func testStateFile(t *testing.T, path string, s *states.State) {
-	stateFile := statemgr.NewFilesystem(path)
-	stateFile.WriteState(s)
+	t.Helper()
+
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path), s, nil); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func mustProviderConfig(s string) addrs.AbsProviderConfig {

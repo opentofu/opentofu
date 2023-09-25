@@ -419,8 +419,7 @@ func TestApply_defaultState(t *testing.T) {
 	}
 
 	// create an existing state file
-	localState := statemgr.NewFilesystem(statePath)
-	if err := localState.WriteState(states.NewState()); err != nil {
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath), states.NewState(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -710,8 +709,7 @@ func TestApply_plan_backup(t *testing.T) {
 	// create a state file that needs to be backed up
 	fs := statemgr.NewFilesystem(statePath)
 	fs.StateSnapshotMeta()
-	err := fs.WriteState(states.NewState())
-	if err != nil {
+	if err := statemgr.WriteAndPersist(fs, states.NewState(), nil); err != nil {
 		t.Fatal(err)
 	}
 
