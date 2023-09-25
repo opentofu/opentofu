@@ -24,7 +24,7 @@ type ResourceInstanceObjectSrc struct {
 
 	// AttrsJSON is a JSON-encoded representation of the object attributes,
 	// encoding the value (of the object type implied by the associated resource
-	// type schema) that represents this remote object in Terraform Language
+	// type schema) that represents this remote object in OpenTofu Language
 	// expressions, and is compared with configuration when producing a diff.
 	//
 	// This is retained in JSON format here because it may require preprocessing
