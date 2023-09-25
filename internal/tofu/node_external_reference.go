@@ -4,12 +4,12 @@ import "github.com/opentofu/opentofu/internal/addrs"
 
 // nodeExternalReference allows external callers (such as the testing framework)
 // to provide the list of references they are making into the graph. This
-// ensures that Terraform will not remove any nodes from the graph that might
+// ensures that OpenTofu will not remove any nodes from the graph that might
 // not be referenced from within a module but are referenced by the currently
 // executing test file.
 //
 // This should only be added to the graph if we are executing the
-// `terraform test` command.
+// `tofu test` command.
 type nodeExternalReference struct {
 	ExternalReferences []*addrs.Reference
 }

@@ -39,7 +39,7 @@ type ImportTarget struct {
 }
 
 // Import takes already-created external resources and brings them
-// under Terraform management. Import requires the exact type, name, and ID
+// under OpenTofu management. Import requires the exact type, name, and ID
 // of the resources to import.
 //
 // This operation is idempotent. If the requested resource is already

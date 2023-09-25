@@ -114,7 +114,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid planned change for deposed object",
-				fmt.Sprintf("The plan contains a non-delete change for %s deposed object %s. The only valid action for a deposed object is to destroy it, so this is a bug in Terraform.", addr, dk),
+				fmt.Sprintf("The plan contains a non-delete change for %s deposed object %s. The only valid action for a deposed object is to destroy it, so this is a bug in OpenTofu.", addr, dk),
 			))
 			continue
 		}
@@ -138,7 +138,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Invalid planned change",
-						fmt.Sprintf("The plan contains a replace change for %s, which doesn't exist yet. This is a bug in Terraform.", addr),
+						fmt.Sprintf("The plan contains a replace change for %s, which doesn't exist yet. This is a bug in OpenTofu.", addr),
 					))
 					continue
 				}

@@ -299,7 +299,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 		// (We can also get in here for unit tests which are using
 		// EvalContextMock but not populating PrevRunStateState with
 		// a suitable state object.)
-		return fmt.Errorf("state of type %s is not applicable to the current operation; this is a bug in Terraform", targetState)
+		return fmt.Errorf("state of type %s is not applicable to the current operation; this is a bug in OpenTofu", targetState)
 	}
 
 	// In spite of the name, this function also handles the non-deposed case
@@ -668,14 +668,14 @@ func (n *NodeAbstractResourceInstance) plan(
 	// If we're importing and generating config, generate it now.
 	if n.Config == nil {
 		// This shouldn't happen. A node that isn't generating config should
-		// have embedded config, and the rest of Terraform should enforce this.
+		// have embedded config, and the rest of OpenTofu should enforce this.
 		// If, however, we didn't do things correctly the next line will panic,
 		// so let's not do that and return an error message with more context.
 
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Resource has no configuration",
-			fmt.Sprintf("OpenTofu attempted to process a resource at %s that has no configuration. This is a bug in Terraform; please report it!", n.Addr.String())))
+			fmt.Sprintf("OpenTofu attempted to process a resource at %s that has no configuration. This is a bug in OpenTofu; please report it!", n.Addr.String())))
 		return nil, nil, keyData, diags
 	}
 
@@ -1695,7 +1695,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 	var plannedNewState *states.ResourceInstanceObject
 
 	// If we are a nested block, then we want to create a plannedChange that
-	// tells Terraform to reload the data block during the apply stage even if
+	// tells OpenTofu to reload the data block during the apply stage even if
 	// we managed to get the data now.
 	// Another consideration is that if we failed to load the data, we need to
 	// disguise that for a nested block. Nested blocks will report the overall
@@ -1842,7 +1842,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx EvalContext, planned 
 		// If any other action gets in here then that's always a bug; this
 		// EvalNode only deals with reading.
 		diags = diags.Append(fmt.Errorf(
-			"invalid action %s for %s: only Read is supported (this is a bug in Terraform; please report it!)",
+			"invalid action %s for %s: only Read is supported (this is a bug in OpenTofu; please report it!)",
 			planned.Action, n.Addr,
 		))
 		return nil, keyData, diags
@@ -2250,7 +2250,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Configuration contains unknown value",
-			fmt.Sprintf("configuration for %s still contains unknown values during apply (this is a bug in Terraform; please report it!)\n"+
+			fmt.Sprintf("configuration for %s still contains unknown values during apply (this is a bug in OpenTofu; please report it!)\n"+
 				"The following paths in the resource configuration are unknown:\n%s",
 				n.Addr,
 				strings.Join(unknownPaths, "\n"),
@@ -2452,7 +2452,7 @@ func (n *NodeAbstractResourceInstance) apply(
 
 	// If a provider returns a null or non-null object at the wrong time then
 	// we still want to save that but it often causes some confusing behaviors
-	// where it seems like Terraform is failing to take any action at all,
+	// where it seems like OpenTofu is failing to take any action at all,
 	// so we'll generate some errors to draw attention to it.
 	if !diags.HasErrors() {
 		if change.Action == plans.Delete && !newVal.IsNull() {

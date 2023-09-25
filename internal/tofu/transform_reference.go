@@ -17,7 +17,7 @@ import (
 )
 
 // GraphNodeReferenceable must be implemented by any node that represents
-// a Terraform thing that can be referenced (resource, module, etc.).
+// a OpenTofu thing that can be referenced (resource, module, etc.).
 //
 // Even if the thing has no name, this should return an empty list. By
 // implementing this and returning a non-nil result, you say that this CAN
@@ -32,7 +32,7 @@ type GraphNodeReferenceable interface {
 }
 
 // GraphNodeReferencer must be implemented by nodes that reference other
-// Terraform items and therefore depend on them.
+// OpenTofu items and therefore depend on them.
 type GraphNodeReferencer interface {
 	GraphNodeModulePath
 

@@ -15,7 +15,7 @@ import (
 // for evaluating in-memory values (input variables, local values, output
 // values) in the state without any other side-effects.
 //
-// This graph is used only in weird cases, such as the "terraform console"
+// This graph is used only in weird cases, such as the "tofu console"
 // CLI command, where we need to evaluate expressions against the state
 // without taking any other actions.
 //

@@ -44,7 +44,7 @@ func (t *OrphanResourceInstanceTransformer) Transform(g *Graph) error {
 		return nil
 	}
 	if t.Config == nil {
-		// Should never happen: we can't be doing any Terraform operations
+		// Should never happen: we can't be doing any OpenTofu operations
 		// without at least an empty configuration.
 		panic("OrphanResourceInstanceTransformer used without setting Config")
 	}

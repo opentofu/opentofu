@@ -15,7 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 )
 
-// stopHook is a private Hook implementation that Terraform uses to
+// stopHook is a private Hook implementation that OpenTofu uses to
 // signal when to stop or cancel actions.
 type stopHook struct {
 	stop uint32

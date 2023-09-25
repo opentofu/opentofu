@@ -16,7 +16,7 @@ import (
 // then taking the prior state of the resulting plan.
 //
 // We retain this only as a measure of semi-backward-compatibility for
-// automation relying on the "terraform refresh" subcommand. The modern way
+// automation relying on the "tofu refresh" subcommand. The modern way
 // to get this effect is to create and then apply a plan in the refresh-only
 // mode.
 func (c *Context) Refresh(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*states.State, tfdiags.Diagnostics) {

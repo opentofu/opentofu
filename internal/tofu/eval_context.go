@@ -22,7 +22,7 @@ import (
 // EvalContext is the interface that is given to eval nodes to execute.
 type EvalContext interface {
 	// Stopped returns a channel that is closed when evaluation is stopped
-	// via Terraform.Context.Stop()
+	// via tofu.Context.Stop()
 	Stopped() <-chan struct{}
 
 	// Path is the current module path.

@@ -6718,7 +6718,7 @@ resource "test_instance" "a" {
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		plan := req.ProposedNewState.AsValueMap()
 		// Update both the computed id and the configured data.
-		// Legacy providers expect terraform to be able to ignore these.
+		// Legacy providers expect tofu to be able to ignore these.
 
 		plan["id"] = cty.StringVal("updated")
 		plan["data"] = cty.StringVal("updated")

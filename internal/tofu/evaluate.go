@@ -258,7 +258,7 @@ func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfd
 	// be complicated to accommodate all possible inputs, whereas returning
 	// unknown here allows for simpler patterns like using input values as
 	// guards to broadly enable/disable resources, avoid processing things
-	// that are disabled, etc. Terraform's static validation leans towards
+	// that are disabled, etc. OpenTofu's static validation leans towards
 	// being liberal in what it accepts because the subsequent plan walk has
 	// more information available and so can be more conservative.
 	if d.Operation == walkValidate {
@@ -292,7 +292,7 @@ func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfd
 			Severity: hcl.DiagError,
 			Summary:  `Reference to unresolved input variable`,
 			Detail: fmt.Sprintf(
-				`The final value for %s is missing in Terraform's evaluation context. This is a bug in Terraform; please report it!`,
+				`The final value for %s is missing in OpenTofu's evaluation context. This is a bug in OpenTofu; please report it!`,
 				addr.Absolute(d.ModulePath),
 			),
 			Subject: rng.ToHCL().Ptr(),
@@ -771,7 +771,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Missing pending object in plan",
-					Detail:   fmt.Sprintf("Instance %s is marked as having a change pending but that change is not recorded in the plan. This is a bug in Terraform; please report it.", instAddr),
+					Detail:   fmt.Sprintf("Instance %s is marked as having a change pending but that change is not recorded in the plan. This is a bug in OpenTofu; please report it.", instAddr),
 					Subject:  &config.DeclRange,
 				})
 				continue

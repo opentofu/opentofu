@@ -13,7 +13,7 @@ import (
 )
 
 // ApplyGraphBuilder implements GraphBuilder and is responsible for building
-// a graph for applying a Terraform diff.
+// a graph for applying a OpenTofu diff.
 //
 // Because the graph is built from the diff (vs. the config or state),
 // this helps ensure that the apply-time graph doesn't modify any resources
