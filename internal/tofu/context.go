@@ -116,13 +116,11 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	// We throw an error in case of negative parallelism
 	par := opts.Parallelism
 	if par < 0 {
-		diags = diags.Append(
-			tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid parallelism value",
 				fmt.Sprintf("The parallelism must be a positive value. Not %d.", par),
-			),
-		)
+			))
 		return nil, diags
 	}
 
@@ -152,13 +150,11 @@ func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas
 
 	ret, err := loadSchemas(config, state, c.plugins)
 	if err != nil {
-		diags = diags.Append(
-			tfdiags.Sourceless(
+		diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to load plugin schemas",
 				fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
-			),
-		)
+			))
 		return nil, diags
 	}
 	return ret, diags
@@ -359,29 +355,25 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	for providerAddr := range providerReqs {
 		if !c.plugins.HasProvider(providerAddr) {
 			if !providerAddr.IsBuiltIn() {
-				diags = diags.Append(
-					tfdiags.Sourceless(
+				diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Missing required provider",
 						fmt.Sprintf(
 							"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
 							providerAddr,
 						),
-					),
-				)
+					))
 			} else {
 				// Built-in providers can never be installed by "tofu init",
 				// so no point in confusing the user by suggesting that.
-				diags = diags.Append(
-					tfdiags.Sourceless(
+				diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Missing required provider",
 						fmt.Sprintf(
 							"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
 							providerAddr,
 						),
-					),
-				)
+					))
 			}
 		}
 	}
@@ -389,8 +381,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// Our handling of provisioners is much less sophisticated than providers
 	// because they are in many ways a legacy system. We need to go hunting
 	// for them more directly in the configuration.
-	config.DeepEach(
-		func(modCfg *configs.Config) {
+	config.DeepEach(func(modCfg *configs.Config) {
 			if modCfg == nil || modCfg.Module == nil {
 				return // should not happen, but we'll be robust
 			}
@@ -406,21 +397,18 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 						// This is just to make sure we return a predictable
 						// error in a central place, rather than failing somewhere
 						// later in the non-deterministically-ordered graph walk.
-						diags = diags.Append(
-							tfdiags.Sourceless(
+						diags = diags.Append(tfdiags.Sourceless(
 								tfdiags.Error,
 								"Missing required provisioner plugin",
 								fmt.Sprintf(
 									"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",
 									pc.Type,
 								),
-							),
-						)
+							))
 					}
 				}
 			}
-		},
-	)
+	})
 
 	// Because we were doing a lot of map iteration above, and we're only
 	// generating sourceless diagnostics anyway, our diagnostics will not be
@@ -428,8 +416,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// multiple errors to report, we'll sort these particular diagnostics
 	// so they are at least always consistent alone. This ordering is
 	// arbitrary and not a compatibility constraint.
-	sort.Slice(
-		diags, func(i, j int) bool {
+	sort.Slice(diags, func(i, j int) bool {
 			// Because these are sourcelss diagnostics and we know they are all
 			// errors, we know they'll only differ in their description fields.
 			descI := diags[i].Description()
@@ -440,8 +427,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 			default:
 				return descI.Detail < descJ.Detail
 			}
-		},
-	)
+	})
 
 	return diags
 }

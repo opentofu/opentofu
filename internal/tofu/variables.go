@@ -109,9 +109,7 @@ const (
 
 func (v *InputValue) GoString() string {
 	if (v.SourceRange != tfdiags.SourceRange{}) {
-		return fmt.Sprintf(
-			"&tofu.InputValue{Value: %#v, SourceType: %#v, SourceRange: %#v}", v.Value, v.SourceType, v.SourceRange,
-		)
+		return fmt.Sprintf("&tofu.InputValue{Value: %#v, SourceType: %#v, SourceRange: %#v}", v.Value, v.SourceType, v.SourceRange)
 	} else {
 		return fmt.Sprintf("&tofu.InputValue{Value: %#v, SourceType: %#v}", v.Value, v.SourceType)
 	}
@@ -293,16 +291,11 @@ func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdia
 			// Always an error, since the caller should have produced an
 			// item with Value: cty.NilVal to be explicit that it offered
 			// an opportunity to set this variable.
-			diags = diags.Append(
-				tfdiags.Sourceless(
+			diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Unassigned variable",
-					fmt.Sprintf(
-						"The input variable %q has not been assigned a value. This is a bug in OpenTofu; please report it in a GitHub issue.",
-						name,
-					),
-				),
-			)
+					fmt.Sprintf("The input variable %q has not been assigned a value. This is a bug in OpenTofu; please report it in a GitHub issue.", name),
+			))
 			continue
 		}
 	}
@@ -313,13 +306,11 @@ func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdia
 	// where there is better context to report it well.
 	for name := range vs {
 		if _, defined := vcs[name]; !defined {
-			diags = diags.Append(
-				tfdiags.Sourceless(
+			diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Value assigned to undeclared variable",
 					fmt.Sprintf("A value was assigned to an undeclared input variable %q.", name),
-				),
-			)
+				))
 		}
 	}
 
