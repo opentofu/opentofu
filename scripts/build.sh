@@ -10,6 +10,7 @@ SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
 DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 
+echo $DIR
 # Change into that directory
 cd "$DIR"
 
@@ -59,7 +60,7 @@ gox \
     -osarch="${XC_EXCLUDE_OSARCH}" \
     -ldflags "${LD_FLAGS}" \
     -output "pkg/{{.OS}}_{{.Arch}}/tofu" \
-    .
+    ./cmd/tofu
 
 # Move all the compiled things to the $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}

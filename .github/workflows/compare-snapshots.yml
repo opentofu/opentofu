@@ -32,7 +32,7 @@ jobs:
 
       - name: Build the OpenTofu binary
         run: |
-          go build -o ./bin/tofu
+          go build -o ./bin/tofu ./cmd/tofu
 
       - name: Run the equivalence tests
         run: |

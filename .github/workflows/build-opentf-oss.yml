@@ -62,7 +62,7 @@ jobs:
           instructions: |-
             mkdir dist out
             set -x
-            go build -ldflags "${{ inputs.ld-flags }}" -o dist/ .
+            go build -ldflags "${{ inputs.ld-flags }}" -o dist/ ./cmd/tofu
             zip -r -j out/${{ env.ARTIFACT_BASENAME }} dist/
       - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
