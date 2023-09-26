@@ -10,6 +10,8 @@ builds:
   - env:
       - CGO_ENABLED=0
 
+    main: ./cmd/tofu
+
     flags:
       - "-mod=readonly"
       - "-trimpath"
@@ -202,11 +204,11 @@ signs:
   - artifacts: checksum
     cmd: cosign
     certificate: "${artifact}.pem"
-    args: ["sign-blob", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes"]
+    args: [ "sign-blob", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes" ]
 
 docker_signs:
   - artifacts: all
-    args: ["sign", "--oidc-issuer=https://token.actions.githubusercontent.com", "${artifact}@${digest}", "--yes"]
+    args: [ "sign", "--oidc-issuer=https://token.actions.githubusercontent.com", "${artifact}@${digest}", "--yes" ]
 
 snapshot:
   name_template: "{{ .Version }}-next"
