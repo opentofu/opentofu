@@ -127,7 +127,7 @@ type Resource struct {
 	Exists ExistsFunc
 
 	// CustomizeDiff is a custom function for working with the diff that
-	// OpenTofuOpenTofu has created for this resource - it can be used to customize the
+	// OpenTofu has created for this resource - it can be used to customize the
 	// diff that has been created, diff values not controlled by configuration,
 	// or even veto the diff altogether and abort the plan. It is passed a
 	// *ResourceDiff, a structure similar to ResourceData but lacking most write

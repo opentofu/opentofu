@@ -291,7 +291,7 @@ type PackageLocation interface {
 // PackageLocalArchive is the location of a provider distribution archive file
 // in the local filesystem. Its value is a local filesystem path using the
 // syntax understood by Go's standard path/filepath package on the operating
-// system where OpenTofuOpenTofu is running.
+// system where OpenTofu is running.
 type PackageLocalArchive string
 
 func (p PackageLocalArchive) packageLocation() {}

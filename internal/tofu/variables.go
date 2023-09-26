@@ -18,7 +18,7 @@ import (
 // InputValue should represent as directly as possible what the user set the
 // variable to, without any attempt to convert the value to the variable's
 // type constraint or substitute the configured default values for variables
-// that wasn't set. Those adjustments will be handled by OpenOpenTofu Core itself
+// that wasn't set. Those adjustments will be handled by OpenTofu Core itself
 // as part of performing the requested operation.
 //
 // A OpenTofu Core caller must provide an InputValue object for each of the
