@@ -16,7 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
-// Graph represents the graph that Terraform uses to represent resources
+// Graph represents the graph that OpenTofu uses to represent resources
 // and their dependencies.
 type Graph struct {
 	// Graph is the actual DAG. This is embedded so you can call the DAG
@@ -98,7 +98,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Graph node has invalid dynamic subgraph",
-						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: %s.\n\nThis is a bug in Terraform. Please report it!", dag.VertexName(v), err),
+						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: %s.\n\nThis is a bug in OpenTofu. Please report it!", dag.VertexName(v), err),
 					))
 					return
 				}
@@ -109,7 +109,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Graph node has invalid dynamic subgraph",
-						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: the root node is %T, which is not a suitable root node type.\n\nThis is a bug in Terraform. Please report it!", dag.VertexName(v), n),
+						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: the root node is %T, which is not a suitable root node type.\n\nThis is a bug in OpenTofu. Please report it!", dag.VertexName(v), n),
 					))
 					return
 				}

@@ -174,7 +174,7 @@ func findLegacyProviderLookupSource(host svchost.Hostname, source Source) *Regis
 // This method exists only to allow compatibility with unqualified names
 // in older configurations. New configurations should be written so as not to
 // depend on it, and this fallback mechanism will likely be removed altogether
-// in a future Terraform version.
+// in a future OpenTofu version.
 func (s *RegistrySource) lookupLegacyProviderNamespace(ctx context.Context, hostname svchost.Hostname, typeName string) (string, string, error) {
 	client, err := s.registryClient(hostname)
 	if err != nil {

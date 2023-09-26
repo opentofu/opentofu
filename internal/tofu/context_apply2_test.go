@@ -1040,7 +1040,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 	// a change in a resource other than the one the condition is attached to,
 	// and the condition result is unknown during planning.
 	//
-	// This edge case is a tricky one because it relies on Terraform still
+	// This edge case is a tricky one because it relies on OpenTofu still
 	// visiting test_resource.b (in the configuration below) to evaluate
 	// its conditions even though there aren't any changes directly planned
 	// for it, so that we can consider whether changes to test_resource.a
@@ -1337,7 +1337,7 @@ output "out" {
 	_, diags = ctx.Plan(m, state, opts)
 	assertNoErrors(t, diags)
 	return
-
+	// TODO: unreachable code
 	otherProvider.ConfigureProviderCalled = false
 	otherProvider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 		// check that our config is complete, even during a destroy plan

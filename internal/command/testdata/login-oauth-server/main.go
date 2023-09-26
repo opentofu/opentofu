@@ -1,8 +1,8 @@
 //go:build ignore
 // +build ignore
 
-// This file is a helper for those doing _manual_ testing of "terraform login"
-// and/or "terraform logout" and want to start up a test OAuth server in a
+// This file is a helper for those doing _manual_ testing of "tofu login"
+// and/or "tofu logout" and want to start up a test OAuth server in a
 // separate process for convenience:
 //
 //    go run ./command/testdata/login-oauth-server/main.go :8080

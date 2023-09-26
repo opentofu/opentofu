@@ -24,7 +24,7 @@ const (
 )
 
 // ProvidersLockCommand is a Command implementation that implements the
-// "terraform providers lock" command, which creates or updates the current
+// "tofu providers lock" command, which creates or updates the current
 // configuration's dependency lock file using information from upstream
 // registries, regardless of the provider installation configuration that
 // is configured for normal provider installation.
@@ -94,7 +94,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	//
 	// This is so that folks who use a local mirror for everyday use can
 	// use this command to populate their lock files from upstream so
-	// subsequent "terraform init" calls can then verify the local mirror
+	// subsequent "tofu init" calls can then verify the local mirror
 	// against the upstream checksums.
 	var source getproviders.Source
 	switch {
@@ -176,10 +176,10 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 	// Our general strategy here is to install the requested providers into
 	// a separate temporary directory -- thus ensuring that the results won't
-	// ever be inadvertently executed by other Terraform commands -- and then
+	// ever be inadvertently executed by other OpenTofu commands -- and then
 	// use the results of that installation to update the lock file for the
 	// current working directory. Because we throwaway the packages we
-	// downloaded after completing our work, a subsequent "terraform init" will
+	// downloaded after completing our work, a subsequent "tofu init" will
 	// then respect the CLI configuration's provider installation strategies
 	// but will verify the packages against the hashes we found upstream.
 

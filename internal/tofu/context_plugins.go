@@ -64,9 +64,9 @@ func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Inter
 //
 // ProviderSchema memoizes results by unique provider address, so it's fine
 // to repeatedly call this method with the same address if various different
-// parts of Terraform all need the same schema information.
+// parts of OpenTofu all need the same schema information.
 func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.ProviderSchema, error) {
-	log.Printf("[TRACE] terraform.contextPlugins: Initializing provider %q to read its schema", addr)
+	log.Printf("[TRACE] tofu.contextPlugins: Initializing provider %q to read its schema", addr)
 
 	// Check the global schema cache first.
 	// This cache is only written by the provider client, and transparently
@@ -156,9 +156,9 @@ func (cp *contextPlugins) ResourceTypeSchema(providerAddr addrs.Provider, resour
 //
 // ProvisionerSchema memoizes results by provisioner type name, so it's fine
 // to repeatedly call this method with the same name if various different
-// parts of Terraform all need the same schema information.
+// parts of OpenTofu all need the same schema information.
 func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, error) {
-	log.Printf("[TRACE] terraform.contextPlugins: Initializing provisioner %q to read its schema", typ)
+	log.Printf("[TRACE] tofu.contextPlugins: Initializing provisioner %q to read its schema", typ)
 	provisioner, err := cp.NewProvisionerInstance(typ)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", typ, err)

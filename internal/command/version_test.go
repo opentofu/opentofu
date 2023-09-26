@@ -70,7 +70,7 @@ func TestVersion_flags(t *testing.T) {
 		Ui: ui,
 	}
 
-	// `terraform version`
+	// `tofu version`
 	c := &VersionCommand{
 		Meta:              m,
 		Version:           "4.5.6",
@@ -98,7 +98,7 @@ func TestVersion_json(t *testing.T) {
 		Ui: ui,
 	}
 
-	// `terraform version -json` without prerelease
+	// `tofu version -json` without prerelease
 	c := &VersionCommand{
 		Meta:     meta,
 		Version:  "4.5.6",
@@ -140,7 +140,7 @@ func TestVersion_json(t *testing.T) {
 		nil,
 	)
 
-	// `terraform version -json` with prerelease and provider dependencies
+	// `tofu version -json` with prerelease and provider dependencies
 	c = &VersionCommand{
 		Meta:              meta,
 		Version:           "4.5.6",

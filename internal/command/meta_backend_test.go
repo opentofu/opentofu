@@ -1933,7 +1933,7 @@ func TestBackendFromState(t *testing.T) {
 	// Setup the meta
 	m := testMetaBackend(t, nil)
 	m.WorkingDir = wd
-	// terraform caches a small "state" file that stores the backend config.
+	// tofu caches a small "state" file that stores the backend config.
 	// This test must override m.dataDir so it loads the "terraform.tfstate" file in the
 	// test directory as the backend config cache. This fixture is really a
 	// fixture for the data dir rather than the module dir, so we'll override

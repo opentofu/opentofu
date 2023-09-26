@@ -44,7 +44,7 @@ type Interface interface {
 	//
 	// Stop should not block waiting for in-flight actions to complete. It
 	// should take any action it wants and return immediately acknowledging it
-	// has received the stop request. Terraform will not make any further API
+	// has received the stop request. OpenTofu will not make any further API
 	// calls to the provider after Stop is called.
 	//
 	// The error returned, if non-nil, is assumed to mean that signaling the
@@ -192,8 +192,8 @@ type UpgradeResourceStateResponse struct {
 }
 
 type ConfigureProviderRequest struct {
-	// Terraform version is the version string from the running instance of
-	// terraform. Providers can use TerraformVersion to verify compatibility,
+	// OpenTofu version is the version string from the running instance of
+	// tofu. Providers can use TerraformVersion to verify compatibility,
 	// and to store for informational purposes.
 	TerraformVersion string
 
@@ -275,7 +275,7 @@ type PlanResourceChangeResponse struct {
 	// resource replacement.
 	RequiresReplace []cty.Path
 
-	// PlannedPrivate is an opaque blob that is not interpreted by terraform
+	// PlannedPrivate is an opaque blob that is not interpreted by tofu
 	// core. This will be saved and relayed back to the provider during
 	// ApplyResourceChange.
 	PlannedPrivate []byte
@@ -284,7 +284,7 @@ type PlanResourceChangeResponse struct {
 	Diagnostics tfdiags.Diagnostics
 
 	// LegacyTypeSystem is set only if the provider is using the legacy SDK
-	// whose type system cannot be precisely mapped into the Terraform type
+	// whose type system cannot be precisely mapped into the OpenTofu type
 	// system. We use this to bypass certain consistency checks that would
 	// otherwise fail due to this imprecise mapping. No other provider or SDK
 	// implementation is permitted to set this.
@@ -332,7 +332,7 @@ type ApplyResourceChangeResponse struct {
 	Diagnostics tfdiags.Diagnostics
 
 	// LegacyTypeSystem is set only if the provider is using the legacy SDK
-	// whose type system cannot be precisely mapped into the Terraform type
+	// whose type system cannot be precisely mapped into the OpenTofu type
 	// system. We use this to bypass certain consistency checks that would
 	// otherwise fail due to this imprecise mapping. No other provider or SDK
 	// implementation is permitted to set this.
@@ -359,7 +359,7 @@ type ImportResourceStateResponse struct {
 	Diagnostics tfdiags.Diagnostics
 }
 
-// ImportedResource represents an object being imported into Terraform with the
+// ImportedResource represents an object being imported into OpenTofu with the
 // help of a provider. An ImportedObject is a RemoteObject that has been read
 // by the provider's import handler but hasn't yet been committed to state.
 type ImportedResource struct {

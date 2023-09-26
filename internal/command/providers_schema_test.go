@@ -75,7 +75,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			// flush the init output from the mock ui
 			ui.OutputWriter.Reset()
 
-			// `terraform provider schemas` command
+			// `tofu provider schemas` command
 			pc := &ProvidersSchemaCommand{Meta: m}
 			if code := pc.Run([]string{"-json"}); code != 0 {
 				t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, ui.ErrorWriter.String())

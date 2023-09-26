@@ -47,12 +47,12 @@ type ContextOpts struct {
 
 // ContextMeta is metadata about the running context. This is information
 // that this package or structure cannot determine on its own but exposes
-// into Terraform in various ways. This must be provided by the Context
+// into OpenTofu in various ways. This must be provided by the Context
 // initializer.
 type ContextMeta struct {
 	Env string // Env is the state environment
 
-	// OriginalWorkingDir is the working directory where the Terraform CLI
+	// OriginalWorkingDir is the working directory where the OpenTofu CLI
 	// was run from, which may no longer actually be the current working
 	// directory if the user included the -chdir=... option.
 	//
@@ -66,7 +66,7 @@ type ContextMeta struct {
 	OriginalWorkingDir string
 }
 
-// Context represents all the context that Terraform needs in order to
+// Context represents all the context that OpenTofu needs in order to
 // perform operations on infrastructure. This structure is built using
 // NewContext.
 type Context struct {
@@ -101,7 +101,7 @@ type Context struct {
 func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	log.Printf("[TRACE] terraform.NewContext: starting")
+	log.Printf("[TRACE] tofu.NewContext: starting")
 
 	// Copy all the hooks and add our stop hook. We don't append directly
 	// to the Config so that we're not modifying that in-place.
@@ -130,7 +130,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 
 	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
 
-	log.Printf("[TRACE] terraform.NewContext: complete")
+	log.Printf("[TRACE] tofu.NewContext: complete")
 
 	return &Context{
 		hooks:   hooks,
@@ -283,7 +283,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 
 		{
 			// Copy the providers so that a misbehaved blocking Stop doesn't
-			// completely hang Terraform.
+			// completely hang OpenTofu.
 			walker.providerLock.Lock()
 			ps := make([]providers.Interface, 0, len(walker.providerCache))
 			for _, p := range walker.providerCache {
@@ -294,7 +294,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			for _, p := range ps {
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
-				// advisory: Terraform will exit once the graph node completes.
+				// advisory: OpenTofu will exit once the graph node completes.
 				p.Stop()
 			}
 		}
@@ -311,7 +311,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			for _, p := range ps {
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
-				// advisory: Terraform will exit once the graph node completes.
+				// advisory: OpenTofu will exit once the graph node completes.
 				p.Stop()
 			}
 		}
@@ -323,7 +323,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 // checkConfigDependencies checks whether the recieving context is able to
 // support the given configuration, returning error diagnostics if not.
 //
-// Currently this function checks whether the current Terraform CLI version
+// Currently this function checks whether the current OpenTofu CLI version
 // matches the version requirements of all of the modules, and whether our
 // plugin library contains all of the plugin names/addresses needed.
 //
@@ -340,7 +340,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// This checks the Terraform CLI version constraints specified in all of
+	// This checks the OpenTofu CLI version constraints specified in all of
 	// the modules.
 	diags = diags.Append(CheckCoreVersionRequirements(config))
 
@@ -392,7 +392,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 			for _, pc := range rc.Managed.Provisioners {
 				if !c.plugins.HasProvisioner(pc.Type) {
 					// This is not a very high-quality error, because really
-					// the caller of terraform.NewContext should've already
+					// the caller of tofu.NewContext should've already
 					// done equivalent checks when doing plugin discovery.
 					// This is just to make sure we return a predictable
 					// error in a central place, rather than failing somewhere

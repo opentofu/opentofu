@@ -298,7 +298,7 @@ func unusableSavedPlanError(status tfe.RunStatus, url string) error {
 		reason = "The given plan file refers to a plan that had errors and did not complete successfully. It cannot be applied."
 	case tfe.RunPlannedAndFinished:
 		// Note: planned and finished can also indicate a plan-only run, but
-		// terraform plan can't create a saved plan for a plan-only run, so we
+		// tofu plan can't create a saved plan for a plan-only run, so we
 		// know it's no-changes in this case.
 		summary = "Saved plan has no changes"
 		reason = "The given plan file contains no changes, so it cannot be applied."

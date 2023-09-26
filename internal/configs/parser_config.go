@@ -32,7 +32,7 @@ func (p *Parser) LoadConfigFileOverride(path string) (*File, hcl.Diagnostics) {
 	return p.loadConfigFile(path, true)
 }
 
-// LoadTestFile reads the file at the given path and parses it as a Terraform
+// LoadTestFile reads the file at the given path and parses it as a OpenTofu
 // test file.
 //
 // It references the same LoadHCLFile as LoadConfigFile, so inherits the same
@@ -211,7 +211,7 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 //
 // This is intended to maximize the chance that we'll be able to read the
 // requirements (syntax errors notwithstanding) even if the config file contains
-// constructs that might've been added in future Terraform versions
+// constructs that might've been added in future OpenTofu versions
 //
 // This is a "best effort" sort of method which will return constraints it is
 // able to find, but may return no constraints at all if the given body is

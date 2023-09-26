@@ -316,7 +316,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 	// that provider's resources in the module depend on the node. That's
 	// an awful heavy hammer to swing for this feature, which should be
 	// used only in limited cases with heavy coordination with the
-	// Terraform team, so we're going to defer that solution for a future
+	// OpenTofu team, so we're going to defer that solution for a future
 	// enhancement to this functionality.
 	/*
 		if n.ProviderMetas != nil {

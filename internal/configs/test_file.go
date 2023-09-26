@@ -11,20 +11,20 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// TestCommand represents the Terraform a given run block will execute, plan
+// TestCommand represents the OpenTofu a given run block will execute, plan
 // or apply. Defaults to apply.
 type TestCommand rune
 
-// TestMode represents the plan mode that Terraform will use for a given run
+// TestMode represents the plan mode that OpenTofu will use for a given run
 // block, normal or refresh-only. Defaults to normal.
 type TestMode rune
 
 const (
-	// ApplyTestCommand causes the run block to execute a Terraform apply
+	// ApplyTestCommand causes the run block to execute a OpenTofu apply
 	// operation.
 	ApplyTestCommand TestCommand = 0
 
-	// PlanTestCommand causes the run block to execute a Terraform plan
+	// PlanTestCommand causes the run block to execute a OpenTofu plan
 	// operation.
 	PlanTestCommand TestCommand = 'P'
 
@@ -36,7 +36,7 @@ const (
 	RefreshOnlyTestMode TestMode = 'R'
 )
 
-// TestFile represents a single test file within a `terraform test` execution.
+// TestFile represents a single test file within a `tofu test` execution.
 //
 // A test file is made up of a sequential list of run blocks, each designating
 // a command to execute and a series of validations to check after the command.
@@ -61,12 +61,12 @@ type TestFile struct {
 
 // TestRun represents a single run block within a test file.
 //
-// Each run block represents a single Terraform command to be executed and a set
+// Each run block represents a single OpenTofu command to be executed and a set
 // of validations to run after the command.
 type TestRun struct {
 	Name string
 
-	// Command is the Terraform command to execute.
+	// Command is the OpenTofu command to execute.
 	//
 	// One of ['apply', 'plan'].
 	Command TestCommand
@@ -108,7 +108,7 @@ type TestRun struct {
 	// against.
 	//
 	// In typical cases, this will be null and the config under test is the
-	// configuration within the directory the terraform test command is
+	// configuration within the directory the tofu test command is
 	// executing within. However, when Module is set the config under test is
 	// whichever config is defined by Module. This field is then set during the
 	// configuration load process and should be used when the test is executed.
@@ -175,13 +175,13 @@ type TestRunOptions struct {
 	// Mode is the planning mode to run in. One of ['normal', 'refresh-only'].
 	Mode TestMode
 
-	// Refresh is analogous to the -refresh=false Terraform plan option.
+	// Refresh is analogous to the -refresh=false OpenTofu plan option.
 	Refresh bool
 
-	// Replace is analogous to the -refresh=ADDRESS Terraform plan option.
+	// Replace is analogous to the -refresh=ADDRESS OpenTofu plan option.
 	Replace []hcl.Traversal
 
-	// Target is analogous to the -target=ADDRESS Terraform plan option.
+	// Target is analogous to the -target=ADDRESS OpenTofu plan option.
 	Target []hcl.Traversal
 
 	DeclRange hcl.Range

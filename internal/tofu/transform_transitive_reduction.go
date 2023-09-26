@@ -10,7 +10,7 @@ type TransitiveReductionTransformer struct{}
 
 func (t *TransitiveReductionTransformer) Transform(g *Graph) error {
 	// If the graph isn't valid, skip the transitive reduction.
-	// We don't error here because Terraform itself handles graph
+	// We don't error here because OpenTofu itself handles graph
 	// validation in a better way, or we assume it does.
 	if err := g.Validate(); err != nil {
 		return nil

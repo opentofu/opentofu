@@ -36,7 +36,7 @@ type EvalOpts struct {
 // to attempt expression evaluation or other analysis, but some expressions
 // may not behave as expected.
 func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
-	// This is intended for external callers such as the "terraform console"
+	// This is intended for external callers such as the "tofu console"
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
 

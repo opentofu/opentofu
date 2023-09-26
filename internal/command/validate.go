@@ -16,7 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-// ValidateCommand is a Command implementation that validates the terraform files
+// ValidateCommand is a Command implementation that validates the tofu files
 type ValidateCommand struct {
 	Meta
 }
@@ -59,7 +59,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 
 	// Validating with dev overrides in effect means that the result might
 	// not be valid for a stable release, so we'll warn about that in case
-	// the user is trying to use "terraform validate" as a sort of pre-flight
+	// the user is trying to use "tofu validate" as a sort of pre-flight
 	// check before submitting a change.
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
@@ -105,8 +105,8 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 
 	validatedModules := make(map[string]bool)
 
-	// We'll also do a quick validation of the Terraform test files. These live
-	// outside the Terraform graph so we have to do this separately.
+	// We'll also do a quick validation of the OpenTofu test files. These live
+	// outside the OpenTofu graph so we have to do this separately.
 	for _, file := range cfg.Module.Tests {
 		for _, run := range file.Runs {
 
@@ -117,7 +117,7 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 				// Basically, local testing modules are something the user can
 				// reasonably go and fix. If it's a module being downloaded from
 				// the registry, the expectation is that the author of the
-				// module should have ran `terraform validate` themselves.
+				// module should have ran `tofu validate` themselves.
 				if _, ok := run.Module.Source.(addrs.ModuleSourceLocal); ok {
 
 					if validated := validatedModules[run.Module.Source.String()]; !validated {

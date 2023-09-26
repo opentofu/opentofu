@@ -1,5 +1,5 @@
 // Package oauthserver is a very simplistic OAuth server used only for
-// the testing of the "terraform login" and "terraform logout" commands.
+// the testing of the "tofu login" and "tofu logout" commands.
 package oauthserver
 
 import (
@@ -16,9 +16,9 @@ import (
 // Handler is an implementation of net/http.Handler that provides a stub
 // OAuth server implementation with the following endpoints:
 //
-//     /authz  - authorization endpoint
-//     /token  - token endpoint
-//     /revoke - token revocation (logout) endpoint
+//	/authz  - authorization endpoint
+//	/token  - token endpoint
+//	/revoke - token revocation (logout) endpoint
 //
 // The authorization endpoint returns HTML per normal OAuth conventions, but
 // it also includes an HTTP header X-Redirect-To giving the same URL that the

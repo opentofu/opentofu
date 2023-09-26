@@ -249,11 +249,11 @@ func (c *InitCommand) Run(args []string) int {
 	// whole configuration tree.
 	config, confDiags := c.loadConfigWithTests(path, testsDirectory)
 	// configDiags will be handled after the version constraint check, since an
-	// incorrect version of terraform may be producing errors for configuration
+	// incorrect version of tofu may be producing errors for configuration
 	// constructs added in later versions.
 
 	// Before we go further, we'll check to make sure none of the modules in
-	// the configuration declare that they don't support this Terraform
+	// the configuration declare that they don't support this OpenTofu
 	// version, so we can produce a version-related error message rather than
 	// potentially-confusing downstream errors.
 	versionDiags := tofu.CheckCoreVersionRequirements(config)
@@ -515,9 +515,9 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	ctx, span := tracer.Start(ctx, "install providers")
 	defer span.End()
 
-	// Dev overrides cause the result of "terraform init" to be irrelevant for
+	// Dev overrides cause the result of "tofu init" to be irrelevant for
 	// any overridden providers, so we'll warn about it to avoid later
-	// confusion when Terraform ends up using a different provider than the
+	// confusion when OpenTofu ends up using a different provider than the
 	// lock file called for.
 	diags = diags.Append(c.providerDevOverrideInitWarnings())
 
@@ -560,7 +560,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		inst = c.providerInstaller()
 	} else {
 		// If the user passes at least one -plugin-dir then that circumvents
-		// the usual sources and forces Terraform to consult only the given
+		// the usual sources and forces OpenTofu to consult only the given
 		// directories. Anything not available in one of those directories
 		// is not available for installation.
 		source := c.providerCustomLocalDirectorySource(pluginDirs)
@@ -826,7 +826,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// We're going to use this opportunity to track if we have any
 			// "incomplete" installs of providers. An incomplete install is
 			// when we are only going to write the local hashes into our lock
-			// file which means a `terraform init` command will fail in future
+			// file which means a `tofu init` command will fail in future
 			// when used on machines of a different architecture.
 			//
 			// We want to print a warning about this.
@@ -948,7 +948,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 		if previousLocks.Empty() {
 			// A change from empty to non-empty is special because it suggests
-			// we're running "terraform init" for the first time against a
+			// we're running "tofu init" for the first time against a
 			// new configuration. In that case we'll take the opportunity to
 			// say a little about what the dependency lock file is, for new
 			// users or those who are upgrading from a previous Terraform
@@ -1241,7 +1241,7 @@ again to reinitialize your working directory.
 `
 
 // providerProtocolTooOld is a message sent to the CLI UI if the provider's
-// supported protocol versions are too old for the user's version of terraform,
+// supported protocol versions are too old for the user's version of tofu,
 // but a newer version of the provider is compatible.
 const providerProtocolTooOld = `Provider %q v%s is not compatible with OpenTofu %s.
 Provider version %s is the latest compatible version. Select it with the following version constraint:
@@ -1254,8 +1254,8 @@ Consult the documentation for this provider for more information on compatibilit
 `
 
 // providerProtocolTooNew is a message sent to the CLI UI if the provider's
-// supported protocol versions are too new for the user's version of terraform,
-// and the user could either upgrade terraform or choose an older version of the
+// supported protocol versions are too new for the user's version of tofu,
+// and the user could either upgrade tofu or choose an older version of the
 // provider.
 const providerProtocolTooNew = `Provider %q v%s is not compatible with OpenTofu %s.
 You need to downgrade to v%s or earlier. Select it with the following constraint:

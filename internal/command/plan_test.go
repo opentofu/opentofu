@@ -527,8 +527,8 @@ func TestPlan_refreshTrue(t *testing.T) {
 }
 
 // A consumer relies on the fact that running
-// terraform plan -refresh=false -refresh=true gives the same result as
-// terraform plan -refresh=true.
+// tofu plan -refresh=false -refresh=true gives the same result as
+// tofu plan -refresh=true.
 // While the flag logic itself is handled by the stdlib flags package (and code
 // in main() that is tested elsewhere), we verify the overall plan command
 // behaviour here in case we accidentally break this with additional logic.
@@ -890,7 +890,7 @@ func TestPlan_providerArgumentUnset(t *testing.T) {
 	}
 }
 
-// Test that terraform properly merges provider configuration that's split
+// Test that tofu properly merges provider configuration that's split
 // between config files and interactive input variables.
 // https://github.com/hashicorp/terraform/issues/28956
 func TestPlan_providerConfigMerge(t *testing.T) {
@@ -1630,7 +1630,7 @@ func planFixtureSchema() *providers.GetProviderSchemaResponse {
 // planFixtureProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/plan. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan
-// step just passing through the new object proposed by Terraform Core.
+// step just passing through the new object proposed by OpenTofu Core.
 func planFixtureProvider() *tofu.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = planFixtureSchema()
@@ -1671,7 +1671,7 @@ func planVarsFixtureSchema() *providers.GetProviderSchemaResponse {
 // planVarsFixtureProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/plan-vars. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan
-// step just passing through the new object proposed by Terraform Core.
+// step just passing through the new object proposed by OpenTofu Core.
 func planVarsFixtureProvider() *tofu.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = planVarsFixtureSchema()

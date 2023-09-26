@@ -29,7 +29,7 @@ const (
 	DataResourceMode    = "data"
 )
 
-// State is the top-level representation of the json format of a terraform
+// State is the top-level representation of the json format of a tofu
 // state.
 type State struct {
 	FormatVersion    string          `json:"format_version,omitempty"`
@@ -104,10 +104,10 @@ type Resource struct {
 	// addresses relative to the containing module.
 	DependsOn []string `json:"depends_on,omitempty"`
 
-	// Tainted is true if the resource is tainted in terraform state.
+	// Tainted is true if the resource is tainted in tofu state.
 	Tainted bool `json:"tainted,omitempty"`
 
-	// Deposed is set if the resource is deposed in terraform state.
+	// Deposed is set if the resource is deposed in tofu state.
 	DeposedKey string `json:"deposed_key,omitempty"`
 }
 
@@ -189,7 +189,7 @@ func MarshalForLog(sf *statefile.File, schemas *tofu.Schemas) (*State, error) {
 	return output, nil
 }
 
-// Marshal returns the json encoding of a terraform state.
+// Marshal returns the json encoding of a tofu state.
 func Marshal(sf *statefile.File, schemas *tofu.Schemas) ([]byte, error) {
 	output, err := MarshalForLog(sf, schemas)
 	if err != nil {
@@ -292,7 +292,7 @@ func marshalRootModule(s *states.State, schemas *tofu.Schemas) (Module, error) {
 }
 
 // marshalModules is an ungainly recursive function to build a module structure
-// out of terraform state.
+// out of tofu state.
 func marshalModules(
 	s *states.State,
 	schemas *tofu.Schemas,

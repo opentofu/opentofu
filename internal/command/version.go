@@ -68,11 +68,11 @@ func (c *VersionCommand) Run(args []string) int {
 
 	// We'll also attempt to print out the selected plugin versions. We do
 	// this based on the dependency lock file, and so the result might be
-	// empty or incomplete if the user hasn't successfully run "terraform init"
+	// empty or incomplete if the user hasn't successfully run "tofu init"
 	// since the most recent change to dependencies.
 	//
 	// Generally-speaking this is a best-effort thing that will give us a good
-	// result in the usual case where the user successfully ran "terraform init"
+	// result in the usual case where the user successfully ran "tofu init"
 	// and then hit a problem running _another_ command.
 	var providerVersions []string
 	var providerLocks map[addrs.Provider]*depsfile.ProviderLock

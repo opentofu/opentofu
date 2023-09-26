@@ -734,7 +734,7 @@ func testInputMap(t *testing.T, answers map[string]string) func() {
 //
 // If such a block isn't present, or if it isn't empty, then an error will
 // be returned about the backend configuration having changed and that
-// "terraform init" must be run, since the test backend config cache created
+// "tofu init" must be run, since the test backend config cache created
 // by this function contains the hash for an empty configuration.
 func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *httptest.Server) {
 	t.Helper()

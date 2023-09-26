@@ -269,7 +269,7 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 
 	if rawChange.Addr == "" {
 		// If "Addr" isn't populated then seems likely that this is a plan
-		// file created by an earlier version of Terraform, which had the
+		// file created by an earlier version of OpenTofu, which had the
 		// same information spread over various other fields:
 		// ModulePath, Mode, Name, Type, and InstanceKey.
 		return nil, fmt.Errorf("no instance address for resource instance change; perhaps this plan was created by a different version of OpenTofu or a different version of Terraform?")
