@@ -152,3 +152,53 @@ func TestValidateKeyARN(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateLockStorageType(t *testing.T) {
+	t.Parallel()
+	path := cty.Path{cty.GetAttrStep{Name: "field"}}
+
+	type args struct {
+		path cty.Path
+		s    string
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantDiags tfdiags.Diagnostics
+	}{
+		{name: "dynamoDB type",
+			args: args{
+				path,
+				"DynamoDB",
+			},
+		},
+		{name: "S3BucketType type",
+			args: args{
+				path,
+				"S3Bucket",
+			},
+		},
+		{name: "invalid type",
+			args: args{
+				path,
+				"casper",
+			},
+			wantDiags: tfdiags.Diagnostics{
+				tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Invalid Lock Storage Type",
+					`value of lock storage type must be DynamoDB or S3Bucket, got casper`,
+					path,
+				)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gotDiags := validateLockStorageType(tt.args.path, tt.args.s)
+			if diff := cmp.Diff(gotDiags, tt.wantDiags, cmp.Comparer(diagnosticComparer)); diff != "" {
+				t.Errorf("unexpected diagnostics difference: %s", diff)
+			}
+		})
+	}
+}

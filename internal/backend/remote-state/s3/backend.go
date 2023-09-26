@@ -23,6 +23,13 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
+type LockStorageType string
+
+var (
+	DynamoDB = LockStorageType("DynamoDB")
+	S3Bucket = LockStorageType("S3Bucket")
+)
+
 func New() backend.Backend {
 	return &Backend{}
 }
@@ -30,6 +37,8 @@ func New() backend.Backend {
 type Backend struct {
 	s3Client  *s3.S3
 	dynClient *dynamodb.DynamoDB
+
+	lockStorageType LockStorageType
 
 	bucketName            string
 	keyName               string
@@ -210,6 +219,11 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "The maximum number of times an AWS API request is retried on retryable failure.",
 			},
+			"lock_storage_type": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "Type of lock storage(S3Bucket or DynamoDB)",
+			},
 		},
 	}
 }
@@ -295,6 +309,9 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 		}
 	}
 
+	if val := obj.GetAttr("lock_storage_type"); !val.IsNull() && val.AsString() != "" {
+		diags = diags.Append(validateLockStorageType(cty.Path{cty.GetAttrStep{Name: "lock_storage_type"}}, val.AsString()))
+	}
 	return obj, diags
 }
 
@@ -334,6 +351,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
 	b.kmsKeyID = stringAttr(obj, "kms_key_id")
 	b.ddbTable = stringAttr(obj, "dynamodb_table")
+	b.lockStorageType = LockStorageType(stringAttr(obj, "lock_storage_type"))
 
 	if customerKey, ok := stringAttrOk(obj, "sse_customer_key"); ok {
 		if len(customerKey) != 44 {
