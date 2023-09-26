@@ -73,7 +73,7 @@ type BackendWithRemoteTerraformVersion interface {
 
 // Backend initializes and returns the backend for this CLI session.
 //
-// The backend is used to perform the actual OpenTofutofutofu operations. This
+// The backend is used to perform the actual OpenTofu operations. This
 // abstraction enables easily sliding in new OpenTofu behavior such as
 // remote state storage, remote operations, etc. while allowing the CLI
 // to remain mostly identical.
