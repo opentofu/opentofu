@@ -13,7 +13,7 @@ import (
 // Provider is an implementation of providers.Interface
 type Provider struct{}
 
-// NewProvider returns a new terraform provider
+// NewProvider returns a new tofu provider
 func NewProvider() providers.Interface {
 	return &Provider{}
 }
@@ -32,7 +32,7 @@ func (p *Provider) GetProviderSchema() providers.GetProviderSchemaResponse {
 
 // ValidateProviderConfig is used to validate the configuration values.
 func (p *Provider) ValidateProviderConfig(req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
-	// At this moment there is nothing to configure for the terraform provider,
+	// At this moment there is nothing to configure for the tofu provider,
 	// so we will happily return without taking any action
 	var res providers.ValidateProviderConfigResponse
 	res.PreparedConfig = req.Config
@@ -43,7 +43,7 @@ func (p *Provider) ValidateProviderConfig(req providers.ValidateProviderConfigRe
 func (p *Provider) ValidateDataResourceConfig(req providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
 	// FIXME: move the backend configuration validate call that's currently
 	// inside the read method  into here so that we can catch provider configuration
-	// errors in terraform validate as well as during terraform plan.
+	// errors in tofu validate as well as during tofu plan.
 	var res providers.ValidateDataResourceConfigResponse
 
 	// This should not happen

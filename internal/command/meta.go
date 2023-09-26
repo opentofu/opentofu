@@ -50,7 +50,7 @@ type Meta struct {
 
 	// WorkingDir is an object representing the "working directory" where we're
 	// running commands. In the normal case this literally refers to the
-	// working directory of the Terraform process, though this can take on
+	// working directory of the OpenTofu process, though this can take on
 	// a more symbolic meaning when the user has overridden default behavior
 	// to specify a different working directory or to override the special
 	// data directory where we'll persist settings that must survive between
@@ -78,7 +78,7 @@ type Meta struct {
 	Ui               cli.Ui   // Ui for output
 
 	// Services provides access to remote endpoint information for
-	// "terraform-native' services running at a specific user-facing hostname.
+	// 'tofu-native' services running at a specific user-facing hostname.
 	Services *disco.Disco
 
 	// RunningInAutomation indicates that commands are being run by an
@@ -89,7 +89,7 @@ type Meta struct {
 	// commands, since the user consuming the output will not be
 	// in a position to run such commands.
 	//
-	// The intended use-case of this flag is when Terraform is running in
+	// The intended use-case of this flag is when OpenTofu is running in
 	// some sort of workflow orchestration tool which is abstracting away
 	// the specific commands being run.
 	RunningInAutomation bool
@@ -113,7 +113,7 @@ type Meta struct {
 	// This is an accommodation for those who currently essentially ignore the
 	// dependency lock file -- treating it only as transient working directory
 	// state -- and therefore don't care if the plugin cache dir causes the
-	// checksums inside to only be sufficient for the computer where Terraform
+	// checksums inside to only be sufficient for the computer where OpenTofu
 	// is currently running.
 	//
 	// We intend to remove this exception again (making the CLI configuration
@@ -152,16 +152,16 @@ type Meta struct {
 	ProviderDevOverrides map[addrs.Provider]getproviders.PackageLocalDir
 
 	// UnmanagedProviders are a set of providers that exist as processes
-	// predating Terraform, which Terraform should use but not worry about the
+	// predating OpenTofu, which OpenTofu should use but not worry about the
 	// lifecycle of.
 	//
 	// This is essentially a more extreme version of ProviderDevOverrides where
-	// Terraform doesn't even worry about how the provider server gets launched,
-	// just trusting that someone else did it before running Terraform.
+	// OpenTofu doesn't even worry about how the provider server gets launched,
+	// just trusting that someone else did it before running OpenTofu.
 	UnmanagedProviders map[addrs.Provider]*plugin.ReattachConfig
 
 	// AllowExperimentalFeatures controls whether a command that embeds this
-	// Meta is permitted to make use of experimental Terraform features.
+	// Meta is permitted to make use of experimental OpenTofu features.
 	//
 	// Set this field only during the initial creation of Meta. If you change
 	// this field after calling methods of type Meta then the resulting
@@ -262,7 +262,7 @@ type Meta struct {
 	compactWarnings  bool
 
 	// Used with commands which write state to allow users to write remote
-	// state even if the remote and local Terraform versions don't match.
+	// state even if the remote and local OpenTofu versions don't match.
 	ignoreRemoteVersion bool
 }
 
@@ -328,7 +328,7 @@ func (m *Meta) DataDir() string {
 
 const (
 	// InputModeEnvVar is the environment variable that, if set to "false" or
-	// "0", causes terraform commands to behave as if the `-input=false` flag was
+	// "0", causes tofu commands to behave as if the `-input=false` flag was
 	// specified.
 	InputModeEnvVar = "TF_INPUT"
 )
@@ -442,7 +442,7 @@ func (m *Meta) InterruptibleContext(base context.Context) (context.Context, cont
 //
 // This method is just a substitute for passing a context directly to the
 // "Run" method of a command, which we can't do because that API is owned by
-// mitchellh/cli rather than by Terraform. Use this only in situations
+// mitchellh/cli rather than by OpenTofu. Use this only in situations
 // comparable to the context having been passed in as an argument to Run.
 //
 // If the caller (e.g. "package main") provided a context when it instantiated
@@ -516,7 +516,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 	return op, nil
 }
 
-// contextOpts returns the options to use to initialize a Terraform
+// contextOpts returns the options to use to initialize a OpenTofu
 // context with the settings from this Meta.
 func (m *Meta) contextOpts() (*tofu.ContextOpts, error) {
 	workspace, err := m.Workspace()
@@ -563,8 +563,8 @@ func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
 }
 
 // ignoreRemoteVersionFlagSet add the ignore-remote version flag to suppress
-// the error when the configured Terraform version on the remote workspace
-// does not match the local Terraform version.
+// the error when the configured OpenTofu version on the remote workspace
+// does not match the local OpenTofu version.
 func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
@@ -737,11 +737,11 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 }
 
 // WorkspaceNameEnvVar is the name of the environment variable that can be used
-// to set the name of the Terraform workspace, overriding the workspace chosen
-// by `terraform workspace select`.
+// to set the name of the OpenTofu workspace, overriding the workspace chosen
+// by `tofu workspace select`.
 //
-// Note that this environment variable is ignored by `terraform workspace new`
-// and `terraform workspace delete`.
+// Note that this environment variable is ignored by `tofu workspace new`
+// and `tofu workspace delete`.
 const WorkspaceNameEnvVar = "TF_WORKSPACE"
 
 var errInvalidWorkspaceNameEnvVar = fmt.Errorf("Invalid workspace name set using %s", WorkspaceNameEnvVar)

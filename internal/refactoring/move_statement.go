@@ -174,7 +174,7 @@ func haveMoveStatementForResource(addr addrs.AbsResource, stmts []MoveStatement)
 	// This is not a particularly optimal way to answer this question,
 	// particularly since our caller calls this function in a loop already,
 	// but we expect the total number of explicit statements to be small
-	// in any reasonable Terraform configuration and so a more complicated
+	// in any reasonable OpenTofu configuration and so a more complicated
 	// approach wouldn't be justified here.
 
 	for _, stmt := range stmts {

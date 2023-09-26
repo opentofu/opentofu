@@ -34,7 +34,7 @@ var (
 	}
 )
 
-// FmtCommand is a Command implementation that rewrites Terraform config
+// FmtCommand is a Command implementation that rewrites OpenTofu config
 // files to a canonical format and style.
 type FmtCommand struct {
 	Meta
@@ -256,7 +256,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 			}
 
 			// We do not recurse into child directories by default because we
-			// want to mimic the file-reading behavior of "terraform plan", etc,
+			// want to mimic the file-reading behavior of "tofu plan", etc,
 			// operating on one module at a time.
 			continue
 		}

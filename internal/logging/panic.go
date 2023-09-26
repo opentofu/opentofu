@@ -33,14 +33,14 @@ shown below, and any additional information which may help replicate the issue.
 // recovered by PanicHandler starts printing.
 var panicMutex sync.Mutex
 
-// PanicHandler is called to recover from an internal panic in Terraform, and
+// PanicHandler is called to recover from an internal panic in OpenTofu, and
 // augments the standard stack trace with a more user friendly error message.
 // PanicHandler must be called as a defered function, and must be the first
 // defer called at the start of a new goroutine.
 func PanicHandler() {
 	// Have all managed goroutines checkin here, and prevent them from exiting
 	// if there's a panic in progress. While this can't lock the entire runtime
-	// to block progress, we can prevent some cases where Terraform may return
+	// to block progress, we can prevent some cases where OpenTofu may return
 	// early before the panic has been printed out.
 	panicMutex.Lock()
 	defer panicMutex.Unlock()

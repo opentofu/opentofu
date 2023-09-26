@@ -17,7 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// This file contains 'integration' tests for the Terraform check blocks.
+// This file contains 'integration' tests for the OpenTofu check blocks.
 //
 // These tests could live in context_apply_test or context_apply2_test but given
 // the size of those files, it makes sense to keep these check related tests

@@ -19,7 +19,7 @@ import (
 )
 
 // ProvidersMirrorCommand is a Command implementation that implements the
-// "terraform providers mirror" command, which populates a directory with
+// "tofu providers mirror" command, which populates a directory with
 // local copies of provider plugins needed by the current configuration so
 // that the mirror can be used to work offline, or similar.
 type ProvidersMirrorCommand struct {

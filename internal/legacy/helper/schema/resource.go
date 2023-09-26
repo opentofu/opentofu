@@ -32,14 +32,14 @@ var ReservedResourceFields = []string{
 	"provisioner",
 }
 
-// Resource represents a thing in Terraform that has a set of configurable
+// Resource represents a thing in OpenTofu that has a set of configurable
 // attributes and a lifecycle (create, read, update, delete).
 //
 // The Resource schema is an abstraction that allows provider writers to
 // worry only about CRUD operations while off-loading validation, diff
 // generation, etc. to this higher level library.
 //
-// In spite of the name, this struct is not used only for terraform resources,
+// In spite of the name, this struct is not used only for tofu resources,
 // but also for data sources. In the case of data sources, the Create,
 // Update and Delete functions must not be provided.
 type Resource struct {
@@ -86,7 +86,7 @@ type Resource struct {
 
 	// StateUpgraders contains the functions responsible for upgrading an
 	// existing state with an old schema version to a newer schema. It is
-	// called specifically by Terraform when the stored schema version is less
+	// called specifically by OpenTofu when the stored schema version is less
 	// than the current SchemaVersion of the Resource.
 	//
 	// StateUpgraders map specific schema versions to a StateUpgrader
@@ -127,14 +127,14 @@ type Resource struct {
 	Exists ExistsFunc
 
 	// CustomizeDiff is a custom function for working with the diff that
-	// Terraform has created for this resource - it can be used to customize the
+	// OpenTofu has created for this resource - it can be used to customize the
 	// diff that has been created, diff values not controlled by configuration,
 	// or even veto the diff altogether and abort the plan. It is passed a
 	// *ResourceDiff, a structure similar to ResourceData but lacking most write
 	// functions like Set, while introducing new functions that work with the
 	// diff such as SetNew, SetNewComputed, and ForceNew.
 	//
-	// The phases Terraform runs this in, and the state available via functions
+	// The phases OpenTofu runs this in, and the state available via functions
 	// like Get and GetChange, are as follows:
 	//
 	//  * New resource: One run with no state
@@ -273,7 +273,7 @@ func (r *Resource) Apply(
 	data.timeouts = &rt
 
 	if s == nil {
-		// The Terraform API dictates that this should never happen, but
+		// The OpenTofu API dictates that this should never happen, but
 		// it doesn't hurt to be safe in this case.
 		s = new(tofu.InstanceState)
 	}

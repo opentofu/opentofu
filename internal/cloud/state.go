@@ -597,7 +597,7 @@ func (s *State) readSnapshotIntervalHeader(status int, header http.Header) {
 }
 
 // tfeOutputToCtyValue decodes a combination of TFE output value and detailed-type to create a
-// cty value that is suitable for use in terraform.
+// cty value that is suitable for use in tofu.
 func tfeOutputToCtyValue(output tfe.StateVersionOutput) (cty.Value, error) {
 	var result cty.Value
 	bufType, err := json.Marshal(output.DetailedType)

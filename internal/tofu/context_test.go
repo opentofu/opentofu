@@ -202,7 +202,7 @@ resource "implicit_thing" "b" {
 
 	// Validate and Plan are the two entry points where we explicitly verify
 	// the available plugins match what the configuration needs. For other
-	// operations we typically fail more deeply in Terraform Core, with
+	// operations we typically fail more deeply in OpenTofu Core, with
 	// potentially-less-helpful error messages, because getting there would
 	// require doing some pretty weird things that aren't common enough to
 	// be worth the complexity to check for them.
@@ -745,7 +745,7 @@ func contextOptsForPlanViaFile(t *testing.T, configSnap *configload.Snapshot, pl
 
 // legacyPlanComparisonString produces a string representation of the changes
 // from a plan and a given state togther, as was formerly produced by the
-// String method of terraform.Plan.
+// String method of tofu.Plan.
 //
 // This is here only for compatibility with existing tests that predate our
 // new plan and state types, and should not be used in new tests. Instead, use
@@ -761,7 +761,7 @@ func legacyPlanComparisonString(state *states.State, changes *plans.Changes) str
 
 // legacyDiffComparisonString produces a string representation of the changes
 // from a planned changes object, as was formerly produced by the String method
-// of terraform.Diff.
+// of tofu.Diff.
 //
 // This is here only for compatibility with existing tests that predate our
 // new plan types, and should not be used in new tests. Instead, use a library

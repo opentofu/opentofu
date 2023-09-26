@@ -13,7 +13,7 @@ import (
 )
 
 // SyncState is a wrapper around State that provides concurrency-safe access to
-// various common operations that occur during a Terraform graph walk, or other
+// various common operations that occur during a OpenTofu graph walk, or other
 // similar concurrent contexts.
 //
 // When a SyncState wrapper is in use, no concurrent direct access to the

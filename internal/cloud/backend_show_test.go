@@ -14,7 +14,7 @@ import (
 )
 
 // A brief discourse on the theory of testing for this feature. Doing
-// `terraform show cloudplan.tfplan` relies on the correctness of the following
+// `tofu show cloudplan.tfplan` relies on the correctness of the following
 // behaviors:
 //
 // 1. TFC API returns redacted or unredacted plan JSON on request, if permission

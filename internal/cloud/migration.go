@@ -59,7 +59,7 @@ func DetectConfigChangeType(wdState *legacy.BackendState, config *configs.Backen
 
 	// "uninit" here means that the working directory is totally uninitialized,
 	// even taking into account the possibility of implied local state that
-	// therefore doesn't typically require explicit "terraform init".
+	// therefore doesn't typically require explicit "tofu init".
 	wdIsUninit := wdState == nil && !haveLocalStates
 
 	switch {

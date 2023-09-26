@@ -26,8 +26,8 @@ func Test_migrate_tfc_to_tfc_single_workspace(t *testing.T) {
 						wsName := "prod"
 						// Creating the workspace here instead of it being created
 						// dynamically in the Cloud StateMgr because we want to ensure that
-						// the terraform version selected for the workspace matches the
-						// terraform version of this current branch.
+						// the tofu version selected for the workspace matches the
+						// tofu version of this current branch.
 						_ = createWorkspace(t, orgName, tfe.WorkspaceCreateOptions{
 							Name:             tfe.String("prod"),
 							TerraformVersion: tfe.String(tfversion.String()),
@@ -167,7 +167,7 @@ func Test_migrate_tfc_to_tfc_single_workspace(t *testing.T) {
 				{
 					prep: func(t *testing.T, orgName, dir string) {
 						tag := "app"
-						// This is only here to ensure that the updated terraform version is
+						// This is only here to ensure that the updated tofu version is
 						// present in the workspace, and it does not default to a lower
 						// version that does not support `cloud`.
 						_ = createWorkspace(t, orgName, tfe.WorkspaceCreateOptions{
@@ -263,7 +263,7 @@ func Test_migrate_tfc_to_tfc_multiple_workspace(t *testing.T) {
 					prep: func(t *testing.T, orgName, dir string) {
 						name := "service"
 						// Doing this here instead of relying on dynamic workspace creation
-						// because we want to set the terraform version here so that it is
+						// because we want to set the tofu version here so that it is
 						// using the right version for post init operations.
 						_ = createWorkspace(t, orgName, tfe.WorkspaceCreateOptions{
 							Name:             tfe.String(name),

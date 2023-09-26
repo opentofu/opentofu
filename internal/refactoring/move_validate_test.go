@@ -530,7 +530,7 @@ A chain of move statements must end with an address that doesn't appear in any o
 // loadRefactoringFixture reads a configuration from the given directory and
 // does some naive static processing on any count and for_each expressions
 // inside, in order to get a realistic-looking instances.Set for what it
-// declares without having to run a full Terraform plan.
+// declares without having to run a full OpenTofu plan.
 func loadRefactoringFixture(t *testing.T, dir string) (*configs.Config, instances.Set) {
 	t.Helper()
 

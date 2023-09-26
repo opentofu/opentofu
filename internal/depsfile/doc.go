@@ -4,7 +4,7 @@
 // Package depsfile contains the logic for reading and writing OpenTofu's
 // dependency lock and development override configuration files.
 //
-// These files are separate from the main Terraform configuration files (.tf)
+// These files are separate from the main OpenTofu configuration files (.tf)
 // for a number of reasons. The first is to help establish a distinction
 // where .tf files configure a particular module while these configure
 // a whole configuration tree. Another, more practical consideration is that

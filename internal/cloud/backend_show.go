@@ -16,7 +16,7 @@ import (
 // ShowPlanForRun downloads the JSON plan output for the specified cloud run
 // (either the redacted or unredacted format, per the caller's request), and
 // returns it in a cloudplan.RemotePlanJSON wrapper struct (along with various
-// metadata required by terraform show). It's intended for use by the terraform
+// metadata required by tofu show). It's intended for use by the tofu
 // show command, in order to format and display a saved cloud plan.
 func (b *Cloud) ShowPlanForRun(ctx context.Context, runID, runHostname string, redacted bool) (*cloudplan.RemotePlanJSON, error) {
 	var jsonBytes []byte

@@ -34,7 +34,7 @@ func (t *OrphanResourceInstanceCountTransformer) Transform(g *Graph) error {
 
 	// This is an O(n*m) analysis, which we accept for now because the
 	// number of instances of a single resource ought to always be small in any
-	// reasonable Terraform configuration.
+	// reasonable OpenTofu configuration.
 Have:
 	for key, inst := range rs.Instances {
 		// Instances which have no current objects (only one or more

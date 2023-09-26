@@ -121,7 +121,7 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 			)
 			subject = sourceRange.ToHCL().Ptr()
 
-			// In some workflows, the operator running terraform does not have access to the variables
+			// In some workflows, the operator running tofu does not have access to the variables
 			// themselves. They are for example stored in encrypted files that will be used by the CI toolset
 			// and not by the operator directly. In such a case, the failing secret value should not be
 			// displayed to the operator
@@ -228,7 +228,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "No final value for variable",
-			Detail:   fmt.Sprintf("OpenTofu doesn't have a final value for %s during validation. This is a bug in Terraform; please report it!", addr),
+			Detail:   fmt.Sprintf("OpenTofu doesn't have a final value for %s during validation. This is a bug in OpenTofu; please report it!", addr),
 		})
 		return diags
 	}
@@ -297,12 +297,12 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 
 			// This warning diagnostic explains this odd behaviour, while
 			// giving us an escape hatch to change this to a hard failure
-			// in some future Terraform 1.x version.
+			// in some future OpenTofu 1.x version.
 			errorDiags = hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity:    hcl.DiagWarning,
 					Summary:     "Validation error message expression is invalid",
-					Detail:      fmt.Sprintf("The error message provided could not be evaluated as an expression, so OpenTofu is interpreting it as a string literal.\n\nIn future versions of Terraform, this will be considered an error. Please file a GitHub issue if this would break your workflow.\n\n%s", errorDiags.Error()),
+					Detail:      fmt.Sprintf("The error message provided could not be evaluated as an expression, so OpenTofu is interpreting it as a string literal.\n\nIn future versions of OpenTofu, this will be considered an error. Please file a GitHub issue if this would break your workflow.\n\n%s", errorDiags.Error()),
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Context:     validation.DeclRange.Ptr(),
 					Expression:  validation.ErrorMessage,

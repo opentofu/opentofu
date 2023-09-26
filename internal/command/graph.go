@@ -135,7 +135,7 @@ func (c *GraphCommand) Run(args []string) int {
 	case "apply":
 		plan := lr.Plan
 
-		// Historically "terraform graph" would allow the nonsensical request to
+		// Historically "tofu graph" would allow the nonsensical request to
 		// render an apply graph without a plan, so we continue to support that
 		// here, though perhaps one day this should be an error.
 		if lr.Plan == nil {

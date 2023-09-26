@@ -44,13 +44,13 @@ type InstallerEvents struct {
 	ProviderAlreadyInstalled func(provider addrs.Provider, selectedVersion getproviders.Version)
 
 	// The BuiltInProvider... family of events describe the outcome for any
-	// requested providers that are built in to Terraform. Only one of these
+	// requested providers that are built in to OpenTofu. Only one of these
 	// methods will be called for each such provider, and no other method
 	// will be called for them except that they are included in the
 	// aggregate PendingProviders map.
 	//
 	// The "Available" event reports that the requested builtin provider is
-	// available in this release of Terraform. The "Failure" event reports
+	// available in this release of OpenTofu. The "Failure" event reports
 	// either that the provider is unavailable or that the request for it
 	// is invalid somehow.
 	BuiltInProviderAvailable func(provider addrs.Provider)

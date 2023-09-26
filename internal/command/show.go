@@ -43,7 +43,7 @@ func (e *errUnusableDataMisc) Unwrap() error {
 }
 
 // ShowCommand is a Command implementation that reads and outputs the
-// contents of a Terraform plan or state file.
+// contents of a OpenTofu plan or state file.
 type ShowCommand struct {
 	Meta
 	viewType arguments.ViewType

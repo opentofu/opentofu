@@ -298,7 +298,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 	// Saved check results from the previous run, if any.
 	// We differentiate absense from an empty array here so that we can
-	// recognize if the previous run was with a version of Terraform that
+	// recognize if the previous run was with a version of OpenTofu that
 	// didn't support checks yet, or if there just weren't any checkable
 	// objects to record, in case that's important for certain messaging.
 	if sV4.CheckResults != nil {
@@ -618,7 +618,7 @@ func decodeCheckStatusV4(in string) checks.Status {
 		return checks.StatusError
 	default:
 		// We'll treat anything else as unknown just as a concession to
-		// forward-compatible parsing, in case a later version of Terraform
+		// forward-compatible parsing, in case a later version of OpenTofu
 		// introduces a new status.
 		return checks.StatusUnknown
 	}
@@ -651,7 +651,7 @@ func decodeCheckableObjectKindV4(in string) addrs.CheckableKind {
 		return addrs.CheckableInputVariable
 	default:
 		// We'll treat anything else as invalid just as a concession to
-		// forward-compatible parsing, in case a later version of Terraform
+		// forward-compatible parsing, in case a later version of OpenTofu
 		// introduces a new status.
 		return addrs.CheckableKindInvalid
 	}

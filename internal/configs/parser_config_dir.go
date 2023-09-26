@@ -95,7 +95,7 @@ func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (prima
 }
 
 // IsConfigDir determines whether the given path refers to a directory that
-// exists and contains at least one Terraform config file (with a .tf or
+// exists and contains at least one OpenTofu config file (with a .tf or
 // .tf.json extension.). Note, we explicitely exclude checking for tests here
 // as tests must live alongside actual .tf config files.
 func (p *Parser) IsConfigDir(path string) bool {
@@ -124,10 +124,10 @@ func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnost
 	return files, diags
 }
 
-// dirFiles finds Terraform configuration files within dir, splitting them into
+// dirFiles finds OpenTofu configuration files within dir, splitting them into
 // primary and override files based on the filename.
 //
-// If testsDir is not empty, dirFiles will also retrieve Terraform testing files
+// If testsDir is not empty, dirFiles will also retrieve OpenTofu testing files
 // both directly within dir and within testsDir as a subdirectory of dir. In
 // this way, testsDir acts both as a direction to retrieve test files within the
 // main direction and as the location for additional test files.
@@ -196,7 +196,7 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 
 	for _, info := range infos {
 		if info.IsDir() {
-			// We only care about terraform configuration files.
+			// We only care about tofu configuration files.
 			continue
 		}
 
@@ -253,7 +253,7 @@ func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*Tes
 	return tfs, diags
 }
 
-// fileExt returns the Terraform configuration extension of the given
+// fileExt returns the OpenTofu configuration extension of the given
 // path, or a blank string if it is not a recognized extension.
 func fileExt(path string) string {
 	if strings.HasSuffix(path, ".tf") {
@@ -277,7 +277,7 @@ func IsIgnoredFile(name string) bool {
 		strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#") // emacs
 }
 
-// IsEmptyDir returns true if the given filesystem path contains no Terraform
+// IsEmptyDir returns true if the given filesystem path contains no OpenTofu
 // configuration files.
 //
 // Unlike the methods of the Parser type, this function always consults the

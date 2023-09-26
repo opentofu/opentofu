@@ -121,16 +121,16 @@ func TestLocal_planNoConfig(t *testing.T) {
 func TestLocal_plan_context_error(t *testing.T) {
 	b := TestLocal(t)
 
-	// This is an intentionally-invalid value to make terraform.NewContext fail
+	// This is an intentionally-invalid value to make tofu.NewContext fail
 	// when b.Operation calls it.
 	// NOTE: This test was originally using a provider initialization failure
-	// as its forced error condition, but terraform.NewContext is no longer
+	// as its forced error condition, but tofu.NewContext is no longer
 	// responsible for checking that. Invalid parallelism is the last situation
-	// where terraform.NewContext can return error diagnostics, and arguably
+	// where tofu.NewContext can return error diagnostics, and arguably
 	// we should be validating this argument at the UI layer anyway, so perhaps
-	// in future we'll make terraform.NewContext never return errors and then
+	// in future we'll make tofu.NewContext never return errors and then
 	// this test will become redundant, because its purpose is specifically
-	// to test that we properly unlock the state if terraform.NewContext
+	// to test that we properly unlock the state if tofu.NewContext
 	// returns an error.
 	if b.ContextOpts == nil {
 		b.ContextOpts = &tofu.ContextOpts{}

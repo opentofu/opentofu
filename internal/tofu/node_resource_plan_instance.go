@@ -178,7 +178,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Import block target does not exist",
-				Detail:   "The target for the given import block does not exist. If you wish to automatically generate config for this resource, use the -generate-config-out option within terraform plan. Otherwise, make sure the target resource exists within your configuration. For example:\n\n  terraform plan -generate-config-out=generated.tf",
+				Detail:   "The target for the given import block does not exist. If you wish to automatically generate config for this resource, use the -generate-config-out option within tofu plan. Otherwise, make sure the target resource exists within your configuration. For example:\n\n  tofu plan -generate-config-out=generated.tf",
 				Subject:  n.importTarget.Config.DeclRange.Ptr(),
 			})
 		} else {
@@ -336,7 +336,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		//
 		// Future work should adjust these APIs such that it is impossible to
 		// update these two data structures incorrectly through any objects
-		// reachable via the terraform.EvalContext API.
+		// reachable via the tofu.EvalContext API.
 		diags = diags.Append(n.writeChange(ctx, change, ""))
 
 		diags = diags.Append(n.writeResourceInstanceState(ctx, instancePlanState, workingState))

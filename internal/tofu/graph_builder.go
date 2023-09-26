@@ -12,7 +12,7 @@ import (
 )
 
 // GraphBuilder is an interface that can be implemented and used with
-// Terraform to build the graph that Terraform walks.
+// OpenTofu to build the graph that OpenTofu walks.
 type GraphBuilder interface {
 	// Build builds the graph for the given module path. It is up to
 	// the interface implementation whether this build should expand

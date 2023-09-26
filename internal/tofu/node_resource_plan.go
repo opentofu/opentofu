@@ -47,7 +47,7 @@ type nodeExpandPlannableResource struct {
 	dependencies []addrs.ConfigResource
 
 	// legacyImportMode is set if the graph is being constructed following an
-	// invocation of the legacy "terraform import" CLI command.
+	// invocation of the legacy "tofu import" CLI command.
 	legacyImportMode bool
 }
 
@@ -326,7 +326,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 						// This should be impossible, because the import command
 						// arg parsing builds the synth expression from a
 						// non-null string.
-						panic(fmt.Sprintf("Invalid import id: %s. This is a bug in Terraform; please report it!", diags.Err()))
+						panic(fmt.Sprintf("Invalid import id: %s. This is a bug in OpenTofu; please report it!", diags.Err()))
 					}
 
 					return &graphNodeImportState{

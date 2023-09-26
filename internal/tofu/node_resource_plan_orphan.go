@@ -106,7 +106,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 		// order to catch missing resources. If this is a normal plan,
 		// providers expect a Read request to remove missing resources from the
 		// plan before apply, and may not handle a missing resource during
-		// Delete correctly.  If this is a simple refresh, Terraform is
+		// Delete correctly.  If this is a simple refresh, OpenTofu is
 		// expected to remove the missing resource from the state entirely
 		refreshedState, refreshDiags := n.refresh(ctx, states.NotDeposed, oldState)
 		diags = diags.Append(refreshDiags)

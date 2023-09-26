@@ -13,20 +13,20 @@ import (
 )
 
 // InputValue represents a raw value for a root module input variable as
-// provided by the external caller into a function like terraform.Context.Plan.
+// provided by the external caller into a function like tofu.Context.Plan.
 //
 // InputValue should represent as directly as possible what the user set the
 // variable to, without any attempt to convert the value to the variable's
 // type constraint or substitute the configured default values for variables
-// that wasn't set. Those adjustments will be handled by Terraform Core itself
+// that wasn't set. Those adjustments will be handled by OpenTofu Core itself
 // as part of performing the requested operation.
 //
-// A Terraform Core caller must provide an InputValue object for each of the
+// A OpenTofu Core caller must provide an InputValue object for each of the
 // variables declared in the root module, even if the end user didn't provide
 // an explicit value for some of them. See the Value field documentation for
 // how to handle that situation.
 //
-// Terraform Core also internally uses InputValue to represent the raw value
+// OpenTofu Core also internally uses InputValue to represent the raw value
 // provided for a variable in a child module call, following the same
 // conventions. However, that's an implementation detail not visible to
 // outside callers.
@@ -50,7 +50,7 @@ type InputValue struct {
 	Value cty.Value
 
 	// SourceType is a high-level category for where the value of Value
-	// came from, which Terraform Core uses to tailor some of its error
+	// came from, which OpenTofu Core uses to tailor some of its error
 	// messages to be more helpful to the user.
 	//
 	// Some SourceType values should be accompanied by a populated SourceRange
@@ -109,9 +109,9 @@ const (
 
 func (v *InputValue) GoString() string {
 	if (v.SourceRange != tfdiags.SourceRange{}) {
-		return fmt.Sprintf("&terraform.InputValue{Value: %#v, SourceType: %#v, SourceRange: %#v}", v.Value, v.SourceType, v.SourceRange)
+		return fmt.Sprintf("&tofu.InputValue{Value: %#v, SourceType: %#v, SourceRange: %#v}", v.Value, v.SourceType, v.SourceRange)
 	} else {
-		return fmt.Sprintf("&terraform.InputValue{Value: %#v, SourceType: %#v}", v.Value, v.SourceType)
+		return fmt.Sprintf("&tofu.InputValue{Value: %#v, SourceType: %#v}", v.Value, v.SourceType)
 	}
 }
 
@@ -134,7 +134,7 @@ func (v ValueSourceType) HasSourceRange() bool {
 }
 
 func (v ValueSourceType) GoString() string {
-	return fmt.Sprintf("terraform.%s", v)
+	return fmt.Sprintf("tofu.%s", v)
 }
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type ValueSourceType
@@ -294,7 +294,7 @@ func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdia
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Unassigned variable",
-				fmt.Sprintf("The input variable %q has not been assigned a value. This is a bug in Terraform; please report it in a GitHub issue.", name),
+				fmt.Sprintf("The input variable %q has not been assigned a value. This is a bug in OpenTofu; please report it in a GitHub issue.", name),
 			))
 			continue
 		}
