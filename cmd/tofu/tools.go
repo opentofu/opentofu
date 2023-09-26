@@ -4,7 +4,7 @@
 //go:build tools
 // +build tools
 
-package tools
+package main
 
 // This file tracks some external tools we use during development and release
 // processes. These are not used at runtime but having them here allows the
