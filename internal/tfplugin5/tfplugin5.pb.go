@@ -12,11 +12,11 @@
 // compatibility. Breaking changes, if any are required, will come
 // in a subsequent major version with its own separate proto definition.
 //
-// Note that only the proto files included in a release tag of OpenTofu are
+// Note that only the proto files included in a release tag of Terraform are
 // official protocol releases. Proto files taken from other commits may include
 // incomplete changes or features that did not make it into a final release.
 // In all reasonable cases, plugin developers should take the proto file from
-// the tag of the most recent release of OpenTofu, and not from the main
+// the tag of the most recent release of Terraform, and not from the main
 // branch or any other development branch.
 //
 
