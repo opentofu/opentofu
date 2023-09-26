@@ -3,6 +3,7 @@
 - Manifesto: https://opentofu.org/manifesto
 - About the OpenTofu fork: https://opentofu.org/fork
 - [Join our Slack community!](https://join.slack.com/t/opentfcommunity/shared_invite/zt-237chyryd-mFULiefrbYGMYQoG72BUpQ)
+- [Weekly OpenTofu Status Updates](WEEKLY_UPDATES.md)
 
 ![](https://raw.githubusercontent.com/opentofu/brand-artifacts/main/full/transparent/SVG/on-dark.svg#gh-dark-mode-only)
 ![](https://raw.githubusercontent.com/opentofu/brand-artifacts/main/full/transparent/SVG/on-light.svg#gh-light-mode-only)
