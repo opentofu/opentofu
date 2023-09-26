@@ -175,10 +175,10 @@ type TestRunOptions struct {
 	// Mode is the planning mode to run in. One of ['normal', 'refresh-only'].
 	Mode TestMode
 
-	// Refresh is analogous to the -refresh=false OpenTofOpenTofuu plan option.
+	// Refresh is analogous to the -refresh=false OpenTofu plan option.
 	Refresh bool
 
-	// Replace is analogous to the -refresh=ADDRESS OpenTofOpenTofuu plan option.
+	// Replace is analogous to the -refresh=ADDRESS OpenTofu plan option.
 	Replace []hcl.Traversal
 
 	// Target is analogous to the -target=ADDRESS OpenTofu plan option.
