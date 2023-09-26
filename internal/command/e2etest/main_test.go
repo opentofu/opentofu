@@ -48,7 +48,7 @@ func setup() func() {
 		return func() {}
 	}
 
-	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu", "tofu")
+	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu/cmd/tofu", "tofu")
 
 	// Make the executable available for use in tests
 	terraformBin = tmpFilename
