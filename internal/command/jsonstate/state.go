@@ -104,7 +104,7 @@ type Resource struct {
 	// addresses relative to the containing module.
 	DependsOn []string `json:"depends_on,omitempty"`
 
-	// Tainted is true if the resource is tainted in tofutofutofu state.
+	// Tainted is true if the resource is tainted in tofu state.
 	Tainted bool `json:"tainted,omitempty"`
 
 	// Deposed is set if the resource is deposed in tofu state.
