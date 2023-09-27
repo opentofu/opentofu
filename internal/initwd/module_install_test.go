@@ -947,7 +947,7 @@ func tempChdir(t *testing.T, sourceDir string) (string, func()) {
 	return tmpDir, func() {
 		err := os.Chdir(oldDir)
 		if err != nil {
-			panic(fmt.Errorf("failed to restore previous working directory %s: %s", oldDir, err))
+			panic(fmt.Errorf("failed to restore previous working directory %s: %w", oldDir, err))
 		}
 
 		if os.Getenv("TF_CONFIGLOAD_TEST_KEEP_TMP") == "" {
