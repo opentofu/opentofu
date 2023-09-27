@@ -7,8 +7,8 @@ set -uo pipefail
 if [[ $arch == 'arm' || $arch == 'arm64' ]]
 then
     export DIR=$(mktemp -d)
-    unzip -d $DIR "${e2e_cache_path}/opentofu-e2etest_${os}_${arch}.zip"
-    unzip -d $DIR "./opentofu_${version}_${os}_${arch}.zip"
+    unzip -d $DIR "${e2e_cache_path}/tofu-e2etest_${os}_${arch}.zip"
+    unzip -d $DIR "./tofu${version}_${os}_${arch}.zip"
     sudo chmod +x $DIR/e2etest
     docker run --platform=linux/arm64 -v $DIR:/src -w /src arm64v8/alpine ./e2etest -test.v
 else
