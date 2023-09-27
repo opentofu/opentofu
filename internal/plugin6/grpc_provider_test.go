@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+	"go.uber.org/mock/gomock"
 
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
