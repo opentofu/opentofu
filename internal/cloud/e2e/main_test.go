@@ -210,6 +210,7 @@ func setupBinary() func() {
 		"build",
 		"-o", tmpTerraformBinaryDir,
 		"-ldflags", fmt.Sprintf("-X \"github.com/opentofu/opentofu/version.Prerelease=%s\"", tfversion.Prerelease),
+		"./cmd/tofu",
 	)
 	err = cmd.Run()
 	if err != nil {

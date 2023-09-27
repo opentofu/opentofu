@@ -16,7 +16,7 @@ OpenTofu accepts certain options passed using `ldflags` at build time which cont
 OpenTofu will include a `-dev` flag when reporting its own version (ex: 1.5.0-dev) unless `version.dev` is set to `no`:
 
 ```
-go build -ldflags "-w -s -X 'github.com/opentofu/opentofu/version.dev=no'" -o bin/ .
+go build -ldflags "-w -s -X 'github.com/opentofu/opentofu/version.dev=no'" -o bin/ ./cmd/tofu
 ```
 
 ### Experimental Features
@@ -24,7 +24,7 @@ go build -ldflags "-w -s -X 'github.com/opentofu/opentofu/version.dev=no'" -o bi
 Experimental features of OpenTofu will be disabled unless `main.experimentsAllowed` is set to `yes`:
 
 ```
-go build -ldflags "-w -s -X 'main.experimentsAllowed=yes'" -o bin/ .
+go build -ldflags "-w -s -X 'main.experimentsAllowed=yes'" -o bin/ ./cmd/tofu
 ```
 
 ## Go Options

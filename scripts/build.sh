@@ -59,7 +59,7 @@ gox \
     -osarch="${XC_EXCLUDE_OSARCH}" \
     -ldflags "${LD_FLAGS}" \
     -output "pkg/{{.OS}}_{{.Arch}}/tofu" \
-    .
+    ./cmd/tofu
 
 # Move all the compiled things to the $GOPATH/bin
 GOPATH=${GOPATH:-$(go env GOPATH)}
