@@ -53,7 +53,6 @@ jobs:
       - name: Setup snapcraft
         run: |
           sudo snap install snapcraft --classic --channel=7.x/stable
-          snapcraft login
 
           # See https://github.com/goreleaser/goreleaser/issues/1715
           mkdir -p "$HOME/.cache/snapcraft/download"
@@ -68,3 +67,4 @@ jobs:
           args: release --clean --timeout=60m --snapshot=${{ !startsWith(github.ref, 'refs/tags/v') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
