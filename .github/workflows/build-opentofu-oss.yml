@@ -22,7 +22,7 @@ on:
         type: string
       package-name:
         type: string
-        default: opentofu
+        default: tofu
       bin-name:
         type: string
         default: tofu
