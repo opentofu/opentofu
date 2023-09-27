@@ -100,7 +100,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// Validate the arg count and get the working directory
 	args = cmdFlags.Args()
-	path, err := ModulePath(args)
+	path, err := modulePath(args)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

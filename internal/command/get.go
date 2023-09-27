@@ -35,7 +35,7 @@ func (c *GetCommand) Run(args []string) int {
 	ctx, done := c.InterruptibleContext(c.CommandContext())
 	defer done()
 
-	path, err := ModulePath(cmdFlags.Args())
+	path, err := modulePath(cmdFlags.Args())
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

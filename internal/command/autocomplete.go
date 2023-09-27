@@ -43,7 +43,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 		// directory, since we don't have enough context to know where to
 		// find any config path argument, and it might be _after_ the argument
 		// we're trying to complete here anyway.
-		configPath, err := ModulePath(nil)
+		configPath, err := modulePath(nil)
 		if err != nil {
 			return nil
 		}

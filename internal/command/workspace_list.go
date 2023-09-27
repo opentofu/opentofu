@@ -30,7 +30,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	args = cmdFlags.Args()
-	configPath, err := ModulePath(args)
+	configPath, err := modulePath(args)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

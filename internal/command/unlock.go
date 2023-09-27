@@ -44,7 +44,7 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	// assume everything is initialized. The user can manually init if this is
 	// required.
-	configPath, err := ModulePath(args)
+	configPath, err := modulePath(args)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
