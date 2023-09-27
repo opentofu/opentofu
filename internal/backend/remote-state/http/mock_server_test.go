@@ -8,7 +8,7 @@ import (
 	http "net/http"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockHttpServerCallback is a mock of HttpServerCallback interface.
