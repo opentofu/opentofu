@@ -856,7 +856,7 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("%s %s", err, out)
+		return nil, fmt.Errorf("%w %s", err, out)
 	}
 
 	locker := exec.Command(lockBin, path)
@@ -881,7 +881,7 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	buf := make([]byte, 1024)
 	n, err := pr.Read(buf)
 	if err != nil {
-		return deferFunc, fmt.Errorf("read from statelocker returned: %s", err)
+		return deferFunc, fmt.Errorf("read from statelocker returned: %w", err)
 	}
 
 	output := string(buf[:n])
