@@ -22,7 +22,10 @@ on:
         type: string
       package-name:
         type: string
-        default: opentofu
+        default: tofu
+      bin-name:
+        type: string
+        default: tofu
       product-version:
         type: string
         required: true
@@ -53,7 +56,8 @@ jobs:
           CGO_ENABLED: ${{ inputs.cgo-enabled }}
         uses: hashicorp/actions-go-build@v0.1.7
         with:
-          product_name: ${{ inputs.package-name }}
+          bin_name: ${{ inputs.bin-name }}
+          product_name: ${{ inputs.product-name }}
           product_version: ${{ inputs.product-version }}
           go_version: ${{ inputs.go-version }}
           os: ${{ inputs.goos }}
