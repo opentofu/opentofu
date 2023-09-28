@@ -749,7 +749,7 @@ func acceptPublicKey(keystr string) func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.
 	return func(_ ssh.ConnMetadata, inkey ssh.PublicKey) (*ssh.Permissions, error) {
 		goodkey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(keystr))
 		if err != nil {
-			return nil, fmt.Errorf("error parsing key: %v", err)
+			return nil, fmt.Errorf("error parsing key: %w", err)
 		}
 
 		if bytes.Equal(inkey.Marshal(), goodkey.Marshal()) {

@@ -175,12 +175,12 @@ func FakeInstallablePackageMeta(provider addrs.Provider, version Version, protoc
 	zw := zip.NewWriter(f)
 	fw, err := zw.Create(execFilename)
 	if err != nil {
-		return PackageMeta{}, close, fmt.Errorf("failed to add %s to mock zip file: %s", execFilename, err)
+		return PackageMeta{}, close, fmt.Errorf("failed to add %s to mock zip file: %w", execFilename, err)
 	}
 	fmt.Fprintf(fw, "This is a fake provider package for %s %s, not a real provider.\n", provider, version)
 	err = zw.Close()
 	if err != nil {
-		return PackageMeta{}, close, fmt.Errorf("failed to close the mock zip file: %s", err)
+		return PackageMeta{}, close, fmt.Errorf("failed to close the mock zip file: %w", err)
 	}
 
 	// Compute the SHA256 checksum of the generated file, to allow package
