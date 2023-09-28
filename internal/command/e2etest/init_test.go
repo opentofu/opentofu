@@ -393,7 +393,7 @@ func TestInitProviderWarnings(t *testing.T) {
 	t.Parallel()
 
 	// This test will reach out to registry.terraform.io as one of the possible
-	// installation locations for hashicorp/nonexist, which should not exist.
+	// installation locations for hashicorp/terraform, which is an archived package that is no longer needed.
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "provider-warnings")
