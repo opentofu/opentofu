@@ -269,7 +269,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("template plugin was not installed from local cache")
 	}
 
-	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
+	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
 	if runtime.GOOS == "windows" {
 		nullLinkPath = nullLinkPath + ".exe"
 	}
@@ -277,7 +277,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("null plugin was not installed into %s", nullLinkPath)
 	}
 
-	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentf.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
+	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
 	if runtime.GOOS == "windows" {
 		nullCachePath = nullCachePath + ".exe"
 	}
@@ -389,23 +389,25 @@ func TestInitProviderNotFound(t *testing.T) {
 	})
 }
 
-func TestInitProviderWarnings(t *testing.T) {
-	t.Parallel()
-
-	// This test will reach out to registry.terraform.io as one of the possible
-	// installation locations for hashicorp/terraform, which is an archived package that is no longer needed.
-	skipIfCannotAccessNetwork(t)
-
-	fixturePath := filepath.Join("testdata", "provider-warnings")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
-
-	stdout, _, err := tf.Run("init")
-	if err == nil {
-		t.Fatal("expected error, got success")
-	}
-
-	if !strings.Contains(stdout, "This provider is archived and no longer needed.") {
-		t.Errorf("expected warning message is missing from output:\n%s", stdout)
-	}
-
-}
+// The following test is temporarily removed until the OpenTofu registry returns a deprecation warning
+// https://github.com/opentofu/registry/issues/108
+//func TestInitProviderWarnings(t *testing.T) {
+//	t.Parallel()
+//
+//  // This test will reach out to registry.terraform.io as one of the possible
+//  // installation locations for hashicorp/terraform, which is an archived package that is no longer needed.
+//	skipIfCannotAccessNetwork(t)
+//
+//	fixturePath := filepath.Join("testdata", "provider-warnings")
+//	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+//
+//	stdout, _, err := tf.Run("init")
+//	if err == nil {
+//		t.Fatal("expected error, got success")
+//	}
+//
+//	if !strings.Contains(stdout, "This provider is archived and no longer needed.") {
+//		t.Errorf("expected warning message is missing from output:\n%s", stdout)
+//	}
+//
+//}
