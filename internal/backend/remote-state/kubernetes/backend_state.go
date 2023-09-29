@@ -19,7 +19,7 @@ import (
 // Workspaces returns a list of names for the workspaces found in k8s. The default
 // workspace is always returned as the first element in the slice.
 func (b *Backend) Workspaces() ([]string, error) {
-	secretClient, err := b.KubernetesSecretClient()
+	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
@@ -146,12 +146,12 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 		return nil, errors.New("missing state name")
 	}
 
-	secretClient, err := b.KubernetesSecretClient()
+	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
 
-	leaseClient, err := b.KubernetesLeaseClient()
+	leaseClient, err := b.getKubernetesLeaseClient()
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +166,4 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	}
 
 	return client, nil
-}
-
-func (b *Backend) client() *RemoteClient {
-	return &RemoteClient{}
 }

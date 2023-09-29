@@ -136,7 +136,7 @@ func cleanupK8sResources(t *testing.T) {
 
 	b := b1.(*Backend)
 
-	sClient, err := b.KubernetesSecretClient()
+	sClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func cleanupK8sResources(t *testing.T) {
 		}
 	}
 
-	leaseClient, err := b.KubernetesLeaseClient()
+	leaseClient, err := b.getKubernetesLeaseClient()
 	if err != nil {
 		t.Fatal(err)
 	}
