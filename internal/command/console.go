@@ -35,7 +35,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		return 1
 	}
 
-	configPath, err := ModulePath(cmdFlags.Args())
+	configPath, err := modulePath(cmdFlags.Args())
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

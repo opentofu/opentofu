@@ -61,7 +61,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
-	configPath, err := ModulePath(args[1:])
+	configPath, err := modulePath(args[1:])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

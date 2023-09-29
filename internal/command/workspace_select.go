@@ -37,7 +37,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	configPath, err := ModulePath(args[1:])
+	configPath, err := modulePath(args[1:])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
