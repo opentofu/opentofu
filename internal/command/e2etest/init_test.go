@@ -92,7 +92,7 @@ func TestInitProvidersInternal(t *testing.T) {
 func TestInitProvidersVendored(t *testing.T) {
 	t.Parallel()
 
-	// This test will try to reach out to registry.opentf.org as one of the
+	// This test will try to reach out to registry.opentofu.org as one of the
 	// possible installation locations for
 	// hashicorp/null, where it will find that
 	// versions do exist but will ultimately select the version that is
@@ -105,8 +105,8 @@ func TestInitProvidersVendored(t *testing.T) {
 	// Our fixture dir has a generic os_arch dir, which we need to customize
 	// to the actual OS/arch where this test is running in order to get the
 	// desired result.
-	fixtMachineDir := tf.Path("terraform.d/plugins/registry.opentf.org/hashicorp/null/1.0.0+local/os_arch")
-	wantMachineDir := tf.Path("terraform.d/plugins/registry.opentf.org/hashicorp/null/1.0.0+local/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
+	fixtMachineDir := tf.Path("terraform.d/plugins/registry.opentofu.org/hashicorp/null/1.0.0+local/os_arch")
+	wantMachineDir := tf.Path("terraform.d/plugins/registry.opentofu.org/hashicorp/null/1.0.0+local/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 	err := os.Rename(fixtMachineDir, wantMachineDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -243,8 +243,8 @@ func TestInitProviders_pluginCache(t *testing.T) {
 	// Our fixture dir has a generic os_arch dir, which we need to customize
 	// to the actual OS/arch where this test is running in order to get the
 	// desired result.
-	fixtMachineDir := tf.Path("cache/registry.opentf.org/hashicorp/template/2.1.0/os_arch")
-	wantMachineDir := tf.Path("cache/registry.opentf.org/hashicorp/template/2.1.0/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
+	fixtMachineDir := tf.Path("cache/registry.opentofu.org/hashicorp/template/2.1.0/os_arch")
+	wantMachineDir := tf.Path("cache/registry.opentofu.org/hashicorp/template/2.1.0/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 	err := os.Rename(fixtMachineDir, wantMachineDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -260,7 +260,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentf.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
+	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
 	content, err := tf.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read installed plugin from %s: %s", path, err)
@@ -289,7 +289,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 func TestInit_fromModule(t *testing.T) {
 	t.Parallel()
 
-	// This test reaches out to registry.opentf.org and github.com to lookup
+	// This test reaches out to registry.opentofu.org and github.com to lookup
 	// and fetch a module.
 	skipIfCannotAccessNetwork(t)
 
@@ -322,7 +322,7 @@ func TestInit_fromModule(t *testing.T) {
 func TestInitProviderNotFound(t *testing.T) {
 	t.Parallel()
 
-	// This test will reach out to registry.opentf.org as one of the possible
+	// This test will reach out to registry.opentofu.org as one of the possible
 	// installation locations for hashicorp/nonexist, which should not exist.
 	skipIfCannotAccessNetwork(t)
 
@@ -336,7 +336,7 @@ func TestInitProviderNotFound(t *testing.T) {
 		}
 
 		oneLineStderr := strings.ReplaceAll(stderr, "\n", " ")
-		if !strings.Contains(oneLineStderr, "provider registry registry.opentf.org does not have a provider named registry.opentf.org/hashicorp/nonexist") {
+		if !strings.Contains(oneLineStderr, "provider registry registry.opentofu.org does not have a provider named registry.opentofu.org/hashicorp/nonexist") {
 			t.Errorf("expected error message is missing from output:\n%s", stderr)
 		}
 
@@ -357,7 +357,7 @@ func TestInitProviderNotFound(t *testing.T) {
 			t.Fatal("expected error, got success")
 		}
 
-		if !strings.Contains(stderr, "provider registry.opentf.org/hashicorp/nonexist was not\nfound in any of the search locations\n\n  - "+pluginDir) {
+		if !strings.Contains(stderr, "provider registry.opentofu.org/hashicorp/nonexist was not\nfound in any of the search locations\n\n  - "+pluginDir) {
 			t.Errorf("expected error message is missing from output:\n%s", stderr)
 		}
 	})
@@ -372,8 +372,8 @@ func TestInitProviderNotFound(t *testing.T) {
 │ Error: Failed to query available provider packages
 │` + ` ` + `
 │ Could not retrieve the list of available versions for provider
-│ hashicorp/nonexist: provider registry registry.opentf.org does not have a
-│ provider named registry.opentf.org/hashicorp/nonexist
+│ hashicorp/nonexist: provider registry registry.opentofu.org does not have a
+│ provider named registry.opentofu.org/hashicorp/nonexist
 │ 
 │ All modules should specify their required_providers so that external
 │ consumers will get the correct providers when using a module. To see which
