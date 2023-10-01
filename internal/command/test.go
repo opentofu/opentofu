@@ -61,7 +61,9 @@ Options:
 
   -no-color             If specified, output won't contain any color.
 
-  -test-directory=path	Set the OpenTofu test directory, defaults to "tests".    
+  -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
+                        test command will search for test files in the current directory and
+                        in the one specified by the flag.
 
   -var 'foo=bar'        Set a value for one of the input variables in the root
                         module of the configuration. Use this option more than
