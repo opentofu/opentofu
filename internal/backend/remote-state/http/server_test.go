@@ -3,7 +3,7 @@
 
 package http
 
-//go:generate go run github.com/golang/mock/mockgen -package $GOPACKAGE -source $GOFILE -destination mock_$GOFILE
+//go:generate go run go.uber.org/mock/mockgen -package $GOPACKAGE -source $GOFILE -destination mock_$GOFILE
 
 import (
 	"context"
@@ -25,12 +25,12 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
+	"go.uber.org/mock/gomock"
 )
 
 const sampleState = `
