@@ -1,19 +1,26 @@
 ---
 description: >-
-  The tofu block allows you to configure OpenTofu behavior, including the
+  The terraform block allows you to configure OpenTofu behavior, including the
   OpenTofu version, backend, integration with TACOS (TF Automation and Collaboration Software),
   and required providers.
 ---
 
 # OpenTofu Settings
 
-The special `tofu` configuration block type is used to configure some
+The special `terraform` configuration block type is used to configure some
 behaviors of OpenTofu itself, such as requiring a minimum OpenTofu version to
 apply your configuration.
 
-## OpenTofu Block Syntax
+:::note
+As a part of [OpenTofu v1.x Compatibility Promises](/docs/language/v1-compatibility-promises),
+the `terraform` block stays as-is. A `tofu` block may be introduced in the future, but it doesn't
+exist yet.
+:::
 
-OpenTofu settings are gathered together into `tofu` blocks:
+
+## OpenTofu `terraform` Block Syntax
+
+OpenTofu settings are gathered together into `terraform` blocks:
 
 ```hcl
 terraform {
@@ -21,12 +28,12 @@ terraform {
 }
 ```
 
-Each `tofu` block can contain a number of settings related to OpenTofu's
-behavior. Within a `tofu` block, only constant values can be used;
+Each `terraform` block can contain a number of settings related to OpenTofu's
+behavior. Within a `terraform` block, only constant values can be used;
 arguments may not refer to named objects such as resources, input variables,
 etc, and may not use any of the OpenTofu language built-in functions.
 
-The various options supported within a `tofu` block are described in the
+The various options supported within a `terraform` block are described in the
 following sections.
 
 ## Configuring an OpenTofu Backend
@@ -116,7 +123,7 @@ if any, are available in a particular OpenTofu release.
 
 ## Passing Metadata to Providers
 
-The `tofu` block can have a nested `provider_meta` block for each
+The `terraform` block can have a nested `provider_meta` block for each
 provider a module is using, if the provider defines a schema for it. This
 allows the provider to receive module-specific information, and is primarily
 intended for modules distributed by the same vendor as the associated provider.
