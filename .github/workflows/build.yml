@@ -311,7 +311,6 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
           repository: opentofu/tofu-exec
-          ref: replace-registry
           path: tofu-exec
       - name: Run tofu-exec end-to-end tests
         run: |
