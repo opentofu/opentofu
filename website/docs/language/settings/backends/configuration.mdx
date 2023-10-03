@@ -24,7 +24,7 @@ You do not need to configure a backend when using TACOS (TF Automation and Colla
 it automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](/docs/language/settings/tf-cloud), it cannot include a `backend` block.
 
 To configure a backend, add a nested `backend` block within the top-level
-`tofu` block. The following example configures the `remote` backend.
+`terraform` block. The following example configures the `remote` backend.
 
 ```hcl
 terraform {
