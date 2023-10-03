@@ -42,7 +42,7 @@ func TestProviderTampering(t *testing.T) {
 
 	seedDir := tf.WorkDir()
 	const providerVersion = "3.1.0" // must match the version in the fixture config
-	pluginDir := filepath.Join(".terraform", "providers", "registry.terraform.io", "hashicorp", "null", providerVersion, getproviders.CurrentPlatform.String())
+	pluginDir := filepath.Join(".terraform", "providers", "registry.opentofu.org", "hashicorp", "null", providerVersion, getproviders.CurrentPlatform.String())
 	pluginExe := filepath.Join(pluginDir, "terraform-provider-null_v"+providerVersion+"_x5")
 	if getproviders.CurrentPlatform.OS == "windows" {
 		pluginExe += ".exe" // ugh
@@ -65,7 +65,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.terraform.io/hashicorp/null: there is no package for registry.terraform.io/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/hashicorp/null: there is no package for registry.opentofu.org/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -130,7 +130,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.terraform.io/hashicorp/null: the cached package for registry.terraform.io/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/hashicorp/null: the cached package for registry.opentofu.org/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -159,7 +159,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.terraform.io/hashicorp/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/hashicorp/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init -upgrade`; !strings.Contains(stderr, want) {
@@ -185,7 +185,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.terraform.io/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -210,7 +210,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.terraform.io/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `Create a new plan from the updated configuration.`; !strings.Contains(stderr, want) {
@@ -235,7 +235,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.terraform.io/hashicorp/null: there is no package for registry.terraform.io/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/hashicorp/null: there is no package for registry.opentofu.org/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
@@ -257,7 +257,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.terraform.io/hashicorp/null: the cached package for registry.terraform.io/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/hashicorp/null: the cached package for registry.opentofu.org/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})

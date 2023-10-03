@@ -1,22 +1,19 @@
-# This file is maintained automatically by "tofu init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
-provider "registry.terraform.io/hashicorp/null" {
+provider "registry.opentofu.org/hashicorp/null" {
   version     = "3.1.1"
   constraints = "3.1.1"
   hashes = [
-    "h1:YvH6gTaQzGdNv+SKTZujU1O0bO+Pw6vJHOPhqgN8XNs=",
-    "zh:063466f41f1d9fd0dd93722840c1314f046d8760b1812fa67c34de0afcba5597",
-    "zh:08c058e367de6debdad35fc24d97131c7cf75103baec8279aba3506a08b53faf",
-    "zh:73ce6dff935150d6ddc6ac4a10071e02647d10175c173cfe5dca81f3d13d8afe",
-    "zh:78d5eefdd9e494defcb3c68d282b8f96630502cac21d1ea161f53cfe9bb483b3",
-    "zh:8fdd792a626413502e68c195f2097352bdc6a0df694f7df350ed784741eb587e",
-    "zh:976bbaf268cb497400fd5b3c774d218f3933271864345f18deebe4dcbfcd6afa",
-    "zh:b21b78ca581f98f4cdb7a366b03ae9db23a73dfa7df12c533d7c19b68e9e72e5",
-    "zh:b7fc0c1615dbdb1d6fd4abb9c7dc7da286631f7ca2299fb9cd4664258ccfbff4",
-    "zh:d1efc942b2c44345e0c29bc976594cb7278c38cfb8897b344669eafbc3cddf46",
-    "zh:e356c245b3cd9d4789bab010893566acace682d7db877e52d40fc4ca34a50924",
-    "zh:ea98802ba92fcfa8cf12cbce2e9e7ebe999afbf8ed47fa45fc847a098d89468b",
-    "zh:eff8872458806499889f6927b5d954560f3d74bf20b6043409edf94d26cd906f",
+    "h1:Difmh8E1BLxb+7+waC9B76cMdsrcjaHlSY4r0fF2pwo=",
+    "zh:35e3cd3af991a2d6f5c3818d44c4d2c188238782849f79c8ba30caa2f73985a7",
+    "zh:4b1451dcd6a641a7e618c2bb586bffb8438d9142c357afb645266b94ec1a8450",
+    "zh:4cc1c7774562bed41d6bac9cfe80d81a2b68c6a13594058ae21d66ce0854db6e",
+    "zh:63535ceefb44f94482c8b6cf70603d64f966c17772e8e2402dd879b54523396a",
+    "zh:70de13ff0371960286870f14e7d89d0dd886c2418aaaac8045ed82c8787ceb14",
+    "zh:79f158d4ac8c25915312a2bc1133c70902974f369a7cedd652439184487ad2c3",
+    "zh:7f38e45a859fc82e9122a8d01d568c664f723910cc6714421640134a9f974681",
+    "zh:b5b7fc2833c5c7c2f1bb7cda9dca8c2d34ea2ed8d592cd870d20ae468d1c5650",
+    "zh:f4183aea2c36dfb015990af272c55606345ddbc586136628b11687f3e99c95a4",
   ]
 }

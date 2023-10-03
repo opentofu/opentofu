@@ -63,7 +63,7 @@ func TestParseModuleSource(t *testing.T) {
 			input: "hashicorp/subnets/cidr",
 			want: ModuleSourceRegistry{
 				Package: ModuleRegistryPackage{
-					Host:         svchost.Hostname("registry.terraform.io"),
+					Host:         svchost.Hostname("registry.opentofu.org"),
 					Namespace:    "hashicorp",
 					Name:         "subnets",
 					TargetSystem: "cidr",
@@ -75,7 +75,7 @@ func TestParseModuleSource(t *testing.T) {
 			input: "hashicorp/subnets/cidr//examples/foo",
 			want: ModuleSourceRegistry{
 				Package: ModuleRegistryPackage{
-					Host:         svchost.Hostname("registry.terraform.io"),
+					Host:         svchost.Hostname("registry.opentofu.org"),
 					Namespace:    "hashicorp",
 					Name:         "subnets",
 					TargetSystem: "cidr",
@@ -481,7 +481,7 @@ func TestParseModuleSourceRegistry(t *testing.T) {
 	// the user provided in the input, and so for backward compatibility
 	// we're continuing to do that here, at the expense of now making the
 	// "ForDisplay" output case-preserving where its predecessor in the
-	// old package wasn't. The main OpenTofu Registry at registry.terraform.io
+	// old package wasn't. The main OpenTofu Registry at registry.opentofu.org
 	// is itself case-insensitive anyway, so our case-preserving here is
 	// entirely for the benefit of existing third-party registry
 	// implementations that might be case-sensitive, which we must remain
@@ -496,25 +496,25 @@ func TestParseModuleSourceRegistry(t *testing.T) {
 	}{
 		"public registry": {
 			input:           `hashicorp/consul/aws`,
-			wantString:      `registry.terraform.io/hashicorp/consul/aws`,
+			wantString:      `registry.opentofu.org/hashicorp/consul/aws`,
 			wantForDisplay:  `hashicorp/consul/aws`,
 			wantForProtocol: `hashicorp/consul/aws`,
 		},
 		"public registry with subdir": {
 			input:           `hashicorp/consul/aws//foo`,
-			wantString:      `registry.terraform.io/hashicorp/consul/aws//foo`,
+			wantString:      `registry.opentofu.org/hashicorp/consul/aws//foo`,
 			wantForDisplay:  `hashicorp/consul/aws//foo`,
 			wantForProtocol: `hashicorp/consul/aws`,
 		},
 		"public registry using explicit hostname": {
-			input:           `registry.terraform.io/hashicorp/consul/aws`,
-			wantString:      `registry.terraform.io/hashicorp/consul/aws`,
+			input:           `registry.opentofu.org/hashicorp/consul/aws`,
+			wantString:      `registry.opentofu.org/hashicorp/consul/aws`,
 			wantForDisplay:  `hashicorp/consul/aws`,
 			wantForProtocol: `hashicorp/consul/aws`,
 		},
 		"public registry with mixed case names": {
 			input:           `HashiCorp/Consul/aws`,
-			wantString:      `registry.terraform.io/HashiCorp/Consul/aws`,
+			wantString:      `registry.opentofu.org/HashiCorp/Consul/aws`,
 			wantForDisplay:  `HashiCorp/Consul/aws`,
 			wantForProtocol: `HashiCorp/Consul/aws`,
 		},

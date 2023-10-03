@@ -125,7 +125,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		source, _, close := testRegistrySource(t)
 		defer close()
 
-		// Because this provider address isn't on registry.terraform.io,
+		// Because this provider address isn't on registry.opentofu.org,
 		// MissingProviderSuggestion won't even attempt to make a suggestion
 		// for it.
 		want := addrs.Provider{
@@ -151,7 +151,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		defer close()
 
 		// Because this provider address isn't in
-		// registry.terraform.io/hashicorp/..., MissingProviderSuggestion
+		// registry.opentofu.org/hashicorp/..., MissingProviderSuggestion
 		// will provide the same addr since there's no alternative in Requirements
 		want := addrs.Provider{
 			Hostname:  defaultRegistryHost,

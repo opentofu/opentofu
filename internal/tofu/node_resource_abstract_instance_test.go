@@ -167,7 +167,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		},
 	}
 	ctx.ProviderProvider = mockProvider
@@ -181,6 +181,6 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = i-abc123
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
 }

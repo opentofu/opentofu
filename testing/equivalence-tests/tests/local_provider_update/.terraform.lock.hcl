@@ -1,22 +1,19 @@
-# This file is maintained automatically by "tofu init".
+# This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
-provider "registry.terraform.io/hashicorp/local" {
+provider "registry.opentofu.org/hashicorp/local" {
   version     = "2.2.3"
   constraints = "2.2.3"
   hashes = [
-    "h1:FvRIEgCmAezgZUqb2F+PZ9WnSSnR5zbEM2ZI+GLmbMk=",
-    "zh:04f0978bb3e052707b8e82e46780c371ac1c66b689b4a23bbc2f58865ab7d5c0",
-    "zh:6484f1b3e9e3771eb7cc8e8bab8b35f939a55d550b3f4fb2ab141a24269ee6aa",
-    "zh:78a56d59a013cb0f7eb1c92815d6eb5cf07f8b5f0ae20b96d049e73db915b238",
-    "zh:78d5eefdd9e494defcb3c68d282b8f96630502cac21d1ea161f53cfe9bb483b3",
-    "zh:8aa9950f4c4db37239bcb62e19910c49e47043f6c8587e5b0396619923657797",
-    "zh:996beea85f9084a725ff0e6473a4594deb5266727c5f56e9c1c7c62ded6addbb",
-    "zh:9a7ef7a21f48fabfd145b2e2a4240ca57517ad155017e86a30860d7c0c109de3",
-    "zh:a63e70ac052aa25120113bcddd50c1f3cfe61f681a93a50cea5595a4b2cc3e1c",
-    "zh:a6e8d46f94108e049ad85dbed60354236dc0b9b5ec8eabe01c4580280a43d3b8",
-    "zh:bb112ce7efbfcfa0e65ed97fa245ef348e0fd5bfa5a7e4ab2091a9bd469f0a9e",
-    "zh:d7bec0da5c094c6955efed100f3fe22fca8866859f87c025be1760feb174d6d9",
-    "zh:fb9f271b72094d07cef8154cd3d50e9aa818a0ea39130bc193132ad7b23076fd",
+    "h1:lkEhbBoMTpgLeUbg5tAwnnixnvg3I3jk+U5oymAiPPg=",
+    "zh:00d2398cba767617deffc4031cc0cd7772338014b73c1a7a05d638036774b55f",
+    "zh:1754ab5da7c43d2f0295505c53ec95ec0916fe51ffde85074f24d398d85d4899",
+    "zh:507fe0afd662a7bb1cecd579b3c5077b20ca5dba31e7615ae8f1b21aa4318122",
+    "zh:9225fedda30507faf63711724bcba40a5bcf382e15b4851f74fedbc1d9fbe932",
+    "zh:ac217a3b115774542a4382e258683c8a71d4472d4d60477111d2df7df702aa1f",
+    "zh:b770e046fbb1f724b3bda9349b26b3c7dd3b8539f0b3ab24f748b37ec9cb3c42",
+    "zh:c43f6b9693a2e85ad95df68f4fe1118d756543b98251737b662a835300db1cc0",
+    "zh:ddfe42fa8c3c8dad4c4b5389e6290d679c328e8f952e46a352fd7b1d9abf205c",
+    "zh:ff2406977802c41b0029b8dfb3e02fdc0bb146f0ca4f604267bd376d8c6a5edc",
   ]
 }

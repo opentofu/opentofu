@@ -147,7 +147,7 @@ func TestStateRmNotChildModule(t *testing.T) {
 module.child:
   test_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/test"]
+    provider = provider["registry.opentofu.org/hashicorp/test"]
     bar = value
     foo = value
 `)
@@ -160,14 +160,14 @@ module.child:
 	testStateOutput(t, backups[0], `
 test_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
   bar = value
   foo = value
 
 module.child:
   test_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/test"]
+    provider = provider["registry.opentofu.org/hashicorp/test"]
     bar = value
     foo = value
 `)
@@ -563,12 +563,12 @@ func TestStateRm_checkRequiredVersion(t *testing.T) {
 const testStateRmOutputOriginal = `
 test_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
   bar = value
   foo = value
 test_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
   bar = value
   foo = value
 `
@@ -576,7 +576,7 @@ test_instance.foo:
 const testStateRmOutput = `
 test_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
   bar = value
   foo = value
 `

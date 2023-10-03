@@ -104,7 +104,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		t.Fatal("expected error, got success")
 	}
 
-	detail := `Invalid provider configuration: The configuration for provider["registry.terraform.io/hashicorp/foo"] depends on values that cannot be determined until apply.`
+	detail := `Invalid provider configuration: The configuration for provider["registry.opentofu.org/hashicorp/foo"] depends on values that cannot be determined until apply.`
 	if got, want := diags.Err().Error(), detail; got != want {
 		t.Errorf("wrong diagnostic detail\n got: %q\nwant: %q", got, want)
 	}
@@ -280,7 +280,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -301,7 +301,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -315,7 +315,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 	t.Run("empty config", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -362,7 +362,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -376,7 +376,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -396,7 +396,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -451,7 +451,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -465,7 +465,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -485,7 +485,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}

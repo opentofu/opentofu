@@ -8,8 +8,8 @@ import (
 	"path"
 	"strings"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
 	"github.com/opentofu/opentofu/internal/getmodules"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 // ModuleSource is the general type for all three of the possible module source

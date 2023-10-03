@@ -15,6 +15,6 @@ resource "implied_foo" "bar" {
 # There is no provider in required_providers called "terraform", but for
 # this name in particular we imply terraform.io/builtin/terraform instead,
 # to avoid selecting the now-unmaintained
-# registry.terraform.io/hashicorp/terraform.
+# registry.opentofu.org/hashicorp/terraform.
 data "terraform_remote_state" "bar" {
 }

@@ -282,7 +282,7 @@ func (h *HookRecordApplyOrder) PreApply(addr addrs.AbsResourceInstance, gen stat
 const testTerraformInputProviderOnlyStr = `
 aws_instance.foo:
   ID = 
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = us-west-2
   type = 
 `
@@ -290,12 +290,12 @@ aws_instance.foo:
 const testTerraformApplyStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -303,13 +303,13 @@ aws_instance.foo:
 const testTerraformApplyDataBasicStr = `
 data.null_data_source.testing:
   ID = yo
-  provider = provider["registry.terraform.io/hashicorp/null"]
+  provider = provider["registry.opentofu.org/hashicorp/null"]
 `
 
 const testTerraformApplyRefCountStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = 3
   type = aws_instance
 
@@ -317,27 +317,27 @@ aws_instance.bar:
     aws_instance.foo
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 `
 
 const testTerraformApplyProviderAliasStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"].bar
+  provider = provider["registry.opentofu.org/hashicorp/aws"].bar
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -345,11 +345,11 @@ aws_instance.foo:
 const testTerraformApplyProviderAliasConfigStr = `
 another_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/another"].two
+  provider = provider["registry.opentofu.org/hashicorp/another"].two
   type = another_instance
 another_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/another"]
+  provider = provider["registry.opentofu.org/hashicorp/another"]
   type = another_instance
 `
 
@@ -363,7 +363,7 @@ end = XXXX
 const testTerraformApplyDependsCreateBeforeStr = `
 aws_instance.lb:
   ID = baz
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   instance = foo
   type = aws_instance
 
@@ -371,7 +371,7 @@ aws_instance.lb:
     aws_instance.web
 aws_instance.web:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = ami-new
   type = aws_instance
 `
@@ -379,7 +379,7 @@ aws_instance.web:
 const testTerraformApplyCreateBeforeStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = xyz
   type = aws_instance
 `
@@ -387,7 +387,7 @@ aws_instance.bar:
 const testTerraformApplyCreateBeforeUpdateStr = `
 aws_instance.bar:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = baz
   type = aws_instance
 `
@@ -395,7 +395,7 @@ aws_instance.bar:
 const testTerraformApplyCancelStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
   value = 2
 `
@@ -403,7 +403,7 @@ aws_instance.foo:
 const testTerraformApplyComputeStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = computed_value
   type = aws_instance
 
@@ -411,7 +411,7 @@ aws_instance.bar:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   compute = value
   compute_value = 1
   num = 2
@@ -422,17 +422,17 @@ aws_instance.foo:
 const testTerraformApplyCountDecStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo.0:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.foo.1:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 `
@@ -440,7 +440,7 @@ aws_instance.foo.1:
 const testTerraformApplyCountDecToOneStr = `
 aws_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 `
@@ -448,7 +448,7 @@ aws_instance.foo:
 const testTerraformApplyCountDecToOneCorruptedStr = `
 aws_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 `
@@ -466,24 +466,24 @@ STATE:
 
 aws_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.foo.0:
   ID = baz
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 `
 
 const testTerraformApplyCountVariableStr = `
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 `
@@ -491,7 +491,7 @@ aws_instance.foo.1:
 const testTerraformApplyCountVariableRefStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = 2
   type = aws_instance
 
@@ -499,47 +499,47 @@ aws_instance.bar:
     aws_instance.foo
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 `
 const testTerraformApplyForEachVariableStr = `
 aws_instance.foo["b15c6d616d6143248c575900dff57325eb1de498"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.foo["c3de47d34b0a9f13918dd705c141d579dd6555fd"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.foo["e30a7edcc42a846684f2a4eea5f3cd261d33c46d"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.one["a"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.one["b"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.two["a"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 
   Dependencies:
     aws_instance.one
 aws_instance.two["b"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 
   Dependencies:
@@ -547,30 +547,30 @@ aws_instance.two["b"]:
 const testTerraformApplyMinimalStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 `
 
 const testTerraformApplyModuleStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 
 module.child:
   aws_instance.baz:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     foo = bar
     type = aws_instance
 `
@@ -578,7 +578,7 @@ module.child:
 const testTerraformApplyModuleBoolStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = true
   type = aws_instance
 `
@@ -590,12 +590,12 @@ const testTerraformApplyModuleDestroyOrderStr = `
 const testTerraformApplyMultiProviderStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 do_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/do"]
+  provider = provider["registry.opentofu.org/hashicorp/do"]
   num = 2
   type = do_instance
 `
@@ -605,11 +605,11 @@ const testTerraformApplyModuleOnlyProviderStr = `
 module.child:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     type = aws_instance
   test_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/test"]
+    provider = provider["registry.opentofu.org/hashicorp/test"]
     type = test_instance
 `
 
@@ -618,21 +618,21 @@ const testTerraformApplyModuleProviderAliasStr = `
 module.child:
   aws_instance.foo:
     ID = foo
-    provider = module.child.provider["registry.terraform.io/hashicorp/aws"].eu
+    provider = module.child.provider["registry.opentofu.org/hashicorp/aws"].eu
     type = aws_instance
 `
 
 const testTerraformApplyModuleVarRefExistingStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 
 module.child:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     type = aws_instance
     value = bar
 
@@ -654,14 +654,14 @@ const testTerraformApplyOutputOrphanModuleStr = `
 const testTerraformApplyProvisionerStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 
   Dependencies:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   compute = value
   compute_value = 1
   num = 2
@@ -674,18 +674,18 @@ const testTerraformApplyProvisionerModuleStr = `
 module.child:
   aws_instance.bar:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     type = aws_instance
 `
 
 const testTerraformApplyProvisionerFailStr = `
 aws_instance.bar: (tainted)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -693,7 +693,7 @@ aws_instance.foo:
 const testTerraformApplyProvisionerFailCreateStr = `
 aws_instance.bar: (tainted)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 `
 
@@ -704,7 +704,7 @@ const testTerraformApplyProvisionerFailCreateNoIdStr = `
 const testTerraformApplyProvisionerFailCreateBeforeDestroyStr = `
 aws_instance.bar: (tainted) (1 deposed)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = xyz
   type = aws_instance
   Deposed ID 1 = bar
@@ -713,7 +713,7 @@ aws_instance.bar: (tainted) (1 deposed)
 const testTerraformApplyProvisionerResourceRefStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -721,7 +721,7 @@ aws_instance.bar:
 const testTerraformApplyProvisionerSelfRefStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 `
@@ -729,17 +729,17 @@ aws_instance.foo:
 const testTerraformApplyProvisionerMultiSelfRefStr = `
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = number 0
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = number 1
   type = aws_instance
 aws_instance.foo.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = number 2
   type = aws_instance
 `
@@ -747,17 +747,17 @@ aws_instance.foo.2:
 const testTerraformApplyProvisionerMultiSelfRefSingleStr = `
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = number 0
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = number 1
   type = aws_instance
 aws_instance.foo.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = number 2
   type = aws_instance
 `
@@ -765,7 +765,7 @@ aws_instance.foo.2:
 const testTerraformApplyProvisionerDiffStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 `
@@ -773,7 +773,7 @@ aws_instance.bar:
 const testTerraformApplyProvisionerSensitiveStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 `
 
@@ -784,14 +784,14 @@ const testTerraformApplyDestroyStr = `
 const testTerraformApplyErrorStr = `
 aws_instance.bar: (tainted)
   ID = 
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = 2
 
   Dependencies:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
   value = 2
 `
@@ -799,7 +799,7 @@ aws_instance.foo:
 const testTerraformApplyErrorCreateBeforeDestroyStr = `
 aws_instance.bar:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = abc
   type = aws_instance
 `
@@ -807,7 +807,7 @@ aws_instance.bar:
 const testTerraformApplyErrorDestroyCreateBeforeDestroyStr = `
 aws_instance.bar: (1 deposed)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = xyz
   type = aws_instance
   Deposed ID 1 = bar
@@ -816,14 +816,14 @@ aws_instance.bar: (1 deposed)
 const testTerraformApplyErrorPartialStr = `
 aws_instance.bar:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 
   Dependencies:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
   value = 2
 `
@@ -831,7 +831,7 @@ aws_instance.foo:
 const testTerraformApplyResourceDependsOnModuleStr = `
 aws_instance.a:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   ami = parent
   type = aws_instance
 
@@ -841,7 +841,7 @@ aws_instance.a:
 module.child:
   aws_instance.child:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     ami = child
     type = aws_instance
 `
@@ -849,7 +849,7 @@ module.child:
 const testTerraformApplyResourceDependsOnModuleDeepStr = `
 aws_instance.a:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   ami = parent
   type = aws_instance
 
@@ -859,7 +859,7 @@ aws_instance.a:
 module.child.grandchild:
   aws_instance.c:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     ami = grandchild
     type = aws_instance
 `
@@ -869,7 +869,7 @@ const testTerraformApplyResourceDependsOnModuleInModuleStr = `
 module.child:
   aws_instance.b:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     ami = child
     type = aws_instance
 
@@ -878,7 +878,7 @@ module.child:
 module.child.grandchild:
   aws_instance.c:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     ami = grandchild
     type = aws_instance
 `
@@ -886,7 +886,7 @@ module.child.grandchild:
 const testTerraformApplyTaintStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -894,7 +894,7 @@ aws_instance.bar:
 const testTerraformApplyTaintDepStr = `
 aws_instance.bar:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   num = 2
   type = aws_instance
@@ -903,7 +903,7 @@ aws_instance.bar:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -911,7 +911,7 @@ aws_instance.foo:
 const testTerraformApplyTaintDepRequireNewStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   require_new = yes
   type = aws_instance
@@ -920,7 +920,7 @@ aws_instance.bar:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -928,12 +928,12 @@ aws_instance.foo:
 const testTerraformApplyOutputStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 
@@ -945,12 +945,12 @@ foo_num = 2
 const testTerraformApplyOutputAddStr = `
 aws_instance.test.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo0
   type = aws_instance
 aws_instance.test.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo1
   type = aws_instance
 
@@ -963,22 +963,22 @@ secondOutput = foo1
 const testTerraformApplyOutputListStr = `
 aws_instance.bar.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 
@@ -990,22 +990,22 @@ foo_num = [bar,bar,bar]
 const testTerraformApplyOutputMultiStr = `
 aws_instance.bar.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 
@@ -1017,22 +1017,22 @@ foo_num = bar,bar,bar
 const testTerraformApplyOutputMultiIndexStr = `
 aws_instance.bar.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 
@@ -1044,7 +1044,7 @@ foo_num = bar
 const testTerraformApplyUnknownAttrStr = `
 aws_instance.foo: (tainted)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 `
@@ -1052,13 +1052,13 @@ aws_instance.foo: (tainted)
 const testTerraformApplyVarsStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   bar = override
   baz = override
   foo = us-east-1
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   bar = baz
   list.# = 2
   list.0 = Hello
@@ -1072,7 +1072,7 @@ aws_instance.foo:
 const testTerraformApplyVarsEnvStr = `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   list.# = 2
   list.0 = Hello
   list.1 = World
@@ -1086,10 +1086,10 @@ aws_instance.bar:
 const testTerraformRefreshDataRefDataStr = `
 data.null_data_source.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/null"]
+  provider = provider["registry.opentofu.org/hashicorp/null"]
   bar = yes
 data.null_data_source.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/null"]
+  provider = provider["registry.opentofu.org/hashicorp/null"]
   foo = yes
 `

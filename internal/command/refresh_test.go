@@ -968,10 +968,10 @@ foo = "bar"
 const testRefreshStr = `
 test_instance.foo:
   ID = yes
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
 `
 const testRefreshCwdStr = `
 test_instance.foo:
   ID = yes
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
 `

@@ -204,7 +204,7 @@ func TestMarshalPlanResources(t *testing.T) {
 				Type:            "test_thing",
 				Name:            "example",
 				Index:           addrs.InstanceKey(nil),
-				ProviderName:    "registry.terraform.io/hashicorp/test",
+				ProviderName:    "registry.opentofu.org/hashicorp/test",
 				SchemaVersion:   1,
 				AttributeValues: AttributeValues{},
 				SensitiveValues: json.RawMessage("{}"),
@@ -247,7 +247,7 @@ func TestMarshalPlanResources(t *testing.T) {
 				Type:          "test_thing",
 				Name:          "example",
 				Index:         addrs.InstanceKey(nil),
-				ProviderName:  "registry.terraform.io/hashicorp/test",
+				ProviderName:  "registry.opentofu.org/hashicorp/test",
 				SchemaVersion: 1,
 				AttributeValues: AttributeValues{
 					"woozles": json.RawMessage(`"baz"`),

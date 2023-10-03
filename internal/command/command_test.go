@@ -1000,7 +1000,7 @@ func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
 	server := httptest.NewServer(http.HandlerFunc(fakeRegistryHandler))
 
 	services = disco.New()
-	services.ForceHostServices(svchost.Hostname("registry.terraform.io"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
 

@@ -19,7 +19,7 @@ import (
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
-// Disco return a *disco.Disco mapping registry.terraform.io, localhost,
+// Disco return a *disco.Disco mapping registry.opentofu.org, localhost,
 // localhost.localdomain, and example.com to the test server.
 func Disco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
@@ -31,7 +31,7 @@ func Disco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTofuUserAgent(tfversion.String()))
 
-	d.ForceHostServices(svchost.Hostname("registry.terraform.io"), services)
+	d.ForceHostServices(svchost.Hostname("registry.opentofu.org"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	d.ForceHostServices(svchost.Hostname("localhost.localdomain"), services)
 	d.ForceHostServices(svchost.Hostname("example.com"), services)

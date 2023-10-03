@@ -56,7 +56,7 @@ func TestDirReading(t *testing.T) {
 				// still packed and thus not considered to be a cache member.
 				Version: versions.MustParseVersion("2.0.0"),
 
-				PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/windows_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -96,7 +96,7 @@ func TestDirReading(t *testing.T) {
 				Provider: nullProvider,
 				Version:  versions.MustParseVersion("2.0.0"),
 
-				PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/windows_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -147,35 +147,35 @@ func TestDirReading(t *testing.T) {
 				{
 					Provider:   legacyProvider,
 					Version:    versions.MustParseVersion("1.0.0"),
-					PackageDir: "testdata/cachedir/registry.terraform.io/-/legacy/1.0.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/-/legacy/1.0.0/linux_amd64",
 				},
 			},
 			nullProvider: {
 				{
 					Provider:   nullProvider,
 					Version:    versions.MustParseVersion("2.0.0"),
-					PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64",
 				},
 			},
 			randomProvider: {
 				{
 					Provider:   randomProvider,
 					Version:    versions.MustParseVersion("1.2.0"),
-					PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/random/1.2.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/random/1.2.0/linux_amd64",
 				},
 			},
 			randomBetaProvider: {
 				{
 					Provider:   randomBetaProvider,
 					Version:    versions.MustParseVersion("1.2.0"),
-					PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/random-beta/1.2.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/random-beta/1.2.0/linux_amd64",
 				},
 			},
 			missingExecutableProvider: {
 				{
 					Provider:   missingExecutableProvider,
 					Version:    versions.MustParseVersion("2.0.0"),
-					PackageDir: "testdata/cachedir/registry.terraform.io/missing/executable/2.0.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/missing/executable/2.0.0/linux_amd64",
 				},
 			},
 		}

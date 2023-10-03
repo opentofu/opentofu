@@ -1246,7 +1246,7 @@ func TestPlan_init_required(t *testing.T) {
 		t.Fatalf("expected error, got success")
 	}
 	got := output.Stderr()
-	if !(strings.Contains(got, "tofu init") && strings.Contains(got, "provider registry.terraform.io/hashicorp/test: required by this configuration but no version is selected")) {
+	if !(strings.Contains(got, "tofu init") && strings.Contains(got, "provider registry.opentofu.org/hashicorp/test: required by this configuration but no version is selected")) {
 		t.Fatal("wrong error message in output:", got)
 	}
 }

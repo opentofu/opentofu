@@ -100,7 +100,7 @@ func (err ErrProviderNotFound) Error() string {
 // A caller serving requests from an end-user should recognize this error type
 // and use it to produce user-friendly hints for common errors such as failing
 // to specify an explicit source for a provider not in the default namespace
-// (one not under registry.terraform.io/hashicorp/). The default error message
+// (one not under registry.opentofu.org/hashicorp/). The default error message
 // for this type is a direct description of the problem with no such hints,
 // because we expect that the caller will have better context to decide what
 // hints are appropriate, e.g. by looking at the configuration given by the

@@ -219,7 +219,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			}),
 			Node: &NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
@@ -285,7 +285,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 			}),
 			Node: &NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},

@@ -172,7 +172,7 @@ func TestContextImport_collision(t *testing.T) {
 	actual := strings.TrimSpace(state.String())
 	expected := `aws_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]`
+  provider = provider["registry.opentofu.org/hashicorp/aws"]`
 
 	if actual != expected {
 		t.Fatalf("bad: \n%s", actual)
@@ -439,7 +439,7 @@ func TestContextImport_providerConfigResources(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("should error")
 	}
-	if got, want := diags.Err().Error(), `The configuration for provider["registry.terraform.io/hashicorp/aws"] depends on values that cannot be determined until apply.`; !strings.Contains(got, want) {
+	if got, want := diags.Err().Error(), `The configuration for provider["registry.opentofu.org/hashicorp/aws"] depends on values that cannot be determined until apply.`; !strings.Contains(got, want) {
 		t.Errorf("wrong error\n got: %s\nwant: %s", got, want)
 	}
 }
@@ -1055,22 +1055,22 @@ func TestContextImport_33572(t *testing.T) {
 const testImportStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportStrWithDataSource = `
 data.aws_data_source.bar:
   ID = baz
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportCountIndexStr = `
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportModuleStr = `
@@ -1078,7 +1078,7 @@ const testImportModuleStr = `
 module.child[0]:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportModuleDepth2Str = `
@@ -1086,33 +1086,33 @@ const testImportModuleDepth2Str = `
 module.child[0].nested:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportMultiStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance_thing.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportMultiSameStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance_thing.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance_thing.foo-1:
   ID = qux
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 `
 
 const testImportRefreshStr = `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
 `

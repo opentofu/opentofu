@@ -50,7 +50,7 @@ func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.D
 	// Many of our tests use an overridden "null" provider that's just in-memory
 	// inside the test process, not a separate plugin on disk.
 	depLocks := depsfile.NewLocks()
-	depLocks.SetProviderOverridden(addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/null"))
+	depLocks.SetProviderOverridden(addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/null"))
 
 	return &backend.Operation{
 		ConfigDir:       configDir,

@@ -281,7 +281,7 @@ func TestParseProviderSourceStr(t *testing.T) {
 		Want Provider
 		Err  bool
 	}{
-		"registry.terraform.io/hashicorp/aws": {
+		"registry.opentofu.org/hashicorp/aws": {
 			Provider{
 				Type:      "aws",
 				Namespace: "hashicorp",
@@ -289,7 +289,7 @@ func TestParseProviderSourceStr(t *testing.T) {
 			},
 			false,
 		},
-		"registry.Terraform.io/HashiCorp/AWS": {
+		"registry.opentofu.org/HashiCorp/AWS": {
 			Provider{
 				Type:      "aws",
 				Namespace: "hashicorp",

@@ -212,7 +212,7 @@ func TestUnmanagedSeparatePlan(t *testing.T) {
 	if strings.Contains(stdout, "Installing hashicorp/test v") {
 		t.Errorf("test provider download message is present in init output:\n%s", stdout)
 	}
-	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.terraform.io", "hashicorp", "test")) {
+	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.opentofu.org", "hashicorp", "test")) {
 		t.Errorf("test provider binary found in .terraform dir")
 	}
 
@@ -317,7 +317,7 @@ func TestUnmanagedSeparatePlan_proto5(t *testing.T) {
 	if strings.Contains(stdout, "Installing hashicorp/test v") {
 		t.Errorf("test provider download message is present in init output:\n%s", stdout)
 	}
-	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.terraform.io", "hashicorp", "test")) {
+	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.opentofu.org", "hashicorp", "test")) {
 		t.Errorf("test provider binary found in .terraform dir")
 	}
 

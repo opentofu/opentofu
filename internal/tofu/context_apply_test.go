@@ -330,7 +330,7 @@ func TestContext2Apply_escape(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = "bar"
   type = aws_instance
 `)
@@ -356,7 +356,7 @@ func TestContext2Apply_resourceCountOneList(t *testing.T) {
 	got := strings.TrimSpace(state.String())
 	want := strings.TrimSpace(`null_resource.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/null"]
+  provider = provider["registry.opentofu.org/hashicorp/null"]
 
 Outputs:
 
@@ -459,7 +459,7 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"parent"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.aws_instance.child")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -468,7 +468,7 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"child"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	{
@@ -716,7 +716,7 @@ amis_from_module = {eu-west-1:ami-789012 eu-west-2:ami-989484 us-west-1:ami-1234
 module.test:
   null_resource.noop:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/null"]
+    provider = provider["registry.opentofu.org/hashicorp/null"]
 
   Outputs:
 
@@ -889,7 +889,7 @@ func TestContext2Apply_providerWarning(t *testing.T) {
 	expected := strings.TrimSpace(`
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 	`)
 	if actual != expected {
@@ -941,7 +941,7 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1010,7 +1010,7 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 			AttrsJSON:           []byte(`{"id":"foo","foo":"bar"}`),
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -1020,7 +1020,7 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 			CreateBeforeDestroy: true,
 			Dependencies:        []addrs.ConfigResource{fooAddr.ContainingResource().Config()},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1069,7 +1069,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo").Resource,
@@ -1077,7 +1077,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo", "require_new": "abc"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1101,7 +1101,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.bar:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = yes
   type = aws_instance
   value = foo
@@ -1110,7 +1110,7 @@ aws_instance.bar:
     aws_instance.foo
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = yes
   type = aws_instance
 	`)
@@ -1130,7 +1130,7 @@ func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	var actual []cty.Value
@@ -1191,7 +1191,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.bar[0]").Resource,
@@ -1200,7 +1200,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
@@ -1208,7 +1208,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
@@ -1217,7 +1217,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1241,12 +1241,12 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.bar.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 aws_instance.bar.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 	`)
@@ -1268,7 +1268,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -1277,7 +1277,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1301,7 +1301,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.bar:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 	`)
 }
@@ -1318,7 +1318,7 @@ func TestContext2Apply_destroyComputed(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo", "output": "value"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1364,7 +1364,7 @@ func testContext2Apply_destroyDependsOn(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo").Resource,
@@ -1373,7 +1373,7 @@ func testContext2Apply_destroyDependsOn(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"foo"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.bar")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	// Record the order we see Apply
@@ -1660,7 +1660,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"-"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/null"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/null"]`),
 	)
 
 	hook := &testHook{}
@@ -1719,7 +1719,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -1727,7 +1727,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1765,7 +1765,7 @@ func TestContext2Apply_destroyModuleVarProviderConfig(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1841,7 +1841,7 @@ func getContextForApply_destroyCrossProviders(t *testing.T, m *configs.Config, p
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"test"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -1850,7 +1850,7 @@ func getContextForApply_destroyCrossProviders(t *testing.T, m *configs.Config, p
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id": "vpc-aaabbb12", "value":"test"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2026,7 +2026,7 @@ func TestContext2Apply_cancelBlock(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 	`)
@@ -2103,7 +2103,7 @@ func TestContext2Apply_cancelProvisioner(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo: (tainted)
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 	`)
@@ -2196,7 +2196,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","foo": "foo","type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -2204,7 +2204,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","foo": "foo","type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -2212,7 +2212,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "foo": "foo", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2246,7 +2246,7 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "foo": "foo", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -2254,7 +2254,7 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -2262,7 +2262,7 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2316,7 +2316,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "foo": "foo", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
@@ -2324,7 +2324,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"baz", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2392,7 +2392,7 @@ func TestContext2Apply_countTainted(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"bar", "type": "aws_instance", "foo": "foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -2426,12 +2426,12 @@ CREATE: aws_instance.foo[1]
 	want := strings.TrimSpace(`
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 `)
@@ -2649,7 +2649,7 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"a"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
@@ -2659,7 +2659,7 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"b"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.aws_instance.a")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2731,7 +2731,7 @@ func TestContext2Apply_moduleInheritAlias(t *testing.T) {
 module.child:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"].eu
+    provider = provider["registry.opentofu.org/hashicorp/aws"].eu
     type = aws_instance
 	`)
 }
@@ -2856,7 +2856,7 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2919,7 +2919,7 @@ func TestContext2Apply_moduleOrphanProvider(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2959,7 +2959,7 @@ func TestContext2Apply_moduleOrphanGrandchildProvider(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3128,7 +3128,7 @@ func TestContext2Apply_moduleProviderCloseNested(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3165,7 +3165,7 @@ func TestContext2Apply_moduleVarRefExisting(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo","foo":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3293,7 +3293,7 @@ func TestContext2Apply_moduleTarget(t *testing.T) {
 module.A:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     foo = bar
     type = aws_instance
 
@@ -3303,7 +3303,7 @@ module.A:
 module.B:
   aws_instance.bar:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     foo = foo
     type = aws_instance
 
@@ -4450,7 +4450,7 @@ func TestContext2Apply_provisionerFail_createBeforeDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","require_new":"abc"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4489,7 +4489,7 @@ func TestContext2Apply_error_createBeforeDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc","type":"aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4535,7 +4535,7 @@ func TestContext2Apply_errorDestroy_createBeforeDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4593,7 +4593,7 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	p.PlanResourceChangeFn = testDiffFn
@@ -4644,7 +4644,7 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.web: (1 deposed)
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = yes
   Deposed ID 1 = foo
 	`)
@@ -4739,7 +4739,7 @@ aws_instance.web: (1 deposed)
 	checkStateString(t, state, `
 aws_instance.web: (1 deposed)
   ID = qux
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = qux
   Deposed ID 1 = bar
 	`)
@@ -4772,7 +4772,7 @@ aws_instance.web: (1 deposed)
 	checkStateString(t, state, `
 aws_instance.web:
   ID = quux
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   require_new = quux
 	`)
 }
@@ -4811,7 +4811,7 @@ func TestContext2Apply_provisionerFailContinue(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
   `)
@@ -4882,7 +4882,7 @@ func TestContext2Apply_provisionerDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","foo":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4929,7 +4929,7 @@ func TestContext2Apply_provisionerDestroyFail(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","foo":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4952,7 +4952,7 @@ func TestContext2Apply_provisionerDestroyFail(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo["a"]:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
 	`)
 
@@ -4993,7 +4993,7 @@ func TestContext2Apply_provisionerDestroyFailContinue(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5060,7 +5060,7 @@ func TestContext2Apply_provisionerDestroyFailContinueFail(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5085,7 +5085,7 @@ func TestContext2Apply_provisionerDestroyFailContinueFail(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = bar
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   `)
 
 	// Verify apply was invoked
@@ -5126,7 +5126,7 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5159,7 +5159,7 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo["a"]:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = bar
   type = aws_instance
 	`)
@@ -5572,7 +5572,7 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5793,7 +5793,7 @@ func TestContext2Apply_destroyNestedModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5831,7 +5831,7 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6230,7 +6230,7 @@ func TestContext2Apply_destroyOrphan(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -6268,7 +6268,7 @@ func TestContext2Apply_destroyTaintedProvisioner(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6403,7 +6403,7 @@ func TestContext2Apply_errorDestroy(t *testing.T) {
 	expected := strings.TrimSpace(`
 test_thing.foo:
   ID = baz
-  provider = provider["registry.terraform.io/hashicorp/test"]
+  provider = provider["registry.opentofu.org/hashicorp/test"]
 `) // test_thing.foo is still here, even though provider returned no new state along with its error
 	if actual != expected {
 		t.Fatalf("expected:\n%s\n\ngot:\n%s", expected, actual)
@@ -6570,7 +6570,7 @@ func TestContext2Apply_errorPartial(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","type":"aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6654,7 +6654,7 @@ func TestContext2Apply_hookOrphan(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6893,7 +6893,7 @@ func TestContext2Apply_taintX(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"baz","num": "2", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6939,7 +6939,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"baz","num": "2", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -6948,7 +6948,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"bar","num": "2", "type": "aws_instance", "foo": "baz"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6990,7 +6990,7 @@ func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"baz","num": "2", "type": "aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -6999,7 +6999,7 @@ func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"bar","num": "2", "type": "aws_instance", "foo": "baz"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7061,7 +7061,7 @@ func TestContext2Apply_targeted(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   num = 2
   type = aws_instance
 	`)
@@ -7096,15 +7096,15 @@ func TestContext2Apply_targetedCount(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.foo.2:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 	`)
 }
@@ -7138,7 +7138,7 @@ func TestContext2Apply_targetedCountIndex(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo.1:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 	`)
 }
@@ -7156,7 +7156,7 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetOutputValue("out", cty.StringVal("bar"), false)
 
@@ -7167,7 +7167,7 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7241,7 +7241,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7250,7 +7250,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"i-abc123"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7291,7 +7291,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7299,7 +7299,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -7308,7 +7308,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	child.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7316,7 +7316,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7343,15 +7343,15 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.bar:
   ID = i-abc123
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance.foo:
   ID = i-bcd345
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 
 module.child:
   aws_instance.bar:
     ID = i-abc123
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
 }
 
@@ -7374,32 +7374,32 @@ func TestContext2Apply_targetedDestroyCountIndex(t *testing.T) {
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		foo,
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
 		foo,
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
 		foo,
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[0]").Resource,
 		bar,
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
 		bar,
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[2]").Resource,
 		bar,
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7429,16 +7429,16 @@ func TestContext2Apply_targetedDestroyCountIndex(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.bar.0:
   ID = i-abc123
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance.bar.2:
   ID = i-abc123
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance.foo.0:
   ID = i-bcd345
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 aws_instance.foo.1:
   ID = i-bcd345
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
 }
 
@@ -7479,12 +7479,12 @@ func TestContext2Apply_targetedModule(t *testing.T) {
 module.child:
   aws_instance.bar:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     num = 2
     type = aws_instance
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     num = 2
     type = aws_instance
 	`)
@@ -7524,7 +7524,7 @@ func TestContext2Apply_targetedModuleDep(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   foo = foo
   type = aws_instance
 
@@ -7534,7 +7534,7 @@ aws_instance.foo:
 module.child:
   aws_instance.mod:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     type = aws_instance
 
   Outputs:
@@ -7586,7 +7586,7 @@ child2_id = foo
 module.child2:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     type = aws_instance
 
   Outputs:
@@ -7631,7 +7631,7 @@ func TestContext2Apply_targetedModuleResource(t *testing.T) {
 module.child:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     num = 2
     type = aws_instance
 	`)
@@ -7650,7 +7650,7 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"type":"aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8176,7 +8176,7 @@ func TestContext2Apply_issue5254(t *testing.T) {
 	expected := strings.TrimSpace(`
 template_file.child:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/template"]
+  provider = provider["registry.opentofu.org/hashicorp/template"]
   __template_requires_new = true
   template = Hi
   type = template_file
@@ -8185,7 +8185,7 @@ template_file.child:
     template_file.parent
 template_file.parent.0:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/template"]
+  provider = provider["registry.opentofu.org/hashicorp/template"]
   template = Hi
   type = template_file
 `)
@@ -8208,7 +8208,7 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"ifailedprovisioners"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8253,11 +8253,11 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 	expected := strings.TrimSpace(`
 aws_instance.iambeingadded:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   type = aws_instance
 aws_instance.ifailedprovisioners: (tainted)
   ID = ifailedprovisioners
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
 		`)
 	if actual != expected {
 		t.Fatalf("expected state: \n%s\ngot: \n%s", expected, actual)
@@ -8306,7 +8306,7 @@ func TestContext2Apply_ignoreChangesCreate(t *testing.T) {
 	expected := strings.TrimSpace(`
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   required_field = set
   type = aws_instance
 `)
@@ -8341,7 +8341,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-abc123","ami":"ami-abcd1234"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -8349,7 +8349,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd234","ami":"i-bcd234"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_eip.foo[0]").Resource,
@@ -8367,7 +8367,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_eip.foo[1]").Resource,
@@ -8385,7 +8385,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8446,7 +8446,7 @@ func TestContext2Apply_ignoreChangesAll(t *testing.T) {
 	expected := strings.TrimSpace(`
 aws_instance.foo:
   ID = foo
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   required_field = set
   type = aws_instance
 `)
@@ -8738,7 +8738,7 @@ func TestContext2Apply_targetedModuleRecursive(t *testing.T) {
 module.child.subchild:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     num = 2
     type = aws_instance
 	`)
@@ -8784,7 +8784,7 @@ func TestContext2Apply_destroyWithLocals(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetOutputValue("name", cty.StringVal("test-bar"), false)
 
@@ -8879,7 +8879,7 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"].baz`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].baz`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8894,7 +8894,7 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 	}
 
 	// correct the state
-	state.Modules["module.mod.module.removed"].Resources["aws_instance.child"].ProviderConfig = mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"].bar`)
+	state.Modules["module.mod.module.removed"].Resources["aws_instance.child"].ProviderConfig = mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].bar`)
 
 	ctx = testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -8933,7 +8933,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	aliasedProviderState := states.NewState()
@@ -8944,7 +8944,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"].bar`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].bar`),
 	)
 
 	moduleProviderState := states.NewState()
@@ -8955,7 +8955,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`module.child.provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`module.child.provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	for _, tc := range []struct {
@@ -9034,7 +9034,7 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -9084,7 +9084,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.a[1]").Resource,
@@ -9092,7 +9092,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetOutputValue("out", cty.ListVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("foo")}), false)
 
@@ -9147,7 +9147,7 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.two").Resource,
@@ -9155,7 +9155,7 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/aws"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -10268,7 +10268,7 @@ func TestContext2Apply_ProviderMeta_plan_setNoSchema(t *testing.T) {
 	var rootErr, subErr bool
 	errorSummary := "The resource test_%s.bar belongs to a provider that doesn't support provider_meta blocks"
 	for _, diag := range diags {
-		if diag.Description().Summary != "Provider registry.terraform.io/hashicorp/test doesn't support provider_meta" {
+		if diag.Description().Summary != "Provider registry.opentofu.org/hashicorp/test doesn't support provider_meta" {
 			t.Errorf("Unexpected error: %+v", diag.Description())
 		}
 		switch diag.Description().Detail {
@@ -10462,7 +10462,7 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 	var rootErr, subErr bool
 	errorSummary := "The resource test_%s.bar belongs to a provider that doesn't support provider_meta blocks"
 	for _, diag := range diags {
-		if diag.Description().Summary != "Provider registry.terraform.io/hashicorp/test doesn't support provider_meta" {
+		if diag.Description().Summary != "Provider registry.opentofu.org/hashicorp/test doesn't support provider_meta" {
 			t.Errorf("Unexpected error: %+v", diag.Description())
 		}
 		switch diag.Description().Detail {
@@ -10743,7 +10743,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setNoSchema(t *testing.T) {
 	var rootErr, subErr bool
 	errorSummary := "The resource data.test_%s.foo belongs to a provider that doesn't support provider_meta blocks"
 	for _, diag := range diags {
-		if diag.Description().Summary != "Provider registry.terraform.io/hashicorp/test doesn't support provider_meta" {
+		if diag.Description().Summary != "Provider registry.opentofu.org/hashicorp/test doesn't support provider_meta" {
 			t.Errorf("Unexpected error: %+v", diag.Description())
 		}
 		switch diag.Description().Detail {
@@ -10873,7 +10873,7 @@ output "out" {
 module.mod1["a"]:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     foo = default
     type = aws_instance
 
@@ -10883,7 +10883,7 @@ module.mod1["a"]:
 module.mod2:
   aws_instance.foo:
     ID = foo
-    provider = provider["registry.terraform.io/hashicorp/aws"]
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
     foo = foo
     type = aws_instance
 
@@ -11191,7 +11191,7 @@ locals {
 			Dependencies:        []addrs.ConfigResource{},
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.a[1]").Resource,
@@ -11201,7 +11201,7 @@ locals {
 			Dependencies:        []addrs.ConfigResource{},
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.b").Resource,
@@ -11211,7 +11211,7 @@ locals {
 			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("test_instance.a")},
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.c").Resource,
@@ -11224,7 +11224,7 @@ locals {
 			},
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	p := testProvider("test")
@@ -12627,7 +12627,7 @@ func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 			Private:   []byte("private"),
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -12672,7 +12672,7 @@ func TestContext2Apply_errorRestoreStatus(t *testing.T) {
 			AttrsJSON:    []byte(`{"test_string":"foo"}`),
 			Private:      []byte("private"),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.b")},
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{

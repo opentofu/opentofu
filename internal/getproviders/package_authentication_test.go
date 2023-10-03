@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -112,7 +112,7 @@ func TestPackageAuthenticationAll_failure(t *testing.T) {
 // result should be "verified checksum".
 func TestPackageHashAuthentication_success(t *testing.T) {
 	// Location must be a PackageLocalArchive path
-	location := PackageLocalDir("testdata/filesystem-mirror/registry.terraform.io/hashicorp/null/2.0.0/linux_amd64")
+	location := PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64")
 
 	wantHashes := []Hash{
 		// Known-good HashV1 result for this directory
@@ -142,11 +142,11 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 			"failed to verify provider package checksums: lstat testdata/no-package-here.zip: no such file or directory",
 		},
 		"checksum mismatch": {
-			PackageLocalDir("testdata/filesystem-mirror/registry.terraform.io/hashicorp/null/2.0.0/linux_amd64"),
+			PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
 			"provider package doesn't match the expected checksum \"h1:invalid\"",
 		},
 		"invalid zip file": {
-			PackageLocalArchive("testdata/filesystem-mirror/registry.terraform.io/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
+			PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
 			"failed to verify provider package checksums: zip: not a valid zip file",
 		},
 	}
@@ -172,7 +172,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 // SHA256 hash. The result should be "verified checksum".
 func TestArchiveChecksumAuthentication_success(t *testing.T) {
 	// Location must be a PackageLocalArchive path
-	location := PackageLocalArchive("testdata/filesystem-mirror/registry.terraform.io/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip")
+	location := PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip")
 
 	// Known-good SHA256 hash for this archive
 	wantSHA256Sum := [sha256.Size]byte{
@@ -207,7 +207,7 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 			"failed to compute checksum for testdata/no-package-here.zip: lstat testdata/no-package-here.zip: no such file or directory",
 		},
 		"checksum mismatch": {
-			PackageLocalArchive("testdata/filesystem-mirror/registry.terraform.io/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
+			PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
 			"archive has incorrect checksum zh:4fb39849f2e138eb16a18ba0c682635d781cb8c3b25901dd5a792ade9711f501 (expected zh:0000000000000000000000000000000000000000000000000000000000000000)",
 		},
 		"invalid location": {

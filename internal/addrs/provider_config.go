@@ -101,10 +101,10 @@ var _ ProviderConfig = AbsProviderConfig{}
 // configuration address. The following are examples of traversals that can be
 // successfully parsed as absolute provider configuration addresses:
 //
-//   - provider["registry.terraform.io/hashicorp/aws"]
-//   - provider["registry.terraform.io/hashicorp/aws"].foo
-//   - module.bar.provider["registry.terraform.io/hashicorp/aws"]
-//   - module.bar.module.baz.provider["registry.terraform.io/hashicorp/aws"].foo
+//   - provider["registry.opentofu.org/hashicorp/aws"]
+//   - provider["registry.opentofu.org/hashicorp/aws"].foo
+//   - module.bar.provider["registry.opentofu.org/hashicorp/aws"]
+//   - module.bar.module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo
 //
 // This type of address is used, for example, to record the relationships
 // between resources and provider configurations in the state structure.

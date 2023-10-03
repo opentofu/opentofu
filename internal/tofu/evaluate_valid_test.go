@@ -68,7 +68,7 @@ For example, to correlate with indices of a referring resource, use:
 		},
 		{
 			Ref:     "boop_whatever.nope",
-			WantErr: `Invalid resource type: A managed resource type "boop_whatever" is not supported by provider "registry.terraform.io/foobar/beep".`,
+			WantErr: `Invalid resource type: A managed resource type "boop_whatever" is not supported by provider "registry.opentofu.org/foobar/beep".`,
 		},
 		{
 			Ref:     "data.boop_data.boop_nested",

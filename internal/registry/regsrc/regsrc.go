@@ -7,5 +7,5 @@ package regsrc
 
 var (
 	// PublicRegistryHost is a FriendlyHost that represents the public registry.
-	PublicRegistryHost = NewFriendlyHost("registry.terraform.io")
+	PublicRegistryHost = NewFriendlyHost("registry.opentofu.org")
 )

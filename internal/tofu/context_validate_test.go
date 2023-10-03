@@ -994,8 +994,8 @@ func TestContext2Validate_targetedDestroy(t *testing.T) {
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
-	testSetResourceInstanceCurrent(root, "aws_instance.foo", `{"id":"i-bcd345"}`, `provider["registry.terraform.io/hashicorp/aws"]`)
-	testSetResourceInstanceCurrent(root, "aws_instance.bar", `{"id":"i-abc123"}`, `provider["registry.terraform.io/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.foo", `{"id":"i-bcd345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.bar", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{

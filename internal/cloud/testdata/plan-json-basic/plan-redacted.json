@@ -7,7 +7,7 @@
       "mode": "managed",
       "type": "null_resource",
       "name": "foo",
-      "provider_name": "registry.terraform.io/hashicorp/null",
+      "provider_name": "registry.opentofu.org/hashicorp/null",
       "change": {
         "actions": [
           "create"
@@ -27,7 +27,7 @@
   "relevant_attributes": [],
   "output_changes": {},
   "provider_schemas": {
-    "registry.terraform.io/hashicorp/null": {
+    "registry.opentofu.org/hashicorp/null": {
       "provider": {
         "version": 0,
         "block": {

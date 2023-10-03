@@ -46,7 +46,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/hcl/v2 v2.17.0
 	github.com/hashicorp/jsonapi v0.0.0-20210826224640-ee7dae0fb22d
-	github.com/hashicorp/terraform-registry-address v0.2.0
 	github.com/hashicorp/terraform-svchost v0.1.1
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
@@ -65,6 +64,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/nishanths/exhaustive v0.7.11
+	github.com/opentofu/registry-address v0.0.0-20230920144404-f1e51167f633
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pkg/browser v0.0.0-20201207095918-0426ae3fba23
 	github.com/pkg/errors v0.9.1
@@ -84,14 +84,14 @@ require (
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/sdk v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
-	golang.org/x/crypto v0.10.0
+	golang.org/x/crypto v0.13.0
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17
 	golang.org/x/mod v0.10.0
-	golang.org/x/net v0.11.0
+	golang.org/x/net v0.15.0
 	golang.org/x/oauth2 v0.8.0
-	golang.org/x/sys v0.9.0
-	golang.org/x/term v0.9.0
-	golang.org/x/text v0.10.0
+	golang.org/x/sys v0.12.0
+	golang.org/x/term v0.12.0
+	golang.org/x/text v0.13.0
 	golang.org/x/tools v0.6.0
 	google.golang.org/api v0.114.0
 	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc

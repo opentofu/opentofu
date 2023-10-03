@@ -57,7 +57,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "OpenTofu v4.5.6-foo\non aros_riscv64\n+ provider registry.terraform.io/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.terraform.io/hashicorp/test2 v1.2.3"
+	expected := "OpenTofu v4.5.6-foo\non aros_riscv64\n+ provider registry.opentofu.org/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.opentofu.org/hashicorp/test2 v1.2.3"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot:\n%s\nwant:\n%s", actual, expected)
 	}
@@ -160,8 +160,8 @@ func TestVersion_json(t *testing.T) {
   "terraform_version": "4.5.6-foo",
   "platform": "aros_riscv64",
   "provider_selections": {
-    "registry.terraform.io/hashicorp/test1": "7.8.9-beta.2",
-    "registry.terraform.io/hashicorp/test2": "1.2.3"
+    "registry.opentofu.org/hashicorp/test1": "7.8.9-beta.2",
+    "registry.opentofu.org/hashicorp/test2": "1.2.3"
   }
 }
 `)

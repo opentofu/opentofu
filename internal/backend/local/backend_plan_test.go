@@ -725,7 +725,7 @@ func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func
 	// Many of our tests use an overridden "test" provider that's just in-memory
 	// inside the test process, not a separate plugin on disk.
 	depLocks := depsfile.NewLocks()
-	depLocks.SetProviderOverridden(addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/test"))
+	depLocks.SetProviderOverridden(addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/test"))
 
 	return &backend.Operation{
 		Type:            backend.OperationTypePlan,

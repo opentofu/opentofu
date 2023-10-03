@@ -77,7 +77,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"previous_run"}`),
 			Status:    states.ObjectTainted,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -205,7 +205,7 @@ data "test_data_source" "foo" {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -248,7 +248,7 @@ output "out" {
 		s.SetResourceInstanceCurrent(mustResourceInstanceAddr(`data.test_object.a["old"]`), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -292,7 +292,7 @@ module "mod" {
 terraform {
   required_providers {
     test = {
-      source = "registry.terraform.io/hashicorp/test"
+      source = "registry.opentofu.org/hashicorp/test"
       configuration_aliases = [ test.x ]
 	}
   }
@@ -371,21 +371,21 @@ resource "test_resource" "b" {
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"id":"a"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 		s.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr(`module.mod["old"].test_resource.b`),
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"id":"b","value":"d"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 		s.SetResourceInstanceCurrent(
 			oldDataAddr,
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"id":"d"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 	})
 
@@ -670,7 +670,7 @@ data "test_data_source" "a" {
 				// configuration change would make this object become valid.
 				AttrsJSON: []byte(`{"id":"boop","valid":false}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 	})
 
@@ -882,14 +882,14 @@ resource "test_resource" "b" {
 				// configuration change would make this object become valid.
 				AttrsJSON: []byte(`{"id":"main","valid":false}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 		s.SetResourceInstanceCurrent(
 			managedAddrB,
 			&states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"id":"checker","valid":true}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 	})
 
@@ -983,7 +983,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1083,7 +1083,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1223,7 +1223,7 @@ provider "test" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1259,7 +1259,7 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1323,11 +1323,11 @@ func TestContext2Plan_movedResourceCollision(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		s.SetResourceInstanceCurrent(addrZeroKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1429,11 +1429,11 @@ func TestContext2Plan_movedResourceCollisionDestroy(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		s.SetResourceInstanceCurrent(addrZeroKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1541,7 +1541,7 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1729,12 +1729,12 @@ resource "test_object" "b" {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		s.SetResourceInstanceCurrent(addrB, &states.ResourceInstanceObjectSrc{
 			// old_list is no longer in the schema
 			AttrsJSON: []byte(`{"old_list":["used to be","a list here"]}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1787,7 +1787,7 @@ func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1859,7 +1859,7 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -1995,7 +1995,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 		s.SetResourceInstanceDeposed(addr, deposedKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -2132,11 +2132,11 @@ func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr.Instance(addrs.IntKey(0)), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		s.SetResourceInstanceCurrent(addr.Instance(addrs.IntKey(1)), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -2348,7 +2348,7 @@ data "test_data_source" "foo" {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.bar").Resource,
@@ -2362,7 +2362,7 @@ data "test_data_source" "foo" {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2406,11 +2406,11 @@ func TestContext2Plan_forceReplace(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		s.SetResourceInstanceCurrent(addrB, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -2474,11 +2474,11 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr0, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		s.SetResourceInstanceCurrent(addr1, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -2593,7 +2593,7 @@ output "output" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo","value":"a"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	one.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr(`data.test_data_source.d`).Resource,
@@ -2601,7 +2601,7 @@ output "output" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"data"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	two.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr(`test_resource.x`).Resource,
@@ -2609,7 +2609,7 @@ output "output" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo","value":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	two.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr(`data.test_data_source.d`).Resource,
@@ -2617,7 +2617,7 @@ output "output" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"data"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2685,7 +2685,7 @@ func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	p := simpleMockProvider()
@@ -2860,7 +2860,7 @@ resource "test_resource" "a" {
 			s.SetResourceInstanceCurrent(mustResourceInstanceAddr("test_resource.a"), &states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"value":"boop","output":"blorp"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		})
 		_, diags := ctx.Plan(m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
@@ -2929,7 +2929,7 @@ resource "test_resource" "a" {
 			s.SetResourceInstanceCurrent(mustResourceInstanceAddr("test_resource.a"), &states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"value":"boop","output":"blorp"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		})
 		p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 			newVal, err := cty.Transform(req.PriorState, func(path cty.Path, v cty.Value) (cty.Value, error) {
@@ -2982,7 +2982,7 @@ resource "test_resource" "a" {
 			s.SetResourceInstanceCurrent(mustResourceInstanceAddr("test_resource.a"), &states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"value":"boop","output":"blorp"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 		})
 		p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 			newVal, err := cty.Transform(req.PriorState, func(path cty.Path, v cty.Value) (cty.Value, error) {
@@ -3612,7 +3612,7 @@ resource "test_object" "b" {
 				AttrsJSON: []byte(`{"test_string":"old"}`),
 				Status:    states.ObjectReady,
 			},
-			mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 		s.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr("test_object.b[0]"),
@@ -3620,7 +3620,7 @@ resource "test_object" "b" {
 				AttrsJSON: []byte(`{}`),
 				Status:    states.ObjectReady,
 			},
-			mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 	})
 
@@ -3699,7 +3699,7 @@ data "test_object" "a" {
 		s.SetResourceInstanceCurrent(mustResourceInstanceAddr(`data.test_object.a`), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"id":"old","obj":[{"args":["string"]}]}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3739,7 +3739,7 @@ resource "test_object" "b" {
 			AttrsJSON:    []byte(`{"test_string":"a"}`),
 			Dependencies: []addrs.ConfigResource{mustResourceInstanceAddr("test_object.b").ContainingResource().Config()},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.b").Resource,
@@ -3747,7 +3747,7 @@ resource "test_object" "b" {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"test_string":"b"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3860,7 +3860,7 @@ resource "test_object" "b" {
 			AttrsJSON:    []byte(`{"test_string":"old"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.a[0]").Resource,
@@ -3869,7 +3869,7 @@ resource "test_object" "b" {
 			AttrsJSON:    []byte(`{"test_string":"current"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4039,7 +4039,7 @@ output "out" {
 			AttrsJSON:    []byte(`{"test_string":"current"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	mod.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.a[1]").Resource,
@@ -4048,7 +4048,7 @@ output "out" {
 			AttrsJSON:    []byte(`{"test_string":"current"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4182,7 +4182,7 @@ resource "test_object" "a" {
 			AttrsJSON:    []byte(`{"map":{"prior":"value"}}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -4329,7 +4329,7 @@ import {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)

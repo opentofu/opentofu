@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"

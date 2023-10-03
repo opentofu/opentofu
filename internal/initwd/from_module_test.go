@@ -21,7 +21,7 @@ import (
 
 func TestDirFromModule_registry(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
-		t.Skip("this test accesses registry.terraform.io and github.com; set TF_ACC=1 to run it")
+		t.Skip("this test accesses registry.opentofu.org and github.com; set TF_ACC=1 to run it")
 	}
 
 	fixtureDir := filepath.Clean("testdata/empty")
@@ -62,7 +62,7 @@ func TestDirFromModule_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "root",
-			PackageAddr: "registry.terraform.io/hashicorp/module-installer-acctest/aws",
+			PackageAddr: "registry.opentofu.org/hashicorp/module-installer-acctest/aws",
 			Version:     v,
 		},
 		{
@@ -71,7 +71,7 @@ func TestDirFromModule_registry(t *testing.T) {
 			Version:    v,
 			// NOTE: This local path and the other paths derived from it below
 			// can vary depending on how the registry is implemented. At the
-			// time of writing this test, registry.terraform.io returns
+			// time of writing this test, registry.opentofu.org returns
 			// git repository source addresses and so this path refers to the
 			// root of the git clone, but historically the registry referred
 			// to GitHub-provided tar archives which meant that there was an

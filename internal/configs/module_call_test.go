@@ -174,7 +174,7 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 			true,
 		},
 		{
-			"registry.terraform.io/hashicorp/subnets/cidr", // registry module
+			"registry.opentofu.org/hashicorp/subnets/cidr", // registry module
 			true,
 		},
 	}

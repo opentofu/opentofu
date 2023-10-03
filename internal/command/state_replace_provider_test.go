@@ -393,33 +393,33 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 const testStateReplaceProviderOutputOriginal = `
 aws_instance.alpha:
   ID = alpha
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   bar = value
   foo = value
 aws_instance.beta:
   ID = beta
-  provider = provider["registry.terraform.io/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
   bar = value
   foo = value
 azurerm_virtual_machine.gamma:
   ID = gamma
-  provider = provider["registry.terraform.io/-/azurerm"]
+  provider = provider["registry.opentofu.org/-/azurerm"]
   baz = value
 `
 
 const testStateReplaceProviderOutput = `
 aws_instance.alpha:
   ID = alpha
-  provider = provider["registry.terraform.io/acmecorp/aws"]
+  provider = provider["registry.opentofu.org/acmecorp/aws"]
   bar = value
   foo = value
 aws_instance.beta:
   ID = beta
-  provider = provider["registry.terraform.io/acmecorp/aws"]
+  provider = provider["registry.opentofu.org/acmecorp/aws"]
   bar = value
   foo = value
 azurerm_virtual_machine.gamma:
   ID = gamma
-  provider = provider["registry.terraform.io/-/azurerm"]
+  provider = provider["registry.opentofu.org/-/azurerm"]
   baz = value
 `

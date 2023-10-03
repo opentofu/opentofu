@@ -14,15 +14,15 @@ provider "too/many/parts/here" { # ERROR: Invalid provider source address
 
 }
 
-provider "Registry.terraform.io/example/example" { # ERROR: Non-normalized provider source address
+provider "Registry.opentofu.org/example/example" { # ERROR: Non-normalized provider source address
 
 }
 
-provider "registry.terraform.io/eXample/example" { # ERROR: Non-normalized provider source address
+provider "registry.opentofu.org/eXample/example" { # ERROR: Non-normalized provider source address
 
 }
 
-provider "registry.terraform.io/example/Example" { # ERROR: Non-normalized provider source address
+provider "registry.opentofu.org/example/Example" { # ERROR: Non-normalized provider source address
 
 }
 
@@ -35,7 +35,7 @@ provider "this/one/okay" { # ERROR: Duplicate provider lock
 
 # Legacy providers are not allowed, because they existed only to
 # support the Terraform 0.13 upgrade process.
-provider "registry.terraform.io/-/null" { # ERROR: Invalid provider source address
+provider "registry.opentofu.org/-/null" { # ERROR: Invalid provider source address
 }
 
 # Built-in providers are not allowed, because they are not versioned

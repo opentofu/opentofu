@@ -101,7 +101,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -110,7 +110,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	b := &ApplyGraphBuilder{
@@ -267,7 +267,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	child.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -276,7 +276,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"bar"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	b := &ApplyGraphBuilder{
@@ -329,7 +329,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -338,7 +338,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B"}`),
 			Dependencies: []addrs.ConfigResource{addrA.ContainingResource().Config()},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	b := &ApplyGraphBuilder{
@@ -390,7 +390,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	modB := state.EnsureModule(addrs.RootModuleInstance.Child("B", addrs.NoKey))
 	modB.SetResourceInstanceCurrent(
@@ -400,7 +400,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"foo","value":"foo"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.A.test_object.foo")},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	b := &ApplyGraphBuilder{
@@ -611,7 +611,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 			AttrsJSON:           []byte(`{"id":"a_id"}`),
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -633,7 +633,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
 	b := &ApplyGraphBuilder{
@@ -683,7 +683,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"].foo`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].foo`),
 	)
 
 	b := &ApplyGraphBuilder{
@@ -771,20 +771,20 @@ aws_instance.baz (expand)
 aws_instance.foo
   aws_instance.foo (expand)
 aws_instance.foo (expand)
-  provider["registry.terraform.io/hashicorp/aws"]
+  provider["registry.opentofu.org/hashicorp/aws"]
 check.my_check (expand)
   data.aws_data_source.bar
 data.aws_data_source.bar
   (execute checks)
   data.aws_data_source.bar (expand)
 data.aws_data_source.bar (expand)
-  provider["registry.terraform.io/hashicorp/aws"]
-provider["registry.terraform.io/hashicorp/aws"]
-provider["registry.terraform.io/hashicorp/aws"] (close)
+  provider["registry.opentofu.org/hashicorp/aws"]
+provider["registry.opentofu.org/hashicorp/aws"]
+provider["registry.opentofu.org/hashicorp/aws"] (close)
   data.aws_data_source.bar
 root
   check.my_check (expand)
-  provider["registry.terraform.io/hashicorp/aws"] (close)
+  provider["registry.opentofu.org/hashicorp/aws"] (close)
 `
 
 const testApplyGraphBuilderStr = `
@@ -795,22 +795,22 @@ module.child.test_object.create
   module.child.test_object.create (expand)
 module.child.test_object.create (expand)
   module.child (expand)
-  provider["registry.terraform.io/hashicorp/test"]
+  provider["registry.opentofu.org/hashicorp/test"]
 module.child.test_object.other
   module.child.test_object.other (expand)
 module.child.test_object.other (expand)
   module.child.test_object.create
-provider["registry.terraform.io/hashicorp/test"]
-provider["registry.terraform.io/hashicorp/test"] (close)
+provider["registry.opentofu.org/hashicorp/test"]
+provider["registry.opentofu.org/hashicorp/test"] (close)
   module.child.test_object.other
   test_object.other
 root
   module.child (close)
-  provider["registry.terraform.io/hashicorp/test"] (close)
+  provider["registry.opentofu.org/hashicorp/test"] (close)
 test_object.create
   test_object.create (expand)
 test_object.create (expand)
-  provider["registry.terraform.io/hashicorp/test"]
+  provider["registry.opentofu.org/hashicorp/test"]
 test_object.other
   test_object.other (expand)
 test_object.other (expand)
@@ -818,15 +818,15 @@ test_object.other (expand)
 `
 
 const testApplyGraphBuilderDestroyCountStr = `
-provider["registry.terraform.io/hashicorp/test"]
-provider["registry.terraform.io/hashicorp/test"] (close)
+provider["registry.opentofu.org/hashicorp/test"]
+provider["registry.opentofu.org/hashicorp/test"] (close)
   test_object.B
 root
-  provider["registry.terraform.io/hashicorp/test"] (close)
+  provider["registry.opentofu.org/hashicorp/test"] (close)
 test_object.A (expand)
-  provider["registry.terraform.io/hashicorp/test"]
+  provider["registry.opentofu.org/hashicorp/test"]
 test_object.A[1] (destroy)
-  provider["registry.terraform.io/hashicorp/test"]
+  provider["registry.opentofu.org/hashicorp/test"]
 test_object.B
   test_object.A[1] (destroy)
   test_object.B (expand)

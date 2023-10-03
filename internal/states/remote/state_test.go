@@ -12,12 +12,12 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/zclconf/go-cty/cty"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/version"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 func TestState_impl(t *testing.T) {

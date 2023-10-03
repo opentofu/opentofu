@@ -41,7 +41,7 @@ func TestProviderProtocols(t *testing.T) {
 	// Move the provider binaries into a directory that we will point tofu
 	// to using the -plugin-dir cli flag.
 	platform := getproviders.CurrentPlatform.String()
-	hashiDir := "cache/registry.terraform.io/hashicorp/"
+	hashiDir := "cache/registry.opentofu.org/hashicorp/"
 	if err := os.MkdirAll(tf.Path(hashiDir, "simple6/0.0.1/", platform), os.ModePerm); err != nil {
 		t.Fatal(err)
 	}

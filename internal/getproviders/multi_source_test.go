@@ -177,7 +177,7 @@ func TestMultiSourceAvailableVersions(t *testing.T) {
 			t.Fatal("expected error, got success")
 		}
 
-		wantErr := `provider registry registry.terraform.io does not have a provider named registry.terraform.io/hashicorp/foo`
+		wantErr := `provider registry registry.opentofu.org does not have a provider named registry.opentofu.org/hashicorp/foo`
 
 		if err.Error() != wantErr {
 			t.Fatalf("wrong error.\ngot:  %s\nwant: %s\n", err, wantErr)
@@ -443,7 +443,7 @@ func TestMultiSourceSelector(t *testing.T) {
 				Include: mustParseMultiSourceMatchingPatterns("*/*"),
 			},
 			// Doesn't match because builtin providers are in "terraform.io",
-			// but a pattern with no hostname is for registry.terraform.io.
+			// but a pattern with no hostname is for registry.opentofu.org.
 			addrs.NewBuiltInProvider("bar"),
 			false,
 		},

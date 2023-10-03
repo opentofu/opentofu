@@ -18,7 +18,7 @@ func TestCachedProviderHash(t *testing.T) {
 		),
 		Version: getproviders.MustParseVersion("2.0.0"),
 
-		PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/darwin_amd64",
+		PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/darwin_amd64",
 	}
 
 	want := getproviders.MustParseHash("h1:qjsREM4DqEWECD43FcPqddZ9oxCG+IaMTxvWPciS05g=")
@@ -48,7 +48,7 @@ func TestCachedProviderHash(t *testing.T) {
 		),
 		Version: getproviders.MustParseVersion("2.0.0"),
 
-		PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/windows_amd64",
+		PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 	}
 	gotMatches, err = cp2.MatchesHash(want)
 	if err != nil {
@@ -70,23 +70,23 @@ func TestExecutableFile(t *testing.T) {
 			cp: &CachedProvider{
 				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", "null"),
 				Version:    getproviders.MustParseVersion("2.0.0"),
-				PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/linux_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64",
 			},
-			file: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/linux_amd64/terraform-provider-null",
+			file: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64/terraform-provider-null",
 		},
 		"windows": {
 			cp: &CachedProvider{
 				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", "null"),
 				Version:    getproviders.MustParseVersion("2.0.0"),
-				PackageDir: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/windows_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 			},
-			file: "testdata/cachedir/registry.terraform.io/hashicorp/null/2.0.0/windows_amd64/terraform-provider-null.exe",
+			file: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64/terraform-provider-null.exe",
 		},
 		"missing-executable": {
 			cp: &CachedProvider{
 				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "missing", "executable"),
 				Version:    getproviders.MustParseVersion("2.0.0"),
-				PackageDir: "testdata/cachedir/registry.terraform.io/missing/executable/2.0.0/linux_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/missing/executable/2.0.0/linux_amd64",
 			},
 			err: "could not find executable file starting with terraform-provider-executable",
 		},
@@ -94,9 +94,9 @@ func TestExecutableFile(t *testing.T) {
 			cp: &CachedProvider{
 				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "missing", "packagedir"),
 				Version:    getproviders.MustParseVersion("2.0.0"),
-				PackageDir: "testdata/cachedir/registry.terraform.io/missing/packagedir/2.0.0/linux_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64",
 			},
-			err: "could not read package directory: open testdata/cachedir/registry.terraform.io/missing/packagedir/2.0.0/linux_amd64: no such file or directory",
+			err: "could not read package directory: open testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64: no such file or directory",
 		},
 	}
 

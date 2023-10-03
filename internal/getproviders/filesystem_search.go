@@ -51,8 +51,8 @@ func SearchLocalDirectory(baseDir string) (map[addrs.Provider]PackageMetaList, e
 		}
 
 		// There are two valid directory structures that we support here...
-		// Unpacked: registry.terraform.io/hashicorp/aws/2.0.0/linux_amd64 (a directory)
-		// Packed:   registry.terraform.io/hashicorp/aws/terraform-provider-aws_2.0.0_linux_amd64.zip (a file)
+		// Unpacked: registry.opentofu.org/hashicorp/aws/2.0.0/linux_amd64 (a directory)
+		// Packed:   registry.opentofu.org/hashicorp/aws/terraform-provider-aws_2.0.0_linux_amd64.zip (a file)
 		//
 		// Both of these give us enough information to identify the package
 		// metadata.
