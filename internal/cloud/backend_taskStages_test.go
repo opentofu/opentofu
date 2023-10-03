@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/hashicorp/go-tfe"
+	tfe "github.com/hashicorp/go-tfe"
 	tfemocks "github.com/hashicorp/go-tfe/mocks"
 )
 

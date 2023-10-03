@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/opentofu/opentofu/internal/cloudplugin"
 	"github.com/opentofu/opentofu/internal/cloudplugin/cloudplugin1"

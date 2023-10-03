@@ -3,7 +3,7 @@ package addrs
 import (
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
+	hcl "github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )

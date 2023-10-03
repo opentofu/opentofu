@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	"github.com/apparentlymart/go-shquot/shquot"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/mattn/go-shellwords"
+	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"go.opentelemetry.io/otel/trace"

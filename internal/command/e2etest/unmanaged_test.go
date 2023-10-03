@@ -12,8 +12,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/grpcwrap"

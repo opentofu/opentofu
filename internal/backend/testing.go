@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	uuid "github.com/hashicorp/go-uuid"
-	"github.com/hashicorp/hcl/v2"
+	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 
 	"github.com/opentofu/opentofu/internal/addrs"

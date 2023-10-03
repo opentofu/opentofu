@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/go-tfe"
+	tfe "github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/cli"
 
 	"github.com/opentofu/opentofu/internal/backend"

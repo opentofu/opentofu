@@ -14,7 +14,7 @@ import (
 	"os"
 
 	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/mitchellh/go-homedir"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"

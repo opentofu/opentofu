@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/apparentlymart/go-versions/versions"
-	"github.com/hashicorp/go-getter"
+	getter "github.com/hashicorp/go-getter"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"

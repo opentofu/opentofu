@@ -26,9 +26,9 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/aliyun/aliyun-tablestore-go-sdk/tablestore"
-	"github.com/hashicorp/go-cleanhttp"
-	"github.com/jmespath/go-jmespath"
-	"github.com/mitchellh/go-homedir"
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	jmespath "github.com/jmespath/go-jmespath"
+	homedir "github.com/mitchellh/go-homedir"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/httpclient"

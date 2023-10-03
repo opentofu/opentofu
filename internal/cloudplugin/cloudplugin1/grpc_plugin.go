@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/rpc"
 
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
 	"github.com/opentofu/opentofu/internal/cloudplugin"

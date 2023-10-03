@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	tfe "github.com/hashicorp/go-tfe"
 
 	"github.com/opentofu/opentofu/internal/tofu"

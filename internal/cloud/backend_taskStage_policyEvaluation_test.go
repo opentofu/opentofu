@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/go-tfe"
+	tfe "github.com/hashicorp/go-tfe"
 )
 
 func TestCloud_runTaskStageWithPolicyEvaluation(t *testing.T) {

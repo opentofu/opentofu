@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
+	hcl "github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	_ "github.com/opentofu/opentofu/internal/logging"

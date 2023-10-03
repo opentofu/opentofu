@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-retryablehttp"
+	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/jsonapi"
 

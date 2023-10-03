@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/go-homedir"
+	homedir "github.com/mitchellh/go-homedir"
 )
 
 func TestReadPathOrContents_Path(t *testing.T) {

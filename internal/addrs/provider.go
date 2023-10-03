@@ -4,7 +4,7 @@
 package addrs
 
 import (
-	"github.com/hashicorp/hcl/v2"
+	hcl "github.com/hashicorp/hcl/v2"
 	svchost "github.com/hashicorp/terraform-svchost"
 
 	tfaddr "github.com/opentofu/registry-address"

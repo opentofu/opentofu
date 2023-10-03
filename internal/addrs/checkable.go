@@ -6,7 +6,7 @@ package addrs
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
+	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

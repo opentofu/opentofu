@@ -12,7 +12,7 @@ import (
 	"runtime"
 
 	"github.com/armon/circbuf"
-	"github.com/mitchellh/go-linereader"
+	linereader "github.com/mitchellh/go-linereader"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
