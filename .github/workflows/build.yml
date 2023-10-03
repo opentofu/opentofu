@@ -93,7 +93,7 @@ jobs:
     needs:
       - get-product-version
       - get-go-version
-    uses: ./.github/workflows/build-opentofu-oss.yml
+    uses: ./.github/scripts/build-opentofu-oss.yml
     with:
       goarch: ${{ matrix.goarch }}
       goos: ${{ matrix.goos }}
