@@ -22,6 +22,12 @@ func configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, ".tofurc")
 	legacyConfigFile := filepath.Join(dir, ".terraformrc")
 
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" &&
+		!pathExists(legacyConfigFile) && !pathExists(newConfigFile) {
+		// a fresh install should not use legacy naming
+		return filepath.Join(xdgDir, "opentofu", "tofurc"), nil
+	}
+
 	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
 }
 
@@ -31,7 +37,12 @@ func configDir() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(dir, ".terraform.d"), nil
+	configDir := filepath.Join(dir, ".terraform.d")
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(configDir) {
+		configDir = filepath.Join(xdgDir, "opentofu")
+	}
+
+	return configDir, nil
 }
 
 func homeDir() (string, error) {
@@ -40,7 +51,7 @@ func homeDir() (string, error) {
 		// FIXME: homeDir gets called from globalPluginDirs during init, before
 		// the logging is set up.  We should move meta initializtion outside of
 		// init, but in the meantime we just need to silence this output.
-		//log.Printf("[DEBUG] Detected home directory from env var: %s", home)
+		// log.Printf("[DEBUG] Detected home directory from env var: %s", home)
 
 		return home, nil
 	}
@@ -56,4 +67,9 @@ func homeDir() (string, error) {
 	}
 
 	return user.HomeDir, nil
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
