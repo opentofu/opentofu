@@ -1,5 +1,16 @@
 ## 1.6.0 (Unreleased)
 
+IMPORTANT NOTES:
+
+- Conditional GPG Validation Bypass for Default Registry - ([#309](https://github.com/opentofu/opentofu/pull/309)): A temporary change has been introduced to skip GPG validation under specific conditions. This behavior is tracked under issue #309 and applies as follows:
+  - **Registry Scope**: This change only affects provider packages from the default registry.
+  - **Key Availability**: GPG validation will be skipped when and only when the provider's GPG keys are not available in the default registry.
+  - **Temporary Measure**: This is a stopgap measure until GPG keys for all providers can be populated in the default registry.
+
+  While this offers operational flexibility, it does reduce the level of security assurance for affected packages. Users who prioritize security should set the `OPENTF_ENFORCE_GPG_VALIDATION` environment variable to `true` to enforce GPG validation of all providers.
+
+  **Future Removal**: We intend to remove this feature once all GPG keys are populated in the default registry, reverting to a strict GPG validation process for all providers.
+
 UPGRADE NOTES:
 
 * The `cloud` and `remote` backends will no longer default to `app.terraform.io` hostname and will require the hostname to be explicitly specified ([#291](https://github.com/opentofu/opentofu/pull/291));
@@ -18,6 +29,7 @@ ENHANCEMENTS:
 * jsonplan: Added `errored` field to JSON plan output, indicating whether a plan errored. ([#33372](https://github.com/hashicorp/terraform/issues/33372))
 * cloud: Remote plans on cloud backends can now be saved using the `-out` flag, referenced in the `show` command, and applied by specifying the plan file name. ([#33492](https://github.com/hashicorp/terraform/issues/33492))
 * config: The `import` block `id` field now accepts an expression referencing other values such as resource attributes, as long as the value is a string known at plan time. ([#33618](https://github.com/hashicorp/terraform/issues/33618))
+* telemetry: All checkpoint telemetry was removed ([#151](https://github.com/opentofu/opentofu/pull/151))
 
 BUG FIXES:
 
