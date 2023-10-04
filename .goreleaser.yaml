@@ -196,6 +196,7 @@ snapcrafts:
     apps:
       tofu:
         command: tofu
+        aliases: [tofu]
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
