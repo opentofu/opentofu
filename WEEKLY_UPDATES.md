@@ -1,6 +1,6 @@
 # Weekly Updates
 
-## 02.10.2023
+## 2023-10-02
 
 Hey!
 
@@ -27,7 +27,7 @@ Another week, another update! This last week has been all about the alpha releas
 
 Please let us know if you have any feedback on what we could improve, either with these updates or more generally! We're available on Slack, via GitHub issues, or even in the pull request creating this very file.
 
-## 26.09.2023
+## 2023-09-26
 
 Hello!
 
