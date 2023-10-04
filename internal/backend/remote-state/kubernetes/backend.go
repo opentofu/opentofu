@@ -25,16 +25,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// Modified from github.com/terraform-providers/terraform-provider-kubernetes
-
-const (
-	noConfigError = `
-
-[Kubernetes backend] Neither service_account nor load_config_file were set to true, 
-this could cause issues connecting to your Kubernetes cluster.
-`
-)
-
 var (
 	secretResource = k8sSchema.GroupVersionResource{
 		Group:    "",
@@ -201,7 +191,7 @@ type Backend struct {
 	nameSuffix             string
 }
 
-func (b Backend) KubernetesSecretClient() (dynamic.ResourceInterface, error) {
+func (b Backend) getKubernetesSecretClient() (dynamic.ResourceInterface, error) {
 	if b.kubernetesSecretClient != nil {
 		return b.kubernetesSecretClient, nil
 	}
@@ -215,7 +205,7 @@ func (b Backend) KubernetesSecretClient() (dynamic.ResourceInterface, error) {
 	return b.kubernetesSecretClient, nil
 }
 
-func (b Backend) KubernetesLeaseClient() (coordinationv1.LeaseInterface, error) {
+func (b Backend) getKubernetesLeaseClient() (coordinationv1.LeaseInterface, error) {
 	if b.kubernetesLeaseClient != nil {
 		return b.kubernetesLeaseClient, nil
 	}
