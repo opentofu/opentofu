@@ -235,4 +235,7 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
+// Hotfix for https://github.com/opentofu/opentofu/issues/655
+replace github.com/hashicorp/hcl/v2 v2.17.0 => github.com/cube2222/hcl/v2 v2.0.0-20231005102050-b9c5ea273216
+
 go 1.20
