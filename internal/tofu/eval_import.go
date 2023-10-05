@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -17,7 +18,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 			Severity: hcl.DiagError,
 			Summary:  "Invalid import id argument",
 			Detail:   "The import ID cannot be null.",
-			Subject:  expr.Range().Ptr(),
+			Subject:  nil,
 		})
 	}
 
@@ -42,6 +43,15 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 			//	Expression:
 			//	EvalContext:
 			Extra: diagnosticCausedByUnknown(true),
+		})
+	}
+
+	if importIdVal.HasMark(marks.Sensitive) {
+		return "", diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import id argument",
+			Detail:   "The import ID cannot be sensitive.",
+			Subject:  expr.Range().Ptr(),
 		})
 	}
 
