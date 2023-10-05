@@ -14,14 +14,16 @@ Generally, we appreciate external contributions very much and would love to work
 
 ---
 
-<!-- MarkdownTOC autolink="true" -->
+<!-- TOC -->
 
 - [Contributing a Code Change](#contributing-a-code-change)
 - [Working on the Code](#working-on-the-code)
+- [Debugging the code with VSCode](#debugging-the-code-with-vscode)
+- [Adding or updating dependencies](#adding-or-updating-dependencies)
 - [Acceptance Tests: Testing interactions with external services](#acceptance-tests-testing-interactions-with-external-services)
 - [Generated Code](#generated-code)
 
-<!-- /MarkdownTOC -->
+<!-- /TOC -->
 
 ## Contributing a Code Change
 
@@ -81,6 +83,10 @@ As you make your changes, you can re-run the above command to ensure that the te
 go test ./internal/command/...
 go test ./internal/addrs
 ```
+
+## Debugging the code with VSCode
+
+If you are using VSCode, you can start debugging on `main.go` file by selecting one of the debugging options described in [.vscode/launch.json](.vscode/launch.json). Feel free to update the `args` and `env` variables as you see fit during your debug session.
 
 ## Adding or updating dependencies
 
