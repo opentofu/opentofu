@@ -109,7 +109,7 @@ func initCommands(
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
 
-		AllowExperimentalFeatures: ExperimentsAllowed(),
+		AllowExperimentalFeatures: experimentsAreAllowed(),
 	}
 
 	// The command list is included in the tofu -help

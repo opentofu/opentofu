@@ -108,7 +108,7 @@ func realMain() int {
 	}
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
 	log.Printf("[INFO] CLI args: %#v", os.Args)
-	if ExperimentsAllowed() {
+	if experimentsAreAllowed() {
 		log.Printf("[INFO] This build of OpenTofu allows using experimental features")
 	}
 

@@ -22,6 +22,6 @@ package main
 // open experiment.)
 var experimentsAllowed string
 
-func ExperimentsAllowed() bool {
+func experimentsAreAllowed() bool {
 	return experimentsAllowed != ""
 }
