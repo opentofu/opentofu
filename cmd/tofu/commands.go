@@ -82,7 +82,7 @@ func initCommands(
 		configDir = "" // No config dir available (e.g. looking up a home directory failed)
 	}
 
-	wd := WorkingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
+	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
 
 	meta := command.Meta{
 		WorkingDir: wd,
