@@ -52,7 +52,7 @@ func TestPlan(t *testing.T) {
 }
 func TestPlan_conditionalSensitive(t *testing.T) {
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("plan-conditional-sensitive"), td)
+	testCopyDir(t, testFixturePath("apply-plan-destroy-conditional-sensitive"), td)
 	defer testChdir(t, td)()
 
 	p := planFixtureProvider()
@@ -71,8 +71,8 @@ func TestPlan_conditionalSensitive(t *testing.T) {
 		t.Fatalf("bad status code: %d\n\n%s", code, output)
 	}
 
-	if !strings.Contains(output, "Output refers to sensitive values") {
-		t.Fatal("command output does not look like a issue with refer sensitive values, error:", output)
+	if strings.Count(output, "Output refers to sensitive values") != 9 {
+		t.Fatal("Not all outputs have issue with refer to sensitive value", output)
 	}
 }
 
