@@ -41,7 +41,7 @@ BUG FIXES:
 * tofu_remote_state: Fixed a potential unsafe read panic when reading from multiple tofu_remote_state data sources ([#357](https://github.com/opentofu/opentofu/issues/357))
 * OpenTofu will now attempt to create the configuration directory `~/.terraform.d` on startup. ([#442](https://github.com/opentofu/opentofu/issues/442))
 * Conditionals with an unknown condition and sensitive branch won't crash anymore. ([#659](https://github.com/opentofu/opentofu/issues/659))
-
+- Fixed panic when using sensitive inputs for the ID field of an import configuration block ([#665](https://github.com/opentofu/opentofu/pull/665))
 ## Previous Releases
 
 For information on prior major and minor releases, see their changelogs:
