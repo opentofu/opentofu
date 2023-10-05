@@ -70,7 +70,7 @@ func TestApply(t *testing.T) {
 func TestApply_conditionalSensitive(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-plan-destroy-conditional-sensitive"), td)
+	testCopyDir(t, testFixturePath("apply-plan-conditional-sensitive"), td)
 	defer testChdir(t, td)()
 
 	p := applyFixtureProvider()
