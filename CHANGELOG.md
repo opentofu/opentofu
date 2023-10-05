@@ -40,6 +40,7 @@ BUG FIXES:
 * `tofu init`: OpenTofu will no longer allow downloading remote modules to invalid paths. ([#356](https://github.com/opentofu/opentofu/issues/356))
 * tofu_remote_state: Fixed a potential unsafe read panic when reading from multiple tofu_remote_state data sources ([#357](https://github.com/opentofu/opentofu/issues/357))
 * OpenTofu will now attempt to create the configuration directory `~/.terraform.d` on startup. ([#442](https://github.com/opentofu/opentofu/issues/442))
+* Conditionals with an unknown condition and sensitive branch won't crash anymore. ([#659](https://github.com/opentofu/opentofu/issues/659))
 
 ## Previous Releases
 
