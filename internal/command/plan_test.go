@@ -50,6 +50,31 @@ func TestPlan(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 }
+func TestPlan_conditionalSensitive(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-plan-conditional-sensitive"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{}
+	code := c.Run(args)
+	output := done(t).Stderr()
+	if code != 1 {
+		t.Fatalf("bad status code: %d\n\n%s", code, output)
+	}
+
+	if strings.Count(output, "Output refers to sensitive values") != 9 {
+		t.Fatal("Not all outputs have issue with refer to sensitive value", output)
+	}
+}
 
 func TestPlan_lockedState(t *testing.T) {
 	td := t.TempDir()

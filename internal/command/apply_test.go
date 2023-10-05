@@ -67,6 +67,35 @@ func TestApply(t *testing.T) {
 		t.Fatal("state should not be nil")
 	}
 }
+func TestApply_conditionalSensitive(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-plan-conditional-sensitive"), td)
+	defer testChdir(t, td)()
+
+	p := applyFixtureProvider()
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-auto-approve",
+	}
+	code := c.Run(args)
+	output := done(t).Stderr()
+	if code != 1 {
+		t.Fatalf("bad status code: %d\n\n%s", code, output)
+	}
+
+	if strings.Count(output, "Output refers to sensitive values") != 9 {
+		t.Fatal("Not all outputs have issue with refer to sensitive value", output)
+	}
+}
 
 func TestApply_path(t *testing.T) {
 	// Create a temporary working directory that is empty
