@@ -20,7 +20,7 @@ func helpFunc(commands map[string]cli.CommandFactory) string {
 	maxKeyLen := 0
 
 	for key := range commands {
-		if _, ok := HiddenCommands[key]; ok {
+		if _, ok := hiddenCommands[key]; ok {
 			// We don't consider hidden commands when deciding the
 			// maximum command length.
 			continue
@@ -31,7 +31,7 @@ func helpFunc(commands map[string]cli.CommandFactory) string {
 		}
 
 		isOther := true
-		for _, candidate := range PrimaryCommands {
+		for _, candidate := range primaryCommands {
 			if candidate == key {
 				isOther = false
 				break
@@ -62,7 +62,7 @@ Global options (use these before the subcommand, if any):
                 given subcommand.
   -help         Show this help output, or the help for a specified subcommand.
   -version      An alias for the "version" subcommand.
-`, listCommands(commands, PrimaryCommands, maxKeyLen), listCommands(commands, otherCommands, maxKeyLen))
+`, listCommands(commands, primaryCommands, maxKeyLen), listCommands(commands, otherCommands, maxKeyLen))
 
 	return strings.TrimSpace(helpText)
 }
