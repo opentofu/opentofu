@@ -3,7 +3,7 @@
 
 FROM alpine:3.18
 
-LABEL maintainer="OpenTofu Team <opentf@opentf.org>"
+LABEL maintainer="OpenTofu Team <opentofu@opentofu.org>"
 
 COPY tofu /usr/local/bin/tofu
 
