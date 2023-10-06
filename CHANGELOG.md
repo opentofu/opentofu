@@ -7,7 +7,7 @@ IMPORTANT NOTES:
   - **Key Availability**: GPG validation will be skipped when and only when the provider's GPG keys are not available in the default registry.
   - **Temporary Measure**: This is a stopgap measure until GPG keys for all providers can be populated in the default registry.
 
-  While this offers operational flexibility, it does reduce the level of security assurance for affected packages. Users who prioritize security should set the `OPENTF_ENFORCE_GPG_VALIDATION` environment variable to `true` to enforce GPG validation of all providers.
+  While this offers operational flexibility, it does reduce the level of security assurance for affected packages. Users who prioritize security should set the `OPENTOFU_ENFORCE_GPG_VALIDATION` environment variable to `true` to enforce GPG validation of all providers.
 
   **Future Removal**: We intend to remove this feature once all GPG keys are populated in the default registry, reverting to a strict GPG validation process for all providers.
 
