@@ -96,7 +96,7 @@ func (r *ResourceAddress) String() string {
 // HasResourceSpec returns true if the address has a resource spec, as
 // defined in the documentation:
 //
-//	https://www.placeholderplaceholderplaceholder.io/docs/cli/state/resource-addressing.html
+//	https://opentofu.org/docs/cli/state/resource-addressing/
 //
 // In particular, this returns false if the address contains only
 // a module path, thus addressing the entire module.

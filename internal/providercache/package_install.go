@@ -119,7 +119,7 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 			)
 		} else if !matches {
 			return authResult, fmt.Errorf(
-				"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://www.placeholderplaceholderplaceholder.io/language/provider-checksum-verification",
+				"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
 				meta.Provider, meta.Version,
 			)
 		}
@@ -209,7 +209,7 @@ func installFromLocalDir(ctx context.Context, meta getproviders.PackageMeta, tar
 			)
 		} else if !matches {
 			return authResult, fmt.Errorf(
-				"the local package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://www.placeholderplaceholderplaceholder.io/language/provider-checksum-verification",
+				"the local package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
 				meta.Provider, meta.Version,
 			)
 		}

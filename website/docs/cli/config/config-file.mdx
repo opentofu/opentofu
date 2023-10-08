@@ -74,7 +74,7 @@ When interacting with OpenTofu-specific network services, OpenTofu expects
 to find API tokens in CLI configuration files in `credentials` blocks:
 
 ```hcl
-credentials "app.placeholderplaceholderplaceholder.io" {
+credentials "app.opentofu.org" {
   token = "xxxxxx.atlasv1.zzzzzzzzzzzzz"
 }
 ```
@@ -97,8 +97,8 @@ sources and/or backend configuration.
 If you would prefer not to store your API tokens directly in the CLI configuration, you may use
 a host-specific environment variable. Environment variable names should have the prefix
 `TF_TOKEN_` added to the domain name, with periods encoded as underscores. For example, the
-value of a variable named `TF_TOKEN_app_placeholderplaceholderplaceholder_io` will be used as a bearer authorization
-token when the CLI makes service requests to the hostname `app.placeholderplaceholderplaceholder.io`.
+value of a variable named `TF_TOKEN_app_opentofu_org` will be used as a bearer authorization
+token when the CLI makes service requests to the hostname `app.opentofu.org`.
 
 You must convert domain names containing non-ASCII characters to their [punycode equivalent](https://www.charset.org/punycode)
 with an ACE prefix. For example, token credentials for 例えば.com must be set in a variable
