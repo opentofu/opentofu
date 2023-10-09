@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
-	awsbasev1 "github.com/hashicorp/aws-sdk-go-base"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -19,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
+	"golang.org/x/net/context"
 	"os"
 	"strings"
 	"time"
@@ -31,6 +31,7 @@ func New() backend.Backend {
 type Backend struct {
 	s3Client  *s3.S3
 	dynClient *dynamodb.DynamoDB
+	awsConfig awsbase.Config
 
 	bucketName            string
 	keyName               string
@@ -117,10 +118,15 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "AWS profile name",
 			},
-			"shared_credentials_files": {
+			"shared_credentials_file": {
 				Type:        cty.String,
 				Optional:    true,
 				Description: "Path to a shared credentials file",
+			},
+			"shared_credentials_files": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "Path to a shared credentials files",
 			},
 			"token": {
 				Type:        cty.String,
@@ -422,16 +428,19 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 			return
 		})
 	}
-
-	sess, err := awsbasev1.GetSession(cfg)
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to configure AWS client",
-			fmt.Sprintf(`The "S3" backend encountered an unexpected error while creating the AWS client: %s`, err),
-		))
-		return diags
-	}
+	ctx := context.TODO()
+	_, awsConfig, awsDiag := awsbase.GetAwsConfig(ctx, cfg)
+	b.awsConfig = awsConfig
+	//
+	//sess, err := awsbasev1.GetSession(cfg)
+	//if err != nil {
+	//	diags = diags.Append(tfdiags.Sourceless(
+	//		tfdiags.Error,
+	//		"Failed to configure AWS client",
+	//		fmt.Sprintf(`The "S3" backend encountered an unexpected error while creating the AWS client: %s`, err),
+	//	))
+	//	return diags
+	//}
 
 	var dynamoConfig aws.Config
 	if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT"); ok {
