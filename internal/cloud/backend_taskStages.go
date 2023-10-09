@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type taskStages map[tfe.Stage]*tfe.TaskStage
@@ -169,7 +169,7 @@ func processSummarizers(ctx *IntegrationContext, output IntegrationOutputWriter,
 }
 
 func (b *Cloud) processStageOverrides(context *IntegrationContext, output IntegrationOutputWriter, taskStageID string) (bool, error) {
-	opts := &opentf.InputOpts{
+	opts := &tofu.InputOpts{
 		Id:          fmt.Sprintf("%c%c [bold]Override", Arrow, Arrow),
 		Query:       "\nDo you want to override the failed policy check?",
 		Description: "Only 'override' will be accepted to override.",
@@ -177,9 +177,7 @@ func (b *Cloud) processStageOverrides(context *IntegrationContext, output Integr
 	runUrl := fmt.Sprintf(taskStageHeader, b.hostname, b.organization, context.Op.Workspace, context.Run.ID)
 	err := b.confirm(context.StopContext, context.Op, opts, context.Run, "override")
 	if err != nil && err != errRunOverridden {
-		return false, fmt.Errorf(
-			fmt.Sprintf("Failed to override: %s\n%s\n", err.Error(), runUrl),
-		)
+		return false, fmt.Errorf("Failed to override: %w\n%s\n", err, runUrl)
 	}
 
 	if err != errRunOverridden {

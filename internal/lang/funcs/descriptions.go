@@ -18,7 +18,7 @@ type descriptionEntry struct {
 }
 
 // DescriptionList is a consolidated list containing all descriptions for all
-// functions available within OpenTF. A function's description should point
+// functions available within OpenTofu. A function's description should point
 // to the matching entry in this list.
 //
 // We keep this as a single list, so we can quickly review descriptions within
@@ -419,7 +419,7 @@ var DescriptionList = map[string]descriptionEntry{
 		ParamDescription: []string{"", ""},
 	},
 	"textencodebase64": {
-		Description:      "`textencodebase64` encodes the unicode characters in a given string using a specified character encoding, returning the result base64 encoded because OpenTF language strings are always sequences of unicode characters.",
+		Description:      "`textencodebase64` encodes the unicode characters in a given string using a specified character encoding, returning the result base64 encoded because OpenTofu language strings are always sequences of unicode characters.",
 		ParamDescription: []string{"", ""},
 	},
 	"timeadd": {

@@ -20,14 +20,14 @@ func upgradeStateV1ToV2(old *stateV1) (*stateV2, error) {
 
 	remote, err := old.Remote.upgradeToV2()
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading State V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading State V1: %w", err)
 	}
 
 	modules := make([]*moduleStateV2, len(old.Modules))
 	for i, module := range old.Modules {
 		upgraded, err := module.upgradeToV2()
 		if err != nil {
-			return nil, fmt.Errorf("Error upgrading State V1: %v", err)
+			return nil, fmt.Errorf("Error upgrading State V1: %w", err)
 		}
 		modules[i] = upgraded
 	}
@@ -52,7 +52,7 @@ func (old *remoteStateV1) upgradeToV2() (*remoteStateV2, error) {
 
 	config, err := copystructure.Copy(old.Config)
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading RemoteState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading RemoteState V1: %w", err)
 	}
 
 	return &remoteStateV2{
@@ -68,7 +68,7 @@ func (old *moduleStateV1) upgradeToV2() (*moduleStateV2, error) {
 
 	pathRaw, err := copystructure.Copy(old.Path)
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading ModuleState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading ModuleState V1: %w", err)
 	}
 	path, ok := pathRaw.([]string)
 	if !ok {
@@ -93,14 +93,14 @@ func (old *moduleStateV1) upgradeToV2() (*moduleStateV2, error) {
 	for key, oldResource := range old.Resources {
 		upgraded, err := oldResource.upgradeToV2()
 		if err != nil {
-			return nil, fmt.Errorf("Error upgrading ModuleState V1: %v", err)
+			return nil, fmt.Errorf("Error upgrading ModuleState V1: %w", err)
 		}
 		resources[key] = upgraded
 	}
 
 	dependencies, err := copystructure.Copy(old.Dependencies)
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading ModuleState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading ModuleState V1: %w", err)
 	}
 
 	return &moduleStateV2{
@@ -118,19 +118,19 @@ func (old *resourceStateV1) upgradeToV2() (*resourceStateV2, error) {
 
 	dependencies, err := copystructure.Copy(old.Dependencies)
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading ResourceState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading ResourceState V1: %w", err)
 	}
 
 	primary, err := old.Primary.upgradeToV2()
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading ResourceState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading ResourceState V1: %w", err)
 	}
 
 	deposed := make([]*instanceStateV2, len(old.Deposed))
 	for i, v := range old.Deposed {
 		upgraded, err := v.upgradeToV2()
 		if err != nil {
-			return nil, fmt.Errorf("Error upgrading ResourceState V1: %v", err)
+			return nil, fmt.Errorf("Error upgrading ResourceState V1: %w", err)
 		}
 		deposed[i] = upgraded
 	}
@@ -154,12 +154,12 @@ func (old *instanceStateV1) upgradeToV2() (*instanceStateV2, error) {
 
 	attributes, err := copystructure.Copy(old.Attributes)
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading InstanceState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading InstanceState V1: %w", err)
 	}
 
 	meta, err := copystructure.Copy(old.Meta)
 	if err != nil {
-		return nil, fmt.Errorf("Error upgrading InstanceState V1: %v", err)
+		return nil, fmt.Errorf("Error upgrading InstanceState V1: %w", err)
 	}
 
 	newMeta := make(map[string]interface{})

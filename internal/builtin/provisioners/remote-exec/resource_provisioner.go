@@ -14,11 +14,11 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-linereader"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/communicator"
+	"github.com/opentofu/opentofu/internal/communicator/remote"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -218,7 +218,7 @@ func collectScripts(v cty.Value) ([]io.ReadCloser, error) {
 			for _, fh := range fhs {
 				fh.Close()
 			}
-			return nil, fmt.Errorf("Failed to open script '%s': %v", s, err)
+			return nil, fmt.Errorf("Failed to open script '%s': %w", s, err)
 		}
 		fhs = append(fhs, fh)
 	}
@@ -260,7 +260,7 @@ func runScripts(ctx context.Context, o provisioners.UIOutput, comm communicator.
 		remotePath := comm.ScriptPath()
 
 		if err := comm.UploadScript(remotePath, script); err != nil {
-			return fmt.Errorf("Failed to upload script: %v", err)
+			return fmt.Errorf("Failed to upload script: %w", err)
 		}
 
 		cmd = &remote.Cmd{
@@ -269,7 +269,7 @@ func runScripts(ctx context.Context, o provisioners.UIOutput, comm communicator.
 			Stderr:  errW,
 		}
 		if err := comm.Start(cmd); err != nil {
-			return fmt.Errorf("Error starting script: %v", err)
+			return fmt.Errorf("Error starting script: %w", err)
 		}
 
 		if err := cmd.Wait(); err != nil {

@@ -30,9 +30,9 @@ jobs:
             linux \
             amd64
 
-      - name: Build the OpenTF binary
+      - name: Build the OpenTofu binary
         run: |
-          go build -o ./bin/opentf
+          go build -o ./bin/tofu ./cmd/tofu
 
       - name: Run the equivalence tests
         run: |
@@ -40,7 +40,7 @@ jobs:
             --tests=testing/equivalence-tests/tests \
             --goldens=testing/equivalence-tests/outputs \
             --rewrites=testing/rewrites.jsonc \
-            --binary=./bin/opentf \
+            --binary=./bin/tofu \
 
       - name: Ensure there is no diff
         shell: bash

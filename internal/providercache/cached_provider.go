@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 // CachedProvider represents a provider package in a cache directory.
@@ -108,7 +108,7 @@ func (cp *CachedProvider) ExecutableFile() (string, error) {
 	if err != nil {
 		// If the directory itself doesn't exist or isn't readable then we
 		// can't access an executable in it.
-		return "", fmt.Errorf("could not read package directory: %s", err)
+		return "", fmt.Errorf("could not read package directory: %w", err)
 	}
 
 	// For a provider named e.g. tf.example.com/awesomecorp/happycloud, we

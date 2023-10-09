@@ -9,17 +9,17 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Workspaces returns a list of names for the workspaces found in k8s. The default
 // workspace is always returned as the first element in the slice.
 func (b *Backend) Workspaces() ([]string, error) {
-	secretClient, err := b.KubernetesSecretClient()
+	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
@@ -110,14 +110,14 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state in Kubernetes failed:
 
-				Error message: %q
+				Error message: %w
 				Lock ID (gen): %v
 				Secret Name: %v
 
 				You may have to force-unlock this state in order to use it again.
 				The Kubernetes backend acquires a lock during initialization to ensure
 				the initial state file is created.`
-				return fmt.Errorf(unlockErrMsg, baseErr, err.Error(), lockID, secretName)
+				return fmt.Errorf(unlockErrMsg, baseErr, err, lockID, secretName)
 			}
 
 			return baseErr
@@ -146,12 +146,12 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 		return nil, errors.New("missing state name")
 	}
 
-	secretClient, err := b.KubernetesSecretClient()
+	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
 
-	leaseClient, err := b.KubernetesLeaseClient()
+	leaseClient, err := b.getKubernetesLeaseClient()
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +166,4 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	}
 
 	return client, nil
-}
-
-func (b *Backend) client() *RemoteClient {
-	return &RemoteClient{}
 }

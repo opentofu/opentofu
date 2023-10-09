@@ -13,11 +13,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func readStateV4(src []byte) (*File, tfdiags.Diagnostics) {
@@ -44,8 +44,8 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Invalid OpenTF version string",
-				fmt.Sprintf("State file claims to have been written by OpenTF version %q, which is not a valid version string.", sV4.TerraformVersion),
+				"Invalid OpenTofu version string",
+				fmt.Sprintf("State file claims to have been written by OpenTofu version %q, which is not a valid version string.", sV4.TerraformVersion),
 			))
 		}
 	}
@@ -298,7 +298,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 	// Saved check results from the previous run, if any.
 	// We differentiate absense from an empty array here so that we can
-	// recognize if the previous run was with a version of Terraform that
+	// recognize if the previous run was with a version of OpenTofu that
 	// didn't support checks yet, or if there just weren't any checkable
 	// objects to record, in case that's important for certain messaging.
 	if sV4.CheckResults != nil {
@@ -427,7 +427,7 @@ func writeStateV4(file *File, w io.Writer) tfdiags.Diagnostics {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Failed to serialize state",
-			fmt.Sprintf("An error occured while serializing the state to save it. This is a bug in OpenTF and should be reported: %s.", err),
+			fmt.Sprintf("An error occured while serializing the state to save it. This is a bug in OpenTofu and should be reported: %s.", err),
 		))
 		return diags
 	}
@@ -618,7 +618,7 @@ func decodeCheckStatusV4(in string) checks.Status {
 		return checks.StatusError
 	default:
 		// We'll treat anything else as unknown just as a concession to
-		// forward-compatible parsing, in case a later version of Terraform
+		// forward-compatible parsing, in case a later version of OpenTofu
 		// introduces a new status.
 		return checks.StatusUnknown
 	}
@@ -651,7 +651,7 @@ func decodeCheckableObjectKindV4(in string) addrs.CheckableKind {
 		return addrs.CheckableInputVariable
 	default:
 		// We'll treat anything else as invalid just as a concession to
-		// forward-compatible parsing, in case a later version of Terraform
+		// forward-compatible parsing, in case a later version of OpenTofu
 		// introduces a new status.
 		return addrs.CheckableKindInvalid
 	}

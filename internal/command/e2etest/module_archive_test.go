@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentofu/opentofu/internal/e2e"
 )
 
 func TestInitModuleArchive(t *testing.T) {
@@ -29,7 +29,7 @@ func TestInitModuleArchive(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	if !strings.Contains(stdout, "OpenTF has been successfully initialized!") {
+	if !strings.Contains(stdout, "OpenTofu has been successfully initialized!") {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 }

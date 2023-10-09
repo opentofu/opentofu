@@ -22,20 +22,20 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 
-	backendInit "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/init"
-	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	legacy "github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
+	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.
@@ -73,8 +73,8 @@ type BackendWithRemoteTerraformVersion interface {
 
 // Backend initializes and returns the backend for this CLI session.
 //
-// The backend is used to perform the actual Terraform operations. This
-// abstraction enables easily sliding in new Terraform behavior such as
+// The backend is used to perform the actual OpenTofu operations. This
+// abstraction enables easily sliding in new OpenTofu behavior such as
 // remote state storage, remote operations, etc. while allowing the CLI
 // to remain mostly identical.
 //
@@ -88,7 +88,7 @@ type BackendWithRemoteTerraformVersion interface {
 //
 // A side-effect of this method is the population of m.backendState, recording
 // the final resolved backend configuration after dealing with overrides from
-// the "terraform init" command line, etc.
+// the "tofu init" command line, etc.
 func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -128,16 +128,16 @@ func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics
 				for addr, err := range errs {
 					fmt.Fprintf(&buf, "\n  - %s: %s", addr, err)
 				}
-				suggestion := "To download the plugins required for this configuration, run:\n  opentf init"
+				suggestion := "To download the plugins required for this configuration, run:\n  tofu init"
 				if m.RunningInAutomation {
-					// Don't mention "terraform init" specifically if we're running in an automation wrapper
-					suggestion = "You must install the required plugins before running OpenTF operations."
+					// Don't mention "tofu init" specifically if we're running in an automation wrapper
+					suggestion = "You must install the required plugins before running OpenTofu operations."
 				}
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Required plugins are not installed",
 					fmt.Sprintf(
-						"The installed provider plugins are not consistent with the packages selected in the dependency lock file:%s\n\nOpenTF uses external plugins to integrate with a variety of different infrastructure services. %s",
+						"The installed provider plugins are not consistent with the packages selected in the dependency lock file:%s\n\nOpenTofu uses external plugins to integrate with a variety of different infrastructure services. %s",
 						buf.String(), suggestion,
 					),
 				))
@@ -155,7 +155,7 @@ func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics
 	if cli, ok := b.(backend.CLI); ok {
 		if err := cli.CLIInit(cliOpts); err != nil {
 			diags = diags.Append(fmt.Errorf(
-				"Error initializing backend %T: %s\n\n"+
+				"Error initializing backend %T: %w\n\n"+
 					"This is a bug; please report it to the backend developer",
 				b, err,
 			))
@@ -220,14 +220,14 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to get existing workspaces: %s", err)
+		return fmt.Errorf("Failed to get existing workspaces: %w", err)
 	}
 	if len(workspaces) == 0 {
 		if c, ok := b.(*cloud.Cloud); ok && m.input {
 			// len is always 1 if using Name; 0 means we're using Tags and there
 			// aren't any matching workspaces. Which might be normal and fine, so
 			// let's just ask:
-			name, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+			name, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 				Id:          "create-workspace",
 				Query:       "\n[reset][bold][yellow]No workspaces found.[reset]",
 				Description: fmt.Sprintf(inputCloudInitCreateWorkspace, strings.Join(c.WorkspaceMapping.Tags, ", ")),
@@ -274,7 +274,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 	}
 
 	// Otherwise, ask the user to select a workspace from the list of existing workspaces.
-	v, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	v, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id: "select-workspace",
 		Query: fmt.Sprintf(
 			"\n[reset][bold][yellow]The currently selected workspace (%s) does not exist.[reset]",
@@ -283,7 +283,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 			strings.TrimSpace(inputBackendSelectWorkspace), list.String()),
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to select workspace: %s", err)
+		return fmt.Errorf("Failed to select workspace: %w", err)
 	}
 
 	idx, err := strconv.Atoi(v)
@@ -341,7 +341,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 		}
 		if err := cli.CLIInit(cliOpts); err != nil {
 			diags = diags.Append(fmt.Errorf(
-				"Error initializing backend %T: %s\n\n"+
+				"Error initializing backend %T: %w\n\n"+
 					"This is a bug; please report it to the backend developer",
 				b, err,
 			))
@@ -534,7 +534,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 	// ------------------------------------------------------------------------
 	// For historical reasons, current backend configuration for a working
 	// directory is kept in a *state-like* file, using the legacy state
-	// structures in the Terraform package. It is not actually a Terraform
+	// structures in the OpenTofu package. It is not actually a OpenTofu
 	// state, and so only the "backend" portion of it is actually used.
 	//
 	// The remainder of this code often confusingly refers to this as a "state",
@@ -545,7 +545,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 	// Since the "real" state has since moved on to be represented by
 	// states.State, we can recognize the special meaning of state that applies
 	// to this function and its callees by their continued use of the
-	// otherwise-obsolete terraform.State.
+	// otherwise-obsolete tofu.State.
 	// ------------------------------------------------------------------------
 
 	// Get the path to where we store a local cache of backend configuration
@@ -554,7 +554,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
 
@@ -591,7 +591,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Legacy remote state not supported",
-			"This working directory is configured for legacy remote state, which is no longer supported from Terraform v0.12 onwards, and thus not supported by OpenTF, either. To migrate this environment, first run \"terraform init\" under a Terraform 0.11 release, and then upgrade to OpenTF.",
+			"This working directory is configured for legacy remote state, which is no longer supported from Terraform v0.12 onwards, and thus not supported by OpenTofu, either. To migrate this environment, first run \"terraform init\" under a Terraform 0.11 release, and then upgrade to OpenTofu.",
 		))
 		return nil, diags
 	}
@@ -612,7 +612,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 		if !opts.Init {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Backend initialization required, please run \"opentf init\"",
+				"Backend initialization required, please run \"tofu init\"",
 				fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
 			))
 			return nil, diags
@@ -633,14 +633,14 @@ func (m *Meta) backendFromConfig(opts *BackendOpts) (backend.Backend, tfdiags.Di
 				initReason := "Initial configuration of Terraform Cloud"
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
-					"Terraform Cloud initialization required: please run \"opentf init\"",
+					"Terraform Cloud initialization required: please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
 				))
 			} else {
 				initReason := fmt.Sprintf("Initial configuration of the requested backend %q", c.Type)
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
-					"Backend initialization required, please run \"opentf init\"",
+					"Backend initialization required, please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
 				))
 			}
@@ -750,19 +750,19 @@ func (m *Meta) determineInitReason(previousBackendType string, currentBackendTyp
 	case cloud.ConfigChangeInPlace:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Terraform Cloud initialization required: please run \"opentf init\"",
+			"Terraform Cloud initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
 		))
 	case cloud.ConfigMigrationIn:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Terraform Cloud initialization required: please run \"opentf init\"",
+			"Terraform Cloud initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
 		))
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Backend initialization required: please run \"opentf init\"",
+			"Backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
 		))
 	}
@@ -772,7 +772,7 @@ func (m *Meta) determineInitReason(previousBackendType string, currentBackendTyp
 
 // backendFromState returns the initialized (not configured) backend directly
 // from the backend state. This should be used only when a user runs
-// `terraform init -backend=false`. This function returns a local backend if
+// `tofu init -backend=false`. This function returns a local backend if
 // there is no backend state or no backend configured.
 func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -782,7 +782,7 @@ func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.D
 	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(); err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to load state: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
 	s := sMgr.State()
@@ -811,14 +811,14 @@ func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.D
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
-	// were provided via -backend-config arguments on terraform init.
+	// were provided via -backend-config arguments on tofu init.
 	schema := b.ConfigSchema()
 	configVal, err := s.Backend.Config(schema)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Failed to decode current backend config",
-			fmt.Sprintf("The backend configuration created by the most recent run of \"opentf init\" could not be decoded: %s. The configuration may have been initialized by an earlier version that used an incompatible configuration structure. Run \"opentf init -reconfigure\" to force re-initialization of the backend.", err),
+			fmt.Sprintf("The backend configuration created by the most recent run of \"tofu init\" could not be decoded: %s. The configuration may have been initialized by an earlier version that used an incompatible configuration structure. Run \"tofu init -reconfigure\" to force re-initialization of the backend.", err),
 		))
 		return nil, diags
 	}
@@ -1050,8 +1050,8 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 	if m.stateLock {
 		view := views.NewStateLocker(vt, m.View)
 		stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
-		if err := stateLocker.Lock(sMgr, "backend from plan"); err != nil {
-			diags = diags.Append(fmt.Errorf("Error locking state: %s", err))
+		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
+			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 			return nil, diags
 		}
 		defer stateLocker.Unlock()
@@ -1059,7 +1059,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 
 	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema().ImpliedType())
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %s", err))
+		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %w", err))
 		return nil, diags
 	}
 
@@ -1194,8 +1194,8 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 		if m.stateLock {
 			view := views.NewStateLocker(vt, m.View)
 			stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
-			if err := stateLocker.Lock(sMgr, "backend from plan"); err != nil {
-				diags = diags.Append(fmt.Errorf("Error locking state: %s", err))
+			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
+				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 				return nil, diags
 			}
 			defer stateLocker.Unlock()
@@ -1204,7 +1204,7 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 
 	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema().ImpliedType())
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %s", err))
+		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %w", err))
 		return nil, diags
 	}
 
@@ -1268,14 +1268,14 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState) (backend.Backend, tfdiags
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
-	// were provided via -backend-config arguments on terraform init.
+	// were provided via -backend-config arguments on tofu init.
 	schema := b.ConfigSchema()
 	configVal, err := s.Backend.Config(schema)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Failed to decode current backend config",
-			fmt.Sprintf("The backend configuration created by the most recent run of \"opentf init\" could not be decoded: %s. The configuration may have been initialized by an earlier version that used an incompatible configuration structure. Run \"opentf init -reconfigure\" to force re-initialization of the backend.", err),
+			fmt.Sprintf("The backend configuration created by the most recent run of \"tofu init\" could not be decoded: %s. The configuration may have been initialized by an earlier version that used an incompatible configuration structure. Run \"tofu init -reconfigure\" to force re-initialization of the backend.", err),
 		))
 		return nil, diags
 	}
@@ -1403,7 +1403,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Unknown values within backend definition",
-			"The `opentf` configuration block should contain only concrete and static values. Another diagnostic should contain more information about which part of the configuration is problematic."))
+			"The `tofu` configuration block should contain only concrete and static values. Another diagnostic should contain more information about which part of the configuration is problematic."))
 		return nil, cty.NilVal, diags
 	}
 
@@ -1412,7 +1412,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 		var err error
 		configVal, err = m.inputForSchema(configVal, schema)
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %s", c.Type, err))
+			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %w", c.Type, err))
 		}
 
 		// We get an unknown here if the if the user aborted input, but we can't
@@ -1470,7 +1470,7 @@ func (m *Meta) ignoreRemoteVersionConflict(b backend.Backend) {
 	}
 }
 
-// Helper method to check the local Terraform version against the configured
+// Helper method to check the local OpenTofu version against the configured
 // version in the remote workspace, returning diagnostics if they conflict.
 func (m *Meta) remoteVersionCheck(b backend.Backend, workspace string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
@@ -1519,7 +1519,7 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 		if m.migrateState {
 			name := "-migrate-state"
 			if m.forceInitCopy {
-				// -force copy implies -migrate-state in "terraform init",
+				// -force copy implies -migrate-state in "tofu init",
 				// so m.migrateState is forced to true in this case even if
 				// the user didn't actually specify it. We'll use the other
 				// name here to avoid being confusing, then.
@@ -1548,16 +1548,16 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 //-------------------------------------------------------------------
 
 const errBackendLocalRead = `
-Error reading local state: %s
+Error reading local state: %w
 
-OpenTF is trying to read your local state to determine if there is
-state to migrate to your newly configured backend. OpenTF can't continue
+OpenTofu is trying to read your local state to determine if there is
+state to migrate to your newly configured backend. OpenTofu can't continue
 without this check because that would risk losing state. Please resolve the
 error above and try again.
 `
 
 const errBackendMigrateLocalDelete = `
-Error deleting local state after migration: %s
+Error deleting local state after migration: %w
 
 Your local state is deleted after successfully migrating it to the newly
 configured backend. As part of the deletion process, a backup is made at
@@ -1569,19 +1569,19 @@ issue above and retry the command.
 const errBackendNewUnknown = `
 The backend %q could not be found.
 
-This is the backend specified in your OpenTF configuration file.
+This is the backend specified in your OpenTofu configuration file.
 This error could be a simple typo in your configuration, but it can also
-be caused by using a OpenTF version that doesn't support the specified
-backend type. Please check your configuration and your OpenTF version.
+be caused by using a OpenTofu version that doesn't support the specified
+backend type. Please check your configuration and your OpenTofu version.
 
-If you'd like to run OpenTF and store state locally, you can fix this
+If you'd like to run OpenTofu and store state locally, you can fix this
 error by removing the backend configuration from your configuration.
 `
 
 const errBackendNoExistingWorkspaces = `
 No existing workspaces.
 
-Use the "opentf workspace" command to create and select a new workspace.
+Use the "tofu workspace" command to create and select a new workspace.
 If the backend already contains existing workspaces, you may need to update
 the backend configuration.
 `
@@ -1589,21 +1589,21 @@ the backend configuration.
 const errBackendSavedUnknown = `
 The backend %q could not be found.
 
-This is the backend that this OpenTF environment is configured to use
+This is the backend that this OpenTofu environment is configured to use
 both in your configuration and saved locally as your last-used backend.
-If it isn't found, it could mean an alternate version of OpenTF was
-used with this configuration. Please use the proper version of OpenTF that
+If it isn't found, it could mean an alternate version of OpenTofu was
+used with this configuration. Please use the proper version of OpenTofu that
 contains support for this backend.
 
 If you'd like to force remove this backend, you must update your configuration
-to not use the backend and run "opentf init" (or any other command) again.
+to not use the backend and run "tofu init" (or any other command) again.
 `
 
 const errBackendClearSaved = `
-Error clearing the backend configuration: %s
+Error clearing the backend configuration: %w
 
-OpenTF removes the saved backend configuration when you're removing a
-configured backend. This must be done so future OpenTF runs know to not
+OpenTofu removes the saved backend configuration when you're removing a
+configured backend. This must be done so future OpenTofu runs know to not
 use the backend configuration. Please look at the error above, resolve it,
 and try again.
 `
@@ -1611,14 +1611,14 @@ and try again.
 const errBackendInit = `
 Reason: %s
 
-The "backend" is the interface that OpenTF uses to store state,
+The "backend" is the interface that OpenTofu uses to store state,
 perform operations, etc. If this message is showing up, it means that the
-OpenTF configuration you're using is using a custom configuration for
-the OpenTF backend.
+OpenTofu configuration you're using is using a custom configuration for
+the OpenTofu backend.
 
 Changes to backend configurations require reinitialization. This allows
-OpenTF to set up the new configuration, copy existing state, etc. Please run
-"opentf init" with either the "-reconfigure" or "-migrate-state" flags to
+OpenTofu to set up the new configuration, copy existing state, etc. Please run
+"tofu init" with either the "-reconfigure" or "-migrate-state" flags to
 use the current configuration.
 
 If the change reason above is incorrect, please verify your configuration
@@ -1632,50 +1632,50 @@ Reason: %s.
 Changes to the Terraform Cloud configuration block require reinitialization, to discover any changes to the available workspaces.
 
 To re-initialize, run:
-  opentf init
+  tofu init
 
-OpenTF has not yet made changes to your existing configuration or state.
+OpenTofu has not yet made changes to your existing configuration or state.
 `
 
 const errBackendWriteSaved = `
-Error saving the backend configuration: %s
+Error saving the backend configuration: %w
 
-OpenTF saves the complete backend configuration in a local file for
+OpenTofu saves the complete backend configuration in a local file for
 configuring the backend on future operations. This cannot be disabled. Errors
 are usually due to simple file permission errors. Please look at the error
 above, resolve it, and try again.
 `
 
 const outputBackendMigrateChange = `
-OpenTF detected that the backend type changed from %q to %q.
+OpenTofu detected that the backend type changed from %q to %q.
 `
 
 const outputBackendMigrateLocal = `
-OpenTF has detected you're unconfiguring your previously set %q backend.
+OpenTofu has detected you're unconfiguring your previously set %q backend.
 `
 
 const outputBackendReconfigure = `
 [reset][bold]Backend configuration changed![reset]
 
-OpenTF has detected that the configuration specified for the backend
-has changed. OpenTF will now check for existing state in the backends.
+OpenTofu has detected that the configuration specified for the backend
+has changed. OpenTofu will now check for existing state in the backends.
 `
 
 const inputCloudInitCreateWorkspace = `
 There are no workspaces with the configured tags (%s)
-in your Terraform Cloud organization. To finish initializing, OpenTF needs at
+in your Terraform Cloud organization. To finish initializing, OpenTofu needs at
 least one workspace available.
 
-OpenTF can create a properly tagged workspace for you now. Please enter a
+OpenTofu can create a properly tagged workspace for you now. Please enter a
 name to create a new Terraform Cloud workspace.
 `
 
 const successBackendUnset = `
-Successfully unset the backend %q. OpenTF will now operate locally.
+Successfully unset the backend %q. OpenTofu will now operate locally.
 `
 
 const successBackendSet = `
-Successfully configured the backend %q! OpenTF will automatically
+Successfully configured the backend %q! OpenTofu will automatically
 use this backend unless the backend configuration changes.
 `
 
@@ -1683,5 +1683,5 @@ var migrateOrReconfigDiag = tfdiags.Sourceless(
 	tfdiags.Error,
 	"Backend configuration changed",
 	"A change in the backend configuration has been detected, which may require migrating existing state.\n\n"+
-		"If you wish to attempt automatic migration of the state, use \"opentf init -migrate-state\".\n"+
-		`If you wish to store the current configuration with no changes to the state, use "opentf init -reconfigure".`)
+		"If you wish to attempt automatic migration of the state, use \"tofu init -migrate-state\".\n"+
+		`If you wish to store the current configuration with no changes to the state, use "tofu init -reconfigure".`)

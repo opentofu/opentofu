@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/hashicorp/hcl/v2"
@@ -101,10 +101,10 @@ var _ ProviderConfig = AbsProviderConfig{}
 // configuration address. The following are examples of traversals that can be
 // successfully parsed as absolute provider configuration addresses:
 //
-//   - provider["registry.terraform.io/hashicorp/aws"]
-//   - provider["registry.terraform.io/hashicorp/aws"].foo
-//   - module.bar.provider["registry.terraform.io/hashicorp/aws"]
-//   - module.bar.module.baz.provider["registry.terraform.io/hashicorp/aws"].foo
+//   - provider["registry.opentofu.org/hashicorp/aws"]
+//   - provider["registry.opentofu.org/hashicorp/aws"].foo
+//   - module.bar.provider["registry.opentofu.org/hashicorp/aws"]
+//   - module.bar.module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo
 //
 // This type of address is used, for example, to record the relationships
 // between resources and provider configurations in the state structure.
@@ -233,7 +233,7 @@ func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Dia
 }
 
 // ParseLegacyAbsProviderConfig parses the given traversal as an absolute
-// provider address in the legacy form used by OpenTF v0.12 and earlier.
+// provider address in the legacy form used by OpenTofu v0.12 and earlier.
 // The following are examples of traversals that can be successfully parsed as
 // legacy absolute provider configuration addresses:
 //
@@ -244,8 +244,8 @@ func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Dia
 //
 // We can encounter this kind of address in a historical state snapshot that
 // hasn't yet been upgraded by refreshing or applying a plan with
-// OpenTF v0.13. Later versions of OpenTF reject state snapshots using
-// this format, and so users must follow the OpenTF v0.13 upgrade guide
+// OpenTofu v0.13. Later versions of OpenTofu reject state snapshots using
+// this format, and so users must follow the OpenTofu v0.13 upgrade guide
 // in that case.
 //
 // We will not use this address form for any new file formats.
@@ -352,7 +352,7 @@ func (pc AbsProviderConfig) providerConfig() {}
 // other than the root module. Even if a valid address is returned, inheritence
 // may not be performed for other reasons, such as if the calling module
 // provided explicit provider configurations within the call for this module.
-// The ProviderTransformer graph transform in the main opentf module has the
+// The ProviderTransformer graph transform in the main tofu module has the
 // authoritative logic for provider inheritance, and this method is here mainly
 // just for its benefit.
 func (pc AbsProviderConfig) Inherited() (AbsProviderConfig, bool) {

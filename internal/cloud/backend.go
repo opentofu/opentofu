@@ -25,16 +25,16 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/jsonformat"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
+	tfversion "github.com/opentofu/opentofu/version"
 
-	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 const (
@@ -46,7 +46,7 @@ const (
 )
 
 // Cloud is an implementation of EnhancedBackend in service of the cloud backend
-// integration for Terraform CLI. This backend is not intended to be surfaced at the user level and
+// integration for OpenTofu CLI. This backend is not intended to be surfaced at the user level and
 // is instead an implementation detail of cloud.Cloud.
 type Cloud struct {
 	// CLI and Colorize control the CLI output. If CLI is nil then no CLI
@@ -55,9 +55,9 @@ type Cloud struct {
 	CLIColor *colorstring.Colorize
 
 	// ContextOpts are the base context options to set when initializing a
-	// new Terraform context. Many of these will be overridden or merged by
+	// new OpenTofu context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *opentf.ContextOpts
+	ContextOpts *tofu.ContextOpts
 
 	// client is the cloud backend API client.
 	client *tfe.Client
@@ -94,7 +94,7 @@ type Cloud struct {
 	opLock sync.Mutex
 
 	// ignoreVersionConflict, if true, will disable the requirement that the
-	// local Terraform version matches the remote workspace's configured
+	// local OpenTofu version matches the remote workspace's configured
 	// version. This will also cause VerifyWorkspaceTerraformVersion to return
 	// a warning diagnostic instead of an error.
 	ignoreVersionConflict bool
@@ -286,7 +286,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 			fmt.Sprintf(
 				"Run the following command to generate a token for %s:\n    %s",
 				b.hostname,
-				fmt.Sprintf("opentf login %s", b.hostname),
+				fmt.Sprintf("tofu login %s", b.hostname),
 			),
 		))
 		return diags
@@ -362,7 +362,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
 		log.Printf("[TRACE] API version check failed; want: >= %s, got: %s", desiredAPIVersion.Original(), currentAPIVersion)
 		if b.runningInAutomation {
-			// It should never be possible for this Terraform process to be mistakenly
+			// It should never be possible for this OpenTofu process to be mistakenly
 			// used internally within an unsupported Terraform Enterprise install - but
 			// just in case it happens, give an actionable error.
 			diags = diags.Append(
@@ -403,7 +403,7 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Hostname is required for the cloud backend",
-			`OpenTF does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`,
+			`OpenTofu does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`,
 		))
 
 		return diags
@@ -556,7 +556,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 		}
 		projects, err := b.client.Projects.List(context.Background(), b.organization, listOpts)
 		if err != nil && err != tfe.ErrResourceNotFound {
-			return nil, fmt.Errorf("failed to retrieve project %s: %v", listOpts.Name, err)
+			return nil, fmt.Errorf("failed to retrieve project %s: %w", listOpts.Name, err)
 		}
 		for _, p := range projects.Items {
 			if p.Name == b.WorkspaceMapping.Project {
@@ -607,7 +607,7 @@ func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to retrieve workspace %s: %v", name, err)
+		return fmt.Errorf("failed to retrieve workspace %s: %w", name, err)
 	}
 
 	// Configure the remote workspace name.
@@ -629,7 +629,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 
 	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
-		return nil, fmt.Errorf("Failed to retrieve workspace %s: %v", name, err)
+		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
 	if workspace != nil {
 		remoteTFVersion = workspace.TerraformVersion
@@ -683,7 +683,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 				log.Printf("[TRACE] cloud: Creating cloud backend project %s/%s", b.organization, b.WorkspaceMapping.Project)
 				project, err := b.client.Projects.Create(context.Background(), b.organization, createOpts)
 				if err != nil && err != tfe.ErrResourceNotFound {
-					return nil, fmt.Errorf("failed to create project %s: %v", b.WorkspaceMapping.Project, err)
+					return nil, fmt.Errorf("failed to create project %s: %w", b.WorkspaceMapping.Project, err)
 				}
 				configuredProject = project
 				workspaceCreateOptions.Project = configuredProject
@@ -694,12 +694,12 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		log.Printf("[TRACE] cloud: Creating cloud backend workspace %s/%s", b.organization, name)
 		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, workspaceCreateOptions)
 		if err != nil {
-			return nil, fmt.Errorf("error creating workspace %s: %v", name, err)
+			return nil, fmt.Errorf("error creating workspace %s: %w", name, err)
 		}
 
 		remoteTFVersion = workspace.TerraformVersion
 
-		// Attempt to set the new workspace to use this version of Terraform. This
+		// Attempt to set the new workspace to use this version of OpenTofu. This
 		// can fail if there's no enabled tool_version whose name matches our
 		// version string, but that's expected sometimes -- just warn and continue.
 		versionOptions := tfe.WorkspaceUpdateOptions{
@@ -729,7 +729,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		log.Printf("[TRACE] cloud: Adding tags for cloud backend workspace %s/%s", b.organization, name)
 		err = b.client.Workspaces.AddTags(context.Background(), workspace.ID, options)
 		if err != nil {
-			return nil, fmt.Errorf("Error updating workspace %s: %v", name, err)
+			return nil, fmt.Errorf("Error updating workspace %s: %w", name, err)
 		}
 	}
 
@@ -742,7 +742,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		// Explicitly ignore the pseudo-version "latest" here, as it will cause
 		// plan and apply to always fail.
 		if remoteTFVersion != tfversion.String() && remoteTFVersion != "latest" {
-			return nil, fmt.Errorf("Remote workspace TF version %q does not match local OpenTF version %q", remoteTFVersion, tfversion.String())
+			return nil, fmt.Errorf("Remote workspace TF version %q does not match local OpenTofu version %q", remoteTFVersion, tfversion.String())
 		}
 	}
 
@@ -786,7 +786,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	case backend.OperationTypeApply:
 		f = b.opApply
 	case backend.OperationTypeRefresh:
-		// The `opentf refresh` command has been deprecated in favor of `opentf apply -refresh-state`.
+		// The `tofu refresh` command has been deprecated in favor of `tofu apply -refresh-state`.
 		// Rather than respond with an error telling the user to run the other command we can just run
 		// that command instead. We will tell the user what we are doing, and then do it.
 		if b.CLI != nil {
@@ -879,7 +879,7 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 		// Only ask if the remote operation should be canceled
 		// if the auto approve flag is not set.
 		if !op.AutoApprove {
-			v, err := op.UIIn.Input(cancelCtx, &opentf.InputOpts{
+			v, err := op.UIIn.Input(cancelCtx, &tofu.InputOpts{
 				Id:          "cancel",
 				Query:       "\nDo you want to cancel the remote operation?",
 				Description: "Only 'yes' will be accepted to cancel.",
@@ -914,8 +914,8 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 }
 
 // IgnoreVersionConflict allows commands to disable the fall-back check that
-// the local Terraform version matches the remote workspace's configured
-// Terraform version. This should be called by commands where this check is
+// the local OpenTofu version matches the remote workspace's configured
+// OpenTofu version. This should be called by commands where this check is
 // unnecessary, such as those performing remote operations, or read-only
 // operations. It will also be called if the user uses a command-line flag to
 // override this check.
@@ -923,8 +923,8 @@ func (b *Cloud) IgnoreVersionConflict() {
 	b.ignoreVersionConflict = true
 }
 
-// VerifyWorkspaceTerraformVersion compares the local Terraform version against
-// the workspace's configured Terraform version. If they are compatible, this
+// VerifyWorkspaceTerraformVersion compares the local OpenTofu version against
+// the workspace's configured OpenTofu version. If they are compatible, this
 // means that there are no state compatibility concerns, so it returns no
 // diagnostics.
 //
@@ -951,13 +951,13 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 	}
 
 	// If the workspace has the pseudo-version "latest", all bets are off. We
-	// cannot reasonably determine what the intended Terraform version is, so
+	// cannot reasonably determine what the intended OpenTofu version is, so
 	// we'll skip version verification.
 	if workspace.TerraformVersion == "latest" {
 		return nil
 	}
 
-	// If the workspace has execution-mode set to local, the remote Terraform
+	// If the workspace has execution-mode set to local, the remote OpenTofu
 	// version is effectively meaningless, so we'll skip version verification.
 	if isLocalExecutionMode(workspace.ExecutionMode) {
 		return nil
@@ -967,7 +967,7 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 	if err != nil {
 		message := fmt.Sprintf(
 			"The remote workspace specified an invalid TF version or constraint (%s), "+
-				"and it isn't possible to determine whether the local OpenTF version (%s) is compatible.",
+				"and it isn't possible to determine whether the local OpenTofu version (%s) is compatible.",
 			workspace.TerraformVersion,
 			tfversion.String(),
 		)
@@ -1019,7 +1019,7 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 	}
 
 	message := fmt.Sprintf(
-		"The local OpenTF version (%s) does not meet the version requirements for remote workspace %s/%s (%s).",
+		"The local OpenTofu version (%s) does not meet the version requirements for remote workspace %s/%s (%s).",
 		tfversion.String(),
 		b.organization,
 		workspace.Name,
@@ -1120,7 +1120,7 @@ func (b *Cloud) fetchWorkspace(ctx context.Context, organization string, workspa
 			)
 		default:
 			err := fmt.Errorf(
-				"Terraform Cloud returned an unexpected error:\n\n%s",
+				"Terraform Cloud returned an unexpected error:\n\n%w",
 				err,
 			)
 			return nil, err
@@ -1149,7 +1149,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 		return tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid workspace selection",
-			fmt.Sprintf(`OpenTF failed to find workspace %q in organization %s.`, workspace, organization),
+			fmt.Sprintf(`OpenTofu failed to find workspace %q in organization %s.`, workspace, organization),
 		)
 	}
 
@@ -1186,7 +1186,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 			tfdiags.Error,
 			"Invalid workspace selection",
 			fmt.Sprintf(
-				"OpenTF failed to find workspace %q with the tags specified in your configuration:\n[%s]",
+				"OpenTofu failed to find workspace %q with the tags specified in your configuration:\n[%s]",
 				workspace,
 				strings.ReplaceAll(opts.Tags, ",", ", "),
 			),
@@ -1246,7 +1246,7 @@ func generalError(msg string, err error) error {
 // The newline in this error is to make it look good in the CLI!
 const initialRetryError = `
 [reset][yellow]There was an error connecting to Terraform Cloud. Please do not exit
-OpenTF to prevent data loss! Trying to restore the connection...
+OpenTofu to prevent data loss! Trying to restore the connection...
 [reset]
 `
 
@@ -1262,10 +1262,10 @@ const operationNotCanceled = `
 [reset][red]The remote operation was not cancelled.[reset]
 `
 
-const refreshToApplyRefresh = `[bold][yellow]Proceeding with 'opentf apply -refresh-only -auto-approve'.[reset]`
+const refreshToApplyRefresh = `[bold][yellow]Proceeding with 'tofu apply -refresh-only -auto-approve'.[reset]`
 
 const unavailableTerraformVersion = `
-[reset][yellow]The local OpenTF version (%s) is not available in Terraform Cloud, or your
+[reset][yellow]The local OpenTofu version (%s) is not available in Terraform Cloud, or your
 organization does not have access to it. The new workspace will use %s. You can
 change this later in the workspace settings.[reset]`
 
@@ -1273,11 +1273,11 @@ const cloudIntegrationUsedInUnsupportedTFE = `
 This version of cloud backend does not support the state mechanism
 attempting to be used by the platform. This should never happen.
 
-Please reach out to OpenTF Support to resolve this issue.`
+Please reach out to OpenTofu Support to resolve this issue.`
 
 var (
 	workspaceConfigurationHelp = fmt.Sprintf(
-		`The 'workspaces' block configures how OpenTF CLI maps its workspaces for this single
+		`The 'workspaces' block configures how OpenTofu CLI maps its workspaces for this single
 configuration to workspaces within a Terraform Cloud organization. Two strategies are available:
 
 [bold]tags[reset] - %s
@@ -1289,7 +1289,7 @@ configuration to workspaces within a Terraform Cloud organization. Two strategie
 	schemaDescriptionOrganization = `The name of the organization containing the targeted workspace(s).`
 
 	schemaDescriptionToken = `The token used to authenticate with the cloud backend. Typically this argument should not
-be set, and 'opentf login' used instead; your credentials will then be fetched from your CLI
+be set, and 'tofu login' used instead; your credentials will then be fetched from your CLI
 configuration file or configured credential helper.`
 
 	schemaDescriptionTags = `A set of tags used to select remote Terraform Cloud workspaces to be used for this single

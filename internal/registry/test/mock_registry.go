@@ -13,13 +13,13 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/regsrc"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/response"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/registry/regsrc"
+	"github.com/opentofu/opentofu/internal/registry/response"
+	tfversion "github.com/opentofu/opentofu/version"
 )
 
-// Disco return a *disco.Disco mapping registry.terraform.io, localhost,
+// Disco return a *disco.Disco mapping registry.opentofu.org, localhost,
 // localhost.localdomain, and example.com to the test server.
 func Disco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
@@ -29,9 +29,9 @@ func Disco(s *httptest.Server) *disco.Disco {
 		"providers.v1": fmt.Sprintf("%s/v1/providers", s.URL),
 	}
 	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTfUserAgent(tfversion.String()))
+	d.SetUserAgent(httpclient.OpenTofuUserAgent(tfversion.String()))
 
-	d.ForceHostServices(svchost.Hostname("registry.terraform.io"), services)
+	d.ForceHostServices(svchost.Hostname("registry.opentofu.org"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	d.ForceHostServices(svchost.Hostname("localhost.localdomain"), services)
 	d.ForceHostServices(svchost.Hostname("example.com"), services)

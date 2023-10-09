@@ -24,11 +24,11 @@ import (
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/cliconfig"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 
 	uuid "github.com/hashicorp/go-uuid"
 	"golang.org/x/oauth2"
@@ -64,7 +64,7 @@ func (c *LoginCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Login is an interactive command",
-			"The \"opentf login\" command uses interactive prompts to obtain and record credentials, so it can't be run with input disabled.\n\nTo configure credentials in a non-interactive context, write existing credentials directly to a CLI configuration file.",
+			"The \"tofu login\" command uses interactive prompts to obtain and record credentials, so it can't be run with input disabled.\n\nTo configure credentials in a non-interactive context, write existing credentials directly to a CLI configuration file.",
 		))
 		c.showDiagnostics(diags)
 		return 1
@@ -123,14 +123,14 @@ func (c *LoginCommand) Run(args []string) int {
 	case *disco.ErrVersionNotSupported:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
-			"Host does not support OpenTF login",
-			fmt.Sprintf("The given hostname %q allows creating OpenTF authorization tokens, but requires a newer version of OpenTF CLI to do so.", dispHostname),
+			"Host does not support OpenTofu login",
+			fmt.Sprintf("The given hostname %q allows creating OpenTofu authorization tokens, but requires a newer version of OpenTofu CLI to do so.", dispHostname),
 		))
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
-			"Host does not support OpenTF login",
-			fmt.Sprintf("The given hostname %q cannot support \"opentf login\": %s.", dispHostname, err),
+			"Host does not support OpenTofu login",
+			fmt.Sprintf("The given hostname %q cannot support \"tofu login\": %s.", dispHostname, err),
 		))
 	}
 
@@ -144,20 +144,20 @@ func (c *LoginCommand) Run(args []string) int {
 		case *disco.ErrServiceNotProvided:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support OpenTF tokens API",
-				fmt.Sprintf("The given hostname %q does not support creating OpenTF authorization tokens.", dispHostname),
+				"Host does not support OpenTofu tokens API",
+				fmt.Sprintf("The given hostname %q does not support creating OpenTofu authorization tokens.", dispHostname),
 			))
 		case *disco.ErrVersionNotSupported:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support OpenTF tokens API",
-				fmt.Sprintf("The given hostname %q allows creating OpenTF authorization tokens, but requires a newer version of OpenTF CLI to do so.", dispHostname),
+				"Host does not support OpenTofu tokens API",
+				fmt.Sprintf("The given hostname %q allows creating OpenTofu authorization tokens, but requires a newer version of OpenTofu CLI to do so.", dispHostname),
 			))
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support OpenTF tokens API",
-				fmt.Sprintf("The given hostname %q cannot support \"opentf login\": %s.", dispHostname, err),
+				"Host does not support OpenTofu tokens API",
+				fmt.Sprintf("The given hostname %q cannot support \"tofu login\": %s.", dispHostname, err),
 			))
 		}
 	}
@@ -166,7 +166,7 @@ func (c *LoginCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			fmt.Sprintf("Credentials for %s are manually configured", dispHostname),
-			"The \"opentf login\" command cannot log in because credentials for this host are already configured in a CLI configuration file.\n\nTo log in, first revoke the existing credentials and remove that block from the CLI configuration.",
+			"The \"tofu login\" command cannot log in because credentials for this host are already configured in a CLI configuration file.\n\nTo log in, first revoke the existing credentials and remove that block from the CLI configuration.",
 		))
 	}
 
@@ -178,7 +178,7 @@ func (c *LoginCommand) Run(args []string) int {
 	var token svcauth.HostCredentialsToken
 	var tokenDiags tfdiags.Diagnostics
 
-	// Prefer OpenTF login if available
+	// Prefer OpenTofu login if available
 	if clientConfig != nil {
 		var oauthToken *oauth2.Token
 
@@ -194,8 +194,8 @@ func (c *LoginCommand) Run(args []string) int {
 		default:
 			tokenDiags = tokenDiags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Host does not support OpenTF login",
-				fmt.Sprintf("The given hostname %q does not allow any OAuth grant types that are supported by this version of OpenTF.", dispHostname),
+				"Host does not support OpenTofu login",
+				fmt.Sprintf("The given hostname %q does not allow any OAuth grant types that are supported by this version of OpenTofu.", dispHostname),
 			))
 		}
 		if oauthToken != nil {
@@ -216,7 +216,7 @@ func (c *LoginCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Failed to save API token",
-			fmt.Sprintf("The given host returned an API token, but OpenTF failed to save it: %s.", err),
+			fmt.Sprintf("The given host returned an API token, but OpenTofu failed to save it: %s.", err),
 		))
 	}
 
@@ -288,9 +288,9 @@ func (c *LoginCommand) Run(args []string) int {
 		c.Ui.Output(
 			fmt.Sprintf(
 				c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]OpenTF has obtained and saved an API token.[reset]
+[green][bold]Success![reset] [bold]OpenTofu has obtained and saved an API token.[reset]
 
-The new API token will be used for any future OpenTF command that must make
+The new API token will be used for any future OpenTofu command that must make
 authenticated requests to %s.
 `)),
 				dispHostname,
@@ -336,7 +336,7 @@ func (c *LoginCommand) Help() string {
 	}
 
 	helpText := fmt.Sprintf(`
-Usage: opentf [global options] login [hostname]
+Usage: tofu [global options] login [hostname]
 
   Retrieves an authentication token for the given hostname, if it supports
   automatic login, and saves it in a credentials file in your home directory.
@@ -481,7 +481,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	if c.BrowserLauncher != nil {
 		err = c.BrowserLauncher.OpenURL(authCodeURL)
 		if err == nil {
-			c.Ui.Output(fmt.Sprintf("OpenTF must now open a web browser to the login page for %s.\n", hostname.ForDisplay()))
+			c.Ui.Output(fmt.Sprintf("OpenTofu must now open a web browser to the login page for %s.\n", hostname.ForDisplay()))
 			c.Ui.Output(fmt.Sprintf("If a browser does not open this automatically, open the following URL to proceed:\n    %s\n", authCodeURL))
 		} else {
 			// Assume we're on a platform where opening a browser isn't possible.
@@ -495,7 +495,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		c.Ui.Output(fmt.Sprintf("Open the following URL to access the login page for %s:\n    %s\n", hostname.ForDisplay(), authCodeURL))
 	}
 
-	c.Ui.Output("OpenTF will now wait for the host to signal that login was successful.\n")
+	c.Ui.Output("OpenTofu will now wait for the host to signal that login was successful.\n")
 
 	code, ok := <-codeCh
 	if !ok {
@@ -538,23 +538,23 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 	}
 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
-	c.Ui.Output("OpenTF must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
+	c.Ui.Output("OpenTofu must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
 
-	username, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	username, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:    "username",
 		Query: fmt.Sprintf("Username for %s:", hostname.ForDisplay()),
 	})
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to request username: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to request username: %w", err))
 		return nil, diags
 	}
-	password, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	password, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:     "password",
 		Query:  fmt.Sprintf("Password for %s:", hostname.ForDisplay()),
 		Secret: true,
 	})
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to request password: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to request password: %w", err))
 		return nil, diags
 	}
 
@@ -602,7 +602,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	if c.BrowserLauncher != nil {
 		err := c.BrowserLauncher.OpenURL(tokensURL.String())
 		if err == nil {
-			c.Ui.Output(fmt.Sprintf("OpenTF must now open a web browser to the tokens page for %s.\n", hostname.ForDisplay()))
+			c.Ui.Output(fmt.Sprintf("OpenTofu must now open a web browser to the tokens page for %s.\n", hostname.ForDisplay()))
 			c.Ui.Output(fmt.Sprintf("If a browser does not open this automatically, open the following URL to proceed:\n    %s\n", tokensURL.String()))
 		} else {
 			log.Printf("[DEBUG] error opening web browser: %s", err)
@@ -625,19 +625,19 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	if credsCtx != nil {
 		switch credsCtx.Location {
 		case cliconfig.CredentialsViaHelper:
-			c.Ui.Output(fmt.Sprintf("OpenTF will store the token in the configured %q credentials helper\nfor use by subsequent commands.\n", credsCtx.HelperType))
+			c.Ui.Output(fmt.Sprintf("OpenTofu will store the token in the configured %q credentials helper\nfor use by subsequent commands.\n", credsCtx.HelperType))
 		case cliconfig.CredentialsInPrimaryFile, cliconfig.CredentialsNotAvailable:
-			c.Ui.Output(fmt.Sprintf("OpenTF will store the token in plain text in the following file\nfor use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
+			c.Ui.Output(fmt.Sprintf("OpenTofu will store the token in plain text in the following file\nfor use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
 		}
 	}
 
-	token, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	token, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:     "token",
 		Query:  fmt.Sprintf("Token for %s:", hostname.ForDisplay()),
 		Secret: true,
 	})
 	if err != nil {
-		diags := diags.Append(fmt.Errorf("Failed to retrieve token: %s", err))
+		diags := diags.Append(fmt.Errorf("Failed to retrieve token: %w", err))
 		return "", diags
 	}
 
@@ -650,15 +650,15 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	}
 	client, err := tfe.NewClient(cfg)
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to create API client: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to create API client: %w", err))
 		return "", diags
 	}
 	user, err := client.Users.ReadCurrent(context.Background())
 	if err == tfe.ErrUnauthorized {
-		diags = diags.Append(fmt.Errorf("Token is invalid: %s", err))
+		diags = diags.Append(fmt.Errorf("Token is invalid: %w", err))
 		return "", diags
 	} else if err != nil {
-		diags = diags.Append(fmt.Errorf("Failed to retrieve user account details: %s", err))
+		diags = diags.Append(fmt.Errorf("Failed to retrieve user account details: %w", err))
 		return "", diags
 	}
 	c.Ui.Output(fmt.Sprintf(c.Colorize().Color("\nRetrieved token for user [bold]%s[reset]\n"), user.Username))
@@ -673,7 +673,7 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 		mechanism = "your browser"
 	}
 
-	c.Ui.Output(fmt.Sprintf("OpenTF will request an API token for %s using %s.\n", hostname.ForDisplay(), mechanism))
+	c.Ui.Output(fmt.Sprintf("OpenTofu will request an API token for %s using %s.\n", hostname.ForDisplay(), mechanism))
 
 	if grantType.UsesAuthorizationEndpoint() {
 		c.Ui.Output(
@@ -686,13 +686,13 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 	if credsCtx != nil {
 		switch credsCtx.Location {
 		case cliconfig.CredentialsViaHelper:
-			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTF will store the token in the configured\n%q credentials helper for use by subsequent commands.\n", credsCtx.HelperType))
+			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTofu will store the token in the configured\n%q credentials helper for use by subsequent commands.\n", credsCtx.HelperType))
 		case cliconfig.CredentialsInPrimaryFile, cliconfig.CredentialsNotAvailable:
-			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTF will store the token in plain text in\nthe following file for use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
+			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTofu will store the token in plain text in\nthe following file for use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
 		}
 	}
 
-	v, err := c.UIInput().Input(context.Background(), &opentf.InputOpts{
+	v, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "approve",
 		Query:       "Do you want to proceed?",
 		Description: `Only 'yes' will be accepted to confirm.`,
@@ -778,7 +778,7 @@ type loginCredentialsContext struct {
 const callbackSuccessMessage = `
 <html>
 <head>
-<title>OpenTF Login</title>
+<title>OpenTofu Login</title>
 <style type="text/css">
 body {
 	font-family: monospace;
@@ -789,8 +789,8 @@ body {
 </head>
 <body>
 
-<p>The login server has returned an authentication code to OpenTF.</p>
-<p>Now close this page and return to the terminal where <tt>opentf login</tt>
+<p>The login server has returned an authentication code to OpenTofu.</p>
+<p>Now close this page and return to the terminal where <tt>tofu login</tt>
 is running to see the result of the login process.</p>
 
 </body>

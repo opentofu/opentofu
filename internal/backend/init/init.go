@@ -9,33 +9,33 @@ import (
 	"sync"
 
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
-	backendLocal "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	backendRemote "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote"
-	backendAzure "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/azure"
-	backendConsul "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/consul"
-	backendCos "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/cos"
-	backendGCS "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/gcs"
-	backendHTTP "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/http"
-	backendInmem "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/inmem"
-	backendKubernetes "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/kubernetes"
-	backendOSS "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/oss"
-	backendPg "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/pg"
-	backendS3 "github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote-state/s3"
-	backendCloud "github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
+	backendRemote "github.com/opentofu/opentofu/internal/backend/remote"
+	backendAzure "github.com/opentofu/opentofu/internal/backend/remote-state/azure"
+	backendConsul "github.com/opentofu/opentofu/internal/backend/remote-state/consul"
+	backendCos "github.com/opentofu/opentofu/internal/backend/remote-state/cos"
+	backendGCS "github.com/opentofu/opentofu/internal/backend/remote-state/gcs"
+	backendHTTP "github.com/opentofu/opentofu/internal/backend/remote-state/http"
+	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	backendKubernetes "github.com/opentofu/opentofu/internal/backend/remote-state/kubernetes"
+	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
+	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
+	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
+	backendCloud "github.com/opentofu/opentofu/internal/cloud"
 )
 
 // backends is the list of available backends. This is a global variable
-// because backends are currently hardcoded into OpenTF and can't be
+// because backends are currently hardcoded into OpenTofu and can't be
 // modified without recompilation.
 //
 // To read an available backend, use the Backend function. This ensures
 // safe concurrent read access to the list of built-in backends.
 //
-// Backends are hardcoded into OpenTF because the API for backends uses
+// Backends are hardcoded into OpenTofu because the API for backends uses
 // complex structures and supporting that over the plugin system is currently
 // prohibitively difficult. For those wanting to implement a custom backend,
 // they can do so with recompilation.
@@ -73,12 +73,12 @@ func Init(services *disco.Disco) {
 	}
 
 	RemovedBackends = map[string]string{
-		"artifactory": `The "artifactory" backend is not supported in OpenTF v1.3 or later.`,
+		"artifactory": `The "artifactory" backend is not supported in OpenTofu v1.3 or later.`,
 		"azure":       `The "azure" backend name has been removed, please use "azurerm".`,
-		"etcd":        `The "etcd" backend is not supported in OpenTF v1.3 or later.`,
-		"etcdv3":      `The "etcdv3" backend is not supported in OpenTF v1.3 or later.`,
-		"manta":       `The "manta" backend is not supported in OpenTF v1.3 or later.`,
-		"swift":       `The "swift" backend is not supported in OpenTF v1.3 or later.`,
+		"etcd":        `The "etcd" backend is not supported in OpenTofu v1.3 or later.`,
+		"etcdv3":      `The "etcdv3" backend is not supported in OpenTofu v1.3 or later.`,
+		"manta":       `The "manta" backend is not supported in OpenTofu v1.3 or later.`,
+		"swift":       `The "swift" backend is not supported in OpenTofu v1.3 or later.`,
 	}
 }
 
@@ -95,7 +95,7 @@ func Backend(name string) backend.InitFn {
 // then it will be overwritten.
 //
 // This method sets this backend globally and care should be taken to do
-// this only before OpenTF is executing to prevent odd behavior of backends
+// this only before OpenTofu is executing to prevent odd behavior of backends
 // changing mid-execution.
 func Set(name string, f backend.InitFn) {
 	backendsLock.Lock()

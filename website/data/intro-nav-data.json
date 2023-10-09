@@ -1,10 +1,10 @@
 [
-  { "heading": "Introduction to OpenTF" },
-  { "title": "What is OpenTF?", "path": "intro/index" },
+  { "heading": "Introduction to OpenTofu" },
+  { "title": "What is OpenTofu?", "path": "intro/index" },
   { "title": "Use Cases", "path": "intro/use-cases" },
-  { "title": "The Core OpenTF Workflow", "path": "intro/core-workflow" },
+  { "title": "The Core OpenTofu Workflow", "path": "intro/core-workflow" },
   {
-    "title": "OpenTF vs. Alternatives",
+    "title": "OpenTofu vs. Alternatives",
     "routes": [
       { "title": "Overview", "path": "intro/vs/index" },
       { "title": "Chef, Puppet, etc.", "path": "intro/vs/chef-puppet" },

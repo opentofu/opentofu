@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 // The tests in this file run through different scenarios recommended in our
@@ -236,9 +236,9 @@ func TestPlanOnlyInAutomation(t *testing.T) {
 	}
 
 	// Because we're running with TF_IN_AUTOMATION set, we should not see
-	// any mention of the the "opentf apply" command in the output.
-	if strings.Contains(stdout, "opentf apply") {
-		t.Errorf("unwanted mention of \"opentf apply\" in plan output\n%s", stdout)
+	// any mention of the the "tofu apply" command in the output.
+	if strings.Contains(stdout, "tofu apply") {
+		t.Errorf("unwanted mention of \"tofu apply\" in plan output\n%s", stdout)
 	}
 
 	if tf.FileExists("tfplan") {

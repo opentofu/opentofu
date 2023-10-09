@@ -9,7 +9,7 @@
                     "mode": "managed",
                     "type": "test_instance",
                     "name": "test",
-                    "provider_name": "registry.terraform.io/hashicorp/test",
+                    "provider_name": "registry.opentofu.org/hashicorp/test",
                     "schema_version": 0,
                     "values": {
                         "id": "621124146446964903",

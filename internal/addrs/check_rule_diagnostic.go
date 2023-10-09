@@ -1,6 +1,6 @@
 package addrs
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+import "github.com/opentofu/opentofu/internal/tfdiags"
 
 // DiagnosticExtraCheckRule provides an interface for diagnostic ExtraInfo to
 // retrieve an embedded CheckRule from within a tfdiags.Diagnostic.
@@ -55,7 +55,7 @@ func (c *CheckRuleDiagnosticExtra) WrapDiagnosticExtra(inner interface{}) {
 	if c.wrapped != nil {
 		// This is a logical inconsistency, the caller should know whether they
 		// have already wrapped an extra or not.
-		panic("Attempted to wrap a diagnostic extra into a CheckRuleDiagnosticExtra that is already wrapping a different extra. This is a bug in OpenTF, please report it.")
+		panic("Attempted to wrap a diagnostic extra into a CheckRuleDiagnosticExtra that is already wrapping a different extra. This is a bug in OpenTofu, please report it.")
 	}
 	c.wrapped = inner
 }

@@ -6,15 +6,15 @@ package statefile
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	tfversion "github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/states"
+	tfversion "github.com/opentofu/opentofu/version"
 )
 
 // File is the in-memory representation of a state file. It includes the state
 // itself along with various metadata used to track changing state files for
 // the same configuration over time.
 type File struct {
-	// TerraformVersion is the version of Terraform that wrote this state file.
+	// TerraformVersion is the version of OpenTofu that wrote this state file.
 	TerraformVersion *version.Version
 
 	// Serial is incremented on any operation that modifies

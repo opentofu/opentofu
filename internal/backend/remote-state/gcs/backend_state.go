@@ -12,10 +12,10 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 const (
@@ -39,7 +39,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("querying Cloud Storage failed: %v", err)
+			return nil, fmt.Errorf("querying Cloud Storage failed: %w", err)
 		}
 
 		name := path.Base(attrs.Name)

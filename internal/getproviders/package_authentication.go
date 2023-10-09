@@ -9,12 +9,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+
 	"log"
+	"os"
 	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 	openpgpPacket "github.com/ProtonMail/go-crypto/openpgp/packet"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 type packageAuthenticationResult int
@@ -22,6 +25,11 @@ type packageAuthenticationResult int
 const (
 	verifiedChecksum packageAuthenticationResult = iota
 	signed
+	signingSkipped
+)
+
+const (
+	enforceGPGValidationEnvName = "OPENTOFU_ENFORCE_GPG_VALIDATION"
 )
 
 var (
@@ -48,6 +56,7 @@ func (t *PackageAuthenticationResult) String() string {
 	return []string{
 		"verified checksum",
 		"signed",
+		"signing skipped",
 	}[t.result]
 }
 
@@ -57,6 +66,15 @@ func (t *PackageAuthenticationResult) Signed() bool {
 		return false
 	}
 	return t.result == signed
+}
+
+// SigningSkipped returns whether the package was authenticated but the key
+// validation was skipped.
+func (t *PackageAuthenticationResult) SigningSkipped() bool {
+	if t == nil {
+		return false
+	}
+	return t.result == signingSkipped
 }
 
 // SigningKey represents a key used to sign packages from a registry. These are
@@ -116,7 +134,7 @@ type PackageAuthenticationHashes interface {
 	// hashes with different schemes, which means that all of them are equally
 	// acceptable. Implementors may also return hashes that use schemes the
 	// current version of the authenticator would not allow but that could be
-	// accepted by other versions of Terraform, e.g. if a particular hash
+	// accepted by other versions of OpenTofu, e.g. if a particular hash
 	// scheme has been deprecated.
 	//
 	// Authenticators that don't use hashes as their authentication procedure
@@ -184,11 +202,11 @@ type packageHashAuthentication struct {
 
 // NewPackageHashAuthentication returns a PackageAuthentication implementation
 // that checks whether the contents of the package match whatever subset of the
-// given hashes are considered acceptable by the current version of Terraform.
+// given hashes are considered acceptable by the current version of OpenTofu.
 //
 // This uses the hash algorithms implemented by functions PackageHash and
 // MatchesHash. The PreferredHashes function will select which of the given
-// hashes are considered by Terraform to be the strongest verification, and
+// hashes are considered by OpenTofu to be the strongest verification, and
 // authentication succeeds as long as one of those matches.
 func NewPackageHashAuthentication(platform Platform, validHashes []Hash) PackageAuthentication {
 	requiredHashes := PreferredHashes(validHashes)
@@ -203,13 +221,13 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 	if len(a.RequiredHashes) == 0 {
 		// Indicates that none of the hashes given to
 		// NewPackageHashAuthentication were considered to be usable by this
-		// version of Terraform.
-		return nil, fmt.Errorf("this version of OpenTF does not support any of the checksum formats given for this provider")
+		// version of OpenTofu.
+		return nil, fmt.Errorf("this version of OpenTofu does not support any of the checksum formats given for this provider")
 	}
 
 	matches, err := PackageMatchesAnyHash(localLocation, a.RequiredHashes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify provider package checksums: %s", err)
+		return nil, fmt.Errorf("failed to verify provider package checksums: %w", err)
 	}
 
 	if matches {
@@ -229,9 +247,9 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 }
 
 func (a packageHashAuthentication) AcceptableHashes() []Hash {
-	// In this case we include even hashes the current version of Terraform
+	// In this case we include even hashes the current version of OpenTofu
 	// doesn't prefer, because this result is used for building a lock file
-	// and so it's helpful to include older hash formats that other Terraform
+	// and so it's helpful to include older hash formats that other OpenTofu
 	// versions might need in order to do authentication successfully.
 	return a.AllHashes
 }
@@ -268,7 +286,7 @@ func (a archiveHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 
 	gotHash, err := PackageHashLegacyZipSHA(archiveLocation)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute checksum for %s: %s", archiveLocation, err)
+		return nil, fmt.Errorf("failed to compute checksum for %s: %w", archiveLocation, err)
 	}
 	wantHash := HashLegacyZipSHAFromSHA(a.WantSHA256Sum)
 	if gotHash != wantHash {
@@ -324,7 +342,7 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 	// Decode the ASCII checksum into a byte array for comparison.
 	var gotSHA256Sum [sha256.Size]byte
 	if _, err := hex.Decode(gotSHA256Sum[:], checksum); err != nil {
-		return nil, fmt.Errorf("checksum list has invalid SHA256 hash %q: %s", string(checksum), err)
+		return nil, fmt.Errorf("checksum list has invalid SHA256 hash %q: %w", string(checksum), err)
 	}
 
 	// If the checksums don't match, authentication fails.
@@ -338,9 +356,10 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 }
 
 type signatureAuthentication struct {
-	Document  []byte
-	Signature []byte
-	Keys      []SigningKey
+	Document       []byte
+	Signature      []byte
+	Keys           []SigningKey
+	ProviderSource *tfaddr.Provider
 }
 
 // NewSignatureAuthentication returns a PackageAuthentication implementation
@@ -359,15 +378,50 @@ type signatureAuthentication struct {
 //
 // Any failure in the process of validating the signature will result in an
 // unauthenticated result.
-func NewSignatureAuthentication(document, signature []byte, keys []SigningKey) PackageAuthentication {
+func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, source *tfaddr.Provider) PackageAuthentication {
 	return signatureAuthentication{
-		Document:  document,
-		Signature: signature,
-		Keys:      keys,
+		Document:       document,
+		Signature:      signature,
+		Keys:           keys,
+		ProviderSource: source,
 	}
 }
 
+func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
+	// we should enforce validation for all provider sources that are not the default provider registry
+	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
+		return true, nil
+	}
+
+	// if we have been provided keys, we should enforce GPG validation
+	if len(s.Keys) > 0 {
+		return true, nil
+	}
+
+	// otherwise if the environment variable is set to true, we should enforce GPG validation
+	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
+	return exists && enforceEnvVar == "true", nil
+}
+
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
+	shouldValidate, err := s.shouldEnforceGPGValidation()
+	if err != nil {
+		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %w", location.String(), err)
+	}
+
+	if !shouldValidate {
+		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
+		// and why. This will be removed in a future release.
+		log.Printf("[WARN] Skipping GPG validation of provider package %s as no keys were provided by the registry. See https://github.com/opentofu/opentofu/pull/309 for more information.", location)
+
+		// construct an empty keyID to indicate that we are not validating and return no errors
+		// this is to force a successful authentication
+		// TODO: discuss if this key should be hardcoded to a value such as "UNKNOWN"?
+		return &PackageAuthenticationResult{result: signingSkipped, KeyID: ""}, nil
+	} else {
+		log.Printf("[DEBUG] Validating GPG signature of provider package %s", location)
+	}
+
 	// Find the key that signed the checksum file. This can fail if there is no
 	// valid signature for any of the provided keys.
 	_, keyID, err := s.findSigningKey()
@@ -434,12 +488,12 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 	for _, key := range s.Keys {
 		keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key.ASCIIArmor))
 		if err != nil {
-			return nil, "", fmt.Errorf("error decoding signing key: %s", err)
+			return nil, "", fmt.Errorf("error decoding signing key: %w", err)
 		}
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), openpgpConfig)
 
-		// If the signature issuer does not match the the key, keep trying the
+		// If the signature issuer does not match the key, keep trying the
 		// rest of the provided keys.
 		if err == openpgpErrors.ErrUnknownIssuer {
 			continue
@@ -447,7 +501,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 		// Any other signature error is terminal.
 		if err != nil {
-			return nil, "", fmt.Errorf("error checking signature: %s", err)
+			return nil, "", fmt.Errorf("error checking signature: %w", err)
 		}
 
 		keyID := "n/a"

@@ -1,5 +1,5 @@
 ---
-page_title: filesha512 - Functions - Configuration Language
+sidebar_label: filesha512
 description: |-
   The filesha512 function computes the SHA512 hash of the contents of
   a given file and encodes it as hex.
@@ -7,9 +7,9 @@ description: |-
 
 # `filesha512` Function
 
-`filesha512` is a variant of [`sha512`](/opentf/language/functions/sha512)
+`filesha512` is a variant of [`sha512`](/docs/language/functions/sha512)
 that hashes the contents of a given file rather than a literal string.
 
 This is similar to `sha512(file(filename))`, but
-because [`file`](/opentf/language/functions/file) accepts only UTF-8 text it cannot be used to
+because [`file`](/docs/language/functions/file) accepts only UTF-8 text it cannot be used to
 create hashes for binary files.

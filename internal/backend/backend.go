@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Package backend provides interfaces that the CLI uses to interact with
-// OpenTF. A backend provides the abstraction that allows the same CLI
+// OpenTofu. A backend provides the abstraction that allows the same CLI
 // to simultaneously support both local and remote operations for seamlessly
-// using OpenTF in a team environment.
+// using OpenTofu in a team environment.
 package backend
 
 import (
@@ -15,19 +15,19 @@ import (
 
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/mitchellh/go-homedir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configload"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -54,7 +54,7 @@ var (
 // InitFn is used to initialize a new backend.
 type InitFn func() Backend
 
-// Backend is the minimal interface that must be implemented to enable OpenTF.
+// Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {
 	// ConfigSchema returns a description of the expected configuration
 	// structure for the receiving backend.
@@ -135,7 +135,7 @@ type HostAlias struct {
 type Enhanced interface {
 	Backend
 
-	// Operation performs a OpenTF operation such as refresh, plan, apply.
+	// Operation performs a OpenTofu operation such as refresh, plan, apply.
 	// It is up to the implementation to determine what "performing" means.
 	// This DOES NOT BLOCK. The context returned as part of RunningOperation
 	// should be used to block for completion.
@@ -152,7 +152,7 @@ type Enhanced interface {
 // Local implements additional behavior on a Backend that allows local
 // operations in addition to remote operations.
 //
-// This enables more behaviors of OpenTF that require more data such
+// This enables more behaviors of OpenTofu that require more data such
 // as `console`, `import`, `graph`. These require direct access to
 // configurations, variables, and more. Not all backends may support this
 // so we separate it out into its own optional interface.
@@ -173,7 +173,7 @@ type Local interface {
 // calculate from an Operation object, which we can then use for local
 // operations.
 //
-// The operation methods on opentf.Context (Plan, Apply, Import, etc) each
+// The operation methods on tofu.Context (Plan, Apply, Import, etc) each
 // generate new artifacts which supersede parts of the LocalRun object that
 // started the operation, so callers should be careful to use those subsequent
 // artifacts instead of the fields of LocalRun where appropriate. The LocalRun
@@ -182,14 +182,14 @@ type Local interface {
 //
 // This type is a weird architectural wart resulting from the overly-general
 // way our backend API models operations, whereby we behave as if all
-// OpenTF operations have the same inputs and outputs even though they
+// OpenTofu operations have the same inputs and outputs even though they
 // are actually all rather different. The exact meaning of the fields in
 // this type therefore vary depending on which OperationType was passed to
 // Local.Context in order to create an object of this type.
 type LocalRun struct {
-	// Core is an already-initialized OpenTF Core context, ready to be
+	// Core is an already-initialized OpenTofu Core context, ready to be
 	// used to run operations such as Plan and Apply.
-	Core *opentf.Context
+	Core *tofu.Context
 
 	// Config is the configuration we're working with, which typically comes
 	// from either config files directly on local disk (when we're creating
@@ -207,7 +207,7 @@ type LocalRun struct {
 	//
 	// This is nil when we're applying a saved plan, because the plan itself
 	// contains enough information about its options to apply it.
-	PlanOpts *opentf.PlanOpts
+	PlanOpts *tofu.PlanOpts
 
 	// Plan is a plan loaded from a saved plan file, if our operation is to
 	// apply that saved plan.
@@ -216,7 +216,7 @@ type LocalRun struct {
 	Plan *plans.Plan
 }
 
-// An operation represents an operation for OpenTF to execute.
+// An operation represents an operation for OpenTofu to execute.
 //
 // Note that not all fields are supported by all backends and can result
 // in an error if set. All backend implementations should show user-friendly
@@ -224,12 +224,12 @@ type LocalRun struct {
 // backend doesn't support a PlanId being set.
 //
 // The operation options are purposely designed to have maximal compatibility
-// between OpenTF and Terraform Servers (a commercial product offered by
+// between OpenTofu and Terraform Servers (a commercial product offered by
 // HashiCorp). Therefore, it isn't expected that other implementation support
 // every possible option. The struct here is generalized in order to allow
 // even partial implementations to exist in the open, without walling off
 // remote functionality 100% behind a commercial wall. Anyone can implement
-// against this interface and have OpenTF interact with it just as it
+// against this interface and have OpenTofu interact with it just as it
 // would with HashiCorp-provided Terraform Servers.
 type Operation struct {
 	// Type is the operation to perform.
@@ -265,7 +265,7 @@ type Operation struct {
 
 	// Hooks can be used to perform actions triggered by various events during
 	// the operation's lifecycle.
-	Hooks []opentf.Hook
+	Hooks []tofu.Hook
 
 	// Plan is a plan that was passed as an argument. This is valid for
 	// plan and apply arguments but may not work for all backends.
@@ -293,8 +293,8 @@ type Operation struct {
 	View views.Operation
 
 	// Input/output/control options.
-	UIIn  opentf.UIInput
-	UIOut opentf.UIOutput
+	UIIn  tofu.UIInput
+	UIOut tofu.UIOutput
 
 	// StateLocker is used to lock the state while providing UI feedback to the
 	// user. This will be replaced by the Backend to update the context.
@@ -314,7 +314,7 @@ type Operation struct {
 }
 
 // HasConfig returns true if and only if the operation has a ConfigDir value
-// that refers to a directory containing at least one OpenTF configuration
+// that refers to a directory containing at least one OpenTofu configuration
 // file.
 func (o *Operation) HasConfig() bool {
 	return o.ConfigLoader.IsConfigDir(o.ConfigDir)

@@ -31,10 +31,10 @@ import (
 	"github.com/jmespath/go-jmespath"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/version"
 )
 
 // Deprecated in favor of flattening assume_role_* options
@@ -350,7 +350,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	if sessionName == "" {
-		sessionName = "opentf"
+		sessionName = "tofu"
 	}
 	if sessionExpiration == 0 {
 		if v := os.Getenv("ALICLOUD_ASSUME_ROLE_SESSION_EXPIRATION"); v != "" {
@@ -404,7 +404,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	if securityToken != "" {
 		options = append(options, oss.SecurityToken(securityToken))
 	}
-	options = append(options, oss.UserAgent(httpclient.OpenTfUserAgent(TerraformVersion)))
+	options = append(options, oss.UserAgent(httpclient.OpenTofuUserAgent(TerraformVersion)))
 
 	proxyUrl := getHttpProxyUrl()
 	if proxyUrl != nil {
@@ -435,13 +435,13 @@ func (b *Backend) getOSSEndpointByRegion(access_key, secret_key, security_token,
 
 	locationClient, err := location.NewClientWithOptions(region, getSdkConfig(), credentials.NewStsTokenCredential(access_key, secret_key, security_token))
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize the location client: %#v", err)
+		return nil, fmt.Errorf("unable to initialize the location client: %w", err)
 
 	}
 	locationClient.AppendUserAgent(httpclient.DefaultApplicationName, TerraformVersion)
 	endpointsResponse, err := locationClient.DescribeEndpoints(args)
 	if err != nil {
-		return nil, fmt.Errorf("describe oss endpoint using region: %#v got an error: %#v", region, err)
+		return nil, fmt.Errorf("describe oss endpoint using region: %#v got an error: %w", region, err)
 	}
 	return endpointsResponse, nil
 }
@@ -532,7 +532,7 @@ func (a *Invoker) Run(f func() error) error {
 			catcher.RetryCount--
 
 			if catcher.RetryCount <= 0 {
-				return fmt.Errorf("retry timeout and got an error: %#v", err)
+				return fmt.Errorf("retry timeout and got an error: %w", err)
 			} else {
 				time.Sleep(time.Duration(catcher.RetryWaitSeconds) * time.Second)
 				return a.Run(f)
@@ -629,20 +629,20 @@ func getAuthCredentialByEcsRoleName(ecsRoleName string) (accessKey, secretKey, t
 	requestUrl := securityCredURL + ecsRoleName
 	httpRequest, err := http.NewRequest(requests.GET, requestUrl, strings.NewReader(""))
 	if err != nil {
-		err = fmt.Errorf("build sts requests err: %s", err.Error())
+		err = fmt.Errorf("build sts requests err: %w", err)
 		return
 	}
 	httpClient := &http.Client{}
 	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
-		err = fmt.Errorf("get Ecs sts token err : %s", err.Error())
+		err = fmt.Errorf("get Ecs sts token err: %w", err)
 		return
 	}
 
 	response := responses.NewCommonResponse()
 	err = responses.Unmarshal(response, httpResponse, "")
 	if err != nil {
-		err = fmt.Errorf("unmarshal Ecs sts token response err : %s", err.Error())
+		err = fmt.Errorf("unmarshal Ecs sts token response err: %w", err)
 		return
 	}
 
@@ -653,12 +653,12 @@ func getAuthCredentialByEcsRoleName(ecsRoleName string) (accessKey, secretKey, t
 	var data interface{}
 	err = json.Unmarshal(response.GetHttpContentBytes(), &data)
 	if err != nil {
-		err = fmt.Errorf("refresh Ecs sts token err, json.Unmarshal fail: %s", err.Error())
+		err = fmt.Errorf("refresh Ecs sts token err, json.Unmarshal fail: %w", err)
 		return
 	}
 	code, err := jmespath.Search("Code", data)
 	if err != nil {
-		err = fmt.Errorf("refresh Ecs sts token err, fail to get Code: %s", err.Error())
+		err = fmt.Errorf("refresh Ecs sts token err, fail to get Code: %w", err)
 		return
 	}
 	if code.(string) != "Success" {
@@ -667,17 +667,17 @@ func getAuthCredentialByEcsRoleName(ecsRoleName string) (accessKey, secretKey, t
 	}
 	accessKeyId, err := jmespath.Search("AccessKeyId", data)
 	if err != nil {
-		err = fmt.Errorf("refresh Ecs sts token err, fail to get AccessKeyId: %s", err.Error())
+		err = fmt.Errorf("refresh Ecs sts token err, fail to get AccessKeyId: %w", err)
 		return
 	}
 	accessKeySecret, err := jmespath.Search("AccessKeySecret", data)
 	if err != nil {
-		err = fmt.Errorf("refresh Ecs sts token err, fail to get AccessKeySecret: %s", err.Error())
+		err = fmt.Errorf("refresh Ecs sts token err, fail to get AccessKeySecret: %w", err)
 		return
 	}
 	securityToken, err := jmespath.Search("SecurityToken", data)
 	if err != nil {
-		err = fmt.Errorf("refresh Ecs sts token err, fail to get SecurityToken: %s", err.Error())
+		err = fmt.Errorf("refresh Ecs sts token err, fail to get SecurityToken: %w", err)
 		return
 	}
 

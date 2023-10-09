@@ -26,7 +26,7 @@ func configFile() (string, error) {
 	}
 
 	newConfigFile := filepath.Join(dir, "terraform.rc")
-	oldConfigFile := filepath.Join(dir, "opentf.rc")
+	oldConfigFile := filepath.Join(dir, "tofu.rc")
 
 	return getNewOrLegacyPath(newConfigFile, oldConfigFile)
 }

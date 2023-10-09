@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/version"
 	k8sSchema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -23,16 +23,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-)
-
-// Modified from github.com/terraform-providers/terraform-provider-kubernetes
-
-const (
-	noConfigError = `
-
-[Kubernetes backend] Neither service_account nor load_config_file were set to true, 
-this could cause issues connecting to your Kubernetes cluster.
-`
 )
 
 var (
@@ -201,21 +191,21 @@ type Backend struct {
 	nameSuffix             string
 }
 
-func (b Backend) KubernetesSecretClient() (dynamic.ResourceInterface, error) {
+func (b Backend) getKubernetesSecretClient() (dynamic.ResourceInterface, error) {
 	if b.kubernetesSecretClient != nil {
 		return b.kubernetesSecretClient, nil
 	}
 
 	client, err := dynamic.NewForConfig(b.config)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to configure: %s", err)
+		return nil, fmt.Errorf("Failed to configure: %w", err)
 	}
 
 	b.kubernetesSecretClient = client.Resource(secretResource).Namespace(b.namespace)
 	return b.kubernetesSecretClient, nil
 }
 
-func (b Backend) KubernetesLeaseClient() (coordinationv1.LeaseInterface, error) {
+func (b Backend) getKubernetesLeaseClient() (coordinationv1.LeaseInterface, error) {
 	if b.kubernetesLeaseClient != nil {
 		return b.kubernetesLeaseClient, nil
 	}
@@ -243,7 +233,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	// Overriding with static configuration
-	cfg.UserAgent = httpclient.OpenTfUserAgent(version.Version)
+	cfg.UserAgent = httpclient.OpenTofuUserAgent(version.Version)
 
 	if v, ok := data.GetOk("host"); ok {
 		cfg.Host = v.(string)
@@ -388,7 +378,7 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 			log.Printf("[INFO] Unable to load config file as it doesn't exist at %q", pathErr.Path)
 			return nil, nil
 		}
-		return nil, fmt.Errorf("Failed to initialize kubernetes configuration: %s", err)
+		return nil, fmt.Errorf("Failed to initialize kubernetes configuration: %w", err)
 	}
 
 	log.Printf("[INFO] Successfully initialized config")

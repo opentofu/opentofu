@@ -10,11 +10,11 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestMarshalAttributeValues(t *testing.T) {
@@ -204,7 +204,7 @@ func TestMarshalPlanResources(t *testing.T) {
 				Type:            "test_thing",
 				Name:            "example",
 				Index:           addrs.InstanceKey(nil),
-				ProviderName:    "registry.terraform.io/hashicorp/test",
+				ProviderName:    "registry.opentofu.org/hashicorp/test",
 				SchemaVersion:   1,
 				AttributeValues: AttributeValues{},
 				SensitiveValues: json.RawMessage("{}"),
@@ -247,7 +247,7 @@ func TestMarshalPlanResources(t *testing.T) {
 				Type:          "test_thing",
 				Name:          "example",
 				Index:         addrs.InstanceKey(nil),
-				ProviderName:  "registry.terraform.io/hashicorp/test",
+				ProviderName:  "registry.opentofu.org/hashicorp/test",
 				SchemaVersion: 1,
 				AttributeValues: AttributeValues{
 					"woozles": json.RawMessage(`"baz"`),
@@ -344,8 +344,8 @@ func TestMarshalPlanValuesNoopDeposed(t *testing.T) {
 	}
 }
 
-func testSchemas() *opentf.Schemas {
-	return &opentf.Schemas{
+func testSchemas() *tofu.Schemas {
+	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): providers.ProviderSchema{
 				ResourceTypes: map[string]providers.Schema{

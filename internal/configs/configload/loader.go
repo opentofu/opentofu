@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/spf13/afero"
 )
 
@@ -34,7 +34,7 @@ type Config struct {
 	// ModulesDir is a path to a directory where descendent modules are
 	// (or should be) installed. (This is usually the
 	// .terraform/modules directory, in the common case where this package
-	// is being loaded from the main Terraform CLI package.)
+	// is being loaded from the main OpenTofu CLI package.)
 	ModulesDir string
 
 	// Services is the service discovery client to use when locating remote
@@ -68,7 +68,7 @@ func NewLoader(config *Config) (*Loader, error) {
 
 	err := ret.modules.readModuleManifestSnapshot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read module manifest: %s", err)
+		return nil, fmt.Errorf("failed to read module manifest: %w", err)
 	}
 
 	return ret, nil
@@ -114,7 +114,7 @@ func (l *Loader) Sources() map[string][]byte {
 }
 
 // IsConfigDir returns true if and only if the given directory contains at
-// least one Terraform configuration file. This is a wrapper around calling
+// least one OpenTofu configuration file. This is a wrapper around calling
 // the same method name on the loader's parser.
 func (l *Loader) IsConfigDir(path string) bool {
 	return l.parser.IsConfigDir(path)

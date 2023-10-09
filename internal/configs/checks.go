@@ -9,8 +9,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang"
 )
 
 // CheckRule represents a configuration-defined validation rule, precondition,
@@ -149,7 +149,7 @@ var checkRuleBlockSchema = &hcl.BodySchema{
 //
 // A check block contains 0-1 data blocks, and 0-n assert blocks. The check
 // block will load the data block, and execute the assert blocks as check rules
-// during the plan and apply Terraform operations.
+// during the plan and apply OpenTofu operations.
 type Check struct {
 	Name string
 

@@ -15,10 +15,10 @@ import (
 
 	kms "cloud.google.com/go/kms/apiv1"
 	"cloud.google.com/go/storage"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/version"
 	"google.golang.org/api/option"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
@@ -275,12 +275,12 @@ func setupKmsKey(t *testing.T, keyDetails map[string]string) string {
 	ctx := context.Background()
 	opts, err := testGetClientOptions(t)
 	if err != nil {
-		e := fmt.Errorf("testGetClientOptions() failed: %s", err)
+		e := fmt.Errorf("testGetClientOptions() failed: %w", err)
 		t.Fatal(e)
 	}
 	c, err := kms.NewKeyManagementClient(ctx, opts...)
 	if err != nil {
-		e := fmt.Errorf("kms.NewKeyManagementClient() failed: %v", err)
+		e := fmt.Errorf("kms.NewKeyManagementClient() failed: %w", err)
 		t.Fatal(e)
 	}
 	defer c.Close()
@@ -345,7 +345,7 @@ func setupKmsKey(t *testing.T, keyDetails map[string]string) string {
 	// because the KMS key needs to exist before the backend buckets are made in the test.
 	sc, err := storage.NewClient(ctx, opts...) //reuse opts from KMS client
 	if err != nil {
-		e := fmt.Errorf("storage.NewClient() failed: %v", err)
+		e := fmt.Errorf("storage.NewClient() failed: %w", err)
 		t.Fatal(e)
 	}
 	defer sc.Close()
@@ -432,14 +432,14 @@ func testGetClientOptions(t *testing.T) ([]option.ClientOption, error) {
 
 	contents, err := backend.ReadPathOrContents(creds)
 	if err != nil {
-		return nil, fmt.Errorf("error loading credentials: %s", err)
+		return nil, fmt.Errorf("error loading credentials: %w", err)
 	}
 	if !json.Valid([]byte(contents)) {
 		return nil, fmt.Errorf("the string provided in credentials is neither valid json nor a valid file path")
 	}
 	credOptions = append(credOptions, option.WithCredentialsJSON([]byte(contents)))
 	opts = append(opts, credOptions...)
-	opts = append(opts, option.WithUserAgent(httpclient.OpenTfUserAgent(version.Version)))
+	opts = append(opts, option.WithUserAgent(httpclient.OpenTofuUserAgent(version.Version)))
 
 	return opts, nil
 }

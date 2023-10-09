@@ -11,7 +11,7 @@ import (
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
+	"github.com/opentofu/opentofu/internal/copy"
 )
 
 // We configure our own go-getter detector and getter sets here, because
@@ -22,7 +22,7 @@ import (
 // executable.
 //
 // Note that over time we've found go-getter's design to be not wholly fit
-// for OpenTF's purposes in various ways, and so we're continuing to use
+// for OpenTofu's purposes in various ways, and so we're continuing to use
 // it here because our backward compatibility with earlier versions depends
 // on it, but we use go-getter very carefully and always only indirectly via
 // the public API of this package so that we can get the subset of the
@@ -131,11 +131,11 @@ func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAdd
 		log.Printf("[TRACE] getmodules: copying previous install of %q from %s to %s", packageAddr, prevDir, instPath)
 		err := os.Mkdir(instPath, os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("failed to create directory %s: %s", instPath, err)
+			return fmt.Errorf("failed to create directory %s: %w", instPath, err)
 		}
 		err = copy.CopyDir(instPath, prevDir)
 		if err != nil {
-			return fmt.Errorf("failed to copy from %s to %s: %s", prevDir, instPath, err)
+			return fmt.Errorf("failed to copy from %s to %s: %w", prevDir, instPath, err)
 		}
 	} else {
 		log.Printf("[TRACE] getmodules: fetching %q to %q", packageAddr, instPath)

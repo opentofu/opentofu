@@ -1,6 +1,6 @@
 # Planning Behaviors
 
-A key design tenet for OpenTF is that any actions with externally-visible
+A key design tenet for OpenTofu is that any actions with externally-visible
 side-effects should be carried out via the standard process of creating a
 plan and then applying it. Any new features should typically fit within this
 model.
@@ -8,25 +8,25 @@ model.
 There are also some historical exceptions to this rule, which we hope to
 supplement with plan-and-apply-based equivalents over time.
 
-This document describes the default planning behavior of OpenTF in the
+This document describes the default planning behavior of OpenTofu in the
 absence of any special instructions, and also describes the three main
 design approaches we can choose from when modelling non-default behaviors that
-require additional information from outside of OpenTF Core.
+require additional information from outside OpenTofu Core.
 
 This document focuses primarily on actions relating to _resource instances_,
-because that is OpenTF's main concern. However, these design principles can
+because that is OpenTofu's main concern. However, these design principles can
 potentially generalize to other externally-visible objects, if we can describe
 their behaviors in a way comparable to the resource instance behaviors.
 
 This is developer-oriented documentation rather than user-oriented
 documentation. See
-[the main OpenTF documentation](https://www.placeholderplaceholderplaceholder.io/docs) for
+[the main OpenTofu documentation](https://opentofu.org/docs) for
 information on existing planning behaviors and other behaviors as viewed from
 an end-user perspective.
 
 ## Default Planning Behavior
 
-When given no explicit information to the contrary, OpenTF Core will
+When given no explicit information to the contrary, OpenTofu Core will
 automatically propose taking the following actions in the appropriate
 situations:
 
@@ -52,21 +52,21 @@ situations:
   the configuration (in a `resource` block) and recorded in the prior state
   _marked as "tainted"_. The special "tainted" status means that the process
   of creating the object failed partway through and so the existing object does
-  not necessarily match the configuration, so OpenTF plans to replace it
+  not necessarily match the configuration, so OpenTofu plans to replace it
   in order to ensure that the resulting object is complete.
 - **Read**, if there is a `data` block in the configuration.
-  - If possible, OpenTF will eagerly perform this action during the planning
+  - If possible, OpenTofu will eagerly perform this action during the planning
     phase, rather than waiting until the apply phase.
   - If the configuration contains at least one unknown value, or if the
     data resource directly depends on a managed resource that has any change
-    proposed elsewhere in the plan, OpenTF will instead delay this action
+    proposed elsewhere in the plan, OpenTofu will instead delay this action
     to the apply phase so that it can react to the completion of modification
     actions on other objects.
-- **No-op**, to explicitly represent that OpenTF considered a particular
+- **No-op**, to explicitly represent that OpenTofu considered a particular
   resource instance but concluded that no action was required.
 
 The **Replace** action described above is really a sort of "meta-action", which
-OpenTF expands into separate **Create** and **Delete** operations. There are
+OpenTofu expands into separate **Create** and **Delete** operations. There are
 two possible orderings, and the first one is the default planning behavior
 unless overridden by a special planning behavior as described later. The
 two possible lowerings of **Replace** are:
@@ -81,7 +81,7 @@ two possible lowerings of **Replace** are:
 ## Special Planning Behaviors
 
 For the sake of this document, a "special" planning behavior is one where
-OpenTF Core will select a different action than the defaults above,
+OpenTofu Core will select a different action than the defaults above,
 based on explicit instructions given either by a module author, an operator,
 or a provider.
 
@@ -107,27 +107,27 @@ of the following depending on which stakeholder is activating the behavior:
     "automatic".
 
     Because these special behaviors are activated by values in the provider's
-    response to the planning request from OpenTF Core, behaviors of this
+    response to the planning request from OpenTofu Core, behaviors of this
     sort will typically represent "tweaks" to or variants of the default
     planning behaviors, rather than entirely different behaviors.
 - [Single-run Behaviors](#single-run-behaviors) are activated by explicitly
-  setting additional "plan options" when calling OpenTF Core's plan
+  setting additional "plan options" when calling OpenTofu Core's plan
   operation.
 
     This design pattern is good for situations where the direct operator of
-    OpenTF needs to do something exceptional or one-off, such as when the
+    OpenTofu needs to do something exceptional or one-off, such as when the
     configuration is correct but the real system has become degraded or damaged
-    in a way that OpenTF cannot automatically understand.
+    in a way that OpenTofu cannot automatically understand.
 
     However, this design pattern has the disadvantage that each new single-run
     behavior type requires custom work in every wrapping UI or automaton around
-    OpenTF Core, in order provide the user of that wrapper some way
+    OpenTofu Core, in order provide the user of that wrapper some way
     to directly activate the special option, or to offer an "escape hatch" to
-    use OpenTF CLI directly and bypass the wrapping automation for a
+    use OpenTofu CLI directly and bypass the wrapping automation for a
     particular change.
 
 We've also encountered use-cases that seem to call for a hybrid between these
-different patterns. For example, a configuration construct might cause OpenTF
+different patterns. For example, a configuration construct might cause OpenTofu
 Core to _invite_ a provider to activate a special behavior, but let the
 provider make the final call about whether to do it. Or conversely, a provider
 might advertise the possibility of a special behavior but require the user to
@@ -153,36 +153,36 @@ configuration-driven behaviors, selected to illustrate some different variations
 that might be useful inspiration for new designs:
 
 - The `ignore_changes` argument inside `resource` block `lifecycle` blocks
-  tells OpenTF that if there is an existing object bound to a particular
-  resource instance address then OpenTF should ignore the configured value
+  tells OpenTofu that if there is an existing object bound to a particular
+  resource instance address then OpenTofu should ignore the configured value
   for a particular argument and use the corresponding value from the prior
   state instead.
 
     This can therefore potentially cause what would've been an **Update** to be
     a **No-op** instead.
 - The `replace_triggered_by` argument inside `resource` block `lifecycle`
-  blocks can use a proposed change elsewhere in a module to force OpenTF
+  blocks can use a proposed change elsewhere in a module to force OpenTofu
   to propose one of the two **Replace** variants for a particular resource.
 - The `create_before_destroy` argument inside `resource` block `lifecycle`
   blocks only takes effect if a particular resource instance has a proposed
-  **Replace** action. If not set or set to `false`, OpenTF will decompose
-  it to **Destroy** then **Create**, but if set to `true` OpenTF will use
+  **Replace** action. If not set or set to `false`, OpenTofu will decompose
+  it to **Destroy** then **Create**, but if set to `true` OpenTofu will use
   the inverted ordering.
 
-    Because OpenTF Core will never select a **Replace** action automatically
+    Because OpenTofu Core will never select a **Replace** action automatically
     by itself, this is an example of a hybrid design where the config-driven
     `create_before_destroy` combines with any other behavior (config-driven or
     otherwise) that might cause **Replace** to customize exactly what that
     **Replace** will mean.
 - Top-level `moved` blocks in a module activate a special behavior during the
-  planning phase, where OpenTF will first try to change the bindings of
+  planning phase, where OpenTofu will first try to change the bindings of
   existing objects in the prior state to attach to new addresses before running
   the normal planning process. This therefore allows a module author to
-  document certain kinds of refactoring so that OpenTF can update the
+  document certain kinds of refactoring so that OpenTofu can update the
   state automatically once users upgrade to a new version of the module.
 
     This special behavior is interesting because it doesn't _directly_ change
-    what actions OpenTF will propose, but instead it adds an extra
+    what actions OpenTofu will propose, but instead it adds an extra
     preparation step before the typical planning process which changes the
     addresses that the planning process will consider. It can therefore
     _indirectly_ cause different proposed actions for affected resource
@@ -201,13 +201,13 @@ Providers get an opportunity to activate some special behaviors for a particular
 resource instance when they respond to the `PlanResourceChange` function of
 the provider plugin protocol.
 
-When OpenTF Core executes this RPC, it has already selected between
+When OpenTofu Core executes this RPC, it has already selected between
 **Create**, **Delete**, or **Update** actions for the particular resource
 instance, and so the special behaviors a provider may activate will typically
 serve as modifiers or tweaks to that base action, and will not allow
 the provider to select another base action altogether. The provider wire
 protocol does not talk about the action types explicitly, and instead only
-implies them via other content of the request and response, with OpenTF Core
+implies them via other content of the request and response, with OpenTofu Core
 making the final decision about how to react to that information.
 
 The following is a non-exhaustive list of existing examples of
@@ -218,7 +218,7 @@ that might be useful inspiration for new designs:
   more paths to attributes which have changes that the provider cannot
   implement as an in-place update due to limitations of the remote system.
 
-    In that case, OpenTF Core will replace the **Update** action with one of
+    In that case, OpenTofu Core will replace the **Update** action with one of
     the two **Replace** variants, which means that from the provider's
     perspective the apply phase will really be two separate calls for the
     decomposed **Create** and **Delete** actions (in either order), rather
@@ -232,31 +232,31 @@ that might be useful inspiration for new designs:
   remote system.
 
     If all of those taken together causes the new object to match the prior
-    state, OpenTF Core will treat the update as a **No-op** instead.
+    state, OpenTofu Core will treat the update as a **No-op** instead.
 
 Of the three genres of special behaviors, provider-driven behaviors is the one
 we've made the least use of historically but one that seems to have a lot of
 opportunities for future exploration. Provider-driven behaviors can often be
-ideal because their effects appear as if they are built in to OpenTF so
-that "it just works", with OpenTF automatically deciding and explaining what
+ideal because their effects appear as if they are built in to OpenTofu so
+that "it just works", with OpenTofu automatically deciding and explaining what
 needs to happen and why, without any special effort on the user's part.
 
 ### Single-run Behaviors
 
-OpenTF Core's "plan" operation takes a set of arguments that we collectively
-call "plan options", that can modify OpenTF's planning behavior on a per-run
+OpenTofu Core's "plan" operation takes a set of arguments that we collectively
+call "plan options", that can modify OpenTofu's planning behavior on a per-run
 basis without any configuration changes or special provider behaviors.
 
 As noted above, this particular genre of designs is the most burdensome to
-implement because any wrapping software that can ask OpenTF Core to create
+implement because any wrapping software that can ask OpenTofu Core to create
 a plan must ideally offer some way to set all of the available planning options,
-or else some part of OpenTF's functionality won't be available to anyone
+or else some part of OpenTofu's functionality won't be available to anyone
 using that wrapper.
 
 However, we've seen various situations where single-run behaviors really are the
 most appropriate way to handle a particular use-case, because the need for the
 behavior originates in some process happening outside of the scope of any
-particular OpenTF module or provider.
+particular OpenTofu module or provider.
 
 The following is a non-exhaustive list of existing examples of
 single-run behaviors, selected to illustrate some different variations
@@ -265,25 +265,25 @@ that might be useful inspiration for new designs:
 - The "replace" planning option specifies zero or more resource instance
   addresses.
 
-    For any resource instance specified, OpenTF Core will transform any
+    For any resource instance specified, OpenTofu Core will transform any
     **Update** or **No-op** action for that instance into one of the
     **Replace** actions, thereby allowing an operator to respond to something
-    having become degraded in a way that OpenTF and providers cannot
-    automatically detect and force OpenTF to replace that object with
+    having become degraded in a way that OpenTofu and providers cannot
+    automatically detect and force OpenTofu to replace that object with
     a new one that will hopefully function correctly.
 - The "refresh only" planning mode ("planning mode" is a single planning option
-  that selects between a few mutually-exclusive behaviors) forces OpenTF
+  that selects between a few mutually-exclusive behaviors) forces OpenTofu
   to treat every resource instance as **No-op**, regardless of what is bound
   to that address in state or present in the configuration.
 
 ## Legacy Operations
 
-Some of the legacy operations OpenTF CLI offers that _aren't_ integrated
+Some of the legacy operations OpenTofu CLI offers that _aren't_ integrated
 with the plan and apply flow could be thought of as various degenerate kinds
 of single-run behaviors. Most don't offer any opportunity to preview an effect
 before applying it, but do meet a similar set of use-cases where an operator
-needs to take some action to respond to changes to the context OpenTF is
-in rather than to the OpenTF configuration itself.
+needs to take some action to respond to changes to the context OpenTofu is
+in rather than to the OpenTofu configuration itself.
 
 Most of these legacy operations could therefore most readily be translated to
 single-run behaviors, but before doing so it's worth researching whether people

@@ -1,5 +1,5 @@
 ---
-page_title: try - Functions - Configuration Language
+sidebar_label: try
 description: |-
   The try function tries to evaluate a sequence of expressions given as
   arguments and returns the result of the first one that does not produce
@@ -73,12 +73,14 @@ access to data that isn't known until runtime. It will not catch errors
 relating to expressions that can be proven to be invalid for any input, such
 as a malformed resource reference.
 
-~> **Warning:** The `try` function is intended only for concise testing of the
+:::warning
+The `try` function is intended only for concise testing of the
 presence of and types of object attributes. Although it can technically accept
 any sort of expression, we recommend using it only with simple attribute
 references and type conversion functions as shown in the examples above.
 Overuse of `try` to suppress errors will lead to a configuration that is hard
 to understand and maintain.
+:::
 
 ## Examples
 
@@ -107,5 +109,5 @@ A local value with the name "nonexist" has not been declared.
 
 ## Related Functions
 
-* [`can`](/opentf/language/functions/can), which tries evaluating an expression and returns a
+* [`can`](/docs/language/functions/can), which tries evaluating an expression and returns a
   boolean value indicating whether it succeeded.

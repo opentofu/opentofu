@@ -10,14 +10,14 @@ import (
 
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonstate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonformat"
+	"github.com/opentofu/opentofu/internal/command/jsonprovider"
+	"github.com/opentofu/opentofu/internal/command/jsonstate"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 )
 
 // StateShowCommand is a Command implementation that shows a single resource.
@@ -170,18 +170,18 @@ func (c *StateShowCommand) Run(args []string) int {
 
 func (c *StateShowCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] state show [options] ADDRESS
+Usage: tofu [global options] state show [options] ADDRESS
 
-  Shows the attributes of a resource in the OpenTF state.
+  Shows the attributes of a resource in the OpenTofu state.
 
-  This command shows the attributes of a single resource in the OpenTF
+  This command shows the attributes of a single resource in the OpenTofu
   state. The address argument must be used to specify a single resource.
-  You can view the list of available resources with "opentf state list".
+  You can view the list of available resources with "tofu state list".
 
 Options:
 
-  -state=statefile    Path to a OpenTF state file to use to look
-                      up OpenTF-managed resources. By default it will
+  -state=statefile    Path to a OpenTofu state file to use to look
+                      up OpenTofu-managed resources. By default it will
                       use the state "terraform.tfstate" if it exists.
 
 `
@@ -195,11 +195,11 @@ func (c *StateShowCommand) Synopsis() string {
 const errNoInstanceFound = `No instance found for the given address!
 
 This command requires that the address references one specific instance.
-To view the available instances, use "opentf state list". Please modify 
+To view the available instances, use "tofu state list". Please modify 
 the address to reference a specific instance.`
 
 const errParsingAddress = `Error parsing instance address: %s
 
 This command requires that the address references one specific instance.
-To view the available instances, use "opentf state list". Please modify 
+To view the available instances, use "tofu state list". Please modify 
 the address to reference a specific instance.`

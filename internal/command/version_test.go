@@ -10,9 +10,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 func TestVersionCommand_implements(t *testing.T) {
@@ -57,7 +57,7 @@ func TestVersion(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "OpenTF v4.5.6-foo\non aros_riscv64\n+ provider registry.terraform.io/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.terraform.io/hashicorp/test2 v1.2.3"
+	expected := "OpenTofu v4.5.6-foo\non aros_riscv64\n+ provider registry.opentofu.org/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.opentofu.org/hashicorp/test2 v1.2.3"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot:\n%s\nwant:\n%s", actual, expected)
 	}
@@ -70,7 +70,7 @@ func TestVersion_flags(t *testing.T) {
 		Ui: ui,
 	}
 
-	// `terraform version`
+	// `tofu version`
 	c := &VersionCommand{
 		Meta:              m,
 		Version:           "4.5.6",
@@ -83,7 +83,7 @@ func TestVersion_flags(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
-	expected := "OpenTF v4.5.6-foo\non aros_riscv64"
+	expected := "OpenTofu v4.5.6-foo\non aros_riscv64"
 	if actual != expected {
 		t.Fatalf("wrong output\ngot: %#v\nwant: %#v", actual, expected)
 	}
@@ -98,7 +98,7 @@ func TestVersion_json(t *testing.T) {
 		Ui: ui,
 	}
 
-	// `terraform version -json` without prerelease
+	// `tofu version -json` without prerelease
 	c := &VersionCommand{
 		Meta:     meta,
 		Version:  "4.5.6",
@@ -140,7 +140,7 @@ func TestVersion_json(t *testing.T) {
 		nil,
 	)
 
-	// `terraform version -json` with prerelease and provider dependencies
+	// `tofu version -json` with prerelease and provider dependencies
 	c = &VersionCommand{
 		Meta:              meta,
 		Version:           "4.5.6",
@@ -160,8 +160,8 @@ func TestVersion_json(t *testing.T) {
   "terraform_version": "4.5.6-foo",
   "platform": "aros_riscv64",
   "provider_selections": {
-    "registry.terraform.io/hashicorp/test1": "7.8.9-beta.2",
-    "registry.terraform.io/hashicorp/test2": "1.2.3"
+    "registry.opentofu.org/hashicorp/test1": "7.8.9-beta.2",
+    "registry.opentofu.org/hashicorp/test2": "1.2.3"
   }
 }
 `)

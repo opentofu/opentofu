@@ -14,8 +14,8 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 // LocalState manages a state storage that is local to the filesystem.
@@ -41,13 +41,13 @@ type LocalState struct {
 	// hurt to remove file we never wrote to.
 	created bool
 
-	state     *opentf.State
-	readState *opentf.State
+	state     *tofu.State
+	readState *tofu.State
 	written   bool
 }
 
 // SetState will force a specific state in-memory for this local state.
-func (s *LocalState) SetState(state *opentf.State) {
+func (s *LocalState) SetState(state *tofu.State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -56,7 +56,7 @@ func (s *LocalState) SetState(state *opentf.State) {
 }
 
 // StateReader impl.
-func (s *LocalState) State() *opentf.State {
+func (s *LocalState) State() *tofu.State {
 	return s.state.DeepCopy()
 }
 
@@ -66,7 +66,7 @@ func (s *LocalState) State() *opentf.State {
 // the original.
 //
 // StateWriter impl.
-func (s *LocalState) WriteState(state *opentf.State) error {
+func (s *LocalState) WriteState(state *tofu.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -102,7 +102,7 @@ func (s *LocalState) WriteState(state *opentf.State) error {
 		s.state.Serial++
 	}
 
-	if err := opentf.WriteState(s.state, s.stateFileOut); err != nil {
+	if err := tofu.WriteState(s.state, s.stateFileOut); err != nil {
 		return err
 	}
 
@@ -163,9 +163,9 @@ func (s *LocalState) RefreshState() error {
 		reader = s.stateFileOut
 	}
 
-	state, err := opentf.ReadState(reader)
+	state, err := tofu.ReadState(reader)
 	// if there's no state we just assign the nil return value
-	if err != nil && err != opentf.ErrNoState {
+	if err != nil && err != tofu.ErrNoState {
 		return err
 	}
 
@@ -297,7 +297,7 @@ func (s *LocalState) lockInfo() (*statemgr.LockInfo, error) {
 	info := statemgr.LockInfo{}
 	err = json.Unmarshal(infoData, &info)
 	if err != nil {
-		return nil, fmt.Errorf("state file %q locked, but could not unmarshal lock info: %s", s.Path, err)
+		return nil, fmt.Errorf("state file %q locked, but could not unmarshal lock info: %w", s.Path, err)
 	}
 	return &info, nil
 }
@@ -310,7 +310,7 @@ func (s *LocalState) writeLockInfo(info *statemgr.LockInfo) error {
 
 	err := os.WriteFile(path, info.Marshal(), 0600)
 	if err != nil {
-		return fmt.Errorf("could not write lock info for %q: %s", s.Path, err)
+		return fmt.Errorf("could not write lock info for %q: %w", s.Path, err)
 	}
 	return nil
 }

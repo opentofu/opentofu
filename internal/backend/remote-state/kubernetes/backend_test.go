@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -136,7 +136,7 @@ func cleanupK8sResources(t *testing.T) {
 
 	b := b1.(*Backend)
 
-	sClient, err := b.KubernetesSecretClient()
+	sClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func cleanupK8sResources(t *testing.T) {
 		}
 	}
 
-	leaseClient, err := b.KubernetesLeaseClient()
+	leaseClient, err := b.getKubernetesLeaseClient()
 	if err != nil {
 		t.Fatal(err)
 	}

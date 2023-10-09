@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // OutputValue is the address of an output value, in the context of the module
@@ -17,7 +17,7 @@ import (
 //
 // This is related to but separate from ModuleCallOutput, which represents
 // a module output from the perspective of its parent module. Outputs are
-// referencable from the testing scope, in general opentf operation users
+// referencable from the testing scope, in general tofu operation users
 // will be referencing ModuleCallOutput.
 type OutputValue struct {
 	referenceable

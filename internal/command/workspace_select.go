@@ -10,7 +10,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type WorkspaceSelectCommand struct {
@@ -37,7 +37,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	configPath, err := ModulePath(args[1:])
+	configPath, err := modulePath(args[1:])
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -150,13 +150,13 @@ func (c *WorkspaceSelectCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceSelectCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] workspace select NAME
+Usage: tofu [global options] workspace select NAME
 
-  Select a different OpenTF workspace.
+  Select a different OpenTofu workspace.
 
 Options:
 
-    -or-create=false    Create the OpenTF workspace if it doesn't exist.
+    -or-create=false    Create the OpenTofu workspace if it doesn't exist.
 
 `
 	return strings.TrimSpace(helpText)

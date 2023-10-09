@@ -1,11 +1,11 @@
 ---
-page_title: 'Backend Type: local'
+sidebar_label: local
 description: >-
   Terraform can store the state remotely, making it easier to version and work
   with in a team.
 ---
 
-# local
+# Backend Type: local
 
 **Kind: Enhanced**
 
@@ -44,8 +44,10 @@ The following configuration options are supported:
 
 ## Command Line Arguments
 
-~> This section describes legacy features that we've preserved for backward
+:::warning Note
+This section describes legacy features that we've preserved for backward
 compatibility but that we no longer recommend. See below for more details.
+:::
 
 For configurations that include a `backend "local"` block or that default to
 the local backend by not specifying a backend at all, most commands that either
@@ -77,7 +79,7 @@ the three arguments would typically all be paths within a temporary
 directory used just for one operation.
 
 Because these old workflows predate the introduction of the possibility of
-[multiple workspaces](/opentf/language/state/workspaces), setting them
+[multiple workspaces](/docs/language/state/workspaces), setting them
 overrides Terraform's usual behavior of selecting a different state filename
 based on the selected workspace. If you use all three of these options then
 the selected workspace has no effect on which filenames Terraform will select
@@ -89,7 +91,7 @@ backend type selected.
 
 We do not recommend using these options in new systems, even if you are running
 Terraform in automation. Instead,
-[select a different backend which supports remote state](/opentf/language/settings/backends/configuration) and configure it
+[select a different backend which supports remote state](/docs/language/settings/backends/configuration) and configure it
 within your root module, which ensures that everyone working on your
 configuration will automatically retrieve and store state in the correct shared
 location without any special command line options.

@@ -10,10 +10,10 @@ import (
 	"github.com/hashicorp/go-uuid"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 var (
@@ -51,10 +51,10 @@ var (
 	}
 )
 
-// TestProvider is a wrapper around terraform.MockProvider that defines dynamic
+// TestProvider is a wrapper around tofu.MockProvider that defines dynamic
 // schemas, and keeps track of the resources and data sources that it contains.
 type TestProvider struct {
-	Provider *opentf.MockProvider
+	Provider *tofu.MockProvider
 
 	data, resource cty.Value
 
@@ -71,7 +71,7 @@ func NewProvider(store *ResourceStore) *TestProvider {
 	}
 
 	provider := &TestProvider{
-		Provider: new(opentf.MockProvider),
+		Provider: new(tofu.MockProvider),
 		Store:    store,
 	}
 
@@ -209,7 +209,7 @@ func (provider *TestProvider) ApplyResourceChange(request providers.ApplyResourc
 	if !id.IsKnown() {
 		val, err := uuid.GenerateUUID()
 		if err != nil {
-			panic(fmt.Errorf("failed to generate uuid: %v", err))
+			panic(fmt.Errorf("failed to generate uuid: %w", err))
 		}
 
 		id = cty.StringVal(val)

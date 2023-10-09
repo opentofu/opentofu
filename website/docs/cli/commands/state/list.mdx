@@ -1,18 +1,17 @@
 ---
-page_title: 'Command: state list'
 description: >-
-  The opentf state list command is used to list resources within a OpenTF
+  The tofu state list command is used to list resources within a OpenTofu
   state.
 ---
 
 # Command: state list
 
-The `opentf state list` command is used to list resources within a
-[OpenTF state](/opentf/language/state).
+The `tofu state list` command is used to list resources within a
+[OpenTofu state](/docs/language/state).
 
 ## Usage
 
-Usage: `opentf state list [options] [address...]`
+Usage: `tofu state list [options] [address...]`
 
 The command will list all resources in the state file matching the given
 addresses (if any). If no addresses are given, all resources are listed.
@@ -24,12 +23,12 @@ within modules are listed last.
 
 For complex infrastructures, the state can contain thousands of resources.
 To filter these, provide one or more patterns to the command. Patterns are
-in [resource addressing format](/opentf/cli/state/resource-addressing).
+in [resource addressing format](/docs/cli/state/resource-addressing).
 
 The command-line flags are all optional. The following flags are available:
 
-* `-state=path` - Path to the state file. Defaults to "opentf.tfstate".
-  Ignored when [remote state](/opentf/language/state/remote) is used.
+* `-state=path` - Path to the state file. Defaults to "tofu.tfstate".
+  Ignored when [remote state](/docs/language/state/remote) is used.
 * `-id=id` - ID of resources to show. Ignored when unset.
 
 ## Example: All Resources
@@ -37,7 +36,7 @@ The command-line flags are all optional. The following flags are available:
 This example will list all resources, including modules:
 
 ```
-$ opentf state list
+$ tofu state list
 aws_instance.foo
 aws_instance.bar[0]
 aws_instance.bar[1]
@@ -49,7 +48,7 @@ module.elb.aws_elb.main
 This example will only list resources for the given name:
 
 ```
-$ opentf state list aws_instance.bar
+$ tofu state list aws_instance.bar
 aws_instance.bar[0]
 aws_instance.bar[1]
 ```
@@ -59,7 +58,7 @@ aws_instance.bar[1]
 This example will list resources in the given module and any submodules:
 
 ```
-$ opentf state list module.elb
+$ tofu state list module.elb
 module.elb.aws_elb.main
 module.elb.module.secgroups.aws_security_group.sg
 ```
@@ -71,6 +70,6 @@ command line. This is useful to find where in your configuration a
 specific resource is located.
 
 ```
-$ opentf state list -id=sg-1234abcd
+$ tofu state list -id=sg-1234abcd
 module.elb.aws_security_group.sg
 ```

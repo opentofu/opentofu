@@ -5,9 +5,9 @@ package addrs
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	tfaddr "github.com/hashicorp/terraform-registry-address"
 	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 // Provider encapsulates a single provider type. In the future this will be
@@ -67,14 +67,14 @@ func NewProvider(hostname svchost.Hostname, namespace, typeName string) Provider
 // As a special case, the string "terraform" maps to
 // "terraform.io/builtin/terraform" because that is the more likely user
 // intent than the now-unmaintained "registry.terraform.io/hashicorp/terraform"
-// which remains only for compatibility with older OpenTF versions.
+// which remains only for compatibility with older OpenTofu versions.
 func ImpliedProviderForUnqualifiedType(typeName string) Provider {
 	switch typeName {
 	case "terraform":
 		// Note for future maintainers: any additional strings we add here
 		// as implied to be builtin must never also be use as provider names
 		// in the registry.terraform.io/hashicorp/... namespace, because
-		// otherwise older versions of OpenTF could implicitly select
+		// otherwise older versions of OpenTofu could implicitly select
 		// the registry name instead of the internal one.
 		return NewBuiltInProvider(typeName)
 	default:

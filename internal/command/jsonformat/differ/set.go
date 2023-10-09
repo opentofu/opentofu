@@ -8,13 +8,13 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/collections"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured/attribute_path"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonprovider"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 func computeAttributeDiffAsSet(change structured.Change, elementType cty.Type) computed.Diff {
@@ -90,7 +90,7 @@ func processSet(change structured.Change, process func(value structured.Change))
 		// we just treat all children of a relevant list or set as also
 		// relevant.
 		//
-		// Interestingly the opentf plan builder also agrees with this, and
+		// Interestingly the tofu plan builder also agrees with this, and
 		// never sets relevant attributes beneath lists or sets. We're just
 		// going to enforce this logic here as well. If the collection is
 		// relevant (decided elsewhere), then every element in the collection is

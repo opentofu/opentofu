@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -105,9 +105,9 @@ func TestConsole_tfvars(t *testing.T) {
 }
 
 func TestConsole_unsetRequiredVars(t *testing.T) {
-	// This test is verifying that it's possible to run "terraform console"
+	// This test is verifying that it's possible to run "tofu console"
 	// without providing values for all required variables, without
-	// "terraform console" producing an interactive prompt for those variables
+	// "tofu console" producing an interactive prompt for those variables
 	// or producing errors. Instead, it should allow evaluation in that
 	// partial context but see the unset variables values as being unknown.
 	//

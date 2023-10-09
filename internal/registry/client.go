@@ -20,11 +20,11 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/regsrc"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/registry/response"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/registry/regsrc"
+	"github.com/opentofu/opentofu/internal/registry/response"
+	"github.com/opentofu/opentofu/version"
 )
 
 const (
@@ -92,7 +92,7 @@ func NewClient(services *disco.Disco, client *http.Client) *Client {
 
 	services.Transport = retryableClient.HTTPClient.Transport
 
-	services.SetUserAgent(httpclient.OpenTfUserAgent(version.String()))
+	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
 	return &Client{
 		client:   retryableClient,
@@ -230,7 +230,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 	// there should be no body, but save it for logging
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error reading response body from registry: %s", err)
+		return "", fmt.Errorf("error reading response body from registry: %w", err)
 	}
 
 	switch resp.StatusCode {
@@ -263,7 +263,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 	if strings.HasPrefix(location, "/") || strings.HasPrefix(location, "./") || strings.HasPrefix(location, "../") {
 		locationURL, err := url.Parse(location)
 		if err != nil {
-			return "", fmt.Errorf("invalid relative URL for %q: %s", module, err)
+			return "", fmt.Errorf("invalid relative URL for %q: %w", module, err)
 		}
 		locationURL = download.ResolveReference(locationURL)
 		location = locationURL.String()

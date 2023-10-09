@@ -28,9 +28,9 @@ LDFLAGS="-w -s"
 if [[ "$EXPERIMENTS_ENABLED" == 1 ]]; then
 LDFLAGS="${LDFLAGS} -X 'main.experimentsAllowed=yes'"
 fi
-LDFLAGS="${LDFLAGS} -X 'github.com/placeholderplaceholderplaceholder/opentf/version.dev=no'"
+LDFLAGS="${LDFLAGS} -X 'github.com/opentofu/opentofu/version.dev=no'"
 
-echo "Building OpenTF CLI ${VERSION}"
+echo "Building OpenTofu CLI ${VERSION}"
 if [[ "$EXPERIMENTS_ENABLED" == 1 ]]; then
 echo "This build allows use of experimental features"
 fi

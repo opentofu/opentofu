@@ -1,5 +1,5 @@
 ---
-page_title: merge - Functions - Configuration Language
+sidebar_label: merge
 description: |-
   The merge function takes an arbitrary number maps or objects, and returns a
   single map or object that contains a merged set of elements from all
@@ -39,7 +39,7 @@ type structure of the attributes after the merging rules have been applied.
 }
 ```
 
-The following example uses the expansion symbol (...) to transform the value into separate arguments. Refer to [Expanding Function Argument](/opentf/language/expressions/function-calls#expanding-function-arguments) for details.
+The following example uses the expansion symbol (...) to transform the value into separate arguments. Refer to [Expanding Function Argument](/docs/language/expressions/function-calls#expanding-function-arguments) for details.
 
 ```
 > merge([{a="b", c="d"}, {}, {e="f", c="z"}]...)

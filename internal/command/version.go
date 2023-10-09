@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 // VersionCommand is a Command implementation prints the version.
@@ -32,9 +32,9 @@ type VersionOutput struct {
 
 func (c *VersionCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] version [options]
+Usage: tofu [global options] version [options]
 
-  Displays the version of OpenTF and all installed plugins
+  Displays the version of OpenTofu and all installed plugins
 
 Options:
 
@@ -61,18 +61,18 @@ func (c *VersionCommand) Run(args []string) int {
 		return 1
 	}
 
-	fmt.Fprintf(&versionString, "OpenTF v%s", c.Version)
+	fmt.Fprintf(&versionString, "OpenTofu v%s", c.Version)
 	if c.VersionPrerelease != "" {
 		fmt.Fprintf(&versionString, "-%s", c.VersionPrerelease)
 	}
 
 	// We'll also attempt to print out the selected plugin versions. We do
 	// this based on the dependency lock file, and so the result might be
-	// empty or incomplete if the user hasn't successfully run "terraform init"
+	// empty or incomplete if the user hasn't successfully run "tofu init"
 	// since the most recent change to dependencies.
 	//
 	// Generally-speaking this is a best-effort thing that will give us a good
-	// result in the usual case where the user successfully ran "terraform init"
+	// result in the usual case where the user successfully ran "tofu init"
 	// and then hit a problem running _another_ command.
 	var providerVersions []string
 	var providerLocks map[addrs.Provider]*depsfile.ProviderLock
@@ -131,5 +131,5 @@ func (c *VersionCommand) Run(args []string) int {
 }
 
 func (c *VersionCommand) Synopsis() string {
-	return "Show the current OpenTF version"
+	return "Show the current OpenTofu version"
 }

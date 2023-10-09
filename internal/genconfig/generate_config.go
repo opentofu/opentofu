@@ -9,16 +9,16 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // GenerateResourceContents generates HCL configuration code for the provided
 // resource and state value.
 //
-// If you want to generate actual valid OpenTF code you should follow this
-// call up with a call to WrapResourceContents, which will place an OpenTF
+// If you want to generate actual valid OpenTofu code you should follow this
+// call up with a call to WrapResourceContents, which will place an OpenTofu
 // resource header around the attributes and blocks returned by this function.
 func GenerateResourceContents(addr addrs.AbsResourceInstance,
 	schema *configschema.Block,

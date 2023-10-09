@@ -7,13 +7,13 @@ import (
 	"log"
 	"sync"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/zclconf/go-cty/cty"
 )
 
 // SyncState is a wrapper around State that provides concurrency-safe access to
-// various common operations that occur during a Terraform graph walk, or other
+// various common operations that occur during a OpenTofu graph walk, or other
 // similar concurrent contexts.
 //
 // When a SyncState wrapper is in use, no concurrent direct access to the

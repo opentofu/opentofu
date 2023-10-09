@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // ConfigFieldReader reads fields out of an untyped map[string]string to the
@@ -19,7 +19,7 @@ import (
 // field readers do not need default handling because they source fully
 // populated data structures.)
 type ConfigFieldReader struct {
-	Config *opentf.ResourceConfig
+	Config *tofu.ResourceConfig
 	Schema map[string]*Schema
 
 	indexMaps map[string]map[string]int
@@ -254,7 +254,7 @@ func (r *ConfigFieldReader) readPrimitive(
 		var err error
 		raw, err = schema.DefaultValue()
 		if err != nil {
-			return FieldReadResult{}, fmt.Errorf("%s, error loading default: %s", k, err)
+			return FieldReadResult{}, fmt.Errorf("%s, error loading default: %w", k, err)
 		}
 
 		if raw == nil {

@@ -23,10 +23,10 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/httpclient"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/version"
 )
 
 const (
@@ -243,7 +243,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 		if err != nil {
 			return PackageMeta{}, c.errQueryFailed(
 				provider,
-				fmt.Errorf("registry response includes invalid version string %q: %s", versionStr, err),
+				fmt.Errorf("registry response includes invalid version string %q: %w", versionStr, err),
 			)
 		}
 		protoVersions = append(protoVersions, v)
@@ -282,7 +282,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 
 	downloadURL, err := url.Parse(body.DownloadURL)
 	if err != nil {
-		return PackageMeta{}, fmt.Errorf("registry response includes invalid download URL: %s", err)
+		return PackageMeta{}, fmt.Errorf("registry response includes invalid download URL: %w", err)
 	}
 	downloadURL = resp.Request.URL.ResolveReference(downloadURL)
 	if downloadURL.Scheme != "http" && downloadURL.Scheme != "https" {
@@ -305,7 +305,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	if len(body.SHA256Sum) != sha256.Size*2 { // *2 because it's hex-encoded
 		return PackageMeta{}, c.errQueryFailed(
 			provider,
-			fmt.Errorf("registry response includes invalid SHA256 hash %q: %s", body.SHA256Sum, err),
+			fmt.Errorf("registry response includes invalid SHA256 hash %q: %w", body.SHA256Sum, err),
 		)
 	}
 
@@ -314,13 +314,13 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	if err != nil {
 		return PackageMeta{}, c.errQueryFailed(
 			provider,
-			fmt.Errorf("registry response includes invalid SHA256 hash %q: %s", body.SHA256Sum, err),
+			fmt.Errorf("registry response includes invalid SHA256 hash %q: %w", body.SHA256Sum, err),
 		)
 	}
 
 	shasumsURL, err := url.Parse(body.SHA256SumsURL)
 	if err != nil {
-		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS URL: %s", err)
+		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS URL: %w", err)
 	}
 	shasumsURL = resp.Request.URL.ResolveReference(shasumsURL)
 	if shasumsURL.Scheme != "http" && shasumsURL.Scheme != "https" {
@@ -330,12 +330,12 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	if err != nil {
 		return PackageMeta{}, c.errQueryFailed(
 			provider,
-			fmt.Errorf("failed to retrieve authentication checksums for provider: %s", err),
+			fmt.Errorf("failed to retrieve authentication checksums for provider: %w", err),
 		)
 	}
 	signatureURL, err := url.Parse(body.SHA256SumsSignatureURL)
 	if err != nil {
-		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS signature URL: %s", err)
+		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS signature URL: %w", err)
 	}
 	signatureURL = resp.Request.URL.ResolveReference(signatureURL)
 	if signatureURL.Scheme != "http" && signatureURL.Scheme != "https" {
@@ -345,7 +345,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	if err != nil {
 		return PackageMeta{}, c.errQueryFailed(
 			provider,
-			fmt.Errorf("failed to retrieve cryptographic signature for provider: %s", err),
+			fmt.Errorf("failed to retrieve cryptographic signature for provider: %w", err),
 		)
 	}
 
@@ -357,7 +357,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	ret.Authentication = PackageAuthenticationAll(
 		NewMatchingChecksumAuthentication(document, body.Filename, checksum),
 		NewArchiveChecksumAuthentication(ret.TargetPlatform, checksum),
-		NewSignatureAuthentication(document, signature, keys),
+		NewSignatureAuthentication(document, signature, keys, &provider),
 	)
 
 	return ret, nil
@@ -378,7 +378,7 @@ func (c *registryClient) findClosestProtocolCompatibleVersion(ctx context.Contex
 		if err != nil {
 			return UnspecifiedVersion, ErrQueryFailed{
 				Provider: provider,
-				Wrapped:  fmt.Errorf("registry response includes invalid version string %q: %s", versionStr, err),
+				Wrapped:  fmt.Errorf("registry response includes invalid version string %q: %w", versionStr, err),
 			}
 		}
 		versionList = append(versionList, v)
@@ -394,7 +394,7 @@ FindMatch:
 			if err != nil {
 				return UnspecifiedVersion, ErrQueryFailed{
 					Provider: provider,
-					Wrapped:  fmt.Errorf("registry response includes invalid protocol string %q: %s", protoStr, err),
+					Wrapped:  fmt.Errorf("registry response includes invalid protocol string %q: %w", protoStr, err),
 				}
 			}
 			if protoVersions.Has(p) {

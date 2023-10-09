@@ -4,7 +4,7 @@
 package arguments
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Plan represents the command-line arguments for the plan command.
@@ -25,7 +25,7 @@ type Plan struct {
 	// OutPath contains an optional path to store the plan file
 	OutPath string
 
-	// GenerateConfigPath tells OpenTF that config should be generated for
+	// GenerateConfigPath tells OpenTofu that config should be generated for
 	// unmatched import target paths and which path the generated file should
 	// be written to.
 	GenerateConfigPath string

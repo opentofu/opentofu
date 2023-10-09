@@ -8,15 +8,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // StateHook is a hook that continuously updates the state by calling
 // WriteState on a statemgr.Full.
 type StateHook struct {
-	opentf.NilHook
+	tofu.NilHook
 	sync.Mutex
 
 	StateMgr statemgr.Writer
@@ -31,7 +31,7 @@ type StateHook struct {
 	// Schemas are the schemas to use when persisting state due to
 	// PersistInterval. This is ignored if PersistInterval is zero,
 	// and PersistInterval is ignored if this is nil.
-	Schemas *opentf.Schemas
+	Schemas *tofu.Schemas
 
 	intermediatePersist IntermediateStatePersistInfo
 }
@@ -46,11 +46,11 @@ type IntermediateStatePersistInfo struct {
 	RequestedPersistInterval time.Duration
 
 	// LastPersist is the time when the last intermediate state snapshot was
-	// persisted, or the time of the first report for OpenTF Core if there
+	// persisted, or the time of the first report for OpenTofu Core if there
 	// hasn't yet been a persisted snapshot.
 	LastPersist time.Time
 
-	// ForcePersist is true when OpenTF CLI has received an interrupt
+	// ForcePersist is true when OpenTofu CLI has received an interrupt
 	// signal and is therefore trying to create snapshots more aggressively
 	// in anticipation of possibly being terminated ungracefully.
 	// [IntermediateStateConditionalPersister] implementations should ideally
@@ -59,9 +59,9 @@ type IntermediateStatePersistInfo struct {
 	ForcePersist bool
 }
 
-var _ opentf.Hook = (*StateHook)(nil)
+var _ tofu.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error) {
+func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -75,13 +75,13 @@ func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error
 
 	if h.StateMgr != nil {
 		if err := h.StateMgr.WriteState(new); err != nil {
-			return opentf.HookActionHalt, err
+			return tofu.HookActionHalt, err
 		}
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
 			if h.shouldPersist() {
 				err := mgrPersist.PersistState(h.Schemas)
 				if err != nil {
-					return opentf.HookActionHalt, err
+					return tofu.HookActionHalt, err
 				}
 				h.intermediatePersist.LastPersist = time.Now()
 			} else {
@@ -90,24 +90,24 @@ func (h *StateHook) PostStateUpdate(new *states.State) (opentf.HookAction, error
 		}
 	}
 
-	return opentf.HookActionContinue, nil
+	return tofu.HookActionContinue, nil
 }
 
 func (h *StateHook) Stopping() {
 	h.Lock()
 	defer h.Unlock()
 
-	// If OpenTF has been asked to stop then that might mean that a hard
-	// kill signal will follow shortly in case OpenTF doesn't stop
+	// If OpenTofu has been asked to stop then that might mean that a hard
+	// kill signal will follow shortly in case OpenTofu doesn't stop
 	// quickly enough, and so we'll try to persist the latest state
 	// snapshot in the hope that it'll give the user less recovery work to
-	// do if they _do_ subsequently hard-kill OpenTF during an apply.
+	// do if they _do_ subsequently hard-kill OpenTofu during an apply.
 
 	if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.Schemas != nil {
 		// While we're in the stopping phase we'll try to persist every
 		// new state update to maximize every opportunity we get to avoid
 		// losing track of objects that have been created or updated.
-		// OpenTF Core won't start any new operations after it's been
+		// OpenTofu Core won't start any new operations after it's been
 		// stopped, so at most we should see one more PostStateUpdate
 		// call per already-active request.
 		h.intermediatePersist.ForcePersist = true
@@ -115,7 +115,7 @@ func (h *StateHook) Stopping() {
 		if h.shouldPersist() {
 			err := mgrPersist.PersistState(h.Schemas)
 			if err != nil {
-				// This hook can't affect OpenTF Core's ongoing behavior,
+				// This hook can't affect OpenTofu Core's ongoing behavior,
 				// but it's a best effort thing anyway, so we'll just emit a
 				// log to aid with debugging.
 				log.Printf("[ERROR] Failed to persist state after interruption: %s", err)
@@ -146,7 +146,7 @@ func DefaultIntermediateStatePersistRule(info *IntermediateStatePersistInfo) boo
 
 // IntermediateStateConditionalPersister is an optional extension of
 // [statemgr.Persister] that allows an implementation to tailor the rules for
-// whether to create intermediate state snapshots when OpenTF Core emits
+// whether to create intermediate state snapshots when OpenTofu Core emits
 // events reporting that the state might have changed.
 //
 // For state managers that don't implement this interface, [StateHook] uses
@@ -156,7 +156,7 @@ func DefaultIntermediateStatePersistRule(info *IntermediateStatePersistInfo) boo
 // to change over time, but a state manager can implement this interface to
 // exert full control over those rules.
 type IntermediateStateConditionalPersister interface {
-	// ShouldPersistIntermediateState will be called each time OpenTF Core
+	// ShouldPersistIntermediateState will be called each time OpenTofu Core
 	// emits an intermediate state event that is potentially eligible to be
 	// persisted.
 	//

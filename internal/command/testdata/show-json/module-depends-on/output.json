@@ -9,7 +9,7 @@
                     "mode": "managed",
                     "type": "test_instance",
                     "name": "test",
-                    "provider_name": "registry.terraform.io/hashicorp/test",
+                    "provider_name": "registry.opentofu.org/hashicorp/test",
                     "schema_version": 0,
                     "values": {
                         "ami": "foo-bar"
@@ -25,7 +25,7 @@
             "mode": "managed",
             "type": "test_instance",
             "name": "test",
-            "provider_name": "registry.terraform.io/hashicorp/test",
+            "provider_name": "registry.opentofu.org/hashicorp/test",
             "change": {
                 "actions": [
                     "create"
@@ -46,7 +46,7 @@
         "provider_config": {
             "test": {
                 "name": "test",
-                "full_name": "registry.terraform.io/hashicorp/test"
+                "full_name": "registry.opentofu.org/hashicorp/test"
             }
         },
         "root_module": {

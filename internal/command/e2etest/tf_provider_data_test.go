@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/e2e"
 )
 
 func TestTerraformProviderData(t *testing.T) {
 
-	fixturePath := filepath.Join("testdata", "opentf-managed-data")
+	fixturePath := filepath.Join("testdata", "tofu-managed-data")
 	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	_, stderr, err := tf.Run("init", "-input=false")

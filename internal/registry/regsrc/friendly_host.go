@@ -58,7 +58,7 @@ var (
 )
 
 // FriendlyHost describes a registry instance identified in source strings by a
-// simple bare hostname like registry.terraform.io.
+// simple bare hostname like registry.opentofu.org.
 type FriendlyHost struct {
 	Raw string
 }

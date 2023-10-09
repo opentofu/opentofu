@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestImpliedMoveStatements(t *testing.T) {
@@ -88,7 +88,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 		// this state would be to remove "count = 1" and then have the
 		// provider fail to destroy the zero-key instance even though we
 		// already created the no-key instance. Users can also get here
-		// by using "terraform state mv" in weird ways.
+		// by using "tofu state mv" in weird ways.
 		s.SetResourceInstanceCurrent(
 			resourceAddr("ambiguous").Instance(addrs.NoKey),
 			instObjState(),

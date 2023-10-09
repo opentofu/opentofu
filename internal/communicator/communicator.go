@@ -12,11 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/shared"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/ssh"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/winrm"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/communicator/remote"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
+	"github.com/opentofu/opentofu/internal/communicator/ssh"
+	"github.com/opentofu/opentofu/internal/communicator/winrm"
+	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -161,9 +161,9 @@ func Retry(ctx context.Context, f func() error) error {
 	// Check if we have a context error to check if we're interrupted or timeout
 	switch ctx.Err() {
 	case context.Canceled:
-		return fmt.Errorf("interrupted - last error: %v", lastErr)
+		return fmt.Errorf("interrupted - last error: %w", lastErr)
 	case context.DeadlineExceeded:
-		return fmt.Errorf("timeout - last error: %v", lastErr)
+		return fmt.Errorf("timeout - last error: %w", lastErr)
 	}
 
 	if lastErr != nil {

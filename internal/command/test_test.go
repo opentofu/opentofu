@@ -9,11 +9,11 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	testing_command "github.com/placeholderplaceholderplaceholder/opentf/internal/command/testing"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentofu/opentofu/internal/addrs"
+	testing_command "github.com/opentofu/opentofu/internal/command/testing"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/terminal"
 )
 
 func TestTest(t *testing.T) {
@@ -347,10 +347,10 @@ func TestTest_DoubleInterrupt(t *testing.T) {
 		t.Errorf("output didn't produce the right output:\n\n%s", output)
 	}
 
-	cleanupMessage := `OpenTF was interrupted while executing main.tftest.hcl, and may not have
+	cleanupMessage := `OpenTofu was interrupted while executing main.tftest.hcl, and may not have
 performed the expected cleanup operations.
 
-OpenTF has already created the following resources from the module under
+OpenTofu has already created the following resources from the module under
 test:
   - test_resource.primary
   - test_resource.secondary
@@ -590,11 +590,11 @@ func TestTest_Verbose(t *testing.T) {
 	expected := `main.tftest.hcl... pass
   run "validate_test_resource"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.foo will be created
   + resource "test_resource" "foo" {
@@ -673,7 +673,7 @@ Failure! 0 passed, 1 failed.
 Error: Provider configuration not present
 
 To work with test_resource.secondary its original provider configuration at
-provider["registry.terraform.io/hashicorp/test"].secondary is required, but
+provider["registry.opentofu.org/hashicorp/test"].secondary is required, but
 it has been removed. This occurs when a provider configuration is removed
 while objects created by that provider still exist in the state. Re-add the
 provider configuration to destroy test_resource.secondary, after which you
@@ -690,7 +690,7 @@ Failure! 0 passed, 1 failed.
 Error: Provider configuration not present
 
 To work with test_resource.secondary its original provider configuration at
-provider["registry.terraform.io/hashicorp/test"].secondary is required, but
+provider["registry.opentofu.org/hashicorp/test"].secondary is required, but
 it has been removed. This occurs when a provider configuration is removed
 while objects created by that provider still exist in the state. Re-add the
 provider configuration to destroy test_resource.secondary, after which you
@@ -708,7 +708,7 @@ Failure! 1 passed, 1 failed.
 Error: Provider configuration not present
 
 To work with test_resource.secondary its original provider configuration at
-provider["registry.terraform.io/hashicorp/test"].secondary is required, but
+provider["registry.opentofu.org/hashicorp/test"].secondary is required, but
 it has been removed. This occurs when a provider configuration is removed
 while objects created by that provider still exist in the state. Re-add the
 provider configuration to destroy test_resource.secondary, after which you
@@ -893,11 +893,11 @@ resource "test_resource" "resource" {
 }
   run "plan_second_example"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   + create
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.second_module_resource will be created
   + resource "test_resource" "second_module_resource" {
@@ -908,11 +908,11 @@ OpenTF will perform the following actions:
 Plan: 1 to add, 0 to change, 0 to destroy.
   run "plan_update"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.resource will be updated in-place
   ~ resource "test_resource" "resource" {
@@ -923,11 +923,11 @@ OpenTF will perform the following actions:
 Plan: 0 to add, 1 to change, 0 to destroy.
   run "plan_update_example"... pass
 
-OpenTF used the selected providers to generate the following execution plan.
-Resource actions are indicated with the following symbols:
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
   ~ update in-place
 
-OpenTF will perform the following actions:
+OpenTofu will perform the following actions:
 
   # test_resource.module_resource will be updated in-place
   ~ resource "test_resource" "module_resource" {
@@ -1030,7 +1030,7 @@ configuration.
 
 The -target option is not for routine use, and is provided only for
 exceptional situations such as recovering from errors or mistakes, or when
-OpenTF specifically suggests to use it as part of an error message.
+OpenTofu specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
@@ -1038,11 +1038,11 @@ The plan was created with the -target option in effect, so some changes
 requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
-    opentf plan
+    tofu plan
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
-or when OpenTF specifically suggests to use it as part of an error message.
+or when OpenTofu specifically suggests to use it as part of an error message.
   run "second"... pass
 
 Success! 2 passed, 0 failed.
@@ -1061,7 +1061,7 @@ configuration.
 
 The -target option is not for routine use, and is provided only for
 exceptional situations such as recovering from errors or mistakes, or when
-OpenTF specifically suggests to use it as part of an error message.
+OpenTofu specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
@@ -1069,11 +1069,11 @@ The plan was created with the -target option in effect, so some changes
 requested in the configuration may have been ignored and the output values
 may not be fully updated. Run the following command to verify that no other
 changes are pending:
-    opentf plan
+    tofu plan
 	
 Note that the -target option is not suitable for routine use, and is provided
 only for exceptional situations such as recovering from errors or mistakes,
-or when OpenTF specifically suggests to use it as part of an error message.
+or when OpenTofu specifically suggests to use it as part of an error message.
 
 Failure! 0 passed, 1 failed.
 `,

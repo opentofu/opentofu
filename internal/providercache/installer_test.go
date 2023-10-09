@@ -21,9 +21,9 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 func TestEnsureProviderVersions(t *testing.T) {
@@ -1487,7 +1487,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 			Check: func(t *testing.T, dir *Dir, locks *depsfile.Locks) {
 				// Built-in providers are neither included in the cache
 				// directory nor mentioned in the lock file, because they
-				// are compiled directly into the Terraform executable.
+				// are compiled directly into the OpenTofu executable.
 				if allCached := dir.AllAvailablePackages(); len(allCached) != 0 {
 					t.Errorf("wrong number of cache directory entries; want none\n%s", spew.Sdump(allCached))
 				}
@@ -1669,7 +1669,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				terraformProvider: nil,
 			},
 			WantErr: `some providers could not be installed:
-- terraform.io/builtin/terraform: this OpenTF release has no built-in provider named "terraform"`,
+- terraform.io/builtin/terraform: this OpenTofu release has no built-in provider named "terraform"`,
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
 				return map[addrs.Provider][]*testInstallerEventLogItem{
 					noProvider: {
@@ -1684,7 +1684,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						{
 							Event:    "BuiltInProviderFailure",
 							Provider: terraformProvider,
-							Args:     `this OpenTF release has no built-in provider named "terraform"`,
+							Args:     `this OpenTofu release has no built-in provider named "terraform"`,
 						},
 					},
 				}
@@ -1775,7 +1775,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 			},
 			WantErr: `some providers could not be installed:
-- example.com/foo/beep: locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use opentf init -upgrade to allow selection of new versions`,
+- example.com/foo/beep: locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use tofu init -upgrade to allow selection of new versions`,
 			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
 				return map[addrs.Provider][]*testInstallerEventLogItem{
 					noProvider: {
@@ -1798,7 +1798,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						{
 							Event:    "QueryPackagesFailure",
 							Provider: beepProvider,
-							Args:     `locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use opentf init -upgrade to allow selection of new versions`,
+							Args:     `locked provider example.com/foo/beep 1.0.0 does not match configured version constraint >= 2.0.0; must use tofu init -upgrade to allow selection of new versions`,
 						},
 					},
 				}
@@ -2471,12 +2471,12 @@ func testServices(t *testing.T) (services *disco.Disco, baseURL string, cleanup 
 		"providers.v1": server.URL + "/fails-immediately/",
 	})
 
-	// We'll also permit registry.terraform.io here just because it's our
+	// We'll also permit registry.opentofu.org here just because it's our
 	// default and has some unique features that are not allowed on any other
 	// hostname. It behaves the same as example.com, which should be preferred
 	// if you're not testing something specific to the default registry in order
 	// to ensure that most things are hostname-agnostic.
-	services.ForceHostServices(svchost.Hostname("registry.terraform.io"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
 
@@ -2553,7 +2553,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 
 		case "-/legacy":
 			// NOTE: This legacy lookup endpoint is specific to
-			// registry.terraform.io and not expected to work on any other
+			// registry.opentofu.org and not expected to work on any other
 			// registry host.
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)

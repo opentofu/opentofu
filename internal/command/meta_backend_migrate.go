@@ -14,15 +14,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend/remote"
+	"github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type backendMigrateOpts struct {
@@ -71,16 +71,16 @@ func (m *Meta) backendMigrateState(opts *backendMigrateOpts) error {
 	opts.destinationWorkspace = backend.DefaultStateName
 	opts.force = m.forceInitCopy
 
-	// Disregard remote Terraform version for the state source backend. If it's a
+	// Disregard remote OpenTofu version for the state source backend. If it's a
 	// Terraform Cloud remote backend, we don't care about the remote version,
 	// as we are migrating away and will not break a remote workspace.
 	m.ignoreRemoteVersionConflict(opts.Source)
 
-	// Disregard remote Terraform version if instructed to do so via CLI flag.
+	// Disregard remote OpenTofu version if instructed to do so via CLI flag.
 	if m.ignoreRemoteVersion {
 		m.ignoreRemoteVersionConflict(opts.Destination)
 	} else {
-		// Check the remote Terraform version for the state destination backend. If
+		// Check the remote OpenTofu version for the state destination backend. If
 		// it's a Terraform Cloud remote backend, we want to ensure that we don't
 		// break the workspace by uploading an incompatible state file.
 		for _, workspace := range destinationWorkspaces {
@@ -167,7 +167,7 @@ func (m *Meta) backendMigrateState_S_S(opts *backendMigrateOpts) error {
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id: "backend-migrate-multistate-to-multistate",
 			Query: fmt.Sprintf(
 				"Do you want to migrate all workspaces to %q?",
@@ -178,7 +178,7 @@ func (m *Meta) backendMigrateState_S_S(opts *backendMigrateOpts) error {
 		})
 		if err != nil {
 			return fmt.Errorf(
-				"Error asking for state migration action: %s", err)
+				"Error asking for state migration action: %w", err)
 		}
 	}
 	if !migrate {
@@ -227,7 +227,7 @@ func (m *Meta) backendMigrateState_S_s(opts *backendMigrateOpts) error {
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id: "backend-migrate-multistate-to-single",
 			Query: fmt.Sprintf(
 				"Destination state %q doesn't support workspaces.\n"+
@@ -239,7 +239,7 @@ func (m *Meta) backendMigrateState_S_s(opts *backendMigrateOpts) error {
 		})
 		if err != nil {
 			return fmt.Errorf(
-				"Error asking for state migration action: %s", err)
+				"Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -302,7 +302,7 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 			// the named workspace as the new selected workspace.
 			if workspace == backend.DefaultStateName {
 				if err := m.SetWorkspace(opts.destinationWorkspace); err != nil {
-					return nil, fmt.Errorf("Failed to set new workspace: %s", err)
+					return nil, fmt.Errorf("Failed to set new workspace: %w", err)
 				}
 			}
 
@@ -460,15 +460,15 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 }
 
 func (m *Meta) backendMigrateEmptyConfirm(source, destination statemgr.Full, opts *backendMigrateOpts) (bool, error) {
-	var inputOpts *opentf.InputOpts
+	var inputOpts *tofu.InputOpts
 	if opts.DestinationType == "cloud" {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:          "backend-migrate-copy-to-empty-cloud",
 			Query:       "Do you want to copy existing state to Terraform Cloud?",
 			Description: fmt.Sprintf(strings.TrimSpace(inputBackendMigrateEmptyCloud), opts.SourceType),
 		}
 	} else {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:    "backend-migrate-copy-to-empty",
 			Query: "Do you want to copy existing state to the new backend?",
 			Description: fmt.Sprintf(
@@ -489,7 +489,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	// Save both to a temporary
 	td, err := os.MkdirTemp("", "terraform")
 	if err != nil {
-		return false, fmt.Errorf("Error creating temporary directory: %s", err)
+		return false, fmt.Errorf("Error creating temporary directory: %w", err)
 	}
 	defer os.RemoveAll(td)
 
@@ -503,16 +503,16 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	sourcePath := filepath.Join(td, fmt.Sprintf("1-%s.tfstate", opts.SourceType))
 	destinationPath := filepath.Join(td, fmt.Sprintf("2-%s.tfstate", opts.DestinationType))
 	if err := saveHelper(opts.SourceType, sourcePath, source); err != nil {
-		return false, fmt.Errorf("Error saving temporary state: %s", err)
+		return false, fmt.Errorf("Error saving temporary state: %w", err)
 	}
 	if err := saveHelper(opts.DestinationType, destinationPath, destination); err != nil {
-		return false, fmt.Errorf("Error saving temporary state: %s", err)
+		return false, fmt.Errorf("Error saving temporary state: %w", err)
 	}
 
 	// Ask for confirmation
-	var inputOpts *opentf.InputOpts
+	var inputOpts *tofu.InputOpts
 	if opts.DestinationType == "cloud" {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:    "backend-migrate-to-tfc",
 			Query: "Do you want to copy existing state to Terraform Cloud?",
 			Description: fmt.Sprintf(
@@ -520,7 +520,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 				opts.SourceType, sourcePath, destinationPath),
 		}
 	} else {
-		inputOpts = &opentf.InputOpts{
+		inputOpts = &tofu.InputOpts{
 			Id:    "backend-migrate-to-backend",
 			Query: "Do you want to copy existing state to the new backend?",
 			Description: fmt.Sprintf(
@@ -807,13 +807,13 @@ func (m *Meta) promptSingleToCloudSingleStateMigration(opts *backendMigrateOpts)
 	migrate := opts.force
 	if !migrate {
 		var err error
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id:          "backend-migrate-state-single-to-cloud-single",
 			Query:       "Do you wish to proceed?",
 			Description: strings.TrimSpace(tfcInputBackendMigrateStateSingleToCloudSingle),
 		})
 		if err != nil {
-			return false, fmt.Errorf("Error asking for state migration action: %s", err)
+			return false, fmt.Errorf("Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -828,13 +828,13 @@ func (m *Meta) promptRemotePrefixToCloudTagsMigration(opts *backendMigrateOpts) 
 	migrate := opts.force
 	if !migrate {
 		var err error
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id:          "backend-migrate-remote-multistate-to-cloud",
 			Query:       "Do you wish to proceed?",
 			Description: strings.TrimSpace(tfcInputBackendMigrateRemoteMultiToCloud),
 		})
 		if err != nil {
-			return fmt.Errorf("Error asking for state migration action: %s", err)
+			return fmt.Errorf("Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -855,7 +855,7 @@ func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error
 	if !migrate {
 		var err error
 		// Ask the user if they want to migrate their existing remote state
-		migrate, err = m.confirm(&opentf.InputOpts{
+		migrate, err = m.confirm(&tofu.InputOpts{
 			Id:    "backend-migrate-multistate-to-single",
 			Query: "Do you want to copy only your current workspace?",
 			Description: fmt.Sprintf(
@@ -863,7 +863,7 @@ func (m *Meta) promptMultiToSingleCloudMigration(opts *backendMigrateOpts) error
 				opts.SourceType, opts.destinationWorkspace),
 		})
 		if err != nil {
-			return fmt.Errorf("Error asking for state migration action: %s", err)
+			return fmt.Errorf("Error asking for state migration action: %w", err)
 		}
 	}
 
@@ -884,13 +884,13 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 		}
 		message = `[reset][bold][yellow]Terraform Cloud requires all workspaces to be given an explicit name.[reset]`
 	}
-	name, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	name, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "new-state-name",
 		Query:       message,
 		Description: strings.TrimSpace(inputBackendNewWorkspaceName),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error asking for new state name: %s", err)
+		return "", fmt.Errorf("Error asking for new state name: %w", err)
 	}
 
 	return name, nil
@@ -899,13 +899,13 @@ func (m *Meta) promptNewWorkspaceName(destinationType string) (string, error) {
 func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, error) {
 	// This is not the first prompt a user would be presented with in the migration to TFC, so no
 	// guard on m.input is needed here.
-	renameWorkspaces, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	renameWorkspaces, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "backend-migrate-multistate-to-tfc",
 		Query:       fmt.Sprintf("[reset][bold][yellow]%s[reset]", "Would you like to rename your workspaces?"),
 		Description: fmt.Sprintf(strings.TrimSpace(tfcInputBackendMigrateMultiToMulti), sourceType),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error asking for state migration action: %s", err)
+		return "", fmt.Errorf("Error asking for state migration action: %w", err)
 	}
 	if renameWorkspaces != "2" && renameWorkspaces != "1" {
 		return "", fmt.Errorf("Please select 1 or 2 as part of this option.")
@@ -917,13 +917,13 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 		return "*", nil
 	}
 
-	pattern, err := m.UIInput().Input(context.Background(), &opentf.InputOpts{
+	pattern, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id:          "backend-migrate-multistate-to-tfc-pattern",
 		Query:       fmt.Sprintf("[reset][bold][yellow]%s[reset]", "How would you like to rename your workspaces?"),
 		Description: strings.TrimSpace(tfcInputBackendMigrateMultiToMultiPattern),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error asking for state migration action: %s", err)
+		return "", fmt.Errorf("Error asking for state migration action: %w", err)
 	}
 	if !strings.Contains(pattern, "*") {
 		return "", fmt.Errorf("The pattern must have an '*'")
@@ -938,19 +938,18 @@ func (m *Meta) promptMultiStateMigrationPattern(sourceType string) (string, erro
 
 const errMigrateLoadStates = `
 Error inspecting states in the %q backend:
-    %s
+    %w
 
-Prior to changing backends, OpenTF inspects the source and destination
+Prior to changing backends, OpenTofu inspects the source and destination
 states to determine what kind of migration steps need to be taken, if any.
-OpenTF failed to load the states. The data in both the source and the
+OpenTofu failed to load the states. The data in both the source and the
 destination remain unmodified. Please resolve the above error and try again.
 `
 
 const errMigrateSingleLoadDefault = `
-Error loading state:
-    %[2]s
+Error loading default state from the %q backend:
+    %w
 
-OpenTF failed to load the default state from the %[1]q backend.
 State migration cannot occur unless the state can be loaded. Backend
 modification and state migration has been aborted. The state in both the
 source and the destination remain unmodified. Please resolve the
@@ -960,9 +959,9 @@ above error and try again.
 const errMigrateMulti = `
 Error migrating the workspace %q from the previous %q backend
 to the newly configured %q backend:
-    %s
+    %w
 
-OpenTF copies workspaces in alphabetical order. Any workspaces
+OpenTofu copies workspaces in alphabetical order. Any workspaces
 alphabetically earlier than this one have been copied. Any workspaces
 later than this haven't been modified in the destination. No workspaces
 in the source state have been modified.
@@ -974,7 +973,7 @@ This will attempt to copy (with permission) all workspaces again.
 const errBackendStateCopy = `
 Error copying state from the previous %q backend to the newly configured
 %q backend:
-    %s
+    %w
 
 The state in the previous backend remains intact and unmodified. Please resolve
 the error above and try again.
@@ -1001,7 +1000,7 @@ For example, if a workspace is currently named 'prod', the pattern 'app-*' would
 `
 
 const tfcInputBackendMigrateMultiToMulti = `
-Unlike typical OpenTF workspaces representing an environment associated with a particular
+Unlike typical OpenTofu workspaces representing an environment associated with a particular
 configuration (e.g. production, staging, development), Terraform Cloud workspaces are named uniquely
 across all configurations used within an organization. A typical strategy to start with is
 <COMPONENT>-<ENVIRONMENT>-<REGION> (e.g. networking-prod-us-east, networking-staging-us-east).
@@ -1026,7 +1025,7 @@ Enter "yes" to proceed or "no" to cancel.
 `
 
 const tfcInputBackendMigrateStateSingleToCloudSingle = `
-As part of migrating to Terraform Cloud, OpenTF can optionally copy your
+As part of migrating to Terraform Cloud, OpenTofu can optionally copy your
 current workspace state to the configured Terraform Cloud workspace.
 
 Answer "yes" to copy the latest state snapshot to the configured
@@ -1035,15 +1034,15 @@ Terraform Cloud workspace.
 Answer "no" to ignore the existing state and just activate the configured
 Terraform Cloud workspace with its existing state, if any.
 
-Should OpenTF migrate your existing state?
+Should OpenTofu migrate your existing state?
 `
 
 const tfcInputBackendMigrateRemoteMultiToCloud = `
-When migrating from the 'remote' backend to OpenTF's native integration
-with Terraform Cloud, OpenTF will automatically create or use existing
+When migrating from the 'remote' backend to OpenTofu's native integration
+with Terraform Cloud, OpenTofu will automatically create or use existing
 workspaces based on the previous backend configuration's 'prefix' value.
 
-When the migration is complete, workspace names in OpenTF will match the
+When the migration is complete, workspace names in OpenTofu will match the
 fully qualified Terraform Cloud workspace name. If necessary, the workspace
 tags configured in the 'cloud' option block will be added to the associated
 Terraform Cloud workspaces.
@@ -1094,24 +1093,24 @@ Enter "yes" to copy and "no" to start with the existing state in Terraform Cloud
 const inputBackendMigrateMultiToSingle = `
 The existing %[1]q backend supports workspaces and you currently are
 using more than one. The newly configured %[2]q backend doesn't support
-workspaces. If you continue, OpenTF will copy your current workspace %[3]q
+workspaces. If you continue, OpenTofu will copy your current workspace %[3]q
 to the default workspace in the new backend. Your existing workspaces in the
 source backend won't be modified. If you want to switch workspaces, back them
-up, or cancel altogether, answer "no" and OpenTF will abort.
+up, or cancel altogether, answer "no" and OpenTofu will abort.
 `
 
 const inputBackendMigrateMultiToMulti = `
 Both the existing %[1]q backend and the newly configured %[2]q backend
-support workspaces. When migrating between backends, OpenTF will copy
+support workspaces. When migrating between backends, OpenTofu will copy
 all workspaces (with the same names). THIS WILL OVERWRITE any conflicting
 states in the destination.
 
-OpenTF initialization doesn't currently migrate only select workspaces.
+OpenTofu initialization doesn't currently migrate only select workspaces.
 If you want to migrate a select number of workspaces, you must manually
 pull and push those states.
 
-If you answer "yes", OpenTF will migrate all states. If you answer
-"no", OpenTF will abort.
+If you answer "yes", OpenTofu will migrate all states. If you answer
+"no", OpenTofu will abort.
 `
 
 const inputBackendNewWorkspaceName = `

@@ -16,9 +16,9 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Filesystem is a full state manager that uses a file in the local filesystem
@@ -154,13 +154,13 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 			log.Printf("[TRACE] statemgr.Filesystem: creating backup snapshot at %s", s.backupPath)
 			bfh, err := os.Create(s.backupPath)
 			if err != nil {
-				return fmt.Errorf("failed to create local state backup file: %s", err)
+				return fmt.Errorf("failed to create local state backup file: %w", err)
 			}
 			defer bfh.Close()
 
 			err = statefile.Write(s.backupFile, bfh)
 			if err != nil {
-				return fmt.Errorf("failed to write to local state backup file: %s", err)
+				return fmt.Errorf("failed to write to local state backup file: %w", err)
 			}
 
 			s.writtenBackup = true
@@ -226,7 +226,7 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 
 // PersistState is an implementation of Persister that does nothing because
 // this type's Writer implementation does its own persistence.
-func (s *Filesystem) PersistState(schemas *opentf.Schemas) error {
+func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
 	return nil
 }
 
@@ -521,7 +521,7 @@ func (s *Filesystem) lockInfo() (*LockInfo, error) {
 	info := LockInfo{}
 	err = json.Unmarshal(infoData, &info)
 	if err != nil {
-		return nil, fmt.Errorf("state file %q locked, but could not unmarshal lock info: %s", s.readPath, err)
+		return nil, fmt.Errorf("state file %q locked, but could not unmarshal lock info: %w", s.readPath, err)
 	}
 	return &info, nil
 }
@@ -535,7 +535,7 @@ func (s *Filesystem) writeLockInfo(info *LockInfo) error {
 	log.Printf("[TRACE] statemgr.Filesystem: writing lock metadata to %s", path)
 	err := os.WriteFile(path, info.Marshal(), 0600)
 	if err != nil {
-		return fmt.Errorf("could not write lock info for %q: %s", s.readPath, err)
+		return fmt.Errorf("could not write lock info for %q: %w", s.readPath, err)
 	}
 	return nil
 }

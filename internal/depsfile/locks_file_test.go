@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestLoadLocksFromFile(t *testing.T) {
@@ -163,7 +163,7 @@ func TestLoadLocksFromFile(t *testing.T) {
 
 func TestLoadLocksFromFileAbsent(t *testing.T) {
 	t.Run("lock file is a directory", func(t *testing.T) {
-		// This can never happen when OpenTF is the one generating the
+		// This can never happen when OpenTofu is the one generating the
 		// lock file, but might arise if the user makes a directory with the
 		// lock file's name for some reason. (There is no actual reason to do
 		// so, so that would always be a mistake.)
@@ -243,24 +243,24 @@ func TestSaveLocksToFile(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 	gotContent := string(gotContentBytes)
-	wantContent := `# This file is maintained automatically by "opentf init".
+	wantContent := `# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.terraform.io/test/bar" {
+provider "registry.opentofu.org/test/bar" {
   version     = "1.2.0"
   constraints = "~> 1.0"
 }
 
-provider "registry.terraform.io/test/baz" {
+provider "registry.opentofu.org/test/baz" {
   version = "1.2.0"
 }
 
-provider "registry.terraform.io/test/boo" {
+provider "registry.opentofu.org/test/boo" {
   version     = "1.2.0"
   constraints = "1.2.0"
 }
 
-provider "registry.terraform.io/test/foo" {
+provider "registry.opentofu.org/test/foo" {
   version     = "1.0.0"
   constraints = ">= 1.0.0"
   hashes = [

@@ -10,13 +10,13 @@ import (
 
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 )
 
 // String returns a rather-odd string representation of the entire state.
 //
-// This is intended to match the behavior of the older terraform.State.String
+// This is intended to match the behavior of the older tofu.State.String
 // method that is used in lots of existing tests. It should not be used in
 // new tests: instead, use "cmp" to directly compare the state data structures
 // and print out a diff if they do not match.
@@ -47,7 +47,7 @@ func (s *State) String() string {
 		}
 
 		// We need to build out a string that resembles the not-quite-standard
-		// format that terraform.State.String used to use, where there's a
+		// format that tofu.State.String used to use, where there's a
 		// "module." prefix but then just a chain of all of the module names
 		// without any further "module." portions.
 		buf.WriteString("module")

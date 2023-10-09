@@ -1,7 +1,6 @@
 ---
-page_title: Expressions - Configuration Language
 description: >-
-  An overview of expressions to reference or compute values in OpenTF
+  An overview of expressions to reference or compute values in OpenTofu
   configurations, including types, operators, and functions.
 ---
 
@@ -9,61 +8,61 @@ description: >-
 
 _Expressions_ refer to or compute values within a configuration.
 The simplest expressions are just literal values, like `"hello"` or `5`,
-but the OpenTF language also allows more complex expressions such as
+but the OpenTofu language also allows more complex expressions such as
 references to data exported by resources, arithmetic, conditional evaluation,
 and a number of built-in functions.
 
-Expressions can be used in a number of places in the OpenTF language,
+Expressions can be used in a number of places in the OpenTofu language,
 but some contexts limit which expression constructs are allowed,
 such as requiring a literal value of a particular type or forbidding
-[references to resource attributes](/opentf/language/expressions/references#references-to-resource-attributes).
+[references to resource attributes](/docs/language/expressions/references#references-to-resource-attributes).
 Each language feature's documentation describes any restrictions it places on
 expressions.
 
-You can experiment with the behavior of OpenTF's expressions from
-the OpenTF expression console, by running
-[the `opentf console` command](/opentf/cli/commands/console).
+You can experiment with the behavior of OpenTofu's expressions from
+the OpenTofu expression console, by running
+[the `tofu console` command](/docs/cli/commands/console).
 
-The other pages in this section describe the features of OpenTF's
+The other pages in this section describe the features of OpenTofu's
 expression syntax.
 
-- [Types and Values](/opentf/language/expressions/types)
-  documents the data types that OpenTF expressions can resolve to, and the
+- [Types and Values](/docs/language/expressions/types)
+  documents the data types that OpenTofu expressions can resolve to, and the
   literal syntaxes for values of those types.
 
-- [Strings and Templates](/opentf/language/expressions/strings)
+- [Strings and Templates](/docs/language/expressions/strings)
   documents the syntaxes for string literals, including interpolation sequences
   and template directives.
 
-- [References to Values](/opentf/language/expressions/references)
+- [References to Values](/docs/language/expressions/references)
   documents how to refer to named values like variables and resource attributes.
 
-- [Operators](/opentf/language/expressions/operators)
+- [Operators](/docs/language/expressions/operators)
   documents the arithmetic, comparison, and logical operators.
 
-- [Function Calls](/opentf/language/expressions/function-calls)
-  documents the syntax for calling OpenTF's built-in functions.
+- [Function Calls](/docs/language/expressions/function-calls)
+  documents the syntax for calling OpenTofu's built-in functions.
 
-- [Conditional Expressions](/opentf/language/expressions/conditionals)
+- [Conditional Expressions](/docs/language/expressions/conditionals)
   documents the `<CONDITION> ? <TRUE VAL> : <FALSE VAL>` expression, which
   chooses between two values based on a bool condition.
 
-- [For Expressions](/opentf/language/expressions/for)
+- [For Expressions](/docs/language/expressions/for)
   documents expressions like `[for s in var.list : upper(s)]`, which can
   transform a complex type value into another complex type value.
 
-- [Splat Expressions](/opentf/language/expressions/splat)
+- [Splat Expressions](/docs/language/expressions/splat)
   documents expressions like `var.list[*].id`, which can extract simpler
   collections from more complicated expressions.
 
-- [Dynamic Blocks](/opentf/language/expressions/dynamic-blocks)
+- [Dynamic Blocks](/docs/language/expressions/dynamic-blocks)
   documents a way to create multiple repeatable nested blocks within a resource
   or other construct.
 
-- [Type Constraints](/opentf/language/expressions/type-constraints)
+- [Type Constraints](/docs/language/expressions/type-constraints)
   documents the syntax for referring to a type, rather than a value of that
   type. Input variables expect this syntax in their `type` argument.
 
-- [Version Constraints](/opentf/language/expressions/version-constraints)
+- [Version Constraints](/docs/language/expressions/version-constraints)
   documents the syntax of special strings that define a set of allowed software
-  versions. OpenTF uses version constraints in several places.
+  versions. OpenTofu uses version constraints in several places.

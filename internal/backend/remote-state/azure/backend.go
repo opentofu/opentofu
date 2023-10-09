@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
 
 // New creates a new backend for Azure remote state.
@@ -174,7 +174,7 @@ func New() backend.Backend {
 			"use_azuread_auth": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Should OpenTF use AzureAD Authentication to access the Blob?",
+				Description: "Should OpenTofu use AzureAD Authentication to access the Blob?",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_AZUREAD", false),
 			},
 		},

@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 func TestLoadModuleCall(t *testing.T) {
@@ -174,7 +174,7 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 			true,
 		},
 		{
-			"registry.terraform.io/hashicorp/subnets/cidr", // registry module
+			"registry.opentofu.org/hashicorp/subnets/cidr", // registry module
 			true,
 		},
 	}

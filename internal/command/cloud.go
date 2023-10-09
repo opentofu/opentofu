@@ -9,9 +9,9 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/cloudplugin1"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
+	"github.com/opentofu/opentofu/internal/cloudplugin"
+	"github.com/opentofu/opentofu/internal/cloudplugin/cloudplugin1"
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // CloudCommand is a Command implementation that interacts with Terraform
@@ -74,7 +74,7 @@ func (c *CloudCommand) proxy(args []string, stdout, stderr io.Writer) int {
 	// multiple versions are possible.
 	cloud1, ok := raw.(cloudplugin.Cloud1)
 	if !ok {
-		c.Ui.Error("If more than one cloudplugin versions are available, they need to be added to the cloud command. This is a bug in OpenTF.")
+		c.Ui.Error("If more than one cloudplugin versions are available, they need to be added to the cloud command. This is a bug in OpenTofu.")
 		return ExitRPCError
 	}
 	return cloud1.Execute(args, stdout, stderr)

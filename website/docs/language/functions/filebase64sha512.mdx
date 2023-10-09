@@ -1,5 +1,5 @@
 ---
-page_title: filebase64sha512 - Functions - Configuration Language
+sidebar_label: filebase64sha512
 description: |-
   The filebase64sha512 function computes the SHA512 hash of the contents of
   a given file and encodes it with Base64.
@@ -7,9 +7,9 @@ description: |-
 
 # `filebase64sha512` Function
 
-`filebase64sha512` is a variant of [`base64sha512`](/opentf/language/functions/base64sha512)
+`filebase64sha512` is a variant of [`base64sha512`](/docs/language/functions/base64sha512)
 that hashes the contents of a given file rather than a literal string.
 
 This is similar to `base64sha512(file(filename))`, but
-because [`file`](/opentf/language/functions/file) accepts only UTF-8 text it cannot be used to
+because [`file`](/docs/language/functions/file) accepts only UTF-8 text it cannot be used to
 create hashes for binary files.

@@ -2,7 +2,7 @@
   "configuration": {
     "provider_config": {
       "tfcoremock": {
-        "full_name": "registry.terraform.io/hashicorp/tfcoremock",
+        "full_name": "registry.opentofu.org/hashicorp/tfcoremock",
         "name": "tfcoremock",
         "version_constraint": "0.1.1"
       }
@@ -46,7 +46,7 @@
           "address": "tfcoremock_nested_map.nested_map",
           "mode": "managed",
           "name": "nested_map",
-          "provider_name": "registry.terraform.io/hashicorp/tfcoremock",
+          "provider_name": "registry.opentofu.org/hashicorp/tfcoremock",
           "schema_version": 0,
           "sensitive_values": {
             "maps": {
@@ -104,7 +104,7 @@
       },
       "mode": "managed",
       "name": "nested_map",
-      "provider_name": "registry.terraform.io/hashicorp/tfcoremock",
+      "provider_name": "registry.opentofu.org/hashicorp/tfcoremock",
       "type": "tfcoremock_nested_map"
     }
   ]

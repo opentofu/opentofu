@@ -2,7 +2,7 @@
   "configuration": {
     "provider_config": {
       "tfcoremock": {
-        "full_name": "registry.terraform.io/hashicorp/tfcoremock",
+        "full_name": "registry.opentofu.org/hashicorp/tfcoremock",
         "name": "tfcoremock",
         "version_constraint": "0.1.1"
       }
@@ -34,7 +34,7 @@
           "address": "tfcoremock_list.list",
           "mode": "managed",
           "name": "list",
-          "provider_name": "registry.terraform.io/hashicorp/tfcoremock",
+          "provider_name": "registry.opentofu.org/hashicorp/tfcoremock",
           "schema_version": 0,
           "sensitive_values": {},
           "type": "tfcoremock_list",
@@ -55,7 +55,7 @@
             "address": "tfcoremock_list.list",
             "mode": "managed",
             "name": "list",
-            "provider_name": "registry.terraform.io/hashicorp/tfcoremock",
+            "provider_name": "registry.opentofu.org/hashicorp/tfcoremock",
             "schema_version": 0,
             "sensitive_values": {
               "list": [
@@ -109,7 +109,7 @@
       },
       "mode": "managed",
       "name": "list",
-      "provider_name": "registry.terraform.io/hashicorp/tfcoremock",
+      "provider_name": "registry.opentofu.org/hashicorp/tfcoremock",
       "type": "tfcoremock_list"
     }
   ]

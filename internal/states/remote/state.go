@@ -11,11 +11,11 @@ import (
 
 	uuid "github.com/hashicorp/go-uuid"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend/local"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // State implements the State interfaces in the state package to handle
@@ -42,7 +42,7 @@ type State struct {
 	disableLocks         bool
 
 	// If this is set then the state manager will decline to store intermediate
-	// state snapshots created while a Terraform Core apply operation is in
+	// state snapshots created while a OpenTofu Core apply operation is in
 	// progress. Otherwise (by default) it will accept persistent snapshots
 	// using the default rules defined in the local backend.
 	DisableIntermediateSnapshots bool
@@ -62,7 +62,7 @@ func (s *State) State() *states.State {
 
 func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
 	if err := s.RefreshState(); err != nil {
-		return nil, fmt.Errorf("Failed to load state: %s", err)
+		return nil, fmt.Errorf("Failed to load state: %w", err)
 	}
 
 	state := s.State()
@@ -166,7 +166,7 @@ func (s *State) refreshState() error {
 }
 
 // statemgr.Persister impl.
-func (s *State) PersistState(schemas *opentf.Schemas) error {
+func (s *State) PersistState(schemas *tofu.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -188,14 +188,14 @@ func (s *State) PersistState(schemas *opentf.Schemas) error {
 		// that we ought to be updating.
 		err := s.refreshState()
 		if err != nil {
-			return fmt.Errorf("failed checking for existing remote state: %s", err)
+			return fmt.Errorf("failed checking for existing remote state: %w", err)
 		}
 		log.Printf("[DEBUG] states/remote: after refresh, state read serial is: %d; serial is: %d", s.readSerial, s.serial)
 		log.Printf("[DEBUG] states/remote: after refresh, state read lineage is: %s; lineage is: %s", s.readLineage, s.lineage)
 		if s.lineage == "" { // indicates that no state snapshot is present yet
 			lineage, err := uuid.GenerateUUID()
 			if err != nil {
-				return fmt.Errorf("failed to generate initial lineage: %v", err)
+				return fmt.Errorf("failed to generate initial lineage: %w", err)
 			}
 			s.lineage = lineage
 			s.serial++

@@ -3,14 +3,14 @@
 
 package statemgr
 
-import "github.com/placeholderplaceholderplaceholder/opentf/internal/states"
+import "github.com/opentofu/opentofu/internal/states"
 
 // Transient is a union of the Reader and Writer interfaces, for types that
 // deal with transient snapshots.
 //
 // Transient snapshots are ones that are generally retained only locally and
 // to not create any historical version record when updated. Transient
-// snapshots are not expected to outlive a particular Terraform process,
+// snapshots are not expected to outlive a particular OpenTofu process,
 // and are not shared with any other process.
 //
 // A state manager type that is primarily concerned with persistent storage

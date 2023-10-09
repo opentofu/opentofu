@@ -11,12 +11,12 @@ import (
 
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/repl"
+	"github.com/opentofu/opentofu/internal/repl"
 )
 
 func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 	ui.Error(fmt.Sprintf(
-		"The readline library OpenTF currently uses for the interactive\n" +
+		"The readline library OpenTofu currently uses for the interactive\n" +
 			"console is not supported by Solaris. Interactive mode is therefore\n" +
 			"not supported on Solaris currently."))
 	return 1

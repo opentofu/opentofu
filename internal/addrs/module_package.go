@@ -4,12 +4,12 @@
 package addrs
 
 import (
-	tfaddr "github.com/hashicorp/terraform-registry-address"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
-// A ModulePackage represents a physical location where OpenTF can retrieve
+// A ModulePackage represents a physical location where OpenTofu can retrieve
 // a module package, which is an archive, repository, or other similar
-// container which delivers the source code for one or more OpenTF modules.
+// container which delivers the source code for one or more OpenTofu modules.
 //
 // A ModulePackage is a string in go-getter's address syntax. By convention,
 // we use ModulePackage-typed values only for the result of successfully

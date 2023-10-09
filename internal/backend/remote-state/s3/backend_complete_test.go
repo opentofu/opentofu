@@ -12,8 +12,8 @@ import (
 	awsbase "github.com/hashicorp/aws-sdk-go-base"
 	mockdata "github.com/hashicorp/aws-sdk-go-base"
 	servicemocks "github.com/hashicorp/aws-sdk-go-base"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type DiagsValidator func(*testing.T, tfdiags.Diagnostics)

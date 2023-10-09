@@ -4,7 +4,7 @@
 package arguments
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Validate represents the command-line arguments for the validate command.
@@ -18,7 +18,7 @@ type Validate struct {
 	// Path.
 	TestDirectory string
 
-	// NoTests indicates that OpenTF should not validate any test files
+	// NoTests indicates that OpenTofu should not validate any test files
 	// included with the module.
 	NoTests bool
 

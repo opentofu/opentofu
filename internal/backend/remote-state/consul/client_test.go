@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 func TestRemoteClient_impl(t *testing.T) {
@@ -318,7 +318,7 @@ func TestConsul_destroyLock(t *testing.T) {
 			testLock(clientA, lockPath)
 
 			// The release the lock from a second client to test the
-			// `opentf force-unlock <lock_id>` functionality
+			// `tofu force-unlock <lock_id>` functionality
 			s, err = b.StateMgr(backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)

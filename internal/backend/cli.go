@@ -7,17 +7,17 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // CLI is an optional interface that can be implemented to be initialized
-// with information from the OpenTF CLI. If this is implemented, this
+// with information from the OpenTofu CLI. If this is implemented, this
 // initialization function will be called with data to help interact better
 // with a CLI.
 //
 // This interface was created to improve backend interaction with the
-// official OpenTF CLI while making it optional for API users to have
+// official OpenTofu CLI while making it optional for API users to have
 // to provide full CLI interaction to every backend.
 //
 // If you're implementing a Backend, it is acceptable to require CLI
@@ -71,9 +71,9 @@ type CLIOpts struct {
 	StateBackupPath string
 
 	// ContextOpts are the base context options to set when initializing a
-	// OpenTF context. Many of these will be overridden or merged by
+	// OpenTofu context. Many of these will be overridden or merged by
 	// Operation. See Operation for more details.
-	ContextOpts *opentf.ContextOpts
+	ContextOpts *tofu.ContextOpts
 
 	// Input will ask for necessary input prior to performing any operations.
 	//
@@ -87,7 +87,7 @@ type CLIOpts struct {
 	// automated system rather than directly at a command prompt.
 	//
 	// This is a hint not to produce messages that expect that a user can
-	// run a follow-up command, perhaps because OpenTF is running in
+	// run a follow-up command, perhaps because OpenTofu is running in
 	// some sort of workflow automation tool that abstracts away the
 	// exact commands that are being run.
 	RunningInAutomation bool

@@ -1,5 +1,5 @@
 [
-  { "heading": "OpenTF Language" },
+  { "heading": "OpenTofu Language" },
   { "title": "Overview", "path": "language/index" },
   {
     "title": "Attributes as Blocks - Configuration Language",
@@ -1188,7 +1188,7 @@
     ]
   },
   {
-    "title": "OpenTF Settings",
+    "title": "OpenTofu Settings",
     "routes": [
       { "title": "Overview", "path": "language/settings/index" },
       {
@@ -1333,7 +1333,7 @@
     ]
   },
   {
-    "title": "Upgrading to OpenTF v1.5",
+    "title": "Upgrading to OpenTofu v1.5",
     "path": "language/upgrade-guides/index"
   },
   {

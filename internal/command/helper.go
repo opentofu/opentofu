@@ -4,24 +4,24 @@
 package command
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/cloud"
 )
 
 const failedToLoadSchemasMessage = `
 Warning: Failed to update data for external integrations
 
-OpenTF was unable to generate a description of the updated
+OpenTofu was unable to generate a description of the updated
 state for use with external integrations in Terraform Cloud.
 Any integrations configured for this workspace which depend on
 information from the state may not work correctly when using the
 result of this action.
 
-This problem occurs when OpenTF cannot read the schema for
+This problem occurs when OpenTofu cannot read the schema for
 one or more of the providers used in the state. The next successful
 apply will correct the problem by re-generating the JSON description
 of the state:
-    opentf apply
+    tofu apply
 `
 
 func isCloudMode(b backend.Enhanced) bool {

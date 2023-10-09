@@ -10,7 +10,7 @@ import (
 
 	"github.com/posener/complete"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type WorkspaceListCommand struct {
@@ -30,7 +30,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	args = cmdFlags.Args()
-	configPath, err := ModulePath(args)
+	configPath, err := modulePath(args)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -95,9 +95,9 @@ func (c *WorkspaceListCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceListCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] workspace list
+Usage: tofu [global options] workspace list
 
-  List OpenTF workspaces.
+  List OpenTofu workspaces.
 
 `
 	return strings.TrimSpace(helpText)

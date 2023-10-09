@@ -18,7 +18,7 @@ website/node_modules
 *.test
 *.iml
 
-/opentf
+/tofu
 
 website/vendor
 vendor/
@@ -28,3 +28,6 @@ coverage.txt
 
 # GoReleaser build directory
 dist/
+
+# Licensei cache file
+.licensei.cache

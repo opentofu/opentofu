@@ -6,7 +6,7 @@ package getproviders
 import (
 	"context"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // FilesystemMirrorSource is a source that reads providers and their metadata

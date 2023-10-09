@@ -13,17 +13,17 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/moduletest"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/moduletest"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 const (
@@ -36,13 +36,13 @@ type TestCommand struct {
 
 func (c *TestCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] test [options]
+Usage: tofu [global options] test [options]
 
-  Executes automated integration tests against the current OpenTF 
+  Executes automated integration tests against the current OpenTofu 
   configuration.
 
-  OpenTF will search for .tftest.hcl files within the current configuration 
-  and testing directories. OpenTF will then execute the testing run blocks 
+  OpenTofu will search for .tftest.hcl files within the current configuration 
+  and testing directories. OpenTofu will then execute the testing run blocks 
   within any testing files in order, and verify conditional checks and 
   assertions against the created infrastructure. 
 
@@ -52,7 +52,7 @@ Usage: opentf [global options] test [options]
 
 Options:
 
-  -filter=testfile      If specified, OpenTF will only execute the test files
+  -filter=testfile      If specified, OpenTofu will only execute the test files
                         specified by this flag. You can use this option multiple
                         times to execute more than one test file.
 
@@ -61,7 +61,9 @@ Options:
 
   -no-color             If specified, output won't contain any color.
 
-  -test-directory=path	Set the OpenTF test directory, defaults to "tests".    
+  -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
+                        test command will search for test files in the current directory and
+                        in the one specified by the flag.
 
   -var 'foo=bar'        Set a value for one of the input variables in the root
                         module of the configuration. Use this option more than
@@ -79,7 +81,7 @@ Options:
 }
 
 func (c *TestCommand) Synopsis() string {
-	return "Execute integration tests for OpenTF modules"
+	return "Execute integration tests for OpenTofu modules"
 }
 
 func (c *TestCommand) Run(rawArgs []string) int {
@@ -308,7 +310,7 @@ type TestSuiteRunner struct {
 	Config *configs.Config
 
 	GlobalVariables map[string]backend.UnparsedVariableValue
-	Opts            *opentf.ContextOpts
+	Opts            *tofu.ContextOpts
 
 	View views.Test
 
@@ -415,7 +417,7 @@ func (runner *TestFileRunner) ExecuteTestFile(file *moduletest.File) {
 				run.Diagnostics = run.Diagnostics.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid module source",
-					Detail:   fmt.Sprintf("The source for the selected module evaluated to %s which should not be possible. This is a bug in OpenTF - please report it!", key),
+					Detail:   fmt.Sprintf("The source for the selected module evaluated to %s which should not be possible. This is a bug in OpenTofu - please report it!", key),
 					Subject:  run.Config.Module.DeclRange.Ptr(),
 				})
 
@@ -519,7 +521,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Warning,
 					"Failed to print verbose output",
-					fmt.Sprintf("OpenTF failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
+					fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
 			} else {
 				run.Verbose = &moduletest.Verbose{
 					Plan:         plan,
@@ -592,7 +594,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Failed to print verbose output",
-				fmt.Sprintf("OpenTF failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
+				fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
 		} else {
 			run.Verbose = &moduletest.Verbose{
 				Plan:         plan,
@@ -615,7 +617,7 @@ func (runner *TestFileRunner) validate(config *configs.Config, run *moduletest.R
 
 	var diags tfdiags.Diagnostics
 
-	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return diags
@@ -662,12 +664,12 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		return state, diags
 	}
 
-	planOpts := &opentf.PlanOpts{
+	planOpts := &tofu.PlanOpts{
 		Mode:         plans.DestroyMode,
 		SetVariables: variables,
 	}
 
-	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return state, diags
@@ -703,7 +705,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 	return updated, diags
 }
 
-func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*opentf.Context, *plans.Plan, tfdiags.Diagnostics) {
+func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*tofu.Context, *plans.Plan, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called plan for %s/%s", file.Name, run.Name)
 
 	var diags tfdiags.Diagnostics
@@ -724,7 +726,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		return nil, nil, diags
 	}
 
-	planOpts := &opentf.PlanOpts{
+	planOpts := &tofu.PlanOpts{
 		Mode: func() plans.Mode {
 			switch run.Config.Options.Mode {
 			case configs.RefreshOnlyTestMode:
@@ -740,7 +742,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		ExternalReferences: references,
 	}
 
-	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, nil, diags
@@ -770,7 +772,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	return tfCtx, plan, diags
 }
 
-func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, config *configs.Config, run *moduletest.Run, file *moduletest.File) (*opentf.Context, *states.State, tfdiags.Diagnostics) {
+func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, config *configs.Config, run *moduletest.Run, file *moduletest.File) (*tofu.Context, *states.State, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called apply for %s/%s", file.Name, run.Name)
 
 	var diags tfdiags.Diagnostics
@@ -794,7 +796,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 		created = append(created, change)
 	}
 
-	tfCtx, ctxDiags := opentf.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, state, diags
@@ -824,7 +826,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 	return tfCtx, updated, diags
 }
 
-func (runner *TestFileRunner) wait(ctx *opentf.Context, runningCtx context.Context, run *moduletest.Run, file *moduletest.File, created []*plans.ResourceInstanceChangeSrc) (diags tfdiags.Diagnostics, cancelled bool) {
+func (runner *TestFileRunner) wait(ctx *tofu.Context, runningCtx context.Context, run *moduletest.Run, file *moduletest.File, created []*plans.ResourceInstanceChangeSrc) (diags tfdiags.Diagnostics, cancelled bool) {
 	var identifier string
 	if file == nil {
 		identifier = "validate"
@@ -909,7 +911,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 	if main.Run == nil {
 		if !main.State.Empty() {
 			log.Printf("[ERROR] TestFileRunner: found inconsistent run block and state file in %s", file.Name)
-			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTF - please report it", file.Name)))
+			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTofu - please report it", file.Name)))
 		}
 	} else {
 		reset, configDiags := runner.Suite.Config.TransformForTest(main.Run.Config, file.Config)
@@ -952,7 +954,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 			// print a diagnostic instead of panicking later.
 
 			var diags tfdiags.Diagnostics
-			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTF - please report it", file.Name)))
+			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTofu - please report it", file.Name)))
 			runner.Suite.View.DestroySummary(diags, nil, file, state.State)
 			continue
 		}
@@ -997,13 +999,13 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 
 // helper functions
 
-// buildInputVariablesForTest creates a opentf.InputValues mapping for
+// buildInputVariablesForTest creates a tofu.InputValues mapping for
 // variable values that are relevant to the config being tested.
 //
 // Crucially, it differs from prepareInputVariablesForAssertions in that it only
 // includes variables that are reference by the config and not everything that
 // is defined within the test run block and test file.
-func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (opentf.InputValues, tfdiags.Diagnostics) {
+func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
 	for name := range config.Module.Variables {
 		if run != nil {
@@ -1011,7 +1013,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 				// Local variables take precedence.
 				variables[name] = unparsedVariableValueExpression{
 					expr:       expr,
-					sourceType: opentf.ValueFromConfig,
+					sourceType: tofu.ValueFromConfig,
 				}
 				continue
 			}
@@ -1022,7 +1024,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 				// If it's not set locally, it maybe set for the entire file.
 				variables[name] = unparsedVariableValueExpression{
 					expr:       expr,
-					sourceType: opentf.ValueFromConfig,
+					sourceType: tofu.ValueFromConfig,
 				}
 				continue
 			}
@@ -1043,7 +1045,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 	return backend.ParseVariableValues(variables, config.Module.Variables)
 }
 
-// prepareInputVariablesForAssertions creates a opentf.InputValues mapping
+// prepareInputVariablesForAssertions creates a tofu.InputValues mapping
 // that contains all the variables defined for a given run and file, alongside
 // any unset variables that have defaults within the provided config.
 //
@@ -1055,14 +1057,14 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 // In addition, it modifies the provided config so that any variables that are
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
-func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (opentf.InputValues, func(), tfdiags.Diagnostics) {
+func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, func(), tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
 
 	if run != nil {
 		for name, expr := range run.Config.Variables {
 			variables[name] = unparsedVariableValueExpression{
 				expr:       expr,
-				sourceType: opentf.ValueFromConfig,
+				sourceType: tofu.ValueFromConfig,
 			}
 		}
 	}
@@ -1076,7 +1078,7 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 			}
 			variables[name] = unparsedVariableValueExpression{
 				expr:       expr,
-				sourceType: opentf.ValueFromConfig,
+				sourceType: tofu.ValueFromConfig,
 			}
 		}
 	}
@@ -1092,9 +1094,9 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 	}
 
 	// We've gathered all the values we have, let's convert them into
-	// terraform.InputValues so they can be passed into the Terraform graph.
+	// tofu.InputValues so they can be passed into the Terraform graph.
 
-	inputs := make(opentf.InputValues, len(variables))
+	inputs := make(tofu.InputValues, len(variables))
 	var diags tfdiags.Diagnostics
 	for name, variable := range variables {
 		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
@@ -1103,7 +1105,7 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 	}
 
 	// Next, we're going to apply any default values from the configuration.
-	// We do this after the conversion into terraform.InputValues, as the
+	// We do this after the conversion into tofu.InputValues, as the
 	// defaults have already been converted into cty.Value objects.
 
 	for name, variable := range config.Module.Variables {
@@ -1114,9 +1116,9 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 		}
 
 		if variable.Default != cty.NilVal {
-			inputs[name] = &opentf.InputValue{
+			inputs[name] = &tofu.InputValue{
 				Value:       variable.Default,
-				SourceType:  opentf.ValueFromConfig,
+				SourceType:  tofu.ValueFromConfig,
 				SourceRange: tfdiags.SourceRangeFromHCL(variable.DeclRange),
 			}
 		}

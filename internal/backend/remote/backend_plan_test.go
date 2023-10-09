@@ -16,19 +16,19 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/initwd"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/terminal"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/initwd"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
@@ -50,7 +50,7 @@ func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.D
 	// Many of our tests use an overridden "null" provider that's just in-memory
 	// inside the test process, not a separate plugin on disk.
 	depLocks := depsfile.NewLocks()
-	depLocks.SetProviderOverridden(addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/null"))
+	depLocks.SetProviderOverridden(addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/null"))
 
 	return &backend.Operation{
 		ConfigDir:       configDir,
@@ -210,7 +210,7 @@ func TestRemote_planWithParallelism(t *testing.T) {
 	defer configCleanup()
 
 	if b.ContextOpts == nil {
-		b.ContextOpts = &opentf.ContextOpts{}
+		b.ContextOpts = &tofu.ContextOpts{}
 	}
 	b.ContextOpts.Parallelism = 3
 	op.Workspace = backend.DefaultStateName
@@ -615,7 +615,7 @@ func TestRemote_planWithVariables(t *testing.T) {
 	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-variables")
 	defer configCleanup()
 
-	op.Variables = testVariables(opentf.ValueFromCLIArg, "foo", "bar")
+	op.Variables = testVariables(tofu.ValueFromCLIArg, "foo", "bar")
 	op.Workspace = backend.DefaultStateName
 
 	run, err := b.Operation(context.Background(), op)
@@ -951,7 +951,7 @@ func TestRemote_planWithWorkingDirectory(t *testing.T) {
 	defer bCleanup()
 
 	options := tfe.WorkspaceUpdateOptions{
-		WorkingDirectory: tfe.String("opentf"),
+		WorkingDirectory: tfe.String("tofu"),
 	}
 
 	// Configure the workspace to use a custom working directory.
@@ -960,7 +960,7 @@ func TestRemote_planWithWorkingDirectory(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-with-working-directory/opentf")
+	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
 	defer configCleanup()
 	defer done(t)
 
@@ -996,7 +996,7 @@ func TestRemote_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 	defer bCleanup()
 
 	options := tfe.WorkspaceUpdateOptions{
-		WorkingDirectory: tfe.String("opentf"),
+		WorkingDirectory: tfe.String("tofu"),
 	}
 
 	// Configure the workspace to use a custom working directory.
@@ -1012,7 +1012,7 @@ func TestRemote_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 
 	// We need to change into the configuration directory to make sure
 	// the logic to upload the correct slug is working as expected.
-	if err := os.Chdir("./testdata/plan-with-working-directory/opentf"); err != nil {
+	if err := os.Chdir("./testdata/plan-with-working-directory/tofu"); err != nil {
 		t.Fatalf("error changing directory: %v", err)
 	}
 	defer os.Chdir(wd) // Make sure we change back again when were done.

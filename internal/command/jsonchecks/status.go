@@ -6,7 +6,7 @@ package jsonchecks
 import (
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/checks"
+	"github.com/opentofu/opentofu/internal/checks"
 )
 
 type checkStatus []byte

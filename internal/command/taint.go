@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/clistate"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // TaintCommand is a cli.Command implementation that manually taints
@@ -130,7 +130,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	// Get schemas, if possible, before writing state
-	var schemas *opentf.Schemas
+	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
 		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
@@ -150,7 +150,7 @@ func (c *TaintCommand) Run(args []string) int {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"No such resource instance",
-			fmt.Sprintf("There is no resource instance in the state with the address %s. If the resource configuration has just been added, you must run \"opentf apply\" once to create the corresponding instance(s) before they can be tainted.", addr),
+			fmt.Sprintf("There is no resource instance in the state with the address %s. If the resource configuration has just been added, you must run \"tofu apply\" once to create the corresponding instance(s) before they can be tainted.", addr),
 		))
 		c.showDiagnostics(diags)
 		return 1
@@ -162,7 +162,7 @@ func (c *TaintCommand) Run(args []string) int {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"No such resource instance",
-				fmt.Sprintf("Resource instance %s is currently part-way through a create_before_destroy replacement action. Run \"opentf apply\" to complete its replacement before tainting it.", addr),
+				fmt.Sprintf("Resource instance %s is currently part-way through a create_before_destroy replacement action. Run \"tofu apply\" to complete its replacement before tainting it.", addr),
 			))
 		} else {
 			// Don't know why we're here, but we'll produce a generic error message anyway.
@@ -195,19 +195,19 @@ func (c *TaintCommand) Run(args []string) int {
 
 func (c *TaintCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] taint [options] <address>
+Usage: tofu [global options] taint [options] <address>
 
-  OpenTF uses the term "tainted" to describe a resource instance
+  OpenTofu uses the term "tainted" to describe a resource instance
   which may not be fully functional, either because its creation
   partially failed or because you've manually marked it as such using
   this command.
 
   This will not modify your infrastructure directly, but subsequent
-  OpenTF plans will include actions to destroy the remote object
+  OpenTofu plans will include actions to destroy the remote object
   and create a new object to replace it.
 
   You can remove the "taint" state from a resource instance using
-  the "opentf untaint" command.
+  the "tofu untaint" command.
 
   The address is in the usual resource address syntax, such as:
     aws_instance.foo
@@ -215,7 +215,7 @@ Usage: opentf [global options] taint [options] <address>
     module.foo.module.bar.aws_instance.baz
 
   Use your shell's quoting or escaping syntax to ensure that the
-  address will reach OpenTF correctly, without any special
+  address will reach OpenTofu correctly, without any special
   interpretation.
 
 Options:

@@ -4,7 +4,7 @@
 package instances
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // Set is a set of instances, intended mainly for the return value of

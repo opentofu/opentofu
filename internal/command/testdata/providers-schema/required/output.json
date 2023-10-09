@@ -1,7 +1,7 @@
 {
     "format_version": "1.0",
     "provider_schemas": {
-        "registry.terraform.io/hashicorp/test": {
+        "registry.opentofu.org/hashicorp/test": {
             "provider": {
                 "version": 0,
                 "block": {

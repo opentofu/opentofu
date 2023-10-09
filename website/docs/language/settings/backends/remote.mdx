@@ -1,23 +1,25 @@
 ---
-page_title: 'Backend Type: remote'
+sidebar_label: remote
 description: >-
-  OpenTF can store the state and run operations remotely, making it easier to
+  OpenTofu can store the state and run operations remotely, making it easier to
   version and work with in a team.
 ---
 
-# remote
+# Backend Type: remote
 
--> **Note:** **We recommend using the [`cloud` built-in integration](/opentf/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+:::note
+**We recommend using the [`cloud` built-in integration](/docs/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+:::
 
-The remote backend is unique among all other OpenTF backends because it can both store state snapshots and execute operations for TACOS (TF Automation and Collaboration Software) [CLI-driven run workflow](/opentf/cloud-docs/run/cli). It used to be called an "enhanced" backend.
+The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute operations for TACOS (TF Automation and Collaboration Software) [CLI-driven run workflow](/docs/cloud-docs/run/cli). It used to be called an "enhanced" backend.
 
-When using full remote operations, operations like `opentf plan` or `opentf apply` can be executed in TACOS (TF Automation and Collaboration Software) run environment, with log output streaming to the local terminal. Remote plans and applies use variable values from the associated remote workspace.
+When using full remote operations, operations like `tofu plan` or `tofu apply` can be executed in TACOS (TF Automation and Collaboration Software) run environment, with log output streaming to the local terminal. Remote plans and applies use variable values from the associated remote workspace.
 
 You can also use TACOS (TF Automation and Collaboration Software) with local operations, in which case only state is stored in the remote backend.
 
 ## Command Support
 
-The remote backend supports the following OpenTF commands:
+The remote backend supports the following OpenTofu commands:
 
 - `apply`
 - `console`
@@ -50,31 +52,31 @@ determines which mode it uses:
   all of the desired remote workspace names. For example, set
   `prefix = "networking-"` to use remote workspaces with
   names like `networking-dev` and `networking-prod`. This is helpful when
-  mapping multiple OpenTF CLI [workspaces](/opentf/language/state/workspaces)
-  used in a single OpenTF configuration to multiple remote workspaces.
+  mapping multiple OpenTofu CLI [workspaces](/docs/language/state/workspaces)
+  used in a single OpenTofu configuration to multiple remote workspaces.
 
 
 The backend configuration requires either `name` or `prefix`. Omitting both or
 setting both results in a configuration error.
 
-If previous state is present when you run `opentf init` and the corresponding
-remote workspaces are empty or absent, OpenTF will create workspaces and
-update the remote state accordingly. However, if your workspace requires variables or a specific version of OpenTF for remote operations, we
+If previous state is present when you run `tofu init` and the corresponding
+remote workspaces are empty or absent, OpenTofu will create workspaces and
+update the remote state accordingly. However, if your workspace requires variables or a specific version of OpenTofu for remote operations, we
 recommend that you create your remote workspaces on TACOS (TF Automation and Collaboration Software) before
 running any remote operations against them.
 
 ### Workspace Names
 
-OpenTF uses shortened names without the common prefix to interact with workspaces on the command line. For example, if `prefix = "networking-"`, use `opentf workspace select prod` to switch to the OpenTF CLI workspace `prod` within the current configuration. However, remote OpenTF operations such as `plan` and `apply` for that OpenTF CLI workspace will take place in the remote workspace `networking-prod`.
+OpenTofu uses shortened names without the common prefix to interact with workspaces on the command line. For example, if `prefix = "networking-"`, use `tofu workspace select prod` to switch to the OpenTofu CLI workspace `prod` within the current configuration. However, remote OpenTofu operations such as `plan` and `apply` for that OpenTofu CLI workspace will take place in the remote workspace `networking-prod`.
 
-Because of this, the [`terraform.workspace`](/opentf/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
+Because of this, the [`terraform.workspace`](/docs/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
 
 - For local operations, `terraform.workspace` = `prod`
 - For remote operations, `terraform.workspace`=  `networking-prod`
 
 ### Determining Run Environment
 
-If you need to determine whether a run is local or remote in your OpenTF configuration, we recommend using [run environment variables](/opentf/cloud-docs/run/run-environment#environment-variables). The example below uses `TFC_RUN_ID`.
+If you need to determine whether a run is local or remote in your OpenTofu configuration, we recommend using [run environment variables](/docs/cloud-docs/run/run-environment#environment-variables). The example below uses `TFC_RUN_ID`.
 
 ```
 output "current_workspace_name" {
@@ -94,9 +96,11 @@ output "remote_execution_determine" {
 
 ## Example Configurations
 
-->  **Note:** We recommend omitting the token from the configuration, and instead using
-[`opentf login`](/opentf/cli/commands/login) or manually configuring
-`credentials` in the [CLI config file](/opentf/cli/config/config-file#credentials).
+:::note
+We recommend omitting the token from the configuration, and instead using
+[`tofu login`](/docs/cli/commands/login) or manually configuring
+`credentials` in the [CLI config file](/docs/cli/config/config-file#credentials).
+:::
 
 ### Basic Configuration
 
@@ -146,10 +150,10 @@ hostname     = "app.example.io"
 organization = "company"
 ```
 
-Running `opentf init` with the backend file:
+Running `tofu init` with the backend file:
 
 ```sh
-opentf init -backend-config=config.remote.tfbackend
+tofu init -backend-config=config.remote.tfbackend
 ```
 
 ### Data Source Configuration
@@ -170,7 +174,9 @@ data "terraform_remote_state" "foo" {
 
 ## Configuration Variables
 
-!> **Warning:**  We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTF will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/opentf/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+:::
 
 The following configuration options are supported:
 
@@ -179,9 +185,9 @@ The following configuration options are supported:
   targeted workspace(s).
 - `token` - (Optional) The token used to authenticate with the remote backend.
   We recommend omitting the token from the configuration, and instead using
-  [`opentf login`](/opentf/cli/commands/login) or manually configuring
+  [`tofu login`](/docs/cli/commands/login) or manually configuring
   `credentials` in the
-  [CLI config file](/opentf/cli/config/config-file#credentials).
+  [CLI config file](/docs/cli/config/config-file#credentials).
 - `workspaces` - (Required) A block specifying which remote workspace(s) to use.
   The `workspaces` block supports the following keys:
 
@@ -190,25 +196,27 @@ The following configuration options are supported:
   - `prefix` - (Optional) A prefix used in the names of one or more remote
     workspaces, all of which can be used with this configuration. The full
     workspace names are used in TACOS (TF Automation and Collaboration Software), and the short names
-    (minus the prefix) are used on the command line for OpenTF CLI workspaces.
+    (minus the prefix) are used on the command line for OpenTofu CLI workspaces.
     If omitted, only the default workspace can be used. This option conflicts with `name`.
 
-->  **Note:** You must use the `name` key when configuring a `terraform_remote_state`
+:::note
+You must use the `name` key when configuring a `terraform_remote_state`
 data source that retrieves state from another remote workspace. The `prefix` key is only
 intended for use when configuring an instance of the remote backend.
+:::
 
 ## Command Line Arguments
 
 For configurations that include a `backend "remote"` block, commands that
-make local modifications to OpenTF state and then push them back up to
+make local modifications to OpenTofu state and then push them back up to
 the remote workspace accept the following option to modify that behavior:
 
 - `-ignore-remote-version` - Override checking that the local and remote
-  OpenTF versions agree, making an operation proceed even when there is
+  OpenTofu versions agree, making an operation proceed even when there is
   a mismatch.
 
   Normally state-modification operations require using a local version of
-  OpenTF CLI which is compatible with the OpenTF version selected
+  OpenTofu CLI which is compatible with the OpenTofu version selected
   for the remote workspace as part of its settings. This is to avoid the
   local operation creating a new state snapshot which the workspace's
   remote execution environment would then be unable to decode.
@@ -219,7 +227,7 @@ the remote workspace accept the following option to modify that behavior:
 
 ## Excluding Files from Upload with .terraformignore
 
-When executing a remote `plan` or `apply` in a [CLI-driven run](/opentf/cloud-docs/run/cli),
+When executing a remote `plan` or `apply` in a [CLI-driven run](/docs/cloud-docs/run/cli),
 an archive of your configuration directory is uploaded to TACOS (TF Automation and Collaboration Software). You can define
 paths to ignore from upload via a `.terraformignore` file at the root of your configuration directory. If this file is not present, the archive will exclude the following by default:
 

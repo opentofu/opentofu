@@ -10,21 +10,21 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
+	"github.com/opentofu/opentofu/internal/e2e"
 )
 
-// The tests in this file are for the "opentf providers mirror" command,
+// The tests in this file are for the "tofu providers mirror" command,
 // which is tested in an e2etest mode rather than a unit test mode because it
 // interacts directly with Terraform Registry and the full details of that are
 // tricky to mock. Such a mock is _possible_, but we're using e2etest as a
 // compromise for now to keep these tests relatively simple.
 
 func TestTerraformProvidersMirror(t *testing.T) {
-	testTerraformProvidersMirror(t, "opentf-providers-mirror")
+	testTerraformProvidersMirror(t, "tofu-providers-mirror")
 }
 
 func TestTerraformProvidersMirrorWithLockFile(t *testing.T) {
-	testTerraformProvidersMirror(t, "opentf-providers-mirror-with-lock-file")
+	testTerraformProvidersMirror(t, "tofu-providers-mirror-with-lock-file")
 }
 
 func testTerraformProvidersMirror(t *testing.T, fixture string) {
@@ -49,14 +49,14 @@ func testTerraformProvidersMirror(t *testing.T, fixture string) {
 	// In the (unlikely) event that these particular versions of these
 	// providers are removed from the registry, this test will start to fail.
 	want := []string{
-		"registry.terraform.io/hashicorp/null/2.1.0.json",
-		"registry.terraform.io/hashicorp/null/index.json",
-		"registry.terraform.io/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip",
-		"registry.terraform.io/hashicorp/null/terraform-provider-null_2.1.0_windows_386.zip",
-		"registry.terraform.io/hashicorp/template/2.1.1.json",
-		"registry.terraform.io/hashicorp/template/index.json",
-		"registry.terraform.io/hashicorp/template/terraform-provider-template_2.1.1_linux_amd64.zip",
-		"registry.terraform.io/hashicorp/template/terraform-provider-template_2.1.1_windows_386.zip",
+		"registry.opentofu.org/hashicorp/null/2.1.0.json",
+		"registry.opentofu.org/hashicorp/null/index.json",
+		"registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip",
+		"registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_windows_386.zip",
+		"registry.opentofu.org/hashicorp/template/2.1.1.json",
+		"registry.opentofu.org/hashicorp/template/index.json",
+		"registry.opentofu.org/hashicorp/template/terraform-provider-template_2.1.1_linux_amd64.zip",
+		"registry.opentofu.org/hashicorp/template/terraform-provider-template_2.1.1_windows_386.zip",
 	}
 	var got []string
 	walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {

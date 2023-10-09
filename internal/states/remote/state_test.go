@@ -12,12 +12,12 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/zclconf/go-cty/cty"
 
-	tfaddr "github.com/hashicorp/terraform-registry-address"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/version"
+	tfaddr "github.com/opentofu/registry-address"
 )
 
 func TestState_impl(t *testing.T) {
@@ -329,7 +329,7 @@ func TestStatePersist(t *testing.T) {
 		Client: &mockClient{},
 	}
 
-	// In normal use (during a Terraform operation) we always refresh and read
+	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
@@ -513,7 +513,7 @@ func TestWriteStateForMigration(t *testing.T) {
 		},
 	}
 
-	// In normal use (during a Terraform operation) we always refresh and read
+	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
@@ -669,7 +669,7 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 		},
 	}
 
-	// In normal use (during a Terraform operation) we always refresh and read
+	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this

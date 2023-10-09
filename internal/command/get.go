@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // GetCommand is a Command implementation that takes a Terraform
@@ -35,7 +35,7 @@ func (c *GetCommand) Run(args []string) int {
 	ctx, done := c.InterruptibleContext(c.CommandContext())
 	defer done()
 
-	path, err := ModulePath(cmdFlags.Args())
+	path, err := modulePath(cmdFlags.Args())
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -54,7 +54,7 @@ func (c *GetCommand) Run(args []string) int {
 
 func (c *GetCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] get [options]
+Usage: tofu [global options] get [options]
 
   Downloads and installs modules needed for the configuration in the 
   current working directory.
@@ -65,7 +65,7 @@ Usage: opentf [global options] get [options]
   unless the -update flag is specified.
 
   Module installation also happens automatically by default as part of
-  the "opentf init" command, so you should rarely need to run this
+  the "tofu init" command, so you should rarely need to run this
   command separately.
 
 Options:
@@ -75,14 +75,16 @@ Options:
 
   -no-color             Disable text coloring in the output.
 
-  -test-directory=path	Set the OpenTF test directory, defaults to "tests".
+  -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
+                        test command will search for test files in the current directory and
+                        in the one specified by the flag.
 
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *GetCommand) Synopsis() string {
-	return "Install or upgrade remote OpenTF modules"
+	return "Install or upgrade remote OpenTofu modules"
 }
 
 func getModules(ctx context.Context, m *Meta, path string, testsDir string, upgrade bool) (abort bool, diags tfdiags.Diagnostics) {

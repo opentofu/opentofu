@@ -4,7 +4,7 @@
 package remote
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend"
 )
 
 // CLIInit implements backend.CLI

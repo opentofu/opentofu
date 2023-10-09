@@ -65,7 +65,7 @@ var UUIDV5Func = function.New(&function.Spec{
 			namespace = uuidv5.NameSpaceX500
 		default:
 			if namespace, err = uuidv5.Parse(args[0].AsString()); err != nil {
-				return cty.UnknownVal(cty.String), fmt.Errorf("uuidv5() doesn't support namespace %s (%v)", args[0].AsString(), err)
+				return cty.UnknownVal(cty.String), fmt.Errorf("uuidv5() doesn't support namespace %s (%w)", args[0].AsString(), err)
 			}
 		}
 		val := args[1].AsString()
@@ -125,7 +125,7 @@ var BcryptFunc = function.New(&function.Spec{
 		input := args[0].AsString()
 		out, err := bcrypt.GenerateFromPassword([]byte(input), defaultCost)
 		if err != nil {
-			return cty.UnknownVal(cty.String), fmt.Errorf("error occured generating password %s", err.Error())
+			return cty.UnknownVal(cty.String), fmt.Errorf("error occurred generating password %w", err)
 		}
 
 		return cty.StringVal(string(out)), nil
@@ -184,7 +184,7 @@ var RsaDecryptFunc = function.New(&function.Spec{
 
 		out, err := rsa.DecryptPKCS1v15(nil, privateKey, b)
 		if err != nil {
-			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decrypt: %s", err)
+			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decrypt: %w", err)
 		}
 
 		return cty.StringVal(string(out)), nil
@@ -291,7 +291,7 @@ func UUIDV5(namespace cty.Value, name cty.Value) (cty.Value, error) {
 //
 // The given string is first encoded as UTF-8 and then the SHA256 algorithm is applied
 // as defined in RFC 4634. The raw hash is then encoded with Base64 before returning.
-// OpenTF uses the "standard" Base64 alphabet as defined in RFC 4648 section 4.
+// OpenTofu uses the "standard" Base64 alphabet as defined in RFC 4648 section 4.
 func Base64Sha256(str cty.Value) (cty.Value, error) {
 	return Base64Sha256Func.Call([]cty.Value{str})
 }
@@ -301,7 +301,7 @@ func Base64Sha256(str cty.Value) (cty.Value, error) {
 //
 // The given string is first encoded as UTF-8 and then the SHA256 algorithm is applied
 // as defined in RFC 4634. The raw hash is then encoded with Base64 before returning.
-// OpenTF uses the "standard" Base64  alphabet as defined in RFC 4648 section 4
+// OpenTofu uses the "standard" Base64  alphabet as defined in RFC 4648 section 4
 func Base64Sha512(str cty.Value) (cty.Value, error) {
 	return Base64Sha512Func.Call([]cty.Value{str})
 }

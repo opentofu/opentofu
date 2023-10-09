@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/communicator/remote"
+	"github.com/opentofu/opentofu/internal/communicator/remote"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 )
@@ -749,7 +749,7 @@ func acceptPublicKey(keystr string) func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.
 	return func(_ ssh.ConnMetadata, inkey ssh.PublicKey) (*ssh.Permissions, error) {
 		goodkey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(keystr))
 		if err != nil {
-			return nil, fmt.Errorf("error parsing key: %v", err)
+			return nil, fmt.Errorf("error parsing key: %w", err)
 		}
 
 		if bytes.Equal(inkey.Marshal(), goodkey.Marshal()) {

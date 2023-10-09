@@ -13,9 +13,18 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
       packages: write
 
     steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -36,6 +45,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: v2.2.0
+
+      - name: Setup snapcraft
+        run: |
+          sudo snap install snapcraft --classic --channel=7.x/stable
+
+          # See https://github.com/goreleaser/goreleaser/issues/1715
+          mkdir -p "$HOME/.cache/snapcraft/download"
+          mkdir -p "$HOME/.cache/snapcraft/stage-packages"
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -43,3 +67,4 @@ jobs:
           args: release --clean --timeout=60m --snapshot=${{ !startsWith(github.ref, 'refs/tags/v') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 // InstallPackage takes a metadata object describing a package available for
@@ -65,7 +65,7 @@ func (d *Dir) LinkFromOtherCache(entry *CachedProvider, allowedHashes []getprovi
 	if len(allowedHashes) > 0 {
 		if matches, err := entry.MatchesAnyHash(allowedHashes); err != nil {
 			return fmt.Errorf(
-				"failed to calculate checksum for cached copy of %s %s in %s: %s",
+				"failed to calculate checksum for cached copy of %s %s in %s: %w",
 				entry.Provider, entry.Version, d.baseDir, err,
 			)
 		} else if !matches {

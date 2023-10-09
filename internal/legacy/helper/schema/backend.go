@@ -7,12 +7,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/hcl2shim"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	ctyconvert "github.com/zclconf/go-cty/cty/convert"
 )
 
@@ -102,7 +102,7 @@ func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnos
 		// find a default value if it exists
 		def, err := attrSchema.DefaultValue()
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("error getting default for %q: %s", getAttr.Name, err))
+			diags = diags.Append(fmt.Errorf("error getting default for %q: %w", getAttr.Name, err))
 			return val, err
 		}
 
@@ -123,7 +123,7 @@ func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnos
 
 		val, err = ctyconvert.Convert(tmpVal, val.Type())
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("error setting default for %q: %s", getAttr.Name, err))
+			diags = diags.Append(fmt.Errorf("error setting default for %q: %w", getAttr.Name, err))
 		}
 
 		return val, err
@@ -181,16 +181,16 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 }
 
 // shimConfig turns a new-style cty.Value configuration (which must be of
-// an object type) into a minimal old-style *opentf.ResourceConfig object
+// an object type) into a minimal old-style *tofu.ResourceConfig object
 // that should be populated enough to appease the not-yet-updated functionality
 // in this package. This should be removed once everything is updated.
-func (b *Backend) shimConfig(obj cty.Value) *opentf.ResourceConfig {
+func (b *Backend) shimConfig(obj cty.Value) *tofu.ResourceConfig {
 	shimMap, ok := hcl2shim.ConfigValueFromHCL2(obj).(map[string]interface{})
 	if !ok {
 		// If the configVal was nil, we still want a non-nil map here.
 		shimMap = map[string]interface{}{}
 	}
-	return &opentf.ResourceConfig{
+	return &tofu.ResourceConfig{
 		Config: shimMap,
 		Raw:    shimMap,
 	}

@@ -10,15 +10,15 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs/configschema"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/opentf"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
-// Provisioner represents a resource provisioner in Terraform and properly
+// Provisioner represents a resource provisioner in OpenTofu and properly
 // implements all of the ResourceProvisioner API.
 //
 // This higher level structure makes it much easier to implement a new or
-// custom provisioner for Terraform.
+// custom provisioner for OpenTofu.
 //
 // The function callbacks for this structure are all passed a context object.
 // This context object has a number of pre-defined values that can be accessed
@@ -46,7 +46,7 @@ type Provisioner struct {
 
 	// ValidateFunc is a function for extended validation. This is optional
 	// and should be used when individual field validation is not enough.
-	ValidateFunc func(*opentf.ResourceConfig) ([]string, []error)
+	ValidateFunc func(*tofu.ResourceConfig) ([]string, []error)
 
 	stopCtx       context.Context
 	stopCtxCancel context.CancelFunc
@@ -66,7 +66,7 @@ var (
 	// Guaranteed to never be nil.
 	ProvConfigDataKey = contextKey("provider config data")
 
-	// This returns a terraform.UIOutput. Guaranteed to never be nil.
+	// This returns a tofu.UIOutput. Guaranteed to never be nil.
 	ProvOutputKey = contextKey("provider output")
 
 	// This returns the raw InstanceState passed to Apply. Guaranteed to
@@ -117,28 +117,28 @@ func (p *Provisioner) stopInit() {
 	p.stopCtx, p.stopCtxCancel = context.WithCancel(context.Background())
 }
 
-// Stop implementation of opentf.ResourceProvisioner interface.
+// Stop implementation of tofu.ResourceProvisioner interface.
 func (p *Provisioner) Stop() error {
 	p.stopOnce.Do(p.stopInit)
 	p.stopCtxCancel()
 	return nil
 }
 
-// GetConfigSchema implementation of opentf.ResourceProvisioner interface.
+// GetConfigSchema implementation of tofu.ResourceProvisioner interface.
 func (p *Provisioner) GetConfigSchema() (*configschema.Block, error) {
 	return schemaMap(p.Schema).CoreConfigSchema(), nil
 }
 
-// Apply implementation of opentf.ResourceProvisioner interface.
+// Apply implementation of tofu.ResourceProvisioner interface.
 func (p *Provisioner) Apply(
-	o opentf.UIOutput,
-	s *opentf.InstanceState,
-	c *opentf.ResourceConfig) error {
+	o tofu.UIOutput,
+	s *tofu.InstanceState,
+	c *tofu.ResourceConfig) error {
 	var connData, configData *ResourceData
 
 	{
 		// We first need to turn the connection information into a
-		// terraform.ResourceConfig so that we can use that type to more
+		// tofu.ResourceConfig so that we can use that type to more
 		// easily build a ResourceData structure. We do this by simply treating
 		// the conn info as configuration input.
 		raw := make(map[string]interface{})
@@ -148,7 +148,7 @@ func (p *Provisioner) Apply(
 			}
 		}
 
-		c := opentf.NewResourceConfigRaw(raw)
+		c := tofu.NewResourceConfigRaw(raw)
 		sm := schemaMap(p.ConnSchema)
 		diff, err := sm.Diff(nil, c, nil, nil, true)
 		if err != nil {
@@ -183,13 +183,13 @@ func (p *Provisioner) Apply(
 	return p.ApplyFunc(ctx)
 }
 
-// Validate implements the opentf.ResourceProvisioner interface.
-func (p *Provisioner) Validate(c *opentf.ResourceConfig) (ws []string, es []error) {
+// Validate implements the tofu.ResourceProvisioner interface.
+func (p *Provisioner) Validate(c *tofu.ResourceConfig) (ws []string, es []error) {
 	if err := p.InternalValidate(); err != nil {
 		return nil, []error{fmt.Errorf(
 			"Internal validation of the provisioner failed! This is always a bug\n"+
 				"with the provisioner itself, and not a user issue. Please report\n"+
-				"this bug:\n\n%s", err)}
+				"this bug:\n\n%w", err)}
 	}
 
 	if p.Schema != nil {

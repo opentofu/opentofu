@@ -10,18 +10,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloud/cloudplan"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/views"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -43,7 +43,7 @@ func (e *errUnusableDataMisc) Unwrap() error {
 }
 
 // ShowCommand is a Command implementation that reads and outputs the
-// contents of a Terraform plan or state file.
+// contents of a OpenTofu plan or state file.
 type ShowCommand struct {
 	Meta
 	viewType arguments.ViewType
@@ -69,7 +69,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		diags = diags.Append(fmt.Errorf("error loading plugin path: %s", err))
+		diags = diags.Append(fmt.Errorf("error loading plugin path: %w", err))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -88,15 +88,15 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 
 func (c *ShowCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] show [options] [path]
+Usage: tofu [global options] show [options] [path]
 
-  Reads and outputs a OpenTF state or plan file in a human-readable
+  Reads and outputs a OpenTofu state or plan file in a human-readable
   form. If no path is specified, the current state will be shown.
 
 Options:
 
   -no-color           If specified, output won't contain any color.
-  -json               If specified, output the OpenTF plan or state in
+  -json               If specified, output the OpenTofu plan or state in
                       a machine-readable form.
 
 `
@@ -107,13 +107,13 @@ func (c *ShowCommand) Synopsis() string {
 	return "Show the current state or a saved plan"
 }
 
-func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *opentf.Schemas, tfdiags.Diagnostics) {
+func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
 	var diags, showDiags tfdiags.Diagnostics
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
 	var stateFile *statefile.File
 	var config *configs.Config
-	var schemas *opentf.Schemas
+	var schemas *tofu.Schemas
 
 	// No plan file or state file argument provided,
 	// so get the latest state snapshot
@@ -160,7 +160,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot() (*statefile.File, tfdiags.Di
 	// Load the workspace
 	workspace, err := c.Workspace()
 	if err != nil {
-		diags = diags.Append(fmt.Errorf("error selecting workspace: %s", err))
+		diags = diags.Append(fmt.Errorf("error selecting workspace: %w", err))
 		return nil, diags
 	}
 

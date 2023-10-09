@@ -14,15 +14,15 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	terraformProvider "github.com/placeholderplaceholderplaceholder/opentf/internal/builtin/providers/tf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/logging"
-	tfplugin "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin"
-	tfplugin6 "github.com/placeholderplaceholderplaceholder/opentf/internal/plugin6"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providercache"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/providers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/addrs"
+	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
+	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/logging"
+	tfplugin "github.com/opentofu/opentofu/internal/plugin"
+	tfplugin6 "github.com/opentofu/opentofu/internal/plugin6"
+	"github.com/opentofu/opentofu/internal/providercache"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // The TF_DISABLE_PLUGIN_TLS environment variable is intended only for use by
@@ -57,7 +57,7 @@ func (m *Meta) providerInstaller() *providercache.Installer {
 // The result of providerInstallerCustomSource differs from
 // providerInstaller only in how it determines package installation locations
 // during EnsureProviderVersions. A caller that doesn't call
-// EnsureProviderVersions (anything other than "terraform init") can safely
+// EnsureProviderVersions (anything other than "tofu init") can safely
 // just use the providerInstaller method unconditionally.
 func (m *Meta) providerInstallerCustomSource(source getproviders.Source) *providercache.Installer {
 	targetDir := m.providerLocalCacheDir()
@@ -83,7 +83,7 @@ func (m *Meta) providerInstallerCustomSource(source getproviders.Source) *provid
 // providerCustomLocalDirectorySource produces a provider source that consults
 // only the given local filesystem directories for plugins to install.
 //
-// This is used to implement the -plugin-dir option for "terraform init", where
+// This is used to implement the -plugin-dir option for "tofu init", where
 // the result of this method is used instead of what would've been returned
 // from m.providerInstallSource.
 //
@@ -101,10 +101,10 @@ func (m *Meta) providerCustomLocalDirectorySource(dirs []string) getproviders.So
 
 // providerLocalCacheDir returns an object representing the
 // configuration-specific local cache directory. This is the
-// only location consulted for provider plugin packages for Terraform
+// only location consulted for provider plugin packages for OpenTofu
 // operations other than provider installation.
 //
-// Only the provider installer (in "terraform init") is permitted to make
+// Only the provider installer (in "tofu init") is permitted to make
 // modifications to this cache directory. All other commands must treat it
 // as read-only.
 //
@@ -141,7 +141,7 @@ func (m *Meta) providerGlobalCacheDir() *providercache.Dir {
 //
 // This returns the standard provider install source that consults a number
 // of directories selected either automatically or via the CLI configuration.
-// Users may choose to override this during a "terraform init" command by
+// Users may choose to override this during a "tofu init" command by
 // specifying one or more -plugin-dir options, in which case the installation
 // process will construct its own source consulting only those directories
 // and use that instead.
@@ -175,7 +175,7 @@ func (m *Meta) providerDevOverrideInitWarnings() tfdiags.Diagnostics {
 	for addr, path := range m.ProviderDevOverrides {
 		detailMsg.WriteString(fmt.Sprintf(" - %s in %s\n", addr.ForDisplay(), path))
 	}
-	detailMsg.WriteString("\nSkip opentf init when using provider development overrides. It is not necessary and may error unexpectedly.")
+	detailMsg.WriteString("\nSkip tofu init when using provider development overrides. It is not necessary and may error unexpectedly.")
 	return tfdiags.Diagnostics{
 		tfdiags.Sourceless(
 			tfdiags.Warning,
@@ -231,7 +231,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error) {
 	locks, diags := m.lockedDependencies()
 	if diags.HasErrors() {
-		return nil, fmt.Errorf("failed to read dependency lock file: %s", diags.Err())
+		return nil, fmt.Errorf("failed to read dependency lock file: %w", diags.Err())
 	}
 
 	// We'll always run through all of our providers, even if one of them
@@ -242,7 +242,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	errs := make(map[addrs.Provider]error)
 
 	// For the providers from the lock file, we expect them to be already
-	// available in the provider cache because "terraform init" should already
+	// available in the provider cache because "tofu init" should already
 	// have put them there.
 	providerLocks := locks.AllProviders()
 	cacheDir := m.providerLocalCacheDir()
@@ -260,10 +260,10 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	// for manual testing of local development builds.
 	// - The Terraform SDK test harness (and possibly other callers in future)
 	// can ask that we use its own already-started provider servers, which we
-	// call "unmanaged" because Terraform isn't responsible for starting
+	// call "unmanaged" because OpenTofu isn't responsible for starting
 	// and stopping them. This is intended for automated testing where a
 	// calling harness is responsible both for starting the provider server
-	// and orchestrating one or more non-interactive Terraform runs that then
+	// and orchestrating one or more non-interactive OpenTofu runs that then
 	// exercise it.
 	// Unmanaged providers take precedence over overridden providers because
 	// overrides are typically a "session-level" setting while unmanaged
@@ -306,7 +306,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 			matched, err := cached.MatchesAnyHash(allowedHashes)
 			if err != nil {
 				reportError(fmt.Errorf(
-					"failed to verify checksum of %s %s package cached in in %s: %s",
+					"failed to verify checksum of %s %s package cached in in %s: %w",
 					provider, version, cacheDir.BasePath(), err,
 				))
 				continue

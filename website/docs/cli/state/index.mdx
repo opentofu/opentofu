@@ -1,32 +1,33 @@
 ---
-page_title: Manipulating State - OpenTF CLI
 description: >-
   State data tracks which real-world object corresponds to each resource.
   Inspect state, move or import resources, and more.
 ---
 
-# Manipulating OpenTF State
+# Manipulating OpenTofu State
 
-OpenTF uses [state data](/opentf/language/state) to remember which
+OpenTofu uses [state data](/docs/language/state) to remember which
 real-world object corresponds to each resource in the configuration;
 this allows it to modify an existing object when its resource declaration
 changes.
 
-OpenTF updates state automatically during plans and applies. However, it's
-sometimes necessary to make deliberate adjustments to OpenTF's state data,
+OpenTofu updates state automatically during plans and applies. However, it's
+sometimes necessary to make deliberate adjustments to OpenTofu's state data,
 usually to compensate for changes to the configuration or the real managed
 infrastructure.
 
-OpenTF CLI supports several workflows for interacting with state:
+OpenTofu CLI supports several workflows for interacting with state:
 
-- [Inspecting State](/opentf/cli/state/inspect)
-- [Forcing Re-creation](/opentf/cli/state/taint)
-- [Moving Resources](/opentf/cli/state/move)
+- [Inspecting State](/docs/cli/state/inspect)
+- [Forcing Re-creation](/docs/cli/state/taint)
+- [Moving Resources](/docs/cli/state/move)
 - Importing Pre-existing Resources (documented in the
-  [Importing Infrastructure](/opentf/cli/import) section)
-- [Disaster Recovery](/opentf/cli/state/recover)
+  [Importing Infrastructure](/docs/cli/import) section)
+- [Disaster Recovery](/docs/cli/state/recover)
 
-~> **Important:** Modifying state data outside a normal plan or apply can cause
-OpenTF to lose track of managed resources, which might waste money, annoy
+:::warning Important
+Modifying state data outside a normal plan or apply can cause
+OpenTofu to lose track of managed resources, which might waste money, annoy
 your colleagues, or even compromise the security of your operations. Make sure
 to keep backups of your state data when modifying state out-of-band.
+:::

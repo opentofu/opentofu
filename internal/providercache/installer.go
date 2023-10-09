@@ -12,10 +12,10 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	copydir "github.com/placeholderplaceholderplaceholder/opentf/internal/copy"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/depsfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/addrs"
+	copydir "github.com/opentofu/opentofu/internal/copy"
+	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
 // Installer is the main type in this package, representing a provider installer
@@ -48,12 +48,12 @@ type Installer struct {
 
 	// builtInProviderTypes is an optional set of types that should be
 	// considered valid to appear in the special terraform.io/builtin/...
-	// namespace, which we use for providers that are built in to Terraform
+	// namespace, which we use for providers that are built in to OpenTofu
 	// and thus do not need any separate installation step.
 	builtInProviderTypes []string
 
 	// unmanagedProviderTypes is a set of provider addresses that should be
-	// considered implemented, but that Terraform does not manage the
+	// considered implemented, but that OpenTofu does not manage the
 	// lifecycle for, and therefore does not need to worry about the
 	// installation of.
 	unmanagedProviderTypes map[addrs.Provider]struct{}
@@ -121,7 +121,7 @@ func (i *Installer) SetGlobalCacheDir(cacheDir *Dir) {
 // If this is set then if we install a provider for the first time from the
 // cache then the dependency lock file will include only the checksum from
 // the package in the global cache, which means the lock file won't be portable
-// to Terraform running on another operating system or CPU architecture.
+// to OpenTofu running on another operating system or CPU architecture.
 func (i *Installer) SetGlobalCacheDirMayBreakDependencyLockFile(mayBreak bool) {
 	i.globalCacheDirMayBreakDependencyLockFile = mayBreak
 }
@@ -135,7 +135,7 @@ func (i *Installer) HasGlobalCacheDir() bool {
 // SetBuiltInProviderTypes tells the receiver to consider the type names in the
 // given slice to be valid as providers in the special special
 // terraform.io/builtin/... namespace that we use for providers that are
-// built in to Terraform and thus do not need a separate installation step.
+// built in to OpenTofu and thus do not need a separate installation step.
 //
 // If a caller requests installation of a provider in that namespace, the
 // installer will treat it as a no-op if its name exists in this list, but
@@ -151,10 +151,10 @@ func (i *Installer) SetBuiltInProviderTypes(types []string) {
 }
 
 // SetUnmanagedProviderTypes tells the receiver to consider the providers
-// indicated by the passed addrs.Providers as unmanaged. Terraform does not
+// indicated by the passed addrs.Providers as unmanaged. OpenTofu does not
 // need to control the lifecycle of these providers, and they are assumed to be
-// running already when Terraform is started. Because these are essentially
-// processes, not binaries, Terraform will not do any work to ensure presence
+// running already when OpenTofu is started. Because these are essentially
+// processes, not binaries, OpenTofu will not do any work to ensure presence
 // or versioning of these binaries.
 func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{}) {
 	i.unmanagedProviderTypes = types
@@ -224,11 +224,11 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 				} else {
 					// A built-in provider is not permitted to have an explicit
 					// version constraint, because we can only use the version
-					// that is built in to the current Terraform release.
+					// that is built in to the current OpenTofu release.
 					err = fmt.Errorf("built-in providers do not support explicit version constraints")
 				}
 			} else {
-				err = fmt.Errorf("this OpenTF release has no built-in provider named %q", provider.Type)
+				err = fmt.Errorf("this OpenTofu release has no built-in provider named %q", provider.Type)
 			}
 			if err != nil {
 				errs[provider] = err
@@ -250,7 +250,7 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 			if lock := locks.Provider(provider); lock != nil {
 				if !acceptableVersions.Has(lock.Version()) {
 					err := fmt.Errorf(
-						"locked provider %s %s does not match configured version constraint %s; must use opentf init -upgrade to allow selection of new versions",
+						"locked provider %s %s does not match configured version constraint %s; must use tofu init -upgrade to allow selection of new versions",
 						provider, lock.Version(), getproviders.VersionConstraintsString(versionConstraints),
 					)
 					errs[provider] = err
@@ -444,7 +444,7 @@ NeedProvider:
 						cb(provider, version, i.globalCacheDir.baseDir)
 					}
 					if _, err := cached.ExecutableFile(); err != nil {
-						err := fmt.Errorf("provider binary not found: %s", err)
+						err := fmt.Errorf("provider binary not found: %w", err)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
@@ -464,7 +464,7 @@ NeedProvider:
 					// did show up there.
 					new := i.targetDir.ProviderVersion(provider, version)
 					if new == nil {
-						err := fmt.Errorf("after linking %s from provider cache at %s it is still not detected in the target directory; this is a bug in OpenTF", provider, i.globalCacheDir.baseDir)
+						err := fmt.Errorf("after linking %s from provider cache at %s it is still not detected in the target directory; this is a bug in OpenTofu", provider, i.globalCacheDir.baseDir)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
@@ -506,7 +506,7 @@ NeedProvider:
 					}
 					newHash, err := cached.Hash()
 					if err != nil {
-						err := fmt.Errorf("after linking %s from provider cache at %s, failed to compute a checksum for it: %s", provider, i.globalCacheDir.baseDir, err)
+						err := fmt.Errorf("after linking %s from provider cache at %s, failed to compute a checksum for it: %w", provider, i.globalCacheDir.baseDir, err)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
@@ -585,7 +585,7 @@ NeedProvider:
 		}
 		new := installTo.ProviderVersion(provider, version)
 		if new == nil {
-			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTF", provider, installTo.BasePath())
+			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, installTo.BasePath())
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
@@ -593,7 +593,7 @@ NeedProvider:
 			continue
 		}
 		if _, err := new.ExecutableFile(); err != nil {
-			err := fmt.Errorf("provider binary not found: %s", err)
+			err := fmt.Errorf("provider binary not found: %w", err)
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
@@ -622,7 +622,7 @@ NeedProvider:
 			// cache directory.
 			new = linkTo.ProviderVersion(provider, version)
 			if new == nil {
-				err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTF", provider, linkTo.BasePath())
+				err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, linkTo.BasePath())
 				errs[provider] = err
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
@@ -630,7 +630,7 @@ NeedProvider:
 				continue
 			}
 			if _, err := new.ExecutableFile(); err != nil {
-				err := fmt.Errorf("provider binary not found: %s", err)
+				err := fmt.Errorf("provider binary not found: %w", err)
 				errs[provider] = err
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
@@ -666,7 +666,7 @@ NeedProvider:
 		}
 		newHash, err := new.Hash()
 		if err != nil {
-			err := fmt.Errorf("after installing %s, failed to compute a checksum for it: %s", provider, err)
+			err := fmt.Errorf("after installing %s, failed to compute a checksum for it: %w", provider, err)
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
@@ -675,9 +675,13 @@ NeedProvider:
 		}
 
 		var signedHashes []getproviders.Hash
-		if authResult.Signed() {
+		// For now, we will temporarily trust the hashes returned by the
+		// installation process that are "SigningSkipped" or "Signed".
+		// This is only intended to be temporary, see https://github.com/opentofu/opentofu/issues/266 for more information
+		if authResult.Signed() || authResult.SigningSkipped() {
 			// We'll trust new hashes from upstream only if they were verified
-			// as signed by a suitable key. Otherwise, we'd record only
+			// as signed by a suitable key or if the signing validation was skipped.
+			// Otherwise, we'd record only
 			// a new hash we just calculated ourselves from the bytes on disk,
 			// and so the hashes would cover only the current platform.
 			signedHashes = append(signedHashes, meta.AcceptableHashes()...)

@@ -14,10 +14,10 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/arguments"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/repl"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/repl"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // The Output view renders either one or all outputs, depending on whether or
@@ -162,7 +162,7 @@ func (v *OutputRaw) Output(name string, outputs map[string]*states.OutputValue) 
 			tfdiags.Error,
 			"Unsupported value for raw output",
 			fmt.Sprintf(
-				"The value for output value %q won't be known until after a successful opentf apply, so -raw mode cannot print it.",
+				"The value for output value %q won't be known until after a successful tofu apply, so -raw mode cannot print it.",
 				name,
 			),
 		))
@@ -267,10 +267,10 @@ func noOutputsWarning() tfdiags.Diagnostic {
 		"No outputs found",
 		"The state file either has no outputs defined, or all the defined "+
 			"outputs are empty. Please define an output in your configuration "+
-			"with the `output` keyword and run `opentf refresh` for it to "+
+			"with the `output` keyword and run `tofu refresh` for it to "+
 			"become available. If you are using interpolation, please verify "+
 			"the interpolated value is not empty. You can use the "+
-			"`opentf console` command to assist.",
+			"`tofu console` command to assist.",
 	)
 }
 
@@ -282,7 +282,7 @@ func missingOutputError(name string) tfdiags.Diagnostic {
 		fmt.Sprintf("Output %q not found", name),
 		"The output variable requested could not be found in the state "+
 			"file. If you recently added this to your configuration, be "+
-			"sure to run `opentf apply`, since the state won't be updated "+
+			"sure to run `tofu apply`, since the state won't be updated "+
 			"with new output variables until that command is run.",
 	)
 }

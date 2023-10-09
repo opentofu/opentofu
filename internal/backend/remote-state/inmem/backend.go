@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/backend"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/legacy/helper/schema"
-	statespkg "github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/remote"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	statespkg "github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 // we keep the states and locks in package-level variables, so that they can be
@@ -135,7 +135,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		lockInfo.Operation = "init"
 		lockID, err := s.Lock(lockInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lock inmem state: %s", err)
+			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
 		defer s.Unlock(lockID)
 

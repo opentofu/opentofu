@@ -18,8 +18,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/mitchellh/cli"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/configs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 const (
@@ -34,7 +34,7 @@ var (
 	}
 )
 
-// FmtCommand is a Command implementation that rewrites Terraform config
+// FmtCommand is a Command implementation that rewrites OpenTofu config
 // files to a canonical format and style.
 type FmtCommand struct {
 	Meta
@@ -158,7 +158,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 			}
 
 			if !fmtd {
-				diags = diags.Append(fmt.Errorf("Only .tf, .tfvars, and .tftest.hcl files can be processed with opentf fmt"))
+				diags = diags.Append(fmt.Errorf("Only .tf, .tfvars, and .tftest.hcl files can be processed with tofu fmt"))
 				continue
 			}
 		}
@@ -170,7 +170,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	log.Printf("[TRACE] opentf fmt: Formatting %s", path)
+	log.Printf("[TRACE] tofu fmt: Formatting %s", path)
 
 	src, err := io.ReadAll(r)
 	if err != nil {
@@ -208,7 +208,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 		if c.diff {
 			diff, err := bytesDiff(src, result, path)
 			if err != nil {
-				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %s", path, err))
+				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %w", path, err))
 				return diags
 			}
 			w.Write(diff)
@@ -228,7 +228,7 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	log.Printf("[TRACE] opentf fmt: looking for files in %s", path)
+	log.Printf("[TRACE] tofu fmt: looking for files in %s", path)
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
@@ -256,7 +256,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 			}
 
 			// We do not recurse into child directories by default because we
-			// want to mimic the file-reading behavior of "terraform plan", etc,
+			// want to mimic the file-reading behavior of "tofu plan", etc,
 			// operating on one module at a time.
 			continue
 		}
@@ -546,9 +546,9 @@ func (c *FmtCommand) trimNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 
 func (c *FmtCommand) Help() string {
 	helpText := `
-Usage: opentf [global options] fmt [options] [target...]
+Usage: tofu [global options] fmt [options] [target...]
 
-  Rewrites all OpenTF configuration files to a canonical format. All
+  Rewrites all OpenTofu configuration files to a canonical format. All
   configuration files (.tf), variables files (.tfvars), and testing files 
   (.tftest.hcl) are updated. JSON files (.tf.json, .tfvars.json, or 
   .tftest.json) are not modified.
@@ -559,7 +559,7 @@ Usage: opentf [global options] fmt [options] [target...]
   file. If you provide a single dash ("-"), then fmt will read from standard
   input (STDIN).
 
-  The content must be in the OpenTF language native syntax; JSON is not
+  The content must be in the OpenTofu language native syntax; JSON is not
   supported.
 
 Options:

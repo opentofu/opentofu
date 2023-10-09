@@ -11,11 +11,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/computed/renderers"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonformat/structured/attribute_path"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonprovider"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonprovider"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 type SetDiff struct {
@@ -2743,7 +2743,7 @@ func TestSpecificCases(t *testing.T) {
 			}, nil, nil, nil, nil, plans.Create, false),
 		},
 
-		// The following tests are from issue 33472. Basically OpenTF allows
+		// The following tests are from issue 33472. Basically OpenTofu allows
 		// callers to treat numbers as strings in references and expects us
 		// to coerce the strings into numbers. For example the following are
 		// equivalent.

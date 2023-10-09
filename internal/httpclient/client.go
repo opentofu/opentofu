@@ -7,15 +7,15 @@ import (
 	"net/http"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/version"
 )
 
 // New returns the DefaultPooledClient from the cleanhttp
-// package that will also send a Terraform User-Agent string.
+// package that will also send a OpenTofu User-Agent string.
 func New() *http.Client {
 	cli := cleanhttp.DefaultPooledClient()
 	cli.Transport = &userAgentRoundTripper{
-		userAgent: OpenTfUserAgent(version.Version),
+		userAgent: OpenTofuUserAgent(version.Version),
 		inner:     cli.Transport,
 	}
 	return cli

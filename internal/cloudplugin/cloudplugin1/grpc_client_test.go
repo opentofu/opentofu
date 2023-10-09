@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/cloudproto1"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/cloudplugin/mock_cloudproto1"
+	"github.com/opentofu/opentofu/internal/cloudplugin/cloudproto1"
+	"github.com/opentofu/opentofu/internal/cloudplugin/mock_cloudproto1"
 )
 
 var mockError = "this is a mock error"

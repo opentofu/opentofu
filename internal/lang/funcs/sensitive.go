@@ -4,13 +4,13 @@
 package funcs
 
 import (
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
 // SensitiveFunc returns a value identical to its argument except that
-// OpenTF will consider it to be sensitive.
+// OpenTofu will consider it to be sensitive.
 var SensitiveFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{

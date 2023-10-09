@@ -1,5 +1,5 @@
 ---
-page_title: fileset - Functions - Configuration Language
+sidebar_label: fileset
 description: The fileset function enumerates a set of regular file names given a pattern.
 ---
 
@@ -34,7 +34,7 @@ Character classes support the following:
 
 Functions are evaluated during configuration parsing rather than at apply time,
 so this function can only be used with files that are already present on disk
-before OpenTF takes any actions.
+before OpenTofu takes any actions.
 
 ## Examples
 
@@ -66,7 +66,7 @@ before OpenTF takes any actions.
 ```
 
 A common use of `fileset` is to create one resource instance per matched file, using
-[the `for_each` meta-argument](/opentf/language/meta-arguments/for_each):
+[the `for_each` meta-argument](/docs/language/meta-arguments/for_each):
 
 ```hcl
 resource "example_thing" "example" {

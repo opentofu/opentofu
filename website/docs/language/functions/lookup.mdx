@@ -1,5 +1,5 @@
 ---
-page_title: lookup - Functions - Configuration Language
+sidebar_label: lookup
 description: The lookup function retrieves an element value from a map given its key.
 ---
 
@@ -12,9 +12,11 @@ If the given key does not exist, the given default value is returned instead.
 lookup(map, key, default)
 ```
 
--> For historical reasons, the `default` parameter is actually optional. However,
+:::note
+For historical reasons, the `default` parameter is actually optional. However,
 omitting `default` is deprecated since v0.7 because that would then be
 equivalent to the native index syntax, `map[key]`.
+:::
 
 ## Examples
 
@@ -27,4 +29,4 @@ what?
 
 ## Related Functions
 
-* [`element`](/opentf/language/functions/element) retrieves a value from a _list_ given its _index_.
+* [`element`](/docs/language/functions/element) retrieves a value from a _list_ given its _index_.

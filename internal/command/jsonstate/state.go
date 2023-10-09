@@ -11,12 +11,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/addrs"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/command/jsonchecks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/lang/marks"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/opentf"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/jsonchecks"
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 const (
@@ -29,7 +29,7 @@ const (
 	DataResourceMode    = "data"
 )
 
-// State is the top-level representation of the json format of a terraform
+// State is the top-level representation of the json format of a tofu
 // state.
 type State struct {
 	FormatVersion    string          `json:"format_version,omitempty"`
@@ -104,10 +104,10 @@ type Resource struct {
 	// addresses relative to the containing module.
 	DependsOn []string `json:"depends_on,omitempty"`
 
-	// Tainted is true if the resource is tainted in terraform state.
+	// Tainted is true if the resource is tainted in tofu state.
 	Tainted bool `json:"tainted,omitempty"`
 
-	// Deposed is set if the resource is deposed in terraform state.
+	// Deposed is set if the resource is deposed in tofu state.
 	DeposedKey string `json:"deposed_key,omitempty"`
 }
 
@@ -143,7 +143,7 @@ func newState() *State {
 
 // MarshalForRenderer returns the pre-json encoding changes of the state, in a
 // format available to the structured renderer.
-func MarshalForRenderer(sf *statefile.File, schemas *opentf.Schemas) (Module, map[string]Output, error) {
+func MarshalForRenderer(sf *statefile.File, schemas *tofu.Schemas) (Module, map[string]Output, error) {
 	if sf.State.Modules == nil {
 		// Empty state case.
 		return Module{}, nil, nil
@@ -164,7 +164,7 @@ func MarshalForRenderer(sf *statefile.File, schemas *opentf.Schemas) (Module, ma
 
 // MarshalForLog returns the origin JSON compatible state, read for a logging
 // package to marshal further.
-func MarshalForLog(sf *statefile.File, schemas *opentf.Schemas) (*State, error) {
+func MarshalForLog(sf *statefile.File, schemas *tofu.Schemas) (*State, error) {
 	output := newState()
 
 	if sf == nil || sf.State.Empty() {
@@ -189,8 +189,8 @@ func MarshalForLog(sf *statefile.File, schemas *opentf.Schemas) (*State, error) 
 	return output, nil
 }
 
-// Marshal returns the json encoding of a terraform state.
-func Marshal(sf *statefile.File, schemas *opentf.Schemas) ([]byte, error) {
+// Marshal returns the json encoding of a tofu state.
+func Marshal(sf *statefile.File, schemas *tofu.Schemas) ([]byte, error) {
 	output, err := MarshalForLog(sf, schemas)
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func Marshal(sf *statefile.File, schemas *opentf.Schemas) ([]byte, error) {
 	return ret, err
 }
 
-func (jsonstate *State) marshalStateValues(s *states.State, schemas *opentf.Schemas) error {
+func (jsonstate *State) marshalStateValues(s *states.State, schemas *tofu.Schemas) error {
 	var sv StateValues
 	var err error
 
@@ -248,7 +248,7 @@ func MarshalOutputs(outputs map[string]*states.OutputValue) (map[string]Output, 
 	return ret, nil
 }
 
-func marshalRootModule(s *states.State, schemas *opentf.Schemas) (Module, error) {
+func marshalRootModule(s *states.State, schemas *tofu.Schemas) (Module, error) {
 	var ret Module
 	var err error
 
@@ -292,10 +292,10 @@ func marshalRootModule(s *states.State, schemas *opentf.Schemas) (Module, error)
 }
 
 // marshalModules is an ungainly recursive function to build a module structure
-// out of terraform state.
+// out of tofu state.
 func marshalModules(
 	s *states.State,
-	schemas *opentf.Schemas,
+	schemas *tofu.Schemas,
 	modules []addrs.ModuleInstance,
 	moduleMap map[string][]addrs.ModuleInstance,
 ) ([]Module, error) {
@@ -333,7 +333,7 @@ func marshalModules(
 	return ret, nil
 }
 
-func marshalResources(resources map[string]*states.Resource, module addrs.ModuleInstance, schemas *opentf.Schemas) ([]Resource, error) {
+func marshalResources(resources map[string]*states.Resource, module addrs.ModuleInstance, schemas *tofu.Schemas) ([]Resource, error) {
 	var ret []Resource
 
 	var sortedResources []*states.Resource

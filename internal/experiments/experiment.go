@@ -30,7 +30,7 @@ func init() {
 	registerConcludedExperiment(SuppressProviderSensitiveAttrs, "Provider-defined sensitive attributes are now redacted by default, without enabling an experiment.")
 	registerConcludedExperiment(ConfigDrivenMove, "Declarations of moved resource instances using \"moved\" blocks can now be used by default, without enabling an experiment.")
 	registerConcludedExperiment(PreconditionsPostconditions, "Condition blocks can now be used by default, without enabling an experiment.")
-	registerConcludedExperiment(ModuleVariableOptionalAttrs, "The final feature corresponding to this experiment differs from the experimental form and is available in the OpenTF language from OpenTF v1.3.0 onwards.")
+	registerConcludedExperiment(ModuleVariableOptionalAttrs, "The final feature corresponding to this experiment differs from the experimental form and is available in the OpenTofu language from OpenTofu v1.3.0 onwards.")
 }
 
 // GetCurrent takes an experiment name and returns the experiment value
@@ -75,7 +75,7 @@ func (e Experiment) IsConcluded() bool {
 }
 
 // currentExperiments are those which are available to activate in the current
-// version of Terraform.
+// version of OpenTofu.
 //
 // Members of this set are registered in the init function above.
 var currentExperiments = make(Set)

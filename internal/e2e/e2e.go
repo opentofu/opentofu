@@ -12,10 +12,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/plans/planfile"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states"
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 )
 
 // Type binary represents the combination of a compiled binary
@@ -112,7 +112,7 @@ func (b *binary) AddEnv(entry string) {
 	b.env = append(b.env, entry)
 }
 
-// Cmd returns an exec.Cmd pre-configured to run the generated Terraform
+// Cmd returns an exec.Cmd pre-configured to run the generated OpenTofu
 // binary with the given arguments in the temporary working directory.
 //
 // The returned object can be mutated by the caller to customize how the
@@ -127,10 +127,10 @@ func (b *binary) Cmd(args ...string) *exec.Cmd {
 	return cmd
 }
 
-// Run executes the generated Terraform binary with the given arguments
+// Run executes the generated OpenTofu binary with the given arguments
 // and returns the bytes that it wrote to both stdout and stderr.
 //
-// This is a simple way to run Terraform for non-interactive commands
+// This is a simple way to run OpenTofu for non-interactive commands
 // that don't need any special environment variables. For more complex
 // situations, use Cmd and customize the command before running it.
 func (b *binary) Run(args ...string) (stdout, stderr string, err error) {
@@ -192,7 +192,7 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 
 	stateFile, err := statefile.Read(f)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading statefile: %s", err)
+		return nil, fmt.Errorf("Error reading statefile: %w", err)
 	}
 	return stateFile.State, nil
 }
@@ -220,7 +220,7 @@ func (b *binary) SetLocalState(state *states.State) error {
 	path := b.Path("terraform.tfstate")
 	f, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("failed to create temporary state file %s: %s", path, err)
+		return fmt.Errorf("failed to create temporary state file %s: %w", path, err)
 	}
 	defer f.Close()
 

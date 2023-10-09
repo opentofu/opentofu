@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/placeholderplaceholderplaceholder/opentf/internal/e2e"
-	"github.com/placeholderplaceholderplaceholder/opentf/version"
+	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/opentofu/opentofu/version"
 )
 
 func TestVersion(t *testing.T) {
@@ -33,7 +33,7 @@ func TestVersion(t *testing.T) {
 		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
-	wantVersion := fmt.Sprintf("OpenTF v%s", version.String())
+	wantVersion := fmt.Sprintf("OpenTofu v%s", version.String())
 	if !strings.Contains(stdout, wantVersion) {
 		t.Errorf("output does not contain our current version %q:\n%s", wantVersion, stdout)
 	}
@@ -64,7 +64,7 @@ func TestVersionWithProvider(t *testing.T) {
 			t.Errorf("unexpected stderr output:\n%s", stderr)
 		}
 
-		wantVersion := fmt.Sprintf("OpenTF v%s", version.String())
+		wantVersion := fmt.Sprintf("OpenTofu v%s", version.String())
 		if !strings.Contains(stdout, wantVersion) {
 			t.Errorf("output does not contain our current version %q:\n%s", wantVersion, stdout)
 		}
@@ -89,7 +89,7 @@ func TestVersionWithProvider(t *testing.T) {
 			t.Errorf("unexpected stderr output:\n%s", stderr)
 		}
 
-		wantMsg := "+ provider registry.terraform.io/hashicorp/template v" // we don't know which version we'll get here
+		wantMsg := "+ provider registry.opentofu.org/hashicorp/template v" // we don't know which version we'll get here
 		if !strings.Contains(stdout, wantMsg) {
 			t.Errorf("output does not contain provider information %q:\n%s", wantMsg, stdout)
 		}

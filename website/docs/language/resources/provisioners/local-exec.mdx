@@ -1,25 +1,26 @@
 ---
-page_title: 'Provisioner: local-exec'
 description: >-
   The `local-exec` provisioner invokes a local executable after a resource is
-  created. This invokes a process on the machine running OpenTF, not on the
+  created. This invokes a process on the machine running OpenTofu, not on the
   resource. See the `remote-exec` provisioner to run commands on the resource.
 ---
 
 # local-exec Provisioner
 
 The `local-exec` provisioner invokes a local executable after a resource is
-created. This invokes a process on the machine running OpenTF, not on the
+created. This invokes a process on the machine running OpenTofu, not on the
 resource. See the `remote-exec`
-[provisioner](/opentf/language/resources/provisioners/remote-exec) to run commands on the
+[provisioner](/docs/language/resources/provisioners/remote-exec) to run commands on the
 resource.
 
 Note that even though the resource will be fully created when the provisioner is
 run, there is no guarantee that it will be in an operable state - for example
 system services such as `sshd` may not be started yet on compute resources.
 
-~> **Important:** Use provisioners as a last resort. There are better alternatives for most situations. Refer to
-[Declaring Provisioners](/opentf/language/resources/provisioners/syntax) for more details.
+:::warning Important
+Use provisioners as a last resort. There are better alternatives for most situations. Refer to
+[Declaring Provisioners](/docs/language/resources/provisioners/syntax) for more details.
+:::
 
 ## Example usage
 
@@ -39,7 +40,7 @@ The following arguments are supported:
 
 * `command` - (Required) This is the command to execute. It can be provided
   as a relative path to the current working directory or as an absolute path.
-  It is evaluated in a shell, and can use environment variables or OpenTF
+  It is evaluated in a shell, and can use environment variables or OpenTofu
   variables.
 
 * `working_dir` - (Optional) If provided, specifies the working directory where
@@ -57,12 +58,12 @@ The following arguments are supported:
 * `environment` - (Optional) block of key value pairs representing the
   environment of the executed command. inherits the current process environment.
 
-* `when` - (Optional) If provided, specifies when OpenTF will execute the command.
+* `when` - (Optional) If provided, specifies when OpenTofu will execute the command.
   For example, `when = destroy` specifies that the provisioner will run when the associated resource
-  is destroyed. Refer to [Destroy-Time Provisioners](/opentf/language/resources/provisioners/syntax#destroy-time-provisioners)
+  is destroyed. Refer to [Destroy-Time Provisioners](/docs/language/resources/provisioners/syntax#destroy-time-provisioners)
   for details.
   
-* `quiet` - (Optional) If set to `true`, OpenTF will not print the command to be executed to stdout, and will instead print "Suppressed by quiet=true". Note that the output of the command will still be printed in any case.
+* `quiet` - (Optional) If set to `true`, OpenTofu will not print the command to be executed to stdout, and will instead print "Suppressed by quiet=true". Note that the output of the command will still be printed in any case.
 
 ### Interpreter Examples
 
