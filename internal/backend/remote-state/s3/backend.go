@@ -383,7 +383,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	cfg := &awsbase.Config{
 		AccessKey:              stringAttr(obj, "access_key"),
-		CallerDocumentationURL: "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
+		CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
 		CallerName:             "S3 Backend",
 		SuppressDebugLog:       logging.IsDebugOrHigher(),
 		IamEndpoint:            stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
