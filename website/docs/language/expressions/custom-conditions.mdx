@@ -212,13 +212,13 @@ The following example uses a check block with an assertion to verify the OpenTof
 
 ```hcl
 check "health_check" {
-  data "http" "placeholderplaceholderplaceholder_io" {
-    url = "https://www.placeholderplaceholderplaceholder.io"
+  data "http" "opentofu_org" {
+    url = "https://www.opentofu.org"
   }
 
   assert {
-    condition = data.http.placeholderplaceholderplaceholder_io.status_code == 200
-    error_message = "${data.http.placeholderplaceholderplaceholder_io.url} returned an unhealthy status code"
+    condition = data.http.opentofu_org.status_code == 200
+    error_message = "${data.http.opentofu_org.url} returned an unhealthy status code"
   }
 }
 ```

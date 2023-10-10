@@ -380,7 +380,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		AssumeRoleExternalID:      stringAttr(obj, "external_id"),
 		AssumeRolePolicy:          stringAttr(obj, "assume_role_policy"),
 		AssumeRoleSessionName:     stringAttr(obj, "session_name"),
-		CallerDocumentationURL:    "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
+		CallerDocumentationURL:    "https://opentofu.org/docs/language/settings/backends/s3/",
 		CallerName:                "S3 Backend",
 		CredsFilename:             stringAttr(obj, "shared_credentials_file"),
 		DebugLogging:              logging.IsDebugOrHigher(),
