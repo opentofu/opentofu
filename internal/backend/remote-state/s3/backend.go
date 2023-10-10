@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -30,8 +30,8 @@ func New() backend.Backend {
 }
 
 type Backend struct {
-	s3Client  *s3.S3
-	dynClient *dynamodb.DynamoDB
+	s3Client  *s3.Client
+	dynClient *dynamodb.Client
 	awsConfig aws.Config
 
 	bucketName            string
@@ -413,7 +413,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	if value := obj.GetAttr("shared_credentials_file"); !value.IsNull() {
-		cfg.SharedCredentialsFiles = append(cfg.SharedCredentialsFiles, value)
+		cfg.SharedCredentialsFiles = append(cfg.SharedCredentialsFiles, stringValue(value))
 	}
 
 	if value := obj.GetAttr("shared_credentials_files"); !value.IsNull() {
@@ -436,24 +436,23 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		})
 	}
 	ctx := context.TODO()
-	_, awsConfig, awsDiag := awsbase.GetAwsConfig(ctx, cfg)
-	b.awsConfig = awsConfig
-	//
-	//sess, err := awsbasev1.GetSession(cfg)
-	//if err != nil {
-	//	diags = diags.Append(tfdiags.Sourceless(
-	//		tfdiags.Error,
-	//		"Failed to configure AWS client",
-	//		fmt.Sprintf(`The "S3" backend encountered an unexpected error while creating the AWS client: %s`, err),
-	//	))
-	//	return diags
-	//}
+	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
-	var dynamoConfig aws.Config
-	if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT"); ok {
-		dynamoConfig.Endpoint = aws.String(v)
+	for _, d := range awsDiags {
+		diags = diags.Append(tfdiags.Sourceless(
+			baseSeverityToTofuSeverity(d.Severity()),
+			d.Summary(),
+			d.Detail(),
+		))
 	}
-	b.dynClient = dynamodb.New(sess.Copy(&dynamoConfig))
+
+	if diags.HasErrors() {
+		return diags
+	}
+
+	b.awsConfig = awsConfig
+
+	b.dynClient = dynamodb.NewFromConfig(awsConfig, getDynamoDBConfig(obj, diags))
 
 	var s3Config aws.Config
 	if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT"); ok {
@@ -465,6 +464,13 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.s3Client = s3.New(sess.Copy(&s3Config))
 
 	return diags
+}
+
+func getDynamoDBConfig(obj cty.Value, diags tfdiags.Diagnostics) func(options *dynamodb.Options) {
+	return func(options *dynamodb.Options) {
+		options.EndpointResolverV2 = dynamodb.EndpointResolverV2()
+
+	}
 }
 
 func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {

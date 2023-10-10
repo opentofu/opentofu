@@ -1,6 +1,7 @@
 package s3
 
 import (
+	basediag "github.com/hashicorp/aws-sdk-go-base/v2/diag"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -31,4 +32,15 @@ func diagnosticsString(diags tfdiags.Diagnostics) string {
 		}
 	}
 	return buffer.String()
+}
+
+func baseSeverityToTofuSeverity(s basediag.Severity) tfdiags.Severity {
+	switch s {
+	case basediag.SeverityWarning:
+		return tfdiags.Warning
+	case basediag.SeverityError:
+		return tfdiags.Error
+	default:
+		return -1
+	}
 }
