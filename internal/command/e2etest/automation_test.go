@@ -14,10 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
-// The tests in this file run through different scenarios recommended in our
-// "Running Terraform in Automation" guide:
-//     https://www.placeholderplaceholderplaceholder.io/guides/running-terraform-in-automation.html
-
 // TestPlanApplyInAutomation runs through the "main case" of init, plan, apply
 // using the specific command line options suggested in the guide.
 func TestPlanApplyInAutomation(t *testing.T) {
