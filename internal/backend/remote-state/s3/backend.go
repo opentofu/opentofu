@@ -84,6 +84,37 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "A custom endpoint for the STS API",
 			},
+			"endpoints": {
+				NestedType: &configschema.Object{
+					Nesting: configschema.NestingSingle,
+					Attributes: map[string]*configschema.Attribute{
+						"dynamodb": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the DynamoDB API",
+						},
+
+						"iam": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the IAM API",
+						},
+
+						"s3": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the S3 API",
+						},
+
+						"sts": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the STS API",
+						},
+					},
+				},
+				Optional: true,
+			},
 			"encrypt": {
 				Type:        cty.Bool,
 				Optional:    true,
@@ -467,6 +498,11 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 }
 
 func getDynamoDBConfig(obj cty.Value, diags tfdiags.Diagnostics) func(options *dynamodb.Options) {
+	// Find a way to resolve
+	//AWS_ENDPOINT_URL_DYNAMODB
+	//AWS_DYNAMODB_ENDPOINT
+	//endpoints.dynamo
+	//dynamodb_endpoint
 	return func(options *dynamodb.Options) {
 		options.EndpointResolverV2 = dynamodb.EndpointResolverV2()
 
