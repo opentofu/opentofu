@@ -77,7 +77,7 @@ func keyIdFromARNResource(s string) string {
 }
 
 func aliasIdFromARNResource(s string) string {
-	aliasIdResourceRegex := regexp.MustCompile(`^` + aliasRegexPattern + `$`)
+	aliasIdResourceRegex := regexp.MustCompile(`^(` + aliasRegexPattern + `)$`)
 	matches := aliasIdResourceRegex.FindStringSubmatch(s)
 	if matches == nil || len(matches) != 2 {
 		return ""
