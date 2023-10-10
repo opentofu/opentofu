@@ -84,24 +84,6 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "A custom endpoint for the STS API",
 			},
-			"endpoints": {
-				NestedType: &configschema.Object{
-					Nesting: configschema.NestingSingle,
-					Attributes: map[string]*configschema.Attribute{
-						"dynamodb": {
-							Type:        cty.String,
-							Optional:    true,
-							Description: "A custom endpoint for the DynamoDB API",
-						},
-						"s3": {
-							Type:        cty.String,
-							Optional:    true,
-							Description: "A custom endpoint for the S3 API",
-						},
-					},
-				},
-				Optional: true,
-			},
 			"encrypt": {
 				Type:        cty.Bool,
 				Optional:    true,
@@ -229,12 +211,6 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.Bool,
 				Optional:    true,
 				Description: "Force s3 to use path style api.",
-			},
-
-			"use_path_style": {
-				Type:        cty.Bool,
-				Optional:    true,
-				Description: "Enable s3 to use path style api.",
 			},
 
 			"max_retries": {
@@ -503,12 +479,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 	return func(options *dynamodb.Options) {
-		if endpointsValue := obj.GetAttr("endpoints"); !endpointsValue.IsNull() {
-			if ddbValue := endpointsValue.GetAttr("dynamodb"); !ddbValue.IsNull() {
-				options.BaseEndpoint = aws.String(ddbValue.AsString())
-				return
-			}
-		}
 		if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT", "AWS_ENDPOINT_URL_DYNAMODB"); ok {
 			options.BaseEndpoint = aws.String(v)
 		}
@@ -517,19 +487,10 @@ func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 
 func getS3Config(obj cty.Value) func(options *s3.Options) {
 	return func(options *s3.Options) {
-		if endpointsValue := obj.GetAttr("endpoints"); !endpointsValue.IsNull() {
-			if ddbValue := endpointsValue.GetAttr("s3"); !ddbValue.IsNull() {
-				options.BaseEndpoint = aws.String(ddbValue.AsString())
-				return
-			}
-		}
 		if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT", "AWS_ENDPOINT_URL_S3"); ok {
 			options.BaseEndpoint = aws.String(v)
 		}
 		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
-			options.UsePathStyle = v
-		}
-		if v, ok := boolAttrOk(obj, "use_path_style"); ok {
 			options.UsePathStyle = v
 		}
 	}
