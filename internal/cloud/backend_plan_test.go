@@ -90,7 +90,7 @@ func TestCloud_planBasic(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -204,7 +204,7 @@ func TestCloud_planLongLine(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -388,7 +388,7 @@ func TestCloud_planWithPath(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -626,7 +626,7 @@ func TestCloud_planWithRequiredVariables(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 }
@@ -727,7 +727,7 @@ func TestCloud_planForceLocal(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if strings.Contains(output, "Running plan in Terraform Cloud") {
+	if strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -763,7 +763,7 @@ func TestCloud_planWithoutOperationsEntitlement(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if strings.Contains(output, "Running plan in Terraform Cloud") {
+	if strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -813,7 +813,7 @@ func TestCloud_planWorkspaceWithoutOperations(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if strings.Contains(output, "Running plan in Terraform Cloud") {
+	if strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("unexpected TFC header in output: %s", output)
 	}
 	if output := done(t).Stdout(); !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -881,7 +881,7 @@ func TestCloud_planLockTimeout(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Lock timeout exceeded") {
@@ -979,7 +979,7 @@ func TestCloud_planWithWorkingDirectory(t *testing.T) {
 	if !strings.Contains(output, "The remote workspace is configured to work with configuration") {
 		t.Fatalf("expected working directory warning: %s", output)
 	}
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1035,7 +1035,7 @@ func TestCloud_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
@@ -1067,7 +1067,7 @@ func TestCloud_planCostEstimation(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Resources: 1 of 1 estimated") {
@@ -1102,7 +1102,7 @@ func TestCloud_planPolicyPass(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Sentinel Result: true") {
@@ -1142,7 +1142,7 @@ func TestCloud_planPolicyHardFail(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Sentinel Result: false") {
@@ -1182,7 +1182,7 @@ func TestCloud_planPolicySoftFail(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Sentinel Result: false") {
@@ -1217,7 +1217,7 @@ func TestCloud_planWithRemoteError(t *testing.T) {
 	}
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
-	if !strings.Contains(output, "Running plan in Terraform Cloud") {
+	if !strings.Contains(output, "Running plan in cloud backend") {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "null_resource.foo: 1 error") {
@@ -1282,7 +1282,7 @@ func TestCloud_planOtherError(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(),
-		"Terraform Cloud returned an unexpected error:\n\nI'm a little teacup") {
+		"Cloud backend returned an unexpected error:\n\nI'm a little teacup") {
 		t.Fatalf("expected error message, got: %s", err.Error())
 	}
 }

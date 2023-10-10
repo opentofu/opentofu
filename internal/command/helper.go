@@ -12,7 +12,7 @@ const failedToLoadSchemasMessage = `
 Warning: Failed to update data for external integrations
 
 OpenTofu was unable to generate a description of the updated
-state for use with external integrations in Terraform Cloud.
+state for use with external integrations in the cloud backend.
 Any integrations configured for this workspace which depend on
 information from the state may not work correctly when using the
 result of this action.
