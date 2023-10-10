@@ -981,8 +981,6 @@ the error above and try again.
 
 const errTFCMigrateNotYetImplemented = `
 Migrating state from Terraform Cloud to another backend is not yet implemented.
-
-Please use the API to do this: https://www.placeholderplaceholderplaceholder.io/docs/cloud/api/state-versions.html
 `
 
 const errInteractiveInputDisabled = `
@@ -1005,7 +1003,7 @@ configuration (e.g. production, staging, development), Terraform Cloud workspace
 across all configurations used within an organization. A typical strategy to start with is
 <COMPONENT>-<ENVIRONMENT>-<REGION> (e.g. networking-prod-us-east, networking-staging-us-east).
 
-For more information on workspace naming, see https://www.placeholderplaceholderplaceholder.io/docs/cloud/workspaces/naming.html
+For more information on workspaces, see https://opentofu.org/docs/language/state/workspaces
 
 When migrating existing workspaces from the backend %[1]q to Terraform Cloud, would you like to
 rename your workspaces? Enter 1 or 2.
