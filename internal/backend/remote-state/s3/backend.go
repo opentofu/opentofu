@@ -93,23 +93,10 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 							Optional:    true,
 							Description: "A custom endpoint for the DynamoDB API",
 						},
-
-						"iam": {
-							Type:        cty.String,
-							Optional:    true,
-							Description: "A custom endpoint for the IAM API",
-						},
-
 						"s3": {
 							Type:        cty.String,
 							Optional:    true,
 							Description: "A custom endpoint for the S3 API",
-						},
-
-						"sts": {
-							Type:        cty.String,
-							Optional:    true,
-							Description: "A custom endpoint for the STS API",
 						},
 					},
 				},
@@ -481,9 +468,27 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		return diags
 	}
 
+	accountID, _, awsDiags := awsbase.GetAwsAccountIDAndPartition(ctx, awsConfig, cfg)
+	for _, d := range awsDiags {
+		diags = append(diags, tfdiags.Sourceless(
+			baseSeverityToTofuSeverity(d.Severity()),
+			fmt.Sprintf("Retrieving AWS account details: %s", d.Summary()),
+			d.Detail(),
+		))
+	}
+
+	err := cfg.VerifyAccountIDAllowed(accountID)
+	if err != nil {
+		diags = append(diags, tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid account ID",
+			err.Error(),
+		))
+	}
+
 	b.awsConfig = awsConfig
 
-	b.dynClient = dynamodb.NewFromConfig(awsConfig, getDynamoDBConfig(obj, diags))
+	b.dynClient = dynamodb.NewFromConfig(awsConfig, getDynamoDBConfig(obj))
 
 	var s3Config aws.Config
 	if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT"); ok {
@@ -497,16 +502,12 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	return diags
 }
 
-func getDynamoDBConfig(obj cty.Value, diags tfdiags.Diagnostics) func(options *dynamodb.Options) {
-	// Find a way to resolve
-	//AWS_ENDPOINT_URL_DYNAMODB
-	//AWS_DYNAMODB_ENDPOINT
-	//endpoints.dynamo
-	//dynamodb_endpoint
-
+func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 	return func(options *dynamodb.Options) {
 
-		options.BaseEndpoint = aws.String("https://localhost:8080/")
+		if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_DYNAMODB_ENDPOINT", "AWS_ENDPOINT_URL_DYNAMODB"); ok {
+			options.BaseEndpoint = aws.String(v)
+		}
 	}
 }
 
