@@ -43,6 +43,7 @@ BUG FIXES:
 * Conditionals with an unknown condition and sensitive branch won't crash anymore. ([#659](https://github.com/opentofu/opentofu/issues/659))
 * Fixed panic when using sensitive inputs for the ID field of an import configuration block ([#665](https://github.com/opentofu/opentofu/pull/665))
 * Fixes the ability to use KMS key aliases in the S3 backend ([#669](https://github.com/opentofu/opentofu/issues/669))
+* cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 ## Previous Releases
 
 For information on prior major and minor releases, see their changelogs:
