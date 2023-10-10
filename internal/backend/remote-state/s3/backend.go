@@ -503,9 +503,10 @@ func getDynamoDBConfig(obj cty.Value, diags tfdiags.Diagnostics) func(options *d
 	//AWS_DYNAMODB_ENDPOINT
 	//endpoints.dynamo
 	//dynamodb_endpoint
-	return func(options *dynamodb.Options) {
-		options.EndpointResolverV2 = dynamodb.EndpointResolverV2()
 
+	return func(options *dynamodb.Options) {
+
+		options.BaseEndpoint = aws.String("https://localhost:8080/")
 	}
 }
 
