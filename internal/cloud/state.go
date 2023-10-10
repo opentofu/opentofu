@@ -255,7 +255,7 @@ func (s *State) ShouldPersistIntermediateState(info *local.IntermediateStatePers
 
 	// This value is controlled by a x-terraform-snapshot-interval header intercepted during
 	// state-versions API responses
-	if !s.enableIntermediateSnapshots && info.RequestedPersistInterval == time.Duration(0) {
+	if !s.enableIntermediateSnapshots {
 		return false
 	}
 
@@ -584,6 +584,7 @@ func clamp(val, min, max int64) int64 {
 }
 
 func (s *State) readSnapshotIntervalHeader(status int, header http.Header) {
+	// Only proceed if this came from tfe.v2 API
 	contentType := header.Get("Content-Type")
 	if !strings.Contains(contentType, tfe.ContentTypeJSONAPI) {
 		log.Printf("[TRACE] Skipping intermediate state interval because Content-Type was %q", contentType)
