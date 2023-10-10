@@ -34,14 +34,14 @@ The `plantimestamp` function is not available within the OpenTofu console.
 ```
 
 ```hcl
-check "placeholderplaceholderplaceholder_io_certificate" {
-  data "tls_certificate" "placeholderplaceholderplaceholder_io" {
-    url = "https://www.placeholderplaceholderplaceholder.io/"
+check "opentofu_org_certificate" {
+  data "tls_certificate" "opentofu_org" {
+    url = "https://www.opentofu.org/"
   }
 
   assert {
-    condition = timecmp(plantimestamp(), data.tls_certificate.placeholderplaceholderplaceholder_io.certificates[0].not_after) < 0
-    error_message = "placeholderplaceholderplaceholder.io certificate has expired"
+    condition = timecmp(plantimestamp(), data.tls_certificate.opentofu_org.certificates[0].not_after) < 0
+    error_message = "opentofu.org certificate has expired"
   }
 }
 ```
