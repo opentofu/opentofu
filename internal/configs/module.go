@@ -716,7 +716,7 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 					Severity: hcl.DiagError,
 					Summary:  "Invalid required_version constraint",
 					Detail: fmt.Sprintf(
-						"Prerelease version constraints are not supported: %s. Remove the prerelease information from the constraint. Prerelease versions of terraform will match constraints using their version core only.",
+						"Prerelease version constraints are not supported: %s. Remove the prerelease information from the constraint. Prerelease versions of OpenTofu will match constraints using their version core only.",
 						required.String()),
 					Subject: constraint.DeclRange.Ptr(),
 				})
