@@ -231,6 +231,12 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Description: "Force s3 to use path style api.",
 			},
 
+			"use_path_style": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Enable s3 to use path style api.",
+			},
+
 			"max_retries": {
 				Type:        cty.Number,
 				Optional:    true,
@@ -490,23 +496,41 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	b.dynClient = dynamodb.NewFromConfig(awsConfig, getDynamoDBConfig(obj))
 
-	var s3Config aws.Config
-	if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT"); ok {
-		s3Config.Endpoint = aws.String(v)
-	}
-	if v, ok := boolAttrOk(obj, "force_path_style"); ok {
-		s3Config.S3ForcePathStyle = aws.Bool(v)
-	}
-	b.s3Client = s3.New(sess.Copy(&s3Config))
+	b.s3Client = s3.NewFromConfig(awsConfig, getS3Config(obj))
 
 	return diags
 }
 
 func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 	return func(options *dynamodb.Options) {
-
-		if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_DYNAMODB_ENDPOINT", "AWS_ENDPOINT_URL_DYNAMODB"); ok {
+		if endpointsValue := obj.GetAttr("endpoints"); !endpointsValue.IsNull() {
+			if ddbValue := endpointsValue.GetAttr("dynamodb"); !ddbValue.IsNull() {
+				options.BaseEndpoint = aws.String(ddbValue.AsString())
+				return
+			}
+		}
+		if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT", "AWS_ENDPOINT_URL_DYNAMODB"); ok {
 			options.BaseEndpoint = aws.String(v)
+		}
+	}
+}
+
+func getS3Config(obj cty.Value) func(options *s3.Options) {
+	return func(options *s3.Options) {
+		if endpointsValue := obj.GetAttr("endpoints"); !endpointsValue.IsNull() {
+			if ddbValue := endpointsValue.GetAttr("s3"); !ddbValue.IsNull() {
+				options.BaseEndpoint = aws.String(ddbValue.AsString())
+				return
+			}
+		}
+		if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT", "AWS_ENDPOINT_URL_S3"); ok {
+			options.BaseEndpoint = aws.String(v)
+		}
+		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
+			options.UsePathStyle = v
+		}
+		if v, ok := boolAttrOk(obj, "use_path_style"); ok {
+			options.UsePathStyle = v
 		}
 	}
 }
