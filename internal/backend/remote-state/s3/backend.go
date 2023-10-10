@@ -6,9 +6,12 @@ package s3
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -31,7 +34,7 @@ func New() backend.Backend {
 type Backend struct {
 	s3Client  *s3.S3
 	dynClient *dynamodb.DynamoDB
-	awsConfig awsbase.Config
+	awsConfig aws.Config
 
 	bucketName            string
 	keyName               string
@@ -154,51 +157,9 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Description: "The base64-encoded encryption key to use for server-side encryption with customer-provided keys (SSE-C).",
 				Sensitive:   true,
 			},
-			"role_arn": {
-				Type:        cty.String,
-				Optional:    true,
-				Description: "The role to be assumed",
-			},
-			"session_name": {
-				Type:        cty.String,
-				Optional:    true,
-				Description: "The session name to use when assuming the role.",
-			},
-			"external_id": {
-				Type:        cty.String,
-				Optional:    true,
-				Description: "The external ID to use when assuming the role",
-			},
+			"assume_role": assumeRoleSchema,
 
-			"assume_role_duration_seconds": {
-				Type:        cty.Number,
-				Optional:    true,
-				Description: "Seconds to restrict the assume role session duration.",
-			},
-
-			"assume_role_policy": {
-				Type:        cty.String,
-				Optional:    true,
-				Description: "IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.",
-			},
-
-			"assume_role_policy_arns": {
-				Type:        cty.Set(cty.String),
-				Optional:    true,
-				Description: "Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.",
-			},
-
-			"assume_role_tags": {
-				Type:        cty.Map(cty.String),
-				Optional:    true,
-				Description: "Assume role session tags.",
-			},
-
-			"assume_role_transitive_tag_keys": {
-				Type:        cty.Set(cty.String),
-				Optional:    true,
-				Description: "Assume role session tag keys to pass to any subsequent sessions.",
-			},
+			"assume_role_with_web_identity": assumeRoleWithWebIdentitySchema(),
 
 			"workspace_key_prefix": {
 				Type:        cty.String,
@@ -222,6 +183,119 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.Set(cty.String),
 				Optional:    true,
 				Description: "List of paths to shared config files. If not set, defaults to [~/.aws/config].",
+			},
+		},
+	}
+}
+
+var assumeRoleSchema = map[string]*configschema.Attribute{
+	"duration": {
+		Type:        cty.String,
+		Optional:    true,
+		Description: "The duration, between 15 minutes and 12 hours, of the role session. Valid time units are ns, us (or µs), ms, s, h, or m.",
+		//ValidateFunc: validAssumeRoleDuration,
+	},
+	"external_id": {
+		Type:        cty.String,
+		Optional:    true,
+		Description: "A unique identifier that might be required when you assume a role in another account.",
+		//ValidateFunc: validation.All(
+		//	validation.StringLenBetween(2, 1224),
+		//	validation.StringMatch(regexache.MustCompile(`[\w+=,.@:\/\-]*`), ""),
+		//),
+	},
+	"policy": {
+		Type:        cty.String,
+		Optional:    true,
+		Description: "IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.",
+		//ValidateFunc: validation.StringIsJSON,
+	},
+	"policy_arns": {
+		Type:        cty.Set(cty.String),
+		Optional:    true,
+		Description: "Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.",
+	},
+	"role_arn": {
+		Type:        cty.String,
+		Optional:    true,
+		Description: "Amazon Resource Name (ARN) of an IAM Role to assume prior to making API calls.",
+		//ValidateFunc: verify.ValidARN,
+	},
+	"session_name": {
+		Type:        cty.String,
+		Optional:    true,
+		Description: "An identifier for the assumed role session.",
+		//ValidateFunc: validAssumeRoleSessionName,
+	},
+	"source_identity": {
+		Type:        cty.String,
+		Optional:    true,
+		Description: "Source identity specified by the principal assuming the role.",
+		//ValidateFunc: validAssumeRoleSourceIdentity,
+	},
+	"tags": {
+		Type:        cty.Map(cty.String),
+		Optional:    true,
+		Description: "Assume role session tags.",
+	},
+	"transitive_tag_keys": {
+		Type:        cty.Set(cty.String),
+		Optional:    true,
+		Description: "Assume role session tag keys to pass to any subsequent sessions.",
+	},
+}
+
+func assumeRoleWithWebIdentitySchema() *configschema.Block {
+	return &*configschema.Block{
+		Type:     schema.TypeList,
+		Optional: true,
+		MaxItems: 1,
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"duration": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					Description:  "The duration, between 15 minutes and 12 hours, of the role session. Valid time units are ns, us (or µs), ms, s, h, or m.",
+					ValidateFunc: validAssumeRoleDuration,
+				},
+				"policy": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					Description:  "IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.",
+					ValidateFunc: validation.StringIsJSON,
+				},
+				"policy_arns": {
+					Type:        schema.TypeSet,
+					Optional:    true,
+					Description: "Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.",
+					Elem: &schema.Schema{
+						Type:         schema.TypeString,
+						ValidateFunc: verify.ValidARN,
+					},
+				},
+				"role_arn": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					Description:  "Amazon Resource Name (ARN) of an IAM Role to assume prior to making API calls.",
+					ValidateFunc: verify.ValidARN,
+				},
+				"session_name": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					Description:  "An identifier for the assumed role session.",
+					ValidateFunc: validAssumeRoleSessionName,
+				},
+				"web_identity_token": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					ValidateFunc: validation.StringLenBetween(4, 20000),
+					ExactlyOneOf: []string{"assume_role_with_web_identity.0.web_identity_token", "assume_role_with_web_identity.0.web_identity_token_file"},
+				},
+				"web_identity_token_file": {
+					Type:         schema.TypeString,
+					Optional:     true,
+					ExactlyOneOf: []string{"assume_role_with_web_identity.0.web_identity_token", "assume_role_with_web_identity.0.web_identity_token_file"},
+				},
 			},
 		},
 	}
@@ -387,29 +461,41 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	cfg := &awsbase.Config{
-		AccessKey:                     stringAttr(obj, "access_key"),
-		CallerDocumentationURL:        "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
-		CallerName:                    "S3 Backend",
-		SuppressDebugLog:              logging.IsDebugOrHigher(),
-		IamEndpoint:                   stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
-		MaxRetries:                    intAttrDefault(obj, "max_retries", 5),
-		Profile:                       stringAttr(obj, "profile"),
-		Region:                        stringAttr(obj, "region"),
-		SecretKey:                     stringAttr(obj, "secret_key"),
-		SkipCredsValidation:           boolAttr(obj, "skip_credentials_validation"),
-		EC2MetadataServiceEnableState: boolAttr(obj, "skip_metadata_api_check"),
-		StsEndpoint:                   stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
-		Token:                         stringAttr(obj, "token"),
+		AccessKey:              stringAttr(obj, "access_key"),
+		CallerDocumentationURL: "https://www.placeholderplaceholderplaceholder.io/docs/language/settings/backends/s3.html",
+		CallerName:             "S3 Backend",
+		SuppressDebugLog:       logging.IsDebugOrHigher(),
+		IamEndpoint:            stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
+		MaxRetries:             intAttrDefault(obj, "max_retries", 5),
+		Profile:                stringAttr(obj, "profile"),
+		Region:                 stringAttr(obj, "region"),
+		SecretKey:              stringAttr(obj, "secret_key"),
+		SkipCredsValidation:    boolAttr(obj, "skip_credentials_validation"),
+		StsEndpoint:            stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
+		Token:                  stringAttr(obj, "token"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
 	}
+
+	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
+		if val {
+			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
+		} else {
+			cfg.EC2MetadataServiceEnableState = imds.ClientEnabled
+		}
+	}
+
 	if value := obj.GetAttr("role_arn"); !value.IsNull() {
 		cfg.AssumeRole = configureAssumeRole(obj)
 	}
 
 	if value := obj.GetAttr("shared_credentials_file"); !value.IsNull() {
+		cfg.SharedCredentialsFiles = append(cfg.SharedCredentialsFiles, value)
+	}
+
+	if value := obj.GetAttr("shared_credentials_files"); !value.IsNull() {
 		value.ForEachElement(func(key, val cty.Value) (stop bool) {
 			v, ok := stringValueOk(val)
 			if ok {
