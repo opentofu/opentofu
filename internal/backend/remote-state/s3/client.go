@@ -42,6 +42,9 @@ type RemoteClient struct {
 	acl                   string
 	kmsKeyID              string
 	ddbTable              string
+	lockStorageType       LockStorageType
+	lockFileName          string
+	digestFileName        string
 }
 
 var (
@@ -101,12 +104,15 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 }
 
 func (c *RemoteClient) get() (*remote.Payload, error) {
+	return c.getObject(c.path)
+}
+func (c *RemoteClient) getObject(path string) (*remote.Payload, error) {
 	var output *s3.GetObjectOutput
 	var err error
 
 	input := &s3.GetObjectInput{
 		Bucket: &c.bucketName,
-		Key:    &c.path,
+		Key:    &path,
 	}
 
 	if c.serverSideEncryption && c.customerEncryptionKey != nil {
@@ -151,6 +157,18 @@ func (c *RemoteClient) get() (*remote.Payload, error) {
 }
 
 func (c *RemoteClient) Put(data []byte) error {
+	c.PutObject(data, c.path)
+	sum := md5.Sum(data)
+	if err := c.putMD5(sum[:]); err != nil {
+		// if this errors out, we unfortunately have to error out altogether,
+		// since the next Get will inevitably fail.
+		return fmt.Errorf("failed to store state MD5: %w", err)
+
+	}
+
+	return nil
+}
+func (c *RemoteClient) PutObject(data []byte, path string) error {
 	contentType := "application/json"
 	contentLength := int64(len(data))
 
@@ -159,7 +177,7 @@ func (c *RemoteClient) Put(data []byte) error {
 		ContentLength: &contentLength,
 		Body:          bytes.NewReader(data),
 		Bucket:        &c.bucketName,
-		Key:           &c.path,
+		Key:           &path,
 	}
 
 	if c.serverSideEncryption {
@@ -186,36 +204,34 @@ func (c *RemoteClient) Put(data []byte) error {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
 
-	sum := md5.Sum(data)
-	if err := c.putMD5(sum[:]); err != nil {
-		// if this errors out, we unfortunately have to error out altogether,
-		// since the next Get will inevitably fail.
-		return fmt.Errorf("failed to store state MD5: %w", err)
-
-	}
-
 	return nil
 }
 
 func (c *RemoteClient) Delete() error {
+	err := c.deleteObject(c.path)
+	if err != nil {
+		return err
+	}
+	if err := c.deleteMD5(); err != nil {
+		log.Printf("error deleting state md5: %s", err)
+	}
+	return nil
+}
+func (c *RemoteClient) deleteObject(path string) error {
 	_, err := c.s3Client.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
-		Key:    &c.path,
+		Key:    &path,
 	})
 
 	if err != nil {
 		return err
 	}
 
-	if err := c.deleteMD5(); err != nil {
-		log.Printf("error deleting state md5: %s", err)
-	}
-
 	return nil
 }
 
 func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
-	if c.ddbTable == "" {
+	if c.ddbTable == "" && c.lockStorageType == "" {
 		return "", nil
 	}
 
@@ -229,17 +245,12 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 		info.ID = lockID
 	}
-
-	putParams := &dynamodb.PutItemInput{
-		Item: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath())},
-			"Info":   {S: aws.String(string(info.Marshal()))},
-		},
-		TableName:           aws.String(c.ddbTable),
-		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
+	var err error
+	if c.lockStorageType == S3Bucket {
+		err = c.s3Lock(info)
+	} else {
+		err = c.dynamoDBLock(info)
 	}
-	_, err := c.dynClient.PutItem(putParams)
-
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfo()
 		if infoErr != nil {
@@ -252,11 +263,47 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		}
 		return "", lockErr
 	}
-
 	return info.ID, nil
 }
 
+func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
+	payload, err := c.getObject(c.lockFileName)
+	if payload != nil && payload.Data != nil && len(payload.Data) > 0 {
+		return fmt.Errorf("lock already exists %v", err)
+	}
+	data, err := json.Marshal(info)
+	if err != nil {
+		return err
+	}
+	err = c.PutObject(data, c.lockFileName)
+	return err
+}
+func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
+
+	putParams := &dynamodb.PutItemInput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"LockID": {S: aws.String(c.lockPath())},
+			"Info":   {S: aws.String(string(info.Marshal()))},
+		},
+		TableName:           aws.String(c.ddbTable),
+		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
+	}
+	_, err := c.dynClient.PutItem(putParams)
+	return err
+}
 func (c *RemoteClient) getMD5() ([]byte, error) {
+
+	if c.lockStorageType == S3Bucket {
+		payload, err := c.getObject(c.digestFileName)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to retrieve md5 file %s from s3 bucket %s : %w", c.digestFileName, c.bucketName, err)
+		}
+		if payload == nil {
+			return nil, nil
+		}
+		return payload.Data, nil
+	}
+
 	if c.ddbTable == "" {
 		return nil, nil
 	}
@@ -298,6 +345,16 @@ func (c *RemoteClient) putMD5(sum []byte) error {
 		return errors.New("invalid payload md5")
 	}
 
+	if c.lockStorageType == S3Bucket {
+		err := c.PutObject(sum, c.digestFileName)
+		if err != nil {
+			log.Printf("[WARN] failed to upload state serial in S3 bucket: %s", err)
+		}
+		return nil
+	}
+	if c.ddbTable == "" {
+		return nil
+	}
 	putParams := &dynamodb.PutItemInput{
 		Item: map[string]*dynamodb.AttributeValue{
 			"LockID": {S: aws.String(c.lockPath() + stateIDSuffix)},
@@ -315,6 +372,15 @@ func (c *RemoteClient) putMD5(sum []byte) error {
 
 // remove the hash value for a deleted state
 func (c *RemoteClient) deleteMD5() error {
+
+	if c.lockStorageType == S3Bucket {
+		err := c.deleteObject(c.digestFileName)
+		if err != nil {
+			return fmt.Errorf("Unable to delete digest file %s from s3 bucket %s: %w", c.digestFileName, c.bucketName, err)
+		}
+		return nil
+	}
+
 	if c.ddbTable == "" {
 		return nil
 	}
@@ -332,6 +398,21 @@ func (c *RemoteClient) deleteMD5() error {
 }
 
 func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
+
+	lockInfo := &statemgr.LockInfo{}
+	if c.lockStorageType == S3Bucket {
+
+		info, err := c.getObject(c.lockFileName)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(info.Data, lockInfo)
+		if err != nil {
+			return nil, err
+		}
+		return lockInfo, nil
+	}
+
 	getParams := &dynamodb.GetItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"LockID": {S: aws.String(c.lockPath())},
@@ -351,7 +432,6 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 		infoData = *v.S
 	}
 
-	lockInfo := &statemgr.LockInfo{}
 	err = json.Unmarshal([]byte(infoData), lockInfo)
 	if err != nil {
 		return nil, err
@@ -361,7 +441,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 }
 
 func (c *RemoteClient) Unlock(id string) error {
-	if c.ddbTable == "" {
+	if c.ddbTable == "" && c.lockStorageType == "" {
 		return nil
 	}
 
@@ -371,7 +451,7 @@ func (c *RemoteClient) Unlock(id string) error {
 	// projection expression only delete the lock if both match, rather than
 	// checking the ID from the info field first.
 	lockInfo, err := c.getLockInfo()
-	if err != nil {
+	if err != nil || lockInfo == nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
 	}
@@ -382,19 +462,31 @@ func (c *RemoteClient) Unlock(id string) error {
 		return lockErr
 	}
 
+	if c.lockStorageType == S3Bucket {
+		err = c.s3Unlock()
+	} else {
+		err = c.dynamoDBUnlock()
+	}
+	if err != nil {
+		lockErr.Err = err
+		return lockErr
+	}
+	return nil
+}
+
+func (c *RemoteClient) s3Unlock() error {
+	return c.deleteObject(c.lockFileName)
+}
+
+func (c *RemoteClient) dynamoDBUnlock() error {
 	params := &dynamodb.DeleteItemInput{
 		Key: map[string]*dynamodb.AttributeValue{
 			"LockID": {S: aws.String(c.lockPath())},
 		},
 		TableName: aws.String(c.ddbTable),
 	}
-	_, err = c.dynClient.DeleteItem(params)
-
-	if err != nil {
-		lockErr.Err = err
-		return lockErr
-	}
-	return nil
+	_, err := c.dynClient.DeleteItem(params)
+	return err
 }
 
 func (c *RemoteClient) lockPath() string {

@@ -74,3 +74,23 @@ func keyIdFromARNResource(s string) string {
 
 	return matches[1]
 }
+func StringInSlice(vals []string, s string) bool {
+	for _, val := range vals {
+		if s == val {
+			return true
+		}
+	}
+	return false
+}
+func validateLockStorageType(path cty.Path, s string) (diags tfdiags.Diagnostics) {
+	if StringInSlice([]string{string(DynamoDB), string(S3Bucket)}, s) {
+		return diags
+	}
+	diags = diags.Append(tfdiags.AttributeValue(
+		tfdiags.Error,
+		"Invalid Lock Storage Type",
+		fmt.Sprintf("value of lock storage type must be DynamoDB or S3Bucket, got %s", s),
+		path,
+	))
+	return diags
+}
