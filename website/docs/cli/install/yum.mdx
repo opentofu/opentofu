@@ -32,15 +32,16 @@ If you are using a Yum-based distribution, add the repository using
 
 ```bash
 sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://rpm.releases.placeholderplaceholderplaceholder.com/$release/hashicorp.repo
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/$release/hashicorp.repo
 ```
 
 If you are using a DNF-based distribution, add the repository using
 `dnf config-manager` as follows:
 
 ```bash
+export release='fedora' # or 'RHEL' or 'AmazonLinux'
 sudo dnf install -y dnf-plugins-core
-sudo dnf config-manager --add-repo https://rpm.releases.placeholderplaceholderplaceholder.com/$release/hashicorp.repo
+sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/$release/hashicorp.repo
 ```
 
 In both cases, the OpenTofu package name is `tofu`. For example:
