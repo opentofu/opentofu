@@ -15,6 +15,8 @@ Just to give you some metrics about the release:
   - Average latency: 19.15ms 
   - Total unique providers used: 194
 
+We'll also have [our first office hours](https://opentofu.org/blog/opentofus-new-office-hours) today! Make sure you don't miss that.
+
 - Current Status
   - First Alpha Release
     - We've managed to get the alpha release out, including [a working registry](https://github.com/opentofu/registry).
