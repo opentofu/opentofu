@@ -23,9 +23,8 @@ After careful consideration, it was concluded that OpenTofu's
 use of these functions as part of the implementation of the `cidrhost`,
 `cidrsubnet`, `cidrsubnets`, and `cidrnetmask` functions has a more limited
 impact than the general availability of these functions in the Go standard
-library, and so we can't justify a similar exception to our Terraform 1.0
-compatibility promises as the Go team made to their Go 1.0 compatibility
-promises.
+library, and so we can't justify a similar exception to our compatibility
+promises as the Go team made to their Go 1.0 compatibility promises.
 
 If you're considering using this package for new functionality _other than_ the
 built-in functions mentioned above, please do so only if consistency with the

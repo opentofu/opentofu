@@ -104,7 +104,7 @@ follows:
 
 * **Hostname** (optional): The hostname of the registry that
   distributes the provider. If omitted, this defaults to
-  `registry.terraform.io`.
+  `registry.opentofu.org`.
 
 * **Namespace:** An organizational namespace within the specified registry.
   In most cases this represents the organization that publishes the provider.
@@ -121,8 +121,8 @@ follows:
 
 For example,
 [the official HTTP provider](https://registry.terraform.io/providers/hashicorp/http)
-belongs to the `hashicorp` namespace on `registry.terraform.io`, so its
-source address is `registry.terraform.io/hashicorp/http` or, more commonly, just
+belongs to the `hashicorp` namespace on `registry.opentofu.org`, so its
+source address is `registry.opentofu.org/hashicorp/http` or, more commonly, just
 `hashicorp/http`.
 
 The source address with all three components given explicitly is called the
@@ -130,12 +130,12 @@ provider's _fully-qualified address_. You will see fully-qualified address in
 various outputs, like error messages, but in most cases a simplified display
 version is used. This display version omits the source host when it is the
 public registry, so you may see the shortened version `"hashicorp/random"` instead
-of `"registry.terraform.io/hashicorp/random"`.
+of `"registry.opentofu.org/hashicorp/random"`.
 
 :::note
 If you omit the `source` argument when requiring a provider,
 OpenTofu uses an implied source address of
-`registry.terraform.io/hashicorp/<LOCAL NAME>`.
+`registry.opentofu.org/hashicorp/<LOCAL NAME>`.
 We recommend using explicit source addresses for all providers.
 :::
 
