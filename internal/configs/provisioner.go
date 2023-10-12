@@ -39,7 +39,7 @@ func decodeProvisionerBlock(block *hcl.Block) (*Provisioner, hcl.Diagnostics) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("The \"%s\" provisioner has been removed", pv.Type),
-			Detail:   fmt.Sprintf("The \"%s\" provisioner was deprecated in OpenTofu 0.13.4 has been removed from OpenTofu. Visit https://learn.hashicorp.com/collections/terraform/provision for alternatives to using provisioners that are a better fit for the OpenTofu workflow.", pv.Type),
+			Detail:   fmt.Sprintf("The \"%s\" provisioner is deprecated and has been removed from OpenTofu.", pv.Type),
 			Subject:  &pv.TypeRange,
 		})
 		return nil, diags

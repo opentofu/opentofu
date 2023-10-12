@@ -146,7 +146,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 	diags = diags.Append(ctxDiags)
 	ret.Core = tfCtx
 
-	log.Printf("[TRACE] backend/remote: finished building terraform.Context")
+	log.Printf("[TRACE] backend/remote: finished building tofu.Context")
 
 	return ret, stateMgr, diags
 }

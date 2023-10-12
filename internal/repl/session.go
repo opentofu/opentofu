@@ -88,7 +88,7 @@ func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
 
 func (s *Session) handleHelp() (string, tfdiags.Diagnostics) {
 	text := `
-The Terraform console allows you to experiment with Terraform interpolations.
+The OpenTofu console allows you to experiment with OpenTofu interpolations.
 You may access resources in the state (if you have one) just as you would
 from a configuration. For example: "aws_instance.foo.id" would evaluate
 to the ID of "aws_instance.foo" if it exists in your state.
