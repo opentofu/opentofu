@@ -1,7 +1,7 @@
 ---
 sidebar_label: local
 description: >-
-  Terraform can store the state remotely, making it easier to version and work
+  OpenTofu can store the state remotely, making it easier to version and work
   with in a team.
 ---
 
@@ -59,14 +59,14 @@ additional arguments:
 * `-state-out=FILENAME` - overrides the state filename when _writing_ new state
   snapshots.
 
-  If you use `-state` without also using `-state-out` then Terraform will
+  If you use `-state` without also using `-state-out` then OpenTofu will
   use the `-state` filename for both `-state` and `-state-out`, which means
-  Terraform will overwrite the input file if it creates a new state snapshot.
+  OpenTofu will overwrite the input file if it creates a new state snapshot.
 * `-backup=FILENAME` - overrides the default filename that the local backend
   would normally choose dynamically to create backup files when it writes new
   state.
 
-  If you use `-state` without also using `-backup` then Terraform will use
+  If you use `-state` without also using `-backup` then OpenTofu will use
   the `-state` filename as a filename prefix for generating a backup filename.
   You can use `-backup=-` (that is, set the filename to just the ASCII
   dash character) to disable the creation of backup files altogether.
@@ -74,15 +74,15 @@ additional arguments:
 These three options are preserved for backward-compatibility with earlier
 workflows that predated the introduction of built-in remote state, where
 users would write wrapper scripts that fetch prior state before running
-Terraform and then save the new state after Terraform exits, in which case
+OpenTofu and then save the new state after OpenTofu exits, in which case
 the three arguments would typically all be paths within a temporary
 directory used just for one operation.
 
 Because these old workflows predate the introduction of the possibility of
 [multiple workspaces](/docs/language/state/workspaces), setting them
-overrides Terraform's usual behavior of selecting a different state filename
+overrides OpenTofu's usual behavior of selecting a different state filename
 based on the selected workspace. If you use all three of these options then
-the selected workspace has no effect on which filenames Terraform will select
+the selected workspace has no effect on which filenames OpenTofu will select
 for state files, and so you'll need to select different filenames yourself if
 you wish to keep workspace state files distinct from one another.
 
@@ -90,7 +90,7 @@ These three options have no effect for configurations that have a different
 backend type selected.
 
 We do not recommend using these options in new systems, even if you are running
-Terraform in automation. Instead,
+OpenTofu in automation. Instead,
 [select a different backend which supports remote state](/docs/language/settings/backends/configuration) and configure it
 within your root module, which ensures that everyone working on your
 configuration will automatically retrieve and store state in the correct shared
