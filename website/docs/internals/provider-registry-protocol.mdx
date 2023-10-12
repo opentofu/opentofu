@@ -7,15 +7,15 @@ description: |-
 
 # Provider Registry Protocol
 
-The provider registry protocol is what Terraform CLI uses to discover metadata
+The provider registry protocol is what OpenTofu CLI uses to discover metadata
 about providers available for installation and to locate the distribution
 packages for a selected provider.
 
 The primary implementation of this protocol is the public
-[Terraform Registry](https://registry.terraform.io/) at `registry.terraform.io`.
+[OpenTofu Registry](https://registry.opentofu.org/) at `registry.opentofu.org`.
 By writing and deploying your own implementation of this protocol, you can
 create a separate _origin registry_ to distribute your own providers, as an
-alternative to publishing them on the public Terraform Registry.
+alternative to publishing them on the public OpenTofu Registry.
 
 This page describes the provider _registry_ protocol, which is the protocol
 for finding providers available for installation. It _doesn't_ describe the
@@ -35,27 +35,27 @@ where:
   [unless overridden in the CLI configuration](/docs/cli/config/config-file#provider-installation).
 * `namespace` is the name of a namespace, unique on a particular hostname, that
   can contain one or more providers that are somehow related. On the public
-  Terraform Registry the "namespace" represents the organization that is
+  OpenTofu Registry the "namespace" represents the organization that is
   packaging and distributing the provider.
 * `type` is the provider type, like "azurerm", "aws", "google", "dns", etc.
   A provider type is unique within a particular hostname and namespace.
 
 The `hostname/` portion of a provider address (including its slash delimiter)
-is optional, and if omitted defaults to `registry.terraform.io/`.
+is optional, and if omitted defaults to `registry.opentofu.org/`.
 
 For example:
 
-* `hashicorp/aws` is a shorthand for `registry.terraform.io/hashicorp/aws`,
+* `hashicorp/aws` is a shorthand for `registry.opentofu.org/hashicorp/aws`,
   which is the official AWS provider published by HashiCorp.
-* `example/foo` is a shorthand for `registry.terraform.io/example/foo`, which
+* `example/foo` is a shorthand for `registry.opentofu.org/example/foo`, which
   is a hypothetical third-party provider published on the public
-  Terraform Registry.
+  OpenTofu Registry.
 * `example.com/bar/baz` is a hypothetical third-party provider published at a
   third-party provider registry on `example.com`.
 
 If you intend only to share a provider you've developed for use by all
 OpenTofu users, please consider publishing it into the public
-[Terraform Registry](https://registry.terraform.io/), which will make your
+[OpenTofu Registry](https://registry.opentofu.org/), which will make your
 provider discoverable. You only need to implement this provider registry
 protocol if you wish to publish providers whose addresses include a different
 hostname that is under your control.
@@ -199,7 +199,7 @@ with the following properties:
 * `platforms` (recommended): an array of objects describing platforms that have
   packages available for this version.
 
-  Terraform may use this information, when available, to provide hints to
+  OpenTofu may use this information, when available, to provide hints to
   users about upgrading or downgrading their version of a particular provider
   for compatibility with their current platform.
 

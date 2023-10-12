@@ -63,8 +63,7 @@ constructed, and then the backend is responsible for executing that action.
 
 Backends that execute operations, however, do so as an architectural implementation detail and not a
 general feature of backends. That is, the term 'backend' as a OpenTofu feature is used to refer to
-a plugin that determines where OpenTofu stores its state snapshots - only the default `local`
-backend and Terraform Cloud's backends (`remote`, `cloud`) perform operations.
+a plugin that determines where OpenTofu stores its state snapshots - only the default `local`, `remote` and `cloud` backends perform operations.
 
 Thus, most backends do _not_ implement this interface, and so the `command` package wraps these
 backends in an instance of
@@ -85,7 +84,7 @@ specified in the operation, then uses the _config loader_ to load and do
 initial processing/validation of the configuration specified in the
 operation. It then uses these, along with the other settings given in the
 operation, to construct a
-[`terraform.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context),
+[`tofu.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context),
 which is the main object that actually performs OpenTofu operations.
 
 The `local` backend finally calls an appropriate method on that context to
@@ -160,7 +159,7 @@ kind of arbitrary blob store.
 ## Graph Builder
 
 A _graph builder_ is called by a
-[`terraform.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context)
+[`tofu.Context`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Context)
 method (e.g. `Plan` or `Apply`) to produce the graph that will be used
 to represent the necessary steps for that operation and the dependency
 relationships between them.
@@ -187,7 +186,7 @@ graph from the set of changes described in the plan that is being applied.
 
 The graph builders all work in terms of a sequence of _transforms_, which
 are implementations of
-[`terraform.GraphTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphTransformer).
+[`tofu.GraphTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphTransformer).
 Implementations of this interface just take a graph and mutate it in any
 way needed, and so the set of available transforms is quite varied. Some
 important examples include:
@@ -217,7 +216,7 @@ builder uses a different subset of these depending on the needs of the
 operation that is being performed.
 
 The result of graph building is a
-[`terraform.Graph`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Graph), which
+[`tofu.Graph`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#Graph), which
 can then be processed using a _graph walker_.
 
 ## Graph Walk
@@ -229,15 +228,15 @@ itself is implemented in
 (where "DAG" is short for [_Directed Acyclic Graph_](https://en.wikipedia.org/wiki/Directed_acyclic_graph)), in
 [`AcyclicGraph.Walk`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/dag#AcyclicGraph.Walk).
 However, the "interesting" OpenTofu walk functionality is implemented in
-[`terraform.ContextGraphWalker`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ContextGraphWalker),
+[`tofu.ContextGraphWalker`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ContextGraphWalker),
 which implements a small set of higher-level operations that are performed
 during the graph walk:
 
 * `EnterPath` is called once for each module in the configuration, taking a
   module address and returning a
-  [`terraform.EvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#EvalContext)
-  that tracks objects within that module. `terraform.Context` is the _global_
-  context for the entire operation, while `terraform.EvalContext` is a
+  [`tofu.EvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#EvalContext)
+  that tracks objects within that module. `tofu.Context` is the _global_
+  context for the entire operation, while `tofu.EvalContext` is a
   context for processing within a single module, and is the primary means
   by which the namespaces in each module are kept separate.
 
@@ -280,19 +279,19 @@ a plan operation would include the following high-level steps:
   this operation.
 
 Each execution step for a vertex is an implementation of
-[`terraform.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/erraform#Execute).
+[`tofu.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/erraform#Execute).
 As with graph transforms, the behavior of these implementations varies widely:
 whereas graph transforms can take any action against the graph, an `Execute`
 implementation can take any action against the `EvalContext`.
 
-The implementation of `terraform.EvalContext` used in real processing
+The implementation of `tofu.EvalContext` used in real processing
 (as opposed to testing) is
-[`terraform.BuiltinEvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#BuiltinEvalContext).
+[`tofu.BuiltinEvalContext`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#BuiltinEvalContext).
 It provides coordinated access to plugins, the current state, and the current
 plan via the `EvalContext` interface methods.
 
 In order to be executed, a vertex must implement
-[`terraform.GraphNodeExecutable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeExecutable),
+[`tofu.GraphNodeExecutable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeExecutable),
 which has a single `Execute` method that handles. There are numerous `Execute`
 implementations with different behaviors, but some prominent examples are:
 
@@ -367,7 +366,7 @@ known when the main graph is constructed, but become known while evaluating
 other vertices in the main graph.
 
 This special behavior applies to vertex objects that implement
-[`terraform.GraphNodeDynamicExpandable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeDynamicExpandable).
+[`tofu.GraphNodeDynamicExpandable`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeDynamicExpandable).
 Such vertices have their own nested _graph builder_, _graph walk_,
 and _vertex evaluation_ steps, with the same behaviors as described in these
 sections for the main graph. The difference is in which graph transforms
