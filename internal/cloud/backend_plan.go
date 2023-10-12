@@ -51,7 +51,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Custom parallelism values are currently not supported",
-			`Terraform Cloud does not support setting a custom parallelism `+
+			`Cloud backend does not support setting a custom parallelism `+
 				`value at this time.`,
 		))
 	}
@@ -60,7 +60,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Displaying a saved plan is currently not supported",
-			`Terraform Cloud currently requires configuration to be present and `+
+			`Cloud backend currently requires configuration to be present and `+
 				`does not accept an existing saved plan as an argument at this time.`,
 		))
 	}
@@ -236,7 +236,7 @@ in order to capture the filesystem context the remote workspace expects:
 		// field.
 		return nil, generalError(
 			"Invalid plan mode",
-			fmt.Errorf("Terraform Cloud doesn't support %s", op.PlanMode),
+			fmt.Errorf("Cloud backend doesn't support %s", op.PlanMode),
 		)
 	}
 
@@ -417,7 +417,7 @@ func (b *Cloud) AssertImportCompatible(config *configs.Config) error {
 		}
 		desiredAgentVersion, _ := version.NewVersion("1.10")
 		if currentAgentVersion.LessThan(desiredAgentVersion) {
-			return fmt.Errorf("Import blocks are not supported in this version of the Terraform Cloud Agent. You are using agent version %s, but this feature requires version %s. Please remove any import blocks from your config or upgrade your agent.", currentAgentVersion, desiredAgentVersion)
+			return fmt.Errorf("Import blocks are not supported in this version of the cloud backend Agent. You are using agent version %s, but this feature requires version %s. Please remove any import blocks from your config or upgrade your agent.", currentAgentVersion, desiredAgentVersion)
 		}
 	}
 	return nil
@@ -620,7 +620,7 @@ func shouldGenerateConfig(out string, run *tfe.Run) bool {
 }
 
 const planDefaultHeader = `
-[reset][yellow]Running plan in Terraform Cloud. Output will stream here. Pressing Ctrl-C
+[reset][yellow]Running plan in cloud backend. Output will stream here. Pressing Ctrl-C
 will stop streaming the logs, but will not stop the plan running remotely.[reset]
 
 Preparing the remote plan...

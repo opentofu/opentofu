@@ -994,7 +994,7 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 Error: Invalid command-line option
 
 The -backend-config=... command line option is only for state backends, and
-is not applicable to Terraform Cloud-based configurations.
+is not applicable to cloud backend-based configurations.
 
 To change the set of workspaces associated with this configuration, edit the
 Cloud configuration block in the root module.
@@ -1033,9 +1033,9 @@ Cloud configuration block in the root module.
 Error: Invalid command-line option
 
 The -reconfigure option is for in-place reconfiguration of state backends
-only, and is not needed when changing Terraform Cloud settings.
+only, and is not needed when changing cloud backend settings.
 
-When using Terraform Cloud, initialization automatically activates any new
+When using cloud backend, initialization automatically activates any new
 Cloud configuration settings.
 
 `
@@ -1071,8 +1071,8 @@ Cloud configuration settings.
 		wantStderr := `
 Error: Invalid command-line option
 
-The -reconfigure option is unsupported when migrating to Terraform Cloud,
-because activating Terraform Cloud involves some additional steps.
+The -reconfigure option is unsupported when migrating to cloud backend,
+because activating cloud backend involves some additional steps.
 
 `
 		if diff := cmp.Diff(wantStderr, gotStderr); diff != "" {
@@ -1103,9 +1103,9 @@ because activating Terraform Cloud involves some additional steps.
 Error: Invalid command-line option
 
 The -migrate-state option is for migration between state backends only, and
-is not applicable when using Terraform Cloud.
+is not applicable when using cloud backend.
 
-State storage is handled automatically by Terraform Cloud and so the state
+State storage is handled automatically by cloud backend and so the state
 storage location is not configurable.
 
 `
@@ -1142,9 +1142,9 @@ storage location is not configurable.
 Error: Invalid command-line option
 
 The -migrate-state option is for migration between state backends only, and
-is not applicable when using Terraform Cloud.
+is not applicable when using cloud backend.
 
-Terraform Cloud migration has additional steps, configured by interactive
+Cloud backend migration has additional steps, configured by interactive
 prompts.
 
 `
@@ -1176,9 +1176,9 @@ prompts.
 Error: Invalid command-line option
 
 The -force-copy option is for migration between state backends only, and is
-not applicable when using Terraform Cloud.
+not applicable when using cloud backend.
 
-State storage is handled automatically by Terraform Cloud and so the state
+State storage is handled automatically by cloud backend and so the state
 storage location is not configurable.
 
 `
@@ -1215,9 +1215,9 @@ storage location is not configurable.
 Error: Invalid command-line option
 
 The -force-copy option is for migration between state backends only, and is
-not applicable when using Terraform Cloud.
+not applicable when using cloud backend.
 
-Terraform Cloud migration has additional steps, configured by interactive
+Cloud backend migration has additional steps, configured by interactive
 prompts.
 
 `
