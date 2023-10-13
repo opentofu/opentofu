@@ -33,6 +33,9 @@ jobs:
       - name: Fetch tags
         run: git fetch --force --tags
 
+      - name: Compare versions
+        run: ./.github/scripts/compare-release-version.sh
+
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
