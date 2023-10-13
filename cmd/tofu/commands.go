@@ -29,25 +29,25 @@ import (
 // that assume that OpenTofu is being run from a command prompt.
 const runningInAutomationEnvName = "TF_IN_AUTOMATION"
 
-// Commands is the mapping of all the available OpenTofu commands.
-var Commands map[string]cli.CommandFactory
+// commands is the mapping of all the available OpenTofu commands.
+var commands map[string]cli.CommandFactory
 
-// PrimaryCommands is an ordered sequence of the top-level commands (not
+// primaryCommands is an ordered sequence of the top-level commands (not
 // subcommands) that we emphasize at the top of our help output. This is
 // ordered so that we can show them in the typical workflow order, rather
 // than in alphabetical order. Anything not in this sequence or in the
 // HiddenCommands set appears under "all other commands".
-var PrimaryCommands []string
+var primaryCommands []string
 
-// HiddenCommands is a set of top-level commands (not subcommands) that are
+// hiddenCommands is a set of top-level commands (not subcommands) that are
 // not advertised in the top-level help at all. This is typically because
 // they are either just stubs that return an error message about something
 // no longer being supported or backward-compatibility aliases for other
 // commands.
 //
 // No commands in the PrimaryCommands sequence should also appear in the
-// HiddenCommands set, because that would be rather silly.
-var HiddenCommands map[string]struct{}
+// hiddenCommands set, because that would be rather silly.
+var hiddenCommands map[string]struct{}
 
 // Ui is the cli.Ui used for communicating to the outside world.
 var Ui cli.Ui
@@ -82,7 +82,7 @@ func initCommands(
 		configDir = "" // No config dir available (e.g. looking up a home directory failed)
 	}
 
-	wd := WorkingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
+	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
 
 	meta := command.Meta{
 		WorkingDir: wd,
@@ -109,7 +109,7 @@ func initCommands(
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
 
-		AllowExperimentalFeatures: ExperimentsAllowed(),
+		AllowExperimentalFeatures: experimentsAreAllowed(),
 	}
 
 	// The command list is included in the tofu -help
@@ -118,7 +118,7 @@ func initCommands(
 	// add, remove or reclassify commands then consider updating
 	// that to match.
 
-	Commands = map[string]cli.CommandFactory{
+	commands = map[string]cli.CommandFactory{
 		"apply": func() (cli.Command, error) {
 			return &command.ApplyCommand{
 				Meta: meta,
@@ -414,14 +414,14 @@ func initCommands(
 	}
 
 	if meta.AllowExperimentalFeatures {
-		Commands["cloud"] = func() (cli.Command, error) {
+		commands["cloud"] = func() (cli.Command, error) {
 			return &command.CloudCommand{
 				Meta: meta,
 			}, nil
 		}
 	}
 
-	PrimaryCommands = []string{
+	primaryCommands = []string{
 		"init",
 		"validate",
 		"plan",
@@ -429,7 +429,7 @@ func initCommands(
 		"destroy",
 	}
 
-	HiddenCommands = map[string]struct{}{
+	hiddenCommands = map[string]struct{}{
 		"env":             {},
 		"internal-plugin": {},
 		"push":            {},
