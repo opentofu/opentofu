@@ -81,7 +81,7 @@ func NewModule(host, namespace, name, provider, submodule string) (*Module, erro
 		RawSubmodule: submodule,
 	}
 	if host != "" {
-		h := NewFriendlyHost(host)
+		h := newFriendlyHost(host)
 		if h != nil {
 			fmt.Println("HOST:", h)
 			if !h.Valid() || disallowed[h.Display()] {
@@ -125,7 +125,7 @@ func ModuleFromModuleSourceAddr(addr addrs.ModuleSourceRegistry) *Module {
 // for the higher-level module installer to deal with.
 func ModuleFromRegistryPackageAddr(addr addrs.ModuleRegistryPackage) *Module {
 	return &Module{
-		RawHost:      NewFriendlyHost(addr.Host.String()),
+		RawHost:      newFriendlyHost(addr.Host.String()),
 		RawNamespace: addr.Namespace,
 		RawName:      addr.Name,
 		RawProvider:  addr.TargetSystem, // this field was never actually enforced to be a provider address, so now has a more general name
@@ -143,7 +143,7 @@ func ModuleFromRegistryPackageAddr(addr addrs.ModuleRegistryPackage) *Module {
 // string equality operator.
 func ParseModuleSource(source string) (*Module, error) {
 	// See if there is a friendly host prefix.
-	host, rest := ParseFriendlyHost(source)
+	host, rest := parseFriendlyHost(source)
 	if host != nil {
 		if !host.Valid() || disallowed[host.Display()] {
 			return nil, ErrInvalidModuleSource

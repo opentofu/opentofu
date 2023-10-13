@@ -78,7 +78,7 @@ func TestFriendlyHost(t *testing.T) {
 		// Matrix each test with prefix and total match variants
 		for _, sfx := range []string{"", "/", "/foo/bar/baz"} {
 			t.Run(tt.name+" suffix:"+sfx, func(t *testing.T) {
-				gotHost, gotRest := ParseFriendlyHost(tt.source + sfx)
+				gotHost, gotRest := parseFriendlyHost(tt.source + sfx)
 
 				if gotHost == nil {
 					if tt.wantHost != "" {
@@ -121,7 +121,7 @@ func TestFriendlyHost(t *testing.T) {
 }
 
 func TestInvalidHostEquals(t *testing.T) {
-	invalid := NewFriendlyHost("NOT_A_HOST_NAME")
+	invalid := newFriendlyHost("NOT_A_HOST_NAME")
 	valid := PublicRegistryHost
 
 	// invalid hosts are not comparable
@@ -133,8 +133,8 @@ func TestInvalidHostEquals(t *testing.T) {
 		t.Fatalf("%q is not equal to %q", valid, invalid)
 	}
 
-	puny := NewFriendlyHost("xn--s-fka0wmm0zea7g8b.xn--o-8ta85a3b1dwcda1k.io")
-	display := NewFriendlyHost("ʎɹʇsıƃǝɹ.ɯɹoɟɐɹɹǝʇ.io")
+	puny := newFriendlyHost("xn--s-fka0wmm0zea7g8b.xn--o-8ta85a3b1dwcda1k.io")
+	display := newFriendlyHost("ʎɹʇsıƃǝɹ.ɯɹoɟɐɹɹǝʇ.io")
 
 	// The pre-normalized host is not a valid source, and therefore not
 	// comparable to the display version.
