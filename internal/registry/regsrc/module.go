@@ -71,48 +71,6 @@ type Module struct {
 	RawSubmodule string
 }
 
-// NewModule construct a new module source from separate parts. Pass empty
-// string if host or submodule are not needed.
-func NewModule(host, namespace, name, provider, submodule string) (*Module, error) {
-	m := &Module{
-		RawNamespace: namespace,
-		RawName:      name,
-		RawProvider:  provider,
-		RawSubmodule: submodule,
-	}
-	if host != "" {
-		h := newFriendlyHost(host)
-		if h != nil {
-			fmt.Println("HOST:", h)
-			if !h.Valid() || disallowed[h.Display()] {
-				return nil, ErrInvalidModuleSource
-			}
-		}
-		m.RawHost = h
-	}
-	return m, nil
-}
-
-// ModuleFromModuleSourceAddr is an adapter to automatically transform the
-// modern representation of registry module addresses,
-// addrs.ModuleSourceRegistry, into the legacy representation regsrc.Module.
-//
-// Note that the new-style model always does normalization during parsing and
-// does not preserve the raw user input at all, and so although the fields
-// of regsrc.Module are all called "Raw...", initializing a Module indirectly
-// through an addrs.ModuleSourceRegistry will cause those values to be the
-// normalized ones, not the raw user input.
-//
-// Use this only for temporary shims to call into existing code that still
-// uses regsrc.Module. Eventually all other subsystems should be updated to
-// use addrs.ModuleSourceRegistry instead, and then package regsrc can be
-// removed altogether.
-func ModuleFromModuleSourceAddr(addr addrs.ModuleSourceRegistry) *Module {
-	ret := ModuleFromRegistryPackageAddr(addr.Package)
-	ret.RawSubmodule = addr.Subdir
-	return ret
-}
-
 // ModuleFromRegistryPackageAddr is similar to ModuleFromModuleSourceAddr, but
 // it works with just the isolated registry package address, and not the
 // full source address.
