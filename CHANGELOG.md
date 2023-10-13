@@ -40,9 +40,10 @@ BUG FIXES:
 * `tofu init`: OpenTofu will no longer allow downloading remote modules to invalid paths. ([#356](https://github.com/opentofu/opentofu/issues/356))
 * tofu_remote_state: Fixed a potential unsafe read panic when reading from multiple tofu_remote_state data sources ([#357](https://github.com/opentofu/opentofu/issues/357))
 * OpenTofu will now attempt to create the configuration directory `~/.terraform.d` on startup. ([#442](https://github.com/opentofu/opentofu/issues/442))
-* Conditionals with an unknown condition and sensitive branch won't crash anymore. ([#659](https://github.com/opentofu/opentofu/issues/659))
+* Conditionals with an unknown condition and sensitive branch won't crash anymore. ([#717](https://github.com/opentofu/opentofu/issues/717))
 * Fixed panic when using sensitive inputs for the ID field of an import configuration block ([#665](https://github.com/opentofu/opentofu/pull/665))
 * Fixes the ability to use KMS key aliases in the S3 backend ([#669](https://github.com/opentofu/opentofu/issues/669))
+* `GIT_SSH_COMMAND` environment variable is no longer ignored when downloading modules ([#717](https://github.com/opento
 * cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 * cloud: state snapshots could not be disabled when header x-terraform-snapshot-interval is absent ([#687](https://github.com/opentofu/opentofu/issues/687))
 ## Previous Releases
