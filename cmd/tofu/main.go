@@ -108,7 +108,7 @@ func realMain() int {
 	}
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
 	log.Printf("[INFO] CLI args: %#v", os.Args)
-	if ExperimentsAllowed() {
+	if experimentsAreAllowed() {
 		log.Printf("[INFO] This build of OpenTofu allows using experimental features")
 	}
 
@@ -241,7 +241,7 @@ func realMain() int {
 	}
 
 	// In tests, Commands may already be set to provide mock commands
-	if Commands == nil {
+	if commands == nil {
 		// Commands get to hold on to the original working directory here,
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
@@ -263,7 +263,7 @@ func realMain() int {
 	// Build the CLI so far, we do this so we can query the subcommand.
 	cliRunner := &cli.CLI{
 		Args:       args,
-		Commands:   Commands,
+		Commands:   commands,
 		HelpFunc:   helpFunc,
 		HelpWriter: os.Stdout,
 	}
@@ -301,7 +301,7 @@ func realMain() int {
 	cliRunner = &cli.CLI{
 		Name:       binName,
 		Args:       args,
-		Commands:   Commands,
+		Commands:   commands,
 		HelpFunc:   helpFunc,
 		HelpWriter: os.Stdout,
 
@@ -327,9 +327,9 @@ func realMain() int {
 		// for typos of top-level commands. For a subcommand typo, like
 		// "tofu state push", cmd would be "state" here and thus would
 		// be considered to exist, and it would print out its own usage message.
-		if _, exists := Commands[cmd]; !exists {
-			suggestions := make([]string, 0, len(Commands))
-			for name := range Commands {
+		if _, exists := commands[cmd]; !exists {
+			suggestions := make([]string, 0, len(commands))
+			for name := range commands {
 				suggestions = append(suggestions, name)
 			}
 			suggestion := didyoumean.NameSuggestion(cmd, suggestions)

@@ -315,7 +315,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 				"Failed to create the cloud backend client",
 				fmt.Sprintf(
 					`Encountered an unexpected error while creating the `+
-						`Terraform cloud backend client: %s.`, err,
+						`cloud backend client: %s.`, err,
 				),
 			))
 			return diags
@@ -1113,14 +1113,14 @@ func (b *Cloud) fetchWorkspace(ctx context.Context, organization string, workspa
 		case tfe.ErrResourceNotFound:
 			return nil, fmt.Errorf(
 				"workspace %s not found\n\n"+
-					"For security, Terraform Cloud returns '404 Not Found' responses for resources\n"+
+					"For security, cloud backends return '404 Not Found' responses for resources\n"+
 					"for resources that a user doesn't have access to, in addition to resources that\n"+
 					"do not exist. If the resource does exist, please check the permissions of the provided token.",
 				workspace,
 			)
 		default:
 			err := fmt.Errorf(
-				"Terraform Cloud returned an unexpected error:\n\n%w",
+				"Cloud backend returned an unexpected error:\n\n%w",
 				err,
 			)
 			return nil, err
@@ -1140,7 +1140,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return tfdiags.Sourceless(
 			tfdiags.Error,
-			"Terraform Cloud returned an unexpected error",
+			"Cloud backend returned an unexpected error",
 			err.Error(),
 		)
 	}
@@ -1164,7 +1164,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 			if err != nil {
 				return tfdiags.Sourceless(
 					tfdiags.Error,
-					"Terraform Cloud returned an unexpected error",
+					"Cloud backend returned an unexpected error",
 					err.Error(),
 				)
 			}
@@ -1225,7 +1225,7 @@ func generalError(msg string, err error) error {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			fmt.Sprintf("%s: %v", msg, err),
-			"For security, Terraform Cloud returns '404 Not Found' responses for resources\n"+
+			"For security, cloud backends returns '404 Not Found' responses for resources\n"+
 				"for resources that a user doesn't have access to, in addition to resources that\n"+
 				"do not exist. If the resource does exist, please check the permissions of the provided token.",
 		))
@@ -1234,7 +1234,7 @@ func generalError(msg string, err error) error {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			fmt.Sprintf("%s: %v", msg, err),
-			`Terraform Cloud returned an unexpected error. Sometimes `+
+			`Cloud backend returned an unexpected error. Sometimes `+
 				`this is caused by network connection problems, in which case you could retry `+
 				`the command. If the issue persists please open a support ticket to get help `+
 				`resolving the problem.`,
@@ -1245,7 +1245,7 @@ func generalError(msg string, err error) error {
 
 // The newline in this error is to make it look good in the CLI!
 const initialRetryError = `
-[reset][yellow]There was an error connecting to Terraform Cloud. Please do not exit
+[reset][yellow]There was an error connecting to the cloud backend. Please do not exit
 OpenTofu to prevent data loss! Trying to restore the connection...
 [reset]
 `
@@ -1265,7 +1265,7 @@ const operationNotCanceled = `
 const refreshToApplyRefresh = `[bold][yellow]Proceeding with 'tofu apply -refresh-only -auto-approve'.[reset]`
 
 const unavailableTerraformVersion = `
-[reset][yellow]The local OpenTofu version (%s) is not available in Terraform Cloud, or your
+[reset][yellow]The local OpenTofu version (%s) is not available in the cloud backend, or your
 organization does not have access to it. The new workspace will use %s. You can
 change this later in the workspace settings.[reset]`
 
@@ -1278,7 +1278,7 @@ Please reach out to OpenTofu Support to resolve this issue.`
 var (
 	workspaceConfigurationHelp = fmt.Sprintf(
 		`The 'workspaces' block configures how OpenTofu CLI maps its workspaces for this single
-configuration to workspaces within a Terraform Cloud organization. Two strategies are available:
+configuration to workspaces within a cloud backend organization. Two strategies are available:
 
 [bold]tags[reset] - %s
 
@@ -1292,11 +1292,11 @@ configuration to workspaces within a Terraform Cloud organization. Two strategie
 be set, and 'tofu login' used instead; your credentials will then be fetched from your CLI
 configuration file or configured credential helper.`
 
-	schemaDescriptionTags = `A set of tags used to select remote Terraform Cloud workspaces to be used for this single
+	schemaDescriptionTags = `A set of tags used to select remote cloud backend workspaces to be used for this single
 configuration. New workspaces will automatically be tagged with these tag values. Generally, this
 is the primary and recommended strategy to use. This option conflicts with "name".`
 
-	schemaDescriptionName = `The name of a single Terraform Cloud workspace to be used with this configuration.
+	schemaDescriptionName = `The name of a single cloud backend workspace to be used with this configuration.
 When configured, only the specified workspace can be used. This option conflicts with "tags".`
 
 	schemaDescriptionProject = `The name of a project that resulting workspace(s) will be created in.`

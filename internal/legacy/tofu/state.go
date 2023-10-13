@@ -2250,7 +2250,7 @@ const stateValidateErrMultiModule = `
 Multiple modules with the same path: %s
 
 This means that there are multiple entries in the "modules" field
-in your state file that point to the same module. This will cause Terraform
+in your state file that point to the same module. This will cause OpenTofu
 to behave in unexpected and error prone ways and is invalid. Please back up
 and modify your state file manually to resolve this.
 `

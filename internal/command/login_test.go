@@ -136,7 +136,7 @@ func TestLogin(t *testing.T) {
 		if got, want := creds.Token(), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
-		if got, want := ui.OutputWriter.String(), "Welcome to Terraform Cloud!"; !strings.Contains(got, want) {
+		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}))

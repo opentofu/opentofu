@@ -314,12 +314,12 @@ func (c *LoginCommand) outputDefaultTFELoginSuccess(dispHostname string) {
 
 func (c *LoginCommand) outputDefaultTFCLoginSuccess() {
 	c.Ui.Output(c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]Logged in to Terraform Cloud[reset]
+[green][bold]Success![reset] [bold]Logged in to cloud backend[reset]
 ` + "\n")))
 }
 
 func (c *LoginCommand) logMOTDError(err error) {
-	log.Printf("[TRACE] login: An error occurred attempting to fetch a message of the day for Terraform Cloud: %s", err)
+	log.Printf("[TRACE] login: An error occurred attempting to fetch a message of the day for cloud backend: %s", err)
 }
 
 // Help implements cli.Command.

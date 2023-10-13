@@ -98,7 +98,7 @@ error if none of the checksums match:
 Error: Failed to install provider
 
 Error while installing hashicorp/azurerm v2.1.0: the current package for
-registry.terraform.io/hashicorp/azurerm 2.1.0 doesn't match any of the
+registry.opentofu.org/hashicorp/azurerm 2.1.0 doesn't match any of the
 checksums previously recorded in the dependency lock file.
 ```
 
@@ -167,7 +167,7 @@ block in the dependency lock file.
    ]
  }
 
-+provider "registry.terraform.io/hashicorp/azurerm" {
++provider "registry.opentofu.org/hashicorp/azurerm" {
 +  version     = "2.30.0"
 +  constraints = "~> 2.12"
 +  hashes = [
@@ -187,7 +187,7 @@ block in the dependency lock file.
 +  ]
 +}
 +
- provider "registry.terraform.io/newrelic/newrelic" {
+ provider "registry.opentofu.org/newrelic/newrelic" {
    version     = "2.1.2"
    constraints = "~> 2.1.1"
 ```
@@ -218,7 +218,7 @@ block to reflect that change.
 @@ -7,22 +7,22 @@
  }
 
- provider "registry.terraform.io/hashicorp/azurerm" {
+ provider "registry.opentofu.org/hashicorp/azurerm" {
 -  version     = "2.1.0"
 -  constraints = "~> 2.1.0"
 +  version     = "2.0.0"
@@ -373,7 +373,7 @@ file entry for that provider.
    ]
  }
 
--provider "registry.terraform.io/hashicorp/azurerm" {
+-provider "registry.opentofu.org/hashicorp/azurerm" {
 -  version     = "2.30.0"
 -  constraints = "~> 2.12"
 -  hashes = [
@@ -393,7 +393,7 @@ file entry for that provider.
 -  ]
 -}
 -
- provider "registry.terraform.io/newrelic/newrelic" {
+ provider "registry.opentofu.org/newrelic/newrelic" {
    version     = "2.1.2"
    constraints = "~> 2.1.1"
 ```
