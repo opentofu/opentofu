@@ -105,7 +105,7 @@ func TestNewPaginationMeta(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewPaginationMeta(tt.args.offset, tt.args.limit, tt.args.hasMore,
+			got := newPaginationMeta(tt.args.offset, tt.args.limit, tt.args.hasMore,
 				tt.args.currentURL)
 			gotJSON, err := prettyJSON(got)
 			if err != nil {

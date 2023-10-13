@@ -18,8 +18,8 @@ type PaginationMeta struct {
 	PrevURL       string `json:"prev_url,omitempty"`
 }
 
-// NewPaginationMeta populates pagination meta data from result parameters
-func NewPaginationMeta(offset, limit int, hasMore bool, currentURL string) PaginationMeta {
+// newPaginationMeta populates pagination meta data from result parameters
+func newPaginationMeta(offset, limit int, hasMore bool, currentURL string) PaginationMeta {
 	pm := PaginationMeta{
 		Limit:         limit,
 		CurrentOffset: offset,
