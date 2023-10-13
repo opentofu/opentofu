@@ -127,17 +127,6 @@ func ParseModuleSource(source string) (*Module, error) {
 	return m, nil
 }
 
-// Display returns the source formatted for display to the user in CLI or web
-// output.
-func (m *Module) Display() string {
-	return m.formatWithPrefix(m.normalizedHostPrefix(m.Host().Display()), false)
-}
-
-// Normalized returns the source formatted for internal reference or comparison.
-func (m *Module) Normalized() string {
-	return m.formatWithPrefix(m.normalizedHostPrefix(m.Host().Normalized()), false)
-}
-
 // String returns the source formatted as the user originally typed it assuming
 // it was parsed from user input.
 func (m *Module) String() string {
@@ -148,29 +137,6 @@ func (m *Module) String() string {
 		hostPrefix = m.RawHost.String() + "/"
 	}
 	return m.formatWithPrefix(hostPrefix, true)
-}
-
-// Equal compares the module source against another instance taking
-// normalization into account.
-func (m *Module) Equal(other *Module) bool {
-	return m.Normalized() == other.Normalized()
-}
-
-// Host returns the FriendlyHost object describing which registry this module is
-// in. If the original source string had not host component this will return the
-// PublicRegistryHost.
-func (m *Module) Host() *FriendlyHost {
-	if m.RawHost == nil {
-		return PublicRegistryHost
-	}
-	return m.RawHost
-}
-
-func (m *Module) normalizedHostPrefix(host string) string {
-	if m.Host().Equal(PublicRegistryHost) {
-		return ""
-	}
-	return host + "/"
 }
 
 func (m *Module) formatWithPrefix(hostPrefix string, preserveCase bool) string {

@@ -125,20 +125,6 @@ func TestModule(t *testing.T) {
 			if v := got.String(); v != tt.wantString {
 				t.Fatalf("String() = %v, want %v", v, tt.wantString)
 			}
-			if v := got.Display(); v != tt.wantDisplay {
-				t.Fatalf("Display() = %v, want %v", v, tt.wantDisplay)
-			}
-			if v := got.Normalized(); v != tt.wantNorm {
-				t.Fatalf("Normalized() = %v, want %v", v, tt.wantNorm)
-			}
-
-			gotDisplay, err := ParseModuleSource(tt.wantDisplay)
-			if err != nil {
-				t.Fatalf("ParseModuleSource(wantDisplay) error = %v", err)
-			}
-			if !got.Equal(gotDisplay) {
-				t.Fatalf("Equal() failed for %s and %s", tt.source, tt.wantDisplay)
-			}
 		})
 	}
 }
