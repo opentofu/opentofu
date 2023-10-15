@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MPL-2.0
+
 # Compare the semver tag against the current release in the VERSION file
 
 set -uo pipefail
