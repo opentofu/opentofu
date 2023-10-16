@@ -1,5 +1,43 @@
 # Weekly Updates
 
+## 2023-10-11
+
+Hey!
+
+Last week we've released the [first alpha release](https://github.com/opentofu/opentofu/releases/tag/v1.6.0-alpha1) (and [another one](https://github.com/opentofu/opentofu/releases/tag/v1.6.0-alpha2) the next day). This has been a huge milestone for the OpenTofu community, and means that you can actually download OpenTofu and play with it. It also marks the beginning of the stable registry design discussions.
+
+Just to give you some metrics about the release:
+- The alpha releases of OpenTofu have over 2k downloads.
+- Some registry stats
+  - Uptime: 100% 
+  - Max RPS: 105 
+  - Total Requests: 78869 
+  - Average latency: 19.15ms 
+  - Total unique providers used: 194
+
+We'll also have [our first office hours](https://opentofu.org/blog/opentofus-new-office-hours) today! Make sure you don't miss that.
+
+- Current Status
+  - First Alpha Release
+    - We've managed to get the alpha release out, including [a working registry](https://github.com/opentofu/registry).
+  - Second Alpha Release
+    - A [bug was reported](https://github.com/opentofu/opentofu/issues/655) to OpenTofu and later also to Terraform. We've deemed it high priority and possibly impacting the ability of the community to test OpenTofu with existing codebases, so we've worked on fixing it asap. The root cause was in the [hcl library](https://github.com/hashicorp/hcl/issues/629). We've [made a fix](https://github.com/opentofu/opentofu/pull/659) in OpenTofu, released a new alpha, and afterward [the fix got accepted to the hcl library](https://github.com/hashicorp/hcl/pull/630).
+- Up next
+  - Stable Registry Design (see [the tracking issue](https://github.com/opentofu/opentofu/issues/258))
+    - Even though there's a registry included with the alpha release, it's not stable. It was mostly a "get it working" design, and we will now be working on a stable design. 
+    - Right now we're working on a list of requirements, which will most likely be shared tomorrow in the tracking issue above.
+    - Then, there will be an approximate 2 weeks to submit and discuss RFCs, after which the steering committee will choose the final design, which we'll begin implementing right away.
+    - Please discuss in the issue and incoming RFCs, we want to hear all your voices! Please also feel free to submit your own RFCs.
+- How can I help?
+  - Since the alpha release is out, right now the best way to help is to take the alpha for a test drive and see if there are any bugs / issues.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+  - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
+  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the alpha and stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
+    - Issues and Pull Requests with enhancements or major changes will generally be frozen until we have the first stable release out. We will introduce a milestone to mark them as such more clearly.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2023-10-02
 
 Hey!

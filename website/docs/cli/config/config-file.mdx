@@ -148,9 +148,9 @@ If neither are set, any configured credentials helper will be consulted.
 
 The default way to install provider plugins is from a provider registry. The
 origin registry for a provider is encoded in the provider's source address,
-like `registry.terraform.io/hashicorp/aws`. For convenience in the common case,
+like `registry.opentofu.org/hashicorp/aws`. For convenience in the common case,
 OpenTofu allows omitting the hostname portion for providers on
-`registry.terraform.io`, so you can write shorter public provider addresses like
+`registry.opentofu.org`, so you can write shorter public provider addresses like
 `hashicorp/aws`.
 
 Downloading a plugin directly from its origin registry is not always
@@ -192,16 +192,16 @@ providers can be installed only directly from their origin registries.
 
 If you set both `include` and `exclude` for a particular installation
 method, the exclusion patterns take priority. For example, including
-`registry.terraform.io/hashicorp/*` but also excluding
-`registry.terraform.io/hashicorp/dns` will make that installation method apply
+`registry.opentofu.org/hashicorp/*` but also excluding
+`registry.opentofu.org/hashicorp/dns` will make that installation method apply
 to everything in the `hashicorp` namespace with the exception of
 `hashicorp/dns`.
 
 As with provider source addresses in the main configuration, you can omit
-the `registry.terraform.io/` prefix for providers distributed through the
-public Terraform registry, even when using wildcards. For example,
-`registry.terraform.io/hashicorp/*` and `hashicorp/*` are equivalent.
-`*/*` is a shorthand for `registry.terraform.io/*/*`, not for
+the `registry.opentofu.org/` prefix for providers distributed through the
+public OpenTofu Registry, even when using wildcards. For example,
+`registry.opentofu.org/hashicorp/*` and `hashicorp/*` are equivalent.
+`*/*` is a shorthand for `registry.opentofu.org/*/*`, not for
 `*/*/*`.
 
 The following are the two supported installation method types:

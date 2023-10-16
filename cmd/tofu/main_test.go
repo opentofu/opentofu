@@ -22,13 +22,13 @@ func TestMain_cliArgsFromEnv(t *testing.T) {
 	defer func() { os.Args = oldArgs }()
 
 	// Set up test command and restore that
-	Commands = make(map[string]cli.CommandFactory)
+	commands = make(map[string]cli.CommandFactory)
 	defer func() {
-		Commands = nil
+		commands = nil
 	}()
 	testCommandName := "unit-test-cli-args"
 	testCommand := &testCommandCLI{}
-	Commands[testCommandName] = func() (cli.Command, error) {
+	commands[testCommandName] = func() (cli.Command, error) {
 		return testCommand, nil
 	}
 
@@ -158,9 +158,9 @@ func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
 	defer func() { os.Args = oldArgs }()
 
 	// Set up test command and restore that
-	Commands = make(map[string]cli.CommandFactory)
+	commands = make(map[string]cli.CommandFactory)
 	defer func() {
-		Commands = nil
+		commands = nil
 	}()
 
 	cases := []struct {
@@ -218,8 +218,8 @@ func TestMain_cliArgsFromEnvAdvanced(t *testing.T) {
 			// Set up test command and restore that
 			testCommandName := tc.Command
 			testCommand := &testCommandCLI{}
-			defer func() { delete(Commands, testCommandName) }()
-			Commands[testCommandName] = func() (cli.Command, error) {
+			defer func() { delete(commands, testCommandName) }()
+			commands[testCommandName] = func() (cli.Command, error) {
 				return testCommand, nil
 			}
 
@@ -264,13 +264,13 @@ func TestMain_autoComplete(t *testing.T) {
 	defer func() { os.Args = oldArgs }()
 
 	// Set up test command and restore that
-	Commands = make(map[string]cli.CommandFactory)
+	commands = make(map[string]cli.CommandFactory)
 	defer func() {
-		Commands = nil
+		commands = nil
 	}()
 
 	// Set up test command and restore that
-	Commands["foo"] = func() (cli.Command, error) {
+	commands["foo"] = func() (cli.Command, error) {
 		return &testCommandCLI{}, nil
 	}
 

@@ -105,5 +105,5 @@ func (c *CloudCommand) Help() string {
 
 // Synopsis returns a short summary of the cloud command.
 func (c *CloudCommand) Synopsis() string {
-	return "Manage Terraform Cloud settings and metadata"
+	return "Manage cloud backend settings and metadata"
 }

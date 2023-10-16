@@ -39,7 +39,7 @@ from. However, when you configure OpenTofu to install providers from a network
 mirror, the `hostname` serves _only_ as an identifier and no longer as
 an installation source. A provider mirror can therefore serve providers
 belonging to a variety of different provider registry hostnames, including
-providers from the public Terraform Registry at `registry.terraform.io`, from a
+providers from the public OpenTofu Registry at `registry.opentofu.org`, from a
 single server.
 
 In the relative URL patterns later in this document, the placeholder `:hostname`
@@ -227,7 +227,7 @@ the following properties:
   filename would cause OpenTofu to construct a URL like:
 
   ```
-  https://tofu.example.com/providers/registry.terraform.io/hashicorp/random/terraform-provider-random_2.0.0_darwin_amd64.zip
+  https://tofu.example.com/providers/registry.opentofu.org/hashicorp/random/terraform-provider-random_2.0.0_darwin_amd64.zip
   ```
 
 * `hashes` (optional): a JSON array of strings containing one or more hash

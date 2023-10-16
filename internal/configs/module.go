@@ -221,8 +221,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		if m.CloudConfig != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Duplicate Terraform Cloud configurations",
-				Detail:   fmt.Sprintf("A module may have only one 'cloud' block configuring Terraform Cloud. Terraform Cloud was previously configured at %s.", m.CloudConfig.DeclRange),
+				Summary:  "Duplicate cloud configurations",
+				Detail:   fmt.Sprintf("A module may have only one 'cloud' block configuring a cloud backend. A cloud backend was previously configured at %s.", m.CloudConfig.DeclRange),
 				Subject:  &c.DeclRange,
 			})
 			continue
@@ -234,8 +234,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	if m.Backend != nil && m.CloudConfig != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Both a backend and Terraform Cloud configuration are present",
-			Detail:   fmt.Sprintf("A module may declare either one 'cloud' block configuring Terraform Cloud OR one 'backend' block configuring a state backend. Terraform Cloud is configured at %s; a backend is configured at %s. Remove the backend block to configure Terraform Cloud.", m.CloudConfig.DeclRange, m.Backend.DeclRange),
+			Summary:  "Both a backend and a cloud configuration are present",
+			Detail:   fmt.Sprintf("A module may declare either one 'cloud' block configuring a cloud backend OR one 'backend' block configuring a state backend. A cloud backend is configured at %s; a backend is configured at %s. Remove the backend block to configure a cloud backend.", m.CloudConfig.DeclRange, m.Backend.DeclRange),
 			Subject:  &m.Backend.DeclRange,
 		})
 	}
@@ -507,8 +507,8 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 			// though it can override cloud/backend blocks from _other_ files.
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Duplicate Terraform Cloud configurations",
-				Detail:   fmt.Sprintf("A module may have only one 'cloud' block configuring Terraform Cloud. Terraform Cloud was previously configured at %s.", file.CloudConfigs[0].DeclRange),
+				Summary:  "Duplicate cloud configurations",
+				Detail:   fmt.Sprintf("A module may have only one 'cloud' block configuring a cloud backend. A cloud backend was previously configured at %s.", file.CloudConfigs[0].DeclRange),
 				Subject:  &file.CloudConfigs[1].DeclRange,
 			})
 		}
@@ -716,7 +716,7 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 					Severity: hcl.DiagError,
 					Summary:  "Invalid required_version constraint",
 					Detail: fmt.Sprintf(
-						"Prerelease version constraints are not supported: %s. Remove the prerelease information from the constraint. Prerelease versions of terraform will match constraints using their version core only.",
+						"Prerelease version constraints are not supported: %s. Remove the prerelease information from the constraint. Prerelease versions of OpenTofu will match constraints using their version core only.",
 						required.String()),
 					Subject: constraint.DeclRange.Ptr(),
 				})
