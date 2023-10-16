@@ -16,7 +16,7 @@ For further information on contributing to the code, please refer to the [CONTRI
 
 ## Using the debug-opentofu script
 
-[debug-opentofu](./scripts/debug-opentofu) is a helper script to launch OpenTofu inside the "dlv" debugger, configured to await a remote debugging connection on port 2345. For more details on how to use this script, please refer to the documentation at the beginning of this script.
+[debug-opentofu](./scripts/debug-opentofu) is a helper script to launch OpenTofu inside the ["dlv" debugger](https://github.com/go-delve/delve), configured to await a remote debugging connection on port 2345. For more details on how to use this script, please refer to the documentation at the beginning of this script.
 
 ## Using spew
 
