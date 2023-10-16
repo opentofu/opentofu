@@ -46,6 +46,7 @@ BUG FIXES:
 * `GIT_SSH_COMMAND` environment variable is no longer ignored when downloading modules ([#717](https://github.com/opento
 * cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 * cloud: state snapshots could not be disabled when header x-terraform-snapshot-interval is absent ([#687](https://github.com/opentofu/opentofu/issues/687))
+* Removed the `skipCertVerification` option from the `backend.configureTLS()` function. This option was previously used to skip TLS verification, which could make the client vulnerable to man-in-the-middle attacks.
 
 ## Previous Releases
 
