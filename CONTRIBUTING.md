@@ -14,7 +14,7 @@ Generally, we appreciate external contributions very much and would love to work
 
 ---
 
-<!-- TOC -->
+<!-- MarkdownTOC autolink="true" -->
 
 - [Contributing a Code Change](#contributing-a-code-change)
 - [Working on the Code](#working-on-the-code)
@@ -22,7 +22,7 @@ Generally, we appreciate external contributions very much and would love to work
 - [Acceptance Tests: Testing interactions with external services](#acceptance-tests-testing-interactions-with-external-services)
 - [Generated Code](#generated-code)
 
-<!-- /TOC -->
+<!-- /MarkdownTOC -->
 
 ## Contributing a Code Change
 
