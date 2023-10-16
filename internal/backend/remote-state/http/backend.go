@@ -132,46 +132,42 @@ type Backend struct {
 
 // configureTLS configures TLS when needed; if there are no conditions requiring TLS, no change is made.
 func (b *Backend) configureTLS(client *retryablehttp.Client, data *schema.ResourceData) error {
-	// If there are no conditions needing to configure TLS, leave the client untouched
-	skipCertVerification := data.Get("skip_cert_verification").(bool)
-	clientCACertificatePem := data.Get("client_ca_certificate_pem").(string)
-	clientCertificatePem := data.Get("client_certificate_pem").(string)
-	clientPrivateKeyPem := data.Get("client_private_key_pem").(string)
-	if !skipCertVerification && clientCACertificatePem == "" && clientCertificatePem == "" && clientPrivateKeyPem == "" {
-		return nil
-	}
-	if clientCertificatePem != "" && clientPrivateKeyPem == "" {
-		return fmt.Errorf("client_certificate_pem is set but client_private_key_pem is not")
-	}
-	if clientPrivateKeyPem != "" && clientCertificatePem == "" {
-		return fmt.Errorf("client_private_key_pem is set but client_certificate_pem is not")
-	}
+    // If there are no conditions needing to configure TLS, leave the client untouched
+    skipCertVerification := data.Get("skip_cert_verification").(bool)
+    clientCACertificatePem := data.Get("client_ca_certificate_pem").(string)
+    clientCertificatePem := data.Get("client_certificate_pem").(string)
+    clientPrivateKeyPem := data.Get("client_private_key_pem").(string)
+    if !skipCertVerification && clientCACertificatePem == "" && clientCertificatePem == "" && clientPrivateKeyPem == "" {
+        return nil
+    }
+    if clientCertificatePem != "" && clientPrivateKeyPem == "" {
+        return fmt.Errorf("client_certificate_pem is set but client_private_key_pem is not")
+    }
+    if clientPrivateKeyPem != "" && clientCertificatePem == "" {
+        return fmt.Errorf("client_private_key_pem is set but client_certificate_pem is not")
+    }
 
-	// TLS configuration is needed; create an object and configure it
-	var tlsConfig tls.Config
-	client.HTTPClient.Transport.(*http.Transport).TLSClientConfig = &tlsConfig
+    // TLS configuration is needed; create an object and configure it
+    var tlsConfig tls.Config
+    client.HTTPClient.Transport.(*http.Transport).TLSClientConfig = &tlsConfig
 
-	if skipCertVerification {
-		// ignores TLS verification
-		tlsConfig.InsecureSkipVerify = true
-	}
-	if clientCACertificatePem != "" {
-		// trust servers based on a CA
-		tlsConfig.RootCAs = x509.NewCertPool()
-		if !tlsConfig.RootCAs.AppendCertsFromPEM([]byte(clientCACertificatePem)) {
-			return errors.New("failed to append certs")
-		}
-	}
-	if clientCertificatePem != "" && clientPrivateKeyPem != "" {
-		// attach a client certificate to the TLS handshake (aka mTLS)
-		certificate, err := tls.X509KeyPair([]byte(clientCertificatePem), []byte(clientPrivateKeyPem))
-		if err != nil {
-			return fmt.Errorf("cannot load client certificate: %w", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{certificate}
-	}
+    // Validate the server's certificate against a list of trusted certificates
+    if !skipCertVerification {
+        tlsConfig.RootCAs = x509.NewCertPool()
+        if !tlsConfig.RootCAs.AppendCertsFromPEM([]byte(clientCACertificatePem)) {
+            return errors.New("failed to append certs")
+        }
+    }
+    if clientCertificatePem != "" && clientPrivateKeyPem != "" {
+        // attach a client certificate to the TLS handshake (aka mTLS)
+        certificate, err := tls.X509KeyPair([]byte(clientCertificatePem), []byte(clientPrivateKeyPem))
+        if err != nil {
+            return fmt.Errorf("cannot load client certificate: %w", err)
+        }
+        tlsConfig.Certificates = []tls.Certificate{certificate}
+    }
 
-	return nil
+    return nil
 }
 
 func (b *Backend) configure(ctx context.Context) error {
