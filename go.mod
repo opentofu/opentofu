@@ -18,6 +18,10 @@ require (
 	github.com/apparentlymart/go-versions v1.0.1
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 	github.com/aws/aws-sdk-go v1.44.122
+	github.com/aws/aws-sdk-go-v2 v1.21.0
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.8
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.21.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.5
 	github.com/bgentry/speakeasy v0.1.0
 	github.com/bmatcuk/doublestar v1.1.5
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
@@ -28,8 +32,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
-	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.21.1
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.5
+	github.com/hashicorp/aws-sdk-go-base v1.1.0
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.35
 	github.com/hashicorp/consul/api v1.13.0
 	github.com/hashicorp/consul/sdk v0.8.0
@@ -38,7 +41,7 @@ require (
 	github.com/hashicorp/go-azure-helpers v0.43.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-getter v1.7.3
-	github.com/hashicorp/go-hclog v1.4.0
+	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.4.3
 	github.com/hashicorp/go-retryablehttp v0.7.4
@@ -134,19 +137,23 @@ require (
 	github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef // indirect
-	github.com/aws/aws-sdk-go-v2 v1.20.1 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.13 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.18.33 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.32 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.8 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.38 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.32 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.41 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.35 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.39 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.1.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/iam v1.22.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.32 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.14 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.36 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.7.31 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.35 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.15.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.13.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.15.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.21.2 // indirect
-	github.com/aws/smithy-go v1.14.1 // indirect
+	github.com/aws/smithy-go v1.14.2 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0 // indirect
