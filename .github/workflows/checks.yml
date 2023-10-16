@@ -40,14 +40,8 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
-        with:
-          go-version: ${{ steps.go.outputs.version }}
+      - name: Setup go
+        uses: ./.github/actions/setup-go
 
       # NOTE: This cache is shared so the following step must always be
       # identical across the unit-tests, e2e-tests, and consistency-checks
@@ -72,14 +66,8 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
-        with:
-          go-version: ${{ steps.go.outputs.version }}
+      - name: Setup go
+        uses: ./.github/actions/setup-go
 
       # NOTE: This cache is shared so the following step must always be
       # identical across the unit-tests, e2e-tests, and consistency-checks
@@ -110,14 +98,8 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
-        with:
-          go-version: ${{ steps.go.outputs.version }}
+      - name: Setup go
+        uses: ./.github/actions/setup-go
 
       # NOTE: This cache is shared so the following step must always be
       # identical across the unit-tests, e2e-tests, and consistency-checks
@@ -144,14 +126,8 @@ jobs:
         with:
           fetch-depth: 0 # We need to do comparisons against the main branch.
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
-        with:
-          go-version: ${{ steps.go.outputs.version }}
+      - name: Setup go
+        uses: ./.github/actions/setup-go
 
       # NOTE: This cache is shared so the following step must always be
       # identical across the unit-tests, e2e-tests, and consistency-checks
@@ -209,14 +185,8 @@ jobs:
           restore-keys: |
             licensei-cache-
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
-        with:
-          go-version: ${{ steps.go.outputs.version }}
+      - name: Setup go
+        uses: ./.github/actions/setup-go
 
       - name: Run licensei
         env:
