@@ -20,7 +20,7 @@ For further information on contributing to the code, please refer to the [CONTRI
 
 ## Using spew
 
-[Go-spew](https://github.com/davecgh/go-spew) implements a deep pretty printer for Go data structures to aid in debugging. If you prefer to use println debugging, spew.Dump might be helpful.
+[Go-spew](https://github.com/davecgh/go-spew) implements a deep pretty printer for Go data structures to aid in debugging. If you prefer to use println debugging, `spew.Dump` might be helpful.
 
 For more documentation on how to use spew, you can visit the [spew GoDoc site](https://pkg.go.dev/github.com/davecgh/go-spew/spew).
 
