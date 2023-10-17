@@ -4,8 +4,13 @@
 package s3
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -19,10 +24,6 @@ import (
 	"github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
-	"golang.org/x/net/context"
-	"os"
-	"strings"
-	"time"
 )
 
 func New() backend.Backend {
@@ -125,9 +126,14 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Description: "Path to a shared credentials file",
 			},
 			"shared_credentials_files": {
-				Type:        cty.String,
+				Type:        cty.Set(cty.String),
 				Optional:    true,
-				Description: "Path to a shared credentials files",
+				Description: "Paths to a shared credentials files",
+			},
+			"shared_config_files": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "Paths to shared config files",
 			},
 			"token": {
 				Type:        cty.String,
@@ -217,6 +223,11 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.Number,
 				Optional:    true,
 				Description: "The maximum number of times an AWS API request is retried on retryable failure.",
+			},
+			"use_legacy_workflow": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Use the legacy authentication workflow, preferring environment variables over backend configuration.",
 			},
 		},
 	}
@@ -400,6 +411,24 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		},
 	}
 
+	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {
+		cfg.UseLegacyWorkflow = val
+	} else {
+		cfg.UseLegacyWorkflow = true
+	}
+
+	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
+		if val {
+			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
+		} else {
+			cfg.EC2MetadataServiceEnableState = imds.ClientEnabled
+		}
+	}
+
+	if val, ok := stringAttrOk(obj, "shared_credentials_file"); ok {
+		cfg.SharedCredentialsFiles = []string{val}
+	}
+
 	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
 		if val {
 			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
@@ -410,10 +439,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	if value := obj.GetAttr("role_arn"); !value.IsNull() {
 		cfg.AssumeRole = configureAssumeRole(obj)
-	}
-
-	if value := obj.GetAttr("shared_credentials_file"); !value.IsNull() {
-		cfg.SharedCredentialsFiles = append(cfg.SharedCredentialsFiles, stringValue(value))
 	}
 
 	if value := obj.GetAttr("shared_credentials_files"); !value.IsNull() {
@@ -450,24 +475,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		return diags
 	}
 
-	accountID, _, awsDiags := awsbase.GetAwsAccountIDAndPartition(ctx, awsConfig, cfg)
-	for _, d := range awsDiags {
-		diags = append(diags, tfdiags.Sourceless(
-			baseSeverityToTofuSeverity(d.Severity()),
-			fmt.Sprintf("Retrieving AWS account details: %s", d.Summary()),
-			d.Detail(),
-		))
-	}
-
-	err := cfg.VerifyAccountIDAllowed(accountID)
-	if err != nil {
-		diags = append(diags, tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid account ID",
-			err.Error(),
-		))
-	}
-
 	b.awsConfig = awsConfig
 
 	b.dynClient = dynamodb.NewFromConfig(awsConfig, getDynamoDBConfig(obj))
@@ -498,26 +505,12 @@ func getS3Config(obj cty.Value) func(options *s3.Options) {
 
 func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 	assumeRole := awsbase.AssumeRole{}
-	if value := obj.GetAttr("role_arn"); !value.IsNull() {
-		assumeRole.RoleARN = stringValue(value)
-	}
 
-	if value := obj.GetAttr("assume_role_duration_seconds"); !value.IsNull() {
-		duration, _ := time.ParseDuration(stringValue(value))
-		assumeRole.Duration = duration
-	}
-
-	if value := obj.GetAttr("external_id"); !value.IsNull() {
-		assumeRole.ExternalID = stringValue(value)
-	}
-
-	if value := obj.GetAttr("assume_role_policy"); !value.IsNull() {
-		assumeRole.Policy = stringValue(value)
-	}
-
-	if value := obj.GetAttr("session_name"); !value.IsNull() {
-		assumeRole.SessionName = stringValue(value)
-	}
+	assumeRole.RoleARN = stringAttr(obj, "role_arn")
+	assumeRole.Duration = time.Duration(intAttr(obj, "assume_role_duration_seconds") * int(time.Second))
+	assumeRole.ExternalID = stringAttr(obj, "external_id")
+	assumeRole.Policy = stringAttr(obj, "assume_role_policy")
+	assumeRole.SessionName = stringAttr(obj, "session_name")
 
 	if value := obj.GetAttr("assume_role_policy_arns"); !value.IsNull() {
 		value.ForEachElement(func(key, val cty.Value) (stop bool) {
