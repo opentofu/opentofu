@@ -47,6 +47,8 @@ func (b *Backend) Workspaces() ([]string, error) {
 			if errors.As(err, &e) {
 				return nil, fmt.Errorf(errS3NoSuchBucket, err)
 			}
+
+			return nil, err
 		}
 
 		for _, obj := range page.Contents {
