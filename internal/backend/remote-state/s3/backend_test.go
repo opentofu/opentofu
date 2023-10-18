@@ -1221,6 +1221,54 @@ func TestKeyEnv(t *testing.T) {
 	backend.TestBackendStates(t, b2)
 }
 
+func Test_pathString(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     cty.Path
+		expected string
+	}{
+		{
+			name:     "Simple Path",
+			path:     cty.Path{cty.GetAttrStep{Name: "attr"}},
+			expected: "attr",
+		},
+		{
+			name: "Nested Path",
+			path: cty.Path{
+				cty.GetAttrStep{Name: "parent"},
+				cty.GetAttrStep{Name: "child"},
+			},
+			expected: "parent.child",
+		},
+		{
+			name: "Indexed Path",
+			path: cty.Path{
+				cty.GetAttrStep{Name: "array"},
+				cty.IndexStep{Key: cty.NumberIntVal(0)},
+			},
+			expected: "array[0]",
+		},
+		{
+			name: "Mixed Path",
+			path: cty.Path{
+				cty.GetAttrStep{Name: "parent"},
+				cty.IndexStep{Key: cty.StringVal("key")},
+				cty.GetAttrStep{Name: "child"},
+			},
+			expected: "parent[key].child",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := pathString(test.path)
+			if result != test.expected {
+				t.Errorf("Expected: %s, Got: %s", test.expected, result)
+			}
+		})
+	}
+}
+
 func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 	if actual := b.keyEnv(key); actual != expected {
 		return fmt.Errorf("incorrect workspace for key[%q]. Expected[%q]: Actual[%q]", key, expected, actual)

@@ -314,6 +314,24 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 		}
 	}
 
+	validateAttributesConflict(
+		cty.GetAttrPath("shared_credentials_file"),
+		cty.GetAttrPath("shared_credentials_files"),
+	)(obj, cty.Path{}, &diags)
+
+	attrPath := cty.GetAttrPath("shared_credentials_file")
+	if val := obj.GetAttr("shared_credentials_file"); !val.IsNull() {
+		detail := fmt.Sprintf(
+			`Parameter "%s" is deprecated. Use "%s" instead.`,
+			pathString(attrPath),
+			pathString(cty.GetAttrPath("shared_credentials_files")))
+
+		diags = diags.Append(attributeWarningDiag(
+			"Deprecated Parameter",
+			detail,
+			attrPath))
+	}
+
 	return obj, diags
 }
 
@@ -441,25 +459,13 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		cfg.AssumeRole = configureAssumeRole(obj)
 	}
 
-	if value := obj.GetAttr("shared_credentials_files"); !value.IsNull() {
-		value.ForEachElement(func(key, val cty.Value) (stop bool) {
-			v, ok := stringValueOk(val)
-			if ok {
-				cfg.SharedCredentialsFiles = append(cfg.SharedCredentialsFiles, v)
-			}
-			return
-		})
+	if val, ok := stringSliceAttrDefaultEnvVarOk(obj, "shared_credentials_files", "AWS_SHARED_CREDENTIALS_FILE"); ok {
+		cfg.SharedCredentialsFiles = val
+	}
+	if val, ok := stringSliceAttrDefaultEnvVarOk(obj, "shared_config_files", "AWS_SHARED_CONFIG_FILE"); ok {
+		cfg.SharedConfigFiles = val
 	}
 
-	if value := obj.GetAttr("shared_config_files"); !value.IsNull() {
-		value.ForEachElement(func(key, val cty.Value) (stop bool) {
-			v, ok := stringValueOk(val)
-			if ok {
-				cfg.SharedConfigFiles = append(cfg.SharedConfigFiles, v)
-			}
-			return
-		})
-	}
 	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
@@ -576,6 +582,35 @@ func stringAttrDefault(obj cty.Value, name, def string) string {
 	}
 }
 
+func stringSliceValueOk(val cty.Value) ([]string, bool) {
+	if val.IsNull() {
+		return nil, false
+	}
+
+	var v []string
+	if err := gocty.FromCtyValue(val, &v); err != nil {
+		return nil, false
+	}
+	return v, true
+}
+
+func stringSliceAttrOk(obj cty.Value, name string) ([]string, bool) {
+	return stringSliceValueOk(obj.GetAttr(name))
+}
+
+func stringSliceAttrDefaultEnvVarOk(obj cty.Value, name string, envvars ...string) ([]string, bool) {
+	if v, ok := stringSliceAttrOk(obj, name); !ok {
+		for _, envvar := range envvars {
+			if ev := os.Getenv(envvar); ev != "" {
+				return []string{ev}, true
+			}
+		}
+		return nil, false
+	} else {
+		return v, true
+	}
+}
+
 func stringAttrDefaultEnvVar(obj cty.Value, name string, envvars ...string) string {
 	if v, ok := stringAttrDefaultEnvVarOk(obj, name, envvars...); !ok {
 		return ""
@@ -633,6 +668,43 @@ func intAttrDefault(obj cty.Value, name string, def int) int {
 	} else {
 		return v
 	}
+}
+
+func pathString(path cty.Path) string {
+	var buf strings.Builder
+	for i, step := range path {
+		switch x := step.(type) {
+		case cty.GetAttrStep:
+			if i != 0 {
+				buf.WriteString(".")
+			}
+			buf.WriteString(x.Name)
+		case cty.IndexStep:
+			val := x.Key
+			typ := val.Type()
+			var s string
+			switch {
+			case typ == cty.String:
+				s = val.AsString()
+			case typ == cty.Number:
+				num := val.AsBigFloat()
+				if num.IsInt() {
+					s = num.Text('f', -1)
+				} else {
+					s = num.String()
+				}
+			default:
+				s = fmt.Sprintf("<unexpected index: %s>", typ.FriendlyName())
+			}
+			buf.WriteString(fmt.Sprintf("[%s]", s))
+		default:
+			if i != 0 {
+				buf.WriteString(".")
+			}
+			buf.WriteString(fmt.Sprintf("<unexpected step: %[1]T %[1]v>", x))
+		}
+	}
+	return buf.String()
 }
 
 const encryptionKeyConflictError = `Only one of "kms_key_id" and "sse_customer_key" can be set.

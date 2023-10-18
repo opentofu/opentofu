@@ -136,3 +136,55 @@ func TestValidateKeyARN(t *testing.T) {
 		})
 	}
 }
+
+func Test_validateAttributesConflict(t *testing.T) {
+	tests := []struct {
+		name      string
+		paths     []cty.Path
+		objValues map[string]cty.Value
+		expectErr bool
+	}{
+		{
+			name: "Conflict Found",
+			paths: []cty.Path{
+				{cty.GetAttrStep{Name: "attr1"}},
+				{cty.GetAttrStep{Name: "attr2"}},
+			},
+			objValues: map[string]cty.Value{
+				"attr1": cty.StringVal("value1"),
+				"attr2": cty.StringVal("value2"),
+			},
+			expectErr: true,
+		},
+		{
+			name: "No Conflict",
+			paths: []cty.Path{
+				{cty.GetAttrStep{Name: "attr1"}},
+				{cty.GetAttrStep{Name: "attr3"}},
+			},
+			objValues: map[string]cty.Value{
+				"attr1": cty.StringVal("value1"),
+				"attr3": cty.StringVal("value3"),
+			},
+			expectErr: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var diags tfdiags.Diagnostics
+
+			validator := validateAttributesConflict(test.paths...)
+
+			obj := cty.ObjectVal(test.objValues)
+
+			validator(obj, cty.Path{}, &diags)
+
+			if test.expectErr {
+				if !diags.HasErrors() {
+					t.Errorf("Expected validation errors, but got none.")
+				}
+			}
+		})
+	}
+}
