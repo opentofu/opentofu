@@ -188,3 +188,73 @@ func Test_validateAttributesConflict(t *testing.T) {
 		})
 	}
 }
+
+func Test_validateNestedAssumeRole(t *testing.T) {
+	tests := []struct {
+		description   string
+		input         cty.Value
+		expectedDiags []string
+	}{
+		{
+			description: "Valid Input",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":    cty.StringVal("valid-role-arn"),
+				"duration":    cty.StringVal("30m"),
+				"external_id": cty.StringVal("valid-external-id"),
+				"policy":      cty.StringVal("valid-policy"),
+			}),
+			expectedDiags: nil,
+		},
+		{
+			description: "Missing Role ARN",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":    cty.StringVal(""),
+				"duration":    cty.StringVal("30m"),
+				"external_id": cty.StringVal("valid-external-id"),
+				"policy":      cty.StringVal("valid-policy"),
+			}),
+			expectedDiags: []string{
+				"The attribute \"assume_role.role_arn\" is required by the backend.\n\nRefer to the backend documentation for additional information which attributes are required.",
+			},
+		},
+		{
+			description: "Invalid Duration",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":    cty.StringVal("valid-role-arn"),
+				"duration":    cty.StringVal("invalid-duration"),
+				"external_id": cty.StringVal("valid-external-id"),
+				"policy":      cty.StringVal("valid-policy"),
+			}),
+			expectedDiags: []string{
+				"The value \"invalid-duration\" cannot be parsed as a duration: time: invalid duration \"invalid-duration\"",
+			},
+		},
+
+		{
+			description: "Invalid Duration length",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":    cty.StringVal("valid-role-arn"),
+				"duration":    cty.StringVal("44h"),
+				"external_id": cty.StringVal("valid-external-id"),
+				"policy":      cty.StringVal("valid-policy"),
+			}),
+			expectedDiags: []string{
+				"Duration must be between 15m0s and 12h0m0s, had 44h",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			diagnostics := validateNestedAssumeRole(test.input, cty.Path{cty.GetAttrStep{Name: "assume_role"}})
+			if len(diagnostics) != len(test.expectedDiags) {
+				t.Errorf("Expected %d diagnostics, but got %d", len(test.expectedDiags), len(diagnostics))
+			}
+			for i, diag := range diagnostics {
+				if diag.Description().Detail != test.expectedDiags[i] {
+					t.Errorf("Mismatch in diagnostic %d. Expected: %q, Got: %q", i, test.expectedDiags[i], diag.Description().Detail)
+				}
+			}
+		})
+	}
+}
