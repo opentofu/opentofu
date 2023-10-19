@@ -5,6 +5,8 @@ FROM alpine:3.18
 
 LABEL maintainer="OpenTofu Core Team <core@opentofu.org>"
 
+RUN apk add --no-cache git
+
 COPY tofu /usr/local/bin/tofu
 
 ENTRYPOINT ["/usr/local/bin/tofu"]
