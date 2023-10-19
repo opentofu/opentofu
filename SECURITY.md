@@ -1,7 +1,7 @@
 # Security Reporting Process
 
-Please report any security issue or OpenTofu crash report to
-security@opentofu.org where the issue will be triaged appropriately.
+Please report any security issue to
+[security@opentofu.org](security@opentofu.org) where the issue will be triaged appropriately.
 Thank you in advance for helping to keep OpenTofu secure.
 
 # Security Release Process
@@ -19,8 +19,7 @@ The Product Security Team (PST) is responsible for organizing the entire respons
 communication and external disclosure but will need help from relevant developers to successfully
 run this process.
 
-The initial Product Security Team will consist of members of Steering Committee and Core Development Team in the private
-[OpenTofu Security](https://groups.google.com/a/opentofu.org/g/security) list. In the future we may
+The initial Product Security Team will consist of members of Steering Committee and Core Development Team. In the future we may
 decide to have a subset of maintainers work on security response given that this process is time
 consuming.
 
@@ -65,7 +64,7 @@ best protect our users.
 
 ### Fix Team Organization
 
-These steps should be completed within the first 24 hours of disclosure.
+These steps should be completed within the first 72 hours of disclosure.
 
 - The Fix Lead will work quickly to identify relevant engineers from the affected projects and
   packages and CC those engineers into the disclosure thread. These selected developers are the Fix
@@ -100,7 +99,7 @@ security issue is public or embargo is broken.
   initial response within 3 business days.
 
 * Privately disclosed issues will be fixed or publicly disclosed within 90 days
-  by the OpenTofu security team. In exceptional circumstances we reserve the right
+  by the PST. In exceptional circumstances we reserve the right
   to work with the discloser to coordinate on an extension, but this will be
   rarely used.
 

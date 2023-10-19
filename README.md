@@ -31,7 +31,7 @@ This repository contains OpenTofu Core, which includes the command line interfac
 - To submit bug reports or enhancement requests, refer to the [contributing guide](CONTRIBUTING.md) as well.
 
 ## Reporting security vulnerabilities
-If you've found a vulnerability or a potential vulnerability in OpenTofu please let us know at [security@opentofu.org](mailto:security@opentofu.org). We'll send a confirmation email to acknowledge your report, and we'll send an additional email when we've identified the issue positively or negatively.
+If you've found a vulnerability or a potential vulnerability in OpenTofu please follow [Security Policy](https://github.com/opentofu/opentofu/security/policy). We'll send a confirmation email to acknowledge your report, and we'll send an additional email when we've identified the issue positively or negatively.
 
 ## License
 
