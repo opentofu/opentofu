@@ -47,6 +47,12 @@ BUG FIXES:
 * cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 * cloud: state snapshots could not be disabled when header x-terraform-snapshot-interval is absent ([#687](https://github.com/opentofu/opentofu/issues/687))
 
+S3 BACKEND:
+
+* The S3 backend was upgraded to use the V2 of the AWS SDK for Go ([#691](https://github.com/opentofu/opentofu/issues/691))
+* Adds support for `shared_config_files` and `shared_credentials_files` arguments and deprecates the `shared_credentials_file` argument. ([#690](https://github.com/opentofu/opentofu/issues/690))
+
+
 ## Previous Releases
 
 For information on prior major and minor releases, see their changelogs:

@@ -5,6 +5,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"strings"
@@ -33,8 +34,9 @@ func TestRemoteClient(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	createS3Bucket(t, b.s3Client, bucketName)
-	defer deleteS3Bucket(t, b.s3Client, bucketName)
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
 
 	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
@@ -63,10 +65,11 @@ func TestRemoteClientLocks(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	createS3Bucket(t, b1.s3Client, bucketName)
-	defer deleteS3Bucket(t, b1.s3Client, bucketName)
-	createDynamoDBTable(t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(t, b1.dynClient, bucketName)
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
 	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
@@ -101,10 +104,11 @@ func TestForceUnlock(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	createS3Bucket(t, b1.s3Client, bucketName)
-	defer deleteS3Bucket(t, b1.s3Client, bucketName)
-	createDynamoDBTable(t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(t, b1.dynClient, bucketName)
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
 	// first test with default
 	s1, err := b1.StateMgr(backend.DefaultStateName)
@@ -170,10 +174,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	createS3Bucket(t, b.s3Client, bucketName)
-	defer deleteS3Bucket(t, b.s3Client, bucketName)
-	createDynamoDBTable(t, b.dynClient, bucketName)
-	defer deleteDynamoDBTable(t, b.dynClient, bucketName)
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+	createDynamoDBTable(ctx, t, b.dynClient, bucketName)
+	defer deleteDynamoDBTable(ctx, t, b.dynClient, bucketName)
 
 	s, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
@@ -183,11 +188,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 
 	sum := md5.Sum([]byte("test"))
 
-	if err := client.putMD5(sum[:]); err != nil {
+	if err := client.putMD5(ctx, sum[:]); err != nil {
 		t.Fatal(err)
 	}
 
-	getSum, err := client.getMD5()
+	getSum, err := client.getMD5(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,11 +201,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 		t.Fatalf("getMD5 returned the wrong checksum: expected %x, got %x", sum[:], getSum)
 	}
 
-	if err := client.deleteMD5(); err != nil {
+	if err := client.deleteMD5(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	if getSum, err := client.getMD5(); err == nil {
+	if getSum, err := client.getMD5(ctx); err == nil {
 		t.Fatalf("expected getMD5 error, got none. checksum: %x", getSum)
 	}
 }
@@ -218,10 +223,11 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	createS3Bucket(t, b1.s3Client, bucketName)
-	defer deleteS3Bucket(t, b1.s3Client, bucketName)
-	createDynamoDBTable(t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(t, b1.dynClient, bucketName)
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
 	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {

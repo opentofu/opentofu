@@ -5,6 +5,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
@@ -15,10 +16,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -33,8 +35,8 @@ const (
 )
 
 type RemoteClient struct {
-	s3Client              *s3.S3
-	dynClient             *dynamodb.DynamoDB
+	s3Client              *s3.Client
+	dynClient             *dynamodb.Client
 	bucketName            string
 	path                  string
 	serverSideEncryption  bool
@@ -57,12 +59,13 @@ var (
 var testChecksumHook func()
 
 func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
+	ctx := context.TODO()
 	deadline := time.Now().Add(consistencyRetryTimeout)
 
 	// If we have a checksum, and the returned payload doesn't match, we retry
 	// up until deadline.
 	for {
-		payload, err = c.get()
+		payload, err = c.get(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +79,7 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 		}
 
 		// verify that this state is what we expect
-		if expected, err := c.getMD5(); err != nil {
+		if expected, err := c.getMD5(ctx); err != nil {
 			log.Printf("[WARN] failed to fetch state md5: %s", err)
 		} else if len(expected) > 0 && !bytes.Equal(expected, digest) {
 			log.Printf("[WARN] state md5 mismatch: expected '%x', got '%x'", expected, digest)
@@ -100,7 +103,7 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 	return payload, err
 }
 
-func (c *RemoteClient) get() (*remote.Payload, error) {
+func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	var output *s3.GetObjectOutput
 	var err error
 
@@ -110,22 +113,23 @@ func (c *RemoteClient) get() (*remote.Payload, error) {
 	}
 
 	if c.serverSideEncryption && c.customerEncryptionKey != nil {
-		input.SetSSECustomerKey(string(c.customerEncryptionKey))
-		input.SetSSECustomerAlgorithm(s3EncryptionAlgorithm)
-		input.SetSSECustomerKeyMD5(c.getSSECustomerKeyMD5())
+		input.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+		input.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
+		input.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 	}
 
-	output, err = c.s3Client.GetObject(input)
-
+	output, err = c.s3Client.GetObject(ctx, input)
 	if err != nil {
-		if awserr, ok := err.(awserr.Error); ok {
-			switch awserr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				return nil, fmt.Errorf(errS3NoSuchBucket, err)
-			case s3.ErrCodeNoSuchKey:
-				return nil, nil
-			}
+		var nb *types.NoSuchBucket
+		if errors.As(err, &nb) {
+			return nil, fmt.Errorf(errS3NoSuchBucket, err)
 		}
+
+		var nk *types.NoSuchKey
+		if errors.As(err, &nk) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
@@ -156,7 +160,7 @@ func (c *RemoteClient) Put(data []byte) error {
 
 	i := &s3.PutObjectInput{
 		ContentType:   &contentType,
-		ContentLength: &contentLength,
+		ContentLength: contentLength,
 		Body:          bytes.NewReader(data),
 		Bucket:        &c.bucketName,
 		Key:           &c.path,
@@ -165,29 +169,30 @@ func (c *RemoteClient) Put(data []byte) error {
 	if c.serverSideEncryption {
 		if c.kmsKeyID != "" {
 			i.SSEKMSKeyId = &c.kmsKeyID
-			i.ServerSideEncryption = aws.String("aws:kms")
+			i.ServerSideEncryption = types.ServerSideEncryptionAwsKms
 		} else if c.customerEncryptionKey != nil {
-			i.SetSSECustomerKey(string(c.customerEncryptionKey))
-			i.SetSSECustomerAlgorithm(s3EncryptionAlgorithm)
-			i.SetSSECustomerKeyMD5(c.getSSECustomerKeyMD5())
+			i.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+			i.SSECustomerAlgorithm = aws.String(string(s3EncryptionAlgorithm))
+			i.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 		} else {
-			i.ServerSideEncryption = aws.String(s3EncryptionAlgorithm)
+			i.ServerSideEncryption = s3EncryptionAlgorithm
 		}
 	}
 
 	if c.acl != "" {
-		i.ACL = aws.String(c.acl)
+		i.ACL = types.ObjectCannedACL(c.acl)
 	}
 
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
-	_, err := c.s3Client.PutObject(i)
+	ctx := context.TODO()
+	_, err := c.s3Client.PutObject(ctx, i)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
 
 	sum := md5.Sum(data)
-	if err := c.putMD5(sum[:]); err != nil {
+	if err := c.putMD5(ctx, sum[:]); err != nil {
 		// if this errors out, we unfortunately have to error out altogether,
 		// since the next Get will inevitably fail.
 		return fmt.Errorf("failed to store state MD5: %w", err)
@@ -198,7 +203,8 @@ func (c *RemoteClient) Put(data []byte) error {
 }
 
 func (c *RemoteClient) Delete() error {
-	_, err := c.s3Client.DeleteObject(&s3.DeleteObjectInput{
+	ctx := context.TODO()
+	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,
 	})
@@ -207,7 +213,7 @@ func (c *RemoteClient) Delete() error {
 		return err
 	}
 
-	if err := c.deleteMD5(); err != nil {
+	if err := c.deleteMD5(ctx); err != nil {
 		log.Printf("error deleting state md5: %s", err)
 	}
 
@@ -231,17 +237,18 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	putParams := &dynamodb.PutItemInput{
-		Item: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath())},
-			"Info":   {S: aws.String(string(info.Marshal()))},
+		Item: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath()},
+			"Info":   &dtypes.AttributeValueMemberS{Value: string(info.Marshal())},
 		},
 		TableName:           aws.String(c.ddbTable),
 		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
 	}
-	_, err := c.dynClient.PutItem(putParams)
 
+	ctx := context.TODO()
+	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
-		lockInfo, infoErr := c.getLockInfo()
+		lockInfo, infoErr := c.getLockInfo(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
 		}
@@ -256,28 +263,30 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	return info.ID, nil
 }
 
-func (c *RemoteClient) getMD5() ([]byte, error) {
+func (c *RemoteClient) getMD5(ctx context.Context) ([]byte, error) {
 	if c.ddbTable == "" {
 		return nil, nil
 	}
 
 	getParams := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath() + stateIDSuffix)},
+		Key: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath() + stateIDSuffix},
 		},
 		ProjectionExpression: aws.String("LockID, Digest"),
 		TableName:            aws.String(c.ddbTable),
 		ConsistentRead:       aws.Bool(true),
 	}
 
-	resp, err := c.dynClient.GetItem(getParams)
+	resp, err := c.dynClient.GetItem(ctx, getParams)
 	if err != nil {
 		return nil, err
 	}
 
 	var val string
-	if v, ok := resp.Item["Digest"]; ok && v.S != nil {
-		val = *v.S
+	if v, ok := resp.Item["Digest"]; ok {
+		if v, ok := v.(*dtypes.AttributeValueMemberS); ok {
+			val = v.Value
+		}
 	}
 
 	sum, err := hex.DecodeString(val)
@@ -289,7 +298,7 @@ func (c *RemoteClient) getMD5() ([]byte, error) {
 }
 
 // store the hash of the state so that clients can check for stale state files.
-func (c *RemoteClient) putMD5(sum []byte) error {
+func (c *RemoteClient) putMD5(ctx context.Context, sum []byte) error {
 	if c.ddbTable == "" {
 		return nil
 	}
@@ -299,13 +308,13 @@ func (c *RemoteClient) putMD5(sum []byte) error {
 	}
 
 	putParams := &dynamodb.PutItemInput{
-		Item: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath() + stateIDSuffix)},
-			"Digest": {S: aws.String(hex.EncodeToString(sum))},
+		Item: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath() + stateIDSuffix},
+			"Digest": &dtypes.AttributeValueMemberS{Value: hex.EncodeToString(sum)},
 		},
 		TableName: aws.String(c.ddbTable),
 	}
-	_, err := c.dynClient.PutItem(putParams)
+	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		log.Printf("[WARN] failed to record state serial in dynamodb: %s", err)
 	}
@@ -314,41 +323,43 @@ func (c *RemoteClient) putMD5(sum []byte) error {
 }
 
 // remove the hash value for a deleted state
-func (c *RemoteClient) deleteMD5() error {
+func (c *RemoteClient) deleteMD5(ctx context.Context) error {
 	if c.ddbTable == "" {
 		return nil
 	}
 
 	params := &dynamodb.DeleteItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath() + stateIDSuffix)},
+		Key: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath() + stateIDSuffix},
 		},
 		TableName: aws.String(c.ddbTable),
 	}
-	if _, err := c.dynClient.DeleteItem(params); err != nil {
+	if _, err := c.dynClient.DeleteItem(ctx, params); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
+func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
 	getParams := &dynamodb.GetItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath())},
+		Key: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath()},
 		},
 		ProjectionExpression: aws.String("LockID, Info"),
 		TableName:            aws.String(c.ddbTable),
 		ConsistentRead:       aws.Bool(true),
 	}
 
-	resp, err := c.dynClient.GetItem(getParams)
+	resp, err := c.dynClient.GetItem(ctx, getParams)
 	if err != nil {
 		return nil, err
 	}
 
 	var infoData string
-	if v, ok := resp.Item["Info"]; ok && v.S != nil {
-		infoData = *v.S
+	if v, ok := resp.Item["Info"]; ok {
+		if v, ok := v.(*dtypes.AttributeValueMemberS); ok {
+			infoData = v.Value
+		}
 	}
 
 	lockInfo := &statemgr.LockInfo{}
@@ -366,11 +377,12 @@ func (c *RemoteClient) Unlock(id string) error {
 	}
 
 	lockErr := &statemgr.LockError{}
+	ctx := context.TODO()
 
 	// TODO: store the path and lock ID in separate fields, and have proper
 	// projection expression only delete the lock if both match, rather than
 	// checking the ID from the info field first.
-	lockInfo, err := c.getLockInfo()
+	lockInfo, err := c.getLockInfo(ctx)
 	if err != nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
@@ -383,12 +395,12 @@ func (c *RemoteClient) Unlock(id string) error {
 	}
 
 	params := &dynamodb.DeleteItemInput{
-		Key: map[string]*dynamodb.AttributeValue{
-			"LockID": {S: aws.String(c.lockPath())},
+		Key: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath()},
 		},
 		TableName: aws.String(c.ddbTable),
 	}
-	_, err = c.dynClient.DeleteItem(params)
+	_, err = c.dynClient.DeleteItem(ctx, params)
 
 	if err != nil {
 		lockErr.Err = err

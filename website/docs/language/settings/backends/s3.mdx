@@ -162,12 +162,15 @@ The following configuration is optional:
 * `iam_endpoint` - (Optional) Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the `AWS_IAM_ENDPOINT` environment variable.
 * `max_retries` - (Optional) The maximum number of times an AWS API request is retried on retryable failure. Defaults to 5.
 * `profile` - (Optional) Name of AWS profile in AWS shared credentials file (e.g. `~/.aws/credentials`) or AWS shared configuration file (e.g. `~/.aws/config`) to use for credentials and/or configuration. This can also be sourced from the `AWS_PROFILE` environment variable.
-* `shared_credentials_file`  - (Optional) Path to the AWS shared credentials file. Defaults to `~/.aws/credentials`.
+* `shared_credentials_file`  - (Optional) **Deprecated** Path to the AWS shared credentials file. Defaults to `~/.aws/credentials`.
+* `shared_credentials_files`  - (Optional) List of paths to AWS shared credentials files. Defaults to `~/.aws/credentials`. This can also be sourced from the `AWS_SHARED_CREDENTIALS_FILE` environment variable.
+* `shared_config_files`  - (Optional) List of paths to AWS shared configuration files. Defaults to `~/.aws/config`. This can also be sourced from the `AWS_SHARED_CONFIG_FILE` environment variable.
 * `skip_credentials_validation` - (Optional) Skip credentials validation via the STS API.
 * `skip_region_validation` - (Optional) Skip validation of provided region name.
 * `skip_metadata_api_check` - (Optional) Skip usage of EC2 Metadata API.
 * `sts_endpoint` - (Optional) Custom endpoint for the AWS Security Token Service (STS) API. This can also be sourced from the `AWS_STS_ENDPOINT` environment variable.
 * `token` - (Optional) Multi-Factor Authentication (MFA) token. This can also be sourced from the `AWS_SESSION_TOKEN` environment variable.
+* `use_legacy_workflow` - (Optional) Prefer environment variables for legacy authentication; default is 'true.' This method doesn't match AWS CLI or SDK authentication and will be removed in the future.
 
 #### Assume Role Configuration
 

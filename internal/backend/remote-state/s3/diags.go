@@ -3,32 +3,45 @@ package s3
 import (
 	"strings"
 
+	"github.com/hashicorp/aws-sdk-go-base/v2/diag"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func diagnosticString(diag tfdiags.Diagnostic) string {
+func diagnosticString(d tfdiags.Diagnostic) string {
 	var buffer strings.Builder
-	buffer.WriteString(diag.Severity().String() + ": ")
-	buffer.WriteString(diag.Description().Summary)
-	if diag.Description().Detail != "" {
+	buffer.WriteString(d.Severity().String() + ": ")
+	buffer.WriteString(d.Description().Summary)
+	if d.Description().Detail != "" {
 		buffer.WriteString("\n\n")
-		buffer.WriteString(diag.Description().Detail)
+		buffer.WriteString(d.Description().Detail)
 	}
 	return buffer.String()
 }
 
-func diagnosticsString(diags tfdiags.Diagnostics) string {
-	l := len(diags)
+func diagnosticsString(d tfdiags.Diagnostics) string {
+	l := len(d)
 	if l == 0 {
 		return ""
 	}
 
 	var buffer strings.Builder
-	for i, d := range diags {
-		buffer.WriteString(diagnosticString(d))
+	for i, v := range d {
+		buffer.WriteString(diagnosticString(v))
 		if i < l-1 {
 			buffer.WriteString(",\n")
 		}
 	}
 	return buffer.String()
+}
+
+func baseSeverityToTofuSeverity(s diag.Severity) tfdiags.Severity {
+	switch s {
+	case diag.SeverityWarning:
+		return tfdiags.Warning
+	case diag.SeverityError:
+		return tfdiags.Error
+	default:
+		return -1
+	}
 }

@@ -3,8 +3,9 @@ package s3
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -84,4 +85,49 @@ func aliasIdFromARNResource(s string) string {
 	}
 
 	return matches[1]
+}
+
+type objectValidator func(obj cty.Value, objPath cty.Path, diags *tfdiags.Diagnostics)
+
+func validateAttributesConflict(paths ...cty.Path) objectValidator {
+	return func(obj cty.Value, objPath cty.Path, diags *tfdiags.Diagnostics) {
+		found := false
+		for _, path := range paths {
+			val, err := path.Apply(obj)
+			if err != nil {
+				*diags = diags.Append(attributeErrDiag(
+					"Invalid Path for Schema",
+					"The S3 Backend unexpectedly provided a path that does not match the schema. "+
+						"Please report this to the developers.\n\n"+
+						"Path: "+pathString(path)+"\n\n"+
+						"Error: "+err.Error(),
+					objPath,
+				))
+				continue
+			}
+			if !val.IsNull() {
+				if found {
+					pathStrs := make([]string, len(paths))
+					for i, path := range paths {
+						pathStrs[i] = pathString(path)
+					}
+					*diags = diags.Append(attributeErrDiag(
+						"Invalid Attribute Combination",
+						fmt.Sprintf(`Only one of %s can be set.`, strings.Join(pathStrs, ", ")),
+						objPath,
+					))
+					return
+				}
+				found = true
+			}
+		}
+	}
+}
+
+func attributeErrDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnostic {
+	return tfdiags.AttributeValue(tfdiags.Error, summary, detail, attrPath.Copy())
+}
+
+func attributeWarningDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnostic {
+	return tfdiags.AttributeValue(tfdiags.Warning, summary, detail, attrPath.Copy())
 }

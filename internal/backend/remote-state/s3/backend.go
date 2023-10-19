@@ -4,15 +4,18 @@
 package s3
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/s3"
-	awsbase "github.com/hashicorp/aws-sdk-go-base"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -28,8 +31,9 @@ func New() backend.Backend {
 }
 
 type Backend struct {
-	s3Client  *s3.S3
-	dynClient *dynamodb.DynamoDB
+	s3Client  *s3.Client
+	dynClient *dynamodb.Client
+	awsConfig aws.Config
 
 	bucketName            string
 	keyName               string
@@ -121,6 +125,16 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "Path to a shared credentials file",
 			},
+			"shared_credentials_files": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "Paths to a shared credentials files",
+			},
+			"shared_config_files": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "Paths to shared config files",
+			},
 			"token": {
 				Type:        cty.String,
 				Optional:    true,
@@ -210,6 +224,11 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "The maximum number of times an AWS API request is retried on retryable failure.",
 			},
+			"use_legacy_workflow": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Use the legacy authentication workflow, preferring environment variables over backend configuration.",
+			},
 		},
 	}
 }
@@ -295,6 +314,24 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 		}
 	}
 
+	validateAttributesConflict(
+		cty.GetAttrPath("shared_credentials_file"),
+		cty.GetAttrPath("shared_credentials_files"),
+	)(obj, cty.Path{}, &diags)
+
+	attrPath := cty.GetAttrPath("shared_credentials_file")
+	if val := obj.GetAttr("shared_credentials_file"); !val.IsNull() {
+		detail := fmt.Sprintf(
+			`Parameter "%s" is deprecated. Use "%s" instead.`,
+			pathString(attrPath),
+			pathString(cty.GetAttrPath("shared_credentials_files")))
+
+		diags = diags.Append(attributeWarningDiag(
+			"Deprecated Parameter",
+			detail,
+			attrPath))
+	}
+
 	return obj, diags
 }
 
@@ -374,48 +411,130 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	cfg := &awsbase.Config{
-		AccessKey:                 stringAttr(obj, "access_key"),
-		AssumeRoleARN:             stringAttr(obj, "role_arn"),
-		AssumeRoleDurationSeconds: intAttr(obj, "assume_role_duration_seconds"),
-		AssumeRoleExternalID:      stringAttr(obj, "external_id"),
-		AssumeRolePolicy:          stringAttr(obj, "assume_role_policy"),
-		AssumeRoleSessionName:     stringAttr(obj, "session_name"),
-		CallerDocumentationURL:    "https://opentofu.org/docs/language/settings/backends/s3/",
-		CallerName:                "S3 Backend",
-		CredsFilename:             stringAttr(obj, "shared_credentials_file"),
-		DebugLogging:              logging.IsDebugOrHigher(),
-		IamEndpoint:               stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
-		MaxRetries:                intAttrDefault(obj, "max_retries", 5),
-		Profile:                   stringAttr(obj, "profile"),
-		Region:                    stringAttr(obj, "region"),
-		SecretKey:                 stringAttr(obj, "secret_key"),
-		SkipCredsValidation:       boolAttr(obj, "skip_credentials_validation"),
-		SkipMetadataApiCheck:      boolAttr(obj, "skip_metadata_api_check"),
-		StsEndpoint:               stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
-		Token:                     stringAttr(obj, "token"),
-		UserAgentProducts: []*awsbase.UserAgentProduct{
+		AccessKey:              stringAttr(obj, "access_key"),
+		CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
+		CallerName:             "S3 Backend",
+		SuppressDebugLog:       logging.IsDebugOrHigher(),
+		IamEndpoint:            stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
+		MaxRetries:             intAttrDefault(obj, "max_retries", 5),
+		Profile:                stringAttr(obj, "profile"),
+		Region:                 stringAttr(obj, "region"),
+		SecretKey:              stringAttr(obj, "secret_key"),
+		SkipCredsValidation:    boolAttr(obj, "skip_credentials_validation"),
+		StsEndpoint:            stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
+		Token:                  stringAttr(obj, "token"),
+		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
 	}
 
-	if policyARNSet := obj.GetAttr("assume_role_policy_arns"); !policyARNSet.IsNull() {
-		policyARNSet.ForEachElement(func(key, val cty.Value) (stop bool) {
+	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {
+		cfg.UseLegacyWorkflow = val
+	} else {
+		cfg.UseLegacyWorkflow = true
+	}
+
+	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
+		if val {
+			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
+		} else {
+			cfg.EC2MetadataServiceEnableState = imds.ClientEnabled
+		}
+	}
+
+	if val, ok := stringAttrOk(obj, "shared_credentials_file"); ok {
+		cfg.SharedCredentialsFiles = []string{val}
+	}
+
+	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
+		if val {
+			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
+		} else {
+			cfg.EC2MetadataServiceEnableState = imds.ClientEnabled
+		}
+	}
+
+	if value := obj.GetAttr("role_arn"); !value.IsNull() {
+		cfg.AssumeRole = configureAssumeRole(obj)
+	}
+
+	if val, ok := stringSliceAttrDefaultEnvVarOk(obj, "shared_credentials_files", "AWS_SHARED_CREDENTIALS_FILE"); ok {
+		cfg.SharedCredentialsFiles = val
+	}
+	if val, ok := stringSliceAttrDefaultEnvVarOk(obj, "shared_config_files", "AWS_SHARED_CONFIG_FILE"); ok {
+		cfg.SharedConfigFiles = val
+	}
+
+	ctx := context.TODO()
+	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
+
+	for _, d := range awsDiags {
+		diags = diags.Append(tfdiags.Sourceless(
+			baseSeverityToTofuSeverity(d.Severity()),
+			d.Summary(),
+			d.Detail(),
+		))
+	}
+
+	if diags.HasErrors() {
+		return diags
+	}
+
+	b.awsConfig = awsConfig
+
+	b.dynClient = dynamodb.NewFromConfig(awsConfig, getDynamoDBConfig(obj))
+
+	b.s3Client = s3.NewFromConfig(awsConfig, getS3Config(obj))
+
+	return diags
+}
+
+func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
+	return func(options *dynamodb.Options) {
+		if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT", "AWS_ENDPOINT_URL_DYNAMODB"); ok {
+			options.BaseEndpoint = aws.String(v)
+		}
+	}
+}
+
+func getS3Config(obj cty.Value) func(options *s3.Options) {
+	return func(options *s3.Options) {
+		if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT", "AWS_ENDPOINT_URL_S3"); ok {
+			options.BaseEndpoint = aws.String(v)
+		}
+		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
+			options.UsePathStyle = v
+		}
+	}
+}
+
+func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
+	assumeRole := awsbase.AssumeRole{}
+
+	assumeRole.RoleARN = stringAttr(obj, "role_arn")
+	assumeRole.Duration = time.Duration(intAttr(obj, "assume_role_duration_seconds") * int(time.Second))
+	assumeRole.ExternalID = stringAttr(obj, "external_id")
+	assumeRole.Policy = stringAttr(obj, "assume_role_policy")
+	assumeRole.SessionName = stringAttr(obj, "session_name")
+
+	if value := obj.GetAttr("assume_role_policy_arns"); !value.IsNull() {
+		value.ForEachElement(func(key, val cty.Value) (stop bool) {
 			v, ok := stringValueOk(val)
 			if ok {
-				cfg.AssumeRolePolicyARNs = append(cfg.AssumeRolePolicyARNs, v)
+				assumeRole.PolicyARNs = append(assumeRole.PolicyARNs, v)
 			}
 			return
 		})
 	}
 
 	if tagMap := obj.GetAttr("assume_role_tags"); !tagMap.IsNull() {
-		cfg.AssumeRoleTags = make(map[string]string, tagMap.LengthInt())
+		assumeRole.Tags = make(map[string]string, tagMap.LengthInt())
 		tagMap.ForEachElement(func(key, val cty.Value) (stop bool) {
 			k := stringValue(key)
 			v, ok := stringValueOk(val)
 			if ok {
-				cfg.AssumeRoleTags[k] = v
+				assumeRole.Tags[k] = v
 			}
 			return
 		})
@@ -425,38 +544,13 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		transitiveTagKeySet.ForEachElement(func(key, val cty.Value) (stop bool) {
 			v, ok := stringValueOk(val)
 			if ok {
-				cfg.AssumeRoleTransitiveTagKeys = append(cfg.AssumeRoleTransitiveTagKeys, v)
+				assumeRole.TransitiveTagKeys = append(assumeRole.TransitiveTagKeys, v)
 			}
 			return
 		})
 	}
 
-	sess, err := awsbase.GetSession(cfg)
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to configure AWS client",
-			fmt.Sprintf(`The "S3" backend encountered an unexpected error while creating the AWS client: %s`, err),
-		))
-		return diags
-	}
-
-	var dynamoConfig aws.Config
-	if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT"); ok {
-		dynamoConfig.Endpoint = aws.String(v)
-	}
-	b.dynClient = dynamodb.New(sess.Copy(&dynamoConfig))
-
-	var s3Config aws.Config
-	if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT"); ok {
-		s3Config.Endpoint = aws.String(v)
-	}
-	if v, ok := boolAttrOk(obj, "force_path_style"); ok {
-		s3Config.S3ForcePathStyle = aws.Bool(v)
-	}
-	b.s3Client = s3.New(sess.Copy(&s3Config))
-
-	return diags
+	return &assumeRole
 }
 
 func stringValue(val cty.Value) string {
@@ -485,6 +579,35 @@ func stringAttrDefault(obj cty.Value, name, def string) string {
 		return def
 	} else {
 		return v
+	}
+}
+
+func stringSliceValueOk(val cty.Value) ([]string, bool) {
+	if val.IsNull() {
+		return nil, false
+	}
+
+	var v []string
+	if err := gocty.FromCtyValue(val, &v); err != nil {
+		return nil, false
+	}
+	return v, true
+}
+
+func stringSliceAttrOk(obj cty.Value, name string) ([]string, bool) {
+	return stringSliceValueOk(obj.GetAttr(name))
+}
+
+func stringSliceAttrDefaultEnvVarOk(obj cty.Value, name string, envvars ...string) ([]string, bool) {
+	if v, ok := stringSliceAttrOk(obj, name); !ok {
+		for _, envvar := range envvars {
+			if ev := os.Getenv(envvar); ev != "" {
+				return []string{ev}, true
+			}
+		}
+		return nil, false
+	} else {
+		return v, true
 	}
 }
 
@@ -545,6 +668,43 @@ func intAttrDefault(obj cty.Value, name string, def int) int {
 	} else {
 		return v
 	}
+}
+
+func pathString(path cty.Path) string {
+	var buf strings.Builder
+	for i, step := range path {
+		switch x := step.(type) {
+		case cty.GetAttrStep:
+			if i != 0 {
+				buf.WriteString(".")
+			}
+			buf.WriteString(x.Name)
+		case cty.IndexStep:
+			val := x.Key
+			typ := val.Type()
+			var s string
+			switch {
+			case typ == cty.String:
+				s = val.AsString()
+			case typ == cty.Number:
+				num := val.AsBigFloat()
+				if num.IsInt() {
+					s = num.Text('f', -1)
+				} else {
+					s = num.String()
+				}
+			default:
+				s = fmt.Sprintf("<unexpected index: %s>", typ.FriendlyName())
+			}
+			buf.WriteString(fmt.Sprintf("[%s]", s))
+		default:
+			if i != 0 {
+				buf.WriteString(".")
+			}
+			buf.WriteString(fmt.Sprintf("<unexpected step: %[1]T %[1]v>", x))
+		}
+	}
+	return buf.String()
 }
 
 const encryptionKeyConflictError = `Only one of "kms_key_id" and "sse_customer_key" can be set.
