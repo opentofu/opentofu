@@ -55,55 +55,8 @@ Note that given the current size of the OpenTofu community it is likely that the
 the "Fix team." (I.e., all maintainers). The PST may decide to bring in additional contributors
 for added expertise depending on the area of the code that contains the vulnerability.
 
-All of the timelines below are suggestions and assume a private disclosure. The Fix Lead drives the
-schedule using their best judgment based on severity and development time. If the Fix Lead is
+The Fix Lead drives the schedule using their best judgment based on severity and development time. If the Fix Lead is
 dealing with a public disclosure all timelines become ASAP (assuming the vulnerability has a CVSS
-score >= 4; see below). If the fix relies on another upstream project's disclosure timeline, that
+score >= 4). If the fix relies on another upstream project's disclosure timeline, that
 will adjust the process as well. We will work with the upstream project to fit their timeline and
 best protect our users.
-
-### Fix Team Organization
-
-These steps should be completed within the first 72 hours of disclosure.
-
-- The Fix Lead will work quickly to identify relevant engineers from the affected projects and
-  packages and CC those engineers into the disclosure thread. These selected developers are the Fix
-  Team.
-- The Fix Lead will get the Fix Team access to private security repos to develop the fix.
-
-### Fix Development Process
-
-These steps should be completed within the 1-7 days of Disclosure.
-
-- The Fix Lead and the Fix Team will create a
-  [CVSS](https://www.first.org/cvss/specification-document) using the [CVSS
-  Calculator](https://www.first.org/cvss/calculator/3.0). The Fix Lead makes the final call on the
-  calculated CVSS; it is better to move quickly than making the CVSS perfect.
-- The Fix Team will notify the Fix Lead that work on the fix branch is complete once there are LGTMs
-  on all commits in the private repo from one or more maintainers.
-
-If the CVSS score is under 4.0 ([a low severity
-score](https://www.first.org/cvss/specification-document#i5)) the Fix Team can decide to slow the
-release process down in the face of holidays, developer bandwidth, etc. These decisions must be
-discussed on the opentofu secruity mailing list.
-
-A three week window will be provided to members of the private distributor list from candidate patch
-availability until the security release date. It is expected that distributors will normally be able
-to perform a release within this time window. If there are exceptional circumstances, the OpenTofu
-security team will raise this window to four weeks. The release window will be reduced if the
-security issue is public or embargo is broken.
-
-### Fix and disclosure SLOs
-
-* All vulnerability reports will be triaged and have an
-  initial response within 3 business days.
-
-* Privately disclosed issues will be fixed or publicly disclosed within 90 days
-  by the PST. In exceptional circumstances we reserve the right
-  to work with the discloser to coordinate on an extension, but this will be
-  rarely used.
-
-* Any issue discovered by the OpenTofu security team and raised in our private bug
-  tracker will be converted to a public issue within 90 days. We will regularly
-  audit these issues to ensure that no major vulnerability (from the perspective
-  of the threat model) is accidentally leaked.
