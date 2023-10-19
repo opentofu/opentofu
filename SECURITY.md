@@ -1,7 +1,7 @@
 # Security Reporting Process
 
-Please report any security issue to
-[security@opentofu.org](security@opentofu.org) where the issue will be triaged appropriately.
+Please report any security issue via
+[Private Vulnerability Reporting](https://github.com/opentofu/opentofu/security/advisories/new) where the issue will be triaged appropriately.
 Thank you in advance for helping to keep OpenTofu secure.
 
 # Security Release Process
@@ -32,8 +32,8 @@ via the [reporting policy](README.md#reporting-security-vulnerabilities).
 
 ### Public Disclosure Processes
 
-If you know of a publicly disclosed security vulnerability please IMMEDIATELY email
-[security@opentofu.org](security@opentofu.org) to inform the Product
+If you know of a publicly disclosed security vulnerability please IMMEDIATELY submit a report via
+[Private Vulnerability Reporting](https://github.com/opentofu/opentofu/security/advisories/new) to inform the Product
 Security Team (PST) about the vulnerability so they may start the patch, release, and communication
 process.
 
@@ -95,7 +95,7 @@ security issue is public or embargo is broken.
 
 ### Fix and disclosure SLOs
 
-* All reports to security@opentofu.org will be triaged and have an
+* All vulnerability reports will be triaged and have an
   initial response within 3 business days.
 
 * Privately disclosed issues will be fixed or publicly disclosed within 90 days
