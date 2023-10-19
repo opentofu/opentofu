@@ -557,7 +557,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	if value := obj.GetAttr("assume_role"); !value.IsNull() {
-		cfg.AssumeRole = configureAssumeRole(value)
+		cfg.AssumeRole = configureNestedAssumeRole(obj)
 	} else if value := obj.GetAttr("role_arn"); !value.IsNull() {
 		cfg.AssumeRole = configureAssumeRole(obj)
 	}

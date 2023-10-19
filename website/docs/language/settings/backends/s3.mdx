@@ -174,16 +174,55 @@ The following configuration is optional:
 
 #### Assume Role Configuration
 
-The following configuration is optional:
+Assuming an IAM Role is optional and can be configured in two ways.
+The preferred way is to use the argument `assume_role`, as the other, the other method is deprecated.
+
+The argument `assume_role` contains the following arguments:
+
+* `role_arn` - (Required) The Amazon Resource Name (ARN) of the IAM Role to be assumed.
+* `duration` - (Optional) Specifies the validity period for individual credentials.
+  These credentials are automatically renewed, with the maximum renewal defined by the AWS account.
+  The duration should be specified in the format `<hours>h<minutes>m<seconds>s`, with each unit being optional.
+  For example, an hour and a half can be represented as `1h30m` or simply `90m`.
+  The duration must be within the range of 15 minutes (15m) to 12 hours (12h).
+* `external_id` - (Optional) An external identifier to use when assuming the role.
+* `policy` - (Optional) JSON representation of an IAM Policy that further restricts permissions for the IAM Role being assumed.
+* `policy_arns` - (Optional) A set of Amazon Resource Names (ARNs) for IAM Policies that further limit permissions for the assumed IAM Role.
+* `session_name` - (Optional) The session name to be used when assuming the role.
+* `tags` - (Optional) A map of tags to be associated with the assumed role session.
+* `transitive_tag_keys` - (Optional) A set of tag keys from the assumed role session to be passed to any subsequent sessions.
+
+The following arguments on the top level are deprecated:
 
 * `assume_role_duration_seconds` - (Optional) Number of seconds to restrict the assume role session duration.
+  Use `assume_role.duration` instead.
 * `assume_role_policy` - (Optional) IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.
+  Use `assume_role.policy` instead.
 * `assume_role_policy_arns` - (Optional) Set of Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.
+  Use `assume_role.policy_arns` instead.
 * `assume_role_tags` - (Optional) Map of assume role session tags.
+  Use `assume_role.tags` instead.
 * `assume_role_transitive_tag_keys` - (Optional) Set of assume role session tag keys to pass to any subsequent sessions.
+  Use `assume_role.transitive_tag_keys` instead.
 * `external_id` - (Optional) External identifier to use when assuming the role.
+  Use `assume_role.external_id` instead.
 * `role_arn` - (Optional) Amazon Resource Name (ARN) of the IAM Role to assume.
+  Use `assume_role.role_arn` instead.
 * `session_name` - (Optional) Session name to use when assuming the role.
+  Use `assume_role.session_name` instead.
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket = "mybucket"
+    key    = "my/key.tfstate"
+    region = "us-east-1"
+    assume_role = {
+      role_arn = "arn:aws:iam::ACCOUNT-ID:role/Opentofu"
+    }
+  }
+}
+```
 
 ### S3 State Storage
 

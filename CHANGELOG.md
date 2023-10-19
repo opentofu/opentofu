@@ -51,7 +51,8 @@ S3 BACKEND:
 
 * The S3 backend was upgraded to use the V2 of the AWS SDK for Go ([#691](https://github.com/opentofu/opentofu/issues/691))
 * Adds support for `shared_config_files` and `shared_credentials_files` arguments and deprecates the `shared_credentials_file` argument. ([#690](https://github.com/opentofu/opentofu/issues/690))
-
+* Arguments associated with assuming an IAM role were moved into a nested block - `assume_role`.
+  This deprecates the arguments `role_arn`, `session_name`, `external_id`, `assume_role_duration_seconds`, `assume_role_policy`, `assume_role_policy_arns`, `assume_role_tags`, and `assume_role_transitive_tag_keys`. ([#747](https://github.com/opentofu/opentofu/issues/747))
 
 ## Previous Releases
 

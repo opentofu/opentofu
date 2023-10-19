@@ -198,20 +198,24 @@ func Test_validateNestedAssumeRole(t *testing.T) {
 		{
 			description: "Valid Input",
 			input: cty.ObjectVal(map[string]cty.Value{
-				"role_arn":    cty.StringVal("valid-role-arn"),
-				"duration":    cty.StringVal("30m"),
-				"external_id": cty.StringVal("valid-external-id"),
-				"policy":      cty.StringVal("valid-policy"),
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
 			}),
 			expectedDiags: nil,
 		},
 		{
 			description: "Missing Role ARN",
 			input: cty.ObjectVal(map[string]cty.Value{
-				"role_arn":    cty.StringVal(""),
-				"duration":    cty.StringVal("30m"),
-				"external_id": cty.StringVal("valid-external-id"),
-				"policy":      cty.StringVal("valid-policy"),
+				"role_arn":     cty.StringVal(""),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
 			}),
 			expectedDiags: []string{
 				"The attribute \"assume_role.role_arn\" is required by the backend.\n\nRefer to the backend documentation for additional information which attributes are required.",
@@ -220,26 +224,99 @@ func Test_validateNestedAssumeRole(t *testing.T) {
 		{
 			description: "Invalid Duration",
 			input: cty.ObjectVal(map[string]cty.Value{
-				"role_arn":    cty.StringVal("valid-role-arn"),
-				"duration":    cty.StringVal("invalid-duration"),
-				"external_id": cty.StringVal("valid-external-id"),
-				"policy":      cty.StringVal("valid-policy"),
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("invalid-duration"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
 			}),
 			expectedDiags: []string{
 				"The value \"invalid-duration\" cannot be parsed as a duration: time: invalid duration \"invalid-duration\"",
 			},
 		},
-
 		{
-			description: "Invalid Duration length",
+			description: "Invalid Duration Length",
 			input: cty.ObjectVal(map[string]cty.Value{
-				"role_arn":    cty.StringVal("valid-role-arn"),
-				"duration":    cty.StringVal("44h"),
-				"external_id": cty.StringVal("valid-external-id"),
-				"policy":      cty.StringVal("valid-policy"),
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("44h"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
 			}),
 			expectedDiags: []string{
 				"Duration must be between 15m0s and 12h0m0s, had 44h",
+			},
+		},
+		{
+			description: "Invalid External ID (Empty)",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal(""),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
+			}),
+			expectedDiags: []string{
+				"The value cannot be empty or all whitespace",
+			},
+		},
+		{
+			description: "Invalid Policy (Empty)",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal(""),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
+			}),
+			expectedDiags: []string{
+				"The value cannot be empty or all whitespace",
+			},
+		},
+		{
+			description: "Invalid Session Name (Empty)",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal(""),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:policy/valid-policy-arn")}),
+			}),
+			expectedDiags: []string{
+				"The value cannot be empty or all whitespace",
+			},
+		},
+		{
+			description: "Invalid Policy ARN (Invalid ARN Format)",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("invalid-arn-format")}),
+			}),
+			expectedDiags: []string{
+				"The value [\"invalid-arn-format\"] cannot be parsed as an ARN: arn: invalid prefix",
+			},
+		},
+		{
+			description: "Invalid Policy ARN (Not Starting with 'policy/')",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"role_arn":     cty.StringVal("valid-role-arn"),
+				"duration":     cty.StringVal("30m"),
+				"external_id":  cty.StringVal("valid-external-id"),
+				"policy":       cty.StringVal("valid-policy"),
+				"session_name": cty.StringVal("valid-session-name"),
+				"policy_arns":  cty.ListVal([]cty.Value{cty.StringVal("arn:aws:iam::123456789012:role/invalid-policy-arn")}),
+			}),
+			expectedDiags: []string{
+				"Value must be a valid IAM Policy ARN, got [\"arn:aws:iam::123456789012:role/invalid-policy-arn\"]",
 			},
 		},
 	}
