@@ -620,7 +620,13 @@ func configureNestedAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 		assumeRole.RoleARN = val
 	}
 	if val, ok := stringAttrOk(obj, "duration"); ok {
-		dur, _ := time.ParseDuration(val)
+		dur, err := time.ParseDuration(val)
+		if err != nil {
+			// This should never happen because the schema should have
+			// already validated the duration.
+			panic(fmt.Sprintf("invalid duration %q: %s", val, err))
+		}
+
 		assumeRole.Duration = dur
 	}
 	if val, ok := stringAttrOk(obj, "external_id"); ok {
