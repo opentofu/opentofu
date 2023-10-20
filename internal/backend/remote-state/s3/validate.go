@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -58,6 +59,96 @@ func validateKMSKeyARN(path cty.Path, s string) (diags tfdiags.Diagnostics) {
 			path,
 		))
 		return diags
+	}
+
+	return diags
+}
+
+func validateNestedAssumeRole(obj cty.Value, objPath cty.Path) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	if val, ok := stringAttrOk(obj, "role_arn"); !ok || val == "" {
+		path := objPath.GetAttr("role_arn")
+		diags = diags.Append(attributeErrDiag(
+			"Missing Required Value",
+			fmt.Sprintf("The attribute %q is required by the backend.\n\n", pathString(path))+
+				"Refer to the backend documentation for additional information which attributes are required.",
+			path,
+		))
+	}
+
+	if val, ok := stringAttrOk(obj, "duration"); ok {
+		path := objPath.GetAttr("duration")
+		d, err := time.ParseDuration(val)
+		if err != nil {
+			diags = diags.Append(attributeErrDiag(
+				"Invalid Duration",
+				fmt.Sprintf("The value %q cannot be parsed as a duration: %s", val, err),
+				path,
+			))
+		} else {
+			min := 15 * time.Minute
+			max := 12 * time.Hour
+			if d < min || d > max {
+				diags = diags.Append(attributeErrDiag(
+					"Invalid Duration",
+					fmt.Sprintf("Duration must be between %s and %s, had %s", min, max, val),
+					path,
+				))
+			}
+		}
+	}
+
+	if val, ok := stringAttrOk(obj, "external_id"); ok {
+		if len(strings.TrimSpace(val)) == 0 {
+			diags = diags.Append(attributeErrDiag(
+				"Invalid Value",
+				"The value cannot be empty or all whitespace",
+				objPath.GetAttr("external_id"),
+			))
+		}
+	}
+
+	if val, ok := stringAttrOk(obj, "policy"); ok {
+		if len(strings.TrimSpace(val)) == 0 {
+			diags = diags.Append(attributeErrDiag(
+				"Invalid Value",
+				"The value cannot be empty or all whitespace",
+				objPath.GetAttr("policy"),
+			))
+		}
+	}
+
+	if val, ok := stringAttrOk(obj, "session_name"); ok {
+		if len(strings.TrimSpace(val)) == 0 {
+			diags = diags.Append(attributeErrDiag(
+				"Invalid Value",
+				"The value cannot be empty or all whitespace",
+				objPath.GetAttr("session_name"),
+			))
+		}
+	}
+
+	if val, ok := stringSliceAttrOk(obj, "policy_arns"); ok {
+		for _, v := range val {
+			arn, err := arn.Parse(v)
+			if err != nil {
+				diags = diags.Append(attributeErrDiag(
+					"Invalid ARN",
+					fmt.Sprintf("The value %q cannot be parsed as an ARN: %s", val, err),
+					objPath.GetAttr("policy_arns"),
+				))
+				break
+			} else {
+				if !strings.HasPrefix(arn.Resource, "policy/") {
+					diags = diags.Append(attributeErrDiag(
+						"Invalid IAM Policy ARN",
+						fmt.Sprintf("Value must be a valid IAM Policy ARN, got %q", val),
+						objPath.GetAttr("policy_arns"),
+					))
+				}
+			}
+		}
 	}
 
 	return diags
