@@ -297,6 +297,16 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 					},
 				},
 			},
+			"forbidden_account_ids": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "List of forbidden AWS account IDs.",
+			},
+			"allowed_account_ids": {
+				Type:        cty.Set(cty.String),
+				Optional:    true,
+				Description: "List of allowed AWS account IDs.",
+			},
 		},
 	}
 }
@@ -432,6 +442,11 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 			))
 		}
 	}
+
+	validateAttributesConflict(
+		cty.GetAttrPath("allowed_account_ids"),
+		cty.GetAttrPath("forbidden_account_ids"),
+	)(obj, cty.Path{}, &diags)
 
 	return obj, diags
 }
@@ -569,6 +584,14 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		cfg.SharedConfigFiles = val
 	}
 
+	if val, ok := stringSliceAttrOk(obj, "allowed_account_ids"); ok {
+		cfg.AllowedAccountIds = val
+	}
+
+	if val, ok := stringSliceAttrOk(obj, "forbidden_account_ids"); ok {
+		cfg.ForbiddenAccountIds = val
+	}
+
 	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
@@ -578,6 +601,10 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 			d.Summary(),
 			d.Detail(),
 		))
+	}
+
+	if d := verifyAllowedAccountID(ctx, awsConfig, cfg); len(d) != 0 {
+		diags = diags.Append(d)
 	}
 
 	if diags.HasErrors() {
@@ -590,6 +617,28 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	b.s3Client = s3.NewFromConfig(awsConfig, getS3Config(obj))
 
+	return diags
+}
+
+func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsbase.Config) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	accountID, _, awsDiags := awsbase.GetAwsAccountIDAndPartition(ctx, awsConfig, cfg)
+	for _, d := range awsDiags {
+		diags = diags.Append(tfdiags.Sourceless(
+			baseSeverityToTofuSeverity(d.Severity()),
+			fmt.Sprintf("Retrieving AWS account details: %s", d.Summary()),
+			d.Detail(),
+		))
+	}
+
+	err := cfg.VerifyAccountIDAllowed(accountID)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid account ID",
+			err.Error(),
+		))
+	}
 	return diags
 }
 

@@ -156,6 +156,9 @@ func TestBackendConfig_Authentication(t *testing.T) {
 	}{
 		"empty config": {
 			config: map[string]any{},
+			MockStsEndpoints: []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
+			},
 			ValidateDiags: ExpectDiagsMatching(
 				tfdiags.Error,
 				equalsMatcher("No valid credential sources found"),
@@ -173,6 +176,23 @@ func TestBackendConfig_Authentication(t *testing.T) {
 			},
 			ExpectedCredentialsValue: mockdata.MockStaticCredentials,
 			ValidateDiags:            ExpectNoDiags,
+		},
+
+		"config AccessKey forbidden account": {
+			config: map[string]any{
+				"access_key":            servicemocks.MockStaticAccessKey,
+				"secret_key":            servicemocks.MockStaticSecretKey,
+				"forbidden_account_ids": []any{"222222222222"},
+			},
+			MockStsEndpoints: []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
+			},
+			ExpectedCredentialsValue: mockdata.MockStaticCredentials,
+			ValidateDiags: ExpectDiagsMatching(
+				tfdiags.Error,
+				equalsMatcher("Invalid account ID"),
+				equalsMatcher("AWS account ID not allowed: 222222222222"),
+			),
 		},
 
 		"config Profile shared credentials profile aws_access_key_id": {
@@ -545,6 +565,9 @@ region = us-east-1
 			EnvironmentVariables: map[string]string{
 				"AWS_PROFILE": "no-such-profile",
 			},
+			MockStsEndpoints: []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
+			},
 			SharedCredentialsFile: `
 [some-profile]
 aws_access_key_id = DefaultSharedCredentialsAccessKey
@@ -566,6 +589,9 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 aws_access_key_id = DefaultSharedCredentialsAccessKey
 aws_secret_access_key = DefaultSharedCredentialsSecretKey
 `,
+			MockStsEndpoints: []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
+			},
 			ValidateDiags: ExpectDiagsMatching(
 				tfdiags.Error,
 				equalsMatcher("failed to get shared config profile, no-such-profile"),
@@ -602,6 +628,9 @@ aws_secret_access_key = ProfileSharedCredentialsSecretKey
 				"AWS_ACCESS_KEY_ID":     servicemocks.MockEnvAccessKey,
 				"AWS_SECRET_ACCESS_KEY": servicemocks.MockEnvSecretKey,
 				"AWS_PROFILE":           "no-such-profile",
+			},
+			MockStsEndpoints: []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			SharedCredentialsFile: `
 [some-profile]
@@ -1765,6 +1794,13 @@ region = us-west-2
 				))
 				defer closeEc2Metadata()
 			}
+
+			sts := servicemocks.MockAwsApiServer("STS", []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
+			})
+			defer sts.Close()
+
+			tc.config["sts_endpoint"] = sts.URL
 
 			if tc.SharedConfigurationFile != "" {
 				file, err := os.CreateTemp("", "aws-sdk-go-base-shared-configuration-file")
