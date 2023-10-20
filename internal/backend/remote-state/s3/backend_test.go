@@ -713,6 +713,16 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 			}),
 			expectedErr: `Only one of "kms_key_id" and "sse_customer_key" can be set`,
 		},
+		"allowed forbidden account ids conflict": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":                cty.StringVal("test"),
+				"key":                   cty.StringVal("test"),
+				"region":                cty.StringVal("us-west-2"),
+				"allowed_account_ids":   cty.SetVal([]cty.Value{cty.StringVal("111111111111")}),
+				"forbidden_account_ids": cty.SetVal([]cty.Value{cty.StringVal("111111111111")}),
+			}),
+			expectedErr: "Invalid Attribute Combination: Only one of allowed_account_ids, forbidden_account_ids can be set.",
+		},
 	}
 
 	for name, tc := range cases {
