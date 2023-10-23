@@ -372,6 +372,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "The address of an HTTP proxy to use when accessing the AWS API.",
 			},
+			"insecure": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Explicitly allow the backend to perform \"insecure\" SSL requests.",
+			},
 		},
 	}
 }
@@ -622,6 +627,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		StsRegion:              stringAttr(obj, "sts_region"),
 		Token:                  stringAttr(obj, "token"),
 		HTTPProxy:              stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
+		Insecure:               boolAttr(obj, "insecure"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
