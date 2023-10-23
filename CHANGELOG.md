@@ -57,6 +57,7 @@ S3 BACKEND:
 * Adds support for account whitelisting using the `forbidden_account_ids` and `allowed_account_ids` arguments. ([#699](https://github.com/opentofu/opentofu/issues/699))
 * Adds the `custom_ca_bundle` argument. ([#689](https://github.com/opentofu/opentofu/issues/689))
 * Adds support for the `sts_region` argument. ([#695](https://github.com/opentofu/opentofu/issues/695))
+* Adds support for `ec2_metadata_service_endpoint` and `ec2_metadata_service_endpoint_mode` arguments to enable overriding the EC2 metadata service (IMDS) endpoint. ([#693](https://github.com/opentofu/opentofu/issues/693))
 
 ## Previous Releases
 
