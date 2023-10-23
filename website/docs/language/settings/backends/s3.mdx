@@ -169,6 +169,7 @@ The following configuration is optional:
 * `skip_region_validation` - (Optional) Skip validation of provided region name.
 * `skip_metadata_api_check` - (Optional) Skip usage of EC2 Metadata API.
 * `sts_endpoint` - (Optional) Custom endpoint for the AWS Security Token Service (STS) API. This can also be sourced from the `AWS_STS_ENDPOINT` environment variable.
+* `sts_region` - (Optional) AWS region for STS. If unset, AWS will use the same region for STS as other non-STS operations.
 * `token` - (Optional) Multi-Factor Authentication (MFA) token. This can also be sourced from the `AWS_SESSION_TOKEN` environment variable.
 * `allowed_account_ids` (Optional): A list of permitted AWS account IDs to safeguard against accidental disruption of a live environment. This option conflicts with `forbidden_account_ids`.
 * `forbidden_account_ids` (Optional): A list of prohibited AWS account IDs to prevent unintentional disruption of a live environment. This option conflicts with `allowed_account_ids`.
