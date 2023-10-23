@@ -74,6 +74,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 	// may be able to avoid spinning up the provider instance at all.
 	schemas, ok := providers.SchemaCache.Get(addr)
 	if ok {
+		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
 		return schemas, nil
 	}
 
