@@ -377,6 +377,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "Explicitly allow the backend to perform \"insecure\" SSL requests.",
 			},
+			"use_dualstack_endpoint": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Resolve an endpoint with DualStack capability.",
+			},
 		},
 	}
 }
@@ -628,6 +633,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		Token:                  stringAttr(obj, "token"),
 		HTTPProxy:              stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
 		Insecure:               boolAttr(obj, "insecure"),
+		UseDualStackEndpoint:   boolAttr(obj, "use_dualstack_endpoint"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
