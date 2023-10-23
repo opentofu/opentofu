@@ -306,7 +306,13 @@ func (c *InitCommand) Run(args []string) int {
 	if state != nil {
 		// Since we now have the full configuration loaded, we can use it to migrate the in-memory state view
 		// prior to fetching providers.
-		state = tofumigrate.MigrateStateProviderAddresses(config, state)
+		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
+		diags = diags.Append(migrateDiags)
+		if migrateDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
+		state = migratedState
 	}
 
 	// Now that we have loaded all modules, check the module tree for missing providers.

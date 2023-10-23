@@ -3,6 +3,7 @@ package tofumigrate
 import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // MigrateStateProviderAddresses can be used to update the in-memory view of the state to use registry.opentofu.org
@@ -27,10 +28,16 @@ import (
 //	}
 //
 // then we keep the old address.
-func MigrateStateProviderAddresses(config *configs.Config, state *states.State) *states.State {
+func MigrateStateProviderAddresses(config *configs.Config, state *states.State) (*states.State, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
 	stateCopy := state.DeepCopy()
 
-	providers, _ := config.ProviderRequirements() // TODO: Handle error.
+	providers, hclDiags := config.ProviderRequirements()
+	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		return nil, diags
+	}
 
 	for _, module := range stateCopy.Modules {
 		for _, resource := range module.Resources {
@@ -41,5 +48,5 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 		}
 	}
 
-	return stateCopy
+	return stateCopy, diags
 }
