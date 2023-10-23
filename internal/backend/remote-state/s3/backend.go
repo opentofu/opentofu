@@ -776,7 +776,7 @@ func configureAssumeRoleWithWebIdentity(obj cty.Value) *awsbase.AssumeRoleWithWe
 		Policy:               stringAttr(obj, "policy"),
 		PolicyARNs:           stringSliceAttr(obj, "policy_arns"),
 		SessionName:          stringAttrDefaultEnvVar(obj, "session_name", "AWS_ROLE_SESSION_NAME"),
-		WebIdentityToken:     stringAttr(obj, "web_identity_token"),
+		WebIdentityToken:     stringAttrDefaultEnvVar(obj, "web_identity_token", "AWS_WEB_IDENTITY_TOKEN"),
 		WebIdentityTokenFile: stringAttrDefaultEnvVar(obj, "web_identity_token_file", "AWS_WEB_IDENTITY_TOKEN_FILE"),
 	}
 	if val, ok := stringAttrOk(obj, "duration"); ok {
