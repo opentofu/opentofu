@@ -161,6 +161,7 @@ The following configuration is optional:
 * `secret_key` - (Optional) AWS access key. If configured, must also configure `access_key`. This can also be sourced from the `AWS_SECRET_ACCESS_KEY` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
 * `iam_endpoint` - (Optional) Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the `AWS_IAM_ENDPOINT` environment variable.
 * `max_retries` - (Optional) The maximum number of times an AWS API request is retried on retryable failure. Defaults to 5.
+* `retry_mode` - (Optional) Specifies how retries are attempted. Valid values are `standard` and `adaptive`. This can also be sourced from the `AWS_RETRY_MODE` environment variable.
 * `profile` - (Optional) Name of AWS profile in AWS shared credentials file (e.g. `~/.aws/credentials`) or AWS shared configuration file (e.g. `~/.aws/config`) to use for credentials and/or configuration. This can also be sourced from the `AWS_PROFILE` environment variable.
 * `shared_credentials_file`  - (Optional) **Deprecated** Path to the AWS shared credentials file. Defaults to `~/.aws/credentials`.
 * `shared_credentials_files`  - (Optional) List of paths to AWS shared credentials files. Defaults to `~/.aws/credentials`. This can also be sourced from the `AWS_SHARED_CREDENTIALS_FILE` environment variable.
