@@ -82,7 +82,7 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 	// check the global cache
 	if !p.Addr.IsZero() {
 		if resp, ok := providers.SchemaCache.Get(p.Addr); ok {
-			logger.Trace("GRPCProvider: GetProviderSchema: serving from global schema cache")
+			logger.Trace("GRPCProvider: GetProviderSchema: serving from global schema cache", "address", p.Addr)
 			return resp
 		}
 	}
