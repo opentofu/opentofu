@@ -382,6 +382,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "Resolve an endpoint with DualStack capability.",
 			},
+			"use_fips_endpoint": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Resolve an endpoint with FIPS capability.",
+			},
 		},
 	}
 }
@@ -634,6 +639,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		HTTPProxy:              stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
 		Insecure:               boolAttr(obj, "insecure"),
 		UseDualStackEndpoint:   boolAttr(obj, "use_dualstack_endpoint"),
+		UseFIPSEndpoint:        boolAttr(obj, "use_fips_endpoint"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
