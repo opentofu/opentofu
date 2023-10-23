@@ -367,6 +367,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "List of allowed AWS account IDs.",
 			},
+			"http_proxy": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "The address of an HTTP proxy to use when accessing the AWS API.",
+			},
 		},
 	}
 }
@@ -616,6 +621,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		StsEndpoint:            stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
 		StsRegion:              stringAttr(obj, "sts_region"),
 		Token:                  stringAttr(obj, "token"),
+		HTTPProxy:              stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
