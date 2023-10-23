@@ -247,15 +247,48 @@ One of `web_identity_token` or `web_identity_token_file` is required.
 One of `web_identity_token_file` or `web_identity_token` is required.
 Can also be set with the `AWS_WEB_IDENTITY_TOKEN_FILE` environment variable.
 
-```terraform
+```hcl
 terraform {
   backend "s3" {
     bucket = "mybucket"
     key    = "my/key.tfstate"
     region = "us-east-1"
+
     assume_role_with_web_identity = {
       role_arn           = "arn:aws:iam::ACCOUNT-ID:role/Opentofu"
       web_identity_token = "<token value>"
+    }
+  }
+}
+```
+
+It's possible to constrain the assumed role by providing a policy.
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket = "mybucket"
+    key    = "my/key.tfstate"
+    region = "us-east-1"
+
+    assume_role_with_web_identity = {
+      role_arn           = "arn:aws:iam::ACCOUNT-ID:role/Opentofu"
+      web_identity_token = "<token value>"
+      policy             = <<-JSON
+			{
+				"Version": "2012-10-17",
+				"Statement": [
+					{
+						"Effect": "Allow",
+						"Action": "s3:*",
+						"Resource": [
+							"arn:aws:s3:::mybucket/*",
+							"arn:aws:s3:::mybucket"
+						]
+					}
+				]
+			}
+			JSON
     }
   }
 }
