@@ -86,6 +86,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "A custom endpoint for the STS API",
 			},
+			"sts_region": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "The region where AWS STS operations will take place",
+			},
 			"encrypt": {
 				Type:        cty.Bool,
 				Optional:    true,
@@ -582,6 +587,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		SecretKey:              stringAttr(obj, "secret_key"),
 		SkipCredsValidation:    boolAttr(obj, "skip_credentials_validation"),
 		StsEndpoint:            stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
+		StsRegion:              stringAttr(obj, "sts_region"),
 		Token:                  stringAttr(obj, "token"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
