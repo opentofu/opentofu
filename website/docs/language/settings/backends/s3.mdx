@@ -178,6 +178,10 @@ The following configuration is optional:
 * `custom_ca_bundle` - File containing custom root and intermediate certificates. Can also be configured using the `AWS_CA_BUNDLE` environment variable.
 * `ec2_metadata_service_endpoint` - Address of the EC2 metadata service (IMDS) endpoint to use. This can also be sourced from the `AWS_EC2_METADATA_SERVICE_ENDPOINT` environment variable.
 * `ec2_metadata_service_endpoint_mode` - Mode to use in communicating with the metadata service. Valid values are `IPv4` and `IPv6`. This can also be sourced from the `AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE` environment variable.
+* `http_proxy` - (Optional) The address of an HTTP proxy to use when accessing the AWS API. This can also be sourced from the `HTTP_PROXY` or `HTTPS_PROXY` environment variables.
+* `insecure` - (Optional) Explicitly allow the backend to perform "insecure" SSL requests; default is `false`.
+* `use_dualstack_endpoint` - (Optional) Resolve an endpoint with DualStack capability.
+* `use_fips_endpoint` - (Optional) Resolve an endpoint with FIPS capability.
 
 #### Assume Role Configuration
 

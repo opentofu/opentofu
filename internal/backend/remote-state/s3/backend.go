@@ -367,6 +367,26 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "List of allowed AWS account IDs.",
 			},
+			"http_proxy": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "The address of an HTTP proxy to use when accessing the AWS API.",
+			},
+			"insecure": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Explicitly allow the backend to perform \"insecure\" SSL requests.",
+			},
+			"use_dualstack_endpoint": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Resolve an endpoint with DualStack capability.",
+			},
+			"use_fips_endpoint": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Resolve an endpoint with FIPS capability.",
+			},
 		},
 	}
 }
@@ -616,6 +636,10 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		StsEndpoint:            stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
 		StsRegion:              stringAttr(obj, "sts_region"),
 		Token:                  stringAttr(obj, "token"),
+		HTTPProxy:              stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
+		Insecure:               boolAttr(obj, "insecure"),
+		UseDualStackEndpoint:   boolAttr(obj, "use_dualstack_endpoint"),
+		UseFIPSEndpoint:        boolAttr(obj, "use_fips_endpoint"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},

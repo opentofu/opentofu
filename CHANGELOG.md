@@ -59,6 +59,7 @@ S3 BACKEND:
 * Adds support for the `sts_region` argument. ([#695](https://github.com/opentofu/opentofu/issues/695))
 * Adds support for `ec2_metadata_service_endpoint` and `ec2_metadata_service_endpoint_mode` arguments to enable overriding the EC2 metadata service (IMDS) endpoint. ([#693](https://github.com/opentofu/opentofu/issues/693))
 * Adds support for the `retry_mode` attribute. ([#698](https://github.com/opentofu/opentofu/issues/698))
+* Adds support for the `http_proxy`, `insecure`, `use_dualstack_endpoint`, and `use_fips_endpoint` attributes. ([#694](https://github.com/opentofu/opentofu/issues/694))
 
 ## Previous Releases
 
