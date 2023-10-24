@@ -621,6 +621,10 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 }
 
 func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsbase.Config) tfdiags.Diagnostics {
+	if len(cfg.ForbiddenAccountIds) == 0 && len(cfg.AllowedAccountIds) == 0 {
+		return nil
+	}
+
 	var diags tfdiags.Diagnostics
 	accountID, _, awsDiags := awsbase.GetAwsAccountIDAndPartition(ctx, awsConfig, cfg)
 	for _, d := range awsDiags {
