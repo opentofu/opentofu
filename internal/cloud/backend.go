@@ -166,7 +166,7 @@ func (b *Cloud) ConfigSchema(context.Context) *configschema.Block {
 }
 
 // PrepareConfig implements backend.Backend.
-func (b *Cloud) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Cloud) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return obj, diags

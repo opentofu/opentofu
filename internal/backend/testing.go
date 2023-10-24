@@ -44,7 +44,7 @@ func TestBackendConfig(t *testing.T, b Backend, c hcl.Body) Backend {
 	obj, decDiags := hcldec.Decode(c, spec, nil)
 	diags = diags.Append(decDiags)
 
-	newObj, valDiags := b.PrepareConfig(obj)
+	newObj, valDiags := b.PrepareConfig(ctx, obj)
 	diags = diags.Append(valDiags.InConfigBody(c, ""))
 
 	// it's valid for a Backend to have warnings (e.g. a Deprecation) as such we should only raise on errors

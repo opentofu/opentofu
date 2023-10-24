@@ -152,8 +152,10 @@ func TestRemote_config(t *testing.T) {
 		s := testServer(t)
 		b := New(testDisco(s))
 
+		ctx := context.Background()
+
 		// Validate
-		_, valDiags := b.PrepareConfig(tc.config)
+		_, valDiags := b.PrepareConfig(ctx, tc.config)
 		if (valDiags.Err() != nil || tc.valErr != "") &&
 			(valDiags.Err() == nil || !strings.Contains(valDiags.Err().Error(), tc.valErr)) {
 			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
@@ -231,8 +233,10 @@ func TestRemote_versionConstraints(t *testing.T) {
 		tfversion.Prerelease = tc.prerelease
 		tfversion.Version = tc.version
 
+		ctx := context.Background()
+
 		// Validate
-		_, valDiags := b.PrepareConfig(tc.config)
+		_, valDiags := b.PrepareConfig(ctx, tc.config)
 		if valDiags.HasErrors() {
 			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
 		}

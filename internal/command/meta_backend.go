@@ -322,7 +322,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 		return nil, diags
 	}
 
-	newVal, validateDiags := b.PrepareConfig(configVal)
+	newVal, validateDiags := b.PrepareConfig(ctx, configVal)
 	diags = diags.Append(validateDiags)
 	if validateDiags.HasErrors() {
 		return nil, diags
@@ -830,7 +830,7 @@ func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.D
 	}
 
 	// Validate the config and then configure the backend
-	newVal, validDiags := b.PrepareConfig(configVal)
+	newVal, validDiags := b.PrepareConfig(ctx, configVal)
 	diags = diags.Append(validDiags)
 	if validDiags.HasErrors() {
 		return nil, diags
@@ -1293,7 +1293,7 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState) (backend.Backend, tfdiags
 	}
 
 	// Validate the config and then configure the backend
-	newVal, validDiags := b.PrepareConfig(configVal)
+	newVal, validDiags := b.PrepareConfig(ctx, configVal)
 	diags = diags.Append(validDiags)
 	if validDiags.HasErrors() {
 		return nil, diags
@@ -1439,7 +1439,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 		}
 	}
 
-	newVal, validateDiags := b.PrepareConfig(configVal)
+	newVal, validateDiags := b.PrepareConfig(ctx, configVal)
 	diags = diags.Append(validateDiags.InConfigBody(c.Config, ""))
 	if validateDiags.HasErrors() {
 		return nil, cty.NilVal, diags

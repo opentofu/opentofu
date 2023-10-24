@@ -123,8 +123,10 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 	s := testServer(t)
 	b := New(testDisco(s))
 
+	ctx := context.Background()
+
 	// Configure the backend so the client is created.
-	newObj, valDiags := b.PrepareConfig(obj)
+	newObj, valDiags := b.PrepareConfig(ctx, obj)
 	if len(valDiags) != 0 {
 		t.Fatal(valDiags.ErrWithWarnings())
 	}
@@ -154,8 +156,6 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 
 	// Set local to a local test backend.
 	b.local = testLocalBackend(t, b)
-
-	ctx := context.Background()
 
 	// Create the organization.
 	_, err := b.client.Organizations.Create(ctx, tfe.OrganizationCreateOptions{

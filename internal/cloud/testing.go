@@ -233,8 +233,10 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	}
 	b := New(testDisco(s))
 
+	ctx := context.Background()
+
 	// Configure the backend so the client is created.
-	newObj, valDiags := b.PrepareConfig(obj)
+	newObj, valDiags := b.PrepareConfig(ctx, obj)
 	if len(valDiags) != 0 {
 		t.Fatalf("testBackend: backend.PrepareConfig() failed: %s", valDiags.ErrWithWarnings())
 	}
@@ -278,8 +280,6 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	readRedactedPlan = func(ctx context.Context, baseURL url.URL, token, planID string) ([]byte, error) {
 		return mc.RedactedPlans.Read(ctx, baseURL.Hostname(), token, planID)
 	}
-
-	ctx := context.Background()
 
 	// Create the organization.
 	_, err = b.client.Organizations.Create(ctx, tfe.OrganizationCreateOptions{

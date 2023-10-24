@@ -54,7 +54,7 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 	return b.CoreConfigSchema()
 }
 
-func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Backend) PrepareConfig(_ context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	if b == nil {
 		return configVal, nil
 	}

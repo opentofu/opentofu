@@ -122,9 +122,9 @@ func (b *Local) ConfigSchema(ctx context.Context) *configschema.Block {
 	}
 }
 
-func (b *Local) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Local) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	if b.Backend != nil {
-		return b.Backend.PrepareConfig(obj)
+		return b.Backend.PrepareConfig(ctx, obj)
 	}
 
 	var diags tfdiags.Diagnostics

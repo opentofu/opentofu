@@ -239,7 +239,7 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 		return nil, cty.NilVal, diags
 	}
 
-	newVal, validateDiags := b.PrepareConfig(configVal)
+	newVal, validateDiags := b.PrepareConfig(ctx, configVal)
 	diags = diags.Append(validateDiags)
 	if validateDiags.HasErrors() {
 		return nil, cty.NilVal, diags

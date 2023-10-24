@@ -350,7 +350,7 @@ func (b backendFailsConfigure) ConfigSchema(context.Context) *configschema.Block
 	return &configschema.Block{} // intentionally empty configuration schema
 }
 
-func (b backendFailsConfigure) PrepareConfig(given cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b backendFailsConfigure) PrepareConfig(_ context.Context, given cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	// No special actions to take here
 	return given, nil
 }
