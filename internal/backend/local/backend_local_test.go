@@ -225,7 +225,7 @@ func (b backendWithStateStorageThatFailsRefresh) PrepareConfig(_ context.Context
 	return in, nil
 }
 
-func (b backendWithStateStorageThatFailsRefresh) Configure(cty.Value) tfdiags.Diagnostics {
+func (b backendWithStateStorageThatFailsRefresh) Configure(context.Context, cty.Value) tfdiags.Diagnostics {
 	return nil
 }
 
