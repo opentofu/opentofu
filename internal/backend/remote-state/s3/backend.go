@@ -238,6 +238,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "Use the legacy authentication workflow, preferring environment variables over backend configuration.",
 			},
+			"custom_ca_bundle": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "File containing custom root and intermediate certificates. Can also be configured using the `AWS_CA_BUNDLE` environment variable.",
+			},
 			"assume_role": {
 				NestedType: &configschema.Object{
 					Nesting: configschema.NestingSingle,
@@ -543,6 +548,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
+		CustomCABundle: stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
 	}
 
 	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {

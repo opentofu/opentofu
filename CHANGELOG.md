@@ -54,6 +54,7 @@ S3 BACKEND:
 * Arguments associated with assuming an IAM role were moved into a nested block - `assume_role`.
   This deprecates the arguments `role_arn`, `session_name`, `external_id`, `assume_role_duration_seconds`, `assume_role_policy`, `assume_role_policy_arns`, `assume_role_tags`, and `assume_role_transitive_tag_keys`. ([#747](https://github.com/opentofu/opentofu/issues/747))
 * Adds support for account whitelisting using the `forbidden_account_ids` and `allowed_account_ids` arguments. ([#699](https://github.com/opentofu/opentofu/issues/699))
+* Adds the `custom_ca_bundle` argument. ([#689](https://github.com/opentofu/opentofu/issues/689))
 
 ## Previous Releases
 
