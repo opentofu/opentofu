@@ -1107,12 +1107,12 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// remove the state with extra subkey
-	if err := client.Delete(); err != nil {
+	if err := client.Delete(ctx); err != nil {
 		t.Fatal(err)
 	}
 
 	// delete the real workspace
-	if err := b.DeleteWorkspace("s2", true); err != nil {
+	if err := b.DeleteWorkspace(ctx, "s2", true); err != nil {
 		t.Fatal(err)
 	}
 

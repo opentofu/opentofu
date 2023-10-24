@@ -28,9 +28,11 @@ const (
 
 // RemoteClient implements the client of remote state
 type remoteClient struct {
+	// TODO: remove once all methods are using context passed via the CLI.
 	cosContext context.Context
-	cosClient  *cos.Client
-	tagClient  *tag.Client
+
+	cosClient *cos.Client
+	tagClient *tag.Client
 
 	bucket    string
 	stateFile string
@@ -68,10 +70,10 @@ func (c *remoteClient) Put(data []byte) error {
 }
 
 // Delete delete remote state file
-func (c *remoteClient) Delete() error {
+func (c *remoteClient) Delete(ctx context.Context) error {
 	log.Printf("[DEBUG] delete remote state file %s", c.stateFile)
 
-	return c.deleteObject(c.stateFile)
+	return c.deleteObject(ctx, c.stateFile)
 }
 
 // Lock lock remote state file for writing
@@ -121,7 +123,7 @@ func (c *remoteClient) Unlock(check string) error {
 		return c.lockError(fmt.Errorf("lock id mismatch, %v != %v", info.ID, check))
 	}
 
-	err = c.deleteObject(c.lockFile)
+	err = c.deleteObject(c.cosContext, c.lockFile)
 	if err != nil {
 		return c.lockError(err)
 	}
@@ -252,8 +254,8 @@ func (c *remoteClient) putObject(cosFile string, data []byte) error {
 }
 
 // deleteObject delete remote object
-func (c *remoteClient) deleteObject(cosFile string) error {
-	rsp, err := c.cosClient.Object.Delete(c.cosContext, cosFile)
+func (c *remoteClient) deleteObject(ctx context.Context, cosFile string) error {
+	rsp, err := c.cosClient.Object.Delete(ctx, cosFile)
 	if rsp == nil {
 		log.Printf("[DEBUG] deleteObject %s: error: %v", cosFile, err)
 		return fmt.Errorf("failed to delete file %v: %w", cosFile, err)
@@ -328,7 +330,7 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 			return fmt.Errorf("failed to empty bucket %v: %w", c.bucket, err)
 		}
 		for _, v := range obs {
-			c.deleteObject(v.Key)
+			c.deleteObject(c.cosContext, v.Key)
 		}
 	}
 

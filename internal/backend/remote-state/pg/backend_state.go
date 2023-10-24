@@ -39,13 +39,13 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
 
 	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := b.db.Exec(fmt.Sprintf(query, b.schemaName, statesTableName), name)
+	_, err := b.db.ExecContext(ctx, fmt.Sprintf(query, b.schemaName, statesTableName), name)
 	if err != nil {
 		return err
 	}

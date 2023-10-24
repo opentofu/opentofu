@@ -5,6 +5,7 @@ package oss
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -129,7 +130,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(ctx context.Context) error {
 	bucket, err := c.ossClient.Bucket(c.bucketName)
 	if err != nil {
 		return fmt.Errorf("error getting bucket %s: %w", c.bucketName, err)

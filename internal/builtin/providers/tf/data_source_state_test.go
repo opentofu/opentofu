@@ -366,7 +366,7 @@ func (b backendFailsConfigure) StateMgr(context.Context, string) (statemgr.Full,
 	return nil, fmt.Errorf("StateMgr not implemented")
 }
 
-func (b backendFailsConfigure) DeleteWorkspace(name string, _ bool) error {
+func (b backendFailsConfigure) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	return fmt.Errorf("DeleteWorkspace not implemented")
 }
 

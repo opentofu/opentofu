@@ -59,7 +59,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 }
 
 // DeleteWorkspace deletes the named workspaces. The "default" state cannot be deleted.
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName {
 		return fmt.Errorf("cowardly refusing to delete the %q state", name)
 	}
@@ -69,7 +69,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 		return err
 	}
 
-	return c.Delete()
+	return c.Delete(ctx)
 }
 
 // client returns a remoteClient for the named state.

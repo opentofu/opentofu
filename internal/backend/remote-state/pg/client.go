@@ -4,6 +4,7 @@
 package pg
 
 import (
+	"context"
 	"crypto/md5"
 	"database/sql"
 	"fmt"
@@ -54,9 +55,9 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(ctx context.Context) error {
 	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	_, err := c.Client.ExecContext(ctx, fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
 	if err != nil {
 		return err
 	}

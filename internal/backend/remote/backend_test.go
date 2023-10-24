@@ -283,11 +283,11 @@ func TestRemote_addAndRemoveWorkspacesDefault(t *testing.T) {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
-	if err := b.DeleteWorkspace(backend.DefaultStateName, true); err != nil {
+	if err := b.DeleteWorkspace(ctx, backend.DefaultStateName, true); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if err := b.DeleteWorkspace("prod", true); err != backend.ErrWorkspacesNotSupported {
+	if err := b.DeleteWorkspace(ctx, "prod", true); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 }
@@ -342,11 +342,11 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected %#+v, got %#+v", expectedWorkspaces, states)
 	}
 
-	if err := b.DeleteWorkspace(backend.DefaultStateName, true); err != backend.ErrDefaultWorkspaceNotSupported {
+	if err := b.DeleteWorkspace(ctx, backend.DefaultStateName, true); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
 	}
 
-	if err := b.DeleteWorkspace(expectedA, true); err != nil {
+	if err := b.DeleteWorkspace(ctx, expectedA, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -360,7 +360,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected %#+v got %#+v", expectedWorkspaces, states)
 	}
 
-	if err := b.DeleteWorkspace(expectedB, true); err != nil {
+	if err := b.DeleteWorkspace(ctx, expectedB, true); err != nil {
 		t.Fatal(err)
 	}
 
