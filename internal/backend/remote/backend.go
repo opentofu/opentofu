@@ -609,7 +609,7 @@ func (b *Remote) WorkspaceNamePattern() string {
 }
 
 // DeleteWorkspace implements backend.Enhanced.
-func (b *Remote) DeleteWorkspace(name string, _ bool) error {
+func (b *Remote) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if b.workspace == "" && name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -633,7 +633,7 @@ func (b *Remote) DeleteWorkspace(name string, _ bool) error {
 		},
 	}
 
-	return client.Delete()
+	return client.Delete(ctx)
 }
 
 // StateMgr implements backend.Enhanced.

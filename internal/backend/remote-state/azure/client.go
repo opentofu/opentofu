@@ -102,14 +102,13 @@ func (c *RemoteClient) Put(data []byte) error {
 	return err
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(ctx context.Context) error {
 	options := blobs.DeleteInput{}
 
 	if c.leaseID != "" {
 		options.LeaseID = &c.leaseID
 	}
 
-	ctx := context.TODO()
 	resp, err := c.giovanniBlobClient.Delete(ctx, c.accountName, c.containerName, c.keyName, options)
 	if err != nil {
 		if !resp.IsHTTPStatus(http.StatusNotFound) {

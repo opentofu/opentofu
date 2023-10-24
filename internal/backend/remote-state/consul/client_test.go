@@ -235,7 +235,7 @@ func TestConsul_largeState(t *testing.T) {
 	)
 
 	// Deleting the state should remove all chunks
-	err = c.Delete()
+	err = c.Delete(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

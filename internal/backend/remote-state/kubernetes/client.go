@@ -122,7 +122,7 @@ func (c *RemoteClient) Put(data []byte) error {
 }
 
 // Delete the state secret
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(context.Context) error {
 	secretName, err := c.createSecretName()
 	if err != nil {
 		return err

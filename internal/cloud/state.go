@@ -497,15 +497,15 @@ func (s *State) Unlock(id string) error {
 }
 
 // Delete the remote state.
-func (s *State) Delete(force bool) error {
+func (s *State) Delete(ctx context.Context, force bool) error {
 
 	var err error
 
 	isSafeDeleteSupported := s.workspace.Permissions.CanForceDelete != nil
 	if force || !isSafeDeleteSupported {
-		err = s.tfeClient.Workspaces.Delete(context.Background(), s.organization, s.workspace.Name)
+		err = s.tfeClient.Workspaces.Delete(ctx, s.organization, s.workspace.Name)
 	} else {
-		err = s.tfeClient.Workspaces.SafeDelete(context.Background(), s.organization, s.workspace.Name)
+		err = s.tfeClient.Workspaces.SafeDelete(ctx, s.organization, s.workspace.Name)
 	}
 
 	if err != nil && err != tfe.ErrResourceNotFound {

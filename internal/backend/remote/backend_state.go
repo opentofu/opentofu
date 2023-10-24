@@ -141,8 +141,8 @@ func (r *remoteClient) Put(state []byte) error {
 }
 
 // Delete the remote state.
-func (r *remoteClient) Delete() error {
-	err := r.client.Workspaces.Delete(context.Background(), r.organization, r.workspace.Name)
+func (r *remoteClient) Delete(ctx context.Context) error {
+	err := r.client.Workspaces.Delete(ctx, r.organization, r.workspace.Name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return fmt.Errorf("error deleting workspace %s: %w", r.workspace.Name, err)
 	}

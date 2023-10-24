@@ -104,7 +104,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return workspaces, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	states.Lock()
 	defer states.Unlock()
 

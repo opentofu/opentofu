@@ -202,8 +202,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete() error {
-	ctx := context.TODO()
+func (c *RemoteClient) Delete(ctx context.Context) error {
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,

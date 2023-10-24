@@ -61,7 +61,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 }
 
 // DeleteWorkspace deletes the named workspaces. The "default" state cannot be deleted.
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	log.Printf("[DEBUG] delete workspace, workspace: %v", name)
 
 	if name == backend.DefaultStateName || name == "" {
@@ -73,7 +73,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 		return err
 	}
 
-	return c.Delete()
+	return c.Delete(ctx)
 }
 
 // StateMgr manage the state, if the named state not exists, a new file will created
