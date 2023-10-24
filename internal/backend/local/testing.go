@@ -118,7 +118,7 @@ func TestNewLocalSingle() backend.Backend {
 	return &TestLocalSingleState{Local: New()}
 }
 
-func (b *TestLocalSingleState) Workspaces() ([]string, error) {
+func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 
@@ -148,8 +148,8 @@ func TestNewLocalNoDefault() backend.Backend {
 	return &TestLocalNoDefaultState{Local: New()}
 }
 
-func (b *TestLocalNoDefaultState) Workspaces() ([]string, error) {
-	workspaces, err := b.Local.Workspaces()
+func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, error) {
+	workspaces, err := b.Local.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

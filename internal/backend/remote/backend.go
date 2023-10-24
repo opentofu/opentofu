@@ -546,15 +546,15 @@ func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
 }
 
 // Workspaces implements backend.Enhanced.
-func (b *Remote) Workspaces() ([]string, error) {
+func (b *Remote) Workspaces(ctx context.Context) ([]string, error) {
 	if b.prefix == "" {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
-	return b.workspaces()
+	return b.workspaces(ctx)
 }
 
 // workspaces returns a filtered list of remote workspace names.
-func (b *Remote) workspaces() ([]string, error) {
+func (b *Remote) workspaces(ctx context.Context) ([]string, error) {
 	options := &tfe.WorkspaceListOptions{}
 	switch {
 	case b.workspace != "":
@@ -567,7 +567,7 @@ func (b *Remote) workspaces() ([]string, error) {
 	var names []string
 
 	for {
-		wl, err := b.client.Workspaces.List(context.Background(), b.organization, options)
+		wl, err := b.client.Workspaces.List(ctx, b.organization, options)
 		if err != nil {
 			return nil, err
 		}

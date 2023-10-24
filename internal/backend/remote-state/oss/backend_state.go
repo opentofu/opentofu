@@ -53,7 +53,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	return client, nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	bucket, err := b.ossClient.Bucket(b.bucketName)
 	if err != nil {
 		return []string{""}, fmt.Errorf("error getting bucket: %w", err)
@@ -120,7 +120,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	stateMgr := &remote.State{Client: client}
 
 	// Check to see if this state already exists.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

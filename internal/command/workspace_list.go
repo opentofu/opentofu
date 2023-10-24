@@ -5,6 +5,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 
@@ -58,7 +59,9 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	states, err := b.Workspaces()
+	ctx := context.TODO()
+
+	states, err := b.Workspaces(ctx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

@@ -275,8 +275,8 @@ func (c *remoteClient) deleteObject(ctx context.Context, cosFile string) error {
 }
 
 // getBucket list bucket by prefix
-func (c *remoteClient) getBucket(prefix string) (obs []cos.Object, err error) {
-	fs, rsp, err := c.cosClient.Bucket.Get(c.cosContext, &cos.BucketGetOptions{Prefix: prefix})
+func (c *remoteClient) getBucket(ctx context.Context, prefix string) (obs []cos.Object, err error) {
+	fs, rsp, err := c.cosClient.Bucket.Get(ctx, &cos.BucketGetOptions{Prefix: prefix})
 	if rsp == nil {
 		log.Printf("[DEBUG] getBucket %s/%s: error: %v", c.bucket, prefix, err)
 		err = fmt.Errorf("bucket %s not exists", c.bucket)
@@ -298,8 +298,8 @@ func (c *remoteClient) getBucket(prefix string) (obs []cos.Object, err error) {
 }
 
 // putBucket create cos bucket
-func (c *remoteClient) putBucket() error {
-	rsp, err := c.cosClient.Bucket.Put(c.cosContext, nil)
+func (c *remoteClient) putBucket(ctx context.Context) error {
+	rsp, err := c.cosClient.Bucket.Put(ctx, nil)
 	if rsp == nil {
 		log.Printf("[DEBUG] putBucket %s: error: %v", c.bucket, err)
 		return fmt.Errorf("failed to create bucket %v: %w", c.bucket, err)
@@ -319,9 +319,9 @@ func (c *remoteClient) putBucket() error {
 }
 
 // deleteBucket delete cos bucket
-func (c *remoteClient) deleteBucket(recursive bool) error {
+func (c *remoteClient) deleteBucket(ctx context.Context, recursive bool) error {
 	if recursive {
-		obs, err := c.getBucket("")
+		obs, err := c.getBucket(ctx, "")
 		if err != nil {
 			if strings.Contains(err.Error(), "not exists") {
 				return nil
@@ -330,11 +330,11 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 			return fmt.Errorf("failed to empty bucket %v: %w", c.bucket, err)
 		}
 		for _, v := range obs {
-			c.deleteObject(c.cosContext, v.Key)
+			c.deleteObject(ctx, v.Key)
 		}
 	}
 
-	rsp, err := c.cosClient.Bucket.Delete(c.cosContext)
+	rsp, err := c.cosClient.Bucket.Delete(ctx)
 	if rsp == nil {
 		log.Printf("[DEBUG] deleteBucket %s: error: %v", c.bucket, err)
 		return fmt.Errorf("failed to delete bucket %v: %w", c.bucket, err)

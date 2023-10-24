@@ -75,7 +75,9 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	workspaces, err := b.Workspaces()
+	ctx := context.TODO()
+
+	workspaces, err := b.Workspaces(ctx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -104,8 +106,6 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf(strings.TrimSpace(envDelCurrent), workspace))
 		return 1
 	}
-
-	ctx := context.Background()
 
 	// we need the actual state to see if it's empty
 	stateMgr, err := b.StateMgr(ctx, workspace)

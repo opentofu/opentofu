@@ -83,7 +83,9 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return 1
 	}
 
-	states, err := b.Workspaces()
+	ctx := context.TODO()
+
+	states, err := b.Workspaces(ctx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -103,7 +105,6 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	}
 
 	var newState bool
-	ctx := context.Background()
 
 	if !found {
 		if orCreate {

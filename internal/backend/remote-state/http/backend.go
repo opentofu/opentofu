@@ -251,7 +251,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	return &remote.State{Client: b.client}, nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 

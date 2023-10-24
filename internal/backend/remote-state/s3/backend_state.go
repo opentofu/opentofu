@@ -21,7 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	const maxKeys = 1000
 
 	prefix := ""
@@ -39,7 +39,6 @@ func (b *Backend) Workspaces() ([]string, error) {
 	wss := []string{backend.DefaultStateName}
 	pg := s3.NewListObjectsV2Paginator(b.s3Client, params)
 
-	ctx := context.TODO()
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
 		if err != nil {
@@ -151,7 +150,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	// If we need to force-unlock, but for some reason the state no longer
 	// exists, the user will have to use aws tools to manually fix the
 	// situation.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}
