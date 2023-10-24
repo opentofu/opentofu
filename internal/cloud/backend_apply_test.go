@@ -85,7 +85,9 @@ func TestCloud_applyBasic(t *testing.T) {
 	op.UIOut = b.CLI
 	op.Workspace = testBackendSingleWorkspaceName
 
-	run, err := b.Operation(context.Background(), op)
+	ctx := context.Background()
+
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -113,7 +115,7 @@ func TestCloud_applyBasic(t *testing.T) {
 		t.Fatalf("expected apply summery in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -145,7 +147,9 @@ func TestCloud_applyJSONBasic(t *testing.T) {
 
 	mockSROWorkspace(t, b, op.Workspace)
 
-	run, err := b.Operation(context.Background(), op)
+	ctx := context.Background()
+
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -172,7 +176,7 @@ func TestCloud_applyJSONBasic(t *testing.T) {
 		t.Fatalf("expected apply summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -204,7 +208,9 @@ func TestCloud_applyJSONWithOutputs(t *testing.T) {
 
 	mockSROWorkspace(t, b, op.Workspace)
 
-	run, err := b.Operation(context.Background(), op)
+	ctx := context.Background()
+
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -260,7 +266,7 @@ func TestCloud_applyJSONWithOutputs(t *testing.T) {
 	if !strings.Contains(gotOut, expectedComplexOutput) {
 		t.Fatalf("expected output: %s, got: %s", expectedComplexOutput, gotOut)
 	}
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -277,7 +283,9 @@ func TestCloud_applyCanceled(t *testing.T) {
 
 	op.Workspace = testBackendSingleWorkspaceName
 
-	run, err := b.Operation(context.Background(), op)
+	ctx := context.Background()
+
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -290,7 +298,7 @@ func TestCloud_applyCanceled(t *testing.T) {
 		t.Fatal("expected apply operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelling apply: %s", err.Error())
 	}
@@ -481,8 +489,10 @@ func TestCloud_applyWithCloudPlan(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
+	ctx := context.Background()
+
 	// Try apply
-	run, err := b.Operation(context.Background(), op)
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -501,7 +511,7 @@ func TestCloud_applyWithCloudPlan(t *testing.T) {
 		t.Fatalf("expected apply summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -698,7 +708,9 @@ func TestCloud_applyNoConfig(t *testing.T) {
 
 	op.Workspace = testBackendSingleWorkspaceName
 
-	run, err := b.Operation(context.Background(), op)
+	ctx := context.Background()
+
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -717,7 +729,7 @@ func TestCloud_applyNoConfig(t *testing.T) {
 		t.Fatalf("expected configuration files error, got: %v", errOutput)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
@@ -1361,7 +1373,9 @@ func TestCloud_applyJSONWithProvisioner(t *testing.T) {
 
 	mockSROWorkspace(t, b, op.Workspace)
 
-	run, err := b.Operation(context.Background(), op)
+	ctx := context.Background()
+
+	run, err := b.Operation(ctx, op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -1393,7 +1407,7 @@ func TestCloud_applyJSONWithProvisioner(t *testing.T) {
 		t.Fatalf("expected provisioner local-exec output in logs: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())

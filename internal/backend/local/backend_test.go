@@ -4,6 +4,7 @@
 package local
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -106,8 +107,10 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 		t.Fatalf("expected []string{%q}, got %q", dflt, states)
 	}
 
+	ctx := context.Background()
+
 	expectedA := "test_A"
-	if _, err := b.StateMgr(expectedA); err != nil {
+	if _, err := b.StateMgr(ctx, expectedA); err != nil {
 		t.Fatal(err)
 	}
 
@@ -122,7 +125,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 	}
 
 	expectedB := "test_B"
-	if _, err := b.StateMgr(expectedB); err != nil {
+	if _, err := b.StateMgr(ctx, expectedB); err != nil {
 		t.Fatal(err)
 	}
 
@@ -184,7 +187,7 @@ var errTestDelegateState = errors.New("state called")
 var errTestDelegateStates = errors.New("states called")
 var errTestDelegateDeleteState = errors.New("delete called")
 
-func (b *testDelegateBackend) StateMgr(name string) (statemgr.Full, error) {
+func (b *testDelegateBackend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	if b.stateErr {
 		return nil, errTestDelegateState
 	}
@@ -215,7 +218,7 @@ func TestLocal_multiStateBackend(t *testing.T) {
 		deleteErr: true,
 	})
 
-	if _, err := b.StateMgr("test"); err != errTestDelegateState {
+	if _, err := b.StateMgr(context.Background(), "test"); err != errTestDelegateState {
 		t.Fatal("expected errTestDelegateState, got:", err)
 	}
 

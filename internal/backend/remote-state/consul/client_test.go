@@ -42,8 +42,10 @@ func TestRemoteClient(t *testing.T) {
 				"path":    path,
 			}))
 
+			ctx := context.Background()
+
 			// Grab the client
-			state, err := b.StateMgr(backend.DefaultStateName)
+			state, err := b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -66,8 +68,10 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 		"path":    statePath,
 	}))
 
+	ctx := context.Background()
+
 	// Grab the client
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -83,7 +87,7 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 	}))
 
 	// Grab the client
-	state, err = b.StateMgr(backend.DefaultStateName)
+	state, err = b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -105,7 +109,9 @@ func TestConsul_largeState(t *testing.T) {
 		"path":    path,
 	}))
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	ctx := context.Background()
+
+	s, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +198,7 @@ func TestConsul_largeState(t *testing.T) {
 		"gzip":    true,
 	}))
 
-	s, err = b.StateMgr(backend.DefaultStateName)
+	s, err = b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,12 +251,14 @@ func TestConsul_stateLock(t *testing.T) {
 	}
 
 	for _, path := range testCases {
+		ctx := context.Background()
+
 		t.Run(path, func(*testing.T) {
 			// create 2 instances to get 2 remote.Clients
 			sA, err := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
 				"path":    path,
-			})).StateMgr(backend.DefaultStateName)
+			})).StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -258,7 +266,7 @@ func TestConsul_stateLock(t *testing.T) {
 			sB, err := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
 				"path":    path,
-			})).StateMgr(backend.DefaultStateName)
+			})).StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -289,6 +297,8 @@ func TestConsul_destroyLock(t *testing.T) {
 
 	for _, path := range testCases {
 		t.Run(path, func(*testing.T) {
+			ctx := context.Background()
+
 			// Get the backend
 			b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
@@ -296,7 +306,7 @@ func TestConsul_destroyLock(t *testing.T) {
 			}))
 
 			// Grab the client
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -319,7 +329,7 @@ func TestConsul_destroyLock(t *testing.T) {
 
 			// The release the lock from a second client to test the
 			// `tofu force-unlock <lock_id>` functionality
-			s, err = b.StateMgr(backend.DefaultStateName)
+			s, err = b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -355,11 +365,13 @@ func TestConsul_lostLock(t *testing.T) {
 
 	path := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
+	ctx := context.Background()
+
 	// create 2 instances to get 2 remote.Clients
 	sA, err := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path,
-	})).StateMgr(backend.DefaultStateName)
+	})).StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +379,7 @@ func TestConsul_lostLock(t *testing.T) {
 	sB, err := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path + "-not-used",
-	})).StateMgr(backend.DefaultStateName)
+	})).StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +430,9 @@ func TestConsul_lostLockConnection(t *testing.T) {
 		"path":    path,
 	}))
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	ctx := context.Background()
+
+	s, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,7 @@
 package cos
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path"
@@ -76,7 +77,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 }
 
 // StateMgr manage the state, if the named state not exists, a new file will created
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	log.Printf("[DEBUG] state manager, current workspace: %v", name)
 
 	c, err := b.client(name)

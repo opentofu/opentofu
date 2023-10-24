@@ -243,7 +243,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	if name != backend.DefaultStateName {
 		return nil, backend.ErrWorkspacesNotSupported
 	}

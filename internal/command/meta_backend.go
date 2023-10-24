@@ -975,9 +975,11 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 		return nil, diags
 	}
 
+	ctx := context.TODO()
+
 	var localStates []statemgr.Full
 	for _, workspace := range workspaces {
-		localState, err := localB.StateMgr(workspace)
+		localState, err := localB.StateMgr(ctx, workspace)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 			return nil, diags
@@ -1062,8 +1064,6 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 		}
 		defer stateLocker.Unlock()
 	}
-
-	ctx := context.TODO()
 
 	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema(ctx).ImpliedType())
 	if err != nil {

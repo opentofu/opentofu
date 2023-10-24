@@ -273,11 +273,13 @@ func TestRemote_addAndRemoveWorkspacesDefault(t *testing.T) {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
-	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
+	ctx := context.Background()
+
+	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if _, err := b.StateMgr("prod"); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.StateMgr(ctx, "prod"); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
@@ -304,12 +306,14 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected states %#+v, got %#+v", expectedWorkspaces, states)
 	}
 
-	if _, err := b.StateMgr(backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
+	ctx := context.Background()
+
+	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
 	}
 
 	expectedA := "test_A"
-	if _, err := b.StateMgr(expectedA); err != nil {
+	if _, err := b.StateMgr(ctx, expectedA); err != nil {
 		t.Fatal(err)
 	}
 
@@ -324,7 +328,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	}
 
 	expectedB := "test_B"
-	if _, err := b.StateMgr(expectedB); err != nil {
+	if _, err := b.StateMgr(ctx, expectedB); err != nil {
 		t.Fatal(err)
 	}
 
@@ -510,8 +514,10 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// This should succeed
-	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -529,7 +535,7 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 
 	// This should fail
 	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
-	if _, err := b.StateMgr(backend.DefaultStateName); err.Error() != want {
+	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
 }
@@ -567,8 +573,10 @@ func TestRemote_StateMgr_versionCheckLatest(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
+	ctx := context.Background()
+
 	// This should succeed despite not being a string match
-	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }

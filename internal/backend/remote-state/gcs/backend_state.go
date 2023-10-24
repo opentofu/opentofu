@@ -4,6 +4,7 @@
 package gcs
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -90,7 +91,7 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 
 // StateMgr reads and returns the named state from GCS. If the named state does
 // not yet exist, a new state file is created.
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	c, err := b.client(name)
 	if err != nil {
 		return nil, err

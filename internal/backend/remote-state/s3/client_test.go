@@ -34,11 +34,11 @@ func TestRemoteClient(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
+	ctx := context.Background()
 	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
 	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,12 +71,12 @@ func TestRemoteClientLocks(t *testing.T) {
 	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestForceUnlock(t *testing.T) {
 	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestForceUnlock(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
@@ -137,7 +137,7 @@ func TestForceUnlock(t *testing.T) {
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(ctx, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestForceUnlock(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(ctx, "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
@@ -180,7 +180,7 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 	createDynamoDBTable(ctx, t, b.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b.dynClient, bucketName)
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +254,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"bucket": bucketName,
 		"key":    keyName,
 	})).(*Backend)
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
