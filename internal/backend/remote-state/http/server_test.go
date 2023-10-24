@@ -279,8 +279,10 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 		t.Fatal("nil backend")
 	}
 
+	ctx := context.Background()
+
 	// Now get a state manager and check that it fails to refresh the state
-	sm, err := b.StateMgr(backend.DefaultStateName)
+	sm, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error fetching StateMgr with %s: %v", backend.DefaultStateName, err)
 	}
@@ -350,8 +352,10 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 		t.Fatal("nil backend")
 	}
 
+	ctx := context.Background()
+
 	// Now get a state manager, fetch the state, and ensure that the "foo" output is not set
-	sm, err := b.StateMgr(backend.DefaultStateName)
+	sm, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error fetching StateMgr with %s: %v", backend.DefaultStateName, err)
 	}

@@ -4,6 +4,7 @@
 package consul
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -45,7 +46,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 
 	result := make([]string, 1, len(envs)+1)
 	result[0] = backend.DefaultStateName
-	for k, _ := range envs {
+	for k := range envs {
 		result = append(result, k)
 	}
 
@@ -66,7 +67,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return err
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	// Determine the path of the data
 	path := b.path(name)
 

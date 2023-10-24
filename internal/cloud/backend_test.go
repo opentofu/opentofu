@@ -30,6 +30,8 @@ func TestCloud_backendWithName(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
+	ctx := context.Background()
+
 	workspaces, err := b.Workspaces()
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -39,7 +41,7 @@ func TestCloud_backendWithName(t *testing.T) {
 		t.Fatalf("should only have a single configured workspace matching the configured 'name' strategy, but got: %#v", workspaces)
 	}
 
-	if _, err := b.StateMgr("foo"); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.StateMgr(ctx, "foo"); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected fetching a state which is NOT the single configured workspace to have an ErrWorkspacesNotSupported error, but got: %v", err)
 	}
 
@@ -93,9 +95,11 @@ func TestCloud_backendWithTags(t *testing.T) {
 
 	backend.TestBackendStates(t, b)
 
+	ctx := context.Background()
+
 	// Test pagination works
 	for i := 0; i < 25; i++ {
-		_, err := b.StateMgr(fmt.Sprintf("foo-%d", i+1))
+		_, err := b.StateMgr(ctx, fmt.Sprintf("foo-%d", i+1))
 		if err != nil {
 			t.Fatalf("error: %s", err)
 		}
@@ -844,16 +848,18 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 	b, _, bCleanup := testBackend(t, config, nil)
 	defer bCleanup()
 
+	ctx := context.Background()
+
 	// Make sure the workspace doesn't exist yet -- otherwise, we can't test what
 	// happens when a workspace gets created. This is why we can't use "name" in
 	// the backend config above, btw: if you do, testBackend() creates the default
 	// workspace before we get a chance to do anything.
-	_, err := b.client.Workspaces.Read(context.Background(), b.organization, workspaceName)
+	_, err := b.client.Workspaces.Read(ctx, b.organization, workspaceName)
 	if err != tfe.ErrResourceNotFound {
 		t.Fatalf("the workspace we were about to try and create (%s/%s) already exists in the mocks somehow, so this test isn't trustworthy anymore", b.organization, workspaceName)
 	}
 
-	_, err = b.StateMgr(workspaceName)
+	_, err = b.StateMgr(ctx, workspaceName)
 	if err != nil {
 		t.Fatalf("expected no error from StateMgr, despite not being able to set remote TF version: %#v", err)
 	}
@@ -1059,7 +1065,9 @@ func TestCloud_addAndRemoveWorkspacesDefault(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err != nil {
+	ctx := context.Background()
+
+	if _, err := b.StateMgr(ctx, testBackendSingleWorkspaceName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -1092,10 +1100,12 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 	tfversion.Version = v0140.String()
 	tfversion.SemVer = v0140
 
+	ctx := context.Background()
+
 	// Update the mock remote workspace Terraform version to match the local
 	// Terraform version
 	if _, err := b.client.Workspaces.Update(
-		context.Background(),
+		ctx,
 		b.organization,
 		b.WorkspaceMapping.Name,
 		tfe.WorkspaceUpdateOptions{
@@ -1106,7 +1116,7 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 	}
 
 	// This should succeed
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err != nil {
+	if _, err := b.StateMgr(ctx, testBackendSingleWorkspaceName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -1124,7 +1134,7 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 
 	// This should fail
 	want := `Remote workspace TF version "0.13.5" does not match local OpenTofu version "0.14.0"`
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err.Error() != want {
+	if _, err := b.StateMgr(ctx, testBackendSingleWorkspaceName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
 }
@@ -1150,9 +1160,11 @@ func TestCloud_StateMgr_versionCheckLatest(t *testing.T) {
 	tfversion.Version = v0140.String()
 	tfversion.SemVer = v0140
 
+	ctx := context.Background()
+
 	// Update the remote workspace to the pseudo-version "latest"
 	if _, err := b.client.Workspaces.Update(
-		context.Background(),
+		ctx,
 		b.organization,
 		b.WorkspaceMapping.Name,
 		tfe.WorkspaceUpdateOptions{
@@ -1163,7 +1175,7 @@ func TestCloud_StateMgr_versionCheckLatest(t *testing.T) {
 	}
 
 	// This should succeed despite not being a string match
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err != nil {
+	if _, err := b.StateMgr(ctx, testBackendSingleWorkspaceName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
@@ -1353,12 +1365,14 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	safeDeleteWorkspaceName := "safe-delete-workspace"
 	forceDeleteWorkspaceName := "force-delete-workspace"
 
-	_, err := b.StateMgr(safeDeleteWorkspaceName)
+	ctx := context.Background()
+
+	_, err := b.StateMgr(ctx, safeDeleteWorkspaceName)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
-	_, err = b.StateMgr(forceDeleteWorkspaceName)
+	_, err = b.StateMgr(ctx, forceDeleteWorkspaceName)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -1369,17 +1383,16 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 		t.Fatalf("error fetching workspace names: %v", err)
 	}
 	if len(wl) != 2 {
-		t.Fatalf("expected 2 workspaced but got %d", len(wl))
+		t.Fatalf("expected 2 workspaces but got %d", len(wl))
 	}
 
-	c := context.Background()
-	safeDeleteWorkspace, err := b.client.Workspaces.Read(c, b.organization, safeDeleteWorkspaceName)
+	safeDeleteWorkspace, err := b.client.Workspaces.Read(ctx, b.organization, safeDeleteWorkspaceName)
 	if err != nil {
 		t.Fatalf("error fetching workspace: %v", err)
 	}
 
 	// Lock a workspace so that it should fail to be safe deleted
-	_, err = b.client.Workspaces.Lock(context.Background(), safeDeleteWorkspace.ID, tfe.WorkspaceLockOptions{Reason: tfe.String("test")})
+	_, err = b.client.Workspaces.Lock(ctx, safeDeleteWorkspace.ID, tfe.WorkspaceLockOptions{Reason: tfe.String("test")})
 	if err != nil {
 		t.Fatalf("error locking workspace: %v", err)
 	}
@@ -1389,7 +1402,7 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	}
 
 	// unlock the workspace and confirm that safe-delete now works
-	_, err = b.client.Workspaces.Unlock(context.Background(), safeDeleteWorkspace.ID)
+	_, err = b.client.Workspaces.Unlock(ctx, safeDeleteWorkspace.ID)
 	if err != nil {
 		t.Fatalf("error unlocking workspace: %v", err)
 	}
@@ -1399,11 +1412,11 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	}
 
 	// lock a workspace and then confirm that force deleting it works
-	forceDeleteWorkspace, err := b.client.Workspaces.Read(c, b.organization, forceDeleteWorkspaceName)
+	forceDeleteWorkspace, err := b.client.Workspaces.Read(ctx, b.organization, forceDeleteWorkspaceName)
 	if err != nil {
 		t.Fatalf("error fetching workspace: %v", err)
 	}
-	_, err = b.client.Workspaces.Lock(context.Background(), forceDeleteWorkspace.ID, tfe.WorkspaceLockOptions{Reason: tfe.String("test")})
+	_, err = b.client.Workspaces.Lock(ctx, forceDeleteWorkspace.ID, tfe.WorkspaceLockOptions{Reason: tfe.String("test")})
 	if err != nil {
 		t.Fatalf("error locking workspace: %v", err)
 	}

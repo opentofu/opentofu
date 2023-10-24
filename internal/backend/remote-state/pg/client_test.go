@@ -7,6 +7,7 @@ package pg
 // TF_ACC=1 GO111MODULE=on go test -v -mod=vendor -timeout=2m -parallel=4 github.com/opentofu/opentofu/backend/remote-state/pg
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -40,7 +41,9 @@ func TestRemoteClient(t *testing.T) {
 		t.Fatal("Backend could not be configured")
 	}
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	ctx := context.Background()
+
+	s, err := b.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,14 +66,16 @@ func TestRemoteLocks(t *testing.T) {
 		"schema_name": schemaName,
 	})
 
+	ctx := context.Background()
+
 	b1 := backend.TestBackendConfig(t, New(), config).(*Backend)
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b2 := backend.TestBackendConfig(t, New(), config).(*Backend)
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

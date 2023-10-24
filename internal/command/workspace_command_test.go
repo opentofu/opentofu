@@ -4,6 +4,7 @@
 package command
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -275,7 +276,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 	}
 
 	b := backend.TestBackendConfig(t, inmem.New(), nil)
-	sMgr, err := b.StateMgr(workspace)
+	sMgr, err := b.StateMgr(context.Background(), workspace)
 	if err != nil {
 		t.Fatal(err)
 	}

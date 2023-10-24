@@ -362,7 +362,7 @@ func (b backendFailsConfigure) Configure(_ context.Context, config cty.Value) tf
 	return diags
 }
 
-func (b backendFailsConfigure) StateMgr(workspace string) (statemgr.Full, error) {
+func (b backendFailsConfigure) StateMgr(context.Context, string) (statemgr.Full, error) {
 	return nil, fmt.Errorf("StateMgr not implemented")
 }
 

@@ -116,7 +116,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	states.Lock()
 	defer states.Unlock()
 

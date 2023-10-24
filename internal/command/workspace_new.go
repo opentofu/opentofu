@@ -4,6 +4,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -101,7 +102,8 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		}
 	}
 
-	_, err = b.StateMgr(workspace)
+	ctx := context.Background()
+	_, err = b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -122,7 +124,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	// load the new Backend state
-	stateMgr, err := b.StateMgr(workspace)
+	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

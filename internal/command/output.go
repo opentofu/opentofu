@@ -4,6 +4,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -78,8 +79,10 @@ func (c *OutputCommand) Outputs(statePath string) (map[string]*states.OutputValu
 		return nil, diags
 	}
 
+	ctx := context.TODO()
+
 	// Get the state
-	stateStore, err := b.StateMgr(env)
+	stateStore, err := b.StateMgr(ctx, env)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags

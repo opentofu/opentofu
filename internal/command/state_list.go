@@ -4,6 +4,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -53,7 +54,10 @@ func (c *StateListCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
 	}
-	stateMgr, err := b.StateMgr(env)
+
+	ctx := context.TODO()
+
+	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1

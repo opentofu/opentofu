@@ -136,7 +136,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	return client, nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	client, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err

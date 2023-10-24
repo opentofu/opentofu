@@ -200,12 +200,12 @@ func TestBackendConfig(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, err = b.StateMgr(backend.DefaultStateName)
+			_, err = b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -341,12 +341,14 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 				}
 			}
 
-			_, err = b.StateMgr(backend.DefaultStateName)
+			ctx := context.Background()
+
+			_, err = b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(ctx, backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -448,7 +450,10 @@ func TestBackendConcurrentLock(t *testing.T) {
 		if b == nil {
 			t.Fatal("Backend could not be configured")
 		}
-		stateMgr, err := b.StateMgr(backend.DefaultStateName)
+
+		ctx := context.Background()
+
+		stateMgr, err := b.StateMgr(ctx, backend.DefaultStateName)
 		if err != nil {
 			t.Fatalf("Failed to get the state manager: %v", err)
 		}
