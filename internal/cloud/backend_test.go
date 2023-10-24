@@ -76,7 +76,7 @@ func TestCloud_backendWithoutHost(t *testing.T) {
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(ctx, obj)
 
 	if !confDiags.HasErrors() {
 		t.Fatalf("testBackend: backend.Configure() should have failed")
@@ -595,7 +595,7 @@ func WithEnvVars(t *testing.T) {
 				tc.setup(b)
 			}
 
-			diags := b.Configure(tc.config)
+			diags := b.Configure(ctx, tc.config)
 			if (diags.Err() != nil || tc.expectedErr != "") &&
 				(diags.Err() == nil || !strings.Contains(diags.Err().Error(), tc.expectedErr)) {
 				t.Fatalf("%s: unexpected configure result: %v", name, diags.Err())
@@ -731,7 +731,7 @@ func TestCloud_config(t *testing.T) {
 			}
 
 			// Configure
-			confDiags := b.Configure(tc.config)
+			confDiags := b.Configure(ctx, tc.config)
 			if (confDiags.Err() != nil || tc.confErr != "") &&
 				(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
 				t.Fatalf("unexpected configure result: %v", confDiags.Err())
@@ -766,7 +766,9 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 
 	b := New(testDisco(s))
 
-	confDiags := b.Configure(config)
+	ctx := context.Background()
+
+	confDiags := b.Configure(ctx, config)
 	if confDiags.Err() == nil {
 		t.Fatalf("expected configure to error")
 	}
@@ -804,7 +806,9 @@ func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 	b := New(testDisco(s))
 	b.runningInAutomation = true
 
-	confDiags := b.Configure(config)
+	ctx := context.Background()
+
+	confDiags := b.Configure(ctx, config)
 	if confDiags.Err() == nil {
 		t.Fatalf("expected configure to error")
 	}
@@ -1423,7 +1427,7 @@ func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s))
 
-	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(context.Background(), cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),

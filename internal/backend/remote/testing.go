@@ -132,7 +132,7 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(ctx, obj)
 	if len(confDiags) != 0 {
 		t.Fatal(confDiags.ErrWithWarnings())
 	}

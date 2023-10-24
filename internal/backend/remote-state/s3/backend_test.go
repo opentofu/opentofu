@@ -138,7 +138,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(configSchema)
+			confDiags := b.Configure(ctx, configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticComparer)); diff != "" {
@@ -377,7 +377,7 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(configSchema)
+			confDiags := b.Configure(ctx, configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticSummaryComparer)); diff != "" {
@@ -610,7 +610,7 @@ func TestBackendConfig_AssumeRole(t *testing.T) {
 			testCase.Config["sts_endpoint"] = endpoint
 
 			b := New()
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
+			diags := b.Configure(ctx, populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
 
 			if diags.HasErrors() {
 				for _, diag := range diags {
@@ -916,7 +916,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 			b := New().(*Backend)
 			ctx := context.Background()
 
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(ctx, populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -985,7 +985,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 			b := New().(*Backend)
 			ctx := context.Background()
 
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(ctx, populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {

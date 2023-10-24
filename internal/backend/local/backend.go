@@ -156,9 +156,9 @@ func (b *Local) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tf
 	return obj, diags
 }
 
-func (b *Local) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Local) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	if b.Backend != nil {
-		return b.Backend.Configure(obj)
+		return b.Backend.Configure(ctx, obj)
 	}
 
 	var diags tfdiags.Diagnostics

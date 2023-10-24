@@ -54,7 +54,7 @@ func TestBackendConfig(t *testing.T, b Backend, c hcl.Body) Backend {
 
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(ctx, obj)
 	if len(confDiags) != 0 {
 		confDiags = confDiags.InConfigBody(c, "")
 		t.Fatal(confDiags.ErrWithWarnings())

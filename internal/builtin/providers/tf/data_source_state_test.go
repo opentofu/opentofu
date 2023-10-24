@@ -355,7 +355,7 @@ func (b backendFailsConfigure) PrepareConfig(_ context.Context, given cty.Value)
 	return given, nil
 }
 
-func (b backendFailsConfigure) Configure(config cty.Value) tfdiags.Diagnostics {
+func (b backendFailsConfigure) Configure(_ context.Context, config cty.Value) tfdiags.Diagnostics {
 	log.Printf("[TRACE] backendFailsConfigure.Configure(%#v)", config)
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(fmt.Errorf("Configure should never be called"))

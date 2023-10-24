@@ -162,7 +162,7 @@ func TestRemote_config(t *testing.T) {
 		}
 
 		// Configure
-		confDiags := b.Configure(tc.config)
+		confDiags := b.Configure(ctx, tc.config)
 		if (confDiags.Err() != nil || tc.confErr != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
@@ -242,7 +242,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 		}
 
 		// Configure
-		confDiags := b.Configure(tc.config)
+		confDiags := b.Configure(ctx, tc.config)
 		if (confDiags.Err() != nil || tc.result != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
@@ -746,7 +746,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s))
 
-	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(context.Background(), cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),

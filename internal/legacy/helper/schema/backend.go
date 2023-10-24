@@ -144,7 +144,7 @@ func (b *Backend) PrepareConfig(_ context.Context, configVal cty.Value) (cty.Val
 	return configVal, diags
 }
 
-func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	if b == nil {
 		return nil
 	}
@@ -169,8 +169,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.config = data
 
 	if b.ConfigureFunc != nil {
-		err = b.ConfigureFunc(context.WithValue(
-			context.Background(), backendConfigKey, data))
+		err = b.ConfigureFunc(context.WithValue(ctx, backendConfigKey, data))
 		if err != nil {
 			diags = diags.Append(err)
 			return diags

@@ -1851,7 +1851,7 @@ func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Di
 		return b, diags
 	}
 
-	confDiags := b.Configure(configSchema)
+	confDiags := b.Configure(ctx, configSchema)
 	diags = diags.Append(confDiags)
 
 	return b, diags
