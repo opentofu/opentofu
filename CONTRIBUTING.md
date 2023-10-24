@@ -46,13 +46,15 @@ Additionally, please update [the changelog](CHANGELOG.md) if you're making any u
 
 ## Working on the Code
 
-If you wish to work on the OpenTofu CLI source code, you'll first need to install the [Go](https://golang.org/) compiler and the version control system [Git](https://git-scm.com/).
+If you wish to work on the OpenTofu CLI source code, you'll first need to install the [Go](https://golang.org/) compiler and the version control system [Git](https://git-scm.com/) or build with the [Go Docker container](https://hub.docker.com/_/golang).
 
 At this time the OpenTofu development environment is targeting only Linux and Mac OS X systems. While OpenTofu itself is compatible with Windows, unfortunately the unit test suite currently contains Unix-specific assumptions around maximum path lengths, path separators, etc.
 
 Refer to the file [`.go-version`](.go-version) to see which version of Go OpenTofu is currently built with. Other versions will often work, but if you run into any build or testing problems please try with the specific Go version indicated. You can optionally simplify the installation of multiple specific versions of Go on your system by installing [`goenv`](https://github.com/syndbg/goenv), which reads `.go-version` and automatically selects the correct Go version.
 
 Use Git to clone this repository into a location of your choice. OpenTofu is using [Go Modules](https://blog.golang.org/using-go-modules), and so you should *not* clone it inside your `GOPATH`.
+
+### Build with Go
 
 Switch into the root directory of the cloned repository and build OpenTofu using the Go toolchain in the standard way:
 
@@ -81,6 +83,16 @@ As you make your changes, you can re-run the above command to ensure that the te
 go test ./internal/command/...
 go test ./internal/addrs
 ```
+
+### Build with Docker
+
+Install [Docker](https://docs.docker.com/engine/install/) and, if you're on Linux, run the [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/).
+
+```
+docker run --rm -v "$PWD":/usr/src/opentofu -w /usr/src/opentofu golang:1.20.7 go build -v -buildvcs=false .
+```
+
+This will create the `opentofu` binary in the current working directory, which you can run with `./opentofu --version` or [move it to $PATH](https://ubuntuforums.org/showthread.php?t=1056425) for Linux to find it running just `opentofu --version`.
 
 ## Adding or updating dependencies
 
