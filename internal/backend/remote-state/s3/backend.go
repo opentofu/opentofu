@@ -225,6 +225,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "Force s3 to use path style api.",
 			},
+			"retry_mode": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "Specifies how retries are attempted. Valid values are `standard` and `adaptive`.",
+			},
 			"max_retries": {
 				Type:        cty.Number,
 				Optional:    true,
@@ -507,6 +512,18 @@ func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, 
 		cty.GetAttrPath("forbidden_account_ids"),
 	)(obj, cty.Path{}, &diags)
 
+	if val := obj.GetAttr("retry_mode"); !val.IsNull() {
+		s := val.AsString()
+		if _, err := aws.ParseRetryMode(s); err != nil {
+			diags = diags.Append(tfdiags.AttributeValue(
+				tfdiags.Error,
+				"Invalid retry mode",
+				fmt.Sprintf("Valid values are %q and %q.", aws.RetryModeStandard, aws.RetryModeAdaptive),
+				cty.Path{cty.GetAttrStep{Name: "retry_mode"}},
+			))
+		}
+	}
+
 	return obj, diags
 }
 
@@ -649,6 +666,14 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 
 	if val, ok := stringSliceAttrOk(obj, "forbidden_account_ids"); ok {
 		cfg.ForbiddenAccountIds = val
+	}
+
+	if val, ok := stringAttrOk(obj, "retry_mode"); ok {
+		mode, err := aws.ParseRetryMode(val)
+		if err != nil {
+			panic(fmt.Sprintf("invalid retry mode %q: %s", val, err))
+		}
+		cfg.RetryMode = mode
 	}
 
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)

@@ -58,6 +58,7 @@ S3 BACKEND:
 * Adds the `custom_ca_bundle` argument. ([#689](https://github.com/opentofu/opentofu/issues/689))
 * Adds support for the `sts_region` argument. ([#695](https://github.com/opentofu/opentofu/issues/695))
 * Adds support for `ec2_metadata_service_endpoint` and `ec2_metadata_service_endpoint_mode` arguments to enable overriding the EC2 metadata service (IMDS) endpoint. ([#693](https://github.com/opentofu/opentofu/issues/693))
+* Adds support for the `retry_mode` attribute. ([#698](https://github.com/opentofu/opentofu/issues/698))
 
 ## Previous Releases
 

@@ -729,6 +729,15 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 			}),
 			expectedErr: "Invalid Attribute Combination: Only one of allowed_account_ids, forbidden_account_ids can be set.",
 		},
+		"invalid retry mode": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":     cty.StringVal("test"),
+				"key":        cty.StringVal("test"),
+				"region":     cty.StringVal("us-west-2"),
+				"retry_mode": cty.StringVal("xyz"),
+			}),
+			expectedErr: `Invalid retry mode: Valid values are "standard" and "adaptive".`,
+		},
 	}
 
 	for name, tc := range cases {

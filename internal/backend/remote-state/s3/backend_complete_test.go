@@ -2119,6 +2119,88 @@ region = us-west-2
 	}
 }
 
+func TestBackendConfig_RetryMode(t *testing.T) {
+	testCases := map[string]struct {
+		config               map[string]any
+		EnvironmentVariables map[string]string
+		ExpectedMode         aws.RetryMode
+	}{
+		"no config": {
+			config: map[string]any{
+				"access_key": servicemocks.MockStaticAccessKey,
+				"secret_key": servicemocks.MockStaticSecretKey,
+			},
+			ExpectedMode: "",
+		},
+
+		"config": {
+			config: map[string]any{
+				"access_key": servicemocks.MockStaticAccessKey,
+				"secret_key": servicemocks.MockStaticSecretKey,
+				"retry_mode": "standard",
+			},
+			ExpectedMode: aws.RetryModeStandard,
+		},
+
+		"AWS_RETRY_MODE": {
+			config: map[string]any{
+				"access_key": servicemocks.MockStaticAccessKey,
+				"secret_key": servicemocks.MockStaticSecretKey,
+			},
+			EnvironmentVariables: map[string]string{
+				"AWS_RETRY_MODE": "adaptive",
+			},
+			ExpectedMode: aws.RetryModeAdaptive,
+		},
+		"config overrides AWS_RETRY_MODE": {
+			config: map[string]any{
+				"access_key": servicemocks.MockStaticAccessKey,
+				"secret_key": servicemocks.MockStaticSecretKey,
+				"retry_mode": "standard",
+			},
+			EnvironmentVariables: map[string]string{
+				"AWS_RETRY_MODE": "adaptive",
+			},
+			ExpectedMode: aws.RetryModeStandard,
+		},
+	}
+
+	for name, tc := range testCases {
+		tc := tc
+
+		t.Run(name, func(t *testing.T) {
+			oldEnv := servicemocks.InitSessionTestEnv()
+			defer servicemocks.PopEnv(oldEnv)
+
+			// Populate required fields
+			tc.config["bucket"] = "bucket"
+			tc.config["key"] = "key"
+			tc.config["region"] = "us-east-1"
+
+			for k, v := range tc.EnvironmentVariables {
+				os.Setenv(k, v)
+			}
+
+			sts := servicemocks.MockAwsApiServer("STS", []*servicemocks.MockEndpoint{
+				servicemocks.MockStsGetCallerIdentityValidEndpoint,
+			})
+			defer sts.Close()
+
+			tc.config["sts_endpoint"] = sts.URL
+			tc.config["skip_credentials_validation"] = true
+
+			b, diags := configureBackend(t, tc.config)
+			if diags.HasErrors() {
+				t.Fatalf("configuring backend: %s", diagnosticsString(diags))
+			}
+
+			if a, e := b.awsConfig.RetryMode, tc.ExpectedMode; a != e {
+				t.Errorf("expected mode %q, got: %q", e, a)
+			}
+		})
+	}
+}
+
 func setSharedConfigFile(filename string) {
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "1")
 	os.Setenv("AWS_CONFIG_FILE", filename)
