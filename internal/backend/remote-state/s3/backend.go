@@ -240,6 +240,16 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "File containing custom root and intermediate certificates. Can also be configured using the `AWS_CA_BUNDLE` environment variable.",
 			},
+			"ec2_metadata_service_endpoint": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "The endpoint of IMDS.",
+			},
+			"ec2_metadata_service_endpoint_mode": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "The endpoint mode of IMDS. Valid values: IPv4, IPv6.",
+			},
 			"assume_role": {
 				NestedType: &configschema.Object{
 					Nesting: configschema.NestingSingle,
@@ -593,7 +603,9 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
-		CustomCABundle: stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
+		CustomCABundle:                 stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
+		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
+		EC2MetadataServiceEndpointMode: stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint_mode", "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"),
 	}
 
 	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {
@@ -612,14 +624,6 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 
 	if val, ok := stringAttrOk(obj, "shared_credentials_file"); ok {
 		cfg.SharedCredentialsFiles = []string{val}
-	}
-
-	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
-		if val {
-			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
-		} else {
-			cfg.EC2MetadataServiceEnableState = imds.ClientEnabled
-		}
 	}
 
 	if value := obj.GetAttr("assume_role"); !value.IsNull() {
