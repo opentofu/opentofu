@@ -78,77 +78,50 @@ func validateNestedAssumeRole(obj cty.Value, objPath cty.Path) tfdiags.Diagnosti
 	}
 
 	if val, ok := stringAttrOk(obj, "duration"); ok {
-		path := objPath.GetAttr("duration")
-		d, err := time.ParseDuration(val)
-		if err != nil {
-			diags = diags.Append(attributeErrDiag(
-				"Invalid Duration",
-				fmt.Sprintf("The value %q cannot be parsed as a duration: %s", val, err),
-				path,
-			))
-		} else {
-			min := 15 * time.Minute
-			max := 12 * time.Hour
-			if d < min || d > max {
-				diags = diags.Append(attributeErrDiag(
-					"Invalid Duration",
-					fmt.Sprintf("Duration must be between %s and %s, had %s", min, max, val),
-					path,
-				))
-			}
-		}
+		validateDuration(val, 15*time.Minute, 12*time.Hour, objPath.GetAttr("duration"), &diags)
 	}
 
 	if val, ok := stringAttrOk(obj, "external_id"); ok {
-		if len(strings.TrimSpace(val)) == 0 {
-			diags = diags.Append(attributeErrDiag(
-				"Invalid Value",
-				"The value cannot be empty or all whitespace",
-				objPath.GetAttr("external_id"),
-			))
-		}
+		validateNonEmptyString(val, objPath.GetAttr("external_id"), &diags)
 	}
 
 	if val, ok := stringAttrOk(obj, "policy"); ok {
-		if len(strings.TrimSpace(val)) == 0 {
-			diags = diags.Append(attributeErrDiag(
-				"Invalid Value",
-				"The value cannot be empty or all whitespace",
-				objPath.GetAttr("policy"),
-			))
-		}
+		validateNonEmptyString(val, objPath.GetAttr("policy"), &diags)
 	}
 
 	if val, ok := stringAttrOk(obj, "session_name"); ok {
-		if len(strings.TrimSpace(val)) == 0 {
-			diags = diags.Append(attributeErrDiag(
-				"Invalid Value",
-				"The value cannot be empty or all whitespace",
-				objPath.GetAttr("session_name"),
-			))
-		}
+		validateNonEmptyString(val, objPath.GetAttr("session_name"), &diags)
 	}
 
 	if val, ok := stringSliceAttrOk(obj, "policy_arns"); ok {
-		for _, v := range val {
-			arn, err := arn.Parse(v)
-			if err != nil {
-				diags = diags.Append(attributeErrDiag(
-					"Invalid ARN",
-					fmt.Sprintf("The value %q cannot be parsed as an ARN: %s", val, err),
-					objPath.GetAttr("policy_arns"),
-				))
-				break
-			} else {
-				if !strings.HasPrefix(arn.Resource, "policy/") {
-					diags = diags.Append(attributeErrDiag(
-						"Invalid IAM Policy ARN",
-						fmt.Sprintf("Value must be a valid IAM Policy ARN, got %q", val),
-						objPath.GetAttr("policy_arns"),
-					))
-				}
-			}
-		}
+		validatePolicyARNSlice(val, objPath.GetAttr("policy_arns"), &diags)
+	}
+
+	return diags
+}
+
+func validateAssumeRoleWithWebIdentity(obj cty.Value, objPath cty.Path) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	validateAttributesConflict(
+		cty.GetAttrPath("web_identity_token"),
+		cty.GetAttrPath("web_identity_token_file"),
+	)(obj, objPath, &diags)
+
+	if val, ok := stringAttrOk(obj, "session_name"); ok {
+		validateNonEmptyString(val, objPath.GetAttr("session_name"), &diags)
+	}
+
+	if val, ok := stringAttrOk(obj, "policy"); ok {
+		validateNonEmptyString(val, objPath.GetAttr("policy"), &diags)
+	}
+
+	if val, ok := stringSliceAttrOk(obj, "policy_arns"); ok {
+		validatePolicyARNSlice(val, objPath.GetAttr("policy_arns"), &diags)
+	}
+
+	if val, ok := stringAttrOk(obj, "duration"); ok {
+		validateDuration(val, 15*time.Minute, 12*time.Hour, objPath.GetAttr("duration"), &diags)
 	}
 
 	return diags
@@ -221,4 +194,55 @@ func attributeErrDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnos
 
 func attributeWarningDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnostic {
 	return tfdiags.AttributeValue(tfdiags.Warning, summary, detail, attrPath.Copy())
+}
+
+func validateNonEmptyString(val string, path cty.Path, diags *tfdiags.Diagnostics) {
+	if len(strings.TrimSpace(val)) == 0 {
+		*diags = diags.Append(attributeErrDiag(
+			"Invalid Value",
+			"The value cannot be empty or all whitespace",
+			path,
+		))
+	}
+}
+
+func validatePolicyARNSlice(val []string, path cty.Path, diags *tfdiags.Diagnostics) {
+	for _, v := range val {
+		arn, err := arn.Parse(v)
+		if err != nil {
+			*diags = diags.Append(attributeErrDiag(
+				"Invalid ARN",
+				fmt.Sprintf("The value %q cannot be parsed as an ARN: %s", val, err),
+				path,
+			))
+			break
+		} else {
+			if !strings.HasPrefix(arn.Resource, "policy/") {
+				*diags = diags.Append(attributeErrDiag(
+					"Invalid IAM Policy ARN",
+					fmt.Sprintf("Value must be a valid IAM Policy ARN, got %q", val),
+					path,
+				))
+			}
+		}
+	}
+}
+
+func validateDuration(val string, min, max time.Duration, path cty.Path, diags *tfdiags.Diagnostics) {
+	d, err := time.ParseDuration(val)
+	if err != nil {
+		*diags = diags.Append(attributeErrDiag(
+			"Invalid Duration",
+			fmt.Sprintf("The value %q cannot be parsed as a duration: %s", val, err),
+			path,
+		))
+		return
+	}
+	if (min > 0 && d < min) || (max > 0 && d > max) {
+		*diags = diags.Append(attributeErrDiag(
+			"Invalid Duration",
+			fmt.Sprintf("Duration must be between %s and %s, had %s", min, max, val),
+			path,
+		))
+	}
 }

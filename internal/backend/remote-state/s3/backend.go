@@ -180,54 +180,46 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Description: "The external ID to use when assuming the role",
 				Deprecated:  true,
 			},
-
 			"assume_role_duration_seconds": {
 				Type:        cty.Number,
 				Optional:    true,
 				Description: "Seconds to restrict the assume role session duration.",
 				Deprecated:  true,
 			},
-
 			"assume_role_policy": {
 				Type:        cty.String,
 				Optional:    true,
 				Description: "IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.",
 				Deprecated:  true,
 			},
-
 			"assume_role_policy_arns": {
 				Type:        cty.Set(cty.String),
 				Optional:    true,
 				Description: "Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.",
 				Deprecated:  true,
 			},
-
 			"assume_role_tags": {
 				Type:        cty.Map(cty.String),
 				Optional:    true,
 				Description: "Assume role session tags.",
 				Deprecated:  true,
 			},
-
 			"assume_role_transitive_tag_keys": {
 				Type:        cty.Set(cty.String),
 				Optional:    true,
 				Description: "Assume role session tag keys to pass to any subsequent sessions.",
 				Deprecated:  true,
 			},
-
 			"workspace_key_prefix": {
 				Type:        cty.String,
 				Optional:    true,
 				Description: "The prefix applied to the non-default state path inside the bucket.",
 			},
-
 			"force_path_style": {
 				Type:        cty.Bool,
 				Optional:    true,
 				Description: "Force s3 to use path style api.",
 			},
-
 			"max_retries": {
 				Type:        cty.Number,
 				Optional:    true,
@@ -299,6 +291,49 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 						// 		ValidateFunc: validAssumeRoleSourceIdentity,
 						// 	},
 						// },
+					},
+				},
+			},
+			"assume_role_with_web_identity": {
+				NestedType: &configschema.Object{
+					Nesting: configschema.NestingSingle,
+					Attributes: map[string]*configschema.Attribute{
+						"role_arn": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "The Amazon Resource Name (ARN) role to assume.",
+						},
+						"web_identity_token": {
+							Type:        cty.String,
+							Optional:    true,
+							Sensitive:   true,
+							Description: "The OAuth 2.0 access token or OpenID Connect ID token that is provided by the identity provider.",
+						},
+						"web_identity_token_file": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "The path to a file which contains an OAuth 2.0 access token or OpenID Connect ID token that is provided by the identity provider.",
+						},
+						"session_name": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "The name applied to this assume-role session.",
+						},
+						"policy": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "IAM Policy JSON describing further restricting permissions for the IAM Role being assumed.",
+						},
+						"policy_arns": {
+							Type:        cty.Set(cty.String),
+							Optional:    true,
+							Description: "Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed.",
+						},
+						"duration": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "The duration, between 15 minutes and 12 hours, of the role session. Valid time units are ns, us (or µs), ms, s, h, or m.",
+						},
 					},
 				},
 			},
@@ -448,6 +483,10 @@ func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, 
 		}
 	}
 
+	if val := obj.GetAttr("assume_role_with_web_identity"); !val.IsNull() {
+		diags = diags.Append(validateAssumeRoleWithWebIdentity(val, cty.GetAttrPath("assume_role_with_web_identity")))
+	}
+
 	validateAttributesConflict(
 		cty.GetAttrPath("allowed_account_ids"),
 		cty.GetAttrPath("forbidden_account_ids"),
@@ -581,6 +620,10 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		cfg.AssumeRole = configureNestedAssumeRole(obj)
 	} else if value := obj.GetAttr("role_arn"); !value.IsNull() {
 		cfg.AssumeRole = configureAssumeRole(obj)
+	}
+
+	if val := obj.GetAttr("assume_role_with_web_identity"); !val.IsNull() {
+		cfg.AssumeRoleWithWebIdentity = configureAssumeRoleWithWebIdentity(val)
 	}
 
 	if val, ok := stringSliceAttrDefaultEnvVarOk(obj, "shared_credentials_files", "AWS_SHARED_CREDENTIALS_FILE"); ok {
@@ -732,6 +775,27 @@ func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 	return &assumeRole
 }
 
+func configureAssumeRoleWithWebIdentity(obj cty.Value) *awsbase.AssumeRoleWithWebIdentity {
+	cfg := &awsbase.AssumeRoleWithWebIdentity{
+		RoleARN:              stringAttrDefaultEnvVar(obj, "role_arn", "AWS_ROLE_ARN"),
+		Policy:               stringAttr(obj, "policy"),
+		PolicyARNs:           stringSliceAttr(obj, "policy_arns"),
+		SessionName:          stringAttrDefaultEnvVar(obj, "session_name", "AWS_ROLE_SESSION_NAME"),
+		WebIdentityToken:     stringAttrDefaultEnvVar(obj, "web_identity_token", "AWS_WEB_IDENTITY_TOKEN"),
+		WebIdentityTokenFile: stringAttrDefaultEnvVar(obj, "web_identity_token_file", "AWS_WEB_IDENTITY_TOKEN_FILE"),
+	}
+	if val, ok := stringAttrOk(obj, "duration"); ok {
+		d, err := time.ParseDuration(val)
+		if err != nil {
+			// This should never happen because the schema should have
+			// already validated the duration.
+			panic(fmt.Sprintf("invalid duration %q: %s", val, err))
+		}
+		cfg.Duration = d
+	}
+	return cfg
+}
+
 func stringValue(val cty.Value) string {
 	v, _ := stringValueOk(val)
 	return v
@@ -761,6 +825,11 @@ func stringAttrDefault(obj cty.Value, name, def string) string {
 	}
 }
 
+func stringSliceValue(val cty.Value) []string {
+	v, _ := stringSliceValueOk(val)
+	return v
+}
+
 func stringSliceValueOk(val cty.Value) ([]string, bool) {
 	if val.IsNull() {
 		return nil, false
@@ -771,6 +840,10 @@ func stringSliceValueOk(val cty.Value) ([]string, bool) {
 		return nil, false
 	}
 	return v, true
+}
+
+func stringSliceAttr(obj cty.Value, name string) []string {
+	return stringSliceValue(obj.GetAttr(name))
 }
 
 func stringSliceAttrOk(obj cty.Value, name string) ([]string, bool) {
