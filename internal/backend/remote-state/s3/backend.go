@@ -315,7 +315,7 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 // configuration, and inserts any missing defaults, assuming that its
 // structure has already been validated per the schema returned by
 // ConfigSchema.
-func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return obj, diags

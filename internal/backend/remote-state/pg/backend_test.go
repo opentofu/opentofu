@@ -159,7 +159,7 @@ func TestBackendConfig(t *testing.T) {
 			obj, decDiags := hcldec.Decode(config, spec, nil)
 			diags = diags.Append(decDiags)
 
-			newObj, valDiags := b.PrepareConfig(obj)
+			newObj, valDiags := b.PrepareConfig(ctx, obj)
 			diags = diags.Append(valDiags.InConfigBody(config, ""))
 
 			if tc.ExpectConfigurationError != "" {

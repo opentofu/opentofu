@@ -221,7 +221,7 @@ func (b backendWithStateStorageThatFailsRefresh) ConfigSchema(context.Context) *
 	return &configschema.Block{}
 }
 
-func (b backendWithStateStorageThatFailsRefresh) PrepareConfig(in cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b backendWithStateStorageThatFailsRefresh) PrepareConfig(_ context.Context, in cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	return in, nil
 }
 

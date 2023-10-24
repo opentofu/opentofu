@@ -149,7 +149,7 @@ func (b *Remote) ConfigSchema(context.Context) *configschema.Block {
 }
 
 // PrepareConfig implements backend.Backend.
-func (b *Remote) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Remote) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return obj, diags

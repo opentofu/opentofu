@@ -81,7 +81,7 @@ type Backend interface {
 	// as tfdiags.AttributeValue, and so the caller should provide the
 	// necessary context via the diags.InConfigBody method before returning
 	// diagnostics to the user.
-	PrepareConfig(cty.Value) (cty.Value, tfdiags.Diagnostics)
+	PrepareConfig(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics)
 
 	// Configure uses the provided configuration to set configuration fields
 	// within the backend.

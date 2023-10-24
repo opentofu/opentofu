@@ -6,6 +6,7 @@
 package init
 
 import (
+	"context"
 	"sync"
 
 	"github.com/hashicorp/terraform-svchost/disco"
@@ -118,8 +119,8 @@ type deprecatedBackendShim struct {
 
 // PrepareConfig delegates to the wrapped backend to validate its config
 // and then appends shim's deprecation warning.
-func (b deprecatedBackendShim) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
-	newObj, diags := b.Backend.PrepareConfig(obj)
+func (b deprecatedBackendShim) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	newObj, diags := b.Backend.PrepareConfig(ctx, obj)
 	return newObj, diags.Append(tfdiags.SimpleWarning(b.Message))
 }
 

@@ -133,7 +133,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 			b := New()
 			configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(tc.config))
 
-			configSchema, diags := b.PrepareConfig(configSchema)
+			configSchema, diags := b.PrepareConfig(ctx, configSchema)
 			if len(diags) > 0 {
 				t.Fatal(diags.ErrWithWarnings())
 			}
@@ -372,7 +372,7 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 			b := New()
 			configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config))
 
-			configSchema, diags := b.PrepareConfig(configSchema)
+			configSchema, diags := b.PrepareConfig(ctx, configSchema)
 			if len(diags) > 0 {
 				t.Fatal(diags.ErrWithWarnings())
 			}
@@ -740,7 +740,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 
 			ctx := context.Background()
 
-			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, valDiags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
 			if tc.expectedErr != "" {
 				if valDiags.Err() != nil {
 					actualErr := valDiags.Err().Error()
@@ -811,7 +811,7 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 
 			ctx := context.Background()
 
-			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, valDiags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
 			if tc.expectedErr != "" {
 				if valDiags.Err() != nil {
 					actualErr := valDiags.Err().Error()
