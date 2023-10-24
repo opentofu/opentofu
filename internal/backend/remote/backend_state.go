@@ -32,9 +32,7 @@ type remoteClient struct {
 }
 
 // Get the remote state.
-func (r *remoteClient) Get() (*remote.Payload, error) {
-	ctx := context.Background()
-
+func (r *remoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	sv, err := r.client.StateVersions.ReadCurrent(ctx, r.workspace.ID)
 	if err != nil {
 		if err == tfe.ErrResourceNotFound {
@@ -89,9 +87,7 @@ func (r *remoteClient) uploadStateFallback(ctx context.Context, stateFile *state
 }
 
 // Put the remote state.
-func (r *remoteClient) Put(state []byte) error {
-	ctx := context.Background()
-
+func (r *remoteClient) Put(ctx context.Context, state []byte) error {
 	// Read the raw state into a OpenTofu state.
 	stateFile, err := statefile.Read(bytes.NewReader(state))
 	if err != nil {

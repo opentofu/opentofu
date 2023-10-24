@@ -88,7 +88,7 @@ func (c *OutputCommand) Outputs(statePath string) (map[string]*states.OutputValu
 		return nil, diags
 	}
 
-	output, err := stateStore.GetRootOutputValues()
+	output, err := stateStore.GetRootOutputValues(ctx)
 	if err != nil {
 		return nil, diags.Append(err)
 	}

@@ -345,7 +345,7 @@ func getStateFromBackend(b backend.Backend, workspace string) (*statefile.File, 
 	}
 
 	// Refresh the state store with the latest state snapshot from persistent storage
-	if err := stateStore.RefreshState(); err != nil {
+	if err := stateStore.RefreshState(ctx); err != nil {
 		return nil, fmt.Errorf("Failed to load state: %w", err)
 	}
 

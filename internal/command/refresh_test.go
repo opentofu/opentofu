@@ -5,6 +5,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -242,7 +243,7 @@ func TestRefresh_defaultState(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	localState := statemgr.NewFilesystem(statePath)
-	if err := localState.RefreshState(); err != nil {
+	if err := localState.RefreshState(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	s := localState.State()

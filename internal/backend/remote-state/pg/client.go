@@ -24,9 +24,9 @@ type RemoteClient struct {
 	info *statemgr.LockInfo
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	query := `SELECT data FROM %s.%s WHERE name = $1`
-	row := c.Client.QueryRow(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	row := c.Client.QueryRowContext(ctx, fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
 	var data []byte
 	err := row.Scan(&data)
 	switch {
@@ -44,11 +44,11 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	query := `INSERT INTO %s.%s (name, data) VALUES ($1, $2)
 		ON CONFLICT (name) DO UPDATE
 		SET data = $2 WHERE %s.name = $1`
-	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName, statesTableName), c.Name, data)
+	_, err := c.Client.ExecContext(ctx, fmt.Sprintf(query, c.SchemaName, statesTableName, statesTableName), c.Name, data)
 	if err != nil {
 		return err
 	}

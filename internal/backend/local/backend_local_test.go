@@ -145,7 +145,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := sm.RefreshState(); err != nil {
+	if err := sm.RefreshState(ctx); err != nil {
 		t.Fatalf("unexpected error refreshing state: %s", err)
 	}
 
@@ -263,7 +263,7 @@ func (s *stateStorageThatFailsRefresh) State() *states.State {
 	return nil
 }
 
-func (s *stateStorageThatFailsRefresh) GetRootOutputValues() (map[string]*states.OutputValue, error) {
+func (s *stateStorageThatFailsRefresh) GetRootOutputValues(context.Context) (map[string]*states.OutputValue, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
 
@@ -271,10 +271,10 @@ func (s *stateStorageThatFailsRefresh) WriteState(*states.State) error {
 	return fmt.Errorf("unimplemented")
 }
 
-func (s *stateStorageThatFailsRefresh) RefreshState() error {
+func (s *stateStorageThatFailsRefresh) RefreshState(context.Context) error {
 	return fmt.Errorf("intentionally failing for testing purposes")
 }
 
-func (s *stateStorageThatFailsRefresh) PersistState(schemas *tofu.Schemas) error {
+func (s *stateStorageThatFailsRefresh) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	return fmt.Errorf("unimplemented")
 }

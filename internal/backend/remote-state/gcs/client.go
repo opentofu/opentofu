@@ -31,8 +31,8 @@ type remoteClient struct {
 	kmsKeyName    string
 }
 
-func (c *remoteClient) Get() (payload *remote.Payload, err error) {
-	stateFileReader, err := c.stateFile().NewReader(c.storageContext)
+func (c *remoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
+	stateFileReader, err := c.stateFile().NewReader(ctx)
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
 			return nil, nil
@@ -60,9 +60,9 @@ func (c *remoteClient) Get() (payload *remote.Payload, err error) {
 	return result, nil
 }
 
-func (c *remoteClient) Put(data []byte) error {
+func (c *remoteClient) Put(ctx context.Context, data []byte) error {
 	err := func() error {
-		stateFileWriter := c.stateFile().NewWriter(c.storageContext)
+		stateFileWriter := c.stateFile().NewWriter(ctx)
 		if len(c.kmsKeyName) > 0 {
 			stateFileWriter.KMSKeyName = c.kmsKeyName
 		}

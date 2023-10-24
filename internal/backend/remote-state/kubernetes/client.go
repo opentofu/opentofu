@@ -45,12 +45,12 @@ type RemoteClient struct {
 	workspace              string
 }
 
-func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
+func (c *RemoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
 	secretName, err := c.createSecretName()
 	if err != nil {
 		return nil, err
 	}
-	secret, err := c.kubernetesSecretClient.Get(context.Background(), secretName, metav1.GetOptions{})
+	secret, err := c.kubernetesSecretClient.Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return nil, nil
@@ -81,8 +81,7 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 	return p, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
-	ctx := context.Background()
+func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	secretName, err := c.createSecretName()
 	if err != nil {
 		return err

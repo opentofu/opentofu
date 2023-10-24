@@ -297,7 +297,7 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	}
 
 	bytes := []byte(acctest.RandString(20))
-	err = remoteClient.Put(bytes)
+	err = remoteClient.Put(ctx, bytes)
 	if err != nil {
 		t.Fatalf("Error putting data: %+v", err)
 	}

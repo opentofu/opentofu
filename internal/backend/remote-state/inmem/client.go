@@ -18,7 +18,7 @@ type RemoteClient struct {
 	Name string
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(context.Context) (*remote.Payload, error) {
 	if c.Data == nil {
 		return nil, nil
 	}
@@ -29,7 +29,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	md5 := md5.Sum(data)
 
 	c.Data = data

@@ -5,6 +5,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -60,8 +61,8 @@ func (s *State) State() *states.State {
 	return s.state.DeepCopy()
 }
 
-func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
-	if err := s.RefreshState(); err != nil {
+func (s *State) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
+	if err := s.RefreshState(ctx); err != nil {
 		return nil, fmt.Errorf("Failed to load state: %w", err)
 	}
 
@@ -125,17 +126,17 @@ func (s *State) WriteStateForMigration(f *statefile.File, force bool) error {
 }
 
 // statemgr.Refresher impl.
-func (s *State) RefreshState() error {
+func (s *State) RefreshState(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.refreshState()
+	return s.refreshState(ctx)
 }
 
 // refreshState is the main implementation of RefreshState, but split out so
 // that we can make internal calls to it from methods that are already holding
 // the s.mu lock.
-func (s *State) refreshState() error {
-	payload, err := s.Client.Get()
+func (s *State) refreshState(ctx context.Context) error {
+	payload, err := s.Client.Get(ctx)
 	if err != nil {
 		return err
 	}
@@ -166,7 +167,7 @@ func (s *State) refreshState() error {
 }
 
 // statemgr.Persister impl.
-func (s *State) PersistState(schemas *tofu.Schemas) error {
+func (s *State) PersistState(ctx context.Context, schemas *tofu.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -186,7 +187,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 		// We might be writing a new state altogether, but before we do that
 		// we'll check to make sure there isn't already a snapshot present
 		// that we ought to be updating.
-		err := s.refreshState()
+		err := s.refreshState(ctx)
 		if err != nil {
 			return fmt.Errorf("failed checking for existing remote state: %w", err)
 		}
@@ -210,7 +211,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 		return err
 	}
 
-	err = s.Client.Put(buf.Bytes())
+	err = s.Client.Put(ctx, buf.Bytes())
 	if err != nil {
 		return err
 	}

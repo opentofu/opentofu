@@ -267,7 +267,7 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.SourceType, err)
 	}
-	if err := sourceState.RefreshState(); err != nil {
+	if err := sourceState.RefreshState(ctx); err != nil {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.SourceType, err)
 	}
@@ -315,7 +315,7 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.DestinationType, err)
 	}
-	if err := destinationState.RefreshState(); err != nil {
+	if err := destinationState.RefreshState(ctx); err != nil {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.DestinationType, err)
 	}
@@ -368,12 +368,12 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 		// We now own a lock, so double check that we have the version
 		// corresponding to the lock.
 		log.Print("[TRACE] backendMigrateState: refreshing source workspace state")
-		if err := sourceState.RefreshState(); err != nil {
+		if err := sourceState.RefreshState(ctx); err != nil {
 			return fmt.Errorf(strings.TrimSpace(
 				errMigrateSingleLoadDefault), opts.SourceType, err)
 		}
 		log.Print("[TRACE] backendMigrateState: refreshing destination workspace state")
-		if err := destinationState.RefreshState(); err != nil {
+		if err := destinationState.RefreshState(ctx); err != nil {
 			return fmt.Errorf(strings.TrimSpace(
 				errMigrateSingleLoadDefault), opts.SourceType, err)
 		}
@@ -451,8 +451,8 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 	// The backend is currently handled before providers are installed during init,
 	// so requiring schemas here could lead to a catch-22 where it requires some manual
 	// intervention to proceed far enough for provider installation. To avoid this,
-	// when migrating to TFC backend, the initial JSON varient of state won't be generated and stored.
-	if err := destinationState.PersistState(nil); err != nil {
+	// when migrating to TFC backend, the initial JSON variant of state won't be generated and stored.
+	if err := destinationState.PersistState(ctx, nil); err != nil {
 		return fmt.Errorf(strings.TrimSpace(errBackendStateCopy),
 			opts.SourceType, opts.DestinationType, err)
 	}
@@ -602,7 +602,7 @@ func (m *Meta) backendMigrateTFC(opts *backendMigrateOpts) error {
 		if err != nil {
 			return err
 		}
-		if err := sourceState.RefreshState(); err != nil {
+		if err := sourceState.RefreshState(ctx); err != nil {
 			return err
 		}
 		if sourceState.State().Empty() {
@@ -692,7 +692,7 @@ func (m *Meta) backendMigrateState_S_TFC(opts *backendMigrateOpts, sourceWorkspa
 					errMigrateSingleLoadDefault), opts.SourceType, err)
 			}
 			// RefreshState is what actually pulls the state to be evaluated.
-			if err := sourceState.RefreshState(); err != nil {
+			if err := sourceState.RefreshState(ctx); err != nil {
 				return fmt.Errorf(strings.TrimSpace(
 					errMigrateSingleLoadDefault), opts.SourceType, err)
 			}

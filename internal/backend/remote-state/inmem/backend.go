@@ -144,7 +144,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 			if err := s.WriteState(statespkg.NewState()); err != nil {
 				return nil, err
 			}
-			if err := s.PersistState(nil); err != nil {
+			if err := s.PersistState(ctx, nil); err != nil {
 				return nil, err
 			}
 		}

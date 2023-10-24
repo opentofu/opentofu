@@ -4,6 +4,7 @@
 package statemgr
 
 import (
+	"context"
 	"errors"
 	"sync"
 
@@ -61,15 +62,15 @@ func (m *fakeFull) WriteState(s *states.State) error {
 	return m.t.WriteState(s)
 }
 
-func (m *fakeFull) RefreshState() error {
+func (m *fakeFull) RefreshState(context.Context) error {
 	return m.t.WriteState(m.fakeP.State())
 }
 
-func (m *fakeFull) PersistState(schemas *tofu.Schemas) error {
+func (m *fakeFull) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	return m.fakeP.WriteState(m.t.State())
 }
 
-func (m *fakeFull) GetRootOutputValues() (map[string]*states.OutputValue, error) {
+func (m *fakeFull) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
 	return m.State().RootModule().OutputValues, nil
 }
 
@@ -119,7 +120,7 @@ func (m *fakeErrorFull) State() *states.State {
 	return nil
 }
 
-func (m *fakeErrorFull) GetRootOutputValues() (map[string]*states.OutputValue, error) {
+func (m *fakeErrorFull) GetRootOutputValues(context.Context) (map[string]*states.OutputValue, error) {
 	return nil, errors.New("fake state manager error")
 }
 
@@ -127,11 +128,11 @@ func (m *fakeErrorFull) WriteState(s *states.State) error {
 	return errors.New("fake state manager error")
 }
 
-func (m *fakeErrorFull) RefreshState() error {
+func (m *fakeErrorFull) RefreshState(context.Context) error {
 	return errors.New("fake state manager error")
 }
 
-func (m *fakeErrorFull) PersistState(schemas *tofu.Schemas) error {
+func (m *fakeErrorFull) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	return errors.New("fake state manager error")
 }
 

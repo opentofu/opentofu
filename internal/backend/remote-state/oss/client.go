@@ -54,7 +54,7 @@ type RemoteClient struct {
 	otsTable             string
 }
 
-func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
+func (c *RemoteClient) Get(context.Context) (payload *remote.Payload, err error) {
 	deadline := time.Now().Add(consistencyRetryTimeout)
 
 	// If we have a checksum, and the returned payload doesn't match, we retry
@@ -97,7 +97,7 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 	return payload, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	bucket, err := c.ossClient.Bucket(c.bucketName)
 	if err != nil {
 		return fmt.Errorf("error getting bucket: %w", err)
