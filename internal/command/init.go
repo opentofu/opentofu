@@ -464,7 +464,7 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 		}
 
 		b := bf()
-		backendSchema := b.ConfigSchema()
+		backendSchema := b.ConfigSchema(ctx)
 		backendConfig = root.Backend
 
 		var overrideDiags tfdiags.Diagnostics

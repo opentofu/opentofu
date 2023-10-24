@@ -7,6 +7,7 @@ package pg
 // TF_ACC=1 GO111MODULE=on go test -v -mod=vendor -timeout=2m -parallel=4 github.com/opentofu/opentofu/backend/remote-state/pg
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -149,9 +150,11 @@ func TestBackendConfig(t *testing.T) {
 			}
 			defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
 
+			ctx := context.Background()
+
 			var diags tfdiags.Diagnostics
 			b := New().(*Backend)
-			schema := b.ConfigSchema()
+			schema := b.ConfigSchema(ctx)
 			spec := schema.DecoderSpec()
 			obj, decDiags := hcldec.Decode(config, spec, nil)
 			diags = diags.Append(decDiags)

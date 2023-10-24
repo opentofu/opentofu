@@ -48,7 +48,7 @@ type Backend struct {
 
 // ConfigSchema returns a description of the expected configuration
 // structure for the receiving backend.
-func (b *Backend) ConfigSchema() *configschema.Block {
+func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"bucket": {

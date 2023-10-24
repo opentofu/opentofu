@@ -4,6 +4,7 @@
 package tf
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -222,7 +223,9 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 		config = cty.ObjectVal(config.AsValueMap())
 	}
 
-	schema := b.ConfigSchema()
+	ctx := context.TODO()
+
+	schema := b.ConfigSchema(ctx)
 	// Try to coerce the provided value into the desired configuration type.
 	configVal, err := schema.CoerceValue(config)
 	if err != nil {

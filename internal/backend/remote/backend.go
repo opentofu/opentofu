@@ -106,7 +106,7 @@ func New(services *disco.Disco) *Remote {
 }
 
 // ConfigSchema implements backend.Enhanced.
-func (b *Remote) ConfigSchema() *configschema.Block {
+func (b *Remote) ConfigSchema(context.Context) *configschema.Block {
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"hostname": {

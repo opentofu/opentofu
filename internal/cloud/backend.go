@@ -118,7 +118,7 @@ func New(services *disco.Disco) *Cloud {
 }
 
 // ConfigSchema implements backend.Enhanced.
-func (b *Cloud) ConfigSchema() *configschema.Block {
+func (b *Cloud) ConfigSchema(context.Context) *configschema.Block {
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"hostname": {
