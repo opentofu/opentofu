@@ -48,7 +48,7 @@ func FromContextBackendConfig(ctx context.Context) *ResourceData {
 	return ctx.Value(backendConfigKey).(*ResourceData)
 }
 
-func (b *Backend) ConfigSchema() *configschema.Block {
+func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 	// This is an alias of CoreConfigSchema just to implement the
 	// backend.Backend interface.
 	return b.CoreConfigSchema()

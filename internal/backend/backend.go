@@ -61,7 +61,7 @@ type Backend interface {
 	//
 	// This method does not have any side-effects for the backend and can
 	// be safely used before configuring.
-	ConfigSchema() *configschema.Block
+	ConfigSchema(context.Context) *configschema.Block
 
 	// PrepareConfig checks the validity of the values in the given
 	// configuration, and inserts any missing defaults, assuming that its

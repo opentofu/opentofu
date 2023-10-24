@@ -478,7 +478,7 @@ func TestPlan_outBackend(t *testing.T) {
 	}
 	{
 		httpBackend := backendinit.Backend("http")()
-		schema := httpBackend.ConfigSchema()
+		schema := httpBackend.ConfigSchema(context.Background())
 		got, err := plan.Backend.Config.Decode(schema.ImpliedType())
 		if err != nil {
 			t.Fatalf("failed to decode backend config in plan: %s", err)

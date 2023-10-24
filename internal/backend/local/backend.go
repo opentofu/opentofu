@@ -104,9 +104,9 @@ func NewWithBackend(backend backend.Backend) *Local {
 	}
 }
 
-func (b *Local) ConfigSchema() *configschema.Block {
+func (b *Local) ConfigSchema(ctx context.Context) *configschema.Block {
 	if b.Backend != nil {
-		return b.Backend.ConfigSchema()
+		return b.Backend.ConfigSchema(ctx)
 	}
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
