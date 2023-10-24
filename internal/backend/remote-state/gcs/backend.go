@@ -28,7 +28,9 @@ import (
 type Backend struct {
 	*schema.Backend
 
-	storageClient  *storage.Client
+	storageClient *storage.Client
+
+	// TODO: Remove storageContext once all methods are accepting a context.
 	storageContext context.Context
 
 	bucketName string

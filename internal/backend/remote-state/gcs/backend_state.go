@@ -26,11 +26,11 @@ const (
 
 // Workspaces returns a list of names for the workspaces found on GCS. The default
 // state is always returned as the first element in the slice.
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	states := []string{backend.DefaultStateName}
 
 	bucket := b.storageClient.Bucket(b.bucketName)
-	objs := bucket.Objects(b.storageContext, &storage.Query{
+	objs := bucket.Objects(ctx, &storage.Query{
 		Delimiter: "/",
 		Prefix:    b.prefix,
 	})

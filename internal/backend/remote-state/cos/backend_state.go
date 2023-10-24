@@ -24,13 +24,13 @@ const (
 )
 
 // Workspaces returns a list of names for the workspaces
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	c, err := b.client("tencentcloud")
 	if err != nil {
 		return nil, err
 	}
 
-	obs, err := c.getBucket(b.prefix)
+	obs, err := c.getBucket(ctx, b.prefix)
 	log.Printf("[DEBUG] list all workspaces, objects: %v, error: %v", obs, err)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	}
 	stateMgr := &remote.State{Client: c}
 
-	ws, err := b.Workspaces()
+	ws, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -23,13 +23,12 @@ const (
 	keyEnvPrefix = "env:"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	prefix := b.keyName + keyEnvPrefix
 	params := containers.ListBlobsInput{
 		Prefix: &prefix,
 	}
 
-	ctx := context.TODO()
 	client, err := b.armClient.getContainersClient(ctx)
 	if err != nil {
 		return nil, err

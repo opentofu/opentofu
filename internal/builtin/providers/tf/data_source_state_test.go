@@ -370,6 +370,6 @@ func (b backendFailsConfigure) DeleteWorkspace(_ context.Context, name string, _
 	return fmt.Errorf("DeleteWorkspace not implemented")
 }
 
-func (b backendFailsConfigure) Workspaces() ([]string, error) {
+func (b backendFailsConfigure) Workspaces(context.Context) ([]string, error) {
 	return nil, fmt.Errorf("Workspaces not implemented")
 }

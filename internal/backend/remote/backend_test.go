@@ -269,11 +269,11 @@ func TestRemote_addAndRemoveWorkspacesDefault(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	if _, err := b.Workspaces(); err != backend.ErrWorkspacesNotSupported {
+	ctx := context.Background()
+
+	if _, err := b.Workspaces(ctx); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
-
-	ctx := context.Background()
 
 	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -296,7 +296,9 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	b, bCleanup := testBackendNoDefault(t)
 	defer bCleanup()
 
-	states, err := b.Workspaces()
+	ctx := context.Background()
+
+	states, err := b.Workspaces(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,8 +307,6 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	if !reflect.DeepEqual(states, expectedWorkspaces) {
 		t.Fatalf("expected states %#+v, got %#+v", expectedWorkspaces, states)
 	}
-
-	ctx := context.Background()
 
 	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
@@ -317,7 +317,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +332,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +350,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +364,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

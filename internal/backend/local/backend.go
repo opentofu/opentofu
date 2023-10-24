@@ -186,10 +186,10 @@ func (b *Local) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 	return []backend.HostAlias{}, nil
 }
 
-func (b *Local) Workspaces() ([]string, error) {
+func (b *Local) Workspaces(ctx context.Context) ([]string, error) {
 	// If we have a backend handling state, defer to that.
 	if b.Backend != nil {
-		return b.Backend.Workspaces()
+		return b.Backend.Workspaces(ctx)
 	}
 
 	// the listing always start with "default"
@@ -430,9 +430,9 @@ func (b *Local) StatePaths(name string) (stateIn, stateOut, backupOut string) {
 // This should be used when "migrating" from one local backend configuration to
 // another in order to avoid deleting the "old" state snapshots if they are
 // in the same files as the "new" state snapshots.
-func (b *Local) PathsConflictWith(other *Local) bool {
+func (b *Local) PathsConflictWith(ctx context.Context, other *Local) bool {
 	otherPaths := map[string]struct{}{}
-	otherWorkspaces, err := other.Workspaces()
+	otherWorkspaces, err := other.Workspaces(ctx)
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.
@@ -443,7 +443,7 @@ func (b *Local) PathsConflictWith(other *Local) bool {
 		otherPaths[p] = struct{}{}
 	}
 
-	ourWorkspaces, err := other.Workspaces()
+	ourWorkspaces, err := other.Workspaces(ctx)
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.

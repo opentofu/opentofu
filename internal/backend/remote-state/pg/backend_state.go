@@ -13,9 +13,9 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	query := `SELECT name FROM %s.%s WHERE name != 'default' ORDER BY name`
-	rows, err := b.db.Query(fmt.Sprintf(query, b.schemaName, statesTableName))
+	rows, err := b.db.QueryContext(ctx, fmt.Sprintf(query, b.schemaName, statesTableName))
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	// Check to see if this state already exists.
 	// If the state doesn't exist, we have to assume this
 	// is a normal create operation, and take the lock at that point.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}
