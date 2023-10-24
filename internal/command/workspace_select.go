@@ -83,7 +83,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return 1
 	}
 
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	states, err := b.Workspaces(ctx)
 	if err != nil {

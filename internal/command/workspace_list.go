@@ -59,7 +59,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 
 	states, err := b.Workspaces(ctx)
 	if err != nil {
