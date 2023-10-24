@@ -243,7 +243,7 @@ func (c *httpClient) Put(data []byte) error {
 
 func (c *httpClient) Delete(ctx context.Context) error {
 	// Make the request
-	resp, err := c.httpRequest(context.TODO(), "DELETE", c.URL, nil, "delete state")
+	resp, err := c.httpRequest(ctx, "DELETE", c.URL, nil, "delete state")
 	if err != nil {
 		return err
 	}
