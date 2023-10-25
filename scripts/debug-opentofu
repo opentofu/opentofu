@@ -7,7 +7,7 @@
 #    dlv connect 127.0.0.1:2345
 #
 # This tool does not install dlv. To install it, see its instructions:
-#    https://github.com/derekparker/delve/tree/master/Documentation/installation
+#    https://github.com/go-delve/delve/tree/master/Documentation/installation
 #
 # For more convenient use, you may wish to put this script in your PATH:
 #    ln -s ../src/github.com/opentofu/opentofu/scripts/debug-opentofu $GOPATH/bin/debug-opentofu

@@ -23,6 +23,9 @@ website/node_modules
 website/vendor
 vendor/
 
+# VSCode debugging configurations
+.vscode/launch.json
+
 # Coverage
 coverage.txt
 

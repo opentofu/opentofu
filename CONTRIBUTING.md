@@ -18,6 +18,7 @@ Generally, we appreciate external contributions very much and would love to work
 
 - [Contributing a Code Change](#contributing-a-code-change)
 - [Working on the Code](#working-on-the-code)
+- [Adding or updating dependencies](#adding-or-updating-dependencies)
 - [Acceptance Tests: Testing interactions with external services](#acceptance-tests-testing-interactions-with-external-services)
 - [Generated Code](#generated-code)
 
@@ -81,6 +82,8 @@ As you make your changes, you can re-run the above command to ensure that the te
 go test ./internal/command/...
 go test ./internal/addrs
 ```
+
+For debugging the code, please refer to the [DEBUGGING.md](./DEBUGGING.md) file.
 
 ## Adding or updating dependencies
 
