@@ -439,6 +439,8 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ctx := context.Background()
+
 	getStateMgr := func(schemaName string) (statemgr.Full, *statemgr.LockInfo) {
 		defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
 		config := backend.TestWrapConfig(map[string]interface{}{
@@ -450,8 +452,6 @@ func TestBackendConcurrentLock(t *testing.T) {
 		if b == nil {
 			t.Fatal("Backend could not be configured")
 		}
-
-		ctx := context.Background()
 
 		stateMgr, err := b.StateMgr(ctx, backend.DefaultStateName)
 		if err != nil {
@@ -470,22 +470,20 @@ func TestBackendConcurrentLock(t *testing.T) {
 
 	// First we need to create the workspace as the lock for creating them is
 	// global
-	lockID1, err := s1.Lock(i1)
+	lockID1, err := s1.Lock(ctx, i1)
 	if err != nil {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
-
-	ctx := context.Background()
 
 	if err = s1.PersistState(ctx, nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err := s1.Unlock(lockID1); err != nil {
+	if err := s1.Unlock(ctx, lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	lockID2, err := s2.Lock(i2)
+	lockID2, err := s2.Lock(ctx, i2)
 	if err != nil {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
@@ -494,26 +492,26 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err := s2.Unlock(lockID2); err != nil {
+	if err := s2.Unlock(ctx, lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
 	// Now we can test concurrent lock
-	lockID1, err = s1.Lock(i1)
+	lockID1, err = s1.Lock(ctx, i1)
 	if err != nil {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
 
-	lockID2, err = s2.Lock(i2)
+	lockID2, err = s2.Lock(ctx, i2)
 	if err != nil {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err := s1.Unlock(lockID1); err != nil {
+	if err := s1.Unlock(ctx, lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	if err := s2.Unlock(lockID2); err != nil {
+	if err := s2.Unlock(ctx, lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 }

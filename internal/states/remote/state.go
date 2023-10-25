@@ -237,7 +237,7 @@ func (s *State) ShouldPersistIntermediateState(info *local.IntermediateStatePers
 }
 
 // Lock calls the Client's Lock method if it's implemented.
-func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *State) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -246,13 +246,13 @@ func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	if c, ok := s.Client.(ClientLocker); ok {
-		return c.Lock(info)
+		return c.Lock(ctx, info)
 	}
 	return "", nil
 }
 
 // Unlock calls the Client's Unlock method if it's implemented.
-func (s *State) Unlock(id string) error {
+func (s *State) Unlock(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -261,7 +261,7 @@ func (s *State) Unlock(id string) error {
 	}
 
 	if c, ok := s.Client.(ClientLocker); ok {
-		return c.Unlock(id)
+		return c.Unlock(ctx, id)
 	}
 	return nil
 }

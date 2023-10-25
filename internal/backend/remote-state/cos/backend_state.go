@@ -105,14 +105,14 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := c.Lock(lockInfo)
+		lockId, err := c.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to lock cos state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(e error) error {
-			if err := stateMgr.Unlock(lockId); err != nil {
+			if err := stateMgr.Unlock(ctx, lockId); err != nil {
 				return fmt.Errorf(unlockErrMsg, err, lockId)
 			}
 			return e
@@ -152,14 +152,13 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 	}
 
 	return &remoteClient{
-		cosContext: b.cosContext,
-		cosClient:  b.cosClient,
-		tagClient:  b.tagClient,
-		bucket:     b.bucket,
-		stateFile:  b.stateFile(name),
-		lockFile:   b.lockFile(name),
-		encrypt:    b.encrypt,
-		acl:        b.acl,
+		cosClient: b.cosClient,
+		tagClient: b.tagClient,
+		bucket:    b.bucket,
+		stateFile: b.stateFile(name),
+		lockFile:  b.lockFile(name),
+		encrypt:   b.encrypt,
+		acl:       b.acl,
 	}, nil
 }
 

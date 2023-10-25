@@ -217,7 +217,7 @@ func (c *RemoteClient) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	if c.ddbTable == "" {
 		return "", nil
 	}
@@ -242,7 +242,6 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
 	}
 
-	ctx := context.TODO()
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfo(ctx)
@@ -368,13 +367,12 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	return lockInfo, nil
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	if c.ddbTable == "" {
 		return nil
 	}
 
 	lockErr := &statemgr.LockError{}
-	ctx := context.TODO()
 
 	// TODO: store the path and lock ID in separate fields, and have proper
 	// projection expression only delete the lock if both match, rather than

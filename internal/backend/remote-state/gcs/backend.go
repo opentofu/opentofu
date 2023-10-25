@@ -30,9 +30,6 @@ type Backend struct {
 
 	storageClient *storage.Client
 
-	// TODO: Remove storageContext once all methods are accepting a context.
-	storageContext context.Context
-
 	bucketName string
 	prefix     string
 
@@ -129,13 +126,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		return nil
 	}
 
-	// ctx is a background context with the backend config added.
-	// Since no context is passed to remoteClient.Get(), .Lock(), etc. but
-	// one is required for calling the GCP API, we're holding on to this
-	// context here and re-use it later.
-	b.storageContext = ctx
-
-	data := schema.FromContextBackendConfig(b.storageContext)
+	data := schema.FromContextBackendConfig(ctx)
 
 	b.bucketName = data.Get("bucket").(string)
 	b.prefix = strings.TrimLeft(data.Get("prefix").(string), "/")
@@ -217,7 +208,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		endpoint := option.WithEndpoint(storageEndpoint.(string))
 		opts = append(opts, endpoint)
 	}
-	client, err := storage.NewClient(b.storageContext, opts...)
+	client, err := storage.NewClient(ctx, opts...)
 	if err != nil {
 		return fmt.Errorf("storage.NewClient() failed: %w", err)
 	}

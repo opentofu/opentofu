@@ -133,11 +133,11 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// take a lock and create a new state if it doesn't exist.
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := s.Lock(lockInfo)
+		lockID, err := s.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
-		defer s.Unlock(lockID)
+		defer s.Unlock(ctx, lockID)
 
 		// If we have no state, we have to create an empty state
 		if v := s.State(); v == nil {

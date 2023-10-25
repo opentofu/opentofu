@@ -244,10 +244,11 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 
 	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config))
 	be := b.(*Backend)
+	ctx := context.Background()
 
 	// create the bucket if it doesn't exist
 	bkt := be.storageClient.Bucket(bucket)
-	_, err := bkt.Attrs(be.storageContext)
+	_, err := bkt.Attrs(ctx)
 	if err != nil {
 		if err != storage.ErrBucketNotExist {
 			t.Fatal(err)
@@ -256,7 +257,7 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 		attrs := &storage.BucketAttrs{
 			Location: os.Getenv("GOOGLE_REGION"),
 		}
-		err := bkt.Create(be.storageContext, projectID, attrs)
+		err := bkt.Create(ctx, projectID, attrs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -386,7 +387,7 @@ func teardownBackend(t *testing.T, be backend.Backend, prefix string) {
 	if !ok {
 		t.Fatalf("be is a %T, want a *gcsBackend", be)
 	}
-	ctx := gcsBE.storageContext
+	ctx := context.Background()
 
 	bucket := gcsBE.storageClient.Bucket(gcsBE.bucketName)
 	objs := bucket.Objects(ctx, nil)

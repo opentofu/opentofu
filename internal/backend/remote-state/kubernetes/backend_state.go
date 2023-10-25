@@ -94,7 +94,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := stateMgr.Lock(lockInfo)
+		lockID, err := stateMgr.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := stateMgr.Unlock(lockID); err != nil {
+			if err := stateMgr.Unlock(ctx, lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state in Kubernetes failed:
 

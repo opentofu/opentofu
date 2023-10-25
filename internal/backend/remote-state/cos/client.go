@@ -28,9 +28,6 @@ const (
 
 // RemoteClient implements the client of remote state
 type remoteClient struct {
-	// TODO: remove once all methods are using context passed via the CLI.
-	cosContext context.Context
-
 	cosClient *cos.Client
 	tagClient *tag.Client
 
@@ -77,74 +74,74 @@ func (c *remoteClient) Delete(ctx context.Context) error {
 }
 
 // Lock lock remote state file for writing
-func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	log.Printf("[DEBUG] lock remote state file %s", c.lockFile)
 
 	err := c.cosLock(c.bucket, c.lockFile)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", c.lockError(ctx, err)
 	}
 	defer c.cosUnlock(c.bucket, c.lockFile)
 
-	exists, _, _, err := c.getObject(c.cosContext, c.lockFile)
+	exists, _, _, err := c.getObject(ctx, c.lockFile)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", c.lockError(ctx, err)
 	}
 
 	if exists {
-		return "", c.lockError(fmt.Errorf("lock file %s exists", c.lockFile))
+		return "", c.lockError(ctx, fmt.Errorf("lock file %s exists", c.lockFile))
 	}
 
 	info.Path = c.lockFile
 	data, err := json.Marshal(info)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", c.lockError(ctx, err)
 	}
 
 	check := fmt.Sprintf("%x", md5.Sum(data))
-	err = c.putObject(c.cosContext, c.lockFile, data)
+	err = c.putObject(ctx, c.lockFile, data)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", c.lockError(ctx, err)
 	}
 
 	return check, nil
 }
 
-// Unlock unlock remote state file
-func (c *remoteClient) Unlock(check string) error {
+// Unlock unlocks remote state file
+func (c *remoteClient) Unlock(ctx context.Context, check string) error {
 	log.Printf("[DEBUG] unlock remote state file %s", c.lockFile)
 
-	info, err := c.lockInfo()
+	info, err := c.lockInfo(ctx)
 	if err != nil {
-		return c.lockError(err)
+		return c.lockError(ctx, err)
 	}
 
 	if info.ID != check {
-		return c.lockError(fmt.Errorf("lock id mismatch, %v != %v", info.ID, check))
+		return c.lockError(ctx, fmt.Errorf("lock id mismatch, %v != %v", info.ID, check))
 	}
 
-	err = c.deleteObject(c.cosContext, c.lockFile)
+	err = c.deleteObject(ctx, c.lockFile)
 	if err != nil {
-		return c.lockError(err)
+		return c.lockError(ctx, err)
 	}
 
 	err = c.cosUnlock(c.bucket, c.lockFile)
 	if err != nil {
-		return c.lockError(err)
+		return c.lockError(ctx, err)
 	}
 
 	return nil
 }
 
 // lockError returns statemgr.LockError
-func (c *remoteClient) lockError(err error) *statemgr.LockError {
+func (c *remoteClient) lockError(ctx context.Context, err error) *statemgr.LockError {
 	log.Printf("[DEBUG] failed to lock or unlock %s: %v", c.lockFile, err)
 
 	lockErr := &statemgr.LockError{
 		Err: err,
 	}
 
-	info, infoErr := c.lockInfo()
+	info, infoErr := c.lockInfo(ctx)
 	if infoErr != nil {
 		lockErr.Err = multierror.Append(lockErr.Err, infoErr)
 	} else {
@@ -155,8 +152,8 @@ func (c *remoteClient) lockError(err error) *statemgr.LockError {
 }
 
 // lockInfo returns LockInfo from lock file
-func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
-	exists, data, checksum, err := c.getObject(c.cosContext, c.lockFile)
+func (c *remoteClient) lockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+	exists, data, checksum, err := c.getObject(ctx, c.lockFile)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +235,7 @@ func (c *remoteClient) putObject(ctx context.Context, cosFile string, data []byt
 	}
 
 	r := bytes.NewReader(data)
-	rsp, err := c.cosClient.Object.Put(c.cosContext, cosFile, r, opt)
+	rsp, err := c.cosClient.Object.Put(ctx, cosFile, r, opt)
 	if rsp == nil {
 		log.Printf("[DEBUG] putObject %s: error: %v", cosFile, err)
 		return fmt.Errorf("failed to save file to %v: %w", cosFile, err)

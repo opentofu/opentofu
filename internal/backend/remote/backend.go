@@ -919,10 +919,10 @@ func (b *Remote) IgnoreVersionConflict() {
 // that there are no compatibility concerns, so it returns no diagnostics.
 //
 // If the versions differ,
-func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Diagnostics {
+func (b *Remote) VerifyWorkspaceTerraformVersion(ctx context.Context, workspaceName string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	workspace, err := b.getRemoteWorkspace(context.Background(), workspaceName)
+	workspace, err := b.getRemoteWorkspace(ctx, workspaceName)
 	if err != nil {
 		// If the workspace doesn't exist, there can be no compatibility
 		// problem, so we can return. This is most likely to happen when
