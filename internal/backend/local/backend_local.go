@@ -210,13 +210,16 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 
 	// For a "direct" local run, the input state is the most recently stored
 	// snapshot, from the previous run.
-	rawState := s.State()
-	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, rawState)
-	diags = diags.Append(migrateDiags)
-	if migrateDiags.HasErrors() {
-		return nil, nil, diags
+	state := s.State()
+	if state != nil {
+		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
+		diags = diags.Append(migrateDiags)
+		if migrateDiags.HasErrors() {
+			return nil, nil, diags
+		}
+		state = migratedState
 	}
-	run.InputState = migratedState
+	run.InputState = state
 
 	tfCtx, moreDiags := tofu.NewContext(coreOpts)
 	diags = diags.Append(moreDiags)
