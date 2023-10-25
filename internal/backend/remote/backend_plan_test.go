@@ -98,7 +98,7 @@ func TestRemote_planBasic(t *testing.T) {
 
 	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -130,7 +130,7 @@ func TestRemote_planCanceled(t *testing.T) {
 
 	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelled plan: %s", err.Error())
 	}
 }

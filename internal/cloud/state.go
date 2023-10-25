@@ -330,14 +330,13 @@ func (s *State) uploadState(ctx context.Context, lineage string, serial uint64, 
 }
 
 // Lock calls the Client's Lock method if it's implemented.
-func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *State) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.disableLocks {
 		return "", nil
 	}
-	ctx := context.Background()
 
 	lockErr := &statemgr.LockError{Info: s.lockInfo}
 
@@ -434,15 +433,13 @@ func (s *State) getStatePayload(ctx context.Context) (*remote.Payload, error) {
 }
 
 // Unlock calls the Client's Unlock method if it's implemented.
-func (s *State) Unlock(id string) error {
+func (s *State) Unlock(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.disableLocks {
 		return nil
 	}
-
-	ctx := context.Background()
 
 	// We first check if there was an error while uploading the latest
 	// state. If so, we will not unlock the workspace to prevent any

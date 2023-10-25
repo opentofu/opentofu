@@ -259,7 +259,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		UseAzureADAuthentication:      data.Get("use_azuread_auth").(bool),
 	}
 
-	armClient, err := buildArmClient(context.TODO(), config)
+	armClient, err := buildArmClient(ctx, config)
 	if err != nil {
 		return err
 	}

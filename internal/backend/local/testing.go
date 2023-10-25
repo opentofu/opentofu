@@ -208,7 +208,7 @@ func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 	ctx := context.Background()
 
 	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
 		t.Errorf("state is already locked: %s", err.Error())
 		return false
 	}
@@ -224,7 +224,7 @@ func assertBackendStateLocked(t *testing.T, b *Local) bool {
 	ctx := context.Background()
 
 	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
 		return true
 	}
 	t.Error("unexpected success locking state")

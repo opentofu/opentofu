@@ -148,7 +148,7 @@ func (c *RemoteClient) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	if c.otsTable == "" {
 		return "", nil
 	}
@@ -359,7 +359,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	}
 	return lockInfo, nil
 }
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	if c.otsTable == "" {
 		return nil
 	}

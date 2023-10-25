@@ -77,14 +77,14 @@ func (c *httpClient) httpRequest(ctx context.Context, method string, url *url.UR
 	return resp, nil
 }
 
-func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *httpClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	if c.LockURL == nil {
 		return "", nil
 	}
 	c.lockID = ""
 
 	jsonLockInfo := info.Marshal()
-	resp, err := c.httpRequest(context.TODO(), c.LockMethod, c.LockURL, &jsonLockInfo, "lock")
+	resp, err := c.httpRequest(ctx, c.LockMethod, c.LockURL, &jsonLockInfo, "lock")
 	if err != nil {
 		return "", err
 	}
@@ -125,12 +125,12 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 }
 
-func (c *httpClient) Unlock(id string) error {
+func (c *httpClient) Unlock(ctx context.Context, id string) error {
 	if c.UnlockURL == nil {
 		return nil
 	}
 
-	resp, err := c.httpRequest(context.TODO(), c.UnlockMethod, c.UnlockURL, &c.jsonLockInfo, "unlock")
+	resp, err := c.httpRequest(ctx, c.UnlockMethod, c.UnlockURL, &c.jsonLockInfo, "unlock")
 	if err != nil {
 		return err
 	}

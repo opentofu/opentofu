@@ -74,7 +74,7 @@ func (m *fakeFull) GetRootOutputValues(ctx context.Context) (map[string]*states.
 	return m.State().RootModule().OutputValues, nil
 }
 
-func (m *fakeFull) Lock(info *LockInfo) (string, error) {
+func (m *fakeFull) Lock(_ context.Context, info *LockInfo) (string, error) {
 	m.lockLock.Lock()
 	defer m.lockLock.Unlock()
 
@@ -89,7 +89,7 @@ func (m *fakeFull) Lock(info *LockInfo) (string, error) {
 	return "placeholder", nil
 }
 
-func (m *fakeFull) Unlock(id string) error {
+func (m *fakeFull) Unlock(_ context.Context, id string) error {
 	m.lockLock.Lock()
 	defer m.lockLock.Unlock()
 
@@ -136,10 +136,10 @@ func (m *fakeErrorFull) PersistState(_ context.Context, schemas *tofu.Schemas) e
 	return errors.New("fake state manager error")
 }
 
-func (m *fakeErrorFull) Lock(info *LockInfo) (string, error) {
+func (m *fakeErrorFull) Lock(_ context.Context, info *LockInfo) (string, error) {
 	return "placeholder", nil
 }
 
-func (m *fakeErrorFull) Unlock(id string) error {
+func (m *fakeErrorFull) Unlock(_ context.Context, id string) error {
 	return errors.New("fake state manager error")
 }

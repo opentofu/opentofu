@@ -350,7 +350,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	infoB.Operation = "test"
 	infoB.Who = "clientB"
 
-	lockIDA, err := lockerA.Lock(infoA)
+	lockIDA, err := lockerA.Lock(ctx, infoA)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -369,17 +369,17 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 		return
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(ctx, infoB)
 	if err == nil {
-		lockerA.Unlock(lockIDA)
+		lockerA.Unlock(ctx, lockIDA)
 		t.Fatal("client B obtained lock while held by client A")
 	}
 
-	if err := lockerA.Unlock(lockIDA); err != nil {
+	if err := lockerA.Unlock(ctx, lockIDA); err != nil {
 		t.Fatal("error unlocking client A", err)
 	}
 
-	lockIDB, err := lockerB.Lock(infoB)
+	lockIDB, err := lockerB.Lock(ctx, infoB)
 	if err != nil {
 		t.Fatal("unable to obtain lock from client B")
 	}
@@ -388,7 +388,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 		t.Errorf("duplicate lock IDs: %q", lockIDB)
 	}
 
-	if err = lockerB.Unlock(lockIDB); err != nil {
+	if err = lockerB.Unlock(ctx, lockIDB); err != nil {
 		t.Fatal("error unlocking client B:", err)
 	}
 
@@ -404,18 +404,18 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 		panic(err)
 	}
 
-	lockIDA, err = lockerA.Lock(infoA)
+	lockIDA, err = lockerA.Lock(ctx, infoA)
 	if err != nil {
 		t.Fatal("unable to get re lock A:", err)
 	}
 	unlock := func() {
-		err := lockerA.Unlock(lockIDA)
+		err := lockerA.Unlock(ctx, lockIDA)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(ctx, infoB)
 	if err == nil {
 		unlock()
 		t.Fatal("client B obtained lock while held by client A")
@@ -428,7 +428,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	}
 
 	// try to unlock with the second unlocker, using the ID from the error
-	if err := lockerB.Unlock(infoErr.Info.ID); err != nil {
+	if err := lockerB.Unlock(ctx, infoErr.Info.ID); err != nil {
 		unlock()
 		t.Fatalf("could not unlock with the reported ID %q: %s", infoErr.Info.ID, err)
 	}

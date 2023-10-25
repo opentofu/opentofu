@@ -127,7 +127,7 @@ func TestRemoteClientLocks_multipleStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s1.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := s1.Lock(ctx, statemgr.NewLockInfo()); err != nil {
 		t.Fatal("failed to get lock for s1:", err)
 	}
 
@@ -136,7 +136,7 @@ func TestRemoteClientLocks_multipleStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s2.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := s2.Lock(ctx, statemgr.NewLockInfo()); err != nil {
 		t.Fatal("failed to get lock for s2:", err)
 	}
 }
@@ -181,7 +181,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(ctx, info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -192,7 +192,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(lockID); err != nil {
+	if err := s2.Unlock(ctx, lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
@@ -207,7 +207,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(ctx, info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -218,7 +218,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(ctx, lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 }

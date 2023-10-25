@@ -39,10 +39,10 @@ func (s *LockDisabled) PersistState(ctx context.Context, schemas *tofu.Schemas) 
 	return s.Inner.PersistState(ctx, schemas)
 }
 
-func (s *LockDisabled) Lock(info *LockInfo) (string, error) {
+func (s *LockDisabled) Lock(ctx context.Context, info *LockInfo) (string, error) {
 	return "", nil
 }
 
-func (s *LockDisabled) Unlock(id string) error {
+func (s *LockDisabled) Unlock(ctx context.Context, id string) error {
 	return nil
 }

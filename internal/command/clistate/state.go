@@ -148,7 +148,7 @@ func (l *locker) Unlock() tfdiags.Diagnostics {
 	}
 
 	err := slowmessage.Do(LockThreshold, func() error {
-		return l.state.Unlock(l.lockID)
+		return l.state.Unlock(l.ctx, l.lockID)
 	}, l.view.Unlocking)
 
 	if err != nil {

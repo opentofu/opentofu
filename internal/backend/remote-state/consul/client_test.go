@@ -314,14 +314,14 @@ func TestConsul_destroyLock(t *testing.T) {
 			clientA := s.(*remote.State).Client.(*RemoteClient)
 
 			info := statemgr.NewLockInfo()
-			id, err := clientA.Lock(info)
+			id, err := clientA.Lock(ctx, info)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			lockPath := clientA.Path + lockSuffix
 
-			if err := clientA.Unlock(id); err != nil {
+			if err := clientA.Unlock(ctx, id); err != nil {
 				t.Fatal(err)
 			}
 
@@ -337,18 +337,18 @@ func TestConsul_destroyLock(t *testing.T) {
 			clientB := s.(*remote.State).Client.(*RemoteClient)
 
 			info = statemgr.NewLockInfo()
-			id, err = clientA.Lock(info)
+			id, err = clientA.Lock(ctx, info)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if err := clientB.Unlock(id); err != nil {
+			if err := clientB.Unlock(ctx, id); err != nil {
 				t.Fatal(err)
 			}
 
 			testLock(clientA, lockPath)
 
-			err = clientA.Unlock(id)
+			err = clientA.Unlock(ctx, id)
 
 			if err == nil {
 				t.Fatal("consul lock should have been lost")
@@ -386,7 +386,7 @@ func TestConsul_lostLock(t *testing.T) {
 
 	info := statemgr.NewLockInfo()
 	info.Operation = "test-lost-lock"
-	id, err := sA.Lock(info)
+	id, err := sA.Lock(ctx, info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -406,7 +406,7 @@ func TestConsul_lostLock(t *testing.T) {
 
 	<-reLocked
 
-	if err := sA.Unlock(id); err != nil {
+	if err := sA.Unlock(ctx, id); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -439,7 +439,7 @@ func TestConsul_lostLockConnection(t *testing.T) {
 
 	info := statemgr.NewLockInfo()
 	info.Operation = "test-lost-lock-connection"
-	id, err := s.Lock(info)
+	id, err := s.Lock(ctx, info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -453,7 +453,7 @@ func TestConsul_lostLockConnection(t *testing.T) {
 		<-dialed
 	}
 
-	if err := s.Unlock(id); err != nil {
+	if err := s.Unlock(ctx, id); err != nil {
 		t.Fatal("unlock error:", err)
 	}
 }

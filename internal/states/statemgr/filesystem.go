@@ -314,7 +314,7 @@ func (s *Filesystem) refreshState() error {
 }
 
 // Lock implements Locker using filesystem discretionary locks.
-func (s *Filesystem) Lock(info *LockInfo) (string, error) {
+func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 	defer s.mutex()()
 
 	if s.stateFileOut == nil {
@@ -345,8 +345,8 @@ func (s *Filesystem) Lock(info *LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-// Unlock is the companion to Lock, completing the implemention of Locker.
-func (s *Filesystem) Unlock(id string) error {
+// Unlock is the companion to Lock, completing the implementation of Locker.
+func (s *Filesystem) Unlock(_ context.Context, id string) error {
 	defer s.mutex()()
 
 	if s.lockID == "" {

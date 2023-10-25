@@ -243,7 +243,7 @@ type stateStorageThatFailsRefresh struct {
 	locked bool
 }
 
-func (s *stateStorageThatFailsRefresh) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *stateStorageThatFailsRefresh) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	if s.locked {
 		return "", fmt.Errorf("already locked")
 	}
@@ -251,7 +251,7 @@ func (s *stateStorageThatFailsRefresh) Lock(info *statemgr.LockInfo) (string, er
 	return "locked", nil
 }
 
-func (s *stateStorageThatFailsRefresh) Unlock(id string) error {
+func (s *stateStorageThatFailsRefresh) Unlock(_ context.Context, id string) error {
 	if !s.locked {
 		return fmt.Errorf("not locked")
 	}

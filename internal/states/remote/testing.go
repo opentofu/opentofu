@@ -73,25 +73,27 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 	infoB.Operation = "test"
 	infoB.Who = "clientB"
 
-	lockIDA, err := lockerA.Lock(infoA)
+	ctx := context.Background()
+
+	lockIDA, err := lockerA.Lock(ctx, infoA)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(ctx, infoB)
 	if err == nil {
-		lockerA.Unlock(lockIDA)
+		lockerA.Unlock(ctx, lockIDA)
 		t.Fatal("client B obtained lock while held by client A")
 	}
 	if _, ok := err.(*statemgr.LockError); !ok {
 		t.Errorf("expected a LockError, but was %t: %s", err, err)
 	}
 
-	if err := lockerA.Unlock(lockIDA); err != nil {
+	if err := lockerA.Unlock(ctx, lockIDA); err != nil {
 		t.Fatal("error unlocking client A", err)
 	}
 
-	lockIDB, err := lockerB.Lock(infoB)
+	lockIDB, err := lockerB.Lock(ctx, infoB)
 	if err != nil {
 		t.Fatal("unable to obtain lock from client B")
 	}
@@ -100,7 +102,7 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 		t.Fatalf("duplicate lock IDs: %q", lockIDB)
 	}
 
-	if err = lockerB.Unlock(lockIDB); err != nil {
+	if err = lockerB.Unlock(ctx, lockIDB); err != nil {
 		t.Fatal("error unlocking client B:", err)
 	}
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-uuid"
+
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
@@ -115,7 +116,7 @@ func (c *RemoteClient) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	stateName := fmt.Sprintf("%s/%s", c.containerName, c.keyName)
 	info.Path = stateName
 
@@ -129,7 +130,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	getLockInfoErr := func(err error) error {
-		lockInfo, infoErr := c.getLockInfo()
+		lockInfo, infoErr := c.getLockInfo(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
 		}
@@ -144,7 +145,6 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		ProposedLeaseID: &info.ID,
 		LeaseDuration:   -1,
 	}
-	ctx := context.TODO()
 
 	// obtain properties to see if the blob lease is already in use. If the blob doesn't exist, create it
 	properties, err := c.giovanniBlobClient.GetProperties(ctx, c.accountName, c.containerName, c.keyName, blobs.GetPropertiesInput{})
@@ -179,20 +179,19 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	info.ID = leaseID.LeaseID
 	c.leaseID = leaseID.LeaseID
 
-	if err := c.writeLockInfo(info); err != nil {
+	if err := c.writeLockInfo(ctx, info); err != nil {
 		return "", err
 	}
 
 	return info.ID, nil
 }
 
-func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
+func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
 	options := blobs.GetPropertiesInput{}
 	if c.leaseID != "" {
 		options.LeaseID = &c.leaseID
 	}
 
-	ctx := context.TODO()
 	blob, err := c.giovanniBlobClient.GetProperties(ctx, c.accountName, c.containerName, c.keyName, options)
 	if err != nil {
 		return nil, err
@@ -218,8 +217,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 }
 
 // writes info to blob meta data, deletes metadata entry if info is nil
-func (c *RemoteClient) writeLockInfo(info *statemgr.LockInfo) error {
-	ctx := context.TODO()
+func (c *RemoteClient) writeLockInfo(ctx context.Context, info *statemgr.LockInfo) error {
 	blob, err := c.giovanniBlobClient.GetProperties(ctx, c.accountName, c.containerName, c.keyName, blobs.GetPropertiesInput{LeaseID: &c.leaseID})
 	if err != nil {
 		return err
@@ -244,10 +242,10 @@ func (c *RemoteClient) writeLockInfo(info *statemgr.LockInfo) error {
 	return err
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	lockErr := &statemgr.LockError{}
 
-	lockInfo, err := c.getLockInfo()
+	lockInfo, err := c.getLockInfo(ctx)
 	if err != nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
@@ -260,12 +258,11 @@ func (c *RemoteClient) Unlock(id string) error {
 	}
 
 	c.leaseID = lockInfo.ID
-	if err := c.writeLockInfo(nil); err != nil {
+	if err := c.writeLockInfo(ctx, nil); err != nil {
 		lockErr.Err = fmt.Errorf("failed to delete lock info from metadata: %w", err)
 		return lockErr
 	}
 
-	ctx := context.TODO()
 	_, err = c.giovanniBlobClient.ReleaseLease(ctx, c.accountName, c.containerName, c.keyName, id)
 	if err != nil {
 		lockErr.Err = err

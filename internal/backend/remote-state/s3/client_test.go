@@ -104,7 +104,7 @@ func TestForceUnlock(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
+	ctx := context.Background()
 	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
 	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
 	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
@@ -120,7 +120,7 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(ctx, info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -131,7 +131,7 @@ func TestForceUnlock(t *testing.T) {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(lockID); err != nil {
+	if err := s2.Unlock(ctx, lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
@@ -146,7 +146,7 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(ctx, info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -157,7 +157,7 @@ func TestForceUnlock(t *testing.T) {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(ctx, lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 }
