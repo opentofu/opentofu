@@ -225,6 +225,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "Force s3 to use path style api.",
 			},
+			"use_path_style": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Enable path-style S3 URLs.",
+			},
 			"retry_mode": {
 				Type:        cty.String,
 				Optional:    true,
