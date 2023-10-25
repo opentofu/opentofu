@@ -766,6 +766,47 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 	}
 }
 
+func TestBackendConfig_PrepareConfigValidationWarnings(t *testing.T) {
+	cases := map[string]struct {
+		config       cty.Value
+		expectedWarn string
+	}{
+		"deprecated force path style": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":           cty.StringVal("test"),
+				"key":              cty.StringVal("test"),
+				"region":           cty.StringVal("us-west-2"),
+				"force_path_style": cty.BoolVal(false),
+			}),
+			expectedWarn: `Deprecated Parameter: Parameter "force_path_style" is deprecated. Use "use_path_style" instead.`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			oldEnv := servicemocks.StashEnv()
+			defer servicemocks.PopEnv(oldEnv)
+
+			b := New()
+
+			ctx := context.Background()
+
+			_, diags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			if tc.expectedWarn != "" {
+				if err := diags.ErrWithWarnings(); err != nil {
+					if !strings.Contains(err.Error(), tc.expectedWarn) {
+						t.Fatalf("unexpected validation result: %v", err)
+					}
+				} else {
+					t.Fatal("expected a warning, got none")
+				}
+			} else if err := diags.ErrWithWarnings(); err != nil {
+				t.Fatalf("expected no warnings, got %s", err)
+			}
+		})
+	}
+}
+
 func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 	cases := map[string]struct {
 		config      cty.Value
