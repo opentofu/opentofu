@@ -1,6 +1,8 @@
 package tofumigrate
 
 import (
+	tfaddr "github.com/opentofu/registry-address"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -43,7 +45,7 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 		for _, resource := range module.Resources {
 			_, referencedInConfig := providers[resource.ProviderConfig.Provider]
 			if resource.ProviderConfig.Provider.Hostname == "registry.terraform.io" && !referencedInConfig {
-				resource.ProviderConfig.Provider.Hostname = "registry.opentofu.org"
+				resource.ProviderConfig.Provider.Hostname = tfaddr.DefaultProviderRegistryHost
 			}
 		}
 	}
