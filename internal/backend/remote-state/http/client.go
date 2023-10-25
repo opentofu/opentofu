@@ -144,8 +144,8 @@ func (c *httpClient) Unlock(id string) error {
 	}
 }
 
-func (c *httpClient) Get() (*remote.Payload, error) {
-	resp, err := c.httpRequest(context.TODO(), "GET", c.URL, nil, "get state")
+func (c *httpClient) Get(ctx context.Context) (*remote.Payload, error) {
+	resp, err := c.httpRequest(ctx, "GET", c.URL, nil, "get state")
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (c *httpClient) Get() (*remote.Payload, error) {
 	return payload, nil
 }
 
-func (c *httpClient) Put(data []byte) error {
+func (c *httpClient) Put(ctx context.Context, data []byte) error {
 	// Copy the target URL
 	base := *c.URL
 
@@ -226,7 +226,7 @@ func (c *httpClient) Put(data []byte) error {
 	if c.UpdateMethod != "" {
 		method = c.UpdateMethod
 	}
-	resp, err := c.httpRequest(context.TODO(), method, &base, &data, "upload state")
+	resp, err := c.httpRequest(ctx, method, &base, &data, "upload state")
 	if err != nil {
 		return err
 	}

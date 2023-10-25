@@ -4,6 +4,7 @@
 package remote
 
 import (
+	"context"
 	"log"
 	"sync"
 	"testing"
@@ -41,10 +42,12 @@ func TestStateRace(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
+			ctx := context.Background()
+
 			defer wg.Done()
 			s.WriteState(current)
-			s.PersistState(nil)
-			s.RefreshState()
+			s.PersistState(ctx, nil)
+			s.RefreshState(ctx)
 		}()
 	}
 	wg.Wait()
@@ -329,11 +332,13 @@ func TestStatePersist(t *testing.T) {
 		Client: &mockClient{},
 	}
 
+	ctx := context.Background()
+
 	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(ctx); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -354,7 +359,7 @@ func TestStatePersist(t *testing.T) {
 			if err := mgr.WriteState(s); err != nil {
 				t.Fatalf("failed to WriteState for %q: %s", tc.name, err)
 			}
-			if err := mgr.PersistState(nil); err != nil {
+			if err := mgr.PersistState(ctx, nil); err != nil {
 				t.Fatalf("failed to PersistState for %q: %s", tc.name, err)
 			}
 
@@ -402,7 +407,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 		},
 	}
 
-	outputs, err := mgr.GetRootOutputValues()
+	outputs, err := mgr.GetRootOutputValues(context.Background())
 	if err != nil {
 		t.Errorf("Expected GetRootOutputValues to not return an error, but it returned %v", err)
 	}
@@ -513,11 +518,13 @@ func TestWriteStateForMigration(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
+
 	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(ctx); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -557,7 +564,7 @@ func TestWriteStateForMigration(t *testing.T) {
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
 			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			mgr.PersistState(ctx, nil)
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))
@@ -669,11 +676,13 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
+
 	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(ctx); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -723,7 +732,7 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
 			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			mgr.PersistState(ctx, nil)
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))

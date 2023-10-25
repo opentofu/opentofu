@@ -85,7 +85,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	stateMgr := &remote.State{Client: c}
 
 	// Grab the value
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(ctx); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +126,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		if err := stateMgr.WriteState(states.NewState()); err != nil {
 			return nil, unlock(err)
 		}
-		if err := stateMgr.PersistState(nil); err != nil {
+		if err := stateMgr.PersistState(ctx, nil); err != nil {
 			return nil, unlock(err)
 		}
 

@@ -33,13 +33,12 @@ type RemoteClient struct {
 	snapshot           bool
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	options := blobs.GetInput{}
 	if c.leaseID != "" {
 		options.LeaseID = &c.leaseID
 	}
 
-	ctx := context.TODO()
 	blob, err := c.giovanniBlobClient.Get(ctx, c.accountName, c.containerName, c.keyName, options)
 	if err != nil {
 		if blob.Response.IsHTTPStatus(http.StatusNotFound) {
@@ -60,7 +59,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	return payload, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	getOptions := blobs.GetPropertiesInput{}
 	setOptions := blobs.SetPropertiesInput{}
 	putOptions := blobs.PutBlockBlobInput{}
@@ -72,8 +71,6 @@ func (c *RemoteClient) Put(data []byte) error {
 		setOptions.LeaseID = &c.leaseID
 		putOptions.LeaseID = &c.leaseID
 	}
-
-	ctx := context.TODO()
 
 	if c.snapshot {
 		snapshotInput := blobs.SnapshotInput{LeaseID: options.LeaseID}

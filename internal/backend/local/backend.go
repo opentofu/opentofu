@@ -348,9 +348,14 @@ func (b *Local) opWait(
 	case <-stopCtx.Done():
 		view.Stopping()
 
+		// We want to have a context that's guaranteed to be active that can be
+		// used to persist the state. Otherwise, if the operation is canceled
+		// or stopped before we can persist the state, we'll lose the state.
+		persistCtx := context.Background()
+
 		// try to force a PersistState just in case the process is terminated
 		// before we can complete.
-		if err := opStateMgr.PersistState(nil); err != nil {
+		if err := opStateMgr.PersistState(persistCtx, nil); err != nil {
 			// We can't error out from here, but warn the user if there was an error.
 			// If this isn't transient, we will catch it again below, and
 			// attempt to save the state another way.

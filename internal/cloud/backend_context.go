@@ -58,7 +58,7 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 	}()
 
 	log.Printf("[TRACE] cloud: reading remote state for workspace %q", remoteWorkspaceName)
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(ctx); err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, diags
 	}

@@ -986,7 +986,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 			diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 			return nil, diags
 		}
-		if err := localState.RefreshState(); err != nil {
+		if err := localState.RefreshState(ctx); err != nil {
 			diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 			return nil, diags
 		}
@@ -1049,7 +1049,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 					diags = diags.Append(fmt.Errorf(errBackendMigrateLocalDelete, err))
 					return nil, diags
 				}
-				if err := localState.PersistState(nil); err != nil {
+				if err := localState.PersistState(ctx, nil); err != nil {
 					diags = diags.Append(fmt.Errorf(errBackendMigrateLocalDelete, err))
 					return nil, diags
 				}

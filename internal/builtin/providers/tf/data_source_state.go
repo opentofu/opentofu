@@ -143,7 +143,7 @@ func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		return cty.NilVal, diags
 	}
 
-	if err := state.RefreshState(); err != nil {
+	if err := state.RefreshState(ctx); err != nil {
 		diags = diags.Append(err)
 		return cty.NilVal, diags
 	}

@@ -71,7 +71,7 @@ type RemoteClient struct {
 	sessionCancel context.CancelFunc
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(context.Context) (*remote.Payload, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -123,7 +123,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	// The state can be stored in 4 different ways, based on the payload size
 	// and whether the user enabled gzip:
 	//  - single entry mode with plain JSON: a single JSON is stored at

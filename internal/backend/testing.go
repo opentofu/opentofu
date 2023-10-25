@@ -111,7 +111,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := foo.RefreshState(); err != nil {
+	if err := foo.RefreshState(ctx); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 	if v := foo.State(); v.HasManagedResourceInstanceObjects() {
@@ -122,7 +122,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := bar.RefreshState(); err != nil {
+	if err := bar.RefreshState(ctx); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 	if v := bar.State(); v.HasManagedResourceInstanceObjects() {
@@ -140,7 +140,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err := foo.WriteState(fooState); err != nil {
 			t.Fatal("error writing foo state:", err)
 		}
-		if err := foo.PersistState(nil); err != nil {
+		if err := foo.PersistState(ctx, nil); err != nil {
 			t.Fatal("error persisting foo state:", err)
 		}
 
@@ -168,12 +168,12 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err := bar.WriteState(barState); err != nil {
 			t.Fatalf("bad: %s", err)
 		}
-		if err := bar.PersistState(nil); err != nil {
+		if err := bar.PersistState(ctx, nil); err != nil {
 			t.Fatalf("bad: %s", err)
 		}
 
 		// verify that foo is unchanged with the existing state manager
-		if err := foo.RefreshState(); err != nil {
+		if err := foo.RefreshState(ctx); err != nil {
 			t.Fatal("error refreshing foo:", err)
 		}
 		fooState = foo.State()
@@ -186,7 +186,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err != nil {
 			t.Fatal("error re-fetching state:", err)
 		}
-		if err := foo.RefreshState(); err != nil {
+		if err := foo.RefreshState(ctx); err != nil {
 			t.Fatal("error refreshing foo:", err)
 		}
 		fooState = foo.State()
@@ -199,7 +199,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err != nil {
 			t.Fatal("error re-fetching state:", err)
 		}
-		if err := bar.RefreshState(); err != nil {
+		if err := bar.RefreshState(ctx); err != nil {
 			t.Fatal("error refreshing bar:", err)
 		}
 		barState = bar.State()
@@ -243,7 +243,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := foo.RefreshState(); err != nil {
+	if err := foo.RefreshState(ctx); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 	if v := foo.State(); v.HasManagedResourceInstanceObjects() {
@@ -318,7 +318,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := b1StateMgr.RefreshState(); err != nil {
+	if err := b1StateMgr.RefreshState(ctx); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 
@@ -334,7 +334,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := b2StateMgr.RefreshState(); err != nil {
+	if err := b2StateMgr.RefreshState(ctx); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 

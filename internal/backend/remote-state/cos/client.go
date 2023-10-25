@@ -42,10 +42,10 @@ type remoteClient struct {
 }
 
 // Get returns remote state file
-func (c *remoteClient) Get() (*remote.Payload, error) {
+func (c *remoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	log.Printf("[DEBUG] get remote state file %s", c.stateFile)
 
-	exists, data, checksum, err := c.getObject(c.stateFile)
+	exists, data, checksum, err := c.getObject(ctx, c.stateFile)
 	if err != nil {
 		return nil, err
 	}
@@ -63,10 +63,10 @@ func (c *remoteClient) Get() (*remote.Payload, error) {
 }
 
 // Put put state file to remote
-func (c *remoteClient) Put(data []byte) error {
+func (c *remoteClient) Put(ctx context.Context, data []byte) error {
 	log.Printf("[DEBUG] put remote state file %s", c.stateFile)
 
-	return c.putObject(c.stateFile, data)
+	return c.putObject(ctx, c.stateFile, data)
 }
 
 // Delete delete remote state file
@@ -86,7 +86,7 @@ func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 	defer c.cosUnlock(c.bucket, c.lockFile)
 
-	exists, _, _, err := c.getObject(c.lockFile)
+	exists, _, _, err := c.getObject(c.cosContext, c.lockFile)
 	if err != nil {
 		return "", c.lockError(err)
 	}
@@ -102,7 +102,7 @@ func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	check := fmt.Sprintf("%x", md5.Sum(data))
-	err = c.putObject(c.lockFile, data)
+	err = c.putObject(c.cosContext, c.lockFile, data)
 	if err != nil {
 		return "", c.lockError(err)
 	}
@@ -156,7 +156,7 @@ func (c *remoteClient) lockError(err error) *statemgr.LockError {
 
 // lockInfo returns LockInfo from lock file
 func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
-	exists, data, checksum, err := c.getObject(c.lockFile)
+	exists, data, checksum, err := c.getObject(c.cosContext, c.lockFile)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +176,8 @@ func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
 }
 
 // getObject get remote object
-func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, checksum string, err error) {
-	rsp, err := c.cosClient.Object.Get(c.cosContext, cosFile, nil)
+func (c *remoteClient) getObject(ctx context.Context, cosFile string) (exists bool, data []byte, checksum string, err error) {
+	rsp, err := c.cosClient.Object.Get(ctx, cosFile, nil)
 	if rsp == nil {
 		log.Printf("[DEBUG] getObject %s: error: %v", cosFile, err)
 		err = fmt.Errorf("failed to open file at %v: %w", cosFile, err)
@@ -221,7 +221,7 @@ func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, chec
 }
 
 // putObject put object to remote
-func (c *remoteClient) putObject(cosFile string, data []byte) error {
+func (c *remoteClient) putObject(ctx context.Context, cosFile string, data []byte) error {
 	opt := &cos.ObjectPutOptions{
 		ObjectPutHeaderOptions: &cos.ObjectPutHeaderOptions{
 			XCosMetaXXX: &http.Header{

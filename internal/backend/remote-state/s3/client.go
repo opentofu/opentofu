@@ -58,8 +58,7 @@ var (
 // test hook called when checksums don't match
 var testChecksumHook func()
 
-func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
-	ctx := context.TODO()
+func (c *RemoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
 	deadline := time.Now().Add(consistencyRetryTimeout)
 
 	// If we have a checksum, and the returned payload doesn't match, we retry
@@ -154,7 +153,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	return payload, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	contentType := "application/json"
 	contentLength := int64(len(data))
 
@@ -185,7 +184,6 @@ func (c *RemoteClient) Put(data []byte) error {
 
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
-	ctx := context.TODO()
 	_, err := c.s3Client.PutObject(ctx, i)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
