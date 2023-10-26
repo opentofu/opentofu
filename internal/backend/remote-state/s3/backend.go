@@ -223,7 +223,13 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 			"force_path_style": {
 				Type:        cty.Bool,
 				Optional:    true,
-				Description: "Force s3 to use path style api.",
+				Description: "Force s3 to use path style api. Use `use_path_style` instead.",
+				Deprecated:  true,
+			},
+			"use_path_style": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Enable path-style S3 URLs.",
 			},
 			"retry_mode": {
 				Type:        cty.String,
@@ -489,6 +495,24 @@ func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, 
 			detail,
 			attrPath))
 	}
+
+	if val := obj.GetAttr("force_path_style"); !val.IsNull() {
+		attrPath := cty.GetAttrPath("force_path_style")
+		detail := fmt.Sprintf(
+			`Parameter "%s" is deprecated. Use "%s" instead.`,
+			pathString(attrPath),
+			pathString(cty.GetAttrPath("use_path_style")))
+
+		diags = diags.Append(attributeWarningDiag(
+			"Deprecated Parameter",
+			detail,
+			attrPath))
+	}
+
+	validateAttributesConflict(
+		cty.GetAttrPath("force_path_style"),
+		cty.GetAttrPath("use_path_style"),
+	)(obj, cty.Path{}, &diags)
 
 	var assumeRoleDeprecatedFields = map[string]string{
 		"role_arn":                        "assume_role.role_arn",
@@ -767,6 +791,9 @@ func getS3Config(obj cty.Value) func(options *s3.Options) {
 			options.BaseEndpoint = aws.String(v)
 		}
 		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
+			options.UsePathStyle = v
+		}
+		if v, ok := boolAttrOk(obj, "use_path_style"); ok {
 			options.UsePathStyle = v
 		}
 	}
