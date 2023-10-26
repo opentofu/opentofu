@@ -36,7 +36,7 @@ const (
 	lockReacquireInterval = 2 * time.Second
 )
 
-var lostLockErr = errors.New("consul lock was lost")
+var errLostLock = errors.New("consul lock was lost")
 
 // RemoteClient is a remote client that stores data in Consul.
 type RemoteClient struct {
@@ -69,6 +69,9 @@ type RemoteClient struct {
 	// called when unlocking, or before creating a new lock if the lock is
 	// lost.
 	sessionCancel context.CancelFunc
+
+	queryOpts *consulapi.QueryOptions
+	writeOpts *consulapi.WriteOptions
 }
 
 func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
@@ -89,15 +92,13 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 
 	var payload []byte
 	if chunked {
-		var queryOpts consulapi.QueryOptions
-
-		for _, c := range chunks {
-			pair, _, err := kv.Get(c, queryOpts.WithContext(ctx))
+		for _, chunk := range chunks {
+			pair, _, err := kv.Get(chunk, c.queryOpts.WithContext(ctx))
 			if err != nil {
 				return nil, err
 			}
 			if pair == nil {
-				return nil, fmt.Errorf("Key %q could not be found", c)
+				return nil, fmt.Errorf("Key %q could not be found", chunk)
 			}
 			payload = append(payload, pair.Value[:]...)
 		}
@@ -175,8 +176,6 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	}
 	cleanupOldChunks := func() {}
 
-	writeOpts := (&consulapi.WriteOptions{}).WithContext(ctx)
-
 	if chunked {
 		cleanupOldChunks = func() {
 			// We ignore all errors that can happen here because we already
@@ -184,7 +183,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 			// the user. We may end up with dangling chunks but there is no way
 			// to be sure we won't.
 			path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-			kv.DeleteTree(path, writeOpts)
+			kv.DeleteTree(path, c.writeOpts.WithContext(ctx))
 		}
 	}
 
@@ -233,9 +232,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 			},
 		}
 
-		var queryOpts consulapi.QueryOptions
-
-		ok, resp, _, err := kv.Txn(txOps, queryOpts.WithContext(ctx))
+		ok, resp, _, err := kv.Txn(txOps, c.queryOpts.WithContext(ctx))
 		if err != nil {
 			return err
 		}
@@ -282,7 +279,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 		_, err := kv.Put(&consulapi.KVPair{
 			Key:   path,
 			Value: p,
-		}, writeOpts)
+		}, c.writeOpts.WithContext(ctx))
 
 		if err != nil {
 			return err
@@ -311,14 +308,12 @@ func (c *RemoteClient) Delete(ctx context.Context) error {
 		return err
 	}
 
-	writeOpts := (&consulapi.WriteOptions{}).WithContext(ctx)
-
-	_, err = kv.Delete(c.Path, writeOpts)
+	_, err = kv.Delete(c.Path, c.writeOpts.WithContext(ctx))
 
 	// If there were chunks we need to remove them
 	if chunked {
 		path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-		kv.DeleteTree(path, writeOpts)
+		kv.DeleteTree(path, c.writeOpts.WithContext(ctx))
 	}
 
 	return err
@@ -336,12 +331,10 @@ func (c *RemoteClient) putLockInfo(ctx context.Context, info *statemgr.LockInfo)
 
 	kv := c.Client.KV()
 
-	writeOpts := (&consulapi.WriteOptions{}).WithContext(ctx)
-
 	_, err := kv.Put(&consulapi.KVPair{
 		Key:   c.lockPath() + lockInfoSuffix,
 		Value: info.Marshal(),
-	}, writeOpts)
+	}, c.writeOpts.WithContext(ctx))
 
 	return err
 }
@@ -349,8 +342,7 @@ func (c *RemoteClient) putLockInfo(ctx context.Context, info *statemgr.LockInfo)
 func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
 	path := c.lockPath() + lockInfoSuffix
 
-	var queryOpts consulapi.QueryOptions
-	pair, _, err := c.Client.KV().Get(path, queryOpts.WithContext(ctx))
+	pair, _, err := c.Client.KV().Get(path, c.queryOpts.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -543,9 +535,7 @@ func (c *RemoteClient) createSession(ctx context.Context) (string, error) {
 		LockDelay: lockDelay,
 	}
 
-	var writeOpts consulapi.WriteOptions
-
-	id, _, err := session.Create(se, writeOpts.WithContext(ctx))
+	id, _, err := session.Create(se, c.writeOpts.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -578,7 +568,7 @@ func (c *RemoteClient) unlock(ctx context.Context, id string) error {
 	// - when the user calls `tofu force-unlock <lock_id>` in which case
 	// we only need to release the lock.
 
-	writeOpts := (&consulapi.WriteOptions{}).WithContext(ctx)
+	writeOpts := c.writeOpts.WithContext(ctx)
 
 	if c.consulLock == nil || c.lockCh == nil {
 		// The user called `tofu force-unlock <lock_id>`, we just destroy
@@ -612,7 +602,7 @@ func (c *RemoteClient) unlock(ctx context.Context, id string) error {
 
 	select {
 	case <-c.lockCh:
-		return lostLockErr
+		return errLostLock
 	default:
 	}
 
@@ -684,9 +674,7 @@ func split(payload []byte, limit int) [][]byte {
 func (c *RemoteClient) chunkedMode(ctx context.Context) (bool, string, []string, *consulapi.KVPair, error) {
 	kv := c.Client.KV()
 
-	var queryOpts consulapi.QueryOptions
-
-	pair, _, err := kv.Get(c.Path, queryOpts.WithContext(ctx))
+	pair, _, err := kv.Get(c.Path, c.queryOpts.WithContext(ctx))
 	if err != nil {
 		return false, "", nil, pair, err
 	}

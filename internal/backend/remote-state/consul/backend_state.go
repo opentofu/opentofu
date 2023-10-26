@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	consulapi "github.com/hashicorp/consul/api"
-
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -24,9 +22,7 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	// List our raw path
 	prefix := b.configData.Get("path").(string) + keyEnvPrefix
 
-	var queryOpts consulapi.QueryOptions
-
-	keys, _, err := b.client.KV().Keys(prefix, "/", queryOpts.WithContext(ctx))
+	keys, _, err := b.client.KV().Keys(prefix, "/", b.queryOpts.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -66,11 +62,9 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 	// Determine the path of the data
 	path := b.path(name)
 
-	var writeOpts consulapi.WriteOptions
-
 	// Delete it. We just delete it without any locking since
 	// the DeleteState API is documented as such.
-	_, err := b.client.KV().Delete(path, writeOpts.WithContext(ctx))
+	_, err := b.client.KV().Delete(path, b.writeOpts.WithContext(ctx))
 	return err
 }
 
@@ -88,6 +82,8 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 			Path:      path,
 			GZip:      gzip,
 			lockState: b.lock,
+			queryOpts: b.queryOpts,
+			writeOpts: b.writeOpts,
 		},
 	}
 
