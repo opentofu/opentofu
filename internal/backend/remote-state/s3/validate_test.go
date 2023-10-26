@@ -153,6 +153,7 @@ func Test_validateAttributesConflict(t *testing.T) {
 			objValues: map[string]cty.Value{
 				"attr1": cty.StringVal("value1"),
 				"attr2": cty.StringVal("value2"),
+				"attr3": cty.StringVal("value3"),
 			},
 			expectErr: true,
 		},
@@ -160,11 +161,40 @@ func Test_validateAttributesConflict(t *testing.T) {
 			name: "No Conflict",
 			paths: []cty.Path{
 				{cty.GetAttrStep{Name: "attr1"}},
-				{cty.GetAttrStep{Name: "attr3"}},
+				{cty.GetAttrStep{Name: "attr2"}},
 			},
 			objValues: map[string]cty.Value{
 				"attr1": cty.StringVal("value1"),
+				"attr2": cty.NilVal,
 				"attr3": cty.StringVal("value3"),
+			},
+			expectErr: false,
+		},
+		{
+			name: "Nested: Conflict Found",
+			paths: []cty.Path{
+				(cty.Path{cty.GetAttrStep{Name: "nested"}}).GetAttr("attr1"),
+				{cty.GetAttrStep{Name: "attr2"}},
+			},
+			objValues: map[string]cty.Value{
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"attr1": cty.StringVal("value1"),
+				}),
+				"attr2": cty.StringVal("value2"),
+				"attr3": cty.StringVal("value3"),
+			},
+			expectErr: true,
+		},
+		{
+			name: "Nested: No Conflict",
+			paths: []cty.Path{
+				(cty.Path{cty.GetAttrStep{Name: "nested"}}).GetAttr("attr1"),
+				{cty.GetAttrStep{Name: "attr3"}},
+			},
+			objValues: map[string]cty.Value{
+				"nested": cty.NilVal,
+				"attr1":  cty.StringVal("value1"),
+				"attr3":  cty.StringVal("value3"),
 			},
 			expectErr: false,
 		},
@@ -182,7 +212,11 @@ func Test_validateAttributesConflict(t *testing.T) {
 
 			if test.expectErr {
 				if !diags.HasErrors() {
-					t.Errorf("Expected validation errors, but got none.")
+					t.Error("Expected validation errors, but got none.")
+				}
+			} else {
+				if diags.HasErrors() {
+					t.Errorf("Expected no errors, but got %s.", diags.Err())
 				}
 			}
 		})

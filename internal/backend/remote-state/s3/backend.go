@@ -66,25 +66,56 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "AWS region of the S3 Bucket and DynamoDB Table (if used).",
 			},
+			"endpoints": {
+				NestedType: &configschema.Object{
+					Nesting: configschema.NestingSingle,
+					Attributes: map[string]*configschema.Attribute{
+						"s3": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the S3 API.",
+						},
+						"iam": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the IAM API.",
+						},
+						"sts": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the STS API.",
+						},
+						"dynamodb": {
+							Type:        cty.String,
+							Optional:    true,
+							Description: "A custom endpoint for the DynamoDB API.",
+						},
+					},
+				},
+			},
 			"dynamodb_endpoint": {
 				Type:        cty.String,
 				Optional:    true,
-				Description: "A custom endpoint for the DynamoDB API",
+				Description: "A custom endpoint for the DynamoDB API. Use `endpoints.dynamodb` instead.",
+				Deprecated:  true,
 			},
 			"endpoint": {
 				Type:        cty.String,
 				Optional:    true,
-				Description: "A custom endpoint for the S3 API",
+				Description: "A custom endpoint for the S3 API. Use `endpoints.s3` instead",
+				Deprecated:  true,
 			},
 			"iam_endpoint": {
 				Type:        cty.String,
 				Optional:    true,
-				Description: "A custom endpoint for the IAM API",
+				Description: "A custom endpoint for the IAM API. Use `endpoints.iam` instead",
+				Deprecated:  true,
 			},
 			"sts_endpoint": {
 				Type:        cty.String,
 				Optional:    true,
-				Description: "A custom endpoint for the STS API",
+				Description: "A custom endpoint for the STS API. Use `endpoints.sts` instead",
+				Deprecated:  true,
 			},
 			"sts_region": {
 				Type:        cty.String,
@@ -568,6 +599,10 @@ func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, 
 		}
 	}
 
+	for _, endpoint := range customEndpoints {
+		endpoint.Validate(obj, &diags)
+	}
+
 	return obj, diags
 }
 
@@ -651,13 +686,13 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
 		CallerName:             "S3 Backend",
 		SuppressDebugLog:       logging.IsDebugOrHigher(),
-		IamEndpoint:            stringAttrDefaultEnvVar(obj, "iam_endpoint", "AWS_IAM_ENDPOINT"),
+		IamEndpoint:            customEndpoints["iam"].String(obj),
 		MaxRetries:             intAttrDefault(obj, "max_retries", 5),
 		Profile:                stringAttr(obj, "profile"),
 		Region:                 stringAttr(obj, "region"),
 		SecretKey:              stringAttr(obj, "secret_key"),
 		SkipCredsValidation:    boolAttr(obj, "skip_credentials_validation"),
-		StsEndpoint:            stringAttrDefaultEnvVar(obj, "sts_endpoint", "AWS_STS_ENDPOINT"),
+		StsEndpoint:            customEndpoints["sts"].String(obj),
 		StsRegion:              stringAttr(obj, "sts_region"),
 		Token:                  stringAttr(obj, "token"),
 		HTTPProxy:              stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
@@ -779,7 +814,7 @@ func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsb
 
 func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 	return func(options *dynamodb.Options) {
-		if v, ok := stringAttrDefaultEnvVarOk(obj, "dynamodb_endpoint", "AWS_DYNAMODB_ENDPOINT", "AWS_ENDPOINT_URL_DYNAMODB"); ok {
+		if v, ok := customEndpoints["dynamodb"].StringOk(obj); ok {
 			options.BaseEndpoint = aws.String(v)
 		}
 	}
@@ -787,7 +822,7 @@ func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 
 func getS3Config(obj cty.Value) func(options *s3.Options) {
 	return func(options *s3.Options) {
-		if v, ok := stringAttrDefaultEnvVarOk(obj, "endpoint", "AWS_S3_ENDPOINT", "AWS_ENDPOINT_URL_S3"); ok {
+		if v, ok := customEndpoints["s3"].StringOk(obj); ok {
 			options.BaseEndpoint = aws.String(v)
 		}
 		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
@@ -1021,6 +1056,15 @@ func stringMapAttrOk(obj cty.Value, name string) (map[string]string, bool) {
 	return stringMapValueOk(obj.GetAttr(name))
 }
 
+func customEndpointAttrDefaultEnvVarOk(obj cty.Value, endpointsKey, deprecatedKey string, envvars ...string) (string, bool) {
+	if val := obj.GetAttr("endpoints"); !val.IsNull() {
+		if v, ok := stringAttrDefaultEnvVarOk(val, endpointsKey, envvars...); ok {
+			return v, true
+		}
+	}
+	return stringAttrDefaultEnvVarOk(obj, deprecatedKey, envvars...)
+}
+
 func pathString(path cty.Path) string {
 	var buf strings.Builder
 	for i, step := range path {
@@ -1098,3 +1142,78 @@ const encryptionKeyConflictEnvVarError = `Only one of "kms_key_id" and the envir
 The "kms_key_id" is used for encryption with KMS-Managed Keys (SSE-KMS)
 while "AWS_SSE_CUSTOMER_KEY" is used for encryption with customer-managed keys (SSE-C).
 Please choose one or the other.`
+
+type customEndpoint struct {
+	Paths   []cty.Path
+	EnvVars []string
+}
+
+func (e customEndpoint) Validate(obj cty.Value, diags *tfdiags.Diagnostics) {
+	validateAttributesConflict(e.Paths...)(obj, cty.Path{}, diags)
+}
+
+func (e customEndpoint) String(obj cty.Value) string {
+	v, _ := e.StringOk(obj)
+	return v
+}
+
+func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
+	for _, path := range e.Paths {
+		val, err := path.Apply(obj)
+		if err != nil {
+			continue
+		}
+		if s, ok := stringValueOk(val); ok {
+			return s, true
+		}
+	}
+	for _, envVar := range e.EnvVars {
+		if v := os.Getenv(envVar); v != "" {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+var customEndpoints = map[string]customEndpoint{
+	"s3": {
+		Paths: []cty.Path{
+			cty.GetAttrPath("endpoints").GetAttr("s3"),
+			cty.GetAttrPath("endpoint"),
+		},
+		EnvVars: []string{
+			"AWS_ENDPOINT_URL_S3",
+			"AWS_S3_ENDPOINT",
+		},
+	},
+	"iam": {
+		Paths: []cty.Path{
+			cty.GetAttrPath("endpoints").GetAttr("iam"),
+			cty.GetAttrPath("iam_endpoint"),
+		},
+		EnvVars: []string{
+			"AWS_ENDPOINT_URL_IAM",
+			"AWS_IAM_ENDPOINT",
+		},
+	},
+	"sts": {
+		Paths: []cty.Path{
+			cty.GetAttrPath("endpoints").GetAttr("sts"),
+			cty.GetAttrPath("sts_endpoint"),
+		},
+		EnvVars: []string{
+			"AWS_ENDPOINT_URL_STS",
+			"AWS_STS_ENDPOINT",
+		},
+	},
+	"dynamodb": {
+		Paths: []cty.Path{
+			cty.GetAttrPath("endpoints").GetAttr("dynamodb"),
+			cty.GetAttrPath("dynamodb_endpoint"),
+		},
+		EnvVars: []string{
+			"AWS_ENDPOINT_URL_DYNAMODB",
+			"AWS_DYNAMODB_ENDPOINT",
+		},
+	},
+}
