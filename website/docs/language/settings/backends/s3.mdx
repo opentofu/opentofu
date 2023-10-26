@@ -159,7 +159,7 @@ The following configuration is optional:
 
 * `access_key` - (Optional) AWS access key. If configured, must also configure `secret_key`. This can also be sourced from the `AWS_ACCESS_KEY_ID` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
 * `secret_key` - (Optional) AWS access key. If configured, must also configure `access_key`. This can also be sourced from the `AWS_SECRET_ACCESS_KEY` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
-* `iam_endpoint` - (Optional) Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the `AWS_IAM_ENDPOINT` environment variable.
+* `iam_endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the `AWS_IAM_ENDPOINT` environment variable.
 * `max_retries` - (Optional) The maximum number of times an AWS API request is retried on retryable failure. Defaults to 5.
 * `retry_mode` - (Optional) Specifies how retries are attempted. Valid values are `standard` and `adaptive`. This can also be sourced from the `AWS_RETRY_MODE` environment variable.
 * `profile` - (Optional) Name of AWS profile in AWS shared credentials file (e.g. `~/.aws/credentials`) or AWS shared configuration file (e.g. `~/.aws/config`) to use for credentials and/or configuration. This can also be sourced from the `AWS_PROFILE` environment variable.
@@ -169,7 +169,7 @@ The following configuration is optional:
 * `skip_credentials_validation` - (Optional) Skip credentials validation via the STS API.
 * `skip_region_validation` - (Optional) Skip validation of provided region name.
 * `skip_metadata_api_check` - (Optional) Skip usage of EC2 Metadata API.
-* `sts_endpoint` - (Optional) Custom endpoint for the AWS Security Token Service (STS) API. This can also be sourced from the `AWS_STS_ENDPOINT` environment variable.
+* `sts_endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS Security Token Service (STS) API. This can also be sourced from the `AWS_STS_ENDPOINT` environment variable.
 * `sts_region` - (Optional) AWS region for STS. If unset, AWS will use the same region for STS as other non-STS operations.
 * `token` - (Optional) Multi-Factor Authentication (MFA) token. This can also be sourced from the `AWS_SESSION_TOKEN` environment variable.
 * `allowed_account_ids` (Optional): A list of permitted AWS account IDs to safeguard against accidental disruption of a live environment. This option conflicts with `forbidden_account_ids`.
@@ -182,6 +182,26 @@ The following configuration is optional:
 * `insecure` - (Optional) Explicitly allow the backend to perform "insecure" SSL requests; default is `false`.
 * `use_dualstack_endpoint` - (Optional) Resolve an endpoint with DualStack capability.
 * `use_fips_endpoint` - (Optional) Resolve an endpoint with FIPS capability.
+
+#### Customizing AWS API Endpoints
+
+The optional `endpoints` argument contains the following options:
+
+* `s3` - (Optional) Use this to set a custom endpoint URL for the AWS S3 API. This can also be sourced from the `AWS_ENDPOINT_URL_S3` environment variable or the deprecated environment variable `AWS_S3_ENDPOINT`.
+* `iam` - (Optional) Use this to set a custom endpoint URL for the AWS IAM API. This can also be sourced from the `AWS_ENDPOINT_URL_IAM` environment variable or the deprecated environment variable `AWS_IAM_ENDPOINT`.
+* `sts` - (Optional) Use this to set a custom endpoint URL for the AWS STS API. This can also be sourced from the `AWS_ENDPOINT_URL_STS` environment variable or the deprecated environment variable `AWS_STS_ENDPOINT`.
+* `dynamodb` - (Optional) Use this to set a custom endpoint URL for the AWS DynamoDB API. This can also be sourced from the `AWS_ENDPOINT_URL_DYNAMODB` environment variable or the deprecated environment variable `AWS_DYNAMODB_ENDPOINT`.
+
+```hcl
+terraform {
+  backend "s3" {
+    endpoints {
+      dynamodb = "http://localhost:4569"
+      s3       = "http://localhost:4572"
+    }
+  }
+}
+```
 
 #### Assume Role Configuration
 
@@ -314,7 +334,7 @@ The following configuration is optional:
 
 * `acl` - (Optional) [Canned ACL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl) to be applied to the state file.
 * `encrypt` - (Optional) Enable [server side encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html) of the state file.
-* `endpoint` - (Optional) Custom endpoint for the AWS S3 API. This can also be sourced from the `AWS_S3_ENDPOINT` environment variable.
+* `endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS S3 API. This can also be sourced from the `AWS_S3_ENDPOINT` environment variable.
 * `force_path_style` - (Optional) **Deprecated** Enable path-style S3 URLs (`https://<HOST>/<BUCKET>` instead of `https://<BUCKET>.<HOST>`). Use `use_path_style` instead.
 * `use_path_style` - (Optional) Enable path-style S3 URLs (`https://<HOST>/<BUCKET>` instead of `https://<BUCKET>.<HOST>`).
 * `kms_key_id` - (Optional) Amazon Resource Name (ARN) of a Key Management Service (KMS) Key to use for encrypting the state. Note that if this value is specified, OpenTofu will need `kms:Encrypt`, `kms:Decrypt` and `kms:GenerateDataKey` permissions on this KMS key.
@@ -325,7 +345,7 @@ The following configuration is optional:
 
 The following configuration is optional:
 
-* `dynamodb_endpoint` - (Optional) Custom endpoint for the AWS DynamoDB API. This can also be sourced from the `AWS_DYNAMODB_ENDPOINT` environment variable.
+* `dynamodb_endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS DynamoDB API. This can also be sourced from the `AWS_DYNAMODB_ENDPOINT` environment variable.
 * `dynamodb_table` - (Optional) Name of DynamoDB Table to use for state locking and consistency. The table must have a partition key named `LockID` with type of `String`. If not configured, state locking will be disabled.
 
 ## Multi-account AWS Architecture
