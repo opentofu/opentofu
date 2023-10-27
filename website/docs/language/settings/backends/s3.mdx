@@ -166,6 +166,8 @@ The following configuration is optional:
 * `shared_credentials_file`  - (Optional) **Deprecated** Path to the AWS shared credentials file. Defaults to `~/.aws/credentials`.
 * `shared_credentials_files`  - (Optional) List of paths to AWS shared credentials files. Defaults to `~/.aws/credentials`. This can also be sourced from the `AWS_SHARED_CREDENTIALS_FILE` environment variable.
 * `shared_config_files`  - (Optional) List of paths to AWS shared configuration files. Defaults to `~/.aws/config`. This can also be sourced from the `AWS_SHARED_CONFIG_FILE` environment variable.
+* `skip_s3_checksum` - (Optional) Do not include checksum in the input when uploading S3 Objects.
+  Useful for non AWS S3 APIs which do not support checksum validation.
 * `skip_credentials_validation` - (Optional) Skip credentials validation via the STS API.
 * `skip_region_validation` - (Optional) Skip validation of provided region name.
 * `skip_metadata_api_check` - (Optional) Skip usage of EC2 Metadata API.

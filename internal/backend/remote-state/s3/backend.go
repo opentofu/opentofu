@@ -44,6 +44,7 @@ type Backend struct {
 	kmsKeyID              string
 	ddbTable              string
 	workspaceKeyPrefix    string
+	skipS3Checksum        bool
 }
 
 // ConfigSchema returns a description of the expected configuration
@@ -429,6 +430,11 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 				Optional:    true,
 				Description: "Resolve an endpoint with FIPS capability.",
 			},
+			"skip_s3_checksum": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Do not include checksum when uploading S3 Objects. Useful for some S3-Compatible APIs as some of them do not support checksum checks.",
+			},
 		},
 	}
 }
@@ -647,6 +653,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
 	b.kmsKeyID = stringAttr(obj, "kms_key_id")
 	b.ddbTable = stringAttr(obj, "dynamodb_table")
+	b.skipS3Checksum = boolAttr(obj, "skip_s3_checksum")
 
 	if customerKey, ok := stringAttrOk(obj, "sse_customer_key"); ok {
 		if len(customerKey) != 44 {
