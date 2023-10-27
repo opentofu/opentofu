@@ -1,6 +1,8 @@
 package tofumigrate
 
 import (
+	"os"
+
 	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -31,6 +33,10 @@ import (
 //
 // then we keep the old address.
 func MigrateStateProviderAddresses(config *configs.Config, state *states.State) (*states.State, tfdiags.Diagnostics) {
+	if os.Getenv("OPENTOFU_STATEFILE_PROVIDER_ADDRESS_TRANSLATION") == "0" {
+		return state, nil
+	}
+
 	var diags tfdiags.Diagnostics
 
 	stateCopy := state.DeepCopy()
