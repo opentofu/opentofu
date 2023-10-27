@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
@@ -17,7 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
 // backend.Local implementation.
@@ -208,7 +210,16 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 
 	// For a "direct" local run, the input state is the most recently stored
 	// snapshot, from the previous run.
-	run.InputState = s.State()
+	state := s.State()
+	if state != nil {
+		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
+		diags = diags.Append(migrateDiags)
+		if migrateDiags.HasErrors() {
+			return nil, nil, diags
+		}
+		state = migratedState
+	}
+	run.InputState = state
 
 	tfCtx, moreDiags := tofu.NewContext(coreOpts)
 	diags = diags.Append(moreDiags)

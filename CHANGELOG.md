@@ -30,6 +30,7 @@ ENHANCEMENTS:
 * cloud: Remote plans on cloud backends can now be saved using the `-out` flag, referenced in the `show` command, and applied by specifying the plan file name. ([#33492](https://github.com/hashicorp/terraform/issues/33492))
 * config: The `import` block `id` field now accepts an expression referencing other values such as resource attributes, as long as the value is a string known at plan time. ([#33618](https://github.com/hashicorp/terraform/issues/33618))
 * telemetry: All checkpoint telemetry was removed ([#151](https://github.com/opentofu/opentofu/pull/151))
+* state: Provider addresses in the statefile referring to registry.terraform.io will be treated as referring to registry.opentofu.org unless the full provider address is specified in the config or `OPENTOFU_STATEFILE_PROVIDER_ADDRESS_TRANSLATION` is set to `0`. ([#773](https://github.com/opentofu/opentofu/pull/773))
 
 BUG FIXES:
 
