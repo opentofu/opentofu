@@ -514,6 +514,10 @@
             "path": "language/functions/base64gzip"
           },
           {
+            "title": "<code>gunzipbase64</code>",
+            "path": "language/functions/gunzipbase64"
+          },
+          {
             "title": "<code>csvdecode</code>",
             "path": "language/functions/csvdecode"
           },
@@ -763,8 +767,13 @@
         "hidden": true
       },
       {
-        "title": "base64sha256",
-        "path": "language/functions/base64sha256",
+        "title": "base64gzip",
+        "path": "language/functions/base64gzip",
+        "hidden": true
+      },
+      {
+        "title": "gunzipbase64",
+        "path": "language/functions/gunzipbase64",
         "hidden": true
       },
       {
