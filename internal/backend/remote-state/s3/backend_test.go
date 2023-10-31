@@ -738,6 +738,54 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 			}),
 			expectedErr: `Invalid retry mode: Valid values are "standard" and "adaptive".`,
 		},
+		"s3 endpoint conflict": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":   cty.StringVal("test"),
+				"key":      cty.StringVal("test"),
+				"region":   cty.StringVal("us-west-2"),
+				"endpoint": cty.StringVal("x1"),
+				"endpoints": cty.ObjectVal(map[string]cty.Value{
+					"s3": cty.StringVal("x2"),
+				}),
+			}),
+			expectedErr: `Invalid Attribute Combination: Only one of endpoints.s3, endpoint can be set.`,
+		},
+		"iam endpoint conflict": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":       cty.StringVal("test"),
+				"key":          cty.StringVal("test"),
+				"region":       cty.StringVal("us-west-2"),
+				"iam_endpoint": cty.StringVal("x1"),
+				"endpoints": cty.ObjectVal(map[string]cty.Value{
+					"iam": cty.StringVal("x2"),
+				}),
+			}),
+			expectedErr: `Invalid Attribute Combination: Only one of endpoints.iam, iam_endpoint can be set.`,
+		},
+		"sts endpoint conflict": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":       cty.StringVal("test"),
+				"key":          cty.StringVal("test"),
+				"region":       cty.StringVal("us-west-2"),
+				"sts_endpoint": cty.StringVal("x1"),
+				"endpoints": cty.ObjectVal(map[string]cty.Value{
+					"sts": cty.StringVal("x2"),
+				}),
+			}),
+			expectedErr: `Invalid Attribute Combination: Only one of endpoints.sts, sts_endpoint can be set.`,
+		},
+		"dynamodb endpoint conflict": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":            cty.StringVal("test"),
+				"key":               cty.StringVal("test"),
+				"region":            cty.StringVal("us-west-2"),
+				"dynamodb_endpoint": cty.StringVal("x1"),
+				"endpoints": cty.ObjectVal(map[string]cty.Value{
+					"dynamodb": cty.StringVal("x2"),
+				}),
+			}),
+			expectedErr: `Invalid Attribute Combination: Only one of endpoints.dynamodb, dynamodb_endpoint can be set.`,
+		},
 	}
 
 	for name, tc := range cases {

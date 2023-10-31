@@ -154,10 +154,27 @@ func aliasIdFromARNResource(s string) string {
 type objectValidator func(obj cty.Value, objPath cty.Path, diags *tfdiags.Diagnostics)
 
 func validateAttributesConflict(paths ...cty.Path) objectValidator {
+	applyPath := func(obj cty.Value, path cty.Path) (cty.Value, error) {
+		if len(path) == 0 {
+			return cty.NilVal, nil
+		}
+		for _, step := range path {
+			val, err := step.Apply(obj)
+			if err != nil {
+				return cty.NilVal, err
+			}
+			if val.IsNull() {
+				return cty.NilVal, nil
+			}
+			obj = val
+		}
+		return obj, nil
+	}
+
 	return func(obj cty.Value, objPath cty.Path, diags *tfdiags.Diagnostics) {
 		found := false
 		for _, path := range paths {
-			val, err := path.Apply(obj)
+			val, err := applyPath(obj, path)
 			if err != nil {
 				*diags = diags.Append(attributeErrDiag(
 					"Invalid Path for Schema",

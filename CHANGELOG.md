@@ -62,6 +62,7 @@ S3 BACKEND:
 * Adds support for the `retry_mode` attribute. ([#698](https://github.com/opentofu/opentofu/issues/698))
 * Adds support for the `http_proxy`, `insecure`, `use_dualstack_endpoint`, and `use_fips_endpoint` attributes. ([#694](https://github.com/opentofu/opentofu/issues/694))
 * Adds support for the `use_path_style` argument and deprecates the `force_path_style` argument. ([#783](https://github.com/opentofu/opentofu/issues/783))
+* Adds support for customizing the AWS API endpoints. ([#775](https://github.com/opentofu/opentofu/issues/775))
 
 ## Previous Releases
 
