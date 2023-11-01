@@ -335,7 +335,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	// Set the version header to the current version.
 	cfg.Headers.Set(tfversion.Header, tfversion.Version)
 
-	// Update user-agent from go-tfe to opentofu
+	// Update user-agent from 'go-tfe' to opentofu
 	cfg.Headers.Set("User-Agent", httpclient.OpenTofuUserAgent(tfversion.String()))
 
 	// Create the remote backend API client.
