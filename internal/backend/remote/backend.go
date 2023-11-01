@@ -28,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	tfversion "github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 
@@ -335,7 +336,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	cfg.Headers.Set(tfversion.Header, tfversion.Version)
 
 	// Update user-agent from go-tfe to opentofu
-	cfg.Headers.Set("User-Agent", httpclient.OpenTofuUserAgent(version.String()))
+	cfg.Headers.Set("User-Agent", httpclient.OpenTofuUserAgent(tfversion.String()))
 
 	// Create the remote backend API client.
 	b.client, err = tfe.NewClient(cfg)
