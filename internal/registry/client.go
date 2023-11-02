@@ -28,7 +28,6 @@ import (
 )
 
 const (
-	xTerraformGet      = "X-Terraform-Get"
 	xTerraformVersion  = "X-Terraform-Version"
 	modulesServiceID   = "modules.v1"
 	providersServiceID = "providers.v1"
@@ -185,6 +184,24 @@ func (c *Client) addRequestCreds(host svchost.Hostname, req *http.Request) {
 	}
 }
 
+func getDownloadLocation(resp *http.Response, body []byte) string {
+	locationInHeader := resp.Header.Get("X-Terraform-Get")
+	if locationInHeader != "" {
+		return locationInHeader
+	}
+
+	type ResponseBody struct {
+		XTerraformGet string `json:"X-Terraform-Get"`
+	}
+	var unmarshalledBody ResponseBody
+	err := json.Unmarshal(body, &unmarshalledBody)
+	if err != nil {
+		return ""
+	}
+
+	return unmarshalledBody.XTerraformGet
+}
+
 // ModuleLocation find the download location for a specific version module.
 // This returns a string, because the final location may contain special go-getter syntax.
 func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, version string) (string, error) {
@@ -244,7 +261,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 	}
 
 	// the download location is in the X-Terraform-Get header
-	location := resp.Header.Get(xTerraformGet)
+	location := getDownloadLocation(resp, body)
 	if location == "" {
 		return "", fmt.Errorf("failed to get download URL for %q: %s resp:%s", module, resp.Status, body)
 	}

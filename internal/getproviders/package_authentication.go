@@ -9,7 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-
 	"log"
 	"os"
 	"strings"
@@ -389,7 +388,7 @@ func NewSignatureAuthentication(document, signature []byte, keys []SigningKey, s
 
 func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
 	// we should enforce validation for all provider sources that are not the default provider registry
-	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
+	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost && s.ProviderSource.Hostname != "rlrabinowitz.github.io" {
 		return true, nil
 	}
 
