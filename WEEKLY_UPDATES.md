@@ -4,14 +4,14 @@
 
 Hey!
 
-This week was still mostly spent on discussing and PoC'in stable registry designs, as well as work on the S3 backend.
+This week was still mostly spent on discussing and implementing proof of concepts for some stable registry designs, as well as work on the S3 backend.
 
 - Current Status
   - OpenTofu Day will be happening as a KubeCon + CloudNativeCon Europe CNCF-hosted Co-located Event, learn more [here](https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/co-located-events/opentofu-day/#registration-details)!
   - The technical steering committee is meeting today to pick a stable registry design.
     - There are [three registry RFCs right now](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Arfc+label%3Af-registry)
   - [Extensive work is happening](https://github.com/opentofu/opentofu/issues/700) around updating the S3 state backend configuration to be in line with the AWS provider configuration. Only two pull requests left here and we'll be done.
-  - [The proper fix](https://github.com/opentofu/opentofu/pull/773) for the [interesting bug report](https://github.com/opentofu/opentofu/issues/763) mentioned last week in the update has been finished and merged.
+  - [A fix](https://github.com/opentofu/opentofu/pull/773) for the [interesting bug report](https://github.com/opentofu/opentofu/issues/763) mentioned last week in the update has been finished and merged.
 - Up next
   - The technical steering committee will pick a stable registry design later today, and the core engineering team will focus most of its time on that in the upcoming weeks.
 - How can I help?
