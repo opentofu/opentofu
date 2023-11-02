@@ -1,5 +1,29 @@
 # Weekly Updates
 
+## 2023-11-02
+
+Hey!
+
+This week was still mostly spent on discussing and implementing proof of concepts for some stable registry designs, as well as work on the S3 backend.
+
+- Current Status
+  - OpenTofu Day will be happening as a KubeCon + CloudNativeCon Europe CNCF-hosted Co-located Event, learn more [here](https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/co-located-events/opentofu-day/#registration-details)!
+  - The technical steering committee is meeting today (2023-11-02) to pick a stable registry design.
+    - There are [three registry RFCs right now](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Arfc+label%3Af-registry)
+  - [Extensive work is happening](https://github.com/opentofu/opentofu/issues/700) around updating the S3 state backend configuration to be in line with the AWS provider configuration. Only two pull requests left here and we'll be done.
+  - [A fix](https://github.com/opentofu/opentofu/pull/773) for the [interesting bug report](https://github.com/opentofu/opentofu/issues/763) mentioned last week in the update has been finished and merged.
+- Up next
+  - The technical steering committee will pick a stable registry design later today, and the core engineering team will focus most of its time on that in the upcoming weeks (2023-11-06 and onwards).
+- How can I help?
+  - Since the alpha release is out, right now the best way to help is to take the alpha for a test drive and see if there are any bugs / issues.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+  - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
+  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the alpha and stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
+    - Issues and Pull Requests with enhancements or major changes will generally be frozen until we have the first stable release out. We will introduce a milestone to mark them as such more clearly.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2023-10-24
 
 Hey!
