@@ -23,6 +23,7 @@ import (
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -333,6 +334,9 @@ func (b *Remote) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnosti
 
 	// Set the version header to the current version.
 	cfg.Headers.Set(tfversion.Header, tfversion.Version)
+
+	// Update user-agent from 'go-tfe' to opentofu
+	cfg.Headers.Set("User-Agent", httpclient.OpenTofuUserAgent(tfversion.String()))
 
 	// Create the remote backend API client.
 	b.client, err = tfe.NewClient(cfg)

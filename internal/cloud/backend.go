@@ -28,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -306,6 +307,9 @@ func (b *Cloud) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostic
 		// Set the version header to the current version.
 		cfg.Headers.Set(tfversion.Header, tfversion.Version)
 		cfg.Headers.Set(headerSourceKey, headerSourceValue)
+
+		// Update user-agent from 'go-tfe' to opentofu
+		cfg.Headers.Set("User-Agent", httpclient.OpenTofuUserAgent(tfversion.String()))
 
 		// Create the TFC/E API client.
 		b.client, err = tfe.NewClient(cfg)

@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/version"
 
 	uuid "github.com/hashicorp/go-uuid"
 	"golang.org/x/oauth2"
@@ -648,6 +649,10 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 		Token:    token,
 		Headers:  make(http.Header),
 	}
+
+	// Update user-agent from 'go-tfe' to opentofu
+	cfg.Headers.Set("User-Agent", httpclient.OpenTofuUserAgent(version.String()))
+
 	client, err := tfe.NewClient(cfg)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to create API client: %w", err))
