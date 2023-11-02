@@ -16,7 +16,6 @@ This week was still mostly spent on discussing and implementing proof of concept
   - The technical steering committee will pick a stable registry design later today, and the core engineering team will focus most of its time on that in the upcoming weeks.
 - How can I help?
   - Since the alpha release is out, right now the best way to help is to take the alpha for a test drive and see if there are any bugs / issues.
-  - You can also submit and discuss RFCs related to the stable registry.
   - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
   - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
   - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
