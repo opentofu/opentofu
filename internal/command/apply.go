@@ -72,15 +72,16 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Check for invalid combination of plan file and variable overrides
-	if planFile != nil && !args.Vars.Empty() {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Can't set variables when applying a saved plan",
-			"The -var and -var-file options cannot be used when applying a saved plan file, because a saved plan includes the variable values that were set when it was created.",
-		))
-		view.Diagnostics(diags)
-		return 1
-	}
+	// TODO: This sould be moved into a check during c.GatherVariables, that makes a check on a variable-by-variable case (only unknown variables in the plan can be specified via apply argument).
+	// if planFile != nil && !args.Vars.Empty() {
+	// 	diags = diags.Append(tfdiags.Sourceless(
+	// 		tfdiags.Error,
+	// 		"Can't set variables when applying a saved plan",
+	// 		"The -var and -var-file options cannot be used when applying a saved plan file, because a saved plan includes the variable values that were set when it was created.",
+	// 	))
+	// 	view.Diagnostics(diags)
+	// 	return 1
+	// }
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we

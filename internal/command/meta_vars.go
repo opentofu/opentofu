@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -122,6 +123,13 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 		case "-var-file":
 			moreDiags := m.addVarsFromFile(rawFlag.Value, tofu.ValueFromNamedFile, ret)
 			diags = diags.Append(moreDiags)
+
+		case "-var-unknown":
+			ret[rawFlag.Value] = unparsedVariableValueString{
+				markedAsUnknown: true,
+				name:            rawFlag.Value,
+				sourceType:      tofu.ValueFromCLIArg,
+			}
 
 		default:
 			// Should never happen; always a bug in the code that built up
@@ -250,13 +258,21 @@ func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.Variabl
 // to deal with values given directly on the command line and via environment
 // variables.
 type unparsedVariableValueString struct {
-	str        string
-	name       string
-	sourceType tofu.ValueSourceType
+	str             string
+	markedAsUnknown bool
+	name            string
+	sourceType      tofu.ValueSourceType
 }
 
 func (v unparsedVariableValueString) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	if v.markedAsUnknown {
+		return &tofu.InputValue{
+			Value:      cty.UnknownVal(cty.DynamicPseudoType),
+			SourceType: v.sourceType,
+		}, diags
+	}
 
 	val, hclDiags := mode.Parse(v.name, v.str)
 	diags = diags.Append(hclDiags)

@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -350,6 +351,40 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 		))
 		return nil, snap, diags
 	}
+
+	planVariablesMarkedAsUnknown := make(map[string]*configs.Variable)
+	for name, encodedValue := range plan.VariableValues {
+		value, err := encodedValue.Decode(cty.DynamicPseudoType) // PoC note: Funnily, the apply code also uses DynamicPseudoType, instead of relying on the type specified in the config.
+		if err != nil {
+			panic(err)
+		}
+		if !value.IsKnown() {
+			planVariablesMarkedAsUnknown[name] = config.Module.Variables[name]
+		}
+	}
+
+	// If interactive input is enabled, we might gather some more variable
+	// values through interactive prompts.
+	// TODO: Need to route the operation context through into here, so that
+	// the interactive prompts can be sensitive to its timeouts/etc.
+	rawVariables := b.interactiveCollectVariables(context.TODO(), op.Variables, planVariablesMarkedAsUnknown, op.UIIn)
+
+	variables, varDiags := backend.ParseVariableValues(rawVariables, planVariablesMarkedAsUnknown)
+	diags = diags.Append(varDiags)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	// TODO: This is a hack. Normally we'd pass this through a struct like ApplyFromPlanOpts, but it would be many changes for a PoC
+	for name, variable := range variables {
+		value, err := plans.NewDynamicValue(variable.Value, cty.DynamicPseudoType)
+		if err != nil {
+			panic(err)
+		}
+
+		plan.VariableValues[name] = value
+	}
+
 	// When we're applying a saved plan, we populate Plan instead of PlanOpts,
 	// because a plan object incorporates the subset of data from PlanOps that
 	// we need to apply the plan.
