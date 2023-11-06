@@ -478,47 +478,6 @@ func TestRemote_checkConstraints(t *testing.T) {
 	}
 }
 
-func TestRemote_StateMgr_versionCheckLatest(t *testing.T) {
-	b, bCleanup := testBackendDefault(t)
-	defer bCleanup()
-
-	v0140 := version.Must(version.NewSemver("0.14.0"))
-
-	// Save original local version state and restore afterwards
-	p := tfversion.Prerelease
-	v := tfversion.Version
-	s := tfversion.SemVer
-	defer func() {
-		tfversion.Prerelease = p
-		tfversion.Version = v
-		tfversion.SemVer = s
-	}()
-
-	// For this test, the local Terraform version is set to 0.14.0
-	tfversion.Prerelease = ""
-	tfversion.Version = v0140.String()
-	tfversion.SemVer = v0140
-
-	// Update the remote workspace to the pseudo-version "latest"
-	if _, err := b.client.Workspaces.Update(
-		context.Background(),
-		b.organization,
-		b.workspace,
-		tfe.WorkspaceUpdateOptions{
-			TerraformVersion: tfe.String("latest"),
-		},
-	); err != nil {
-		t.Fatalf("error: %v", err)
-	}
-
-	ctx := context.Background()
-
-	// This should succeed despite not being a string match
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-}
-
 func TestRemote_StateMgr_versionCheck(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
@@ -579,6 +538,47 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
 	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
+	}
+}
+
+func TestRemote_StateMgr_versionCheckLatest(t *testing.T) {
+	b, bCleanup := testBackendDefault(t)
+	defer bCleanup()
+
+	v0140 := version.Must(version.NewSemver("0.14.0"))
+
+	// Save original local version state and restore afterwards
+	p := tfversion.Prerelease
+	v := tfversion.Version
+	s := tfversion.SemVer
+	defer func() {
+		tfversion.Prerelease = p
+		tfversion.Version = v
+		tfversion.SemVer = s
+	}()
+
+	// For this test, the local Terraform version is set to 0.14.0
+	tfversion.Prerelease = ""
+	tfversion.Version = v0140.String()
+	tfversion.SemVer = v0140
+
+	// Update the remote workspace to the pseudo-version "latest"
+	if _, err := b.client.Workspaces.Update(
+		context.Background(),
+		b.organization,
+		b.workspace,
+		tfe.WorkspaceUpdateOptions{
+			TerraformVersion: tfe.String("latest"),
+		},
+	); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// This should succeed despite not being a string match
+	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }
 
