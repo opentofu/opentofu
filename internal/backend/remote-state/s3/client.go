@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -44,6 +45,8 @@ type RemoteClient struct {
 	acl                   string
 	kmsKeyID              string
 	ddbTable              string
+
+	skipS3Checksum bool
 }
 
 var (
@@ -165,6 +168,10 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 		Key:           &c.path,
 	}
 
+	if !c.skipS3Checksum {
+		i.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+	}
+
 	if c.serverSideEncryption {
 		if c.kmsKeyID != "" {
 			i.SSEKMSKeyId = &c.kmsKeyID
@@ -184,7 +191,8 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
-	_, err := c.s3Client.PutObject(ctx, i)
+	uploader := manager.NewUploader(c.s3Client, nil)
+	_, err := uploader.Upload(ctx, i)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
