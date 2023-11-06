@@ -665,31 +665,13 @@ func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, erro
 	if err == tfe.ErrResourceNotFound {
 		options := tfe.WorkspaceCreateOptions{
 			Name: tfe.String(name),
-		}
-
-		// We only set the OpenTofu Version for the new workspace if this is
-		// a release candidate or a final release.
-		if tfversion.Prerelease == "" || strings.HasPrefix(tfversion.Prerelease, "rc") {
-			options.TerraformVersion = tfe.String(tfversion.String())
+			// We set the OpenTofu Version within a suffix.
+			TerraformVersion: tfe.String(tfversion.SemVer.Core().String()),
 		}
 
 		workspace, err = b.client.Workspaces.Create(ctx, b.organization, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating workspace %s: %w", name, err)
-		}
-	}
-
-	// This is a fallback error check. Most code paths should use other
-	// mechanisms to check the version, then set the ignoreVersionConflict
-	// field to true. This check is only in place to ensure that we don't
-	// accidentally upgrade state with a new code path, and the version check
-	// logic is coarser and simpler.
-	if !b.ignoreVersionConflict {
-		wsv := workspace.TerraformVersion
-		// Explicitly ignore the pseudo-version "latest" here, as it will cause
-		// plan and apply to always fail.
-		if wsv != tfversion.String() && wsv != "latest" {
-			return nil, fmt.Errorf("Remote workspace OpenTofu version %q does not match local OpenTofu version %q", workspace.TerraformVersion, tfversion.String())
 		}
 	}
 
