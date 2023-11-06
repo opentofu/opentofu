@@ -665,8 +665,8 @@ func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, erro
 	if err == tfe.ErrResourceNotFound {
 		options := tfe.WorkspaceCreateOptions{
 			Name: tfe.String(name),
-			// We set the OpenTofu Version within a suffix.
-			TerraformVersion: tfe.String(tfversion.SemVer.Core().String()),
+			// We set the main number of the OpenTofu Version.
+			TerraformVersion: tfe.String(tfversion.Version),
 		}
 
 		workspace, err = b.client.Workspaces.Create(ctx, b.organization, options)
