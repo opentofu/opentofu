@@ -675,6 +675,17 @@ func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, erro
 		}
 	}
 
+	// This is a fallback error check. Most code paths should use other
+	// mechanisms to check the version, then set the ignoreVersionConflict
+	// field to true. This check is only in place to ensure that we don't
+	// accidentally upgrade state with a new code path, and the version check
+	// logic is coarser and simpler.
+	if !b.ignoreVersionConflict {
+		if err := localVersionMatchesRemoteVersion(workspace.TerraformVersion); err != nil {
+			return nil, err
+		}
+	}
+
 	client := &remoteClient{
 		client:       b.client,
 		organization: b.organization,
@@ -696,6 +707,28 @@ func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, erro
 		// by this special case.
 		DisableIntermediateSnapshots: client.runID != "",
 	}, nil
+}
+
+func localVersionMatchesRemoteVersion(wsv string) error {
+	const latestVersion = "latest"
+
+	if wsv == latestVersion {
+		// We handle the "latest" for compatibility reasons:
+		// TFE and potentially other backends can set the workspace version to "latest"
+		// if they were created using pre-released version of terraform
+		return nil
+	}
+
+	// We trim the suffix if the backend workspace contains it.
+	wsv = version.Must(version.NewVersion(wsv)).Core().String()
+
+	// The condition is based on the assumption that a prerelease and the release of a given remote version
+	// does not include breaking changes.
+	if wsv != tfversion.Version {
+		return fmt.Errorf("Remote workspace OpenTofu version %q does not match local OpenTofu version %q", wsv, tfversion.Version)
+	}
+
+	return nil
 }
 
 func isLocalExecutionMode(execMode string) bool {
