@@ -25,10 +25,6 @@ type NodeRootVariable struct {
 	// converted or validated, and can be nil for a variable that isn't
 	// set at all.
 	RawValue *InputValue
-
-	// Planning must be set to true when building a planning graph, and must be
-	// false when building an apply graph.
-	Planning bool
 }
 
 var (
@@ -87,12 +83,10 @@ func (n *NodeRootVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Di
 		}
 	}
 
-	if n.Planning {
-		if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(addrs.RootModule)) {
-			ctx.Checks().ReportCheckableObjects(
-				n.Addr.InModule(addrs.RootModule),
-				addrs.MakeSet[addrs.Checkable](n.Addr.Absolute(addrs.RootModuleInstance)))
-		}
+	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(addrs.RootModule)) {
+		ctx.Checks().ReportCheckableObjects(
+			n.Addr.InModule(addrs.RootModule),
+			addrs.MakeSet[addrs.Checkable](n.Addr.Absolute(addrs.RootModuleInstance)))
 	}
 
 	finalVal, moreDiags := prepareFinalInputVariableValue(

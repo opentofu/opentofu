@@ -67,8 +67,8 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		},
 
 		// Add dynamic values
-		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues, Planning: true},
-		&ModuleVariableTransformer{Config: b.Config, Planning: true},
+		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
+		&ModuleVariableTransformer{Config: b.Config},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:   b.Config,

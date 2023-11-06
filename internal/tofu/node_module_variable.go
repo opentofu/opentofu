@@ -25,10 +25,6 @@ type nodeExpandModuleVariable struct {
 	Module addrs.Module
 	Config *configs.Variable
 	Expr   hcl.Expression
-
-	// Planning must be set to true when building a planning graph, and must be
-	// false when building an apply graph.
-	Planning bool
 }
 
 var (
@@ -54,10 +50,8 @@ func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error
 	// We should only do this during planning as the apply phase starts with
 	// all the same checkable objects that were registered during the plan.
 	var checkableAddrs addrs.Set[addrs.Checkable]
-	if n.Planning {
-		if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
-			checkableAddrs = addrs.MakeSet[addrs.Checkable]()
-		}
+	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
+		checkableAddrs = addrs.MakeSet[addrs.Checkable]()
 	}
 
 	expander := ctx.InstanceExpander()

@@ -18,10 +18,6 @@ type RootVariableTransformer struct {
 	Config *configs.Config
 
 	RawValues InputValues
-
-	// Planning must be set to true when building a planning graph, and must be
-	// false when building an apply graph.
-	Planning bool
 }
 
 func (t *RootVariableTransformer) Transform(g *Graph) error {
@@ -42,7 +38,6 @@ func (t *RootVariableTransformer) Transform(g *Graph) error {
 			},
 			Config:   v,
 			RawValue: t.RawValues[v.Name],
-			Planning: t.Planning,
 		}
 		g.Add(node)
 	}

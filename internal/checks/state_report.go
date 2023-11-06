@@ -29,7 +29,8 @@ func (c *State) ReportCheckableObjects(configAddr addrs.ConfigCheckable, objectA
 	}
 	if st.objects.Elems != nil {
 		// Can only report checkable objects once per configuration object
-		panic(fmt.Sprintf("duplicate checkable objects report for %s ", configAddr))
+		// This is not a problem as the result is already cached.
+		return
 	}
 
 	// At this point we pre-populate all of the check results as StatusUnknown,
