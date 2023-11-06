@@ -725,7 +725,7 @@ func localVersionMatchesRemoteVersion(wsv string) error {
 	// The condition is based on the assumption that a prerelease and the release of a given remote version
 	// does not include breaking changes.
 	if wsv != tfversion.Version {
-		return fmt.Errorf("Remote workspace OpenTofu version %q does not match local OpenTofu version %q", wsv, tfversion.Version)
+		return fmt.Errorf("Remote workspace OpenTofu version %q does not match local OpenTofu version %q", wsv, tfversion.String())
 	}
 
 	return nil

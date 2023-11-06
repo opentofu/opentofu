@@ -5,6 +5,7 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -479,65 +480,92 @@ func TestRemote_checkConstraints(t *testing.T) {
 }
 
 func TestRemote_StateMgr_versionCheck(t *testing.T) {
-	b, bCleanup := testBackendDefault(t)
-	defer bCleanup()
-
-	// Some fixed versions for testing with. This logic is a simple string
-	// comparison, so we don't need many test cases.
-	v0135 := version.Must(version.NewSemver("0.13.5"))
-	v0140 := version.Must(version.NewSemver("0.14.0"))
-
-	// Save original local version state and restore afterwards
-	p := tfversion.Prerelease
-	v := tfversion.Version
-	s := tfversion.SemVer
-	defer func() {
-		tfversion.Prerelease = p
-		tfversion.Version = v
-		tfversion.SemVer = s
-	}()
-
-	// For this test, the local Terraform version is set to 0.14.0
-	tfversion.Prerelease = ""
-	tfversion.Version = v0140.String()
-	tfversion.SemVer = v0140
-
-	// Update the mock remote workspace OpenTofu version to match the local
-	// Terraform version
-	if _, err := b.client.Workspaces.Update(
-		context.Background(),
-		b.organization,
-		b.workspace,
-		tfe.WorkspaceUpdateOptions{
-			TerraformVersion: tfe.String(v0140.String()),
+	tests := []struct {
+		name              string
+		localTofuVersion  string
+		remoteTofuVersion string
+		wantErr           error
+	}{
+		{
+			name:              "shall fail for local 0.14.0 with remote 0.13.5",
+			localTofuVersion:  "0.14.0",
+			remoteTofuVersion: "0.13.5",
+			wantErr:           errors.New(`Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`),
 		},
-	); err != nil {
-		t.Fatalf("error: %v", err)
-	}
-
-	ctx := context.Background()
-
-	// This should succeed
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	// Now change the remote workspace to a different Terraform version
-	if _, err := b.client.Workspaces.Update(
-		context.Background(),
-		b.organization,
-		b.workspace,
-		tfe.WorkspaceUpdateOptions{
-			TerraformVersion: tfe.String(v0135.String()),
+		{
+			name:              "shall succeed for local 1.6.0-alpha3 with remote 1.6.0-alpha2",
+			localTofuVersion:  "1.6.0-alpha3",
+			remoteTofuVersion: "1.6.0-alpha2",
+			wantErr:           nil,
 		},
-	); err != nil {
-		t.Fatalf("error: %v", err)
+		{
+			name:              "shall fail for local 1.6.1-alpha1 with remote 1.6.0",
+			localTofuVersion:  "1.6.1-alpha1",
+			remoteTofuVersion: "1.6.0",
+			wantErr:           errors.New(`Remote workspace OpenTofu version "1.6.0" does not match local OpenTofu version "1.6.1-alpha1"`),
+		},
 	}
 
-	// This should fail
-	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err.Error() != want {
-		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
+	t.Parallel()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, bCleanup := testBackendDefault(t)
+			defer bCleanup()
+
+			// Save original local version state and restore afterwards
+			p := tfversion.Prerelease
+			v := tfversion.Version
+			s := tfversion.SemVer
+			defer func() {
+				tfversion.Prerelease = p
+				tfversion.Version = v
+				tfversion.SemVer = s
+			}()
+
+			verRemote := version.Must(version.NewSemver(tt.remoteTofuVersion))
+			verLocal := version.Must(version.NewSemver(tt.localTofuVersion))
+
+			tfversion.Prerelease = verLocal.Prerelease()
+			tfversion.SemVer = verLocal.Core()
+			tfversion.Version = tfversion.SemVer.String()
+
+			// Update the mock remote workspace OpenTofu version to match the local
+			// Terraform version
+			if _, err := b.client.Workspaces.Update(
+				context.Background(),
+				b.organization,
+				b.workspace,
+				tfe.WorkspaceUpdateOptions{
+					TerraformVersion: tfe.String(verLocal.String()),
+				},
+			); err != nil {
+				t.Fatalf("error: %v", err)
+			}
+
+			ctx := context.Background()
+
+			// This should succeed
+			if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			// Now change the remote workspace to a different Terraform version
+			if _, err := b.client.Workspaces.Update(
+				context.Background(),
+				b.organization,
+				b.workspace,
+				tfe.WorkspaceUpdateOptions{
+					TerraformVersion: tfe.String(verRemote.String()),
+				},
+			); err != nil {
+				t.Fatalf("error: %v", err)
+			}
+
+			if _, err := b.StateMgr(ctx, backend.DefaultStateName); !reflect.DeepEqual(err, tt.wantErr) {
+				t.Fatalf("wrong error\n got: %v\nwant: %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
