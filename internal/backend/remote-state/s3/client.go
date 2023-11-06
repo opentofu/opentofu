@@ -191,7 +191,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
-	uploader := manager.NewUploader(c.s3Client, func(u *manager.Uploader) {})
+	uploader := manager.NewUploader(c.s3Client, nil)
 	_, err := uploader.Upload(ctx, i)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
