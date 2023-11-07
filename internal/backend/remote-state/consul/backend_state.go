@@ -21,7 +21,8 @@ const (
 func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	// List our raw path
 	prefix := b.configData.Get("path").(string) + keyEnvPrefix
-	keys, _, err := b.client.KV().Keys(prefix, "/", nil)
+
+	keys, _, err := b.client.KV().Keys(prefix, "/", b.queryOpts.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -63,7 +64,7 @@ func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error 
 
 	// Delete it. We just delete it without any locking since
 	// the DeleteState API is documented as such.
-	_, err := b.client.KV().Delete(path, nil)
+	_, err := b.client.KV().Delete(path, b.writeOpts.WithContext(ctx))
 	return err
 }
 
@@ -81,6 +82,8 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 			Path:      path,
 			GZip:      gzip,
 			lockState: b.lock,
+			queryOpts: b.queryOpts,
+			writeOpts: b.writeOpts,
 		},
 	}
 

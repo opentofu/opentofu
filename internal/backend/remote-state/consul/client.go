@@ -36,7 +36,7 @@ const (
 	lockReacquireInterval = 2 * time.Second
 )
 
-var lostLockErr = errors.New("consul lock was lost")
+var errLostLock = errors.New("consul lock was lost")
 
 // RemoteClient is a remote client that stores data in Consul.
 type RemoteClient struct {
@@ -69,15 +69,18 @@ type RemoteClient struct {
 	// called when unlocking, or before creating a new lock if the lock is
 	// lost.
 	sessionCancel context.CancelFunc
+
+	queryOpts *consulapi.QueryOptions
+	writeOpts *consulapi.WriteOptions
 }
 
-func (c *RemoteClient) Get(context.Context) (*remote.Payload, error) {
+func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	kv := c.Client.KV()
 
-	chunked, hash, chunks, pair, err := c.chunkedMode()
+	chunked, hash, chunks, pair, err := c.chunkedMode(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +92,13 @@ func (c *RemoteClient) Get(context.Context) (*remote.Payload, error) {
 
 	var payload []byte
 	if chunked {
-		for _, c := range chunks {
-			pair, _, err := kv.Get(c, nil)
+		for _, chunk := range chunks {
+			pair, _, err := kv.Get(chunk, c.queryOpts.WithContext(ctx))
 			if err != nil {
 				return nil, err
 			}
 			if pair == nil {
-				return nil, fmt.Errorf("Key %q could not be found", c)
+				return nil, fmt.Errorf("Key %q could not be found", chunk)
 			}
 			payload = append(payload, pair.Value[:]...)
 		}
@@ -123,7 +126,7 @@ func (c *RemoteClient) Get(context.Context) (*remote.Payload, error) {
 	}, nil
 }
 
-func (c *RemoteClient) Put(_ context.Context, data []byte) error {
+func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	// The state can be stored in 4 different ways, based on the payload size
 	// and whether the user enabled gzip:
 	//  - single entry mode with plain JSON: a single JSON is stored at
@@ -167,11 +170,12 @@ func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	kv := c.Client.KV()
 
 	// First we determine what mode we were using and to prepare the cleanup
-	chunked, hash, _, _, err := c.chunkedMode()
+	chunked, hash, _, _, err := c.chunkedMode(ctx)
 	if err != nil {
 		return err
 	}
 	cleanupOldChunks := func() {}
+
 	if chunked {
 		cleanupOldChunks = func() {
 			// We ignore all errors that can happen here because we already
@@ -179,7 +183,7 @@ func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 			// the user. We may end up with dangling chunks but there is no way
 			// to be sure we won't.
 			path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-			kv.DeleteTree(path, nil)
+			kv.DeleteTree(path, c.writeOpts.WithContext(ctx))
 		}
 	}
 
@@ -228,7 +232,7 @@ func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 			},
 		}
 
-		ok, resp, _, err := kv.Txn(txOps, nil)
+		ok, resp, _, err := kv.Txn(txOps, c.queryOpts.WithContext(ctx))
 		if err != nil {
 			return err
 		}
@@ -275,7 +279,7 @@ func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 		_, err := kv.Put(&consulapi.KVPair{
 			Key:   path,
 			Value: p,
-		}, nil)
+		}, c.writeOpts.WithContext(ctx))
 
 		if err != nil {
 			return err
@@ -293,23 +297,23 @@ func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	return store(payload)
 }
 
-func (c *RemoteClient) Delete(_ context.Context) error {
+func (c *RemoteClient) Delete(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	kv := c.Client.KV()
 
-	chunked, hash, _, _, err := c.chunkedMode()
+	chunked, hash, _, _, err := c.chunkedMode(ctx)
 	if err != nil {
 		return err
 	}
 
-	_, err = kv.Delete(c.Path, nil)
+	_, err = kv.Delete(c.Path, c.writeOpts.WithContext(ctx))
 
 	// If there were chunks we need to remove them
 	if chunked {
 		path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-		kv.DeleteTree(path, nil)
+		kv.DeleteTree(path, c.writeOpts.WithContext(ctx))
 	}
 
 	return err
@@ -321,22 +325,24 @@ func (c *RemoteClient) lockPath() string {
 	return strings.TrimRight(c.Path, "/")
 }
 
-func (c *RemoteClient) putLockInfo(info *statemgr.LockInfo) error {
+func (c *RemoteClient) putLockInfo(ctx context.Context, info *statemgr.LockInfo) error {
 	info.Path = c.Path
 	info.Created = time.Now().UTC()
 
 	kv := c.Client.KV()
+
 	_, err := kv.Put(&consulapi.KVPair{
 		Key:   c.lockPath() + lockInfoSuffix,
 		Value: info.Marshal(),
-	}, nil)
+	}, c.writeOpts.WithContext(ctx))
 
 	return err
 }
 
-func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
+func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
 	path := c.lockPath() + lockInfoSuffix
-	pair, _, err := c.Client.KV().Get(path, nil)
+
+	pair, _, err := c.Client.KV().Get(path, c.queryOpts.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +440,7 @@ func (c *RemoteClient) lock(ctx context.Context) (string, error) {
 	}
 
 	if lockCh == nil {
-		lockInfo, e := c.getLockInfo()
+		lockInfo, e := c.getLockInfo(ctx)
 		if e != nil {
 			lockErr.Err = e
 			return "", lockErr
@@ -447,9 +453,9 @@ func (c *RemoteClient) lock(ctx context.Context) (string, error) {
 
 	c.lockCh = lockCh
 
-	err = c.putLockInfo(c.info)
+	err = c.putLockInfo(ctx, c.info)
 	if err != nil {
-		if unlockErr := c.unlock(c.info.ID); unlockErr != nil {
+		if unlockErr := c.unlock(ctx, c.info.ID); unlockErr != nil {
 			err = multierror.Append(err, unlockErr)
 		}
 
@@ -529,7 +535,7 @@ func (c *RemoteClient) createSession(ctx context.Context) (string, error) {
 		LockDelay: lockDelay,
 	}
 
-	id, _, err := session.Create(se, nil)
+	id, _, err := session.Create(se, c.writeOpts.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -542,7 +548,7 @@ func (c *RemoteClient) createSession(ctx context.Context) (string, error) {
 	return id, nil
 }
 
-func (c *RemoteClient) Unlock(_ context.Context, id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -550,30 +556,33 @@ func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 		return nil
 	}
 
-	return c.unlock(id)
+	return c.unlock(ctx, id)
 }
 
 // the unlock implementation.
 // Only to be called while holding Client.mu
-func (c *RemoteClient) unlock(id string) error {
+func (c *RemoteClient) unlock(ctx context.Context, id string) error {
 	// This method can be called in two circumstances:
 	// - when the plan apply or destroy operation finishes and the lock needs to be released,
 	// the watchdog stopped and the session closed
 	// - when the user calls `tofu force-unlock <lock_id>` in which case
 	// we only need to release the lock.
 
+	writeOpts := c.writeOpts.WithContext(ctx)
+
 	if c.consulLock == nil || c.lockCh == nil {
 		// The user called `tofu force-unlock <lock_id>`, we just destroy
 		// the session which will release the lock, clean the KV store and quit.
 
-		_, err := c.Client.Session().Destroy(id, nil)
-		if err != nil {
+		if _, err := c.Client.Session().Destroy(id, writeOpts); err != nil {
 			return err
 		}
-		// We ignore the errors that may happen during cleanup
+
 		kv := c.Client.KV()
-		kv.Delete(c.lockPath()+lockSuffix, nil)
-		kv.Delete(c.lockPath()+lockInfoSuffix, nil)
+
+		// We ignore the errors that may happen during cleanup
+		kv.Delete(c.lockPath()+lockSuffix, writeOpts)
+		kv.Delete(c.lockPath()+lockInfoSuffix, writeOpts)
 
 		return nil
 	}
@@ -593,7 +602,7 @@ func (c *RemoteClient) unlock(id string) error {
 
 	select {
 	case <-c.lockCh:
-		return lostLockErr
+		return errLostLock
 	default:
 	}
 
@@ -601,7 +610,7 @@ func (c *RemoteClient) unlock(id string) error {
 
 	var errs error
 
-	if _, err := kv.Delete(c.lockPath()+lockInfoSuffix, nil); err != nil {
+	if _, err := kv.Delete(c.lockPath()+lockInfoSuffix, writeOpts); err != nil {
 		errs = multierror.Append(errs, err)
 	}
 
@@ -662,9 +671,10 @@ func split(payload []byte, limit int) [][]byte {
 	return chunks
 }
 
-func (c *RemoteClient) chunkedMode() (bool, string, []string, *consulapi.KVPair, error) {
+func (c *RemoteClient) chunkedMode(ctx context.Context) (bool, string, []string, *consulapi.KVPair, error) {
 	kv := c.Client.KV()
-	pair, _, err := kv.Get(c.Path, nil)
+
+	pair, _, err := kv.Get(c.Path, c.queryOpts.WithContext(ctx))
 	if err != nil {
 		return false, "", nil, pair, err
 	}
