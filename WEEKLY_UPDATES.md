@@ -1,5 +1,30 @@
 # Weekly Updates
 
+## 2023-11-07
+
+Hey!
+
+Big week for OpenTofu! The technical steering committee met and chose a registry design. We'll now be writing more detailed designs and then proceed with implementing the registry.
+
+Moreover, two engineers have joined the OpenTofu Core Team and will be 100% dedicated to OpenTofu development. Welcome, @kislerdm and @cam72cam!
+
+- Current Status and Up Next
+  - The technical steering committee has gathered last week, and you can find the meeting notes in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file in the repository root.
+  - The technical steering committee has chosen the [Homebrew-like design](https://github.com/opentofu/opentofu/issues/741) for implementation.
+    - Now we'll have multiple designs for subcomponents of the registry, [you can track them here](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Arfc+label%3Af-registry), via GitHub search.
+    - Once we're all on the same page design-wise, we'll start implementation. There is already a [fully-working PoC of the base Homebrew-like design](https://github.com/opentofu/opentofu/issues/741#issuecomment-1786697966).
+  - There are some minor bugs that have been added as stable release blockers. The new core team joiners will focus on them as part of their onboarding process.
+    - You can track the progress towards the [stable release milestone here](https://github.com/opentofu/opentofu/milestone/3).
+- How can I help?
+  - Since the alpha release is out, right now the best way to help is to take the alpha for a test drive and see if there are any bugs / issues.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+  - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
+  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the alpha and stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
+    - Issues and Pull Requests with enhancements or major changes will generally be frozen until we have the first stable release out. We will introduce a milestone to mark them as such more clearly.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2023-11-02
 
 Hey!
