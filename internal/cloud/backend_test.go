@@ -1230,10 +1230,12 @@ func TestCloud_VerifyWorkspaceTerraformVersion(t *testing.T) {
 			tfversion.Version = local.String()
 			tfversion.SemVer = local
 
+			ctx := context.Background()
+
 			// Update the mock remote workspace Terraform version to the
 			// specified remote version
 			if _, err := b.client.Workspaces.Update(
-				context.Background(),
+				ctx,
 				b.organization,
 				b.WorkspaceMapping.Name,
 				tfe.WorkspaceUpdateOptions{
@@ -1244,7 +1246,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion(t *testing.T) {
 				t.Fatalf("error: %v", err)
 			}
 
-			diags := b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
+			diags := b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
 			if tc.wantErr {
 				if len(diags) != 1 {
 					t.Fatal("expected diag, but none returned")
@@ -1265,16 +1267,18 @@ func TestCloud_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
+	ctx := context.Background()
+
 	// Attempting to check the version against a workspace which doesn't exist
 	// should result in no errors
-	diags := b.VerifyWorkspaceTerraformVersion("invalid-workspace")
+	diags := b.VerifyWorkspaceTerraformVersion(ctx, "invalid-workspace")
 	if len(diags) != 0 {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
 
 	// Use a special workspace ID to trigger a 500 error, which should result
 	// in a failed check
-	diags = b.VerifyWorkspaceTerraformVersion("network-error")
+	diags = b.VerifyWorkspaceTerraformVersion(ctx, "network-error")
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}
@@ -1293,7 +1297,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	); err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	diags = b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
+	diags = b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
 
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
@@ -1329,10 +1333,12 @@ func TestCloud_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	tfversion.Version = local.String()
 	tfversion.SemVer = local
 
+	ctx := context.Background()
+
 	// Update the mock remote workspace Terraform version to the
 	// specified remote version
 	if _, err := b.client.Workspaces.Update(
-		context.Background(),
+		ctx,
 		b.organization,
 		b.WorkspaceMapping.Name,
 		tfe.WorkspaceUpdateOptions{
@@ -1342,7 +1348,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
-	diags := b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
+	diags := b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}

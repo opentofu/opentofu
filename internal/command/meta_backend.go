@@ -67,7 +67,7 @@ type BackendOpts struct {
 // for simplified type checking when calling functions common to those particular backends.
 type BackendWithRemoteTerraformVersion interface {
 	IgnoreVersionConflict()
-	VerifyWorkspaceTerraformVersion(workspace string) tfdiags.Diagnostics
+	VerifyWorkspaceTerraformVersion(ctx context.Context, workspace string) tfdiags.Diagnostics
 	IsLocalOperations() bool
 }
 
@@ -1500,7 +1500,7 @@ func (m *Meta) remoteVersionCheck(b backend.Backend, workspace string) tfdiags.D
 		}
 		// If the override is set, this check will return a warning instead of
 		// an error
-		versionDiags := back.VerifyWorkspaceTerraformVersion(workspace)
+		versionDiags := back.VerifyWorkspaceTerraformVersion(context.TODO(), workspace)
 		diags = diags.Append(versionDiags)
 		// If there are no errors resulting from this check, we do not need to
 		// check again
