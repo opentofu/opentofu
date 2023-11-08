@@ -4,7 +4,6 @@
 package remote
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/json"
 	"testing"
@@ -14,7 +13,7 @@ func TestRemoteClient_noPayload(t *testing.T) {
 	s := &State{
 		Client: nilClient{},
 	}
-	if err := s.RefreshState(context.Background()); err != nil {
+	if err := s.RefreshState(); err != nil {
 		t.Fatal("error refreshing empty remote state")
 	}
 }
@@ -22,11 +21,11 @@ func TestRemoteClient_noPayload(t *testing.T) {
 // nilClient returns nil for everything
 type nilClient struct{}
 
-func (nilClient) Get(context.Context) (*Payload, error) { return nil, nil }
+func (nilClient) Get() (*Payload, error) { return nil, nil }
 
-func (c nilClient) Put(context.Context, []byte) error { return nil }
+func (c nilClient) Put([]byte) error { return nil }
 
-func (c nilClient) Delete(context.Context) error { return nil }
+func (c nilClient) Delete() error { return nil }
 
 // mockClient is a client that tracks persisted state snapshots only in
 // memory and also logs what it has been asked to do for use in test
@@ -41,7 +40,7 @@ type mockClientRequest struct {
 	Content map[string]interface{}
 }
 
-func (c *mockClient) Get(context.Context) (*Payload, error) {
+func (c *mockClient) Get() (*Payload, error) {
 	c.appendLog("Get", c.current)
 	if c.current == nil {
 		return nil, nil
@@ -53,13 +52,13 @@ func (c *mockClient) Get(context.Context) (*Payload, error) {
 	}, nil
 }
 
-func (c *mockClient) Put(_ context.Context, data []byte) error {
+func (c *mockClient) Put(data []byte) error {
 	c.appendLog("Put", data)
 	c.current = data
 	return nil
 }
 
-func (c *mockClient) Delete(context.Context) error {
+func (c *mockClient) Delete() error {
 	c.appendLog("Delete", c.current)
 	c.current = nil
 	return nil
@@ -90,7 +89,7 @@ type mockClientForcePusher struct {
 	log     []mockClientRequest
 }
 
-func (c *mockClientForcePusher) Get(context.Context) (*Payload, error) {
+func (c *mockClientForcePusher) Get() (*Payload, error) {
 	c.appendLog("Get", c.current)
 	if c.current == nil {
 		return nil, nil
@@ -102,7 +101,7 @@ func (c *mockClientForcePusher) Get(context.Context) (*Payload, error) {
 	}, nil
 }
 
-func (c *mockClientForcePusher) Put(_ context.Context, data []byte) error {
+func (c *mockClientForcePusher) Put(data []byte) error {
 	if c.force {
 		c.appendLog("Force Put", data)
 	} else {
@@ -117,7 +116,7 @@ func (c *mockClientForcePusher) EnableForcePush() {
 	c.force = true
 }
 
-func (c *mockClientForcePusher) Delete(context.Context) error {
+func (c *mockClientForcePusher) Delete() error {
 	c.appendLog("Delete", c.current)
 	c.current = nil
 	return nil

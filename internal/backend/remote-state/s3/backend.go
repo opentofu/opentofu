@@ -49,7 +49,7 @@ type Backend struct {
 
 // ConfigSchema returns a description of the expected configuration
 // structure for the receiving backend.
-func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
+func (b *Backend) ConfigSchema() *configschema.Block {
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"bucket": {
@@ -443,7 +443,7 @@ func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
 // configuration, and inserts any missing defaults, assuming that its
 // structure has already been validated per the schema returned by
 // ConfigSchema.
-func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return obj, diags
@@ -623,7 +623,7 @@ func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, 
 // The given configuration is assumed to have already been validated
 // against the schema returned by ConfigSchema and passed validation
 // via PrepareConfig.
-func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -772,6 +772,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		cfg.RetryMode = mode
 	}
 
+	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
 	for _, d := range awsDiags {

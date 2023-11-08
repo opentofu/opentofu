@@ -25,7 +25,7 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	err := armClient.buildTestResources(ctx, &res)
 	defer armClient.destroyTestResources(ctx, res)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(ctx, backend.DefaultStateName)
+	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	err := armClient.buildTestResources(ctx, &res)
 	defer armClient.destroyTestResources(ctx, res)
 	if err != nil {
@@ -74,7 +74,7 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(ctx, backend.DefaultStateName)
+	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	err := armClient.buildTestResources(ctx, &res)
 	defer armClient.destroyTestResources(ctx, res)
 	if err != nil {
@@ -109,7 +109,7 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(ctx, backend.DefaultStateName)
+	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	err := armClient.buildTestResources(ctx, &res)
 	defer armClient.destroyTestResources(ctx, res)
 	if err != nil {
@@ -143,7 +143,7 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(ctx, backend.DefaultStateName)
+	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	err := armClient.buildTestResources(ctx, &res)
 	defer armClient.destroyTestResources(ctx, res)
 	if err != nil {
@@ -182,12 +182,12 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	err := armClient.buildTestResources(ctx, &res)
 	defer armClient.destroyTestResources(ctx, res)
 	if err != nil {
@@ -234,12 +234,12 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	}
 
 	bytes := []byte(acctest.RandString(20))
-	err = remoteClient.Put(ctx, bytes)
+	err = remoteClient.Put(bytes)
 	if err != nil {
 		t.Fatalf("Error putting data: %+v", err)
 	}

@@ -4,7 +4,6 @@
 package inmem
 
 import (
-	"context"
 	"flag"
 	"os"
 	"testing"
@@ -37,9 +36,7 @@ func TestBackendConfig(t *testing.T) {
 
 	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
 
-	ctx := context.Background()
-
-	s, err := b.StateMgr(ctx, backend.DefaultStateName)
+	s, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,10 +72,8 @@ func TestRemoteState(t *testing.T) {
 
 	workspace := "workspace"
 
-	ctx := context.Background()
-
 	// create a new workspace in this backend
-	s, err := b.StateMgr(ctx, workspace)
+	s, err := b.StateMgr(workspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,11 +85,11 @@ func TestRemoteState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.PersistState(ctx, nil); err != nil {
+	if err := s.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.RefreshState(ctx); err != nil {
+	if err := s.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 }

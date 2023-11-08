@@ -81,9 +81,7 @@ func TestRemote_applyBasic(t *testing.T) {
 	op.UIOut = b.CLI
 	op.Workspace = backend.DefaultStateName
 
-	ctx := context.Background()
-
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -111,9 +109,9 @@ func TestRemote_applyBasic(t *testing.T) {
 		t.Fatalf("expected apply summery in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
 	}
 }
@@ -128,9 +126,7 @@ func TestRemote_applyCanceled(t *testing.T) {
 
 	op.Workspace = backend.DefaultStateName
 
-	ctx := context.Background()
-
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -143,8 +139,8 @@ func TestRemote_applyCanceled(t *testing.T) {
 		t.Fatal("expected apply operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelling apply: %s", err.Error())
 	}
 }
@@ -613,8 +609,7 @@ func TestRemote_applyNoConfig(t *testing.T) {
 
 	op.Workspace = backend.DefaultStateName
 
-	ctx := context.Background()
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -633,9 +628,9 @@ func TestRemote_applyNoConfig(t *testing.T) {
 		t.Fatalf("expected configuration files error, got: %v", errOutput)
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
 	}
 }

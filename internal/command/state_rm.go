@@ -4,7 +4,6 @@
 package command
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -68,9 +67,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		}()
 	}
 
-	ctx := context.TODO()
-
-	if err := stateMgr.RefreshState(ctx); err != nil {
+	if err := stateMgr.RefreshState(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh state: %s", err))
 		return 1
 	}
@@ -137,7 +134,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
-	if err := stateMgr.PersistState(ctx, schemas); err != nil {
+	if err := stateMgr.PersistState(schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}

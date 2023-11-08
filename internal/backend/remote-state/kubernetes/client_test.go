@@ -4,7 +4,6 @@
 package kubernetes
 
 import (
-	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -25,9 +24,7 @@ func TestRemoteClient(t *testing.T) {
 		"secret_suffix": secretSuffix,
 	}))
 
-	ctx := context.Background()
-
-	state, err := b.StateMgr(ctx, backend.DefaultStateName)
+	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,14 +44,12 @@ func TestRemoteClientLocks(t *testing.T) {
 		"secret_suffix": secretSuffix,
 	}))
 
-	ctx := context.Background()
-
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,10 +69,8 @@ func TestForceUnlock(t *testing.T) {
 		"secret_suffix": secretSuffix,
 	}))
 
-	ctx := context.Background()
-
 	// first test with default
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,24 +79,24 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(ctx, info)
+	lockID, err := s1.Lock(info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(ctx, lockID); err != nil {
+	if err := s2.Unlock(lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr(ctx, "test")
+	s1, err = b1.StateMgr("test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,18 +105,18 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(ctx, info)
+	lockID, err = s1.Lock(info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr(ctx, "test")
+	s2, err = b2.StateMgr("test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(ctx, lockID); err != nil {
+	if err = s2.Unlock(lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 }

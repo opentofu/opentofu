@@ -79,9 +79,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, noEncryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -100,9 +98,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, encryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -123,9 +119,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be, noPrefix)
 
 	remoteClient := func() (remote.Client, error) {
-		ctx := context.Background()
-
-		ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+		ss, err := be.StateMgr(backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}
@@ -244,11 +238,10 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 
 	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config))
 	be := b.(*Backend)
-	ctx := context.Background()
 
 	// create the bucket if it doesn't exist
 	bkt := be.storageClient.Bucket(bucket)
-	_, err := bkt.Attrs(ctx)
+	_, err := bkt.Attrs(be.storageContext)
 	if err != nil {
 		if err != storage.ErrBucketNotExist {
 			t.Fatal(err)
@@ -257,7 +250,7 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 		attrs := &storage.BucketAttrs{
 			Location: os.Getenv("GOOGLE_REGION"),
 		}
-		err := bkt.Create(ctx, projectID, attrs)
+		err := bkt.Create(be.storageContext, projectID, attrs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -387,7 +380,7 @@ func teardownBackend(t *testing.T, be backend.Backend, prefix string) {
 	if !ok {
 		t.Fatalf("be is a %T, want a *gcsBackend", be)
 	}
-	ctx := context.Background()
+	ctx := gcsBE.storageContext
 
 	bucket := gcsBE.storageClient.Bucket(gcsBE.bucketName)
 	objs := bucket.Objects(ctx, nil)

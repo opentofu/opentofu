@@ -4,7 +4,6 @@
 package pg
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -13,9 +12,9 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
+func (b *Backend) Workspaces() ([]string, error) {
 	query := `SELECT name FROM %s.%s WHERE name != 'default' ORDER BY name`
-	rows, err := b.db.QueryContext(ctx, fmt.Sprintf(query, b.schemaName, statesTableName))
+	rows, err := b.db.Query(fmt.Sprintf(query, b.schemaName, statesTableName))
 	if err != nil {
 		return nil, err
 	}
@@ -39,13 +38,13 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
 
 	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := b.db.ExecContext(ctx, fmt.Sprintf(query, b.schemaName, statesTableName), name)
+	_, err := b.db.Exec(fmt.Sprintf(query, b.schemaName, statesTableName), name)
 	if err != nil {
 		return err
 	}
@@ -53,7 +52,7 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 	return nil
 }
 
-func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// Build the state client
 	var stateMgr statemgr.Full = &remote.State{
 		Client: &RemoteClient{
@@ -66,7 +65,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	// Check to see if this state already exists.
 	// If the state doesn't exist, we have to assume this
 	// is a normal create operation, and take the lock at that point.
-	existing, err := b.Workspaces(ctx)
+	existing, err := b.Workspaces()
 	if err != nil {
 		return nil, err
 	}
@@ -85,14 +84,14 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	if !exists {
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := stateMgr.Lock(ctx, lockInfo)
+		lockId, err := stateMgr.Lock(lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock state in Postgres: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
-			if err := stateMgr.Unlock(ctx, lockId); err != nil {
+			if err := stateMgr.Unlock(lockId); err != nil {
 				return fmt.Errorf("error unlocking Postgres state: %w", err)
 			}
 			return parent
@@ -103,7 +102,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(ctx, nil); err != nil {
+			if err := stateMgr.PersistState(nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

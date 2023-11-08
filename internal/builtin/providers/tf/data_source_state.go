@@ -4,7 +4,6 @@
 package tf
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -110,9 +109,7 @@ func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		return cty.NilVal, diags
 	}
 
-	ctx := context.TODO()
-
-	configureDiags := b.Configure(ctx, cfg)
+	configureDiags := b.Configure(cfg)
 	if configureDiags.HasErrors() {
 		diags = diags.Append(configureDiags.Err())
 		return cty.NilVal, diags
@@ -132,7 +129,7 @@ func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		workspaceName = workspaceVal.AsString()
 	}
 
-	state, err := b.StateMgr(ctx, workspaceName)
+	state, err := b.StateMgr(workspaceName)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
@@ -143,7 +140,7 @@ func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		return cty.NilVal, diags
 	}
 
-	if err := state.RefreshState(ctx); err != nil {
+	if err := state.RefreshState(); err != nil {
 		diags = diags.Append(err)
 		return cty.NilVal, diags
 	}
@@ -225,9 +222,7 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 		config = cty.ObjectVal(config.AsValueMap())
 	}
 
-	ctx := context.TODO()
-
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	// Try to coerce the provided value into the desired configuration type.
 	configVal, err := schema.CoerceValue(config)
 	if err != nil {
@@ -241,7 +236,7 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 		return nil, cty.NilVal, diags
 	}
 
-	newVal, validateDiags := b.PrepareConfig(ctx, configVal)
+	newVal, validateDiags := b.PrepareConfig(configVal)
 	diags = diags.Append(validateDiags)
 	if validateDiags.HasErrors() {
 		return nil, cty.NilVal, diags

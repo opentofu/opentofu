@@ -104,9 +104,9 @@ func NewWithBackend(backend backend.Backend) *Local {
 	}
 }
 
-func (b *Local) ConfigSchema(ctx context.Context) *configschema.Block {
+func (b *Local) ConfigSchema() *configschema.Block {
 	if b.Backend != nil {
-		return b.Backend.ConfigSchema(ctx)
+		return b.Backend.ConfigSchema()
 	}
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -122,9 +122,9 @@ func (b *Local) ConfigSchema(ctx context.Context) *configschema.Block {
 	}
 }
 
-func (b *Local) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Local) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	if b.Backend != nil {
-		return b.Backend.PrepareConfig(ctx, obj)
+		return b.Backend.PrepareConfig(obj)
 	}
 
 	var diags tfdiags.Diagnostics
@@ -156,9 +156,9 @@ func (b *Local) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tf
 	return obj, diags
 }
 
-func (b *Local) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
+func (b *Local) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if b.Backend != nil {
-		return b.Backend.Configure(ctx, obj)
+		return b.Backend.Configure(obj)
 	}
 
 	var diags tfdiags.Diagnostics
@@ -186,10 +186,10 @@ func (b *Local) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 	return []backend.HostAlias{}, nil
 }
 
-func (b *Local) Workspaces(ctx context.Context) ([]string, error) {
+func (b *Local) Workspaces() ([]string, error) {
 	// If we have a backend handling state, defer to that.
 	if b.Backend != nil {
-		return b.Backend.Workspaces(ctx)
+		return b.Backend.Workspaces()
 	}
 
 	// the listing always start with "default"
@@ -220,10 +220,10 @@ func (b *Local) Workspaces(ctx context.Context) ([]string, error) {
 // DeleteWorkspace removes a workspace.
 //
 // The "default" workspace cannot be removed.
-func (b *Local) DeleteWorkspace(ctx context.Context, name string, force bool) error {
+func (b *Local) DeleteWorkspace(name string, force bool) error {
 	// If we have a backend handling state, defer to that.
 	if b.Backend != nil {
-		return b.Backend.DeleteWorkspace(ctx, name, force)
+		return b.Backend.DeleteWorkspace(name, force)
 	}
 
 	if name == "" {
@@ -238,10 +238,10 @@ func (b *Local) DeleteWorkspace(ctx context.Context, name string, force bool) er
 	return os.RemoveAll(filepath.Join(b.stateWorkspaceDir(), name))
 }
 
-func (b *Local) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *Local) StateMgr(name string) (statemgr.Full, error) {
 	// If we have a backend handling state, delegate to that.
 	if b.Backend != nil {
-		return b.Backend.StateMgr(ctx, name)
+		return b.Backend.StateMgr(name)
 	}
 
 	if s, ok := b.states[name]; ok {
@@ -348,14 +348,9 @@ func (b *Local) opWait(
 	case <-stopCtx.Done():
 		view.Stopping()
 
-		// We want to have a context that's guaranteed to be active that can be
-		// used to persist the state. Otherwise, if the operation is canceled
-		// or stopped before we can persist the state, we'll lose the state.
-		persistCtx := context.Background()
-
 		// try to force a PersistState just in case the process is terminated
 		// before we can complete.
-		if err := opStateMgr.PersistState(persistCtx, nil); err != nil {
+		if err := opStateMgr.PersistState(nil); err != nil {
 			// We can't error out from here, but warn the user if there was an error.
 			// If this isn't transient, we will catch it again below, and
 			// attempt to save the state another way.
@@ -435,9 +430,9 @@ func (b *Local) StatePaths(name string) (stateIn, stateOut, backupOut string) {
 // This should be used when "migrating" from one local backend configuration to
 // another in order to avoid deleting the "old" state snapshots if they are
 // in the same files as the "new" state snapshots.
-func (b *Local) PathsConflictWith(ctx context.Context, other *Local) bool {
+func (b *Local) PathsConflictWith(other *Local) bool {
 	otherPaths := map[string]struct{}{}
-	otherWorkspaces, err := other.Workspaces(ctx)
+	otherWorkspaces, err := other.Workspaces()
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.
@@ -448,7 +443,7 @@ func (b *Local) PathsConflictWith(ctx context.Context, other *Local) bool {
 		otherPaths[p] = struct{}{}
 	}
 
-	ourWorkspaces, err := other.Workspaces(ctx)
+	ourWorkspaces, err := other.Workspaces()
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.

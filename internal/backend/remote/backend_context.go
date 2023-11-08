@@ -30,16 +30,14 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 		},
 	}
 
-	ctx := context.TODO()
-
-	op.StateLocker = op.StateLocker.WithContext(ctx)
+	op.StateLocker = op.StateLocker.WithContext(context.Background())
 
 	// Get the remote workspace name.
 	remoteWorkspaceName := b.getRemoteWorkspaceName(op.Workspace)
 
 	// Get the latest state.
 	log.Printf("[TRACE] backend/remote: requesting state manager for workspace %q", remoteWorkspaceName)
-	stateMgr, err := b.StateMgr(ctx, op.Workspace)
+	stateMgr, err := b.StateMgr(op.Workspace)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, diags
@@ -59,7 +57,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 	}()
 
 	log.Printf("[TRACE] backend/remote: reading remote state for workspace %q", remoteWorkspaceName)
-	if err := stateMgr.RefreshState(ctx); err != nil {
+	if err := stateMgr.RefreshState(); err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, diags
 	}
@@ -97,13 +95,13 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 		// The underlying API expects us to use the opaque workspace id to request
 		// variables, so we'll need to look that up using our organization name
 		// and workspace name.
-		remoteWorkspaceID, err := b.getRemoteWorkspaceID(ctx, op.Workspace)
+		remoteWorkspaceID, err := b.getRemoteWorkspaceID(context.Background(), op.Workspace)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf("error finding remote workspace: %w", err))
 			return nil, nil, diags
 		}
 
-		w, err := b.fetchWorkspace(ctx, b.organization, op.Workspace)
+		w, err := b.fetchWorkspace(context.Background(), b.organization, op.Workspace)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf("error loading workspace: %w", err))
 			return nil, nil, diags
@@ -113,7 +111,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 			log.Printf("[TRACE] skipping retrieving variables from workspace %s/%s (%s), workspace is in Local Execution mode", remoteWorkspaceName, b.organization, remoteWorkspaceID)
 		} else {
 			log.Printf("[TRACE] backend/remote: retrieving variables from workspace %s/%s (%s)", remoteWorkspaceName, b.organization, remoteWorkspaceID)
-			tfeVariables, err := b.client.Variables.List(ctx, remoteWorkspaceID, nil)
+			tfeVariables, err := b.client.Variables.List(context.Background(), remoteWorkspaceID, nil)
 			if err != nil && err != tfe.ErrResourceNotFound {
 				diags = diags.Append(fmt.Errorf("error loading variables: %w", err))
 				return nil, nil, diags

@@ -4,8 +4,6 @@
 package command
 
 import (
-	"context"
-
 	"github.com/posener/complete"
 )
 
@@ -62,7 +60,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 			return nil
 		}
 
-		names, _ := b.Workspaces(context.TODO())
+		names, _ := b.Workspaces()
 		return names
 	})
 }

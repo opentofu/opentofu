@@ -20,16 +20,17 @@ import (
 // blobs representing state.
 // Implements "state/remote".ClientLocker
 type remoteClient struct {
-	storageClient *storage.Client
-	bucketName    string
-	stateFilePath string
-	lockFilePath  string
-	encryptionKey []byte
-	kmsKeyName    string
+	storageContext context.Context
+	storageClient  *storage.Client
+	bucketName     string
+	stateFilePath  string
+	lockFilePath   string
+	encryptionKey  []byte
+	kmsKeyName     string
 }
 
-func (c *remoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
-	stateFileReader, err := c.stateFile().NewReader(ctx)
+func (c *remoteClient) Get() (payload *remote.Payload, err error) {
+	stateFileReader, err := c.stateFile().NewReader(c.storageContext)
 	if err != nil {
 		if err == storage.ErrObjectNotExist {
 			return nil, nil
@@ -44,7 +45,7 @@ func (c *remoteClient) Get(ctx context.Context) (payload *remote.Payload, err er
 		return nil, fmt.Errorf("Failed to read state file from %v: %w", c.stateFileURL(), err)
 	}
 
-	stateFileAttrs, err := c.stateFile().Attrs(ctx)
+	stateFileAttrs, err := c.stateFile().Attrs(c.storageContext)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read state file attrs from %v: %w", c.stateFileURL(), err)
 	}
@@ -57,9 +58,9 @@ func (c *remoteClient) Get(ctx context.Context) (payload *remote.Payload, err er
 	return result, nil
 }
 
-func (c *remoteClient) Put(ctx context.Context, data []byte) error {
+func (c *remoteClient) Put(data []byte) error {
 	err := func() error {
-		stateFileWriter := c.stateFile().NewWriter(ctx)
+		stateFileWriter := c.stateFile().NewWriter(c.storageContext)
 		if len(c.kmsKeyName) > 0 {
 			stateFileWriter.KMSKeyName = c.kmsKeyName
 		}
@@ -75,8 +76,8 @@ func (c *remoteClient) Put(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (c *remoteClient) Delete(ctx context.Context) error {
-	if err := c.stateFile().Delete(ctx); err != nil {
+func (c *remoteClient) Delete() error {
+	if err := c.stateFile().Delete(c.storageContext); err != nil {
 		return fmt.Errorf("Failed to delete state file %v: %w", c.stateFileURL(), err)
 	}
 
@@ -85,7 +86,7 @@ func (c *remoteClient) Delete(ctx context.Context) error {
 
 // Lock writes to a lock file, ensuring file creation. Returns the generation
 // number, which must be passed to Unlock().
-func (c *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	// update the path we're using
 	// we can't set the ID until the info is written
 	info.Path = c.lockFileURL()
@@ -96,7 +97,7 @@ func (c *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	}
 
 	lockFile := c.lockFile()
-	w := lockFile.If(storage.Conditions{DoesNotExist: true}).NewWriter(ctx)
+	w := lockFile.If(storage.Conditions{DoesNotExist: true}).NewWriter(c.storageContext)
 	err = func() error {
 		if _, err := w.Write(infoJson); err != nil {
 			return err
@@ -105,7 +106,7 @@ func (c *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	}()
 
 	if err != nil {
-		return "", c.lockError(ctx, fmt.Errorf("writing %q failed: %w", c.lockFileURL(), err))
+		return "", c.lockError(fmt.Errorf("writing %q failed: %w", c.lockFileURL(), err))
 	}
 
 	info.ID = strconv.FormatInt(w.Attrs().Generation, 10)
@@ -113,25 +114,25 @@ func (c *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	return info.ID, nil
 }
 
-func (c *remoteClient) Unlock(ctx context.Context, id string) error {
+func (c *remoteClient) Unlock(id string) error {
 	gen, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return fmt.Errorf("Lock ID should be numerical value, got '%s'", id)
 	}
 
-	if err := c.lockFile().If(storage.Conditions{GenerationMatch: gen}).Delete(ctx); err != nil {
-		return c.lockError(ctx, err)
+	if err := c.lockFile().If(storage.Conditions{GenerationMatch: gen}).Delete(c.storageContext); err != nil {
+		return c.lockError(err)
 	}
 
 	return nil
 }
 
-func (c *remoteClient) lockError(ctx context.Context, err error) *statemgr.LockError {
+func (c *remoteClient) lockError(err error) *statemgr.LockError {
 	lockErr := &statemgr.LockError{
 		Err: err,
 	}
 
-	info, infoErr := c.lockInfo(ctx)
+	info, infoErr := c.lockInfo()
 	if infoErr != nil {
 		lockErr.Err = multierror.Append(lockErr.Err, infoErr)
 	} else {
@@ -142,8 +143,8 @@ func (c *remoteClient) lockError(ctx context.Context, err error) *statemgr.LockE
 
 // lockInfo reads the lock file, parses its contents and returns the parsed
 // LockInfo struct.
-func (c *remoteClient) lockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
-	r, err := c.lockFile().NewReader(ctx)
+func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
+	r, err := c.lockFile().NewReader(c.storageContext)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +163,7 @@ func (c *remoteClient) lockInfo(ctx context.Context) (*statemgr.LockInfo, error)
 	// We use the Generation as the ID, so overwrite the ID in the json.
 	// This can't be written into the Info, since the generation isn't known
 	// until it's written.
-	attrs, err := c.lockFile().Attrs(ctx)
+	attrs, err := c.lockFile().Attrs(c.storageContext)
 	if err != nil {
 		return nil, err
 	}

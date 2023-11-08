@@ -21,7 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
+func (b *Backend) Workspaces() ([]string, error) {
 	const maxKeys = 1000
 
 	prefix := ""
@@ -39,6 +39,7 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	wss := []string{backend.DefaultStateName}
 	pg := s3.NewListObjectsV2Paginator(b.s3Client, params)
 
+	ctx := context.TODO()
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
 		if err != nil {
@@ -101,7 +102,7 @@ func (b *Backend) keyEnv(key string) string {
 	return parts[0]
 }
 
-func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -111,7 +112,7 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 		return err
 	}
 
-	return client.Delete(ctx)
+	return client.Delete()
 }
 
 // get a remote client configured for this state
@@ -136,7 +137,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	return client, nil
 }
 
-func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	client, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -151,7 +152,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	// If we need to force-unlock, but for some reason the state no longer
 	// exists, the user will have to use aws tools to manually fix the
 	// situation.
-	existing, err := b.Workspaces(ctx)
+	existing, err := b.Workspaces()
 	if err != nil {
 		return nil, err
 	}
@@ -169,14 +170,14 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := client.Lock(ctx, lockInfo)
+		lockId, err := client.Lock(lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock s3 state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
-			if err := stateMgr.Unlock(ctx, lockId); err != nil {
+			if err := stateMgr.Unlock(lockId); err != nil {
 				return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockId, err)
 			}
 			return parent
@@ -185,7 +186,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// Grab the value
 		// This is to ensure that no one beat us to writing a state between
 		// the `exists` check and taking the lock.
-		if err := stateMgr.RefreshState(ctx); err != nil {
+		if err := stateMgr.RefreshState(); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
@@ -196,7 +197,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(ctx, nil); err != nil {
+			if err := stateMgr.PersistState(nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

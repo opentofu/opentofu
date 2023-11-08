@@ -48,13 +48,13 @@ func FromContextBackendConfig(ctx context.Context) *ResourceData {
 	return ctx.Value(backendConfigKey).(*ResourceData)
 }
 
-func (b *Backend) ConfigSchema(context.Context) *configschema.Block {
+func (b *Backend) ConfigSchema() *configschema.Block {
 	// This is an alias of CoreConfigSchema just to implement the
 	// backend.Backend interface.
 	return b.CoreConfigSchema()
 }
 
-func (b *Backend) PrepareConfig(_ context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	if b == nil {
 		return configVal, nil
 	}
@@ -144,7 +144,7 @@ func (b *Backend) PrepareConfig(_ context.Context, configVal cty.Value) (cty.Val
 	return configVal, diags
 }
 
-func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if b == nil {
 		return nil
 	}
@@ -169,7 +169,8 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 	b.config = data
 
 	if b.ConfigureFunc != nil {
-		err = b.ConfigureFunc(context.WithValue(ctx, backendConfigKey, data))
+		err = b.ConfigureFunc(context.WithValue(
+			context.Background(), backendConfigKey, data))
 		if err != nil {
 			diags = diags.Append(err)
 			return diags

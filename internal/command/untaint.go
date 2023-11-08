@@ -4,7 +4,6 @@
 package command
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -79,10 +78,8 @@ func (c *UntaintCommand) Run(args []string) int {
 		return 1
 	}
 
-	ctx := context.TODO()
-
 	// Get the state
-	stateMgr, err := b.StateMgr(ctx, workspace)
+	stateMgr, err := b.StateMgr(workspace)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
@@ -101,7 +98,7 @@ func (c *UntaintCommand) Run(args []string) int {
 		}()
 	}
 
-	if err := stateMgr.RefreshState(ctx); err != nil {
+	if err := stateMgr.RefreshState(); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}
@@ -186,7 +183,7 @@ func (c *UntaintCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1
 	}
-	if err := stateMgr.PersistState(ctx, schemas); err != nil {
+	if err := stateMgr.PersistState(schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1
 	}

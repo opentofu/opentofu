@@ -127,18 +127,16 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		ctx := context.Background()
-
 		t.Run(name, func(t *testing.T) {
 			b := New()
-			configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(tc.config))
+			configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(tc.config))
 
-			configSchema, diags := b.PrepareConfig(ctx, configSchema)
+			configSchema, diags := b.PrepareConfig(configSchema)
 			if len(diags) > 0 {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(ctx, configSchema)
+			confDiags := b.Configure(configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticComparer)); diff != "" {
@@ -367,17 +365,15 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 				config["sts_endpoint"] = endpoint
 			}
 
-			ctx := context.Background()
-
 			b := New()
-			configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config))
+			configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config))
 
-			configSchema, diags := b.PrepareConfig(ctx, configSchema)
+			configSchema, diags := b.PrepareConfig(configSchema)
 			if len(diags) > 0 {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(ctx, configSchema)
+			confDiags := b.Configure(configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticSummaryComparer)); diff != "" {
@@ -602,15 +598,13 @@ func TestBackendConfig_AssumeRole(t *testing.T) {
 		testCase := testCase
 
 		t.Run(testCase.Description, func(t *testing.T) {
-			ctx := context.Background()
-
 			closeSts, _, endpoint := mockdata.GetMockedAwsApiSession("STS", testCase.MockStsEndpoints)
 			defer closeSts()
 
 			testCase.Config["sts_endpoint"] = endpoint
 
 			b := New()
-			diags := b.Configure(ctx, populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
+			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
 
 			if diags.HasErrors() {
 				for _, diag := range diags {
@@ -795,9 +789,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 
 			b := New()
 
-			ctx := context.Background()
-
-			_, valDiags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedErr != "" {
 				if valDiags.Err() != nil {
 					actualErr := valDiags.Err().Error()
@@ -837,9 +829,7 @@ func TestBackendConfig_PrepareConfigValidationWarnings(t *testing.T) {
 
 			b := New()
 
-			ctx := context.Background()
-
-			_, diags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, diags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedWarn != "" {
 				if err := diags.ErrWithWarnings(); err != nil {
 					if !strings.Contains(err.Error(), tc.expectedWarn) {
@@ -907,9 +897,7 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 				os.Setenv(k, v)
 			}
 
-			ctx := context.Background()
-
-			_, valDiags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedErr != "" {
 				if valDiags.Err() != nil {
 					actualErr := valDiags.Err().Error()
@@ -1012,9 +1000,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 			}
 
 			b := New().(*Backend)
-			ctx := context.Background()
-
-			diags := b.Configure(ctx, populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -1081,9 +1067,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 			})
 
 			b := New().(*Backend)
-			ctx := context.Background()
-
-			diags := b.Configure(ctx, populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -1149,7 +1133,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(s1); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1161,7 +1145,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr2.WriteState(s2); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr2.PersistState(ctx, nil); err != nil {
+	if err := stateMgr2.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1176,7 +1160,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
@@ -1188,7 +1172,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
@@ -1196,12 +1180,12 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// remove the state with extra subkey
-	if err := client.Delete(ctx); err != nil {
+	if err := client.Delete(); err != nil {
 		t.Fatal(err)
 	}
 
 	// delete the real workspace
-	if err := b.DeleteWorkspace(ctx, "s2", true); err != nil {
+	if err := b.DeleteWorkspace("s2", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1210,11 +1194,11 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// fetch that state again, which should produce a new lineage
-	s2Mgr, err := b.StateMgr(ctx, "s2")
+	s2Mgr, err := b.StateMgr("s2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s2Mgr.RefreshState(ctx); err != nil {
+	if err := s2Mgr.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1229,16 +1213,16 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
 	// make sure s2 is OK
-	s2Mgr, err = b.StateMgr(ctx, "s2")
+	s2Mgr, err = b.StateMgr("s2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s2Mgr.RefreshState(ctx); err != nil {
+	if err := s2Mgr.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1268,11 +1252,11 @@ func TestBackendPrefixInWorkspace(t *testing.T) {
 	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
 
 	// get a state that contains the prefix as a substring
-	sMgr, err := b.StateMgr(ctx, "env-1")
+	sMgr, err := b.StateMgr("env-1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := sMgr.RefreshState(ctx); err != nil {
+	if err := sMgr.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1399,7 +1383,7 @@ func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 }
 
 func checkStateList(b backend.Backend, expected []string) error {
-	states, err := b.Workspaces(context.Background())
+	states, err := b.Workspaces()
 	if err != nil {
 		return err
 	}

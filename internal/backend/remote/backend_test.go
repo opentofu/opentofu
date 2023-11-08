@@ -152,17 +152,15 @@ func TestRemote_config(t *testing.T) {
 		s := testServer(t)
 		b := New(testDisco(s))
 
-		ctx := context.Background()
-
 		// Validate
-		_, valDiags := b.PrepareConfig(ctx, tc.config)
+		_, valDiags := b.PrepareConfig(tc.config)
 		if (valDiags.Err() != nil || tc.valErr != "") &&
 			(valDiags.Err() == nil || !strings.Contains(valDiags.Err().Error(), tc.valErr)) {
 			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
 		}
 
 		// Configure
-		confDiags := b.Configure(ctx, tc.config)
+		confDiags := b.Configure(tc.config)
 		if (confDiags.Err() != nil || tc.confErr != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
@@ -233,16 +231,14 @@ func TestRemote_versionConstraints(t *testing.T) {
 		tfversion.Prerelease = tc.prerelease
 		tfversion.Version = tc.version
 
-		ctx := context.Background()
-
 		// Validate
-		_, valDiags := b.PrepareConfig(ctx, tc.config)
+		_, valDiags := b.PrepareConfig(tc.config)
 		if valDiags.HasErrors() {
 			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
 		}
 
 		// Configure
-		confDiags := b.Configure(ctx, tc.config)
+		confDiags := b.Configure(tc.config)
 		if (confDiags.Err() != nil || tc.result != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
@@ -269,25 +265,23 @@ func TestRemote_addAndRemoveWorkspacesDefault(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
-	if _, err := b.Workspaces(ctx); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.Workspaces(); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if _, err := b.StateMgr(ctx, "prod"); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.StateMgr("prod"); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
-	if err := b.DeleteWorkspace(ctx, backend.DefaultStateName, true); err != nil {
+	if err := b.DeleteWorkspace(backend.DefaultStateName, true); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if err := b.DeleteWorkspace(ctx, "prod", true); err != backend.ErrWorkspacesNotSupported {
+	if err := b.DeleteWorkspace("prod", true); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 }
@@ -296,9 +290,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	b, bCleanup := testBackendNoDefault(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
-	states, err := b.Workspaces(ctx)
+	states, err := b.Workspaces()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,16 +300,16 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected states %#+v, got %#+v", expectedWorkspaces, states)
 	}
 
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
+	if _, err := b.StateMgr(backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
 	}
 
 	expectedA := "test_A"
-	if _, err := b.StateMgr(ctx, expectedA); err != nil {
+	if _, err := b.StateMgr(expectedA); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces(ctx)
+	states, err = b.Workspaces()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,11 +320,11 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	}
 
 	expectedB := "test_B"
-	if _, err := b.StateMgr(ctx, expectedB); err != nil {
+	if _, err := b.StateMgr(expectedB); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces(ctx)
+	states, err = b.Workspaces()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -342,15 +334,15 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected %#+v, got %#+v", expectedWorkspaces, states)
 	}
 
-	if err := b.DeleteWorkspace(ctx, backend.DefaultStateName, true); err != backend.ErrDefaultWorkspaceNotSupported {
+	if err := b.DeleteWorkspace(backend.DefaultStateName, true); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
 	}
 
-	if err := b.DeleteWorkspace(ctx, expectedA, true); err != nil {
+	if err := b.DeleteWorkspace(expectedA, true); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces(ctx)
+	states, err = b.Workspaces()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,11 +352,11 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected %#+v got %#+v", expectedWorkspaces, states)
 	}
 
-	if err := b.DeleteWorkspace(ctx, expectedB, true); err != nil {
+	if err := b.DeleteWorkspace(expectedB, true); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces(ctx)
+	states, err = b.Workspaces()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -514,10 +506,8 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// This should succeed
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -535,7 +525,7 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 
 	// This should fail
 	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err.Error() != want {
+	if _, err := b.StateMgr(backend.DefaultStateName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
 }
@@ -573,10 +563,8 @@ func TestRemote_StateMgr_versionCheckLatest(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
-	ctx := context.Background()
-
 	// This should succeed despite not being a string match
-	if _, err := b.StateMgr(ctx, backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
@@ -621,12 +609,10 @@ func TestRemote_VerifyWorkspaceTerraformVersion(t *testing.T) {
 			tfversion.Version = local.String()
 			tfversion.SemVer = local
 
-			ctx := context.Background()
-
 			// Update the mock remote workspace OpenTofu version to the
 			// specified remote version
 			if _, err := b.client.Workspaces.Update(
-				ctx,
+				context.Background(),
 				b.organization,
 				b.workspace,
 				tfe.WorkspaceUpdateOptions{
@@ -637,7 +623,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion(t *testing.T) {
 				t.Fatalf("error: %v", err)
 			}
 
-			diags := b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
+			diags := b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
 			if tc.wantErr {
 				if len(diags) != 1 {
 					t.Fatal("expected diag, but none returned")
@@ -658,18 +644,16 @@ func TestRemote_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
 	// Attempting to check the version against a workspace which doesn't exist
 	// should result in no errors
-	diags := b.VerifyWorkspaceTerraformVersion(ctx, "invalid-workspace")
+	diags := b.VerifyWorkspaceTerraformVersion("invalid-workspace")
 	if len(diags) != 0 {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
 
 	// Use a special workspace ID to trigger a 500 error, which should result
 	// in a failed check
-	diags = b.VerifyWorkspaceTerraformVersion(ctx, "network-error")
+	diags = b.VerifyWorkspaceTerraformVersion("network-error")
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}
@@ -688,7 +672,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	); err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	diags = b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
+	diags = b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
 
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
@@ -724,12 +708,10 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	tfversion.Version = local.String()
 	tfversion.SemVer = local
 
-	ctx := context.Background()
-
 	// Update the mock remote workspace OpenTofu version to the
 	// specified remote version
 	if _, err := b.client.Workspaces.Update(
-		ctx,
+		context.Background(),
 		b.organization,
 		b.workspace,
 		tfe.WorkspaceUpdateOptions{
@@ -739,7 +721,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
-	diags := b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
+	diags := b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}
@@ -760,7 +742,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s))
 
-	diag := b.Configure(context.Background(), cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),

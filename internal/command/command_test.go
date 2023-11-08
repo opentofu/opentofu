@@ -773,10 +773,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
 	}
 	b := backendInit.Backend("http")()
-
-	ctx := context.Background()
-
-	configSchema := b.ConfigSchema(ctx)
+	configSchema := b.ConfigSchema()
 	hash := backendConfig.Hash(configSchema)
 
 	state := legacy.NewState()

@@ -4,7 +4,6 @@
 package command
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -53,10 +52,8 @@ func (c *StateMeta) State() (statemgr.Full, error) {
 			return nil, fmt.Errorf("Error checking remote OpenTofu version")
 		}
 
-		ctx := context.TODO()
-
 		// Get the state
-		s, err := b.StateMgr(ctx, workspace)
+		s, err := b.StateMgr(workspace)
 		if err != nil {
 			return nil, err
 		}

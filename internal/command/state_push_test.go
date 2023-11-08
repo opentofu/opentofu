@@ -5,7 +5,6 @@ package command
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
@@ -262,18 +261,16 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	ctx := context.Background()
-
 	// put a dummy state in place, so we have something to force
 	b := backend.TestBackendConfig(t, inmem.New(), nil)
-	sMgr, err := b.StateMgr(ctx, "test")
+	sMgr, err := b.StateMgr("test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := sMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := sMgr.PersistState(ctx, nil); err != nil {
+	if err := sMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 

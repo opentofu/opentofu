@@ -5,7 +5,6 @@ package remote
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -23,13 +22,11 @@ func TestClient(t *testing.T, c Client) {
 	}
 	data := buf.Bytes()
 
-	ctx := context.Background()
-
-	if err := c.Put(ctx, data); err != nil {
+	if err := c.Put(data); err != nil {
 		t.Fatalf("put: %s", err)
 	}
 
-	p, err := c.Get(ctx)
+	p, err := c.Get()
 	if err != nil {
 		t.Fatalf("get: %s", err)
 	}
@@ -37,11 +34,11 @@ func TestClient(t *testing.T, c Client) {
 		t.Fatalf("expected full state %q\n\ngot: %q", string(p.Data), string(data))
 	}
 
-	if err := c.Delete(ctx); err != nil {
+	if err := c.Delete(); err != nil {
 		t.Fatalf("delete: %s", err)
 	}
 
-	p, err = c.Get(ctx)
+	p, err = c.Get()
 	if err != nil {
 		t.Fatalf("get: %s", err)
 	}
@@ -73,27 +70,25 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 	infoB.Operation = "test"
 	infoB.Who = "clientB"
 
-	ctx := context.Background()
-
-	lockIDA, err := lockerA.Lock(ctx, infoA)
+	lockIDA, err := lockerA.Lock(infoA)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
-	_, err = lockerB.Lock(ctx, infoB)
+	_, err = lockerB.Lock(infoB)
 	if err == nil {
-		lockerA.Unlock(ctx, lockIDA)
+		lockerA.Unlock(lockIDA)
 		t.Fatal("client B obtained lock while held by client A")
 	}
 	if _, ok := err.(*statemgr.LockError); !ok {
 		t.Errorf("expected a LockError, but was %t: %s", err, err)
 	}
 
-	if err := lockerA.Unlock(ctx, lockIDA); err != nil {
+	if err := lockerA.Unlock(lockIDA); err != nil {
 		t.Fatal("error unlocking client A", err)
 	}
 
-	lockIDB, err := lockerB.Lock(ctx, infoB)
+	lockIDB, err := lockerB.Lock(infoB)
 	if err != nil {
 		t.Fatal("unable to obtain lock from client B")
 	}
@@ -102,7 +97,7 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 		t.Fatalf("duplicate lock IDs: %q", lockIDB)
 	}
 
-	if err = lockerB.Unlock(ctx, lockIDB); err != nil {
+	if err = lockerB.Unlock(lockIDB); err != nil {
 		t.Fatal("error unlocking client B:", err)
 	}
 

@@ -74,10 +74,7 @@ func (c *UnlockCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
 	}
-
-	ctx := context.TODO()
-
-	stateMgr, err := b.StateMgr(ctx, env)
+	stateMgr, err := b.StateMgr(env)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
@@ -97,7 +94,7 @@ func (c *UnlockCommand) Run(args []string) int {
 			"This will allow local OpenTofu commands to modify this state, even though it\n" +
 			"may still be in use. Only 'yes' will be accepted to confirm."
 
-		v, err := c.UIInput().Input(ctx, &tofu.InputOpts{
+		v, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
 			Id:          "force-unlock",
 			Query:       "Do you really want to force-unlock?",
 			Description: desc,
@@ -112,7 +109,7 @@ func (c *UnlockCommand) Run(args []string) int {
 		}
 	}
 
-	if err := stateMgr.Unlock(ctx, lockID); err != nil {
+	if err := stateMgr.Unlock(lockID); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to unlock state: %s", err))
 		return 1
 	}

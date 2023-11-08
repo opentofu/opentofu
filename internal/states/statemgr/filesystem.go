@@ -5,7 +5,6 @@ package statemgr
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -91,7 +90,7 @@ func NewFilesystemBetweenPaths(readPath, writePath string) *Filesystem {
 	}
 }
 
-// SetBackupPath configures the receiver so that it will create a local
+// SetBackupPath configures the receiever so that it will create a local
 // backup file of the next state snapshot it reads (in State) if a different
 // snapshot is subsequently written (in WriteState). Only one backup is
 // written for the lifetime of the object, unless reset as described below.
@@ -227,18 +226,18 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 
 // PersistState is an implementation of Persister that does nothing because
 // this type's Writer implementation does its own persistence.
-func (s *Filesystem) PersistState(_ context.Context, schemas *tofu.Schemas) error {
+func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
 	return nil
 }
 
 // RefreshState is an implementation of Refresher.
-func (s *Filesystem) RefreshState(ctx context.Context) error {
+func (s *Filesystem) RefreshState() error {
 	defer s.mutex()()
 	return s.refreshState()
 }
 
-func (s *Filesystem) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
-	err := s.RefreshState(ctx)
+func (s *Filesystem) GetRootOutputValues() (map[string]*states.OutputValue, error) {
+	err := s.RefreshState()
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +313,7 @@ func (s *Filesystem) refreshState() error {
 }
 
 // Lock implements Locker using filesystem discretionary locks.
-func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
+func (s *Filesystem) Lock(info *LockInfo) (string, error) {
 	defer s.mutex()()
 
 	if s.stateFileOut == nil {
@@ -345,8 +344,8 @@ func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-// Unlock is the companion to Lock, completing the implementation of Locker.
-func (s *Filesystem) Unlock(_ context.Context, id string) error {
+// Unlock is the companion to Lock, completing the implemention of Locker.
+func (s *Filesystem) Unlock(id string) error {
 	defer s.mutex()()
 
 	if s.lockID == "" {

@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -61,7 +60,8 @@ var (
 // test hook called when checksums don't match
 var testChecksumHook func()
 
-func (c *RemoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
+func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
+	ctx := context.TODO()
 	deadline := time.Now().Add(consistencyRetryTimeout)
 
 	// If we have a checksum, and the returned payload doesn't match, we retry
@@ -156,7 +156,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	return payload, nil
 }
 
-func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
+func (c *RemoteClient) Put(data []byte) error {
 	contentType := "application/json"
 	contentLength := int64(len(data))
 
@@ -191,8 +191,8 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
-	uploader := manager.NewUploader(c.s3Client, nil)
-	_, err := uploader.Upload(ctx, i)
+	ctx := context.TODO()
+	_, err := c.s3Client.PutObject(ctx, i)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
@@ -208,7 +208,8 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete(ctx context.Context) error {
+func (c *RemoteClient) Delete() error {
+	ctx := context.TODO()
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,
@@ -225,7 +226,7 @@ func (c *RemoteClient) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	if c.ddbTable == "" {
 		return "", nil
 	}
@@ -250,6 +251,7 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
 	}
 
+	ctx := context.TODO()
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfo(ctx)
@@ -375,12 +377,13 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	return lockInfo, nil
 }
 
-func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
+func (c *RemoteClient) Unlock(id string) error {
 	if c.ddbTable == "" {
 		return nil
 	}
 
 	lockErr := &statemgr.LockError{}
+	ctx := context.TODO()
 
 	// TODO: store the path and lock ID in separate fields, and have proper
 	// projection expression only delete the lock if both match, rather than

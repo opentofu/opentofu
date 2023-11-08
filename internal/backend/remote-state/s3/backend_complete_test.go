@@ -46,7 +46,7 @@ func ExpectDiagsEqual(expected tfdiags.Diagnostics) diagsValidator {
 
 type diagsValidator func(*testing.T, tfdiags.Diagnostics)
 
-// ExpectDiagsMatching returns a validator expecting a single Diagnostic with fields matching the expectation
+// ExpectDiagsMatching returns a validator expeceting a single Diagnostic with fields matching the expectation
 func ExpectDiagsMatching(severity tfdiags.Severity, summary matcher, detail matcher) diagsValidator {
 	return func(t *testing.T, diags tfdiags.Diagnostics) {
 		for _, d := range diags {
@@ -2208,17 +2208,15 @@ func setSharedConfigFile(filename string) {
 
 func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Diagnostics) {
 	b := New().(*Backend)
-	ctx := context.Background()
+	configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config))
 
-	configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config))
-
-	configSchema, diags := b.PrepareConfig(ctx, configSchema)
+	configSchema, diags := b.PrepareConfig(configSchema)
 
 	if diags.HasErrors() {
 		return b, diags
 	}
 
-	confDiags := b.Configure(ctx, configSchema)
+	confDiags := b.Configure(configSchema)
 	diags = diags.Append(confDiags)
 
 	return b, diags

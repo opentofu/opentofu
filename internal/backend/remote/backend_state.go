@@ -32,7 +32,9 @@ type remoteClient struct {
 }
 
 // Get the remote state.
-func (r *remoteClient) Get(ctx context.Context) (*remote.Payload, error) {
+func (r *remoteClient) Get() (*remote.Payload, error) {
+	ctx := context.Background()
+
 	sv, err := r.client.StateVersions.ReadCurrent(ctx, r.workspace.ID)
 	if err != nil {
 		if err == tfe.ErrResourceNotFound {
@@ -87,7 +89,9 @@ func (r *remoteClient) uploadStateFallback(ctx context.Context, stateFile *state
 }
 
 // Put the remote state.
-func (r *remoteClient) Put(ctx context.Context, state []byte) error {
+func (r *remoteClient) Put(state []byte) error {
+	ctx := context.Background()
+
 	// Read the raw state into a OpenTofu state.
 	stateFile, err := statefile.Read(bytes.NewReader(state))
 	if err != nil {
@@ -137,8 +141,8 @@ func (r *remoteClient) Put(ctx context.Context, state []byte) error {
 }
 
 // Delete the remote state.
-func (r *remoteClient) Delete(ctx context.Context) error {
-	err := r.client.Workspaces.Delete(ctx, r.organization, r.workspace.Name)
+func (r *remoteClient) Delete() error {
+	err := r.client.Workspaces.Delete(context.Background(), r.organization, r.workspace.Name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return fmt.Errorf("error deleting workspace %s: %w", r.workspace.Name, err)
 	}
@@ -153,7 +157,9 @@ func (r *remoteClient) EnableForcePush() {
 }
 
 // Lock the remote state.
-func (r *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+func (r *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+	ctx := context.Background()
+
 	lockErr := &statemgr.LockError{Info: r.lockInfo}
 
 	// Lock the workspace.
@@ -175,7 +181,9 @@ func (r *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 }
 
 // Unlock the remote state.
-func (r *remoteClient) Unlock(ctx context.Context, id string) error {
+func (r *remoteClient) Unlock(id string) error {
+	ctx := context.Background()
+
 	// We first check if there was an error while uploading the latest
 	// state. If so, we will not unlock the workspace to prevent any
 	// changes from being applied until the correct state is uploaded.

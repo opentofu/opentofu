@@ -107,7 +107,7 @@ func New(services *disco.Disco) *Remote {
 }
 
 // ConfigSchema implements backend.Enhanced.
-func (b *Remote) ConfigSchema(context.Context) *configschema.Block {
+func (b *Remote) ConfigSchema() *configschema.Block {
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"hostname": {
@@ -150,7 +150,7 @@ func (b *Remote) ConfigSchema(context.Context) *configschema.Block {
 }
 
 // PrepareConfig implements backend.Backend.
-func (b *Remote) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (b *Remote) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return obj, diags
@@ -221,7 +221,7 @@ func (b *Remote) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 }
 
 // Configure implements backend.Enhanced.
-func (b *Remote) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
+func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -353,7 +353,7 @@ func (b *Remote) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnosti
 	}
 
 	// Check if the organization exists by reading its entitlements.
-	entitlements, err := b.client.Organizations.ReadEntitlements(ctx, b.organization)
+	entitlements, err := b.client.Organizations.ReadEntitlements(context.Background(), b.organization)
 	if err != nil {
 		if err == tfe.ErrResourceNotFound {
 			err = fmt.Errorf("organization %q at host %s not found.\n\n"+
@@ -550,15 +550,15 @@ func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
 }
 
 // Workspaces implements backend.Enhanced.
-func (b *Remote) Workspaces(ctx context.Context) ([]string, error) {
+func (b *Remote) Workspaces() ([]string, error) {
 	if b.prefix == "" {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
-	return b.workspaces(ctx)
+	return b.workspaces()
 }
 
 // workspaces returns a filtered list of remote workspace names.
-func (b *Remote) workspaces(ctx context.Context) ([]string, error) {
+func (b *Remote) workspaces() ([]string, error) {
 	options := &tfe.WorkspaceListOptions{}
 	switch {
 	case b.workspace != "":
@@ -571,7 +571,7 @@ func (b *Remote) workspaces(ctx context.Context) ([]string, error) {
 	var names []string
 
 	for {
-		wl, err := b.client.Workspaces.List(ctx, b.organization, options)
+		wl, err := b.client.Workspaces.List(context.Background(), b.organization, options)
 		if err != nil {
 			return nil, err
 		}
@@ -613,7 +613,7 @@ func (b *Remote) WorkspaceNamePattern() string {
 }
 
 // DeleteWorkspace implements backend.Enhanced.
-func (b *Remote) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
+func (b *Remote) DeleteWorkspace(name string, _ bool) error {
 	if b.workspace == "" && name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -637,11 +637,11 @@ func (b *Remote) DeleteWorkspace(ctx context.Context, name string, _ bool) error
 		},
 	}
 
-	return client.Delete(ctx)
+	return client.Delete()
 }
 
 // StateMgr implements backend.Enhanced.
-func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 	if b.workspace == "" && name == backend.DefaultStateName {
 		return nil, backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -657,7 +657,7 @@ func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, erro
 		name = b.prefix + name
 	}
 
-	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
+	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
@@ -673,7 +673,7 @@ func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, erro
 			options.TerraformVersion = tfe.String(tfversion.String())
 		}
 
-		workspace, err = b.client.Workspaces.Create(ctx, b.organization, options)
+		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating workspace %s: %w", name, err)
 		}
@@ -923,10 +923,10 @@ func (b *Remote) IgnoreVersionConflict() {
 // that there are no compatibility concerns, so it returns no diagnostics.
 //
 // If the versions differ,
-func (b *Remote) VerifyWorkspaceTerraformVersion(ctx context.Context, workspaceName string) tfdiags.Diagnostics {
+func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	workspace, err := b.getRemoteWorkspace(ctx, workspaceName)
+	workspace, err := b.getRemoteWorkspace(context.Background(), workspaceName)
 	if err != nil {
 		// If the workspace doesn't exist, there can be no compatibility
 		// problem, so we can return. This is most likely to happen when

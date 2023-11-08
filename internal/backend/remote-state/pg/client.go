@@ -4,7 +4,6 @@
 package pg
 
 import (
-	"context"
 	"crypto/md5"
 	"database/sql"
 	"fmt"
@@ -24,9 +23,9 @@ type RemoteClient struct {
 	info *statemgr.LockInfo
 }
 
-func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
+func (c *RemoteClient) Get() (*remote.Payload, error) {
 	query := `SELECT data FROM %s.%s WHERE name = $1`
-	row := c.Client.QueryRowContext(ctx, fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	row := c.Client.QueryRow(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
 	var data []byte
 	err := row.Scan(&data)
 	switch {
@@ -44,27 +43,27 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	}
 }
 
-func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
+func (c *RemoteClient) Put(data []byte) error {
 	query := `INSERT INTO %s.%s (name, data) VALUES ($1, $2)
 		ON CONFLICT (name) DO UPDATE
 		SET data = $2 WHERE %s.name = $1`
-	_, err := c.Client.ExecContext(ctx, fmt.Sprintf(query, c.SchemaName, statesTableName, statesTableName), c.Name, data)
+	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName, statesTableName), c.Name, data)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *RemoteClient) Delete(ctx context.Context) error {
+func (c *RemoteClient) Delete() error {
 	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := c.Client.ExecContext(ctx, fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	var err error
 	var lockID string
 
@@ -80,7 +79,7 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	//
 	lockUnlock := func(pgLockId string) error {
 		query := `SELECT pg_advisory_unlock(%s)`
-		row := c.Client.QueryRowContext(ctx, fmt.Sprintf(query, pgLockId))
+		row := c.Client.QueryRow(fmt.Sprintf(query, pgLockId))
 		var didUnlock []byte
 		err := row.Scan(&didUnlock)
 		if err != nil {
@@ -91,13 +90,13 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 
 	// Try to acquire locks for the existing row `id` and the creation lock `-1`.
 	query := `SELECT %s.id, pg_try_advisory_lock(%s.id), pg_try_advisory_lock(-1) FROM %s.%s WHERE %s.name = $1`
-	row := c.Client.QueryRowContext(ctx, fmt.Sprintf(query, statesTableName, statesTableName, c.SchemaName, statesTableName, statesTableName), c.Name)
+	row := c.Client.QueryRow(fmt.Sprintf(query, statesTableName, statesTableName, c.SchemaName, statesTableName, statesTableName), c.Name)
 	var pgLockId, didLock, didLockForCreate []byte
 	err = row.Scan(&pgLockId, &didLock, &didLockForCreate)
 	switch {
 	case err == sql.ErrNoRows:
 		// No rows means we're creating the workspace. Take the creation lock.
-		innerRow := c.Client.QueryRowContext(ctx, `SELECT pg_try_advisory_lock(-1)`)
+		innerRow := c.Client.QueryRow(`SELECT pg_try_advisory_lock(-1)`)
 		var innerDidLock []byte
 		err := innerRow.Scan(&innerDidLock)
 		if err != nil {
@@ -131,10 +130,10 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	return c.info, nil
 }
 
-func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
+func (c *RemoteClient) Unlock(id string) error {
 	if c.info != nil && c.info.Path != "" {
 		query := `SELECT pg_advisory_unlock(%s)`
-		row := c.Client.QueryRowContext(ctx, fmt.Sprintf(query, c.info.Path))
+		row := c.Client.QueryRow(fmt.Sprintf(query, c.info.Path))
 		var didUnlock []byte
 		err := row.Scan(&didUnlock)
 		if err != nil {

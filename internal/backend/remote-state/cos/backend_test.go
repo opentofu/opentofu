@@ -4,7 +4,6 @@
 package cos
 
 import (
-	"context"
 	"crypto/md5"
 	"fmt"
 	"os"
@@ -64,9 +63,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, defaultPrefix, defaultKey, false)
 	defer teardownBackend(t, be)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -88,9 +85,7 @@ func TestRemoteClientWithPrefix(t *testing.T) {
 	be := setupBackend(t, bucket, prefix, defaultKey, false)
 	defer teardownBackend(t, be)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -111,9 +106,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, defaultPrefix, defaultKey, true)
 	defer teardownBackend(t, be)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -135,9 +128,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be)
 
 	remoteClient := func() (remote.Client, error) {
-		ctx := context.Background()
-
-		ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+		ss, err := be.StateMgr(backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +231,7 @@ func setupBackend(t *testing.T, bucket, prefix, key string, encrypt bool) backen
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.putBucket(context.Background())
+	err = c.putBucket()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -256,7 +247,7 @@ func teardownBackend(t *testing.T, b backend.Backend) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.deleteBucket(context.Background(), true)
+	err = c.deleteBucket(true)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

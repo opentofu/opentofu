@@ -18,14 +18,14 @@ import (
 
 // Workspaces returns a list of names for the workspaces found in k8s. The default
 // workspace is always returned as the first element in the slice.
-func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
+func (b *Backend) Workspaces() ([]string, error) {
 	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
 
 	secrets, err := secretClient.List(
-		ctx,
+		context.Background(),
 		metav1.ListOptions{
 			LabelSelector: tfstateKey + "=true",
 		},
@@ -63,7 +63,7 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	return states, nil
 }
 
-func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -73,10 +73,10 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 		return err
 	}
 
-	return client.Delete(ctx)
+	return client.Delete()
 }
 
-func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	c, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	stateMgr := &remote.State{Client: c}
 
 	// Grab the value
-	if err := stateMgr.RefreshState(ctx); err != nil {
+	if err := stateMgr.RefreshState(); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := stateMgr.Lock(ctx, lockInfo)
+		lockID, err := stateMgr.Lock(lockInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := stateMgr.Unlock(ctx, lockID); err != nil {
+			if err := stateMgr.Unlock(lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state in Kubernetes failed:
 
@@ -126,7 +126,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		if err := stateMgr.WriteState(states.NewState()); err != nil {
 			return nil, unlock(err)
 		}
-		if err := stateMgr.PersistState(ctx, nil); err != nil {
+		if err := stateMgr.PersistState(nil); err != nil {
 			return nil, unlock(err)
 		}
 

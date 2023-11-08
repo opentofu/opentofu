@@ -4,7 +4,6 @@
 package oss
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -87,7 +86,7 @@ func TestBackendConfigWorkSpace(t *testing.T) {
 	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
 	createOSSBucket(t, b.ossClient, bucketName)
 	defer deleteOSSBucket(t, b.ossClient, bucketName)
-	if _, err := b.Workspaces(context.Background()); err != nil {
+	if _, err := b.Workspaces(); err != nil {
 		t.Fatal(err.Error())
 	}
 	if !strings.HasPrefix(b.ossClient.Config.Endpoint, "https://oss-cn-beijing") {
@@ -157,9 +156,7 @@ func TestBackendConfig_invalidKey(t *testing.T) {
 		"tablestore_table":    "TableStore",
 	})
 
-	ctx := context.Background()
-
-	_, results := New().PrepareConfig(ctx, cfg)
+	_, results := New().PrepareConfig(cfg)
 	if !results.HasErrors() {
 		t.Fatal("expected config validation error")
 	}

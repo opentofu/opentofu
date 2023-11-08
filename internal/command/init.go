@@ -220,13 +220,13 @@ func (c *InitCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 			return 1
 		}
-		sMgr, err := back.StateMgr(ctx, workspace)
+		sMgr, err := back.StateMgr(workspace)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error loading state: %s", err))
 			return 1
 		}
 
-		if err := sMgr.RefreshState(ctx); err != nil {
+		if err := sMgr.RefreshState(); err != nil {
 			c.Ui.Error(fmt.Sprintf("Error refreshing state: %s", err))
 			return 1
 		}
@@ -477,7 +477,7 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 		}
 
 		b := bf()
-		backendSchema := b.ConfigSchema(ctx)
+		backendSchema := b.ConfigSchema()
 		backendConfig = root.Backend
 
 		var overrideDiags tfdiags.Diagnostics

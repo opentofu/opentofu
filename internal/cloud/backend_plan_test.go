@@ -76,9 +76,7 @@ func TestCloud_planBasic(t *testing.T) {
 
 	op.Workspace = testBackendSingleWorkspaceName
 
-	ctx := context.Background()
-
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -99,9 +97,9 @@ func TestCloud_planBasic(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -125,8 +123,7 @@ func TestCloud_planJSONBasic(t *testing.T) {
 
 	mockSROWorkspace(t, b, op.Workspace)
 
-	ctx := context.Background()
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -146,9 +143,9 @@ func TestCloud_planJSONBasic(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -163,8 +160,7 @@ func TestCloud_planCanceled(t *testing.T) {
 
 	op.Workspace = testBackendSingleWorkspaceName
 
-	ctx := context.Background()
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -177,9 +173,9 @@ func TestCloud_planCanceled(t *testing.T) {
 		t.Fatal("expected plan operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelled plan: %s", err.Error())
 	}
 }
@@ -235,8 +231,7 @@ func TestCloud_planJSONFull(t *testing.T) {
 
 	mockSROWorkspace(t, b, op.Workspace)
 
-	ctx := context.Background()
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -260,9 +255,9 @@ func TestCloud_planJSONFull(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -1315,8 +1310,7 @@ func TestCloud_planImportConfigGeneration(t *testing.T) {
 
 	mockSROWorkspace(t, b, op.Workspace)
 
-	ctx := context.Background()
-	run, err := b.Operation(ctx, op)
+	run, err := b.Operation(context.Background(), op)
 	if err != nil {
 		t.Fatalf("error starting operation: %v", err)
 	}
@@ -1335,9 +1329,9 @@ func TestCloud_planImportConfigGeneration(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(ctx, testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(ctx, statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 

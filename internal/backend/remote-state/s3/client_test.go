@@ -34,11 +34,11 @@ func TestRemoteClient(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
 	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
 
-	state, err := b.StateMgr(ctx, backend.DefaultStateName)
+	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,12 +71,12 @@ func TestRemoteClientLocks(t *testing.T) {
 	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,14 +104,14 @@ func TestForceUnlock(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.Background()
+	ctx := context.TODO()
 	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
 	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
 	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,24 +120,24 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(ctx, info)
+	lockID, err := s1.Lock(info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(ctx, lockID); err != nil {
+	if err := s2.Unlock(lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr(ctx, "test")
+	s1, err = b1.StateMgr("test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,18 +146,18 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(ctx, info)
+	lockID, err = s1.Lock(info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr(ctx, "test")
+	s2, err = b2.StateMgr("test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(ctx, lockID); err != nil {
+	if err = s2.Unlock(lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 }
@@ -180,7 +180,7 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 	createDynamoDBTable(ctx, t, b.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b.dynClient, bucketName)
 
-	s, err := b.StateMgr(ctx, backend.DefaultStateName)
+	s, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,29 +254,29 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"bucket": bucketName,
 		"key":    keyName,
 	})).(*Backend)
-	s2, err := b2.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 	client2 := s2.(*remote.State).Client
 
 	// write the new state through client2 so that there is no checksum yet
-	if err := client2.Put(ctx, newState.Bytes()); err != nil {
+	if err := client2.Put(newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// verify that we can pull a state without a checksum
-	if _, err := client1.Get(ctx); err != nil {
+	if _, err := client1.Get(); err != nil {
 		t.Fatal(err)
 	}
 
 	// write the new state back with its checksum
-	if err := client1.Put(ctx, newState.Bytes()); err != nil {
+	if err := client1.Put(newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// put an empty state in place to check for panics during get
-	if err := client2.Put(ctx, []byte{}); err != nil {
+	if err := client2.Put([]byte{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -292,24 +292,24 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 
 	// fetching an empty state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(ctx); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// put the old state in place of the new, without updating the checksum
-	if err := client2.Put(ctx, oldState.Bytes()); err != nil {
+	if err := client2.Put(oldState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// fetching the wrong state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(ctx); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// update the state with the correct one after we Get again
 	testChecksumHook = func() {
-		if err := client2.Put(ctx, newState.Bytes()); err != nil {
+		if err := client2.Put(newState.Bytes()); err != nil {
 			t.Fatal(err)
 		}
 		testChecksumHook = nil
@@ -320,7 +320,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	// this final Get will fail to fail the checksum verification, the above
 	// callback will update the state with the correct version, and Get should
 	// retry automatically.
-	if _, err := client1.Get(ctx); err != nil {
+	if _, err := client1.Get(); err != nil {
 		t.Fatal(err)
 	}
 }

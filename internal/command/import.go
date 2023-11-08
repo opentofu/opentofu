@@ -4,7 +4,6 @@
 package command
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -270,10 +269,7 @@ func (c *ImportCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1
 	}
-
-	ctx := context.TODO()
-
-	if err := state.PersistState(ctx, schemas); err != nil {
+	if err := state.PersistState(schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1
 	}
