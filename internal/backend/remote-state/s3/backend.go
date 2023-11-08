@@ -764,6 +764,14 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		cfg.ForbiddenAccountIds = val
 	}
 
+	if val, ok := stringAttrOk(obj, "retry_mode"); ok {
+		mode, err := aws.ParseRetryMode(val)
+		if err != nil {
+			panic(fmt.Sprintf("invalid retry mode %q: %s", val, err))
+		}
+		cfg.RetryMode = mode
+	}
+
 	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
