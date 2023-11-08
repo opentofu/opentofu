@@ -4,7 +4,6 @@
 package tf
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -345,7 +344,7 @@ func TestState_validation(t *testing.T) {
 
 type backendFailsConfigure struct{}
 
-func (b backendFailsConfigure) ConfigSchema(context.Context) *configschema.Block {
+func (b backendFailsConfigure) ConfigSchema() *configschema.Block {
 	log.Printf("[TRACE] backendFailsConfigure.ConfigSchema")
 	return &configschema.Block{} // intentionally empty configuration schema
 }

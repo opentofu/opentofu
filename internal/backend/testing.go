@@ -4,7 +4,6 @@
 package backend
 
 import (
-	"context"
 	"reflect"
 	"sort"
 	"testing"
@@ -37,9 +36,7 @@ func TestBackendConfig(t *testing.T, b Backend, c hcl.Body) Backend {
 		c = hcl.EmptyBody()
 	}
 
-	ctx := context.Background()
-
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	spec := schema.DecoderSpec()
 	obj, decDiags := hcldec.Decode(c, spec, nil)
 	diags = diags.Append(decDiags)

@@ -313,9 +313,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 	b := f()
 	log.Printf("[TRACE] Meta.BackendForLocalPlan: instantiated backend of type %T", b)
 
-	ctx := context.TODO()
-
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	configVal, err := settings.Config.Decode(schema.ImpliedType())
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("saved backend configuration is invalid: %w", err))
@@ -406,9 +404,7 @@ func (m *Meta) backendCLIOpts() (*backend.CLIOpts, error) {
 // to modify fields of the operation such as Sequence to specify what will
 // be called.
 func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType) *backend.Operation {
-	ctx := context.TODO()
-
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	workspace, err := m.Workspace()
 	if err != nil {
 		// An invalid workspace error would have been raised when creating the
@@ -497,9 +493,7 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 	}
 	b := bf()
 
-	ctx := context.TODO()
-
-	configSchema := b.ConfigSchema(ctx)
+	configSchema := b.ConfigSchema()
 	configBody := c.Config
 	configHash := c.Hash(configSchema)
 
@@ -818,7 +812,7 @@ func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.D
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
 	// were provided via -backend-config arguments on tofu init.
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	configVal, err := s.Backend.Config(schema)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -1063,9 +1057,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 		defer stateLocker.Unlock()
 	}
 
-	ctx := context.TODO()
-
-	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema(ctx).ImpliedType())
+	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema().ImpliedType())
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %w", err))
 		return nil, diags
@@ -1210,9 +1202,7 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 		}
 	}
 
-	ctx := context.TODO()
-
-	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema(ctx).ImpliedType())
+	configJSON, err := ctyjson.Marshal(configVal, b.ConfigSchema().ImpliedType())
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Can't serialize backend configuration as JSON: %w", err))
 		return nil, diags
@@ -1276,12 +1266,10 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState) (backend.Backend, tfdiags
 	}
 	b := f()
 
-	ctx := context.TODO()
-
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
 	// were provided via -backend-config arguments on tofu init.
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	configVal, err := s.Backend.Config(schema)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -1366,9 +1354,7 @@ func (m *Meta) backendConfigNeedsMigration(c *configs.Backend, s *legacy.Backend
 	}
 	b := f()
 
-	ctx := context.TODO()
-
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	decSpec := schema.NoneRequired().DecoderSpec()
 	givenVal, diags := hcldec.Decode(c.Config, decSpec, nil)
 	if diags.HasErrors() {
@@ -1405,9 +1391,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 	}
 	b := f()
 
-	ctx := context.TODO()
-
-	schema := b.ConfigSchema(ctx)
+	schema := b.ConfigSchema()
 	decSpec := schema.NoneRequired().DecoderSpec()
 	configVal, hclDiags := hcldec.Decode(c.Config, decSpec, nil)
 	diags = diags.Append(hclDiags)

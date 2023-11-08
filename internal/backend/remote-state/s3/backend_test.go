@@ -127,11 +127,9 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		ctx := context.Background()
-
 		t.Run(name, func(t *testing.T) {
 			b := New()
-			configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(tc.config))
+			configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(tc.config))
 
 			configSchema, diags := b.PrepareConfig(configSchema)
 			if len(diags) > 0 {
@@ -367,10 +365,8 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 				config["sts_endpoint"] = endpoint
 			}
 
-			ctx := context.Background()
-
 			b := New()
-			configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config))
+			configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config))
 
 			configSchema, diags := b.PrepareConfig(configSchema)
 			if len(diags) > 0 {
@@ -602,15 +598,13 @@ func TestBackendConfig_AssumeRole(t *testing.T) {
 		testCase := testCase
 
 		t.Run(testCase.Description, func(t *testing.T) {
-			ctx := context.Background()
-
 			closeSts, _, endpoint := mockdata.GetMockedAwsApiSession("STS", testCase.MockStsEndpoints)
 			defer closeSts()
 
 			testCase.Config["sts_endpoint"] = endpoint
 
 			b := New()
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
+			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
 
 			if diags.HasErrors() {
 				for _, diag := range diags {
@@ -795,9 +789,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 
 			b := New()
 
-			ctx := context.Background()
-
-			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedErr != "" {
 				if valDiags.Err() != nil {
 					actualErr := valDiags.Err().Error()
@@ -907,9 +899,7 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 				os.Setenv(k, v)
 			}
 
-			ctx := context.Background()
-
-			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedErr != "" {
 				if valDiags.Err() != nil {
 					actualErr := valDiags.Err().Error()
@@ -1012,9 +1002,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 			}
 
 			b := New().(*Backend)
-			ctx := context.Background()
-
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -1081,9 +1069,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 			})
 
 			b := New().(*Backend)
-			ctx := context.Background()
-
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {

@@ -4,7 +4,6 @@
 package local
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -217,7 +216,7 @@ func (b backendWithStateStorageThatFailsRefresh) StateMgr(workspace string) (sta
 	return &stateStorageThatFailsRefresh{}, nil
 }
 
-func (b backendWithStateStorageThatFailsRefresh) ConfigSchema(context.Context) *configschema.Block {
+func (b backendWithStateStorageThatFailsRefresh) ConfigSchema() *configschema.Block {
 	return &configschema.Block{}
 }
 
