@@ -475,9 +475,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
 
-	ctx := context.Background()
-
-	if err = s1.PersistState(ctx, nil); err != nil {
+	if err = s1.PersistState(nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
@@ -490,7 +488,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err = s2.PersistState(ctx, nil); err != nil {
+	if err = s2.PersistState(nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 

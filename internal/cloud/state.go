@@ -162,7 +162,7 @@ func (s *State) WriteState(state *states.State) error {
 }
 
 // PersistState uploads a snapshot of the latest state as a StateVersion to Terraform Cloud
-func (s *State) PersistState(ctx context.Context, schemas *tofu.Schemas) error {
+func (s *State) PersistState(schemas *tofu.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -182,7 +182,7 @@ func (s *State) PersistState(ctx context.Context, schemas *tofu.Schemas) error {
 		// We might be writing a new state altogether, but before we do that
 		// we'll check to make sure there isn't already a snapshot present
 		// that we ought to be updating.
-		err := s.refreshState(ctx)
+		err := s.refreshState()
 		if err != nil {
 			return fmt.Errorf("failed checking for existing remote state: %w", err)
 		}
@@ -229,7 +229,7 @@ func (s *State) PersistState(ctx context.Context, schemas *tofu.Schemas) error {
 		return fmt.Errorf("failed to marshal outputs to json: %w", err)
 	}
 
-	err = s.uploadState(ctx, s.lineage, s.serial, s.forcePush, buf.Bytes(), jsonState, jsonStateOutputs)
+	err = s.uploadState(s.lineage, s.serial, s.forcePush, buf.Bytes(), jsonState, jsonStateOutputs)
 	if err != nil {
 		s.stateUploadErr = true
 		return fmt.Errorf("error uploading state: %w", err)
@@ -293,7 +293,9 @@ func (s *State) uploadStateFallback(ctx context.Context, lineage string, serial 
 	return err
 }
 
-func (s *State) uploadState(ctx context.Context, lineage string, serial uint64, isForcePush bool, state, jsonState, jsonStateOutputs []byte) error {
+func (s *State) uploadState(lineage string, serial uint64, isForcePush bool, state, jsonState, jsonStateOutputs []byte) error {
+	ctx := context.Background()
+
 	options := tfe.StateVersionUploadOptions{
 		StateVersionCreateOptions: tfe.StateVersionCreateOptions{
 			Lineage:          tfe.String(lineage),
@@ -360,17 +362,17 @@ func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
 }
 
 // statemgr.Refresher impl.
-func (s *State) RefreshState(ctx context.Context) error {
+func (s *State) RefreshState() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.refreshState(ctx)
+	return s.refreshState()
 }
 
 // refreshState is the main implementation of RefreshState, but split out so
 // that we can make internal calls to it from methods that are already holding
 // the s.mu lock.
-func (s *State) refreshState(ctx context.Context) error {
-	payload, err := s.getStatePayload(ctx)
+func (s *State) refreshState() error {
+	payload, err := s.getStatePayload()
 	if err != nil {
 		return err
 	}
@@ -400,7 +402,9 @@ func (s *State) refreshState(ctx context.Context) error {
 	return nil
 }
 
-func (s *State) getStatePayload(ctx context.Context) (*remote.Payload, error) {
+func (s *State) getStatePayload() (*remote.Payload, error) {
+	ctx := context.Background()
+
 	// Check the x-terraform-snapshot-interval header to see if it has a non-empty
 	// value which would indicate snapshots are enabled
 	ctx = tfe.ContextWithResponseHeaderHook(ctx, s.readSnapshotIntervalHeader)
@@ -512,7 +516,9 @@ func (s *State) Delete(ctx context.Context, force bool) error {
 }
 
 // GetRootOutputValues fetches output values from Terraform Cloud
-func (s *State) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
+func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
+	ctx := context.Background()
+
 	so, err := s.tfeClient.StateVersionOutputs.ReadCurrent(ctx, s.workspace.ID)
 
 	if err != nil {
@@ -529,7 +535,7 @@ func (s *State) GetRootOutputValues(ctx context.Context) (map[string]*states.Out
 			// requires a higher level of authorization.
 			log.Printf("[DEBUG] falling back to reading full state")
 
-			if err := s.RefreshState(ctx); err != nil {
+			if err := s.RefreshState(); err != nil {
 				return nil, fmt.Errorf("failed to load state: %w", err)
 			}
 

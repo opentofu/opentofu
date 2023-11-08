@@ -163,7 +163,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	err = stateMgr.PersistState(ctx, nil)
+	err = stateMgr.PersistState(nil)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

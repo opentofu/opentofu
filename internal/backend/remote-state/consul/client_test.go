@@ -141,12 +141,12 @@ func TestConsul_largeState(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = c.Put(ctx, payload)
+		err = c.Put(payload)
 		if err != nil {
 			t.Fatal("could not put payload", err)
 		}
 
-		remote, err := c.Get(ctx)
+		remote, err := c.Get()
 		if err != nil {
 			t.Fatal(err)
 		}

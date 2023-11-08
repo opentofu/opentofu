@@ -41,10 +41,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 	state := &State{tfeClient: b.client, organization: b.organization, workspace: &tfe.Workspace{
 		ID: "ws-abcd",
 	}}
-
-	ctx := context.Background()
-
-	outputs, err := state.GetRootOutputValues(ctx)
+	outputs, err := state.GetRootOutputValues()
 
 	if err != nil {
 		t.Fatalf("error returned from GetRootOutputValues: %s", err)
@@ -118,13 +115,11 @@ func TestState(t *testing.T) {
 	}
 }`)
 
-	ctx := context.Background()
-
-	if err := state.uploadState(ctx, state.lineage, state.serial, state.forcePush, data, jsonState, jsonStateOutputs); err != nil {
+	if err := state.uploadState(state.lineage, state.serial, state.forcePush, data, jsonState, jsonStateOutputs); err != nil {
 		t.Fatalf("put: %s", err)
 	}
 
-	payload, err := state.getStatePayload(ctx)
+	payload, err := state.getStatePayload()
 	if err != nil {
 		t.Fatalf("get: %s", err)
 	}
@@ -132,11 +127,13 @@ func TestState(t *testing.T) {
 		t.Fatalf("expected full state %q\n\ngot: %q", string(payload.Data), string(data))
 	}
 
+	ctx := context.Background()
+
 	if err := state.Delete(ctx, true); err != nil {
 		t.Fatalf("delete: %s", err)
 	}
 
-	p, err := state.getStatePayload(ctx)
+	p, err := state.getStatePayload()
 	if err != nil {
 		t.Fatalf("get: %s", err)
 	}
@@ -280,7 +277,7 @@ func TestState_PersistState(t *testing.T) {
 			t.Fatal("expected nil initial readState")
 		}
 
-		err := cloudState.PersistState(context.Background(), nil)
+		err := cloudState.PersistState(nil)
 		if err != nil {
 			t.Fatalf("expected no error, got %q", err)
 		}
@@ -340,9 +337,7 @@ func TestState_PersistState(t *testing.T) {
 			}
 			cloudState.tfeClient = client
 
-			ctx := context.Background()
-
-			err = cloudState.RefreshState(ctx)
+			err = cloudState.RefreshState()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -353,7 +348,7 @@ func TestState_PersistState(t *testing.T) {
 				)
 			}))
 
-			err = cloudState.PersistState(ctx, nil)
+			err = cloudState.PersistState(nil)
 			if err != nil {
 				t.Fatal(err)
 			}

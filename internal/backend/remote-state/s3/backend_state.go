@@ -185,7 +185,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// Grab the value
 		// This is to ensure that no one beat us to writing a state between
 		// the `exists` check and taking the lock.
-		if err := stateMgr.RefreshState(ctx); err != nil {
+		if err := stateMgr.RefreshState(); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
@@ -196,7 +196,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(ctx, nil); err != nil {
+			if err := stateMgr.PersistState(nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

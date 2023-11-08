@@ -13,8 +13,8 @@ import (
 // driver. It supports dumb put/get/delete, and the higher level structs
 // handle persisting the state properly here.
 type Client interface {
-	Get(context.Context) (*Payload, error)
-	Put(context.Context, []byte) error
+	Get() (*Payload, error)
+	Put([]byte) error
 	Delete(context.Context) error
 }
 

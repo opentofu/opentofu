@@ -4,7 +4,6 @@
 package local
 
 import (
-	"context"
 	"log"
 	"sync"
 	"time"
@@ -80,7 +79,7 @@ func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) 
 		}
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
 			if h.shouldPersist() {
-				err := mgrPersist.PersistState(context.TODO(), h.Schemas)
+				err := mgrPersist.PersistState(h.Schemas)
 				if err != nil {
 					return tofu.HookActionHalt, err
 				}
@@ -114,7 +113,7 @@ func (h *StateHook) Stopping() {
 		h.intermediatePersist.ForcePersist = true
 
 		if h.shouldPersist() {
-			err := mgrPersist.PersistState(context.TODO(), h.Schemas)
+			err := mgrPersist.PersistState(h.Schemas)
 			if err != nil {
 				// This hook can't affect OpenTofu Core's ongoing behavior,
 				// but it's a best effort thing anyway, so we'll just emit a

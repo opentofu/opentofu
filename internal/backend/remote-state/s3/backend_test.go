@@ -1149,7 +1149,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(s1); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1161,7 +1161,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr2.WriteState(s2); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr2.PersistState(ctx, nil); err != nil {
+	if err := stateMgr2.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1176,7 +1176,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
@@ -1188,7 +1188,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
@@ -1214,7 +1214,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s2Mgr.RefreshState(ctx); err != nil {
+	if err := s2Mgr.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1229,7 +1229,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(ctx, nil); err != nil {
+	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1238,7 +1238,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s2Mgr.RefreshState(ctx); err != nil {
+	if err := s2Mgr.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1272,7 +1272,7 @@ func TestBackendPrefixInWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := sMgr.RefreshState(ctx); err != nil {
+	if err := sMgr.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 

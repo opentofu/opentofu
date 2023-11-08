@@ -4,7 +4,6 @@
 package statemgr
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -289,7 +288,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 func TestFilesystem_nonExist(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
 	ls := NewFilesystem("ishouldntexist")
-	if err := ls.RefreshState(context.Background()); err != nil {
+	if err := ls.RefreshState(); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -362,7 +361,7 @@ func testFilesystem(t *testing.T) *Filesystem {
 	f.Close()
 
 	ls := NewFilesystem(f.Name())
-	if err := ls.RefreshState(context.Background()); err != nil {
+	if err := ls.RefreshState(); err != nil {
 		t.Fatalf("initial refresh failed: %s", err)
 	}
 
@@ -404,7 +403,7 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 		}
 	}()
 
-	if err := s.RefreshState(context.Background()); err != nil {
+	if err := s.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -417,7 +416,7 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 func TestFilesystem_GetRootOutputValues(t *testing.T) {
 	fs := testFilesystem(t)
 
-	outputs, err := fs.GetRootOutputValues(context.Background())
+	outputs, err := fs.GetRootOutputValues()
 	if err != nil {
 		t.Errorf("Expected GetRootOutputValues to not return an error, but it returned %v", err)
 	}
