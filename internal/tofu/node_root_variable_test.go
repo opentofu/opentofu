@@ -33,6 +33,14 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		}
 
+		ctx.ChecksState = checks.NewState(&configs.Config{
+			Module: &configs.Module{
+				Variables: map[string]*configs.Variable{
+					"foo": n.Config,
+				},
+			},
+		})
+
 		diags := n.Execute(ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
@@ -116,7 +124,6 @@ func TestNodeRootVariableExecute(t *testing.T) {
 				Value:      cty.StringVal("5"),
 				SourceType: ValueFromUnknown,
 			},
-			Planning: true,
 		}
 
 		ctx.ChecksState = checks.NewState(&configs.Config{

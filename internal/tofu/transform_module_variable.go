@@ -28,10 +28,6 @@ import (
 // steps for validating module blocks, separate from this transform.
 type ModuleVariableTransformer struct {
 	Config *configs.Config
-
-	// Planning must be set to true when building a planning graph, and must be
-	// false when building an apply graph.
-	Planning bool
 }
 
 func (t *ModuleVariableTransformer) Transform(g *Graph) error {
@@ -110,10 +106,9 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			Addr: addrs.InputVariable{
 				Name: v.Name,
 			},
-			Module:   c.Path,
-			Config:   v,
-			Expr:     expr,
-			Planning: t.Planning,
+			Module: c.Path,
+			Config: v,
+			Expr:   expr,
 		}
 		g.Add(node)
 	}
