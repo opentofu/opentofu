@@ -79,12 +79,13 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 	}
 
 	return &remoteClient{
-		storageClient: b.storageClient,
-		bucketName:    b.bucketName,
-		stateFilePath: b.stateFile(name),
-		lockFilePath:  b.lockFile(name),
-		encryptionKey: b.encryptionKey,
-		kmsKeyName:    b.kmsKeyName,
+		storageContext: b.storageContext,
+		storageClient:  b.storageClient,
+		bucketName:     b.bucketName,
+		stateFilePath:  b.stateFile(name),
+		lockFilePath:   b.lockFile(name),
+		encryptionKey:  b.encryptionKey,
+		kmsKeyName:     b.kmsKeyName,
 	}, nil
 }
 
@@ -108,14 +109,14 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := st.Lock(ctx, lockInfo)
+		lockID, err := st.Lock(lockInfo)
 		if err != nil {
 			return nil, err
 		}
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := st.Unlock(ctx, lockID); err != nil {
+			if err := st.Unlock(lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state file on Google Cloud Storage failed:
 

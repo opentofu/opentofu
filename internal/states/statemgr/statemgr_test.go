@@ -45,7 +45,7 @@ func TestNewLockInfo(t *testing.T) {
 func TestLockWithContext(t *testing.T) {
 	s := NewFullFake(nil, TestFullInitialState())
 
-	id, err := s.Lock(context.Background(), NewLockInfo())
+	id, err := s.Lock(NewLockInfo())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestLockWithContext(t *testing.T) {
 		t.Fatal("lock should have failed immediately")
 	}
 
-	// block until LockWithContext has made a first attempt
+	// block until LockwithContext has made a first attempt
 	attempted := make(chan struct{})
 	postLockHook = func() {
 		close(attempted)
@@ -74,7 +74,7 @@ func TestLockWithContext(t *testing.T) {
 	go func() {
 		defer close(unlocked)
 		<-attempted
-		unlockErr = s.Unlock(context.Background(), id)
+		unlockErr = s.Unlock(id)
 	}()
 
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
@@ -85,7 +85,7 @@ func TestLockWithContext(t *testing.T) {
 		t.Fatal("lock should have completed within 2s:", err)
 	}
 
-	// ensure the goroutine completes
+	// ensure the goruotine completes
 	<-unlocked
 	if unlockErr != nil {
 		t.Fatal(unlockErr)

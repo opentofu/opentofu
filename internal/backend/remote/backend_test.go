@@ -621,12 +621,10 @@ func TestRemote_VerifyWorkspaceTerraformVersion(t *testing.T) {
 			tfversion.Version = local.String()
 			tfversion.SemVer = local
 
-			ctx := context.Background()
-
 			// Update the mock remote workspace OpenTofu version to the
 			// specified remote version
 			if _, err := b.client.Workspaces.Update(
-				ctx,
+				context.Background(),
 				b.organization,
 				b.workspace,
 				tfe.WorkspaceUpdateOptions{
@@ -637,7 +635,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion(t *testing.T) {
 				t.Fatalf("error: %v", err)
 			}
 
-			diags := b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
+			diags := b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
 			if tc.wantErr {
 				if len(diags) != 1 {
 					t.Fatal("expected diag, but none returned")
@@ -658,18 +656,16 @@ func TestRemote_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
 	// Attempting to check the version against a workspace which doesn't exist
 	// should result in no errors
-	diags := b.VerifyWorkspaceTerraformVersion(ctx, "invalid-workspace")
+	diags := b.VerifyWorkspaceTerraformVersion("invalid-workspace")
 	if len(diags) != 0 {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
 
 	// Use a special workspace ID to trigger a 500 error, which should result
 	// in a failed check
-	diags = b.VerifyWorkspaceTerraformVersion(ctx, "network-error")
+	diags = b.VerifyWorkspaceTerraformVersion("network-error")
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}
@@ -688,7 +684,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_workspaceErrors(t *testing.T) {
 	); err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	diags = b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
+	diags = b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
 
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
@@ -724,12 +720,10 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	tfversion.Version = local.String()
 	tfversion.SemVer = local
 
-	ctx := context.Background()
-
 	// Update the mock remote workspace OpenTofu version to the
 	// specified remote version
 	if _, err := b.client.Workspaces.Update(
-		ctx,
+		context.Background(),
 		b.organization,
 		b.workspace,
 		tfe.WorkspaceUpdateOptions{
@@ -739,7 +733,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
-	diags := b.VerifyWorkspaceTerraformVersion(ctx, backend.DefaultStateName)
+	diags := b.VerifyWorkspaceTerraformVersion(backend.DefaultStateName)
 	if len(diags) != 1 {
 		t.Fatal("expected diag, but none returned")
 	}

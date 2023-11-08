@@ -5,7 +5,6 @@ package clistate
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -176,7 +175,7 @@ func (s *LocalState) RefreshState() error {
 }
 
 // Lock implements a local filesystem state.Locker.
-func (s *LocalState) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -208,7 +207,7 @@ func (s *LocalState) Lock(ctx context.Context, info *statemgr.LockInfo) (string,
 	return s.lockID, s.writeLockInfo(info)
 }
 
-func (s *LocalState) Unlock(ctx context.Context, id string) error {
+func (s *LocalState) Unlock(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

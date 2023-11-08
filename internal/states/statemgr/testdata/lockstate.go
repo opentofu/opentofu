@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"io"
 	"log"
 	"os"
@@ -22,9 +21,7 @@ func main() {
 	info.Operation = "test"
 	info.Info = "state locker"
 
-	ctx := context.Background()
-
-	_, err := s.Lock(ctx, info)
+	_, err := s.Lock(info)
 	if err != nil {
 		io.WriteString(os.Stderr, "lock failed")
 	}

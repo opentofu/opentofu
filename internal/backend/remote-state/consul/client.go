@@ -353,7 +353,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	return li, nil
 }
 
-func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -377,15 +377,15 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		}
 	}
 
-	return c.lock(ctx)
+	return c.lock()
 }
 
 // the lock implementation.
 // Only to be called while holding Client.mu
-func (c *RemoteClient) lock(ctx context.Context) (string, error) {
+func (c *RemoteClient) lock() (string, error) {
 	// We create a new session here, so it can be canceled when the lock is
 	// lost or unlocked.
-	lockSession, err := c.createSession(ctx)
+	lockSession, err := c.createSession()
 	if err != nil {
 		return "", err
 	}
@@ -460,7 +460,7 @@ func (c *RemoteClient) lock(ctx context.Context) (string, error) {
 	// If we lose the lock to due communication issues with the consul agent,
 	// attempt to immediately reacquire the lock. Put will verify the integrity
 	// of the state by using a CAS operation.
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	c.monitorCancel = cancel
 	c.monitorWG.Add(1)
 	go func() {
@@ -477,7 +477,7 @@ func (c *RemoteClient) lock(ctx context.Context) (string, error) {
 				c.sessionCancel()
 
 				c.consulLock = nil
-				_, err := c.lock(ctx)
+				_, err := c.lock()
 				c.mu.Unlock()
 
 				if err != nil {
@@ -516,10 +516,10 @@ func (c *RemoteClient) lock(ctx context.Context) (string, error) {
 // called after a lock is acquired
 var testLockHook func()
 
-func (c *RemoteClient) createSession(ctx context.Context) (string, error) {
+func (c *RemoteClient) createSession() (string, error) {
 	// create the context first. Even if the session creation fails, we assume
 	// that the CancelFunc is always callable.
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	c.sessionCancel = cancel
 
 	session := c.Client.Session()
@@ -542,7 +542,7 @@ func (c *RemoteClient) createSession(ctx context.Context) (string, error) {
 	return id, nil
 }
 
-func (c *RemoteClient) Unlock(_ context.Context, id string) error {
+func (c *RemoteClient) Unlock(id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

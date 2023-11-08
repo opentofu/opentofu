@@ -52,12 +52,10 @@ func TestFilesystemLocks(t *testing.T) {
 	s := testFilesystem(t)
 	defer os.Remove(s.readPath)
 
-	ctx := context.Background()
-
 	// lock first
 	info := NewLockInfo()
 	info.Operation = "test"
-	lockID, err := s.Lock(ctx, info)
+	lockID, err := s.Lock(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,22 +80,22 @@ func TestFilesystemLocks(t *testing.T) {
 	}
 
 	// a noop, since we unlock on exit
-	if err := s.Unlock(ctx, lockID); err != nil {
+	if err := s.Unlock(lockID); err != nil {
 		t.Fatal(err)
 	}
 
 	// local locks can re-lock
-	lockID, err = s.Lock(ctx, info)
+	lockID, err = s.Lock(info)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Unlock(ctx, lockID); err != nil {
+	if err := s.Unlock(lockID); err != nil {
 		t.Fatal(err)
 	}
 
 	// we should not be able to unlock the same lock twice
-	if err := s.Unlock(ctx, lockID); err == nil {
+	if err := s.Unlock(lockID); err == nil {
 		t.Fatal("unlocking an unlocked state should fail")
 	}
 
@@ -115,17 +113,15 @@ func TestFilesystem_writeWhileLocked(t *testing.T) {
 	s := testFilesystem(t)
 	defer os.Remove(s.readPath)
 
-	ctx := context.Background()
-
 	// lock first
 	info := NewLockInfo()
 	info.Operation = "test"
-	lockID, err := s.Lock(ctx, info)
+	lockID, err := s.Lock(info)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := s.Unlock(ctx, lockID); err != nil {
+		if err := s.Unlock(lockID); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -311,10 +307,8 @@ func TestFilesystem_lockUnlockWithoutWrite(t *testing.T) {
 	// Delete the just-created tempfile so that Lock recreates it
 	os.Remove(ls.path)
 
-	ctx := context.Background()
-
 	// Lock the state, and in doing so recreate the tempfile
-	lockID, err := ls.Lock(ctx, info)
+	lockID, err := ls.Lock(info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +317,7 @@ func TestFilesystem_lockUnlockWithoutWrite(t *testing.T) {
 		t.Fatal("should have marked state as created")
 	}
 
-	if err := ls.Unlock(ctx, lockID); err != nil {
+	if err := ls.Unlock(lockID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -397,17 +391,15 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 	s := NewFilesystem(f.Name())
 	defer os.Remove(s.path)
 
-	ctx := context.Background()
-
 	// lock first
 	info := NewLockInfo()
 	info.Operation = "test"
-	lockID, err := s.Lock(ctx, info)
+	lockID, err := s.Lock(info)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := s.Unlock(ctx, lockID); err != nil {
+		if err := s.Unlock(lockID); err != nil {
 			t.Fatal(err)
 		}
 	}()
