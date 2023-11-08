@@ -187,27 +187,27 @@ func (c *RemoteClient) Put(data []byte) error {
 	contentType := "application/json"
 	contentLength := int64(len(data))
 
-	// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
-	// Since we can pre-compute the hash here, we can work around it.
-	// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
-	algo := sha256.New()
-	algo.Write(data)
-	sum256 := algo.Sum(nil)
-	sum64 := make([]byte, base64.StdEncoding.EncodedLen(len(sum256)))
-	base64.StdEncoding.Encode(sum64, sum256)
-	sum64str := string(sum64)
-
 	i := &s3.PutObjectInput{
-		ContentType:    &contentType,
-		ContentLength:  contentLength,
-		Body:           bytes.NewReader(data),
-		Bucket:         &c.bucketName,
-		Key:            &c.path,
-		ChecksumSHA256: &sum64str,
+		ContentType:   &contentType,
+		ContentLength: contentLength,
+		Body:          bytes.NewReader(data),
+		Bucket:        &c.bucketName,
+		Key:           &c.path,
 	}
 
 	if !c.skipS3Checksum {
 		i.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+
+		// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
+		// Since we can pre-compute the hash here, we can work around it.
+		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
+		algo := sha256.New()
+		algo.Write(data)
+		sum256 := algo.Sum(nil)
+		sum64 := make([]byte, base64.StdEncoding.EncodedLen(len(sum256)))
+		base64.StdEncoding.Encode(sum64, sum256)
+		sum64str := string(sum64)
+		i.ChecksumSHA256 = &sum64str
 	}
 
 	if c.serverSideEncryption {
