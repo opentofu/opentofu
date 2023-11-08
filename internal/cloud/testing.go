@@ -242,7 +242,7 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	}
 	obj = newObj
 
-	confDiags := b.Configure(ctx, obj)
+	confDiags := b.Configure(obj)
 	if len(confDiags) != 0 {
 		t.Fatalf("testBackend: backend.Configure() failed: %s", confDiags.ErrWithWarnings())
 	}

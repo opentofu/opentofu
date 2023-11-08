@@ -233,7 +233,7 @@ func (b *Cloud) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 }
 
 // Configure implements backend.Enhanced.
-func (b *Cloud) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
+func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -327,7 +327,7 @@ func (b *Cloud) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostic
 	}
 
 	// Check if the organization exists by reading its entitlements.
-	entitlements, err := b.client.Organizations.ReadEntitlements(ctx, b.organization)
+	entitlements, err := b.client.Organizations.ReadEntitlements(context.Background(), b.organization)
 	if err != nil {
 		if err == tfe.ErrResourceNotFound {
 			err = fmt.Errorf("organization %q at host %s not found.\n\n"+
@@ -347,7 +347,7 @@ func (b *Cloud) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostic
 
 	if ws, ok := os.LookupEnv("TF_WORKSPACE"); ok {
 		if ws == b.WorkspaceMapping.Name || b.WorkspaceMapping.Strategy() == WorkspaceTagsStrategy {
-			diag := b.validWorkspaceEnvVar(ctx, b.organization, ws)
+			diag := b.validWorkspaceEnvVar(context.Background(), b.organization, ws)
 			if diag != nil {
 				diags = diags.Append(diag)
 				return diags

@@ -623,7 +623,7 @@ func (b *Backend) PrepareConfig(ctx context.Context, obj cty.Value) (cty.Value, 
 // The given configuration is assumed to have already been validated
 // against the schema returned by ConfigSchema and passed validation
 // via PrepareConfig.
-func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -764,14 +764,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		cfg.ForbiddenAccountIds = val
 	}
 
-	if val, ok := stringAttrOk(obj, "retry_mode"); ok {
-		mode, err := aws.ParseRetryMode(val)
-		if err != nil {
-			panic(fmt.Sprintf("invalid retry mode %q: %s", val, err))
-		}
-		cfg.RetryMode = mode
-	}
-
+	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
 	for _, d := range awsDiags {
