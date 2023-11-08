@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
+	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -693,11 +694,13 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		}
 	}
 
+	ctx := context.TODO()
+	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("s3-backend"))
+
 	cfg := &awsbase.Config{
 		AccessKey:               stringAttr(obj, "access_key"),
 		CallerDocumentationURL:  "https://opentofu.org/docs/language/settings/backends/s3",
 		CallerName:              "S3 Backend",
-		SuppressDebugLog:        logging.IsDebugOrHigher(),
 		IamEndpoint:             customEndpoints["iam"].String(obj),
 		MaxRetries:              intAttrDefault(obj, "max_retries", 5),
 		Profile:                 stringAttr(obj, "profile"),
@@ -719,6 +722,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		CustomCABundle:                 stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
 		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
 		EC2MetadataServiceEndpointMode: stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint_mode", "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"),
+		Logger:                         baselog,
 	}
 
 	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {
@@ -772,7 +776,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		cfg.RetryMode = mode
 	}
 
-	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
 	for _, d := range awsDiags {
@@ -829,7 +832,8 @@ func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsb
 func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 	return func(options *dynamodb.Options) {
 		if v, ok := customEndpoints["dynamodb"].StringOk(obj); ok {
-			options.BaseEndpoint = aws.String(v)
+			// EndpointResolver does not require scheme://
+			options.EndpointResolver = dynamodb.EndpointResolverFromURL(v)
 		}
 	}
 }
@@ -837,7 +841,8 @@ func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 func getS3Config(obj cty.Value) func(options *s3.Options) {
 	return func(options *s3.Options) {
 		if v, ok := customEndpoints["s3"].StringOk(obj); ok {
-			options.BaseEndpoint = aws.String(v)
+			// EndpointResolver does not require scheme://
+			options.EndpointResolver = s3.EndpointResolverFromURL(v)
 		}
 		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
 			options.UsePathStyle = v

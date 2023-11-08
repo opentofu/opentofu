@@ -21,8 +21,10 @@ import (
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -108,6 +110,30 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	var output *s3.GetObjectOutput
 	var err error
+
+	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
+	ctx = baselogging.RegisterLogger(ctx, baselog)
+
+	inputHead := &s3.HeadObjectInput{
+		Bucket: &c.bucketName,
+		Key:    &c.path,
+	}
+
+	// Head works around some s3 compatible backends not handling missing GetObject requests correctly (ex: minio Get returns Missing Bucket)
+	_, err = c.s3Client.HeadObject(ctx, inputHead)
+	if err != nil {
+		var nb *types.NoSuchBucket
+		if errors.As(err, &nb) {
+			return nil, fmt.Errorf(errS3NoSuchBucket, err)
+		}
+
+		var nk *types.NotFound
+		if errors.As(err, &nk) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
 
 	input := &s3.GetObjectInput{
 		Bucket: &c.bucketName,

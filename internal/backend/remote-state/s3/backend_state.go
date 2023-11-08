@@ -14,8 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -36,10 +38,14 @@ func (b *Backend) Workspaces() ([]string, error) {
 		MaxKeys: maxKeys,
 	}
 
+	ctx := context.TODO()
+
+	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("s3-backend"))
+	ctx = baselogging.RegisterLogger(ctx, baselog)
+
 	wss := []string{backend.DefaultStateName}
 	pg := s3.NewListObjectsV2Paginator(b.s3Client, params)
 
-	ctx := context.TODO()
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
 		if err != nil {
