@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-// Package state exposes common helpers for working with state from the CLI.
+// Package clistate exposes common helpers for working with state from the CLI.
 //
 // This is a separate package so that backends can use this for consistent
 // messaging without creating a circular reference to the command package.
@@ -54,7 +54,7 @@ that no one else is holding a lock.`
 // Unlock, which is at a minimum the LockID string returned by the
 // statemgr.Locker.
 type Locker interface {
-	// Returns a shallow copy of the locker with its context changed to ctx.
+	// WithContext Returns a shallow copy of the locker with its context changed to ctx.
 	WithContext(ctx context.Context) Locker
 
 	// Lock the provided state manager, storing the reason string in the LockInfo.
@@ -78,9 +78,9 @@ type locker struct {
 
 var _ Locker = (*locker)(nil)
 
-// Create a new Locker.
+// NewLocker Creates a new Locker.
 // This Locker uses state.LockWithContext to retry the lock until the provided
-// timeout is reached, or the context is canceled. Lock progress will be be
+// timeout is reached, or the context is canceled. Lock progress will be
 // reported to the user through the provided UI.
 func NewLocker(timeout time.Duration, view views.StateLocker) Locker {
 	return &locker{
@@ -103,7 +103,7 @@ func (l *locker) WithContext(ctx context.Context) Locker {
 	}
 }
 
-// Locker locks the given state and outputs to the user if locking is taking
+// Lock locks the given state and outputs to the user if locking is taking
 // longer than the threshold. The lock is retried until the context is
 // cancelled.
 func (l *locker) Lock(s statemgr.Locker, reason string) tfdiags.Diagnostics {
@@ -114,8 +114,13 @@ func (l *locker) Lock(s statemgr.Locker, reason string) tfdiags.Diagnostics {
 
 	l.state = s
 
-	ctx, cancel := context.WithTimeout(l.ctx, l.timeout)
-	defer cancel()
+	// only assign a context with timeout if the locker timeout is not 0
+	ctx := l.ctx
+	if l.timeout != 0 {
+		c, cancel := context.WithTimeout(l.ctx, l.timeout)
+		defer cancel()
+		ctx = c
+	}
 
 	lockInfo := statemgr.NewLockInfo()
 	lockInfo.Operation = reason
@@ -133,10 +138,10 @@ func (l *locker) Lock(s statemgr.Locker, reason string) tfdiags.Diagnostics {
 			fmt.Sprintf(LockErrorMessage, err),
 		))
 	}
-
 	return diags
 }
 
+// Unlock releases the lock on the state.
 func (l *locker) Unlock() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -163,10 +168,12 @@ func (l *locker) Unlock() tfdiags.Diagnostics {
 
 }
 
+// Timeout returns the configured timeout duration
 func (l *locker) Timeout() time.Duration {
 	return l.timeout
 }
 
+// noopLocker is a Locker that does nothing.
 type noopLocker struct{}
 
 // NewNoopLocker returns a valid Locker that does nothing.
@@ -174,9 +181,10 @@ func NewNoopLocker() Locker {
 	return noopLocker{}
 }
 
+// Ensure that noopLocker implements the Locker interface.
 var _ Locker = noopLocker{}
 
-func (l noopLocker) WithContext(ctx context.Context) Locker {
+func (l noopLocker) WithContext(_ context.Context) Locker {
 	return l
 }
 
