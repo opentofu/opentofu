@@ -47,6 +47,7 @@ BUG FIXES:
 * `GIT_SSH_COMMAND` environment variable is no longer ignored when downloading modules ([#717](https://github.com/opento
 * cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 * cloud: state snapshots could not be disabled when header x-terraform-snapshot-interval is absent ([#687](https://github.com/opentofu/opentofu/issues/687))
+* Correctly handle state locking timeouts when locking state ([#834](https://github.com/opentofu/opentofu/pull/834))
 
 S3 BACKEND:
 
