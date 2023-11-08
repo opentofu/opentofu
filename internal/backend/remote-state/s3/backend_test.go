@@ -829,9 +829,7 @@ func TestBackendConfig_PrepareConfigValidationWarnings(t *testing.T) {
 
 			b := New()
 
-			ctx := context.Background()
-
-			_, diags := b.PrepareConfig(ctx, populateSchema(t, b.ConfigSchema(ctx), tc.config))
+			_, diags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedWarn != "" {
 				if err := diags.ErrWithWarnings(); err != nil {
 					if !strings.Contains(err.Error(), tc.expectedWarn) {
