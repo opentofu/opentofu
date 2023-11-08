@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -1176,6 +1178,15 @@ func (e customEndpoint) String(obj cty.Value) string {
 	return v
 }
 
+func includeProtoIfNessesary(endpoint string) string {
+	//if !strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
+	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
+		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
+		endpoint = fmt.Sprintf("https://%s", endpoint)
+	}
+	return endpoint
+}
+
 func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
 	for _, path := range e.Paths {
 		val, err := path.Apply(obj)
@@ -1183,12 +1194,12 @@ func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
 			continue
 		}
 		if s, ok := stringValueOk(val); ok {
-			return s, true
+			return includeProtoIfNessesary(s), true
 		}
 	}
 	for _, envVar := range e.EnvVars {
 		if v := os.Getenv(envVar); v != "" {
-			return v, true
+			return includeProtoIfNessesary(v), true
 		}
 	}
 	return "", false
