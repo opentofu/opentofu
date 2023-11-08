@@ -5,7 +5,6 @@ package remote
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -35,9 +34,7 @@ func TestClient(t *testing.T, c Client) {
 		t.Fatalf("expected full state %q\n\ngot: %q", string(p.Data), string(data))
 	}
 
-	ctx := context.Background()
-
-	if err := c.Delete(ctx); err != nil {
+	if err := c.Delete(); err != nil {
 		t.Fatalf("delete: %s", err)
 	}
 

@@ -4,7 +4,6 @@
 package remote
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/json"
 	"testing"
@@ -26,7 +25,7 @@ func (nilClient) Get() (*Payload, error) { return nil, nil }
 
 func (c nilClient) Put([]byte) error { return nil }
 
-func (c nilClient) Delete(context.Context) error { return nil }
+func (c nilClient) Delete() error { return nil }
 
 // mockClient is a client that tracks persisted state snapshots only in
 // memory and also logs what it has been asked to do for use in test
@@ -59,7 +58,7 @@ func (c *mockClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *mockClient) Delete(context.Context) error {
+func (c *mockClient) Delete() error {
 	c.appendLog("Delete", c.current)
 	c.current = nil
 	return nil
@@ -117,7 +116,7 @@ func (c *mockClientForcePusher) EnableForcePush() {
 	c.force = true
 }
 
-func (c *mockClientForcePusher) Delete(context.Context) error {
+func (c *mockClientForcePusher) Delete() error {
 	c.appendLog("Delete", c.current)
 	c.current = nil
 	return nil

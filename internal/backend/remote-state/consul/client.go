@@ -293,7 +293,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return store(payload)
 }
 
-func (c *RemoteClient) Delete(_ context.Context) error {
+func (c *RemoteClient) Delete() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

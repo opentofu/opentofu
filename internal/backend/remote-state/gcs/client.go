@@ -20,15 +20,13 @@ import (
 // blobs representing state.
 // Implements "state/remote".ClientLocker
 type remoteClient struct {
-	// TODO: remove this once all methods are accepting an explicit context
 	storageContext context.Context
-
-	storageClient *storage.Client
-	bucketName    string
-	stateFilePath string
-	lockFilePath  string
-	encryptionKey []byte
-	kmsKeyName    string
+	storageClient  *storage.Client
+	bucketName     string
+	stateFilePath  string
+	lockFilePath   string
+	encryptionKey  []byte
+	kmsKeyName     string
 }
 
 func (c *remoteClient) Get() (payload *remote.Payload, err error) {
@@ -78,8 +76,8 @@ func (c *remoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *remoteClient) Delete(ctx context.Context) error {
-	if err := c.stateFile().Delete(ctx); err != nil {
+func (c *remoteClient) Delete() error {
+	if err := c.stateFile().Delete(c.storageContext); err != nil {
 		return fmt.Errorf("Failed to delete state file %v: %w", c.stateFileURL(), err)
 	}
 

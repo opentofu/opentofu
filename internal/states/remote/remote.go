@@ -4,8 +4,6 @@
 package remote
 
 import (
-	"context"
-
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
@@ -15,7 +13,7 @@ import (
 type Client interface {
 	Get() (*Payload, error)
 	Put([]byte) error
-	Delete(context.Context) error
+	Delete() error
 }
 
 // ClientForcePusher is an optional interface that allows a remote

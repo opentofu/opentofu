@@ -4,7 +4,6 @@
 package inmem
 
 import (
-	"context"
 	"crypto/md5"
 
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -37,7 +36,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete(context.Context) error {
+func (c *RemoteClient) Delete() error {
 	c.Data = nil
 	c.MD5 = nil
 	return nil

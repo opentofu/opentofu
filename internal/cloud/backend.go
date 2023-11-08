@@ -596,7 +596,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 }
 
 // DeleteWorkspace implements backend.Enhanced.
-func (b *Cloud) DeleteWorkspace(ctx context.Context, name string, force bool) error {
+func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 	if name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -605,7 +605,7 @@ func (b *Cloud) DeleteWorkspace(ctx context.Context, name string, force bool) er
 		return backend.ErrWorkspacesNotSupported
 	}
 
-	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
+	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
 	if err == tfe.ErrResourceNotFound {
 		return nil // If the workspace does not exist, succeed
 	}
@@ -616,7 +616,7 @@ func (b *Cloud) DeleteWorkspace(ctx context.Context, name string, force bool) er
 
 	// Configure the remote workspace name.
 	State := &State{tfeClient: b.client, organization: b.organization, workspace: workspace, enableIntermediateSnapshots: false}
-	return State.Delete(ctx, force)
+	return State.Delete(force)
 }
 
 // StateMgr implements backend.Enhanced.

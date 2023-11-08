@@ -5,7 +5,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
@@ -40,7 +39,7 @@ type httpClient struct {
 	jsonLockInfo []byte
 }
 
-func (c *httpClient) httpRequest(ctx context.Context, method string, url *url.URL, data *[]byte, what string) (*http.Response, error) {
+func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what string) (*http.Response, error) {
 	// If we have data we need a reader
 	var reader io.Reader = nil
 	if data != nil {
@@ -48,7 +47,7 @@ func (c *httpClient) httpRequest(ctx context.Context, method string, url *url.UR
 	}
 
 	// Create the request
-	req, err := retryablehttp.NewRequestWithContext(ctx, method, url.String(), reader)
+	req, err := retryablehttp.NewRequest(method, url.String(), reader)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
@@ -84,7 +83,7 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 	c.lockID = ""
 
 	jsonLockInfo := info.Marshal()
-	resp, err := c.httpRequest(context.TODO(), c.LockMethod, c.LockURL, &jsonLockInfo, "lock")
+	resp, err := c.httpRequest(c.LockMethod, c.LockURL, &jsonLockInfo, "lock")
 	if err != nil {
 		return "", err
 	}
@@ -130,7 +129,7 @@ func (c *httpClient) Unlock(id string) error {
 		return nil
 	}
 
-	resp, err := c.httpRequest(context.TODO(), c.UnlockMethod, c.UnlockURL, &c.jsonLockInfo, "unlock")
+	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, &c.jsonLockInfo, "unlock")
 	if err != nil {
 		return err
 	}
@@ -145,7 +144,7 @@ func (c *httpClient) Unlock(id string) error {
 }
 
 func (c *httpClient) Get() (*remote.Payload, error) {
-	resp, err := c.httpRequest(context.TODO(), "GET", c.URL, nil, "get state")
+	resp, err := c.httpRequest("GET", c.URL, nil, "get state")
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +225,7 @@ func (c *httpClient) Put(data []byte) error {
 	if c.UpdateMethod != "" {
 		method = c.UpdateMethod
 	}
-	resp, err := c.httpRequest(context.TODO(), method, &base, &data, "upload state")
+	resp, err := c.httpRequest(method, &base, &data, "upload state")
 	if err != nil {
 		return err
 	}
@@ -241,9 +240,9 @@ func (c *httpClient) Put(data []byte) error {
 	}
 }
 
-func (c *httpClient) Delete(ctx context.Context) error {
+func (c *httpClient) Delete() error {
 	// Make the request
-	resp, err := c.httpRequest(ctx, "DELETE", c.URL, nil, "delete state")
+	resp, err := c.httpRequest("DELETE", c.URL, nil, "delete state")
 	if err != nil {
 		return err
 	}
