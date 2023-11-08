@@ -1219,10 +1219,8 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 		t.Fatal(diags.Err())
 	}
 
-	ctx := context.Background()
-
 	// Check resulting states
-	workspaces, err := b.Workspaces(ctx)
+	workspaces, err := b.Workspaces()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1232,6 +1230,8 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 	if !reflect.DeepEqual(workspaces, expected) {
 		t.Fatalf("bad: %#v", workspaces)
 	}
+
+	ctx := context.Background()
 
 	{
 		// Check the default state
@@ -1319,10 +1319,8 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithDefault(t *testing
 		t.Fatal(diags.Err())
 	}
 
-	ctx := context.Background()
-
 	// Check resulting states
-	workspaces, err := b.Workspaces(ctx)
+	workspaces, err := b.Workspaces()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1332,6 +1330,8 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithDefault(t *testing
 	if !reflect.DeepEqual(workspaces, expected) {
 		t.Fatalf("bad: %#v", workspaces)
 	}
+
+	ctx := context.Background()
 
 	{
 		// Check the renamed default state
@@ -1395,10 +1395,8 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithoutDefault(t *test
 		t.Fatal(diags.Err())
 	}
 
-	ctx := context.Background()
-
 	// Check resulting states
-	workspaces, err := b.Workspaces(ctx)
+	workspaces, err := b.Workspaces()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1410,6 +1408,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithoutDefault(t *test
 	}
 
 	{
+		ctx := context.Background()
 		// Check the named state
 		s, err := b.StateMgr(ctx, "env2")
 		if err != nil {

@@ -90,9 +90,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	ctx := context.TODO()
-
-	workspaces, err := b.Workspaces(ctx)
+	workspaces, err := b.Workspaces()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to get configured named states: %s", err))
 		return 1
@@ -104,6 +102,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		}
 	}
 
+	ctx := context.Background()
 	_, err = b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())

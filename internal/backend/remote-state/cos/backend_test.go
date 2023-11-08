@@ -240,7 +240,7 @@ func setupBackend(t *testing.T, bucket, prefix, key string, encrypt bool) backen
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.putBucket(context.Background())
+	err = c.putBucket()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -256,7 +256,7 @@ func teardownBackend(t *testing.T, b backend.Backend) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.deleteBucket(context.Background(), true)
+	err = c.deleteBucket(true)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

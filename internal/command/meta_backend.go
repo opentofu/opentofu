@@ -215,9 +215,7 @@ func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics
 // if the currently selected workspace is valid. If not, it will ask
 // the user to select a workspace from the list.
 func (m *Meta) selectWorkspace(b backend.Backend) error {
-	ctx := context.TODO()
-
-	workspaces, err := b.Workspaces(ctx)
+	workspaces, err := b.Workspaces()
 	if err == backend.ErrWorkspacesNotSupported {
 		return nil
 	}
@@ -229,7 +227,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 			// len is always 1 if using Name; 0 means we're using Tags and there
 			// aren't any matching workspaces. Which might be normal and fine, so
 			// let's just ask:
-			name, err := m.UIInput().Input(ctx, &tofu.InputOpts{
+			name, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 				Id:          "create-workspace",
 				Query:       "\n[reset][bold][yellow]No workspaces found.[reset]",
 				Description: fmt.Sprintf(inputCloudInitCreateWorkspace, strings.Join(c.WorkspaceMapping.Tags, ", ")),
@@ -276,7 +274,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 	}
 
 	// Otherwise, ask the user to select a workspace from the list of existing workspaces.
-	v, err := m.UIInput().Input(ctx, &tofu.InputOpts{
+	v, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
 		Id: "select-workspace",
 		Query: fmt.Sprintf(
 			"\n[reset][bold][yellow]The currently selected workspace (%s) does not exist.[reset]",
@@ -971,13 +969,13 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 		return nil, diags
 	}
 
-	ctx := context.TODO()
-
-	workspaces, err := localB.Workspaces(ctx)
+	workspaces, err := localB.Workspaces()
 	if err != nil {
 		diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 		return nil, diags
 	}
+
+	ctx := context.TODO()
 
 	var localStates []statemgr.Full
 	for _, workspace := range workspaces {
@@ -1034,7 +1032,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 		erase := true
 		if newLocalB, ok := b.(*backendLocal.Local); ok {
 			if localB, ok := localB.(*backendLocal.Local); ok {
-				if newLocalB.PathsConflictWith(ctx, localB) {
+				if newLocalB.PathsConflictWith(localB) {
 					erase = false
 					log.Printf("[TRACE] Meta.Backend: both old and new backends share the same local state paths, so not erasing old state")
 				}

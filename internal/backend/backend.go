@@ -116,7 +116,7 @@ type Backend interface {
 
 	// States returns a list of the names of all of the workspaces that exist
 	// in this backend.
-	Workspaces(context.Context) ([]string, error)
+	Workspaces() ([]string, error)
 }
 
 // HostAlias describes a list of aliases that should be used when initializing an

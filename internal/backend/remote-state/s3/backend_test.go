@@ -1399,7 +1399,7 @@ func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 }
 
 func checkStateList(b backend.Backend, expected []string) error {
-	states, err := b.Workspaces(context.Background())
+	states, err := b.Workspaces()
 	if err != nil {
 		return err
 	}
