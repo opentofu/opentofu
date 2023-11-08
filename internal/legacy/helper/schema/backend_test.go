@@ -133,10 +133,7 @@ func TestBackendPrepare(t *testing.T) {
 			if tc.Config != nil {
 				cfgVal = cty.ObjectVal(tc.Config)
 			}
-
-			ctx := context.Background()
-
-			configVal, diags := tc.B.PrepareConfig(ctx, cfgVal)
+			configVal, diags := tc.B.PrepareConfig(cfgVal)
 			if diags.HasErrors() != tc.Err {
 				for _, d := range diags {
 					t.Error(d.Description())

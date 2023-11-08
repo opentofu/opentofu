@@ -2212,7 +2212,7 @@ func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Di
 
 	configSchema := populateSchema(t, b.ConfigSchema(ctx), hcl2shim.HCL2ValueFromConfigValue(config))
 
-	configSchema, diags := b.PrepareConfig(ctx, configSchema)
+	configSchema, diags := b.PrepareConfig(configSchema)
 
 	if diags.HasErrors() {
 		return b, diags

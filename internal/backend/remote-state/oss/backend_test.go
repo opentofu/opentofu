@@ -4,7 +4,6 @@
 package oss
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -157,9 +156,7 @@ func TestBackendConfig_invalidKey(t *testing.T) {
 		"tablestore_table":    "TableStore",
 	})
 
-	ctx := context.Background()
-
-	_, results := New().PrepareConfig(ctx, cfg)
+	_, results := New().PrepareConfig(cfg)
 	if !results.HasErrors() {
 		t.Fatal("expected config validation error")
 	}

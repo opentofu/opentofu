@@ -67,10 +67,8 @@ func TestCloud_backendWithoutHost(t *testing.T) {
 		}),
 	})
 
-	ctx := context.Background()
-
 	// Configure the backend so the client is created.
-	newObj, valDiags := b.PrepareConfig(ctx, obj)
+	newObj, valDiags := b.PrepareConfig(obj)
 	if len(valDiags) != 0 {
 		t.Fatalf("testBackend: backend.PrepareConfig() failed: %s", valDiags.ErrWithWarnings())
 	}
@@ -177,10 +175,8 @@ func TestCloud_PrepareConfig(t *testing.T) {
 		s := testServer(t)
 		b := New(testDisco(s))
 
-		ctx := context.Background()
-
 		// Validate
-		_, valDiags := b.PrepareConfig(ctx, tc.config)
+		_, valDiags := b.PrepareConfig(tc.config)
 		if valDiags.Err() != nil && tc.expectedErr != "" {
 			actualErr := valDiags.Err().Error()
 			if !strings.Contains(actualErr, tc.expectedErr) {
@@ -293,9 +289,7 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 				}
 			})
 
-			ctx := context.Background()
-
-			_, valDiags := b.PrepareConfig(ctx, tc.config)
+			_, valDiags := b.PrepareConfig(tc.config)
 			if valDiags.Err() != nil && tc.expectedErr != "" {
 				actualErr := valDiags.Err().Error()
 				if !strings.Contains(actualErr, tc.expectedErr) {
@@ -584,9 +578,7 @@ func WithEnvVars(t *testing.T) {
 				}
 			})
 
-			ctx := context.Background()
-
-			_, valDiags := b.PrepareConfig(ctx, tc.config)
+			_, valDiags := b.PrepareConfig(tc.config)
 			if valDiags.Err() != nil {
 				t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
 			}
@@ -721,10 +713,8 @@ func TestCloud_config(t *testing.T) {
 			b, cleanup := testUnconfiguredBackend(t)
 			t.Cleanup(cleanup)
 
-			ctx := context.Background()
-
 			// Validate
-			_, valDiags := b.PrepareConfig(ctx, tc.config)
+			_, valDiags := b.PrepareConfig(tc.config)
 			if (valDiags.Err() != nil || tc.valErr != "") &&
 				(valDiags.Err() == nil || !strings.Contains(valDiags.Err().Error(), tc.valErr)) {
 				t.Fatalf("unexpected validation result: %v", valDiags.Err())

@@ -4,7 +4,6 @@
 package init
 
 import (
-	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
@@ -18,7 +17,7 @@ func TestDeprecateBackend(t *testing.T) {
 		deprecateMessage,
 	)
 
-	_, diags := deprecatedBackend.PrepareConfig(context.Background(), cty.EmptyObjectVal)
+	_, diags := deprecatedBackend.PrepareConfig(cty.EmptyObjectVal)
 	if len(diags) != 1 {
 		t.Errorf("got %d diagnostics; want 1", len(diags))
 		for _, diag := range diags {
