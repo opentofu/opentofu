@@ -79,9 +79,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, noEncryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -100,9 +98,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, encryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ctx := context.Background()
-
-	ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+	ss, err := be.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -123,9 +119,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be, noPrefix)
 
 	remoteClient := func() (remote.Client, error) {
-		ctx := context.Background()
-
-		ss, err := be.StateMgr(ctx, backend.DefaultStateName)
+		ss, err := be.StateMgr(backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}

@@ -111,9 +111,7 @@ func testRemoteClient(t *testing.T) remote.Client {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
-	raw, err := b.StateMgr(ctx, backend.DefaultStateName)
+	raw, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}

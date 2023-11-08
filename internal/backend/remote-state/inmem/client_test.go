@@ -4,7 +4,6 @@
 package inmem
 
 import (
-	"context"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -21,9 +20,7 @@ func TestRemoteClient(t *testing.T) {
 	defer Reset()
 	b := backend.TestBackendConfig(t, New(), hcl.EmptyBody())
 
-	ctx := context.Background()
-
-	s, err := b.StateMgr(ctx, backend.DefaultStateName)
+	s, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,9 +30,7 @@ func TestRemoteClient(t *testing.T) {
 
 func TestInmemLocks(t *testing.T) {
 	defer Reset()
-
-	ctx := context.Background()
-	s, err := backend.TestBackendConfig(t, New(), hcl.EmptyBody()).StateMgr(ctx, backend.DefaultStateName)
+	s, err := backend.TestBackendConfig(t, New(), hcl.EmptyBody()).StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

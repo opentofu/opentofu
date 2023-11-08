@@ -347,7 +347,7 @@ type backendWithFailingState struct {
 	Local
 }
 
-func (b *backendWithFailingState) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
+func (b *backendWithFailingState) StateMgr(name string) (statemgr.Full, error) {
 	return &failingState{
 		statemgr.NewFilesystem("failing-state.tfstate"),
 	}, nil

@@ -4,7 +4,6 @@
 package command
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -105,10 +104,8 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	ctx := context.Background()
-
 	// we need the actual state to see if it's empty
-	stateMgr, err := b.StateMgr(ctx, workspace)
+	stateMgr, err := b.StateMgr(workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

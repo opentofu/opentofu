@@ -94,9 +94,7 @@ func TestRemote_planBasic(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 
-	ctx := context.Background()
-
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after the operation finished
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
@@ -126,9 +124,7 @@ func TestRemote_planCanceled(t *testing.T) {
 		t.Fatal("expected plan operation to fail")
 	}
 
-	ctx := context.Background()
-
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after the operation finished
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelled plan: %s", err.Error())

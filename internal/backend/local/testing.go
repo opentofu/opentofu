@@ -4,7 +4,6 @@
 package local
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -126,12 +125,12 @@ func (b *TestLocalSingleState) DeleteWorkspace(string, bool) error {
 	return backend.ErrWorkspacesNotSupported
 }
 
-func (b *TestLocalSingleState) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *TestLocalSingleState) StateMgr(name string) (statemgr.Full, error) {
 	if name != backend.DefaultStateName {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
 
-	return b.Local.StateMgr(ctx, name)
+	return b.Local.StateMgr(name)
 }
 
 // TestLocalNoDefaultState is a backend implementation that wraps
@@ -171,11 +170,11 @@ func (b *TestLocalNoDefaultState) DeleteWorkspace(name string, force bool) error
 	return b.Local.DeleteWorkspace(name, force)
 }
 
-func (b *TestLocalNoDefaultState) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+func (b *TestLocalNoDefaultState) StateMgr(name string) (statemgr.Full, error) {
 	if name == backend.DefaultStateName {
 		return nil, backend.ErrDefaultWorkspaceNotSupported
 	}
-	return b.Local.StateMgr(ctx, name)
+	return b.Local.StateMgr(name)
 }
 
 func testStateFile(t *testing.T, path string, s *states.State) {
@@ -204,10 +203,7 @@ func mustResourceInstanceAddr(s string) addrs.AbsResourceInstance {
 // return true.
 func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 	t.Helper()
-
-	ctx := context.Background()
-
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Errorf("state is already locked: %s", err.Error())
 		return false
@@ -220,10 +216,7 @@ func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 // return false.
 func assertBackendStateLocked(t *testing.T, b *Local) bool {
 	t.Helper()
-
-	ctx := context.Background()
-
-	stateMgr, _ := b.StateMgr(ctx, backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		return true
 	}

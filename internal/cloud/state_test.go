@@ -144,13 +144,11 @@ func TestCloudLocks(t *testing.T) {
 	back, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
-	a, err := back.StateMgr(ctx, testBackendSingleWorkspaceName)
+	a, err := back.StateMgr(testBackendSingleWorkspaceName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	b, err := back.StateMgr(ctx, testBackendSingleWorkspaceName)
+	b, err := back.StateMgr(testBackendSingleWorkspaceName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

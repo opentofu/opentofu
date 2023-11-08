@@ -30,15 +30,14 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 		},
 	}
 
-	ctx := context.TODO()
-	op.StateLocker = op.StateLocker.WithContext(ctx)
+	op.StateLocker = op.StateLocker.WithContext(context.Background())
 
 	// Get the remote workspace name.
 	remoteWorkspaceName := b.getRemoteWorkspaceName(op.Workspace)
 
 	// Get the latest state.
 	log.Printf("[TRACE] cloud: requesting state manager for workspace %q", remoteWorkspaceName)
-	stateMgr, err := b.StateMgr(ctx, op.Workspace)
+	stateMgr, err := b.StateMgr(op.Workspace)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, diags

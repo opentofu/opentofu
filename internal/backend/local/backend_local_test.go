@@ -138,10 +138,8 @@ func TestLocalRun_stalePlan(t *testing.T) {
 		t.Fatalf("unexpected error writing state file: %s", err)
 	}
 
-	ctx := context.Background()
-
 	// Refresh the state
-	sm, err := b.StateMgr(ctx, "")
+	sm, err := b.StateMgr("")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -215,7 +213,7 @@ type backendWithStateStorageThatFailsRefresh struct {
 
 var _ backend.Backend = backendWithStateStorageThatFailsRefresh{}
 
-func (b backendWithStateStorageThatFailsRefresh) StateMgr(_ context.Context, workspace string) (statemgr.Full, error) {
+func (b backendWithStateStorageThatFailsRefresh) StateMgr(workspace string) (statemgr.Full, error) {
 	return &stateStorageThatFailsRefresh{}, nil
 }
 

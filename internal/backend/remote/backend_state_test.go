@@ -5,7 +5,6 @@ package remote
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
 
@@ -29,14 +28,12 @@ func TestRemoteClient_stateLock(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	ctx := context.Background()
-
-	s1, err := b.StateMgr(ctx, backend.DefaultStateName)
+	s1, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	s2, err := b.StateMgr(ctx, backend.DefaultStateName)
+	s2, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
