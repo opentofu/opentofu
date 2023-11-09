@@ -697,7 +697,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	ctx := context.TODO()
-	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("s3-backend"))
+	ctx, baselog := attachLoggerToContext(ctx)
 
 	cfg := &awsbase.Config{
 		AccessKey:               stringAttr(obj, "access_key"),
@@ -803,6 +803,12 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.s3Client = s3.NewFromConfig(awsConfig, getS3Config(obj))
 
 	return diags
+}
+
+func attachLoggerToContext(ctx context.Context) (context.Context, baselogging.HcLogger) {
+	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
+	ctx = baselogging.RegisterLogger(ctx, baselog)
+	return ctx, baselog
 }
 
 func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsbase.Config) tfdiags.Diagnostics {

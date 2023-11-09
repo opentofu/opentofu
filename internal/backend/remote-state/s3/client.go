@@ -22,10 +22,8 @@ import (
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -112,8 +110,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	var output *s3.GetObjectOutput
 	var err error
 
-	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
-	ctx = baselogging.RegisterLogger(ctx, baselog)
+	ctx, _ = attachLoggerToContext(ctx)
 
 	inputHead := &s3.HeadObjectInput{
 		Bucket: &c.bucketName,
@@ -227,8 +224,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
 	ctx := context.TODO()
-	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
-	ctx = baselogging.RegisterLogger(ctx, baselog)
+	ctx, _ = attachLoggerToContext(ctx)
 
 	_, err := c.s3Client.PutObject(ctx, i)
 	if err != nil {
@@ -248,8 +244,7 @@ func (c *RemoteClient) Put(data []byte) error {
 
 func (c *RemoteClient) Delete() error {
 	ctx := context.TODO()
-	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
-	ctx = baselogging.RegisterLogger(ctx, baselog)
+	ctx, _ = attachLoggerToContext(ctx)
 
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
