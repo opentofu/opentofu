@@ -117,6 +117,10 @@ func (m *MockApplies) create(cvID, workspaceID string) (*tfe.Apply, error) {
 	return a, nil
 }
 
+func (m *MockConfigurationVersions) CreateForRegistryModule(ctx context.Context, moduleID tfe.RegistryModuleID) (*tfe.ConfigurationVersion, error) {
+	return &tfe.ConfigurationVersion{}, nil
+}
+
 func (m *MockApplies) Read(ctx context.Context, applyID string) (*tfe.Apply, error) {
 	a, ok := m.applies[applyID]
 	if !ok {
