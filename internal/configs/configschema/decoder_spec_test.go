@@ -445,18 +445,6 @@ func TestAttributeDecoderSpec(t *testing.T) {
 		Want      cty.Value
 		DiagCount int
 	}{
-		"empty": {
-			&Attribute{},
-			hcl.EmptyBody(),
-			cty.NilVal,
-			0,
-		},
-		"nil": {
-			nil,
-			hcl.EmptyBody(),
-			cty.NilVal,
-			0,
-		},
 		"optional string (null)": {
 			&Attribute{
 				Type:     cty.String,
@@ -889,6 +877,33 @@ func TestAttributeDecoderSpec_panic(t *testing.T) {
 	defer func() { recover() }()
 	attrS.decoderSpec("attr")
 	t.Errorf("expected panic")
+}
+
+// TestAttributeDecodeSpecDecode_panic is a test which verifies that hcldec.Decode panics.
+func TestAttributeDecoderSpecDecode_panic(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputSchema *Attribute
+	}{
+		{
+			name:        "empty",
+			inputSchema: &Attribute{},
+		},
+		{
+			name:        "nil",
+			inputSchema: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := tt.inputSchema.decoderSpec("attr")
+
+			defer func() { recover() }()
+			_, _ = hcldec.Decode(nil, spec, nil)
+			t.Errorf(`expected panic when execute hcldec.Decode`)
+		})
+	}
 }
 
 func TestListOptionalAttrsFromObject(t *testing.T) {
