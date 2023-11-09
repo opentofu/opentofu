@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
+	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -693,11 +696,13 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		}
 	}
 
+	ctx := context.TODO()
+	ctx, baselog := attachLoggerToContext(ctx)
+
 	cfg := &awsbase.Config{
 		AccessKey:               stringAttr(obj, "access_key"),
 		CallerDocumentationURL:  "https://opentofu.org/docs/language/settings/backends/s3",
 		CallerName:              "S3 Backend",
-		SuppressDebugLog:        logging.IsDebugOrHigher(),
 		IamEndpoint:             customEndpoints["iam"].String(obj),
 		MaxRetries:              intAttrDefault(obj, "max_retries", 5),
 		Profile:                 stringAttr(obj, "profile"),
@@ -719,6 +724,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		CustomCABundle:                 stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
 		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
 		EC2MetadataServiceEndpointMode: stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint_mode", "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"),
+		Logger:                         baselog,
 	}
 
 	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {
@@ -772,7 +778,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		cfg.RetryMode = mode
 	}
 
-	ctx := context.TODO()
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
 	for _, d := range awsDiags {
@@ -798,6 +803,12 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.s3Client = s3.NewFromConfig(awsConfig, getS3Config(obj))
 
 	return diags
+}
+
+func attachLoggerToContext(ctx context.Context) (context.Context, baselogging.HcLogger) {
+	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
+	ctx = baselogging.RegisterLogger(ctx, baselog)
+	return ctx, baselog
 }
 
 func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsbase.Config) tfdiags.Diagnostics {
@@ -1171,6 +1182,14 @@ func (e customEndpoint) String(obj cty.Value) string {
 	return v
 }
 
+func includeProtoIfNessesary(endpoint string) string {
+	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
+		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
+		endpoint = fmt.Sprintf("https://%s", endpoint)
+	}
+	return endpoint
+}
+
 func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
 	for _, path := range e.Paths {
 		val, err := path.Apply(obj)
@@ -1178,12 +1197,12 @@ func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
 			continue
 		}
 		if s, ok := stringValueOk(val); ok {
-			return s, true
+			return includeProtoIfNessesary(s), true
 		}
 	}
 	for _, envVar := range e.EnvVars {
 		if v := os.Getenv(envVar); v != "" {
-			return v, true
+			return includeProtoIfNessesary(v), true
 		}
 	}
 	return "", false

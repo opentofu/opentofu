@@ -1375,6 +1375,49 @@ func Test_pathString(t *testing.T) {
 	}
 }
 
+func TestBackend_includeProtoIfNessesary(t *testing.T) {
+	tests := []struct {
+		name     string
+		provided string
+		expected string
+	}{
+		{
+			name:     "Unmodified S3",
+			provided: "https://s3.us-east-1.amazonaws.com",
+			expected: "https://s3.us-east-1.amazonaws.com",
+		},
+		{
+			name:     "Modified S3",
+			provided: "s3.us-east-1.amazonaws.com",
+			expected: "https://s3.us-east-1.amazonaws.com",
+		},
+		{
+			name:     "Unmodified With Port",
+			provided: "http://localhost:9000/",
+			expected: "http://localhost:9000/",
+		},
+		{
+			name:     "Modified With Port",
+			provided: "localhost:9000/",
+			expected: "https://localhost:9000/",
+		},
+		{
+			name:     "Umodified with strange proto",
+			provided: "ftp://localhost:9000/",
+			expected: "ftp://localhost:9000/",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := includeProtoIfNessesary(test.provided)
+			if result != test.expected {
+				t.Errorf("Expected: %s, Got: %s", test.expected, result)
+			}
+		})
+	}
+}
+
 func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 	if actual := b.keyEnv(key); actual != expected {
 		return fmt.Errorf("incorrect workspace for key[%q]. Expected[%q]: Actual[%q]", key, expected, actual)

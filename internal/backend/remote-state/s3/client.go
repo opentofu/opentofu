@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -109,6 +110,29 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	var output *s3.GetObjectOutput
 	var err error
 
+	ctx, _ = attachLoggerToContext(ctx)
+
+	inputHead := &s3.HeadObjectInput{
+		Bucket: &c.bucketName,
+		Key:    &c.path,
+	}
+
+	// Head works around some s3 compatible backends not handling missing GetObject requests correctly (ex: minio Get returns Missing Bucket)
+	_, err = c.s3Client.HeadObject(ctx, inputHead)
+	if err != nil {
+		var nb *types.NoSuchBucket
+		if errors.As(err, &nb) {
+			return nil, fmt.Errorf(errS3NoSuchBucket, err)
+		}
+
+		var nk *types.NotFound
+		if errors.As(err, &nk) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
 	input := &s3.GetObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,
@@ -170,6 +194,14 @@ func (c *RemoteClient) Put(data []byte) error {
 
 	if !c.skipS3Checksum {
 		i.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+
+		// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
+		// Since we can pre-compute the hash here, we can work around it.
+		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
+		algo := sha256.New()
+		algo.Write(data)
+		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
+		i.ChecksumSHA256 = &sum64str
 	}
 
 	if c.serverSideEncryption {
@@ -192,6 +224,8 @@ func (c *RemoteClient) Put(data []byte) error {
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 
 	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+
 	_, err := c.s3Client.PutObject(ctx, i)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
@@ -210,6 +244,8 @@ func (c *RemoteClient) Put(data []byte) error {
 
 func (c *RemoteClient) Delete() error {
 	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,

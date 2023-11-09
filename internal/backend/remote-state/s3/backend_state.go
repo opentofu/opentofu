@@ -36,10 +36,13 @@ func (b *Backend) Workspaces() ([]string, error) {
 		MaxKeys: maxKeys,
 	}
 
+	ctx := context.TODO()
+
+	ctx, _ = attachLoggerToContext(ctx)
+
 	wss := []string{backend.DefaultStateName}
 	pg := s3.NewListObjectsV2Paginator(b.s3Client, params)
 
-	ctx := context.TODO()
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
 		if err != nil {
