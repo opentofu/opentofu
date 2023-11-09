@@ -841,7 +841,8 @@ func getDynamoDBConfig(obj cty.Value) func(options *dynamodb.Options) {
 	return func(options *dynamodb.Options) {
 		if v, ok := customEndpoints["dynamodb"].StringOk(obj); ok {
 			// EndpointResolver does not require scheme://
-			options.EndpointResolver = dynamodb.EndpointResolverFromURL(v)
+			//options.EndpointResolver = dynamodb.EndpointResolverFromURL(v)
+			options.BaseEndpoint = aws.String(v)
 		}
 	}
 }
@@ -850,7 +851,8 @@ func getS3Config(obj cty.Value) func(options *s3.Options) {
 	return func(options *s3.Options) {
 		if v, ok := customEndpoints["s3"].StringOk(obj); ok {
 			// EndpointResolver does not require scheme://
-			options.EndpointResolver = s3.EndpointResolverFromURL(v)
+			//options.EndpointResolver = s3.EndpointResolverFromURL(v)
+			options.BaseEndpoint = aws.String(v)
 		}
 		if v, ok := boolAttrOk(obj, "force_path_style"); ok {
 			options.UsePathStyle = v
