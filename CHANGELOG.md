@@ -48,6 +48,9 @@ BUG FIXES:
 * cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 * cloud: state snapshots could not be disabled when header x-terraform-snapshot-interval is absent ([#687](https://github.com/opentofu/opentofu/issues/687))
 * Fixed crash during tofu destroy inside module with variable validation ([#817](https://github.com/opentofu/opentofu/issues/817))
+* S3 backend endpoints without proto:// now default to https:// instead of failing ([#821](https://github.com/opentofu/opentofu/issues/821))
+* Most S3 compatible remote state backends should now work without checksum errors / 400s by default ([#821](https://github.com/opentofu/opentofu/issues/821))
+* Logging has been re-added to S3 remote state calls ([#821](https://github.com/opentofu/opentofu/issues/821))
 
 S3 BACKEND:
 
