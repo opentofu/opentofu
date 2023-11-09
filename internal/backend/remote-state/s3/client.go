@@ -203,10 +203,7 @@ func (c *RemoteClient) Put(data []byte) error {
 		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
 		algo := sha256.New()
 		algo.Write(data)
-		sum256 := algo.Sum(nil)
-		sum64 := make([]byte, base64.StdEncoding.EncodedLen(len(sum256)))
-		base64.StdEncoding.Encode(sum64, sum256)
-		sum64str := string(sum64)
+		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
 		i.ChecksumSHA256 = &sum64str
 	}
 
