@@ -1185,7 +1185,6 @@ func (e customEndpoint) String(obj cty.Value) string {
 }
 
 func includeProtoIfNessesary(endpoint string) string {
-	//if !strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
 	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
 		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
 		endpoint = fmt.Sprintf("https://%s", endpoint)
