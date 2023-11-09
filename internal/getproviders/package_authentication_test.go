@@ -8,30 +8,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
 	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
-	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
-
-func TestMain(m *testing.M) {
-	openpgpConfig = &packet.Config{
-		Time: func() time.Time {
-			// Scientifically chosen time that satisfies the validity periods of all
-			// of the keys and signatures used.
-			t, _ := time.Parse(time.RFC3339, "2021-04-25T16:00:00-07:00")
-			return t
-		},
-	}
-	os.Exit(m.Run())
-}
 
 func TestPackageAuthenticationResult(t *testing.T) {
 	tests := []struct {
@@ -378,7 +363,7 @@ func TestSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -421,7 +406,7 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testProviderShaSums), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testProviderShaSums), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -481,7 +466,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result != nil {
@@ -495,7 +480,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 }
 
 func TestSignatureAuthentication_acceptableHashes(t *testing.T) {
-	auth := NewSignatureAuthentication([]byte(testShaSumsRealistic), nil, nil, nil)
+	auth := NewSignatureAuthentication(PackageMeta{}, []byte(testShaSumsRealistic), nil, nil, nil)
 	authWithHashes, ok := auth.(PackageAuthenticationHashes)
 	if !ok {
 		t.Fatalf("%T does not implement PackageAuthenticationHashes", auth)
