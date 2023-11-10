@@ -65,16 +65,10 @@ jobs:
           go test -coverprofile tofu.cov ./...
       - name: "Coverage Report"
         run: |
-          echo "mode: set" > addrs.cov
-          cat tofu.cov | grep "internal/addrs/" >> addrs.cov
-          echo "# Hello World" >> $GITHUB_STEP_SUMMARY
-          go tool cover -html addrs.cov -o tofu-test-coverage.html
-          echo '<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">' >> $GITHUB_STEP_SUMMARY
-          echo '<foreignObject width="100" height="100">' >> $GITHUB_STEP_SUMMARY
-          cat tofu-test-coverage.html >> $GITHUB_STEP_SUMMARY
-          echo '</foreignObject>' >> $GITHUB_STEP_SUMMARY
-          echo '</svg>' >> $GITHUB_STEP_SUMMARY
+          go tool cover -func tofu.cov > tofu.covtxt
 
+          go get github.com/cam72cam/go-coverage2markdown
+          go run github.com/cam72cam/go-coverage2markdown tofu.covtxt >> $GITHUB_STEP_SUMMARY 
 
   race-tests:
     name: "Race Tests"
