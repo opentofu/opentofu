@@ -491,7 +491,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 		if err == openpgpErrors.ErrSignatureExpired || err == openpgpErrors.ErrKeyExpired {
 			// Internally openpgp will *only* return the Expired errors if all other checks have succeded
 			// This is currently the best way to work around expired provider keys
-			fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu: '%s'\n", s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname, s.Meta.Location.String())
+			fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n", s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)
 			err = nil
 		}
 
