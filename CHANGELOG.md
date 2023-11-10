@@ -69,6 +69,7 @@ S3 BACKEND:
 * Adds support for customizing the AWS API endpoints. ([#775](https://github.com/opentofu/opentofu/issues/775))
 * Adds support for the `skip_requesting_account_id` attribute. ([#774](https://github.com/opentofu/opentofu/issues/774))
 * Adds support for the `skip_s3_checksum` argument to allow users to disable checksum on S3 uploads for compatibility with non AWS "S3-compatible" APIs. ([#778](https://github.com/opentofu/opentofu/issues/778))
+* `tofu init`: Fixed subsequent runs for s3 backend ([#820](https://github.com/opentofu/opentofu/issues/820)).
 
 ## Previous Releases
 
