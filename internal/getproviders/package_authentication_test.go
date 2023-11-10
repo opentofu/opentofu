@@ -241,6 +241,7 @@ func TestMatchingChecksumAuthentication_success(t *testing.T) {
 	auth := NewMatchingChecksumAuthentication(document, filename, wantSHA256Sum)
 	result, err := auth.AuthenticatePackage(location)
 
+	// NOTE: This also tests the expired key ignore logic as they key in the test is expired
 	if result != nil {
 		t.Errorf("wrong result: got %#v, want nil", result)
 	}
