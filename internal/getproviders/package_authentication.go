@@ -29,6 +29,7 @@ const (
 
 const (
 	enforceGPGValidationEnvName = "OPENTOFU_ENFORCE_GPG_VALIDATION"
+	enforceGPGExpirationEnvName = "OPENTOFU_ENFORCE_GPG_EXPIRATION"
 )
 
 // PackageAuthenticationResult is returned from a PackageAuthentication
@@ -397,6 +398,11 @@ func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
 	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
 	return exists && enforceEnvVar == "true", nil
 }
+func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
+	// otherwise if the environment variable is set to true, we should enforce GPG expiration
+	enforceEnvVar, exists := os.LookupEnv(enforceGPGExpirationEnvName)
+	return exists && enforceEnvVar == "true"
+}
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
 	shouldValidate, err := s.shouldEnforceGPGValidation()
@@ -488,7 +494,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 		}
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), nil)
-		if err == openpgpErrors.ErrSignatureExpired || err == openpgpErrors.ErrKeyExpired {
+		if !s.shouldEnforceGPGExpiration() && (err == openpgpErrors.ErrSignatureExpired || err == openpgpErrors.ErrKeyExpired) {
 			// Internally openpgp will *only* return the Expired errors if all other checks have succeded
 			// This is currently the best way to work around expired provider keys
 			fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n", s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/google/go-cmp/cmp"
@@ -418,6 +419,42 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 			}
 		})
 	}
+}
+func TestNewSignatureAuthentication_expired(t *testing.T) {
+	tests := map[string]struct {
+		signature string
+		keys      []SigningKey
+	}{
+		"official provider": {
+			testHashicorpSignatureGoodBase64,
+			[]SigningKey{
+				{
+					ASCIIArmor: TestingPublicKey,
+				},
+			},
+		},
+	}
+	t.Setenv(enforceGPGExpirationEnvName, "true")
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Location is unused
+			location := PackageLocalArchive("testdata/my-package.zip")
+
+			signature, err := base64.StdEncoding.DecodeString(test.signature)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testProviderShaSums), signature, test.keys, nil)
+			_, err = auth.AuthenticatePackage(location)
+
+			if err == nil {
+				t.Errorf("wrong err: got %s, want %s", err, openpgpErrors.ErrKeyExpired)
+			}
+		})
+	}
+	t.Setenv(enforceGPGExpirationEnvName, "")
 }
 
 // Signature authentication can fail for many reasons, most of which are due
