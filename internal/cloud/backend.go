@@ -182,10 +182,27 @@ func (b *Cloud) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		}
 	}
 
-	WorkspaceMapping := WorkspaceMapping{}
-	// Initially set the workspace name via env var
-	WorkspaceMapping.Name = os.Getenv("TF_WORKSPACE")
+	// Consider preserving the state in the receiver because it's instantiated twice, see b.setConfigurationFields
+	WorkspaceMapping := newWorkspacesMappingFromFields(obj)
 
+	switch WorkspaceMapping.Strategy() {
+	// Make sure have a workspace mapping strategy present
+	case WorkspaceNoneStrategy:
+		// To ensure that workspaces can be configured using env variables
+		if os.Getenv("TF_WORKSPACE") == "" {
+			diags = diags.Append(invalidWorkspaceConfigMissingValues)
+		}
+	// Make sure that a workspace name is configured.
+	case WorkspaceInvalidStrategy:
+		diags = diags.Append(invalidWorkspaceConfigMisconfiguration)
+	}
+
+	return obj, diags
+}
+
+func newWorkspacesMappingFromFields(obj cty.Value) WorkspaceMapping {
+	WorkspaceMapping := WorkspaceMapping{}
+	// To ensure that the workspaces are defined correctly in the config
 	if workspaces := obj.GetAttr("workspaces"); !workspaces.IsNull() {
 		if val := workspaces.GetAttr("name"); !val.IsNull() {
 			WorkspaceMapping.Name = val.AsString()
@@ -196,18 +213,11 @@ func (b *Cloud) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 				log.Panicf("An unexpected error occurred: %s", err)
 			}
 		}
+		if val := workspaces.GetAttr("project"); !val.IsNull() && val.AsString() != "" {
+			WorkspaceMapping.Project = val.AsString()
+		}
 	}
-
-	switch WorkspaceMapping.Strategy() {
-	// Make sure have a workspace mapping strategy present
-	case WorkspaceNoneStrategy:
-		diags = diags.Append(invalidWorkspaceConfigMissingValues)
-	// Make sure that a workspace name is configured.
-	case WorkspaceInvalidStrategy:
-		diags = diags.Append(invalidWorkspaceConfigMisconfiguration)
-	}
-
-	return obj, diags
+	return WorkspaceMapping
 }
 
 func (b *Cloud) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
@@ -424,40 +434,28 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 		b.organization = val.AsString()
 	}
 
-	// Initially set the project via env var
-	b.WorkspaceMapping.Project = os.Getenv("TF_CLOUD_PROJECT")
+	// Initially, set workspaces from the configuration
+	b.WorkspaceMapping = newWorkspacesMappingFromFields(obj)
 
-	// Initially set the workspace name via env var
-	b.WorkspaceMapping.Name = os.Getenv("TF_WORKSPACE")
-
-	// Get the workspaces configuration block and retrieve the
-	// default workspace name.
-	if workspaces := obj.GetAttr("workspaces"); !workspaces.IsNull() {
-
-		// Check if the project is present and valid in the config.
-		if val := workspaces.GetAttr("project"); !val.IsNull() && val.AsString() != "" {
-			b.WorkspaceMapping.Project = val.AsString()
-		}
-
-		// PrepareConfig checks that you cannot set both of these.
-		if val := workspaces.GetAttr("name"); !val.IsNull() {
-			b.WorkspaceMapping.Name = val.AsString()
-		}
-		if val := workspaces.GetAttr("tags"); !val.IsNull() {
-			var tags []string
-			err := gocty.FromCtyValue(val, &tags)
-			if err != nil {
-				log.Panicf("An unexpected error occurred: %s", err)
-			}
-
-			b.WorkspaceMapping.Tags = tags
-		}
-	}
+	// Overwrite workspaces config from env variable
+	// NOTE that any workspace attribute can be overwritten using env variables
+	reconcileWorkspaceMappingEnvVars(&b.WorkspaceMapping)
 
 	// Determine if we are forced to use the local backend.
 	b.forceLocal = os.Getenv("TF_FORCE_LOCAL_BACKEND") != ""
 
 	return diags
+}
+
+func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) {
+	// See: https://github.com/opentofu/opentofu/issues/814
+	if v := os.Getenv("TF_WORKSPACE"); v != "" {
+		w.Name = os.Getenv("TF_WORKSPACE")
+		w.Tags = nil
+	}
+	if v := os.Getenv("TF_CLOUD_PROJECT"); v != "" {
+		w.Project = v
+	}
 }
 
 // discover the TFC/E API service URL and version constraints.

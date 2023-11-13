@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -271,6 +272,21 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 			}),
 			vars: map[string]string{
 				"TF_CLOUD_PROJECT": "example-project",
+			},
+		},
+		"with workspace env var overwrite tags config value": {
+			// see https://github.com/opentofu/opentofu/issues/814 for context
+			config: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.StringVal("organization"),
+				"organization": cty.StringVal("foo"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"project": cty.NullVal(cty.String),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("bar"), cty.StringVal("baz")}),
+				}),
+			}),
+			vars: map[string]string{
+				"TF_WORKSPACE": "qux",
 			},
 		},
 	}
@@ -954,75 +970,122 @@ func TestCloud_setConfigurationFields(t *testing.T) {
 			},
 			expectedForceLocal: true,
 		},
+		"with workspace name and tags overwritten by TF_WORKSPACE": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.StringVal("opentofu"),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
+					"project": cty.StringVal("baz"),
+				}),
+			}),
+			setEnv: func() {
+				os.Setenv("TF_WORKSPACE", "foo")
+			},
+			resetEnv: func() {
+				os.Unsetenv("TF_WORKSPACE")
+			},
+			expectedWorkspaceName: "foo",
+			expectedWorkspaceTags: nil,
+			expectedProjectName:   "baz",
+		},
+		"with workspace name and project overwritten by env variables": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.StringVal("opentofu"),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.StringVal("myproject"),
+				}),
+			}),
+			setEnv: func() {
+				os.Setenv("TF_WORKSPACE", "foo")
+				os.Setenv("TF_CLOUD_PROJECT", "bar")
+			},
+			resetEnv: func() {
+				os.Unsetenv("TF_WORKSPACE")
+				os.Unsetenv("TF_CLOUD_PROJECT")
+			},
+			expectedWorkspaceName: "foo",
+			expectedWorkspaceTags: nil,
+			expectedProjectName:   "bar",
+		},
 	}
 
 	for name, tc := range cases {
-		b := &Cloud{}
+		t.Run(name, func(t *testing.T) {
+			b := &Cloud{}
 
-		// if `setEnv` is set, then we expect `resetEnv` to also be set
-		if tc.setEnv != nil {
-			tc.setEnv()
-			defer tc.resetEnv()
-		}
-
-		errDiags := b.setConfigurationFields(tc.obj)
-		if errDiags.HasErrors() || tc.expectedErr != "" {
-			actualErr := errDiags.Err().Error()
-			if !strings.Contains(actualErr, tc.expectedErr) {
-				t.Fatalf("%s: unexpected validation result: %v", name, errDiags.Err())
-			}
-		}
-
-		if tc.expectedHostname != "" && b.hostname != tc.expectedHostname {
-			t.Fatalf("%s: expected hostname %s to match configured hostname %s", name, b.hostname, tc.expectedHostname)
-		}
-		if tc.expectedOrganziation != "" && b.organization != tc.expectedOrganziation {
-			t.Fatalf("%s: expected organization (%s) to match configured organization (%s)", name, b.organization, tc.expectedOrganziation)
-		}
-		if tc.expectedWorkspaceName != "" && b.WorkspaceMapping.Name != tc.expectedWorkspaceName {
-			t.Fatalf("%s: expected workspace name mapping (%s) to match configured workspace name (%s)", name, b.WorkspaceMapping.Name, tc.expectedWorkspaceName)
-		}
-		if len(tc.expectedWorkspaceTags) > 0 {
-			presentSet := make(map[string]struct{})
-			for _, tag := range b.WorkspaceMapping.Tags {
-				presentSet[tag] = struct{}{}
+			// if `setEnv` is set, then we expect `resetEnv` to also be set
+			if tc.setEnv != nil {
+				tc.setEnv()
+				defer tc.resetEnv()
 			}
 
-			expectedSet := make(map[string]struct{})
-			for _, tag := range tc.expectedWorkspaceTags {
-				expectedSet[tag] = struct{}{}
-			}
-
-			var missing []string
-			var unexpected []string
-
-			for _, expected := range tc.expectedWorkspaceTags {
-				if _, ok := presentSet[expected]; !ok {
-					missing = append(missing, expected)
+			errDiags := b.setConfigurationFields(tc.obj)
+			if errDiags.HasErrors() || tc.expectedErr != "" {
+				actualErr := errDiags.Err().Error()
+				if !strings.Contains(actualErr, tc.expectedErr) {
+					t.Fatalf("%s: unexpected validation result: %v", name, errDiags.Err())
 				}
 			}
 
-			for _, actual := range b.WorkspaceMapping.Tags {
-				if _, ok := expectedSet[actual]; !ok {
-					unexpected = append(unexpected, actual)
+			if tc.expectedHostname != "" && b.hostname != tc.expectedHostname {
+				t.Fatalf("%s: expected hostname %s to match configured hostname %s", name, b.hostname, tc.expectedHostname)
+			}
+			if tc.expectedOrganziation != "" && b.organization != tc.expectedOrganziation {
+				t.Fatalf("%s: expected organization (%s) to match configured organization (%s)", name, b.organization, tc.expectedOrganziation)
+			}
+			if tc.expectedWorkspaceName != "" && b.WorkspaceMapping.Name != tc.expectedWorkspaceName {
+				t.Fatalf("%s: expected workspace name mapping (%s) to match configured workspace name (%s)", name, b.WorkspaceMapping.Name, tc.expectedWorkspaceName)
+			}
+			if len(tc.expectedWorkspaceTags) > 0 {
+				presentSet := make(map[string]struct{})
+				for _, tag := range b.WorkspaceMapping.Tags {
+					presentSet[tag] = struct{}{}
 				}
-			}
 
-			if len(missing) > 0 {
-				t.Fatalf("%s: expected workspace tag mapping (%s) to contain the following tags: %s", name, b.WorkspaceMapping.Tags, missing)
-			}
+				expectedSet := make(map[string]struct{})
+				for _, tag := range tc.expectedWorkspaceTags {
+					expectedSet[tag] = struct{}{}
+				}
 
-			if len(unexpected) > 0 {
-				t.Fatalf("%s: expected workspace tag mapping (%s) to NOT contain the following tags: %s", name, b.WorkspaceMapping.Tags, unexpected)
-			}
+				var missing []string
+				var unexpected []string
 
-		}
-		if tc.expectedForceLocal != false && b.forceLocal != tc.expectedForceLocal {
-			t.Fatalf("%s: expected force local backend to be set ", name)
-		}
-		if tc.expectedProjectName != "" && b.WorkspaceMapping.Project != tc.expectedProjectName {
-			t.Fatalf("%s: expected project name mapping (%s) to match configured project name (%s)", name, b.WorkspaceMapping.Project, tc.expectedProjectName)
-		}
+				for _, expected := range tc.expectedWorkspaceTags {
+					if _, ok := presentSet[expected]; !ok {
+						missing = append(missing, expected)
+					}
+				}
+
+				for _, actual := range b.WorkspaceMapping.Tags {
+					if _, ok := expectedSet[actual]; !ok {
+						unexpected = append(unexpected, actual)
+					}
+				}
+
+				if len(missing) > 0 {
+					t.Fatalf("%s: expected workspace tag mapping (%s) to contain the following tags: %s", name, b.WorkspaceMapping.Tags, missing)
+				}
+
+				if len(unexpected) > 0 {
+					t.Fatalf("%s: expected workspace tag mapping (%s) to NOT contain the following tags: %s", name, b.WorkspaceMapping.Tags, unexpected)
+				}
+
+			}
+			if tc.expectedForceLocal != false && b.forceLocal != tc.expectedForceLocal {
+				t.Fatalf("%s: expected force local backend to be set ", name)
+			}
+			if tc.expectedProjectName != "" && b.WorkspaceMapping.Project != tc.expectedProjectName {
+				t.Fatalf("%s: expected project name mapping (%s) to match configured project name (%s)", name, b.WorkspaceMapping.Project, tc.expectedProjectName)
+			}
+			if !reflect.DeepEqual(b.WorkspaceMapping.Tags, tc.expectedWorkspaceTags) {
+				t.Fatalf("%s: expected workspace tags (%v) to match configuration (%v)", name, b.WorkspaceMapping.Tags, tc.expectedWorkspaceTags)
+			}
+		})
 	}
 }
 
