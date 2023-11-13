@@ -1,7 +1,8 @@
 # OpenTofu
 
-- Manifesto: https://opentofu.org/manifesto
-- About the OpenTofu fork: https://opentofu.org/fork
+- [Manifesto](https://opentofu.org/manifesto)
+- [About the OpenTofu fork](https://opentofu.org/fork)
+- [How to install](https://opentofu.org/docs/intro/install)
 - [Join our Slack community!](https://opentofu.org/slack)
 - [Weekly OpenTofu Status Updates](WEEKLY_UPDATES.md)
 
