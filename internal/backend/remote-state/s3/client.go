@@ -117,6 +117,12 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		Key:    &c.path,
 	}
 
+	if c.serverSideEncryption && c.customerEncryptionKey != nil {
+		inputHead.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+		inputHead.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
+		inputHead.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
+	}
+
 	// Head works around some s3 compatible backends not handling missing GetObject requests correctly (ex: minio Get returns Missing Bucket)
 	_, err = c.s3Client.HeadObject(ctx, inputHead)
 	if err != nil {
