@@ -264,7 +264,7 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	// We've passed the core version check, now we can show errors from the
-	// configuration and backend initialisation.
+	// configuration and backend initialization.
 
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
@@ -1207,7 +1207,7 @@ func (c *InitCommand) Synopsis() string {
 }
 
 const errInitConfigError = `
-[reset]OpenTofu encountered problems during initialisation, including problems
+[reset]OpenTofu encountered problems during initialization, including problems
 with the configuration, described below.
 
 The OpenTofu configuration must be valid before initialization so that
