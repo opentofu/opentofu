@@ -31,16 +31,6 @@ all targeted releases.
 
 1.6.0
 
-## Draft CHANGELOG entry
-
-<!--
-
-Choose a category, delete the others:
-
--->
-
-### NEW FEATURES | UPGRADE NOTES | ENHANCEMENTS | BUG FIXES | EXPERIMENTS
-
 <!--
 
 Write a short description of the user-facing change. Examples:
