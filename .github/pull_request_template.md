@@ -30,25 +30,3 @@ all targeted releases.
 -->
 
 1.6.0
-
-## Draft CHANGELOG entry
-
-<!--
-
-Choose a category, delete the others:
-
--->
-
-### NEW FEATURES | UPGRADE NOTES | ENHANCEMENTS | BUG FIXES | EXPERIMENTS
-
-<!--
-
-Write a short description of the user-facing change. Examples:
-
-- `tofu show -json`: Fixed crash with sensitive set values.
-- When rendering a diff, OpenTofu now quotes the name of any object attribute whose string representation is not a valid identifier.
-- The local token configuration in the cloud and remote backend now has higher priority than a token specified in a credentials block in the CLI configuration.
-
---> 
-
--  
