@@ -8,30 +8,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
+	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
-	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
-
-func TestMain(m *testing.M) {
-	openpgpConfig = &packet.Config{
-		Time: func() time.Time {
-			// Scientifically chosen time that satisfies the validity periods of all
-			// of the keys and signatures used.
-			t, _ := time.Parse(time.RFC3339, "2021-04-25T16:00:00-07:00")
-			return t
-		},
-	}
-	os.Exit(m.Run())
-}
 
 func TestPackageAuthenticationResult(t *testing.T) {
 	tests := []struct {
@@ -256,6 +242,7 @@ func TestMatchingChecksumAuthentication_success(t *testing.T) {
 	auth := NewMatchingChecksumAuthentication(document, filename, wantSHA256Sum)
 	result, err := auth.AuthenticatePackage(location)
 
+	// NOTE: This also tests the expired key ignore logic as they key in the test is expired
 	if result != nil {
 		t.Errorf("wrong result: got %#v, want nil", result)
 	}
@@ -378,7 +365,7 @@ func TestSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -421,7 +408,7 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testProviderShaSums), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testProviderShaSums), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result == nil || *result != test.result {
@@ -432,6 +419,42 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 			}
 		})
 	}
+}
+func TestNewSignatureAuthentication_expired(t *testing.T) {
+	tests := map[string]struct {
+		signature string
+		keys      []SigningKey
+	}{
+		"official provider": {
+			testHashicorpSignatureGoodBase64,
+			[]SigningKey{
+				{
+					ASCIIArmor: TestingPublicKey,
+				},
+			},
+		},
+	}
+	t.Setenv(enforceGPGExpirationEnvName, "true")
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Location is unused
+			location := PackageLocalArchive("testdata/my-package.zip")
+
+			signature, err := base64.StdEncoding.DecodeString(test.signature)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testProviderShaSums), signature, test.keys, nil)
+			_, err = auth.AuthenticatePackage(location)
+
+			if err == nil {
+				t.Errorf("wrong err: got %s, want %s", err, openpgpErrors.ErrKeyExpired)
+			}
+		})
+	}
+	t.Setenv(enforceGPGExpirationEnvName, "")
 }
 
 // Signature authentication can fail for many reasons, most of which are due
@@ -481,7 +504,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication([]byte(testShaSumsPlaceholder), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testShaSumsPlaceholder), signature, test.keys, nil)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result != nil {
@@ -495,7 +518,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 }
 
 func TestSignatureAuthentication_acceptableHashes(t *testing.T) {
-	auth := NewSignatureAuthentication([]byte(testShaSumsRealistic), nil, nil, nil)
+	auth := NewSignatureAuthentication(PackageMeta{}, []byte(testShaSumsRealistic), nil, nil, nil)
 	authWithHashes, ok := auth.(PackageAuthenticationHashes)
 	if !ok {
 		t.Fatalf("%T does not implement PackageAuthenticationHashes", auth)

@@ -116,6 +116,34 @@ func TestSourcePackageMeta(t *testing.T) {
 	source, baseURL, close := testRegistrySource(t)
 	defer close()
 
+	validMeta := PackageMeta{
+		Provider: addrs.NewProvider(
+			svchost.Hostname("example.com"), "awesomesauce", "happycloud",
+		),
+		Version:          versions.MustParseVersion("1.2.0"),
+		ProtocolVersions: VersionList{versions.MustParseVersion("5.0.0")},
+		TargetPlatform:   Platform{"linux", "amd64"},
+		Filename:         "happycloud_1.2.0.zip",
+		Location:         PackageHTTPURL(baseURL + "/pkg/awesomesauce/happycloud_1.2.0.zip"),
+	}
+	validMeta.Authentication = PackageAuthenticationAll(
+		NewMatchingChecksumAuthentication(
+			[]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"),
+			"happycloud_1.2.0.zip",
+			[32]byte{30: 0xf0, 31: 0x0d},
+		),
+		NewArchiveChecksumAuthentication(Platform{"linux", "amd64"}, [32]byte{30: 0xf0, 31: 0x0d}),
+		NewSignatureAuthentication(
+			validMeta,
+			[]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"),
+			[]byte("GPG signature"),
+			[]SigningKey{
+				{ASCIIArmor: TestingPublicKey},
+			},
+			&tfaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
+		),
+	)
+
 	tests := []struct {
 		provider   string
 		version    string
@@ -130,32 +158,7 @@ func TestSourcePackageMeta(t *testing.T) {
 			"example.com/awesomesauce/happycloud",
 			"1.2.0",
 			"linux", "amd64",
-			PackageMeta{
-				Provider: addrs.NewProvider(
-					svchost.Hostname("example.com"), "awesomesauce", "happycloud",
-				),
-				Version:          versions.MustParseVersion("1.2.0"),
-				ProtocolVersions: VersionList{versions.MustParseVersion("5.0.0")},
-				TargetPlatform:   Platform{"linux", "amd64"},
-				Filename:         "happycloud_1.2.0.zip",
-				Location:         PackageHTTPURL(baseURL + "/pkg/awesomesauce/happycloud_1.2.0.zip"),
-				Authentication: PackageAuthenticationAll(
-					NewMatchingChecksumAuthentication(
-						[]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"),
-						"happycloud_1.2.0.zip",
-						[32]byte{30: 0xf0, 31: 0x0d},
-					),
-					NewArchiveChecksumAuthentication(Platform{"linux", "amd64"}, [32]byte{30: 0xf0, 31: 0x0d}),
-					NewSignatureAuthentication(
-						[]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"),
-						[]byte("GPG signature"),
-						[]SigningKey{
-							{ASCIIArmor: TestingPublicKey},
-						},
-						&tfaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
-					),
-				),
-			},
+			validMeta,
 			[]Hash{
 				"zh:000000000000000000000000000000000000000000000000000000000000f00d",
 				"zh:000000000000000000000000000000000000000000000000000000000000face",
@@ -233,7 +236,7 @@ func TestSourcePackageMeta(t *testing.T) {
 				t.Fatalf("wrong error\ngot:  <nil>\nwant: %s", test.wantErr)
 			}
 
-			if diff := cmp.Diff(test.want, got, cmpOpts); diff != "" {
+			if diff := cmp.Diff(got, test.want, cmpOpts); diff != "" {
 				t.Errorf("wrong result\n%s", diff)
 			}
 			if diff := cmp.Diff(test.wantHashes, got.AcceptableHashes()); diff != "" {
