@@ -76,3 +76,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+      - name: Upload Debian packages to PackageCloud
+        uses: computology/packagecloud-github-action@v0.6
+        with:
+                PACKAGE-NAME: dist/*.deb
+                PACKAGECLOUD-USERNAME: opentofu
+                PACKAGECLOUD-REPONAME: tofu
+                PACKAGECLOUD-DISTRO: any/any
+                PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+      - name: Upload RPM packages to PackageCloud
+        uses: computology/packagecloud-github-action@v0.6
+        with:
+                PACKAGE-NAME: dist/*.rpm
+                PACKAGECLOUD-USERNAME: opentofu
+                PACKAGECLOUD-REPONAME: tofu
+                PACKAGECLOUD-DISTRO: rpm_any/rpm_any
+                PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
