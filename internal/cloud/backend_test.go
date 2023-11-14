@@ -562,288 +562,314 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 	}
 }
 
-func TestCloud_setConfigurationFields(t *testing.T) {
+func TestCloud_setConfigurationFieldsHappyPath(t *testing.T) {
+	cases := map[string]struct {
+		obj                   cty.Value
+		envVars               map[string]string
+		expectedHostname      string
+		expectedOrganization  string
+		expectedWorkspaceName string
+		expectedProjectName   string
+		expectedWorkspaceTags map[string]struct{}
+		expectedForceLocal    bool
+	}{
+		"with hostname, organization and tags set": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.StringVal("opentofu"),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			expectedHostname:      "opentofu.org",
+			expectedOrganization:  "opentofu",
+			expectedWorkspaceTags: map[string]struct{}{"foo": {}, "bar": {}},
+		},
+		"with hostname and workspace name set": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.StringVal("prod"),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			expectedHostname:      "opentofu.org",
+			expectedWorkspaceName: "prod",
+		},
+		"with hostname and project name set": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.StringVal("my-project"),
+				}),
+			}),
+			expectedHostname:    "opentofu.org",
+			expectedProjectName: "my-project",
+		},
+		"with hostname and force local set (env var)": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			expectedHostname: "opentofu.org",
+			envVars: map[string]string{
+				"TF_FORCE_LOCAL_BACKEND": "1",
+			},
+			expectedForceLocal: true,
+		},
+		"with hostname and workspace tags set, and tags overwritten by TF_WORKSPACE": {
+			// see: https://github.com/opentofu/opentofu/issues/814
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_WORKSPACE": "foo",
+			},
+			expectedHostname:      "opentofu.org",
+			expectedWorkspaceName: "foo",
+			expectedWorkspaceTags: nil,
+		},
+		"with hostname and workspace name set, and name overwritten by TF_WORKSPACE": {
+			// see: https://github.com/opentofu/opentofu/issues/814
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.StringVal("old"),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_WORKSPACE": "new",
+			},
+			expectedHostname:      "opentofu.org",
+			expectedWorkspaceName: "new",
+			expectedWorkspaceTags: nil,
+		},
+		"with hostname and project set, and project overwritten by TF_CLOUD_PROJECT": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.StringVal("old"),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_CLOUD_PROJECT": "new",
+			},
+			expectedHostname:    "opentofu.org",
+			expectedProjectName: "old",
+		},
+		"with hostname set, and project specified by TF_CLOUD_PROJECT": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_CLOUD_PROJECT": "new",
+			},
+			expectedHostname:    "opentofu.org",
+			expectedProjectName: "new",
+		},
+		"with hostname set, and organization specified by TF_CLOUD_ORGANIZATION": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.StringVal("opentofu.org"),
+				"token":        cty.NullVal(cty.String),
+				"organization": cty.NullVal(cty.String),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_CLOUD_ORGANIZATION": "my-org",
+			},
+			expectedHostname:     "opentofu.org",
+			expectedOrganization: "my-org",
+		},
+		"with hostname set, and TF_CLOUD_HOSTNAME defined": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.StringVal("opentofu.org"),
+				"token":        cty.NullVal(cty.String),
+				"organization": cty.NullVal(cty.String),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_CLOUD_HOSTNAME": "new",
+			},
+			expectedHostname: "opentofu.org",
+		},
+		"with hostname specified by TF_CLOUD_HOSTNAME": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.NullVal(cty.String),
+				"token":        cty.NullVal(cty.String),
+				"organization": cty.NullVal(cty.String),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_CLOUD_HOSTNAME": "new",
+			},
+			expectedHostname: "new",
+		},
+		"with nothing set, all configured using env vars": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.NullVal(cty.String),
+				"organization": cty.NullVal(cty.String),
+				"workspaces":   cty.NullVal(cty.String),
+			}),
+			envVars: map[string]string{
+				"TF_CLOUD_HOSTNAME":     "opentofu.org",
+				"TF_CLOUD_ORGANIZATION": "opentofu",
+				"TF_WORKSPACE":          "foo",
+				"TF_CLOUD_PROJECT":      "bar",
+			},
+			expectedHostname:      "opentofu.org",
+			expectedOrganization:  "opentofu",
+			expectedWorkspaceName: "foo",
+			expectedProjectName:   "bar",
+		},
+	}
 
-	t.Run("happy path", func(t *testing.T) {
-		cases := map[string]struct {
-			obj                   cty.Value
-			envVars               map[string]string
-			expectedHostname      string
-			expectedOrganization  string
-			expectedWorkspaceName string
-			expectedProjectName   string
-			expectedWorkspaceTags map[string]struct{}
-			expectedForceLocal    bool
-		}{
-			"with hostname, organization and tags set": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.StringVal("opentofu"),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				expectedHostname:      "opentofu.org",
-				expectedOrganization:  "opentofu",
-				expectedWorkspaceTags: map[string]struct{}{"foo": {}, "bar": {}},
-			},
-			"with hostname and workspace name set": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.StringVal("prod"),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				expectedHostname:      "opentofu.org",
-				expectedWorkspaceName: "prod",
-			},
-			"with hostname and project name set": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.StringVal("my-project"),
-					}),
-				}),
-				expectedHostname:    "opentofu.org",
-				expectedProjectName: "my-project",
-			},
-			"with hostname and force local set (env var)": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				expectedHostname: "opentofu.org",
-				envVars: map[string]string{
-					"TF_FORCE_LOCAL_BACKEND": "1",
-				},
-				expectedForceLocal: true,
-			},
-			"with hostname and workspace tags set, and tags overwritten by TF_WORKSPACE": {
-				// see: https://github.com/opentofu/opentofu/issues/814
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_WORKSPACE": "myworkspace",
-				},
-				expectedHostname:      "opentofu.org",
-				expectedWorkspaceName: "myworkspace",
-				expectedWorkspaceTags: nil,
-			},
-			"with hostname and workspace name set, and name overwritten by TF_WORKSPACE": {
-				// see: https://github.com/opentofu/opentofu/issues/814
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.StringVal("old"),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_WORKSPACE": "new",
-				},
-				expectedHostname:      "opentofu.org",
-				expectedWorkspaceName: "new",
-				expectedWorkspaceTags: nil,
-			},
-			"with hostname and project set, and project overwritten by TF_CLOUD_PROJECT": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.StringVal("old"),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_CLOUD_PROJECT": "new",
-				},
-				expectedHostname:    "opentofu.org",
-				expectedProjectName: "new",
-			},
-			"with hostname set, and project specified by TF_CLOUD_PROJECT": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"organization": cty.NullVal(cty.String),
-					"hostname":     cty.StringVal("opentofu.org"),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_CLOUD_PROJECT": "new",
-				},
-				expectedHostname:    "opentofu.org",
-				expectedProjectName: "new",
-			},
-			"with hostname set, and organization specified by TF_CLOUD_ORGANIZATION": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"hostname":     cty.StringVal("opentofu.org"),
-					"token":        cty.NullVal(cty.String),
-					"organization": cty.NullVal(cty.String),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_CLOUD_ORGANIZATION": "my-org",
-				},
-				expectedHostname:     "opentofu.org",
-				expectedOrganization: "my-org",
-			},
-			"with hostname set, and TF_CLOUD_HOSTNAME defined": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"hostname":     cty.StringVal("opentofu.org"),
-					"token":        cty.NullVal(cty.String),
-					"organization": cty.NullVal(cty.String),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_CLOUD_HOSTNAME": "new",
-				},
-				expectedHostname: "opentofu.org",
-			},
-			"with hostname specified by TF_CLOUD_HOSTNAME": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"hostname":     cty.NullVal(cty.String),
-					"token":        cty.NullVal(cty.String),
-					"organization": cty.NullVal(cty.String),
-					"workspaces": cty.ObjectVal(map[string]cty.Value{
-						"name":    cty.NullVal(cty.String),
-						"tags":    cty.NullVal(cty.Set(cty.String)),
-						"project": cty.NullVal(cty.String),
-					}),
-				}),
-				envVars: map[string]string{
-					"TF_CLOUD_HOSTNAME": "new",
-				},
-				expectedHostname: "new",
-			},
-			"with nothing set, all configured using env vars": {
-				obj: cty.ObjectVal(map[string]cty.Value{
-					"hostname":     cty.NullVal(cty.String),
-					"organization": cty.NullVal(cty.String),
-					"workspaces":   cty.NullVal(cty.String),
-				}),
-				envVars: map[string]string{
-					"TF_CLOUD_HOSTNAME":     "opentofu.org",
-					"TF_CLOUD_ORGANIZATION": "opentofu",
-					"TF_WORKSPACE":          "foo",
-					"TF_CLOUD_PROJECT":      "bar",
-				},
-				expectedHostname:      "opentofu.org",
-				expectedOrganization:  "opentofu",
-				expectedWorkspaceName: "foo",
-				expectedProjectName:   "bar",
-			},
-		}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range tc.envVars {
+				t.Setenv(k, v)
+			}
 
-		for name, tc := range cases {
-			t.Run(name, func(t *testing.T) {
-				for k, v := range tc.envVars {
-					t.Setenv(k, v)
-				}
+			b := &Cloud{}
+			errDiags := b.setConfigurationFields(tc.obj)
 
-				b := &Cloud{}
-				errDiags := b.setConfigurationFields(tc.obj)
+			if errDiags.HasErrors() {
+				t.Fatalf("%s: unexpected validation result: %v", name, errDiags.Err())
+			}
+			if b.hostname != tc.expectedHostname {
+				t.Fatalf("%s: expected hostname %s to match configured hostname %s", name, b.hostname, tc.expectedHostname)
+			}
+			if b.organization != tc.expectedOrganization {
+				t.Fatalf("%s: expected organization (%s) to match configured organization (%s)", name, b.organization, tc.expectedOrganization)
+			}
+			if b.WorkspaceMapping.Name != tc.expectedWorkspaceName {
+				t.Fatalf("%s: expected workspace name mapping (%s) to match configured workspace name (%s)", name, b.WorkspaceMapping.Name, tc.expectedWorkspaceName)
+			}
+			if b.forceLocal != tc.expectedForceLocal {
+				t.Fatalf("%s: expected force local backend to be set to %v", name, tc.expectedForceLocal)
+			}
+			if b.WorkspaceMapping.Project != tc.expectedProjectName {
+				t.Fatalf("%s: expected project name mapping (%s) to match configured project name (%s)", name, b.WorkspaceMapping.Project, tc.expectedProjectName)
+			}
 
-				if errDiags.HasErrors() {
-					t.Fatalf("%s: unexpected validation result: %v", name, errDiags.Err())
-				}
-				if b.hostname != tc.expectedHostname {
-					t.Fatalf("%s: expected hostname %s to match configured hostname %s", name, b.hostname, tc.expectedHostname)
-				}
-				if b.organization != tc.expectedOrganization {
-					t.Fatalf("%s: expected organization (%s) to match configured organization (%s)", name, b.organization, tc.expectedOrganization)
-				}
-				if b.WorkspaceMapping.Name != tc.expectedWorkspaceName {
-					t.Fatalf("%s: expected workspace name mapping (%s) to match configured workspace name (%s)", name, b.WorkspaceMapping.Name, tc.expectedWorkspaceName)
-				}
-				if b.forceLocal != tc.expectedForceLocal {
-					t.Fatalf("%s: expected force local backend to be set to %v", name, tc.expectedForceLocal)
-				}
-				if b.WorkspaceMapping.Project != tc.expectedProjectName {
-					t.Fatalf("%s: expected project name mapping (%s) to match configured project name (%s)", name, b.WorkspaceMapping.Project, tc.expectedProjectName)
-				}
+			// read map of configured tags
+			gotTags := map[string]struct{}{}
+			for _, v := range b.WorkspaceMapping.Tags {
+				gotTags[v] = struct{}{}
+			}
 
-				// read map of configured tags
-				gotTags := map[string]struct{}{}
-				for _, v := range b.WorkspaceMapping.Tags {
-					gotTags[v] = struct{}{}
-				}
+			if len(gotTags) != len(tc.expectedWorkspaceTags) {
+				t.Fatalf("%s: unordered workspace tags (%v) don't match configuration (%v)", name, gotTags, tc.expectedWorkspaceTags)
+			}
 
-				if len(gotTags) != len(tc.expectedWorkspaceTags) {
+			for k := range tc.expectedWorkspaceTags {
+				if _, ok := gotTags[k]; !ok {
 					t.Fatalf("%s: unordered workspace tags (%v) don't match configuration (%v)", name, gotTags, tc.expectedWorkspaceTags)
 				}
-
-				for k := range tc.expectedWorkspaceTags {
-					if _, ok := gotTags[k]; !ok {
-						t.Fatalf("%s: unordered workspace tags (%v) don't match configuration (%v)", name, gotTags, tc.expectedWorkspaceTags)
-					}
-				}
-			})
-		}
-	})
-
-	t.Run("unhappy path", func(t *testing.T) {
-		// GIVEN
-		// cloud backend
-		b := &Cloud{}
-
-		// with no hostname configuration
-		config := cty.ObjectVal(map[string]cty.Value{
-			"organization": cty.NullVal(cty.String),
-			"hostname":     cty.NullVal(cty.String),
-			"workspaces":   cty.NullVal(cty.String),
+			}
 		})
+	}
+}
 
-		// WHEN
-		errDiags := b.setConfigurationFields(config)
+func TestCloud_setConfigurationFieldsUnhappyPath(t *testing.T) {
+	cases := map[string]struct {
+		obj         cty.Value
+		envVars     map[string]string
+		wantSummary string
+		wantDetail  string
+	}{
+		"cloud block is not configured": {
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.NullVal(cty.String),
+				"workspaces":   cty.NullVal(cty.String),
+			}),
+			wantSummary: "Hostname is required for the cloud backend",
+			wantDetail:  `OpenTofu does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`,
+		},
+		"with hostname and workspace tags set, and tags overwritten by TF_WORKSPACE": {
+			// see: https://github.com/opentofu/opentofu/issues/814
+			obj: cty.ObjectVal(map[string]cty.Value{
+				"organization": cty.NullVal(cty.String),
+				"hostname":     cty.StringVal("opentofu.org"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_WORKSPACE": "qux",
+			},
+			wantSummary: "value of `TF_WORKSPACE` does not belong to the set of workspaces.tags",
+			wantDetail:  `Find details in https://opentofu.org/docs/cli/cloud/settings#environment-variables.`,
+		},
+	}
 
-		// THEN
-		if !errDiags.HasErrors() {
-			t.Fatalf("error expected")
-		}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range tc.envVars {
+				t.Setenv(k, v)
+			}
 
-		const wantSummary = "Hostname is required for the cloud backend"
-		if errDiags[0].Description().Summary != wantSummary {
-			t.Fatalf("diagnostic summary mismatch")
-		}
+			b := &Cloud{}
+			errDiags := b.setConfigurationFields(tc.obj)
+			if (tc.wantDetail != "" || tc.wantSummary != "") != errDiags.HasErrors() {
+				t.Fatalf("%s error expected", name)
+			}
 
-		const wantDetail = `OpenTofu does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`
-		if errDiags[0].Description().Detail != wantDetail {
-			t.Fatalf("diagnostic detail mismatch")
-		}
-	})
+			gotSummary := errDiags[0].Description().Summary
+			if gotSummary != tc.wantSummary {
+				t.Fatalf("%s diagnostic summary mismatch, want: %s, got: %s", name, tc.wantSummary, gotSummary)
+			}
+
+			gotDetail := errDiags[0].Description().Detail
+			if gotDetail != tc.wantDetail {
+				t.Fatalf("%s diagnostic details mismatch, want: %s, got: %s", name, tc.wantDetail, gotDetail)
+			}
+		})
+	}
 }
 
 func TestCloud_localBackend(t *testing.T) {

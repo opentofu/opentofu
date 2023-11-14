@@ -438,8 +438,15 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 	b.WorkspaceMapping = newWorkspacesMappingFromFields(obj)
 
 	// Overwrite workspaces config from env variable
-	// NOTE that any workspace attribute can be overwritten using env variables
-	reconcileWorkspaceMappingEnvVars(&b.WorkspaceMapping)
+	if err := reconcileWorkspaceMappingEnvVars(&b.WorkspaceMapping); err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			err.Error(),
+			`Find details in https://opentofu.org/docs/cli/cloud/settings#environment-variables.`,
+		))
+
+		return diags
+	}
 
 	// Determine if we are forced to use the local backend.
 	b.forceLocal = os.Getenv("TF_FORCE_LOCAL_BACKEND") != ""
@@ -447,15 +454,30 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 	return diags
 }
 
-func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) {
+func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) error {
 	// See: https://github.com/opentofu/opentofu/issues/814
 	if v := os.Getenv("TF_WORKSPACE"); v != "" {
-		w.Name = os.Getenv("TF_WORKSPACE")
+		if len(w.Tags) > 0 && !workspaceInTags(w.Tags, v) {
+			return errors.New("value of `TF_WORKSPACE` does not belong to the set of workspaces.tags")
+		}
+		w.Name = v
 		w.Tags = nil
 	}
-	if v := os.Getenv("TF_CLOUD_PROJECT"); v != "" {
+
+	if v := os.Getenv("TF_CLOUD_PROJECT"); v != "" && w.Project == "" {
 		w.Project = v
 	}
+
+	return nil
+}
+
+func workspaceInTags(tags []string, workspace string) bool {
+	for _, tag := range tags {
+		if tag == workspace {
+			return true
+		}
+	}
+	return false
 }
 
 // discover the TFC/E API service URL and version constraints.
