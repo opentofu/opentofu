@@ -49,6 +49,9 @@ BUG FIXES:
 * cloud: fixed a bug that would prevent nested symlinks from being dereferenced into the config sent to Cloud ([#686](https://github.com/opentofu/opentofu/issues/686)) 
 * cloud: state snapshots could not be disabled when header x-terraform-snapshot-interval is absent ([#687](https://github.com/opentofu/opentofu/issues/687))
 * Fixed crash during tofu destroy inside module with variable validation ([#817](https://github.com/opentofu/opentofu/issues/817))
+* Fixed regression where `tofu` was not ignoring GPG signing key expiration by default ([822](https://github.com/opentofu/opentofu/issues/822))
+  - Added experimental env variable to enforce checking of GPG signing key expiration `OPENTOFU_ENFORCE_GPG_EXPIRATION=true`
+  - This is planned to default to `true` in a future release.
 
 S3 BACKEND:
 
