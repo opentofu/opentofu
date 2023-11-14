@@ -52,6 +52,8 @@ BUG FIXES:
 * Fixed regression where `tofu` was not ignoring GPG signing key expiration by default ([822](https://github.com/opentofu/opentofu/issues/822))
   - Added experimental env variable to enforce checking of GPG signing key expiration `OPENTOFU_ENFORCE_GPG_EXPIRATION=true`
   - This is planned to default to `true` in a future release.
+* cloud: fixed a bug related to `workspaces` configuration using environment variables ([#814](https://github.com/opentofu/opentofu/issues/814)). Now, `workspaces` attributes can be overwritten by the environment variables `TF_WORKSPACE` and `TF_CLOUD_PROJECT`.
+  **Note** that `TF_WORKSPACE` overwrites `name` and removes `tags` from the backend's workspaces configuration.
 
 S3 BACKEND:
 
