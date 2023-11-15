@@ -647,8 +647,7 @@ func TestCloud_setConfigurationFieldsHappyPath(t *testing.T) {
 			expectedWorkspaceName: "foo",
 			expectedWorkspaceTags: nil,
 		},
-		"with hostname and workspace name set, and name overwritten by TF_WORKSPACE": {
-			// see: https://github.com/opentofu/opentofu/issues/814
+		"with hostname and workspace name set, and TF_WORKSPACE specified": {
 			obj: cty.ObjectVal(map[string]cty.Value{
 				"organization": cty.NullVal(cty.String),
 				"hostname":     cty.StringVal("opentofu.org"),
@@ -662,7 +661,7 @@ func TestCloud_setConfigurationFieldsHappyPath(t *testing.T) {
 				"TF_WORKSPACE": "new",
 			},
 			expectedHostname:      "opentofu.org",
-			expectedWorkspaceName: "new",
+			expectedWorkspaceName: "old",
 			expectedWorkspaceTags: nil,
 		},
 		"with hostname and project set, and project overwritten by TF_CLOUD_PROJECT": {
@@ -842,8 +841,8 @@ func TestCloud_setConfigurationFieldsUnhappyPath(t *testing.T) {
 			envVars: map[string]string{
 				"TF_WORKSPACE": "qux",
 			},
-			wantSummary: "value of `TF_WORKSPACE` does not belong to the set of workspaces.tags",
-			wantDetail:  `Find details in https://opentofu.org/docs/cli/cloud/settings#environment-variables.`,
+			wantSummary: invalidWorkspaceConfigMisconfigurationEnvVar.Description().Summary,
+			wantDetail:  invalidWorkspaceConfigMisconfigurationEnvVar.Description().Detail,
 		},
 	}
 

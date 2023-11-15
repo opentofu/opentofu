@@ -185,13 +185,15 @@ func (b *Cloud) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	// Consider preserving the state in the receiver because it's instantiated twice, see b.setConfigurationFields
 	WorkspaceMapping := newWorkspacesMappingFromFields(obj)
 
+	if diag := reconcileWorkspaceMappingEnvVars(&WorkspaceMapping); diag != nil {
+		diags = diags.Append(diag)
+	}
+
 	switch WorkspaceMapping.Strategy() {
 	// Make sure have a workspace mapping strategy present
 	case WorkspaceNoneStrategy:
 		// To ensure that workspaces can be configured using env variables
-		if os.Getenv("TF_WORKSPACE") == "" {
-			diags = diags.Append(invalidWorkspaceConfigMissingValues)
-		}
+		diags = diags.Append(invalidWorkspaceConfigMissingValues)
 	// Make sure that a workspace name is configured.
 	case WorkspaceInvalidStrategy:
 		diags = diags.Append(invalidWorkspaceConfigMisconfiguration)
@@ -438,14 +440,8 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 	b.WorkspaceMapping = newWorkspacesMappingFromFields(obj)
 
 	// Overwrite workspaces config from env variable
-	if err := reconcileWorkspaceMappingEnvVars(&b.WorkspaceMapping); err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			err.Error(),
-			`Find details in https://opentofu.org/docs/cli/cloud/settings#environment-variables.`,
-		))
-
-		return diags
+	if diag := reconcileWorkspaceMappingEnvVars(&b.WorkspaceMapping); diag != nil {
+		return diags.Append(diag)
 	}
 
 	// Determine if we are forced to use the local backend.
@@ -454,11 +450,11 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 	return diags
 }
 
-func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) error {
+func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) tfdiags.Diagnostic {
 	// See: https://github.com/opentofu/opentofu/issues/814
-	if v := os.Getenv("TF_WORKSPACE"); v != "" {
+	if v := os.Getenv("TF_WORKSPACE"); v != "" && w.Name == "" {
 		if len(w.Tags) > 0 && !workspaceInTags(w.Tags, v) {
-			return errors.New("value of `TF_WORKSPACE` does not belong to the set of workspaces.tags")
+			return invalidWorkspaceConfigMisconfigurationEnvVar
 		}
 		w.Name = v
 		w.Tags = nil
