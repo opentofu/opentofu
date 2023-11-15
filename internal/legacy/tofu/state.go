@@ -793,7 +793,13 @@ func (s *BackendState) Config(schema *configschema.Block) (cty.Value, error) {
 	if s == nil {
 		return cty.NullVal(ty), nil
 	}
-	return ctyjson.Unmarshal(s.ConfigRaw, ty)
+	val, err := ctyjson.Unmarshal(s.ConfigRaw, ty)
+	if err != nil {
+		return cty.NullVal(ty), err
+	}
+
+	// Make sure it's actualy valid
+	return schema.CoerceValue(val)
 }
 
 // SetConfig replaces (in-place) the type-specific configuration object using
