@@ -74,6 +74,7 @@ S3 BACKEND:
 * S3 backend endpoints without proto:// default to https:// instead of failing ([#821](https://github.com/opentofu/opentofu/issues/821))
 * Most S3 compatible remote state backends should now work without checksum errors / 400s ([#821](https://github.com/opentofu/opentofu/issues/821))
 * Logging has been re-added to S3 remote state calls ([#821](https://github.com/opentofu/opentofu/issues/821))
+* Fixed validation for certain optional fields ([875](https://github.com/opentofu/opentofu/issues/875))
 
 ## Previous Releases
 

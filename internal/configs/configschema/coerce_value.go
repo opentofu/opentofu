@@ -5,6 +5,7 @@ package configschema
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -57,7 +58,15 @@ func (b *Block) coerceValue(in cty.Value, path cty.Path) (cty.Value, error) {
 
 	attrs := make(map[string]cty.Value)
 
-	for name, attrS := range b.Attributes {
+	// Stable sort keys for consistent error reports
+	attrKeys := make([]string, 0, len(b.Attributes))
+	for key := range b.Attributes {
+		attrKeys = append(attrKeys, key)
+	}
+	sort.Strings(attrKeys)
+
+	for _, name := range attrKeys {
+		attrS := b.Attributes[name]
 		attrType := impliedType.AttributeType(name)
 		attrConvType := convType.AttributeType(name)
 
@@ -78,7 +87,15 @@ func (b *Block) coerceValue(in cty.Value, path cty.Path) (cty.Value, error) {
 		attrs[name] = val
 	}
 
-	for typeName, blockS := range b.BlockTypes {
+	// Stable sort keys for consistent error reports
+	typeKeys := make([]string, 0, len(b.BlockTypes))
+	for key := range b.BlockTypes {
+		typeKeys = append(typeKeys, key)
+	}
+	sort.Strings(typeKeys)
+
+	for _, typeName := range typeKeys {
+		blockS := b.BlockTypes[typeName]
 		switch blockS.Nesting {
 
 		case NestingSingle, NestingGroup:
