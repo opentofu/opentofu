@@ -71,6 +71,11 @@ func (b *Block) coerceValue(in cty.Value, path cty.Path) (cty.Value, error) {
 			return cty.UnknownVal(impliedType), path.NewErrorf("attribute %q is required", name)
 		}
 
+		// This might break backwards compatability
+		if !attrS.Computed && !attrS.Optional && val.IsNull() {
+			return val, path.NewErrorf("attribute %q is required, null provided", name)
+		}
+
 		val, err := convert.Convert(val, attrConvType)
 		if err != nil {
 			return cty.UnknownVal(impliedType), append(path, cty.GetAttrStep{Name: name}).NewError(err)
