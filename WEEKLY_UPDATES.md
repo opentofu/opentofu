@@ -1,5 +1,32 @@
 # Weekly Updates
 
+## 2023-11-15
+
+Hey there!
+
+This last week has seen work on multiple avenues. More concretely, we've been steadily working our way down the stable release milestone. With the current pace, we expect the stable release to be out between mid-December and mid-January, preceded by a release candidate and a beta release.
+
+- Current Status
+  - Registry
+    - Multiple detailed design documents have been written this week, and there are two more to go. [You can track them here](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Arfc+label%3Af-registry).
+    - There is now [a new repository](https://github.com/opentofu/registry-stable) where we're working on the upcoming stable registry. It's not accepting contributions right now and the code is messy, but you can take a look there if you'd like to track progress. We're working on having an end-to-end working version as soon as possible (which will unblock a beta release).
+  - We've introduced apt and yum repositories for OpenTofu via PackageCloud (thanks to BuildKite for sponsoring it!). See more in the [installation instructions](https://opentofu.org/docs/intro/install).
+  - Multiple bugs have been fixed or are being worked on, related to the S3 state backend, variable validation blocks, refinements, repeat executions of tofu init, and expired gpg signing keys.
+- Up Next
+  - Working on the registry with as much developer-parallelism as possible at any given time.
+  - Documentation for the testing feature.
+  - Getting the e2e test suite for state backends running.
+- How can I help?
+  - Since the alpha release is out, right now the best way to help is to take the alpha for a test drive and see if there are any bugs / issues.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - **New!** We've introduced a new label, `good-to-pick-up`, that should help you find issues we've deemed are the best to pick up for external contributors. However, all such issues have promptly been picked up, so there aren't any available at this time.
+  - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
+  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the alpha and stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
+    - Issues and Pull Requests with enhancements or major changes will generally be frozen until we have the first stable release out. We will introduce a milestone to mark them as such more clearly.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2023-11-07
 
 Hey!
