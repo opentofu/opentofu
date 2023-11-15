@@ -192,7 +192,6 @@ func (b *Cloud) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	switch WorkspaceMapping.Strategy() {
 	// Make sure have a workspace mapping strategy present
 	case WorkspaceNoneStrategy:
-		// To ensure that workspaces can be configured using env variables
 		diags = diags.Append(invalidWorkspaceConfigMissingValues)
 	// Make sure that a workspace name is configured.
 	case WorkspaceInvalidStrategy:
