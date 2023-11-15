@@ -71,6 +71,7 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Description: "AWS region of the S3 Bucket and DynamoDB Table (if used).",
 			},
 			"endpoints": {
+				Optional: true,
 				NestedType: &configschema.Object{
 					Nesting: configschema.NestingSingle,
 					Attributes: map[string]*configschema.Attribute{
@@ -302,6 +303,7 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Description: "The endpoint mode of IMDS. Valid values: IPv4, IPv6.",
 			},
 			"assume_role": {
+				Optional: true,
 				NestedType: &configschema.Object{
 					Nesting: configschema.NestingSingle,
 					Attributes: map[string]*configschema.Attribute{
@@ -361,6 +363,7 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				},
 			},
 			"assume_role_with_web_identity": {
+				Optional: true,
 				NestedType: &configschema.Object{
 					Nesting: configschema.NestingSingle,
 					Attributes: map[string]*configschema.Attribute{
