@@ -172,17 +172,19 @@ func TestCloud_PrepareConfig(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		s := testServer(t)
-		b := New(testDisco(s))
+		t.Run(name, func(t *testing.T) {
+			s := testServer(t)
+			b := New(testDisco(s))
 
-		// Validate
-		_, valDiags := b.PrepareConfig(tc.config)
-		if valDiags.Err() != nil && tc.expectedErr != "" {
-			actualErr := valDiags.Err().Error()
-			if !strings.Contains(actualErr, tc.expectedErr) {
-				t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
+			// Validate
+			_, valDiags := b.PrepareConfig(tc.config)
+			if valDiags.Err() != nil && tc.expectedErr != "" {
+				actualErr := valDiags.Err().Error()
+				if !strings.Contains(actualErr, tc.expectedErr) {
+					t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -273,15 +275,45 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 				"TF_CLOUD_PROJECT": "example-project",
 			},
 		},
-		"with workspace env var overwrite tags config value": {
+		"with workspace defined by tags overwritten by TF_WORKSPACE": {
 			// see https://github.com/opentofu/opentofu/issues/814 for context
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("organization"),
-				"organization": cty.StringVal("foo"),
+				"hostname":     cty.StringVal("foo"),
+				"organization": cty.StringVal("bar"),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":    cty.NullVal(cty.String),
 					"project": cty.NullVal(cty.String),
-					"tags":    cty.SetVal([]cty.Value{cty.StringVal("bar"), cty.StringVal("baz")}),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("baz"), cty.StringVal("qux")}),
+				}),
+			}),
+			vars: map[string]string{
+				"TF_WORKSPACE": "qux",
+			},
+		},
+		"with TF_WORKSPACE value outside of the tags set": {
+			// see https://github.com/opentofu/opentofu/issues/814 for context
+			config: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.StringVal("foo"),
+				"organization": cty.StringVal("bar"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"project": cty.NullVal(cty.String),
+					"tags":    cty.SetVal([]cty.Value{cty.StringVal("baz"), cty.StringVal("qux")}),
+				}),
+			}),
+			vars: map[string]string{
+				"TF_WORKSPACE": "quxx",
+			},
+			expectedErr: `Invalid workspaces configuration: The workspace defined using env variable "TF_WORKSPACE" does not belong to "tags".`,
+		},
+		"with workspace block w/o attributes, TF_WORKSPACE defined": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.StringVal("foo"),
+				"organization": cty.StringVal("bar"),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"name":    cty.NullVal(cty.String),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
+					"project": cty.NullVal(cty.String),
 				}),
 			}),
 			vars: map[string]string{
@@ -305,9 +337,11 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 			})
 
 			_, valDiags := b.PrepareConfig(tc.config)
-			if valDiags.Err() != nil && tc.expectedErr != "" {
-				actualErr := valDiags.Err().Error()
-				if !strings.Contains(actualErr, tc.expectedErr) {
+			if (valDiags.Err() == nil) != (tc.expectedErr == "") {
+				t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
+			}
+			if valDiags.Err() != nil {
+				if !strings.Contains(valDiags.Err().Error(), tc.expectedErr) {
 					t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
 				}
 			}
