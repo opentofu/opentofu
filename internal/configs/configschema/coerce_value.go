@@ -60,7 +60,7 @@ func (b *Block) coerceValue(in cty.Value, path cty.Path) (cty.Value, error) {
 
 	// Stable sort keys for consistent error reports
 	attrKeys := make([]string, 0, len(b.Attributes))
-	for key, _ := range b.Attributes {
+	for key := range b.Attributes {
 		attrKeys = append(attrKeys, key)
 	}
 	sort.Strings(attrKeys)
@@ -89,7 +89,7 @@ func (b *Block) coerceValue(in cty.Value, path cty.Path) (cty.Value, error) {
 
 	// Stable sort keys for consistent error reports
 	typeKeys := make([]string, 0, len(b.BlockTypes))
-	for key, _ := range b.BlockTypes {
+	for key := range b.BlockTypes {
 		typeKeys = append(typeKeys, key)
 	}
 	sort.Strings(typeKeys)
