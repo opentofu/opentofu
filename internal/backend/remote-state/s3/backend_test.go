@@ -1420,6 +1420,18 @@ func TestBackend_includeProtoIfNessesary(t *testing.T) {
 	}
 }
 
+func TestBackend_schemaCoercionMinimal(t *testing.T) {
+	example := cty.ObjectVal(map[string]cty.Value{
+		"bucket": cty.StringVal("my-bucket"),
+		"key":    cty.StringVal("state.tf"),
+	})
+	schema := New().ConfigSchema()
+	_, err := schema.CoerceValue(example)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+}
+
 func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 	if actual := b.keyEnv(key); actual != expected {
 		return fmt.Errorf("incorrect workspace for key[%q]. Expected[%q]: Actual[%q]", key, expected, actual)
