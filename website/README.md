@@ -23,11 +23,3 @@ To update the sidebar navigation, you must edit the appropriate `nav-data.json` 
 Currently, you can preview your changes through the [opentofu/opentofu.org](https://github.com/opentofu/opentofu.org/blob/main/README.md) repository.
 
 Follow the [Getting Started](https://github.com/opentofu/opentofu.org/blob/main/README.md#getting-started) guide.
-If you would like to fetch the documentation from another repository and another branch, you can run the make command with REPO_URL and BRANCH arguments before starting the development server:
-```
-make REPO_URL="<your_forked_repo_url>" BRANCH="<branch_name>"
-```
-
-## Deploying Changes
-
-Coming soon: Documenting the deployment process for the documentation website repo.
