@@ -26,10 +26,10 @@ _Note_: monitor the test output for successful cleanup.
 
 * `-test-directory=path` Set the test directory (default: "tests"). OpenTofu will search for test files in the set directory
 and in the directly of the test command execution.
-*Note* that the path shall be relative to the directory where `tofu test` is called.
+_Note_ that the path shall be relative to the directory where `tofu test` is called.
 
 * `-filter=testfile` Set the test file *path* within the `test-directory`. The option can be used multiple times to specify several files.
-*Note* that the path shall be relative to the directory where `tofu test` is called.
+_Note_ that the path shall be relative to the directory where `tofu test` is called.
 
 * `-var 'foo=bar'` Set the input variables of the root module. The option can be used multiple times to set several variables.
 
@@ -155,8 +155,8 @@ The variable values will be resolved according to the following order:
 2. tfvar files specified in terraform.tfvars, *.auto.tfvars;
 3. Files specified using the flag `-var-file`;
 4. Variables defined using the flag `-var`;
-5. Variables from the `variable block` in test file;
-6. Variables from the variable block in run block.
+5. Variables from the `variables block` in test file;
+6. Variables from the variables block in run block.
 
 _Note_ that the variable's value found at the later step takes precedence over the value at the earlier step.
 
