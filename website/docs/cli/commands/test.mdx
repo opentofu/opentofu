@@ -155,7 +155,7 @@ TBD
 
 Tests can be defined using variables specified in several ways.
 
-The variable values will be resolved according to the following order:
+The variables will be loaded in the following order, with later sources taking precedence over earlier ones:
 
 1. Environment variables with the prefix `TF_VAR_`;
 2. tfvar files specified in terraform.tfvars, *.auto.tfvars;
@@ -163,8 +163,6 @@ The variable values will be resolved according to the following order:
 4. Variables defined using the flag `-var`;
 5. Variables from the `variables block` in test file;
 6. Variables from the variables block in run block.
-
-_Note_ that the variable's value found at the later step takes precedence over the value at the earlier step.
 
 ## Definition examples
 
