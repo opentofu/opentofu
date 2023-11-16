@@ -1,0 +1,64 @@
+---
+sidebar_position: 2
+sidebar_label: .deb-based Linux (Debian, Ubuntu)
+description: |-
+  Install OpenTofu on Debian Linux and its derivatives.
+---
+
+# Installing OpenTofu on .deb-based Linux (Debian, Ubuntu, etc.)
+
+OpenTofu is distributed in the .deb package format on [Packagecloud](https://packagecloud.io/opentofu/tofu). You can install it using a convenience script or by following the step-by-step instructions below.
+
+## Installing using the convenience script
+
+You can install OpenTofu using the [convenience script](https://packagecloud.io/install/repositories/opentofu/tofu/script.deb.sh?any=true) with the following commands:
+
+```bash
+curl -s https://packagecloud.io/install/repositories/opentofu/tofu/script.deb.sh?any=true -o /tmp/tofu-repository-setup.sh
+# Inspect the downloaded script at /tmp/tofu-repository-setup.sh before running
+sudo bash /tmp/tofu-repository-setup.sh
+rm /tmp/tofu-repository-setup.sh
+
+sudo apt-get install tofu
+```
+
+## Step-by-step instructions
+
+The following steps explain how to set up the OpenTofu Debian repositories. These instructions should work on most Debian-based Linux systems.
+
+### Installing tooling
+
+In order to add the repositories, you will need to install some tooling. On most Debian-based operating systems, these tools will already be installed.
+
+```bash
+sudo apt-get update
+sudo apt-get install apt-transport-https ca-certificates curl gnupg
+```
+
+### Set up the OpenTofu repository
+
+First, you need to make sure you have a copy of the OpenTofu GPG key. This verifies that your packages have indeed been created using the official pipeline and have not been tampered with.
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://packagecloud.io/opentofu/tofu/gpgkey | sudo gpg --dearmor -o /etc/apt/keyrings/opentofu.gpg
+sudo chmod a+r /etc/apt/keyrings/opentofu.gpg
+```
+
+Now you have to create the OpenTofu source list.
+
+```bash
+echo \
+  "deb [signed-by=/etc/apt/keyrings/opentofu.gpg] https://packagecloud.io/opentofu/tofu/any/ any main
+deb-src [signed-by=/etc/apt/keyrings/opentofu.gpg] https://packagecloud.io/opentofu/tofu/any/ any main" | \
+  sudo tee /etc/apt/sources.list.d/opentofu.list > /dev/null
+```
+
+### Installing OpenTofu
+
+Finally, you can install OpenTofu:
+
+```bash
+sudo apt-get update
+sudo apt-get install tofu
+```

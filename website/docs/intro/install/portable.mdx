@@ -1,0 +1,31 @@
+---
+sidebar_position: 99
+sidebar_label: Portable (Linux/MacOS/Windows)
+description: |-
+  Use OpenTofu as a portable binary without installation.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+import LinuxScript from '!!raw-loader!./portable-install.sh'
+import WindowsScript from '!!raw-loader!./portable-install.ps1'
+
+# Using OpenTofu as a portable binary
+
+You can run OpenTofu without installation as a portable binary. You can [download the latest release](https://github.com/opentofu/opentofu/releases/latest/) for your operating system from the [GitHub releases page](https://github.com/opentofu/opentofu/releases/latest/), unpack the zip and start using it. For easier updates, we recommend using the **non-portable packaged versions for your operating system**.
+
+:::tip Scripting downloads
+
+If you want to automate the updates of the portable binaries yourself you can do so by adapting the following scripts to your needs:
+
+<Tabs>
+    <TabItem value="linux-macos" label="Linux/MacOS" default>
+        <CodeBlock language="bash">{LinuxScript}</CodeBlock>
+    </TabItem>
+    <TabItem value="windows" label="Windows (PowerShell)">
+        <CodeBlock language="powershell">{WindowsScript}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+:::
