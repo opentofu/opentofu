@@ -38,6 +38,13 @@ var (
 		fmt.Sprintf("Only one of workspace \"tags\" or \"name\" is allowed.\n\n%s", workspaceConfigurationHelp),
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
 	)
+
+	invalidWorkspaceConfigMisconfigurationEnvVar = tfdiags.AttributeValue(
+		tfdiags.Error,
+		"Invalid workspaces configuration",
+		fmt.Sprintf("The workspace defined using the environment variable \"TF_WORKSPACE\" does not belong to \"tags\".\n\n%s", workspaceConfigurationHelp),
+		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
+	)
 )
 
 const ignoreRemoteVersionHelp = "If you're sure you want to upgrade the state, you can force OpenTofu to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
