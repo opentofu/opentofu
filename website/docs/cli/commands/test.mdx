@@ -25,8 +25,9 @@ _Note_: monitor the test output for successful cleanup.
 ## General Options
 
 * `-test-directory=path` Set the test directory (default: "tests"). OpenTofu will search for test files in the set directory
-and in the directly of the test command execution.
-_Note_ that the path shall be relative to the directory where `tofu test` is called.
+as well as in the directly in which `tofu test` was executed.
+
+_Note_ that the path should be relative to the directory in which `tofu test` is called.
 
 * `-filter=testfile` Set the test file *path* within the `test-directory`. The option can be used multiple times to specify several files.
 _Note_ that the path shall be relative to the directory where `tofu test` is called.
