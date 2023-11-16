@@ -304,7 +304,7 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 			vars: map[string]string{
 				"TF_WORKSPACE": "quxx",
 			},
-			expectedErr: `Invalid workspaces configuration: The workspace defined using env variable "TF_WORKSPACE" does not belong to "tags".`,
+			expectedErr: `Invalid workspaces configuration: The workspace defined using the environment variable "TF_WORKSPACE" does not belong to "tags".`,
 		},
 		"with workspace block w/o attributes, TF_WORKSPACE defined": {
 			config: cty.ObjectVal(map[string]cty.Value{
