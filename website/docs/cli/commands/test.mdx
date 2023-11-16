@@ -130,7 +130,7 @@ The option can be used multiple times to specify several files.
 
 ## Definition syntax
 
-TBD
+The tests definition relies on
 
 ## Variables
 
@@ -139,11 +139,18 @@ Tests can be defined using variables specified in several ways.
 The variables will be loaded in the following order, with later sources taking precedence over earlier ones:
 
 1. Environment variables with the prefix `TF_VAR_`;
-2. tfvar files specified in terraform.tfvars, *.auto.tfvars;
-3. Files specified using the flag `-var-file`;
-4. Variables defined using the flag `-var`;
-5. Variables from the `variables block` in test file;
-6. Variables from the variables block in run block.
+2. tfvar files specified: `terraform.tfvars` and `*.auto.tfvars`;
+3. Commandline variables defined using the flag `-var`, and the variables defined in the files specified by the flag `-var-file`;
+4. _Global_ variables from the `variables` block in test file;
+5. _Local_ variables from the `variables` block in `run` block.
+
+:::info
+The variable value defined by the flags `-var` and `-var-file` will depend on their order: the latest found value will be used.
+
+For example, **given** that the file `test.tfvars` contains the value `my_var="bar"`,
+**when** `tofu test -var=my_var="foo" -var-file=test.tfvars -var=my_var="qux"` is executed,
+**then** the variable `my_var` will be assigned the value `"qux"`.
+:::
 
 ## Definition examples
 
