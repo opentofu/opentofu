@@ -1,12 +1,68 @@
 ---
-description: Part of the ongoing design research for module integration testing.
+description: >-
+    The tofu test command performs integration tests of OpenTofu modules.
 ---
 
 # Command: test
 
-The `tofu test` command is currently serving as part of
-[the module integration testing experiment](/docs/language/modules/testing-experiment).
+The `tofu test` command runs integration tests to ensure intended behavior of your OpenTofu configuration. It creates real
+infrastructure, asserts conditional checks against the attributes of provisioned resources and attempts
+to clean up the testing infrastructure upon completion.
 
-It's not ready for routine use, but if you'd be interested in trying the
-prototype functionality then we'd love to hear your feedback. See the
-experiment details page linked above for more information.
+## Usage
+
+Usage: `tofu test [options]`
+
+The `test` command executes the automated integration tests defined in `.tftest.hcl` files which OpenTofu will read
+from the current configuration and testing directories.
+
+OpenTofu will create real infrastructure according to the definition in the tested configuration. Then, it will
+sequentially run the test blocks to perform conditional checks and assertions against attributes of provisioned resources.
+Upon tests completion, OpenTofu will attempt to clean up created resources.
+
+_Note_: monitor the test output for successful cleanup.
+
+## General Options
+
+* `-filter=testfile` Set the path to the test file. The option can be used multiple times to specify several files.
+
+* `-json` Set for test outputs to be formatted as JSON.
+
+* `-no-color` Disable color codes in the command output.
+
+* `-test-directory=path` Set the test directory (default: "tests"). OpenTofu will search for test files in the set
+directory and in the directly of the test command execution.
+
+* `-var 'foo=bar'`  Set the input variables of the root module. The option can be used multiple times to set several variables.
+
+* `-var-file=filename` Set the path to the file with variables values in addition to the default files terraform.tfvars and *.auto.tfvars.
+The option can be used multiple times to specify several files.
+
+* `-verbose` Print the plan or state for each test run block as it executes.
+
+## Test definition syntax
+
+
+
+## Test variables
+
+Tests can be defined using variables specified in several ways.
+
+The variable values will be resolved according to the following order:
+
+1. Environment variables with the prefix `TF_VAR_`;
+2. tfvar files specified in terraform.tfvars, *.auto.tfvars;
+3. Files specified using the flag `-var-file`;
+4. Variables defined using the flag `-var`;
+5. Variables from the `variable block` in test file;
+6. Variables from the variable block in run block.
+
+_Note_ that the variable's value found at the later step takes precedence over the value at the earlier step.
+
+## How to define a test
+
+TBD
+
+## Examples
+
+TBD
