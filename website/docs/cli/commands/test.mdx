@@ -70,7 +70,11 @@ The option can be used multiple times to specify several files.
 
 **WHEN** `tofu test` is executed in the project directory,
 
-**THEN** the tests defined in all three files, `main.tftest.hcl`, `foo.tftest.hcl` and `bar.tftest.hcl`, will be run.
+**THEN** the tests defined in the following files will be run (note that the files are sorted in the execution order):
+
+- bar.tftest.hcl,
+- foo.tftest.hcl,
+- main.tftest.hcl.
 
 **WHEN** `tofu test -filter=foo.tftest.hcl -filter=bar.tftest.hcl` is executed in the project directory,
 
@@ -84,68 +88,45 @@ The option can be used multiple times to specify several files.
 .
 ├── LICENSE
 ├── README.md
-├── foo.tf
-├── foo.tftest.hcl
-├── bar.tf
-├── bar.tftest.hcl
 ├── main.tf
 ├── main.tftest.hcl
-├── tests
-│   ├── foo.tftest.hcl
-│   └── bar.tftest.hcl
-├── modules
-│   ├── module_foo
-│   │   ├── LICENSE
-│   │   ├── README.md
-│   │   ├── foo.tf
-│   │   ├── foo.tftest.hcl
-│   │   ├── main.tf
-│   │   ├── main.tftest.hcl
-│   │   ├── outputs.tf
-│   │   └── variables.tf
-│   └── module_bar
-│       ├── LICENSE
-│       ├── README.md
-│       ├── foo.tf
-│       ├── foo.tftest.hcl
-│       ├── bar.tf
-│       ├── bar.tftest.hcl
-│       ├── main.tf
-│       ├── main.tftest.hcl
-│       ├── outputs.tf
-│       └── variables.tf
 ├── outputs.tf
-└── variables.tf
+├── variables.tf
+├── tests
+│   └── foo.tftest.hcl
+└── submodule
+    ├── foo.tf
+    ├── foo.tftest.hcl
+    ├── main.tf
+    ├── main.tftest.hcl
+    ├── outputs.tf
+    ├── variables.tf
+    └── tests
+        └── foo.tftest.hcl
 ```
 
 **WHEN** `tofu test` is executed in the project root directory,
 
 **THEN** the tests defined in the following files will be run (note that the files are sorted in the execution order):
 
-- bar.tftest.hcl,
-- foo.tftest.hcl,
 - main.tftest.hcl,
-- tests/bar.tftest.hcl,
 - tests/foo.tftest.hcl.
 
-**WHEN** `tofu test -test-directory=modules/module_bar` is executed in the project root directory,
+**WHEN** `tofu test -test-directory=submodule` is executed in the project root directory,
 
 **THEN** the tests defined in the following files will be run (note that the files are sorted in the execution order):
 
-- bar.tftest.hcl,
-- foo.tftest.hcl,
 - main.tftest.hcl,
-- modules/module_bar/bar.tftest.hcl,
-- modules/module_bar/foo.tftest.hcl,
-- modules/module_bar/main.tftest.hcl.
+- submodule/foo.tftest.hcl,
+- submodule/main.tftest.hcl.
 
-**WHEN** `tofu test -test-directory=modules/module_bar -filter=bar.tftest.hcl` is executed in the project root directory,
+**WHEN** `tofu test -test-directory=submodule -filter=foo.tftest.hcl` is executed in the project root directory,
 
-**THEN** the tests defined in the file `bar.tftest.hcl` will be run only.
+**THEN** no tests will be run because no test files satisfying filtering criteria will be found.
 
-**WHEN** `tofu test -test-directory=modules/module_bar -filter=modules/module_bar/bar.tftest.hcl` is executed in the project root directory,
+**WHEN** `tofu test -test-directory=submodule -filter=submodule/foo.tftest.hcl` is executed in the project root directory,
 
-**THEN** the tests defined in the file `modules/module_bar/bar.tftest.hcl` will be run only.
+**THEN** the tests defined in the file `submodule/foo.tftest.hcl` will be run only.
 
 ## Definition syntax
 
