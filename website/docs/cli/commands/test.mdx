@@ -15,7 +15,7 @@ Usage: `tofu test [options]`.
 
 The `test` command executes automated integration tests following the next steps:
 
-1. [Define](#test-suite-definition) a test `suite` by reading [test files](#how-to-define-a-test-file) `*.tftest.hcl`.
+1. [Define](#how-to-define-a-test-suite) a test `suite` by reading [test files](#how-to-define-a-test-file) `*.tftest.hcl`.
 2. Read all global input [variables](#variables) for the entire test `suite`.
 3. Establish execution order by sorting test files alphabetically.
 4. Sequentially execute all test files in the `suite`:
