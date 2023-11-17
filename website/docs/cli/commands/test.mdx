@@ -60,9 +60,7 @@ files terraform.tfvars and *.auto.tfvars. The option can be used multiple times 
 
 * `-verbose` Print the plan or state for each test run block as it executes.
 
-## Usage examples
-
-### Test suite definition
+## How to define a test suite
 
 The subsection describes how to filter test files when defining a test `suite`.
 
@@ -139,7 +137,7 @@ Tests are defined using three kinds of blocks in the way that every test file
 
 - _shall_ contain _at least one_ `run` block to define a single test case;
 - _may_ contain _at most one_ `variables` block to define "global" variables shared by all `runs` defined in a single file;
-- _may_ contain _multiple_ `provider` blocks to configure providers shared used by all `runs` in a single file.
+- _may_ contain _multiple_ `provider` blocks to configure providers shared by all `runs` in a single file.
 
 :::info
 Note that if a test file contains several `run` blocks, OpenTofu will execute them sequentially from the top to
@@ -219,6 +217,10 @@ run "setup-module" {
   }
 }
 ```
+
+:::info
+If a module is specified in the `run` block, `tofu init` execution will be required before running `tofu test`.
+:::
 
 ### `run.plan_options`
 
