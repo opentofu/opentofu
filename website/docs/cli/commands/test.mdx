@@ -15,7 +15,7 @@ Usage: `tofu test [options]`.
 
 The `test` command executes the automated integration tests following the next steps:
 
-1. Define a test `suite` by reading [test files](#how-to-define-a-test-file) `*.tftest.hcl`.
+1. [Define](#test-suite-definition) a test `suite` by reading [test files](#how-to-define-a-test-file) `*.tftest.hcl`.
 2. Read all global input [variables](#variables) applicable for the whole test suite.
 3. Define the tests execution order by sorting the test files in alphabetical order based on their names.
 4. Sequentially execute all test files in the `suite`:
@@ -62,9 +62,13 @@ files terraform.tfvars and *.auto.tfvars. The option can be used multiple times 
 
 ## Usage examples
 
+### Test suite definition
+
+The subsection describes how to filter test files when defining a test `suite`.
+
 ### Flat structure
 
-**GIVEN** the following OpenTofu module structure:
+Assuming the OpenTofu module structure below
 
 ```commandline
 .
@@ -80,21 +84,16 @@ files terraform.tfvars and *.auto.tfvars. The option can be used multiple times 
 └── variables.tf
 ```
 
-**WHEN** `tofu test` is executed in the project directory,
+- When you execute `tofu test` in the project directory, the test `suite` will consist of the files:
+`bar.tftest.hcl`, `foo.tftest.hcl`, `main.tftest.hcl`.
 
-**THEN** the tests defined in the following files will be run (note that the files are sorted in alphabetical order):
-
-- bar.tftest.hcl,
-- foo.tftest.hcl,
-- main.tftest.hcl.
-
-**WHEN** `tofu test -filter=foo.tftest.hcl -filter=bar.tftest.hcl` is executed in the project directory,
-
-**THEN** the tests defined in the files `foo.tftest.hcl` and `bar.tftest.hcl` will be run only.
+- To filter some files from the `suite`, use the `-filter` option.
+For example, when you execute `tofu test -filter=foo.tftest.hcl -filter=bar.tftest.hcl` in the project directory,
+the file `foo.tftest.hcl` and `bar.tftest.hcl` will be selected only.
 
 ### Nested structure
 
-**GIVEN** the following OpenTofu module structure:
+Assuming the OpenTofu module structure below
 
 ```commandline
 .
@@ -117,28 +116,22 @@ files terraform.tfvars and *.auto.tfvars. The option can be used multiple times 
         └── foo.tftest.hcl
 ```
 
-**WHEN** `tofu test` is executed in the project root directory,
+- When you execute `tofu test` in the project directory, the test `suite` will consist of the files: `main.tftest.hcl`
+and `tests/foo.tftest.hcl`.
 
-**THEN** the tests defined in the following files will be run (note that the files are sorted in alphabetical order):
+- To specify the directory other that the default `tests`, use the `-test-directory` option.
+For example, when you execute `tofu test -test-directory=submodule` in the project directory,
+the test `suite` will consist of the files: `main.tftest.hcl`, `submodule/foo.tftest.hcl` and `tests/main.tftest.hcl`.
 
-- main.tftest.hcl,
-- tests/foo.tftest.hcl.
+- You can combine the options `-test-directory` and `-filter` to select specific test files.
+For example, when you execute `tofu test -test-directory=submodule -filter=submodule/foo.tftest.hcl` in the project directory,
+the file `submodule/foo.tftest.hcl` will be selected only.
 
-**WHEN** `tofu test -test-directory=submodule` is executed in the project root directory,
-
-**THEN** the tests defined in the following files will be run (note that the files are sorted in alphabetical order):
-
-- main.tftest.hcl,
-- submodule/foo.tftest.hcl,
-- submodule/main.tftest.hcl.
-
-**WHEN** `tofu test -test-directory=submodule -filter=foo.tftest.hcl` is executed in the project root directory,
-
-**THEN** no tests will be run because no test files satisfying filtering criteria will be found.
-
-**WHEN** `tofu test -test-directory=submodule -filter=submodule/foo.tftest.hcl` is executed in the project root directory,
-
-**THEN** the tests defined in the file `submodule/foo.tftest.hcl` will be run only.
+:::warning
+Make sure that the path is specified relative to the directory in which `tofu test` is called.
+For example, when you execute `tofu test -test-directory=submodule -filter=foo.tftest.hcl` in the project directory,
+no test files will be found.
+:::
 
 ## How to define a test file
 
