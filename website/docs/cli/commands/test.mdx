@@ -85,7 +85,7 @@ Assuming the OpenTofu module structure below
 - When you execute `tofu test` in the project directory, the test `suite` will consist of the files:
 `bar.tftest.hcl`, `foo.tftest.hcl`, `main.tftest.hcl`.
 
-- To filter some files from the `suite`, use the `-filter` option.
+- To select some specific files from the `suite`, use the `-filter` option.
 For example, when you execute `tofu test -filter=foo.tftest.hcl -filter=bar.tftest.hcl` in the project directory,
 the files `foo.tftest.hcl` and `bar.tftest.hcl` will be selected only.
 
