@@ -13,17 +13,17 @@ to clean up the testing infrastructure upon completion.
 
 Usage: `tofu test [options]`.
 
-The `test` command executes the automated integration tests following the next steps:
+The `test` command executes automated integration tests following the next steps:
 
 1. [Define](#test-suite-definition) a test `suite` by reading [test files](#how-to-define-a-test-file) `*.tftest.hcl`.
-2. Read all global input [variables](#variables) applicable for the whole test suite.
-3. Define the tests execution order by sorting the test files in alphabetical order based on their names.
+2. Read all global input [variables](#variables) for the entire test `suite`.
+3. Establish execution order by sorting test files alphabetically.
 4. Sequentially execute all test files in the `suite`:
     1. Sequentially execute all test [`runs`](#run-block) defined in a single test file:
         1. Prepare and validate the `run` configuration;
         2. Perform `tofu plan+apply`, or `tofu apply`;
-        3. Check expected failures;
-        4. Check assertion conditions;
+        3. Check for expected failures;
+        4. Verify assertion conditions;
         5. Record the `status`.
     2. Destroy provisioned resources.
 5. Report the test status.
@@ -89,7 +89,7 @@ Assuming the OpenTofu module structure below
 
 - To filter some files from the `suite`, use the `-filter` option.
 For example, when you execute `tofu test -filter=foo.tftest.hcl -filter=bar.tftest.hcl` in the project directory,
-the file `foo.tftest.hcl` and `bar.tftest.hcl` will be selected only.
+the files `foo.tftest.hcl` and `bar.tftest.hcl` will be selected only.
 
 ### Nested structure
 
@@ -121,7 +121,7 @@ and `tests/foo.tftest.hcl`.
 
 - To specify the directory other that the default `tests`, use the `-test-directory` option.
 For example, when you execute `tofu test -test-directory=submodule` in the project directory,
-the test `suite` will consist of the files: `main.tftest.hcl`, `submodule/foo.tftest.hcl` and `tests/main.tftest.hcl`.
+the test `suite` will consist of the files: `main.tftest.hcl`, `submodule/foo.tftest.hcl` and `submodule/main.tftest.hcl`.
 
 - You can combine the options `-test-directory` and `-filter` to select specific test files.
 For example, when you execute `tofu test -test-directory=submodule -filter=submodule/foo.tftest.hcl` in the project directory,
@@ -137,7 +137,7 @@ no test files will be found.
 
 Tests are defined using three kinds of blocks in the way that every test file
 
-- _shall_ contain _at least one_ `run` block to define a single test;
+- _shall_ contain _at least one_ `run` block to define a single test case;
 - _may_ contain _at most one_ `variables` block to define "global" variables shared by all `runs` defined in a single file;
 - _may_ contain _multiple_ `provider` blocks to configure providers shared used by all `runs` in a single file.
 
@@ -243,7 +243,7 @@ The `providers` object allows to mock providers for execution of the `run`.
 
 ### `run.expect_failures`
 
-The `expect_failures` attribute lists the resources, or variable which are expected to fail during the test. It
+The `expect_failures` attribute lists the resources, or variable which are expected to fail during the test.
 
 ```hcl
 run "unhappy-path" {
@@ -262,9 +262,9 @@ run "unhappy-path" {
 
 <!-- details: /internal/command/testing/test_provider.go -->
 
-The `provier` block defines a single provider shared by all tests defined in a single test file.
+The `provier` block defines a single provider shared by all `runs` defined in a single test file.
 
-It is defined by the following attributes.
+It is defined using the following attributes.
 
 | Name            | Type   | Description                                                                                          |
 |:----------------|:-------|:-----------------------------------------------------------------------------------------------------|
