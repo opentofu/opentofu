@@ -1,0 +1,26 @@
+---
+sidebar_position: 1
+sidebar_label: Alpine Linux
+description: |-
+  Install OpenTofu on Alpine Linux.
+---
+
+# Installing OpenTofu on Alpine Linux
+
+OpenTofu is available in the [Alpine Linux testing repository](https://pkgs.alpinelinux.org/packages?name=opentofu) or as an `.apk` package from the [GitHub releases page](https://github.com/opentofu/opentofu/releases/latest/).
+
+## Installing from the testing repository
+
+OpenTofu is available in the Alpine Testing repository and can be installed from there:
+
+```bash
+apk add opentofu --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing/
+```
+
+## Installing the .apk
+
+You can also [download the .apk](https://github.com/opentofu/opentofu/releases/latest/) and install it on your Alpine Linux. You can install the `.apk` package after downloading it:
+
+```bash
+apk add --allow-untrusted tofu_*.apk
+```
