@@ -24,12 +24,16 @@ The `test` command executes automated integration tests following the next steps
         2. Perform `tofu plan+apply`, or `tofu apply`;
         3. Check for expected failures;
         4. Verify assertion conditions;
-        5. Record the `status`.
-    2. Destroy provisioned resources.
-5. Report the test status.
+        5. Update the `suite` _status_.
+    2. Printout the summary for the entire test file.
+    3. Printout the summary for every `run`.
+    4. Sequentially destroy the resources provisioned by every `run` in a single test file in the reverse order,
+       starting from the last executed `run`.
+5. Printout an overall summary of the test `suite` execution.
+6. Terminate with the status code `0` if all tests passed; `1` otherwise.
 
 :::info
-Monitor the test output for successful cleanup.
+Monitor the test output for successful cleanup because the execution will continue even if some destroy operations fail.
 :::
 
 ## General Options
