@@ -130,13 +130,15 @@ The option can be used multiple times to specify several files.
 
 ## Definition syntax
 
-## idea1 - layers: start with a high level overview and zoom-in layer-by-layer
-
 Tests are defined using three kinds of blocks in the way that every test file
 
-- _shall_ contain _at least one_ `run` block to describe a single test operation;
+- _shall_ contain _at least one_ `run` block to describe a single testing unit;
 - _may_ contain _at most one_ `variables` block to define global variables used by the `runs` defined in the file;
 - _may_ contain _multiple_ `provider` blocks to define a provider configuration to be used by the test.
+
+:::info
+Note that if a test file contains several `run` blocks, OpenTofu will execute them sequentially from the top to the bottom of the file.
+:::
 
 <!--
     /internal/command/testing/test_provider.go:
@@ -157,55 +159,106 @@ Tests are defined using three kinds of blocks in the way that every test file
 
 ### `run` block
 
+<!--
+    details in /internal/configs/test_file.go:239 decodeTestRunBlock
+-->
 
+The following non-mutually exclusive blocks and attributes can be defined within the scope of a single `run` block.
 
-```terraform
-run "test-foo" {
-  # (optional)
-  command=plan
+| Name              | Type   | Multiple allowed | Description                                                                                                                                                                            |
+|:------------------|:-------|:-----------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `assert`          | block  | true             | Defines test checks criteria.                                                                                                                                                          |
+| `variables`       | block  | false            | Defines local variables as a series of `<KEY> = <VALUE>` (see [details](/docs/language/expressions/types/#mapsobjects)). These values will be used within the scope of the `run` only. |
+| `module`          | block  | false            | Defines module to use for the tests defined in the current `*.tftest.hcl` file.                                                                                                        |
+| `command`         | string | false            | Defines which command will be executed in the scope of the `run` block, _plan_ or _apply_. Defaults to _apply_.                                                                        |
+| `plan_options`    | block  | false            | Defines the of `tofu plan` execution options.                                                                                                                                          |
+| `providers`       | object | false            | Used to "mock" providers.                                                                                                                                                              |
+| `expect_failures` | list   | false            | Defines a list of resources, or values for which the test `run` is expected to fail.                                                                                                   |
 
-  plan_options={
-    refresh=false
+### `run.assert`
+
+The `assert` block requires two attributes:
+
+- `condition`: assertion criteria as a boolean expression.
+- `error_message`: assertion message which will be printed if the test fails.
+
+```hcl
+run "test" {
+  variables {
+    want_attr0 = "test-value"
+    want_attr1 = 1
   }
 
   assert {
-    condition = var.input == 12
-    error_message = "something"
+    condition     = resource_type.resource_name.attr0 == var.want_attr0
+    error_message = "failed validation of attr0"
+  }
+
+  assert {
+    condition     = resource_type.resource_name.attr1 == var.want_attr1
+    error_message = "failed validation of attr1"
   }
 }
 ```
 
-Provider:
-- alias
-- version
-- data_prefix
-- resource_prefix
+:::info
+Note that if you would combine several assertions in a single `run` and some of them failed, the total numer of failed tests will be reported as 1.
+The opposite is also true, 1 will be reported if all checks are successful.
+:::
+
+### `run.module`
+
+The `module` block is defined by two attributes:
+
+- `source` (required): module [source](/docs/language/modules/sources).
+- `version` (optional): module version.
+
+```hcl
+run "setup-module" {
+  module {
+    source = "./modules/my_module"
+  }
+}
+```
+
+### `run.plan_options`
+
+The `plan_options` block is defined by the following optional attributes.
+
+| Name    | Type   | Default | Description                                                           |
+|:--------|:-------|:--------|:----------------------------------------------------------------------|
+| mode    | string | normal  | The planning mode to run. Allowed values: _normal_ or _refresh-only_. |
+| refresh | bool   | true    | Analog to `tofu plan -refresh`.                                       |
+| replace | list   | null    | Analog to `tofu plan -refresh=ADDRESS`.                               |
+| target  | list   | null    | Analog to `tofu plan -target=ADDRESS`.                                |
 
 
-## idea2 - define the "testing language ABC": keywords and their hierarchy, and illustrate how to define tests in the end
+:::warning
+If the `mode` is set to _refresh-only_, the `refresh` parameter cannot be set to _false_.
+:::
 
-|Keyword        | Type      | Description                                                                                                                        |
-|:----------    |:----------|:-----------------------------------------------------------------------------------------------------------------------------------|
-|`run`          | block     | The named block which defines a single test operation unit.                                                                        |
-|`provider`     | block     | The named block which                                                                                                              |
-|`variables`    | block     | Key-value object which defines variables used for test.                                                                            |
-|`assert`       | block     | The block which defines the test condition.                                                                                        |
-|`module`       | block     | specifies the module to execute the `run` block.                                                                                   |
-|`plan_options` |           |                                                                                                                                    |
-|`condition`    | [condition](/docs/language/expressions/conditionals#conditions) |                                                                                                                                    | Assertion criteria as a boolean expression.                                                            |
-|`error_message`| string    | Assertion message.                                                                                                                 |
-|`command`      | string           | Defines which command a given run block will execute, _plan_ or _apply_. Defaults to _apply_.                                      |
-|`mode`         ||                                                                                                                                    |
-|`providers`||                                                                                                                                    |
-|`alias`|           |                                                                                                                                    |
-|`data_prefix`      |     |                                                                                                                                    |
-|`resource_prefix`           |                                                                                                        |                                                                                                                                    |
-|`mode` | string  | Defines the plan mode that OpenTofu will use for a given run block, _normal_ or _refresh-only_. Defaults to _normal_.              |
-|`target`|           |                                                                                                                                    |
-|`hashes`|           |                                                                                                                                    |
-|`version`|           |                                                                                                                                    |
-|`expect_failures`| list(resourece| value)                                                                                                                             | Defines resources which are expected to fail during the test. It is useful to test unhappy path. |
-|`refresh`|bool | Analog to the `tofu plan -refresh`                                                                                                            |
+
+### `run.providers`
+
+The `providers` object allows to mock providers for execution of the `run`.
+
+TBD
+
+### `run.expect_failures`
+
+The `expect_failures` lists the resources, or variable which are expected to fail during the test.
+
+```hcl
+run "unhappy-path" {
+  variable {
+    input0 = "faulty-input"
+  }
+  expect_failures = [
+    # we expect the module to validate the input
+    input.input0,
+  ]
+}
+```
 
 ## Variables
 
