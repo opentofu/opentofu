@@ -133,47 +133,28 @@ The option can be used multiple times to specify several files.
 Tests are defined using three kinds of blocks in the way that every test file
 
 - _shall_ contain _at least one_ `run` block to describe a single testing unit;
-- _may_ contain _at most one_ `variables` block to define global variables used by the `runs` defined in the file;
-- _may_ contain _multiple_ `provider` blocks to define a provider configuration to be used by the test.
+- _may_ contain _at most one_ `variables` block to define "global" variables shared by all `runs` defined in a single file;
+- _may_ contain _multiple_ `provider` blocks to configure providers shared used by all `runs` in a single file.
 
 :::info
 Note that if a test file contains several `run` blocks, OpenTofu will execute them sequentially from the top to the bottom of the file.
 :::
 
-<!--
-    /internal/command/testing/test_provider.go:
-    provider:
-        data_prefix: string
-        resource_prefix: string
-        alias: string
-        version: string
-    test_resource:
-        id: string
-        value: string
-        interrupt_count: number
-    test_data_source:
-        id: string
-        value: string
-        interrupt_count: number
--->
-
 ### `run` block
 
-<!--
-    details in /internal/configs/test_file.go:239 decodeTestRunBlock
--->
+<!-- details: /internal/configs/test_file.go:239 decodeTestRunBlock -->
 
 The following non-mutually exclusive blocks and attributes can be defined within the scope of a single `run` block.
 
-| Name              | Type   | Multiple allowed | Description                                                                                                                                                                            |
-|:------------------|:-------|:-----------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `assert`          | block  | true             | Defines test checks criteria.                                                                                                                                                          |
-| `variables`       | block  | false            | Defines local variables as a series of `<KEY> = <VALUE>` (see [details](/docs/language/expressions/types/#mapsobjects)). These values will be used within the scope of the `run` only. |
-| `module`          | block  | false            | Defines module to use for the tests defined in the current `*.tftest.hcl` file.                                                                                                        |
-| `command`         | string | false            | Defines which command will be executed in the scope of the `run` block, _plan_ or _apply_. Defaults to _apply_.                                                                        |
-| `plan_options`    | block  | false            | Defines the of `tofu plan` execution options.                                                                                                                                          |
-| `providers`       | object | false            | Used to "mock" providers.                                                                                                                                                              |
-| `expect_failures` | list   | false            | Defines a list of resources, or values for which the test `run` is expected to fail.                                                                                                   |
+| Name              | Type   | Multiple allowed | Description                                                                                                                                            |
+|:------------------|:-------|:-----------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `assert`          | block  | true             | Defines test checks criteria.                                                                                                                          |
+| `variables`       | block  | false            | Defines "local" variables (see [details](/docs/language/expressions/types/#mapsobjects)) which will be used within the scope of the parent `run` only. |
+| `module`          | block  | false            | Defines module to use for the tests defined in the current `*.tftest.hcl` file.                                                                        |
+| `command`         | string | false            | Defines which command will be executed in the scope of the `run` block, _plan_ or _apply_. Defaults to _apply_.                                        |
+| `plan_options`    | block  | false            | Defines the of `tofu plan` execution options.                                                                                                          |
+| `providers`       | object | false            | Used to "mock" providers.                                                                                                                              |
+| `expect_failures` | list   | false            | Defines a list of resources, or values for which the test `run` is expected to fail.                                                                   |
 
 ### `run.assert`
 
@@ -237,12 +218,9 @@ The `plan_options` block is defined by the following optional attributes.
 If the `mode` is set to _refresh-only_, the `refresh` parameter cannot be set to _false_.
 :::
 
-
 ### `run.providers`
 
 The `providers` object allows to mock providers for execution of the `run`.
-
-TBD
 
 ### `run.expect_failures`
 
@@ -259,6 +237,19 @@ run "unhappy-path" {
   ]
 }
 ```
+
+### `provider` block
+
+<!-- details: /internal/command/testing/test_provider.go -->
+
+The `provier` block defines a single provider shared by all tests defined in a single test file.
+It is defined by the following attributes.
+
+| Name            | Type   | Description                                                          |
+|:----------------|:-------|:---------------------------------------------------------------------|
+| alias           | string | The provider's alies within the scope of a given test file.          |
+| resource_prefix | string | The OpenTofu configuration tag word used to recognize a resource.    |
+| data_prefix     | string | The OpenTofu configuration tag word used to recognize a data source. |
 
 ## Variables
 
