@@ -11,16 +11,26 @@ to clean up the testing infrastructure upon completion.
 
 ## Usage
 
-Usage: `tofu test [options]`
+Usage: `tofu test [options]`.
 
-The `test` command executes the automated integration tests defined in `.tftest.hcl` files which OpenTofu will read
-from the current configuration and testing directories.
+The `test` command executes the automated integration tests following to the steps below:
 
-OpenTofu will create real infrastructure according to the definition in the tested configuration. Then, it will
-sequentially run the test blocks to perform conditional checks and assertions against attributes of provisioned resources.
-Upon tests completion, OpenTofu will attempt to clean up created resources.
+1. Define a test `suite` by reading [test files](#how-to-define-a-test-file) `*.tftest.hcl`.
+2. Read all global input [variables](#variables) applicable for the whole test suite.
+3. Define the tests execution order by sorting the test files in alphabetical order based on their names.
+4. Sequentially execute all test files in the `suite`:
+    1. Sequentially execute all test [`runs`](#run-block) defined in a single test file:
+        1. Prepare and validate the `run` configuration;
+        2. Perform `tofu plan+apply`, or `tofu apply`;
+        3. Check expected failures;
+        4. Check assertion conditions;
+        5. Record the `status`.
+    2. Destroy provisioned resources.
+5. Report the test status.
 
-_Note_: monitor the test output for successful cleanup.
+:::info
+Monitor the test output for successful cleanup.
+:::
 
 ## General Options
 
@@ -31,16 +41,18 @@ as well as in the directly in which `tofu test` was executed.
 The path should be relative to the directory in which `tofu test` is called.
 :::
 
-* `-filter=testfile` Specify an individual test file to use for testing. The option can be used multiple times to specify several files.
+* `-filter=testfile` Specify an individual test file to use for testing.
+The option can be used multiple times to specify several files.
 
 :::warning
 The path should be relative to the directory in which `tofu test` is called.
 :::
 
-* `-var 'foo=bar'` Set the input variables of the root module. The option can be used multiple times to set several variables.
+* `-var 'foo=bar'` Set the input variables of the root module.
+The option can be used multiple times to set several variables.
 
-* `-var-file=filename` Set the path to the file with variables values in addition to the default files terraform.tfvars and *.auto.tfvars.
-The option can be used multiple times to specify several files.
+* `-var-file=filename` Set the path to the file with variables values in addition to the default
+files terraform.tfvars and *.auto.tfvars. The option can be used multiple times to specify several files.
 
 * `-json` Set for test outputs to be formatted as JSON.
 
@@ -128,46 +140,48 @@ The option can be used multiple times to specify several files.
 
 **THEN** the tests defined in the file `submodule/foo.tftest.hcl` will be run only.
 
-## Definition syntax
+## How to define a test file
 
 Tests are defined using three kinds of blocks in the way that every test file
 
-- _shall_ contain _at least one_ `run` block to describe a single testing unit;
+- _shall_ contain _at least one_ `run` block to define a single test;
 - _may_ contain _at most one_ `variables` block to define "global" variables shared by all `runs` defined in a single file;
 - _may_ contain _multiple_ `provider` blocks to configure providers shared used by all `runs` in a single file.
 
 :::info
-Note that if a test file contains several `run` blocks, OpenTofu will execute them sequentially from the top to the bottom of the file.
+Note that if a test file contains several `run` blocks, OpenTofu will execute them sequentially from the top to
+the bottom of the file.
 :::
 
 ### `run` block
 
 <!-- details: /internal/configs/test_file.go:239 decodeTestRunBlock -->
 
-The `run` block defines a single test unit. It specifies the operation which OpenTofu will execute, sets "mocks" to overwrite providers,
-and defines the checks to assess the OpenTofu state after the operation was executed.
+The `run` block defines a _single test_. It specifies the operation which OpenTofu will execute,
+sets mocks for providers,
+and defines the checks to assess the state after the OpenTofu operation was executed.
 
-The following non-mutually exclusive blocks and attributes can be defined within the scope of the `run` block to configure it.
+The following non-mutually exclusive blocks and attributes can be defined within the scope of the `run` block to configure the test.
 
-| Name              | Type   | Multiple allowed | Description                                                                                                                                                                                     |
-|:------------------|:-------|:-----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `assert`          | block  | true             | Defines the test checks and assertion message. It is the key configuration to assess the OpenTofu configuration behavior against a user defined reference.                                      |
-| `variables`       | block  | false            | Defines "local" `run` variables (see [details](/docs/language/expressions/types/#mapsobjects)).                                                                                                 |
-| `module`          | block  | false            | Defines module to use during the execution of a given `run` block.                                                             |
-| `command`         | string | false            | Defines which command will be executed in the scope of the `run` block, _plan_ or _apply_. Defaults to _apply_.                                                                                 |
-| `plan_options`    | block  | false            | Defines the of `tofu plan` execution options.                                                                                                                                                   |
-| `providers`       | object | false            | Used to "mock" providers.                                                                                                                                                                       |
-| `expect_failures` | list   | false            | Defines a list of resources, or values for which the test `run` is expected to fail.                                                                                                            |
+| Name              | Type   | Multiple allowed | Description                                                                                                                          |
+|:------------------|:-------|:-----------------|:-------------------------------------------------------------------------------------------------------------------------------------|
+| `assert`          | block  | true             | Defines the state assessment criteria and the assertion message.                                                                     |
+| `expect_failures` | list   | false            | Defines the check for "unhappy path" by listing resources and values which are expected to fail as the result of OpenTofu operation. |
+| `variables`       | block  | false            | Defines "local" variables as [key-value pairs](/docs/language/expressions/types/#mapsobjects).                                       |
+| `command`         | string | false            | Defines the command which OpenTofu will execute, _plan_ or _apply_. Defaults to _apply_.                                             |
+| `plan_options`    | block  | false            | Defines options for the _plan_ operation.                                                                                            |
+| `module`          | block  | false            | Defines module used at execution of the OpenTofu operation.                                                                          |
+| `providers`       | object | false            | Defines aliases to mock providers.                                                                                                   |
 
 Find below detailed description of every listed attribute.
 
 ### `run.assert`
 
-The `assert` block
+The `assert` block is the key configuration which defines how to assess OpenTofu configuration behavior against
+a reference using two required attributes:
 
-It requires two attributes:
-
-- `condition`: assertion criteria as a boolean expression.
+- `condition`: check [condition](https://opentofu.org/docs/language/expressions/custom-conditions#condition-expressions)
+as a boolean expression.
 - `error_message`: assertion message which will be printed if the test fails.
 
 ```hcl
@@ -190,11 +204,15 @@ run "test" {
 ```
 
 :::info
-Note that if you would combine several assertions in a single `run` and some of them fail, the total numer of failed tests will be reported as 1.
-The opposite is also true, 1 will be reported if all assertion checks are successful.
+If several assertions are present in a single `run`, they will be run sequentially, and if some of them fail,
+the total numer of failed tests will be reported as 1.
+The opposite is also true, 1 successful test will be reported if all checks are successful.
 :::
 
 ### `run.module`
+
+The `module` block defines a module used during the execution of the OpenTofu operation within the scope of the test.
+It is useful for mocking providers required by the tested OpenTofu configuration.
 
 The `module` block is defined by two attributes:
 
@@ -240,7 +258,8 @@ run "unhappy-path" {
     input0 = "faulty-input"
   }
   expect_failures = [
-    # we expect the module to validate the input
+    # we expect the module to validate the input,
+    # and the validation to fail given the wrong input value defined in the variables block
     input.input0,
   ]
 }
@@ -251,6 +270,7 @@ run "unhappy-path" {
 <!-- details: /internal/command/testing/test_provider.go -->
 
 The `provier` block defines a single provider shared by all tests defined in a single test file.
+
 It is defined by the following attributes.
 
 | Name            | Type   | Description                                                                                          |
@@ -265,11 +285,13 @@ Tests can be defined using variables specified in several ways.
 
 The variables will be loaded in the following order, with later sources taking precedence over earlier ones:
 
-1. Environment variables with the prefix `TF_VAR_`;
-2. tfvar files specified: `terraform.tfvars` and `*.auto.tfvars`;
-3. Commandline variables defined using the flag `-var`, and the variables defined in the files specified by the flag `-var-file`;
-4. _Global_ variables from the `variables` block in test file;
-5. _Local_ variables from the `variables` block in `run` block.
+| Order  | Source                                                                                                                         | Scope            |
+|:------:|:-------------------------------------------------------------------------------------------------------------------------------|:-----------------|
+|   1    | Environment variables with the prefix `TF_VAR_`;                                                                               | All test files   |
+|   2    | tfvar files specified: `terraform.tfvars` and `*.auto.tfvars`;                                                                 | All test files   |
+|   3    | Commandline variables defined using the flag `-var`, and the variables defined in the files specified by the flag `-var-file`; | All test files   |
+|   4    | The variables from the `variables` block in a test file.                                                                       | Single test file |
+|   5    | The variables from the `variables` block in `run` block.                                                                       | Single test      |
 
 :::info
 The variable value defined by the flags `-var` and `-var-file` will depend on their order: the latest found value will be used.
@@ -278,7 +300,3 @@ For example, **given** that the file `test.tfvars` contains the value `my_var="b
 **when** `tofu test -var=my_var="foo" -var-file=test.tfvars -var=my_var="qux"` is executed,
 **then** the variable `my_var` will be assigned the value `"qux"`.
 :::
-
-## Definition examples
-
-TBD
