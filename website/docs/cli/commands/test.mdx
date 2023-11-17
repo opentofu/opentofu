@@ -144,21 +144,28 @@ Note that if a test file contains several `run` blocks, OpenTofu will execute th
 
 <!-- details: /internal/configs/test_file.go:239 decodeTestRunBlock -->
 
-The following non-mutually exclusive blocks and attributes can be defined within the scope of a single `run` block.
+The `run` block defines a single test unit. It specifies the operation which OpenTofu will execute, sets "mocks" to overwrite providers,
+and defines the checks to assess the OpenTofu state after the operation was executed.
 
-| Name              | Type   | Multiple allowed | Description                                                                                                                                            |
-|:------------------|:-------|:-----------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `assert`          | block  | true             | Defines test checks criteria.                                                                                                                          |
-| `variables`       | block  | false            | Defines "local" variables (see [details](/docs/language/expressions/types/#mapsobjects)) which will be used within the scope of the parent `run` only. |
-| `module`          | block  | false            | Defines module to use for the tests defined in the current `*.tftest.hcl` file.                                                                        |
-| `command`         | string | false            | Defines which command will be executed in the scope of the `run` block, _plan_ or _apply_. Defaults to _apply_.                                        |
-| `plan_options`    | block  | false            | Defines the of `tofu plan` execution options.                                                                                                          |
-| `providers`       | object | false            | Used to "mock" providers.                                                                                                                              |
-| `expect_failures` | list   | false            | Defines a list of resources, or values for which the test `run` is expected to fail.                                                                   |
+The following non-mutually exclusive blocks and attributes can be defined within the scope of the `run` block to configure it.
+
+| Name              | Type   | Multiple allowed | Description                                                                                                                                                                                     |
+|:------------------|:-------|:-----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `assert`          | block  | true             | Defines the test checks and assertion message. It is the key configuration to assess the OpenTofu configuration behavior against a user defined reference.                                      |
+| `variables`       | block  | false            | Defines "local" `run` variables (see [details](/docs/language/expressions/types/#mapsobjects)).                                                                                                 |
+| `module`          | block  | false            | Defines module to use during the execution of a given `run` block.                                                             |
+| `command`         | string | false            | Defines which command will be executed in the scope of the `run` block, _plan_ or _apply_. Defaults to _apply_.                                                                                 |
+| `plan_options`    | block  | false            | Defines the of `tofu plan` execution options.                                                                                                                                                   |
+| `providers`       | object | false            | Used to "mock" providers.                                                                                                                                                                       |
+| `expect_failures` | list   | false            | Defines a list of resources, or values for which the test `run` is expected to fail.                                                                                                            |
+
+Find below detailed description of every listed attribute.
 
 ### `run.assert`
 
-The `assert` block requires two attributes:
+The `assert` block
+
+It requires two attributes:
 
 - `condition`: assertion criteria as a boolean expression.
 - `error_message`: assertion message which will be printed if the test fails.
@@ -183,8 +190,8 @@ run "test" {
 ```
 
 :::info
-Note that if you would combine several assertions in a single `run` and some of them failed, the total numer of failed tests will be reported as 1.
-The opposite is also true, 1 will be reported if all checks are successful.
+Note that if you would combine several assertions in a single `run` and some of them fail, the total numer of failed tests will be reported as 1.
+The opposite is also true, 1 will be reported if all assertion checks are successful.
 :::
 
 ### `run.module`
@@ -204,15 +211,16 @@ run "setup-module" {
 
 ### `run.plan_options`
 
-The `plan_options` block is defined by the following optional attributes.
+The `plan_options` block can be used to defined how OpenTofu will execute the `plan` command during the test.
 
-| Name    | Type   | Default | Description                                                           |
-|:--------|:-------|:--------|:----------------------------------------------------------------------|
-| mode    | string | normal  | The planning mode to run. Allowed values: _normal_ or _refresh-only_. |
-| refresh | bool   | true    | Analog to `tofu plan -refresh`.                                       |
-| replace | list   | null    | Analog to `tofu plan -refresh=ADDRESS`.                               |
-| target  | list   | null    | Analog to `tofu plan -target=ADDRESS`.                                |
+It can be configured by the following optional attributes.
 
+| Name    | Type   | Default  | Description                                                            |
+|:--------|:-------|:---------|:-----------------------------------------------------------------------|
+| mode    | string | "normal" | The planning mode to run. Allowed values: _normal_ or _refresh-only_.  |
+| refresh | bool   | true     | Analog to `tofu plan -refresh`.                                        |
+| replace | list   | null     | Analog to `tofu plan -refresh=ADDRESS`.                                |
+| target  | list   | null     | Analog to `tofu plan -target=ADDRESS`.                                 |
 
 :::warning
 If the `mode` is set to _refresh-only_, the `refresh` parameter cannot be set to _false_.
@@ -224,7 +232,7 @@ The `providers` object allows to mock providers for execution of the `run`.
 
 ### `run.expect_failures`
 
-The `expect_failures` lists the resources, or variable which are expected to fail during the test.
+The `expect_failures` attribute lists the resources, or variable which are expected to fail during the test. It
 
 ```hcl
 run "unhappy-path" {
@@ -245,11 +253,11 @@ run "unhappy-path" {
 The `provier` block defines a single provider shared by all tests defined in a single test file.
 It is defined by the following attributes.
 
-| Name            | Type   | Description                                                          |
-|:----------------|:-------|:---------------------------------------------------------------------|
-| alias           | string | The provider's alies within the scope of a given test file.          |
-| resource_prefix | string | The OpenTofu configuration tag word used to recognize a resource.    |
-| data_prefix     | string | The OpenTofu configuration tag word used to recognize a data source. |
+| Name            | Type   | Description                                                                                          |
+|:----------------|:-------|:-----------------------------------------------------------------------------------------------------|
+| alias           | string | The provider's alies within the scope of a given test file.                                          |
+| resource_prefix | string | The OpenTofu configuration tag word used to recognize a [resource](docs/language/resources/syntax/). |
+| data_prefix     | string | The OpenTofu configuration tag word used to recognize a [data source](/docs/language/data-sources/). |
 
 ## Variables
 
