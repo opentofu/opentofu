@@ -83,6 +83,11 @@ var testMods = map[string][]testMod{
 		location: "file:///registry/exists",
 		version:  "0.2.0",
 	}},
+	// mock a module for which the response will be compliant with the OpenTofu alpha registry protocol
+	"alpha/identifier/provider": {{
+		location: "file:///registry/exists",
+		version:  "0.2.0",
+	}},
 	"relative/foo/bar": {{ // There is an exception for the "relative/" prefix in the test registry server
 		location: "/relative-path",
 		version:  "0.2.0",
@@ -167,9 +172,22 @@ func mockRegHandler() http.Handler {
 			location = fmt.Sprintf("file://%s/%s", wd, location)
 		}
 
-		w.Header().Set("X-Terraform-Get", location)
-		w.WriteHeader(http.StatusNoContent)
-		// no body
+		switch strings.HasPrefix(matches[0], "alpha/") {
+
+		// the response follows the alpha registry protocol
+		case true:
+			w.Header().Set("X-Terraform-Get", location)
+			w.WriteHeader(http.StatusNoContent)
+
+		// the response follows the stable registry protocol
+		default:
+			w.WriteHeader(http.StatusOK)
+			o, err := json.Marshal(response.ModuleLocationRegistryResp{Location: location})
+			if err != nil {
+				fmt.Printf("mock error: %v", err)
+			}
+			_, _ = w.Write(o)
+		}
 	}
 
 	moduleVersions := func(w http.ResponseWriter, r *http.Request) {
