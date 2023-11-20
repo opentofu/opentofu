@@ -184,7 +184,7 @@ func mockRegHandler() http.Handler {
 			w.WriteHeader(http.StatusOK)
 			o, err := json.Marshal(response.ModuleLocationRegistryResp{Location: location})
 			if err != nil {
-				fmt.Printf("mock error: %v", err)
+				panic("mock error: " + err.Error())
 			}
 			_, _ = w.Write(o)
 		}
