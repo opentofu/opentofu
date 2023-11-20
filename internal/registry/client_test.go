@@ -5,6 +5,8 @@ package registry
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -369,4 +371,152 @@ func TestLookupModuleNetworkError(t *testing.T) {
 	if !strings.Contains(err.Error(), "the request failed after 2 attempts, please try again later") {
 		t.Fatal("unexpected error, got:", err)
 	}
+}
+
+func TestModuleLocation(t *testing.T) {
+	server := test.Registry()
+	defer server.Close()
+
+	client := NewClient(test.Disco(server), nil)
+
+	cases := map[string]struct {
+		src          string
+		wantErrorStr string
+	}{
+		"shall find the module relying on the OpenTofu registry protocol": {
+			src: "exists-in-registry/identifier/provider",
+		},
+		"shall find the module relying on fallback - OpenTofu alpha registry protocol": {
+			src: "alpha/identifier/provider",
+		},
+		"shall fail to find the module": {
+			src: "not-exist/identifier/provider",
+			// note that the version is fixed on the mock
+			// see: /internal/registry/test/mock_registry.go:testMods
+			wantErrorStr: `module "not-exist/identifier/provider" version 0.2.0: not found`,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mod, err := regsrc.ParseModuleSource(tc.src)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = client.ModuleLocation(context.Background(), mod, "0.2.0")
+			if err != nil && tc.wantErrorStr == "" {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err != nil && err.Error() != tc.wantErrorStr {
+				t.Fatalf("unexpected error content: want=%s, got=%v", tc.wantErrorStr, err)
+			}
+		})
+	}
+}
+
+func Test_readModuleLocation(t *testing.T) {
+	newHeader := func(m map[string]string) http.Header {
+		o := http.Header{}
+		for k, v := range m {
+			o.Set(k, v)
+		}
+		return o
+	}
+
+	cases := map[string]struct {
+		arg          *http.Response
+		want         string
+		wantErrorStr string
+	}{
+		"shall return location from the response body - OpenTofu stable registry protocol": {
+			arg: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"location":"git::https://github.com/foo/terraform-bar-baz?ref=v0.0.1"}`)),
+			},
+			want: "git::https://github.com/foo/terraform-bar-baz?ref=v0.0.1",
+		},
+		"shall return location from the header - OpenTofu alpha registry protocol": {
+			arg: &http.Response{
+				StatusCode: http.StatusNoContent,
+				Header: newHeader(map[string]string{
+					xTerraformGet: "git::https://github.com/foo/terraform-bar-baz?ref=v0.0.1",
+				}),
+				Body: http.NoBody,
+			},
+			want: "git::https://github.com/foo/terraform-bar-baz?ref=v0.0.1",
+		},
+		"shall fail to read response body": {
+			arg: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       mockReadCloser{err: errors.New("foo")},
+			},
+			wantErrorStr: "error reading response body from registry: foo",
+		},
+		"shall fail to deserialize JSON": {
+			arg: &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("{")),
+			},
+			wantErrorStr: "error deserializing {: unexpected end of JSON input",
+		},
+		"shall fail because no version found": {
+			arg: &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       http.NoBody,
+			},
+			wantErrorStr: "not found",
+		},
+		"shall fail - 500 status code": {
+			arg: &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Status:     "foo",
+				Body:       io.NopCloser(strings.NewReader("some server error")),
+			},
+			wantErrorStr: "error getting download location: foo resp:some server error",
+		},
+		"shall fail because no location was found neither in body, nor in header": {
+			arg: &http.Response{
+				StatusCode: http.StatusOK,
+				Status:     "foo",
+				Body:       io.NopCloser(strings.NewReader("{}")),
+			},
+			wantErrorStr: "failed to get download URL: foo resp:{}",
+		},
+	}
+
+	t.Parallel()
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := readModuleLocation(tc.arg)
+			if err != nil && tc.wantErrorStr == "" {
+				t.Fatalf("readModuleLocation() unexpected error")
+			}
+			if err != nil && err.Error() != tc.wantErrorStr {
+				t.Fatalf("readModuleLocation() error = %v, wantErrorStr %s", err, tc.wantErrorStr)
+			}
+			if got != tc.want {
+				t.Errorf("readModuleLocation() got = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+type mockReadCloser struct {
+	err error
+	v   []byte
+}
+
+func (m mockReadCloser) Read(p []byte) (n int, err error) {
+	if m.err != nil {
+		return 0, m.err
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+	return copy(p, m.v), nil
+}
+
+func (m mockReadCloser) Close() error {
+	return m.err
 }

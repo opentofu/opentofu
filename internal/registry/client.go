@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/version"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -225,28 +226,10 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
-	// there should be no body, but save it for logging
-	body, err := io.ReadAll(resp.Body)
+	location, err := readModuleLocation(resp)
 	if err != nil {
-		return "", fmt.Errorf("error reading response body from registry: %w", err)
-	}
-
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusNoContent:
-		// OK
-	case http.StatusNotFound:
-		return "", fmt.Errorf("module %q version %q not found", module, version)
-	default:
-		// anything else is an error:
-		return "", fmt.Errorf("error getting download location for %q: %s resp:%s", module, resp.Status, body)
-	}
-
-	// the download location is in the X-Terraform-Get header
-	location := resp.Header.Get(xTerraformGet)
-	if location == "" {
-		return "", fmt.Errorf("failed to get download URL for %q: %s resp:%s", module, resp.Status, body)
+		return "", errors.Wrapf(err, "module %q version %s", module, version)
 	}
 
 	// If location looks like it's trying to be a relative URL, treat it as
@@ -267,6 +250,45 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 		}
 		locationURL = download.ResolveReference(locationURL)
 		location = locationURL.String()
+	}
+
+	return location, nil
+}
+
+func readModuleLocation(resp *http.Response) (string, error) {
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body from registry: %w", err)
+	}
+
+	var location string
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var v response.ModuleLocationRegistryResp
+
+		if err := json.Unmarshal(body, &v); err != nil {
+			return "", fmt.Errorf("error deserializing %s: %v", body, err)
+		}
+
+		// overwrite with the value from the response body
+		location = v.Location
+
+	// FALLBACK: set the found location from the header
+	case http.StatusNoContent:
+		location = resp.Header.Get(xTerraformGet)
+
+	case http.StatusNotFound:
+		return "", fmt.Errorf("not found")
+
+	default:
+		return "", fmt.Errorf("error getting download location: %s resp:%s", resp.Status, body)
+	}
+
+	if location == "" {
+		return "", fmt.Errorf("failed to get download URL: %s resp:%s", resp.Status, body)
 	}
 
 	return location, nil
