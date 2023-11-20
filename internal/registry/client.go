@@ -25,7 +25,6 @@ import (
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/version"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -229,7 +228,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 
 	location, err := readModuleLocation(resp)
 	if err != nil {
-		return "", errors.Wrapf(err, "module %q version %s", module, version)
+		return "", fmt.Errorf("module %q version %s: %w", module, version, err)
 	}
 
 	// If location looks like it's trying to be a relative URL, treat it as
