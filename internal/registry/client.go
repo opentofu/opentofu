@@ -269,7 +269,7 @@ func readModuleLocation(resp *http.Response) (string, error) {
 		var v response.ModuleLocationRegistryResp
 
 		if err := json.Unmarshal(body, &v); err != nil {
-			return "", fmt.Errorf("error deserializing %s: %v", body, err)
+			return "", fmt.Errorf("error deserializing %s: %w", body, err)
 		}
 
 		location = v.Location
