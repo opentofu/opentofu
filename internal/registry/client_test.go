@@ -391,7 +391,7 @@ func TestModuleLocation(t *testing.T) {
 		},
 		"shall fail to find the module": {
 			src: "not-exist/identifier/provider",
-			// note that the version is fixed on the mock
+			// note that the version is fixed in the mock
 			// see: /internal/registry/test/mock_registry.go:testMods
 			wantErrorStr: `module "not-exist/identifier/provider" version 0.2.0: not found`,
 		},

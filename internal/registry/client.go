@@ -273,7 +273,6 @@ func readModuleLocation(resp *http.Response) (string, error) {
 			return "", fmt.Errorf("error deserializing %s: %v", body, err)
 		}
 
-		// overwrite with the value from the response body
 		location = v.Location
 
 	// FALLBACK: set the found location from the header
