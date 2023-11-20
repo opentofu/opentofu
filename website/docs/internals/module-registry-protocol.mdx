@@ -197,19 +197,32 @@ $ curl -i 'https://registry.example.io/v1/modules/hashicorp/consul/aws/0.0.1/dow
 ### Sample Response
 
 ```text
-HTTP/1.1 204 No Content
-Content-Length: 0
-X-Terraform-Get: https://api.github.com/repos/hashicorp/terraform-aws-consul/tarball/v0.0.1//*?archive=tar.gz
+HTTP/2 200
+Content-Length: 81
+
+{"location": "git::https://github.com/hashicorp/terraform-aws-consul?ref=v0.0.1"}
 ```
 
-A successful response has no body, and includes the location from which the
-module version's source can be downloaded in the `X-Terraform-Get` header.
-The value of this header accepts the same values as the `source` argument
+A successful response contains the location from which the module version's source can be downloaded in the
+JSON encoded payload with the key `location`.
+
+This value accepts the same values as the `source` argument
 in a `module` block in OpenTofu configuration, as described in
 [Module Sources](/docs/language/modules/sources),
 except that it may not recursively refer to another module registry address.
 
-The value of `X-Terraform-Get` may instead be a relative URL, indicated by
+The value of the module location may instead be a relative URL, indicated by
 beginning with `/`, `./` or `../`, in which case it is resolved relative to
 the full URL of the download endpoint to produce
 [an HTTP URL module source](/docs/language/modules/sources#http-urls).
+
+:::info
+
+OpenTofu recognises the legacy protocol when the response has no body, and includes the location in the `X-Terraform-Get` header:
+
+```text
+HTTP/2 204 No Content
+Content-Length: 0
+X-Terraform-Get: git::https://github.com/hashicorp/terraform-aws-consul?ref=v0.0.1
+```
+:::
