@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"reflect"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -786,8 +788,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			oldEnv := servicemocks.StashEnv()
-			defer servicemocks.PopEnv(oldEnv)
+			servicemocks.StashEnv(t)
 
 			b := New()
 
@@ -826,8 +827,7 @@ func TestBackendConfig_PrepareConfigValidationWarnings(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			oldEnv := servicemocks.StashEnv()
-			defer servicemocks.PopEnv(oldEnv)
+			servicemocks.StashEnv(t)
 
 			b := New()
 
@@ -890,8 +890,7 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			oldEnv := servicemocks.StashEnv()
-			defer servicemocks.PopEnv(oldEnv)
+			servicemocks.StashEnv(t)
 
 			b := New()
 
@@ -911,6 +910,176 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 				}
 			} else if valDiags.Err() != nil {
 				t.Fatalf("expected no error, got %s", valDiags.Err())
+			}
+		})
+	}
+}
+
+// TestBackendConfig_proxy tests proxy configuration
+func TestBackendConfig_proxy(t *testing.T) {
+	testACC(t)
+
+	newURL := func(rawURL string) *url.URL {
+		o, err := url.Parse(rawURL)
+		if err != nil {
+			panic(err)
+		}
+		return o
+	}
+
+	cases := map[string]struct {
+		config       cty.Value
+		calledURL    string
+		envVars      map[string]string
+		wantProxyURL *url.URL
+
+		// wantErrSubstr contains the part indicating proxy address
+		wantErrSubstr string
+	}{
+		"shall set proxy using http_proxy config attr": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":     cty.StringVal("test"),
+				"key":        cty.StringVal("test"),
+				"http_proxy": cty.StringVal("http://foo.bar"),
+			}),
+			calledURL:    "http://qux.quxx",
+			wantProxyURL: newURL("http://foo.bar"),
+		},
+		"shall set proxy using HTTP_PROXY envvar": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket": cty.StringVal("test"),
+				"key":    cty.StringVal("test"),
+			}),
+			envVars: map[string]string{
+				"HTTP_PROXY": "http://foo.com",
+			},
+			calledURL:    "http://qux.quxx",
+			wantProxyURL: newURL("http://foo.com"),
+		},
+		"shall set proxy using http_proxy config attr when HTTP_PROXY envvar is also set": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":     cty.StringVal("test"),
+				"key":        cty.StringVal("test"),
+				"http_proxy": cty.StringVal("http://foo.bar"),
+			}),
+			envVars: map[string]string{
+				"HTTP_PROXY": "http://foo.com",
+			},
+			calledURL:    "http://qux.quxx",
+			wantProxyURL: newURL("http://foo.bar"),
+		},
+		"shall set proxy using https_proxy config attr": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":      cty.StringVal("test"),
+				"key":         cty.StringVal("test"),
+				"https_proxy": cty.StringVal("https://foo.bar"),
+			}),
+			calledURL:     "https://qux.quxx",
+			wantErrSubstr: "proxyconnect tcp: dial tcp: lookup foo.bar",
+		},
+		"shall set proxy using HTTPS_PROXY envvar": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket": cty.StringVal("test"),
+				"key":    cty.StringVal("test"),
+			}),
+			envVars: map[string]string{
+				"HTTPS_PROXY": "https://foo.baz",
+			},
+			calledURL:     "https://qux.quxx",
+			wantErrSubstr: "proxyconnect tcp: dial tcp: lookup foo.baz",
+		},
+		"shall set proxy using https_proxy config attr when HTTPS_PROXY envvar is also set": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":      cty.StringVal("test"),
+				"key":         cty.StringVal("test"),
+				"https_proxy": cty.StringVal("https://foo.bar"),
+			}),
+			envVars: map[string]string{
+				"HTTPS_PROXY": "https://foo.com",
+			},
+			calledURL:     "https://qux.quxx",
+			wantErrSubstr: "proxyconnect tcp: dial tcp: lookup foo.bar",
+		},
+		"shall satisfy no_proxy config attr": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":   cty.StringVal("test"),
+				"key":      cty.StringVal("test"),
+				"no_proxy": cty.StringVal("http://foo.bar,1.2.3.4"),
+			}),
+			calledURL: "http://foo.bar",
+		},
+		"shall satisfy no proxy set using NO_PROXY envvar": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket": cty.StringVal("test"),
+				"key":    cty.StringVal("test"),
+			}),
+			envVars: map[string]string{
+				"NO_PROXY": "http://foo.bar,1.2.3.4",
+			},
+			calledURL: "http://foo.bar",
+		},
+		"shall satisfy no_proxy config attr when envvar NO_PROXY is also set": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":   cty.StringVal("test"),
+				"key":      cty.StringVal("test"),
+				"no_proxy": cty.StringVal("http://foo.qux,1.2.3.4"),
+			}),
+			envVars: map[string]string{
+				"NO_PROXY": "http://foo.bar",
+			},
+			calledURL: "http://foo.qux",
+		},
+		"shall satisfy use http_proxy when no_proxy is also set to identical value": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":     cty.StringVal("test"),
+				"key":        cty.StringVal("test"),
+				"http_proxy": cty.StringVal("http://foo.bar"),
+				"no_proxy":   cty.StringVal("http://foo.bar"),
+			}),
+			calledURL:    "http://qux.quxx",
+			wantProxyURL: newURL("http://foo.bar"),
+		},
+		"shall satisfy use https_proxy when no_proxy is also set to identical value": {
+			config: cty.ObjectVal(map[string]cty.Value{
+				"bucket":      cty.StringVal("test"),
+				"key":         cty.StringVal("test"),
+				"https_proxy": cty.StringVal("https://foo.bar"),
+				"no_proxy":    cty.StringVal("http://foo.bar"),
+			}),
+			calledURL:     "https://qux.quxx",
+			wantErrSubstr: "proxyconnect tcp: dial tcp: lookup foo.bar",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range tc.envVars {
+				t.Setenv(k, v)
+			}
+
+			b := New()
+
+			got := b.Configure(populateSchema(t, b.ConfigSchema(), tc.config))
+			if got.HasErrors() != (tc.wantErrSubstr != "") {
+				t.Fatalf("unexpected error: %v", got.Err())
+			}
+
+			switch got.HasErrors() {
+			case true:
+				if !strings.Contains(got.Err().Error(), tc.wantErrSubstr) {
+					t.Fatalf("unexpected error: want= %s, got= %s", tc.wantErrSubstr, got.Err().Error())
+				}
+			case false:
+				gotProxyURL, err := b.(*Backend).awsConfig.HTTPClient.(*awshttp.BuildableClient).GetTransport().Proxy(&http.Request{
+					URL: newURL(tc.calledURL),
+				})
+				if err != nil {
+					t.Fatalf("unexpected err: %v", err)
+				}
+
+				if !reflect.DeepEqual(gotProxyURL, tc.wantProxyURL) {
+					t.Fatalf("unexpected proxy URL: want= %s, got= %s", tc.wantProxyURL, gotProxyURL)
+				}
 			}
 		})
 	}

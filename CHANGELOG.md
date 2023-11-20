@@ -71,6 +71,8 @@ S3 BACKEND:
 * Adds support for customizing the AWS API endpoints. ([#775](https://github.com/opentofu/opentofu/issues/775))
 * Adds support for the `skip_requesting_account_id` attribute. ([#774](https://github.com/opentofu/opentofu/issues/774))
 * Adds support for the `skip_s3_checksum` argument to allow users to disable checksum on S3 uploads for compatibility with non AWS "S3-compatible" APIs. ([#778](https://github.com/opentofu/opentofu/issues/778))
+* Adds support for the `https_proxy` attribute to allow users to use proxy when accessing the AWS API. It can be also sourced from the `HTTPS_PROXY` environment variable. ([#675](https://github.com/opentofu/opentofu/issues/675))
+* Adds support for the `no_proxy` attribute to allow users to specify hosts that should be excluded from proxying when accessing the AWS API. This can also be sourced from the `NO_PROXY` environment variable. ([#675](https://github.com/opentofu/opentofu/issues/675))
 * `tofu init`: Fixed subsequent runs for s3 backend ([#820](https://github.com/opentofu/opentofu/issues/820)).
 * S3 backend endpoints without proto:// default to https:// instead of failing ([#821](https://github.com/opentofu/opentofu/issues/821))
 * Most S3 compatible remote state backends should now work without checksum errors / 400s ([#821](https://github.com/opentofu/opentofu/issues/821))

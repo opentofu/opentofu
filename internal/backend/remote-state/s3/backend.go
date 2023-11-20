@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
+	awsbaseValidation "github.com/hashicorp/aws-sdk-go-base/v2/validation"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -421,6 +422,17 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "The address of an HTTP proxy to use when accessing the AWS API.",
 			},
+			"https_proxy": {
+				Type:        cty.String,
+				Optional:    true,
+				Description: "The address of an HTTPS proxy to use when accessing the AWS API.",
+			},
+			"no_proxy": {
+				Type:     cty.String,
+				Optional: true,
+				Description: `Comma-separated values which specify hosts that should be excluded from proxying.
+See details: https://cs.opensource.google/go/x/net/+/refs/tags/v0.17.0:http/httpproxy/proxy.go;l=38-50.`,
+			},
 			"insecure": {
 				Type:        cty.Bool,
 				Optional:    true,
@@ -641,7 +653,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	if region != "" && !boolAttr(obj, "skip_region_validation") {
-		if err := awsbase.ValidateRegion(region); err != nil {
+		if err := awsbaseValidation.SupportedRegion(region); err != nil {
 			diags = diags.Append(tfdiags.AttributeValue(
 				tfdiags.Error,
 				"Invalid region value",
@@ -716,10 +728,16 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		StsEndpoint:             customEndpoints["sts"].String(obj),
 		StsRegion:               stringAttr(obj, "sts_region"),
 		Token:                   stringAttr(obj, "token"),
-		HTTPProxy:               stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY", "HTTPS_PROXY"),
-		Insecure:                boolAttr(obj, "insecure"),
-		UseDualStackEndpoint:    boolAttr(obj, "use_dualstack_endpoint"),
-		UseFIPSEndpoint:         boolAttr(obj, "use_fips_endpoint"),
+
+		// Note: we don't need to read env variables explicitly because they are read implicitly by aws-sdk-base-go:
+		// see: https://github.com/hashicorp/aws-sdk-go-base/blob/v2.0.0-beta.41/internal/config/config.go#L133
+		// which relies on: https://cs.opensource.google/go/x/net/+/refs/tags/v0.18.0:http/httpproxy/proxy.go;l=89-96
+		HTTPProxy:            aws.String(stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY")),
+		HTTPSProxy:           aws.String(stringAttrDefaultEnvVar(obj, "https_proxy", "HTTPS_PROXY")),
+		NoProxy:              stringAttrDefaultEnvVar(obj, "no_proxy", "NO_PROXY"),
+		Insecure:             boolAttr(obj, "insecure"),
+		UseDualStackEndpoint: boolAttr(obj, "use_dualstack_endpoint"),
+		UseFIPSEndpoint:      boolAttr(obj, "use_fips_endpoint"),
 		UserAgent: awsbase.UserAgentProducts{
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},

@@ -962,10 +962,18 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 		states = append(states, state)
 	}
 
-	slices.SortFunc(states, func(a, b *TestFileState) bool {
+	slices.SortFunc(states, func(a, b *TestFileState) int {
 		// We want to clean up later run blocks first. So, we'll sort this in
 		// reverse according to index. This means larger indices first.
-		return a.Run.Index > b.Run.Index
+		if a.Run.Index == b.Run.Index {
+			return 0
+		}
+
+		const flag = 1
+		if a.Run.Index < b.Run.Index {
+			return -flag
+		}
+		return flag
 	})
 
 	// Then we'll clean up the additional states for custom modules in reverse
