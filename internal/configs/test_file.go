@@ -73,7 +73,7 @@ type TestRun struct {
 
 	// Options contains the embedded plan options that will affect the given
 	// Command. These should map to the options documented here:
-	//   - https://developer.hashicorp.com/terraform/cli/commands/plan#planning-options
+	//   - https://opentofu.org/docs/cli/commands/plan/#planning-options
 	//
 	// Note, that the Variables are a top level concept and not embedded within
 	// the options despite being listed as plan options in the documentation.
