@@ -134,7 +134,7 @@ func TestBlockInternalValidate(t *testing.T) {
 			},
 			[]string{"foo: either Type or NestedType must be defined"},
 		},
-		"attribute with both type and nestedtype": {
+		"attribute with both type and nestedtype should not suppress other validation messages": {
 			&Block{
 				Attributes: map[string]*Attribute{
 					"foo": {
