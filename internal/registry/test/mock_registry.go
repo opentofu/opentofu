@@ -83,11 +83,6 @@ var testMods = map[string][]testMod{
 		location: "file:///registry/exists",
 		version:  "0.2.0",
 	}},
-	// mock a module for which the response will be compliant with the OpenTofu alpha registry protocol
-	"alpha/identifier/provider": {{
-		location: "file:///registry/exists",
-		version:  "0.2.0",
-	}},
 	"relative/foo/bar": {{ // There is an exception for the "relative/" prefix in the test registry server
 		location: "/relative-path",
 		version:  "0.2.0",
@@ -136,7 +131,7 @@ func init() {
 	}
 }
 
-func mockRegHandler() http.Handler {
+func mockRegHandler(config map[uint8]struct{}) http.Handler {
 	mux := http.NewServeMux()
 
 	moduleDownload := func(w http.ResponseWriter, r *http.Request) {
@@ -172,22 +167,26 @@ func mockRegHandler() http.Handler {
 			location = fmt.Sprintf("file://%s/%s", wd, location)
 		}
 
-		switch strings.HasPrefix(matches[0], "alpha/") {
+		// the location will be returned in the response header
+		_, inHeader := config[WithModuleLocationInHeader]
+		// the location will be returned in the response body
+		_, inBody := config[WithModuleLocationInBody]
 
-		// the response follows the alpha registry protocol
-		case true:
+		if inHeader {
 			w.Header().Set("X-Terraform-Get", location)
-			w.WriteHeader(http.StatusNoContent)
+		}
 
-		// the response follows the stable registry protocol
-		default:
+		if inBody {
 			w.WriteHeader(http.StatusOK)
 			o, err := json.Marshal(response.ModuleLocationRegistryResp{Location: location})
 			if err != nil {
 				panic("mock error: " + err.Error())
 			}
 			_, _ = w.Write(o)
+			return
 		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 
 	moduleVersions := func(w http.ResponseWriter, r *http.Request) {
@@ -262,9 +261,29 @@ func mockRegHandler() http.Handler {
 	return mux
 }
 
+const (
+	// WithModuleLocationInBody sets to return the module's location in the response body
+	WithModuleLocationInBody uint8 = iota
+	// WithModuleLocationInHeader sets to return the module's location in the response header
+	WithModuleLocationInHeader
+)
+
 // Registry returns an httptest server that mocks out some registry functionality.
-func Registry() *httptest.Server {
-	return httptest.NewServer(mockRegHandler())
+func Registry(flags ...uint8) *httptest.Server {
+	if len(flags) == 0 {
+		return httptest.NewServer(mockRegHandler(
+			map[uint8]struct{}{
+				// default setting
+				WithModuleLocationInBody: {},
+			},
+		))
+	}
+
+	cfg := map[uint8]struct{}{}
+	for _, flag := range flags {
+		cfg[flag] = struct{}{}
+	}
+	return httptest.NewServer(mockRegHandler(cfg))
 }
 
 // RegistryRetryableErrorsServer returns an httptest server that mocks out the
