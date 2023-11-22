@@ -5,8 +5,11 @@ package registry
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -369,4 +372,183 @@ func TestLookupModuleNetworkError(t *testing.T) {
 	if !strings.Contains(err.Error(), "the request failed after 2 attempts, please try again later") {
 		t.Fatal("unexpected error, got:", err)
 	}
+}
+
+func TestModuleLocation_readRegistryResponse(t *testing.T) {
+	cases := map[string]struct {
+		src                  string
+		httpClient           *http.Client
+		registryFlags        []uint8
+		want                 string
+		wantErrorStr         string
+		wantToReadFromHeader bool
+		wantStatusCode       int
+	}{
+		"shall find the module location in the registry response body": {
+			src:            "exists-in-registry/identifier/provider",
+			want:           "file:///registry/exists",
+			wantStatusCode: http.StatusOK,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{},
+			},
+		},
+		"shall find the module location in the registry response header": {
+			src:                  "exists-in-registry/identifier/provider",
+			registryFlags:        []uint8{test.WithModuleLocationInHeader},
+			want:                 "file:///registry/exists",
+			wantToReadFromHeader: true,
+			wantStatusCode:       http.StatusNoContent,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{},
+			},
+		},
+		"shall read location from the registry response body even if the header with location address is also set": {
+			src:                  "exists-in-registry/identifier/provider",
+			want:                 "file:///registry/exists",
+			wantStatusCode:       http.StatusOK,
+			wantToReadFromHeader: false,
+			registryFlags:        []uint8{test.WithModuleLocationInBody, test.WithModuleLocationInHeader},
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{},
+			},
+		},
+		"shall fail to find the module": {
+			src: "not-exist/identifier/provider",
+			// note that the version is fixed in the mock
+			// see: /internal/registry/test/mock_registry.go:testMods
+			wantErrorStr:   `module "not-exist/identifier/provider" version "0.2.0" not found`,
+			wantStatusCode: http.StatusNotFound,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{},
+			},
+		},
+		"shall fail because of reading response body error": {
+			src:            "foo/bar/baz",
+			wantErrorStr:   "error reading response body from registry: foo",
+			wantStatusCode: http.StatusOK,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{
+					forwardResponse: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       mockErrorReadCloser{err: errors.New("foo")},
+					},
+				},
+			},
+		},
+		"shall fail to deserialize JSON response": {
+			src:            "foo/bar/baz",
+			wantErrorStr:   `module "foo/bar/baz" version "0.2.0" failed to deserialize response body {: unexpected end of JSON input`,
+			wantStatusCode: http.StatusOK,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{
+					forwardResponse: &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader("{")),
+					},
+				},
+			},
+		},
+		"shall fail because of unexpected protocol change - 422 http status": {
+			src:            "foo/bar/baz",
+			wantErrorStr:   `error getting download location for "foo/bar/baz": foo resp:bar`,
+			wantStatusCode: http.StatusUnprocessableEntity,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{
+					forwardResponse: &http.Response{
+						StatusCode: http.StatusUnprocessableEntity,
+						Status:     "foo",
+						Body:       io.NopCloser(strings.NewReader("bar")),
+					},
+				},
+			},
+		},
+		"shall fail because location is not found in the response": {
+			src:            "foo/bar/baz",
+			wantErrorStr:   `failed to get download URL for "foo/bar/baz": OK resp:{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`,
+			wantStatusCode: http.StatusOK,
+			httpClient: &http.Client{
+				Transport: &mockRoundTripper{
+					forwardResponse: &http.Response{
+						StatusCode: http.StatusOK,
+						Status:     "OK",
+						// note that the response emulates a contract change
+						Body: io.NopCloser(strings.NewReader(`{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`)),
+					},
+				},
+			},
+		},
+	}
+
+	t.Parallel()
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			server := test.Registry(tc.registryFlags...)
+			defer server.Close()
+
+			client := NewClient(test.Disco(server), tc.httpClient)
+
+			mod, err := regsrc.ParseModuleSource(tc.src)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := client.ModuleLocation(context.Background(), mod, "0.2.0")
+			if err != nil && tc.wantErrorStr == "" {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err != nil && err.Error() != tc.wantErrorStr {
+				t.Fatalf("unexpected error content: want=%s, got=%v", tc.wantErrorStr, err)
+			}
+			if got != tc.want {
+				t.Fatalf("unexpected location: want=%s, got=%v", tc.want, got)
+			}
+
+			gotStatusCode := tc.httpClient.Transport.(*mockRoundTripper).reverseResponse.StatusCode
+			if tc.wantStatusCode != gotStatusCode {
+				t.Fatalf("unexpected response status code: want=%d, got=%d", tc.wantStatusCode, gotStatusCode)
+			}
+
+			if tc.wantToReadFromHeader {
+				resp := tc.httpClient.Transport.(*mockRoundTripper).reverseResponse
+				if !reflect.DeepEqual(resp.Body, http.NoBody) {
+					t.Fatalf("expected no body")
+				}
+			}
+		})
+	}
+}
+
+type mockRoundTripper struct {
+	// response to return without calling the server
+	// SET TO USE AS A REVERSE PROXY
+	forwardResponse *http.Response
+	// the response from the server will be written here
+	// DO NOT SET
+	reverseResponse *http.Response
+	err             error
+}
+
+func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if m.forwardResponse != nil {
+		m.reverseResponse = m.forwardResponse
+		return m.forwardResponse, nil
+	}
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	m.reverseResponse = resp
+	return resp, err
+}
+
+type mockErrorReadCloser struct {
+	err error
+}
+
+func (m mockErrorReadCloser) Read(_ []byte) (n int, err error) {
+	return 0, m.err
+}
+
+func (m mockErrorReadCloser) Close() error {
+	return m.err
 }

@@ -191,25 +191,37 @@ This endpoint downloads the specified version of a module for a single target sy
 ### Sample Request
 
 ```text
-$ curl -i 'https://registry.example.io/v1/modules/hashicorp/consul/aws/0.0.1/download'
+$ curl -i 'https://registry.example.io/v1/modules/foo/bar/baz/0.0.1/download'
 ```
 
 ### Sample Response
 
+A successful response contains the location from which the module version's source can be downloaded.
+
+It is expected to be found in the JSON encoded body as the value for the key `location`:
+
 ```text
-HTTP/1.1 204 No Content
-Content-Length: 0
-X-Terraform-Get: https://api.github.com/repos/hashicorp/terraform-aws-consul/tarball/v0.0.1//*?archive=tar.gz
+HTTP/2 200
+Content-Length: 81
+
+{"location": "git::https://github.com/foo/terraform-baz-bar?ref=v0.0.1"}
 ```
 
-A successful response has no body, and includes the location from which the
-module version's source can be downloaded in the `X-Terraform-Get` header.
-The value of this header accepts the same values as the `source` argument
-in a `module` block in OpenTofu configuration, as described in
-[Module Sources](/docs/language/modules/sources),
-except that it may not recursively refer to another module registry address.
+In the absence of a response body, OpenTofu will use the `X-Terraform-Get` header as the module location:
 
-The value of `X-Terraform-Get` may instead be a relative URL, indicated by
-beginning with `/`, `./` or `../`, in which case it is resolved relative to
-the full URL of the download endpoint to produce
-[an HTTP URL module source](/docs/language/modules/sources#http-urls).
+```text
+HTTP/2 204 No Content
+Content-Length: 0
+X-Terraform-Get: git::https://github.com/foo/terraform-baz-bar?ref=v0.0.1
+```
+
+:::warning
+OpenTofu will prioritize reading the response body content if both, the body and the `X-Terraform-Get` header, are received from the registry server.
+:::
+
+The module location value accepts the same values as the `source` argument in a
+`module` block in OpenTofu configuration, as described in [Module Sources](/docs/language/modules/sources),
+except that it may not recursively refer to another module registry address.
+The value of the module location may instead be a relative URL, indicated by beginning with `/`, `./` or `../`,
+in which case it is resolved relative to the full URL of the download endpoint to
+produce [an HTTP URL module source](/docs/language/modules/sources#http-urls).
