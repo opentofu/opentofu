@@ -216,7 +216,7 @@ X-Terraform-Get: git::https://github.com/foo/terraform-baz-bar?ref=v0.0.1
 ```
 
 :::warning
-OpenTofu will read the response body content if both, the body and the `X-Terraform-Get` header, are received from the registry server.
+OpenTofu will prioritize reading the response body content if both, the body and the `X-Terraform-Get` header, are received from the registry server.
 :::
 
 The module location value accepts the same values as the `source` argument in a
