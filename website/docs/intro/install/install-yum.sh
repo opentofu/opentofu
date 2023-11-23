@@ -1,1 +1,1 @@
-yum install tofu
+sudo yum install -y tofu
