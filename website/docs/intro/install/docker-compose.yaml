@@ -1,0 +1,84 @@
+# This docker-compose file tests the installation instructions with all operating systems. See #
+# test-install-instructions.sh for details.
+version: '3.2'
+services:
+  debian-convenience:
+    image: debian:buster
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/deb.sh --convenience
+    working_dir: /data
+  debian-manual:
+    image: debian:buster
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/deb.sh
+    working_dir: /data
+  ubuntu-convenience:
+    image: ubuntu:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/deb.sh --convenience
+    working_dir: /data
+  ubuntu-manual:
+    image: ubuntu:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/deb.sh
+    working_dir: /data
+  fedora-convenience:
+    image: fedora:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/rpm.sh --convenience
+    working_dir: /data
+  fedora-manual:
+    image: fedora:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/rpm.sh
+    working_dir: /data
+  opensuse-convenience:
+    image: opensuse/leap:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/rpm.sh --convenience
+    working_dir: /data
+  opensuse-manual:
+    image: opensuse/leap:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/rpm.sh
+    working_dir: /data
+  rockylinux-convenience:
+    image: rockylinux:9
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/rpm.sh --convenience
+    working_dir: /data
+  rockylinux-manual:
+    image: rockylinux:9
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/rpm.sh
+    working_dir: /data

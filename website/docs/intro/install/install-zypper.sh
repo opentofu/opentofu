@@ -1,3 +1,3 @@
 zypper --gpg-auto-import-keys refresh opentofu
 zypper --gpg-auto-import-keys refresh opentofu-source
-zypper install tofu
+zypper install -y tofu
