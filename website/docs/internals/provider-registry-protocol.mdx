@@ -62,10 +62,10 @@ hostname that is under your control.
 
 OpenTofu uses the full address (after normalization to always include a
 hostname) as its global identifier for providers internally, and so it's
-important to note that re-uploading the `hashicorp/azurerm` provider into
+important to note that re-uploading the `examplecorp/azurerm` provider into
 another namespace or publishing it on a different hostname will cause OpenTofu
 to see it as an entirely separate provider that will _not_ be usable by modules
-that declare a dependency on `hashicorp/azurerm`. If your goal is to create
+that declare a dependency on `examplecorp/azurerm`. If your goal is to create
 an alternative local distribution source for an existing provider -- that is,
 a _mirror_ of the provider -- refer to
 [the provider installation method configuration](/docs/cli/config/config-file#provider-installation)
@@ -141,7 +141,7 @@ particular provider.
 ### Sample Request
 
 ```
-curl 'https://registry.example.io/v1/providers/hashicorp/random/versions'
+curl 'https://registry.opentofu.org/v1/providers/examplecorp/random/versions'
 ```
 
 ### Sample Response
@@ -240,7 +240,7 @@ archive containing the plugin itself.
 ### Sample Request
 
 ```
-curl 'https://registry.example.io/v1/providers/hashicorp/random/2.0.0/download/linux/amd64'
+curl 'https://registry.opentofu.org/v1/providers/examplecorp/random/2.0.0/download/linux/amd64'
 ```
 
 ### Sample Response
@@ -261,8 +261,8 @@ curl 'https://registry.example.io/v1/providers/hashicorp/random/2.0.0/download/l
         "key_id": "51852D87348FFC4C",
         "ascii_armor": "-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: GnuPG v1\n\nmQENBFMORM0BCADBRyKO1MhCirazOSVwcfTr1xUxjPvfxD3hjUwHtjsOy/bT6p9f\nW2mRPfwnq2JB5As+paL3UGDsSRDnK9KAxQb0NNF4+eVhr/EJ18s3wwXXDMjpIifq\nfIm2WyH3G+aRLTLPIpscUNKDyxFOUbsmgXAmJ46Re1fn8uKxKRHbfa39aeuEYWFA\n3drdL1WoUngvED7f+RnKBK2G6ZEpO+LDovQk19xGjiMTtPJrjMjZJ3QXqPvx5wca\nKSZLr4lMTuoTI/ZXyZy5bD4tShiZz6KcyX27cD70q2iRcEZ0poLKHyEIDAi3TM5k\nSwbbWBFd5RNPOR0qzrb/0p9ksKK48IIfH2FvABEBAAG0K0hhc2hpQ29ycCBTZWN1\ncml0eSA8c2VjdXJpdHlAaGFzaGljb3JwLmNvbT6JATgEEwECACIFAlMORM0CGwMG\nCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEFGFLYc0j/xMyWIIAIPhcVqiQ59n\nJc07gjUX0SWBJAxEG1lKxfzS4Xp+57h2xxTpdotGQ1fZwsihaIqow337YHQI3q0i\nSqV534Ms+j/tU7X8sq11xFJIeEVG8PASRCwmryUwghFKPlHETQ8jJ+Y8+1asRydi\npsP3B/5Mjhqv/uOK+Vy3zAyIpyDOMtIpOVfjSpCplVRdtSTFWBu9Em7j5I2HMn1w\nsJZnJgXKpybpibGiiTtmnFLOwibmprSu04rsnP4ncdC2XRD4wIjoyA+4PKgX3sCO\nklEzKryWYBmLkJOMDdo52LttP3279s7XrkLEE7ia0fXa2c12EQ0f0DQ1tGUvyVEW\nWmJVccm5bq25AQ0EUw5EzQEIANaPUY04/g7AmYkOMjaCZ6iTp9hB5Rsj/4ee/ln9\nwArzRO9+3eejLWh53FoN1rO+su7tiXJA5YAzVy6tuolrqjM8DBztPxdLBbEi4V+j\n2tK0dATdBQBHEh3OJApO2UBtcjaZBT31zrG9K55D+CrcgIVEHAKY8Cb4kLBkb5wM\nskn+DrASKU0BNIV1qRsxfiUdQHZfSqtp004nrql1lbFMLFEuiY8FZrkkQ9qduixo\nmTT6f34/oiY+Jam3zCK7RDN/OjuWheIPGj/Qbx9JuNiwgX6yRj7OE1tjUx6d8g9y\n0H1fmLJbb3WZZbuuGFnK6qrE3bGeY8+AWaJAZ37wpWh1p0cAEQEAAYkBHwQYAQIA\nCQUCUw5EzQIbDAAKCRBRhS2HNI/8TJntCAClU7TOO/X053eKF1jqNW4A1qpxctVc\nz8eTcY8Om5O4f6a/rfxfNFKn9Qyja/OG1xWNobETy7MiMXYjaa8uUx5iFy6kMVaP\n0BXJ59NLZjMARGw6lVTYDTIvzqqqwLxgliSDfSnqUhubGwvykANPO+93BBx89MRG\nunNoYGXtPlhNFrAsB1VR8+EyKLv2HQtGCPSFBhrjuzH3gxGibNDDdFQLxxuJWepJ\nEK1UbTS4ms0NgZ2Uknqn1WRU1Ki7rE4sTy68iZtWpKQXZEJa0IGnuI2sSINGcXCJ\noEIgXTMyCILo34Fa/C6VCm2WBgz9zZO8/rHIiQm1J5zqz0DrDwKBUM9C\n=LYpS\n-----END PGP PUBLIC KEY BLOCK-----",
         "trust_signature": "",
-        "source": "HashiCorp",
-        "source_url": "https://www.hashicorp.com/security.html"
+        "source": "ExampleCorp",
+        "source_url": "https://www.examplecorp.com/security.html"
       }
     ]
   }

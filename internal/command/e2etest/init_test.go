@@ -20,7 +20,7 @@ import (
 func TestInitProviders(t *testing.T) {
 	t.Parallel()
 
-	// This test reaches out to releases.hashicorp.com to download the
+	// This test reaches out to registry.opentofu.org to download the
 	// template provider, so it can only run if network access is allowed.
 	// We intentionally don't try to stub this here, because there's already
 	// a stubbed version of this in the "command" package and so the goal here
@@ -232,7 +232,7 @@ func TestInitProvidersCustomMethod(t *testing.T) {
 func TestInitProviders_pluginCache(t *testing.T) {
 	t.Parallel()
 
-	// This test reaches out to releases.hashicorp.com to access plugin
+	// This test reaches out to registry.opentofu.org to access plugin
 	// metadata, and download the null plugin, though the template plugin
 	// should come from local cache.
 	skipIfCannotAccessNetwork(t)

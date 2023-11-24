@@ -28,7 +28,7 @@ func TestTerraformProvidersMirrorWithLockFile(t *testing.T) {
 }
 
 func testTerraformProvidersMirror(t *testing.T, fixture string) {
-	// This test reaches out to releases.hashicorp.com to download the
+	// This test reaches out to registry.opentofu.org to download the
 	// template and null providers, so it can only run if network access is
 	// allowed.
 	skipIfCannotAccessNetwork(t)
