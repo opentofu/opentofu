@@ -116,6 +116,13 @@ test-pg: ## Runs tests with local Postgres instance as the backend.
 test-pg-clean: ## Cleans environment after `test-pg`.
 	@ docker rm -f tofu-pg 2> /dev/null
 
+# integration test with Azure as backend
+.PHONY: test-azure
+
+test-azure: ## Directs the developer to follow a runbook describing how to run Azure integration tests.
+	@ echo "To run Azure integration tests, please follow the runbook in internal/backend/remote-state/azure/README.md".
+	@ exit 1 # don't want the user to miss this
+
 .PHONY:
 integration-tests: test-s3 test-pg integration-tests-clean ## Runs all integration tests test.
 
