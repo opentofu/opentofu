@@ -1,7 +1,4 @@
 # Each line is a file pattern followed by one or more owners.
 # More on CODEOWNERS files: https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners
 
-# We currently do not have any specific code owners
-# In the future, we will have a Github team of global code owners of the entire package
-# Later on, we will start splitting up the responsibilities, and packages will be assigned more specific code owners
-# * @opentofu-code-owners
+* @opentofu/core-engineers
