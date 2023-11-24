@@ -106,7 +106,7 @@ Now it's time to get rid of everything we've created.
 
 List all resource groups in your subscription:
 ```bash
-~> az group list --query "[].name"
+~> az group list --subscription <subscription_id> --query "[].name"
 [
   "myResourceGroup",
   "acctestRG-backend-23112414590786-k3nx",
@@ -133,9 +133,9 @@ List ServicePrincipal role assignments in the subscription:
     "condition": null,
     "conditionVersion": null,
     "description": null,
-    "id": "/subscriptions/<subscription_id>/providers/Microsoft.Authorization/roleAssignments/...",
+    "id": "{ASSIGNMENT_ID}",
     "name": "...",
-    "principalId": "{PRINCIPAL_ID}",
+    "principalId": "...",
     "principalType": "ServicePrincipal",
     "resourceGroup": "",
     "roleDefinitionId": "/subscriptions/<subscription_id>/providers/Microsoft.Authorization/roleDefinitions/...",
@@ -148,11 +148,11 @@ List ServicePrincipal role assignments in the subscription:
 
 and for each of those, delete it:
 ```bash
-~> az role assignment delete --subscription <subscription_id> --assignee {PRINCIPAL_ID} --scope "/subscriptions/<subscription_id>"
+~> az role assignment delete --subscription <subscription_id> --id {ASSIGNMENT_ID}
 ```
 
 At this point, double-check that all resource groups are gone:
 ```bash
-~> az group list --query "[].name"
+~> az group list --subscription <subscription_id> --query "[].name"
 []
 ```
