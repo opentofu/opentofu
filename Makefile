@@ -100,20 +100,21 @@ Test requires:
 
 endef
 
-test-pg: test-pg-clean ## Runs tests with local Postgres instance as the backend.
+test-pg: ## Runs tests with local Postgres instance as the backend.
 	@ $(info $(infoTestPg))
+	@ echo "Starting database"
+	@ make test-pg-clean
 	@ docker run --rm -d --name tofu-pg \
         -p $(PG_PORT):5432 \
         -e POSTGRES_PASSWORD=tofu \
         -e POSTGRES_USER=tofu \
-        postgres:14-alpine3.17
-	@ docker exec tofu-pg /bin/bash -c 'until psql -U tofu -c "\q"; do >&2 echo "db is getting ready, waiting"; sleep 1; done'
+        postgres:16-alpine3.17 1> /dev/null
+	@ docker exec tofu-pg /bin/bash -c 'until psql -U tofu -c "\q" 2> /dev/null; do echo "Database is getting ready, waiting"; sleep 1; done'
 	@ DATABASE_URL="postgres://tofu:tofu@localhost:$(PG_PORT)/tofu?sslmode=disable" \
  		TF_PG_TEST=1 go test ./internal/backend/remote-state/pg/...
 
 test-pg-clean: ## Cleans environment after `test-pg`.
-	@ echo "Cleans after test-pg"
-	@ docker rm -f tofu-pg 1> /dev/null
+	@ docker rm -f tofu-pg 2> /dev/null
 
 .PHONY:
 integration-tests: test-s3 test-pg integration-tests-clean ## Runs all integration tests test.
