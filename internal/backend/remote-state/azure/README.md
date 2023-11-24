@@ -98,6 +98,7 @@ Finally, we can run the tests!
 ```bash
 ~> ./azure.test -test.v -test.timeout 99999s
 ```
+The tests should run for around 30 minutes. Enjoy your coffee!
 
 ### Cleanup
 
@@ -148,4 +149,10 @@ List ServicePrincipal role assignments in the subscription:
 and for each of those, delete it:
 ```bash
 ~> az role assignment delete --subscription <subscription_id> --assignee {PRINCIPAL_ID} --scope "/subscriptions/<subscription_id>"
+```
+
+At this point, double-check that all resource groups are gone:
+```bash
+~> az group list --query "[].name"
+[]
 ```
