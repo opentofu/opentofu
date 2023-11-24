@@ -109,7 +109,7 @@ test-pg: test-pg-clean ## Runs tests with local Postgres instance as the backend
         postgres:14-alpine3.17
 	@ docker exec tofu-pg /bin/bash -c 'until psql -U tofu -c "\q"; do >&2 echo "db is getting ready, waiting"; sleep 1; done'
 	@ DATABASE_URL="postgres://tofu:tofu@localhost:$(PG_PORT)/tofu?sslmode=disable" \
- 		TF_PG_TEST=1 TF_ACC=1 go test ./internal/backend/remote-state/pg/...
+ 		TF_PG_TEST=1 go test ./internal/backend/remote-state/pg/...
 
 test-pg-clean: ## Cleans environment after `test-pg`.
 	@ echo "Cleans after test-pg"
