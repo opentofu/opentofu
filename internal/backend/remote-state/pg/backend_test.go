@@ -34,7 +34,7 @@ func testACC(t *testing.T) (connectionURI *url.URL) {
 	}
 	databaseUrl, found := os.LookupEnv("DATABASE_URL")
 	if !found {
-		t.Fatal("pg backend tests requires setting DATABASE_URL")
+		t.Fatal("pg backend tests require setting DATABASE_URL")
 	}
 
 	u, err := url.Parse(databaseUrl)
