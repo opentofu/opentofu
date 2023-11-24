@@ -26,22 +26,22 @@ import (
 //
 // A running Postgres server identified by env variable
 // DATABASE_URL is required for acceptance tests.
-func testACC(t *testing.T) string {
-	skip := os.Getenv("TF_ACC") == ""
+func testACC(t *testing.T) (connectionURI *url.URL) {
+	skip := os.Getenv("TF_ACC") == "" && os.Getenv("TF_PG_TEST") == ""
 	if skip {
-		t.Log("pg backend tests require setting TF_ACC")
+		t.Log("pg backend tests requires setting TF_ACC or TF_PG_TEST")
 		t.Skip()
 	}
 	databaseUrl, found := os.LookupEnv("DATABASE_URL")
 	if !found {
-		databaseUrl = "postgres://localhost/terraform_backend_pg_test?sslmode=disable"
-		os.Setenv("DATABASE_URL", databaseUrl)
+		t.Fatal("pg backend tests require setting DATABASE_URL")
 	}
+
 	u, err := url.Parse(databaseUrl)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return u.Path[1:]
+	return u
 }
 
 func TestBackend_impl(t *testing.T) {
@@ -49,8 +49,15 @@ func TestBackend_impl(t *testing.T) {
 }
 
 func TestBackendConfig(t *testing.T) {
-	databaseName := testACC(t)
-	connStr := getDatabaseUrl()
+	connectionURI := testACC(t)
+	connStr := os.Getenv("DATABASE_URL")
+
+	user := connectionURI.User.Username()
+	password, _ := connectionURI.User.Password()
+	databaseName := connectionURI.Path[1:]
+
+	connectionURIObfuscated := connectionURI
+	connectionURIObfuscated.User = nil
 
 	testCases := []struct {
 		Name                     string
@@ -71,6 +78,8 @@ func TestBackendConfig(t *testing.T) {
 			EnvVars: map[string]string{
 				"PGSSLMODE":  "disable",
 				"PGDATABASE": databaseName,
+				"PGUSER":     user,
+				"PGPASSWORD": password,
 			},
 			Config: map[string]interface{}{
 				"schema_name": fmt.Sprintf("terraform_%s", t.Name()),
@@ -92,10 +101,10 @@ func TestBackendConfig(t *testing.T) {
 				"PGPASSWORD": "badpassword",
 			},
 			Config: map[string]interface{}{
-				"conn_str":    connStr,
+				"conn_str":    connectionURIObfuscated.String(),
 				"schema_name": fmt.Sprintf("terraform_%s", t.Name()),
 			},
-			ExpectConnectionError: `role "baduser" does not exist`,
+			ExpectConnectionError: `authentication failed for user "baduser"`,
 		},
 		{
 			Name: "host-in-env-vars",
@@ -117,6 +126,7 @@ func TestBackendConfig(t *testing.T) {
 				"PGDATABASE":              databaseName,
 			},
 			Config: map[string]interface{}{
+				"conn_str":    connStr,
 				"schema_name": fmt.Sprintf("terraform_%s", t.Name()),
 			},
 		},

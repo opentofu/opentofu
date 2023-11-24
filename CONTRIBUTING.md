@@ -114,6 +114,24 @@ TF_ACC=1 go test ./internal/initwd
 
 Because the acceptance tests depend on services outside of the OpenTofu codebase, and because the acceptance tests are usually used only when making changes to the systems they cover, it is common and expected that drift in those external systems will cause test failures. Because of this, prior to working on a system covered by acceptance tests it's important to run the existing tests for that system in an *unchanged* work tree first and respond to any test failures that preexist, to avoid misinterpreting such failures as bugs in your new changes.
 
+### Integration Tests: Testing interactions with external backends
+
+OpenTofu supports various [backends](https://opentofu.org/docs/language/settings/backends/configuration). We run integration test against them to ensure no side effects when using OpenTofu.
+
+Execute to list all available commands to run tests:
+
+```commandline
+make list-integration-tests
+```
+
+From the list of output commands, you can execute those which involve backends you intend to test against.
+
+For example, execute the command to run integration tests with s3 backend:
+
+```commandline
+make test-s3
+```
+
 ## Generated Code
 
 Some files in the OpenTofu CLI codebase are generated. In most cases, we update these using `go generate`, which is the standard way to encapsulate code generation steps in a Go codebase.
