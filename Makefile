@@ -66,7 +66,7 @@ bin/licensei-${LICENSEI_VERSION}:
 # Integration tests
 #
 
-.PHONY:
+.PHONY: list-integration-tests
 list-integration-tests: ## Lists tests.
 	@ grep -h -E '^(test|integration)-.+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[1m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -116,7 +116,7 @@ test-pg-clean: ## Cleans environment after `test-pg`.
 	@ docker rm -f tofu-pg 1> /dev/null
 
 .PHONY:
-integration-tests: test-pg integration-tests-clean ## Runs all integration tests test.
+integration-tests: test-s3 test-pg integration-tests-clean ## Runs all integration tests test.
 
 .PHONY:
 integration-tests-clean: test-pg-clean ## Cleans environment after all integration tests.
