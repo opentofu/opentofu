@@ -207,12 +207,12 @@ func TestConsul_largeState(t *testing.T) {
 	// being gziped
 
 	// We use a fixed seed so the test can be reproductible
-	rand.Seed(1234)
+	randomizer := rand.New(rand.NewSource(1234))
 	RandStringRunes := func(n int) string {
 		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 		b := make([]rune, n)
 		for i := range b {
-			b[i] = letterRunes[rand.Intn(len(letterRunes))]
+			b[i] = letterRunes[randomizer.Intn(len(letterRunes))]
 		}
 		return string(b)
 	}
