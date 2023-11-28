@@ -28,6 +28,7 @@ func TestRemoteClient_impl(t *testing.T) {
 
 func TestRemoteClient(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	testCases := []string{
 		fmt.Sprintf("tf-unit/%s", time.Now().String()),
@@ -57,6 +58,7 @@ func TestRemoteClient(t *testing.T) {
 // test the gzip functionality of the client
 func TestRemoteClient_gzipUpgrade(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	statePath := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
@@ -97,6 +99,7 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 // will need to be split up before being saved and put back together when read.
 func TestConsul_largeState(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	path := "tf-unit/test-large-state"
 
@@ -238,6 +241,7 @@ func TestConsul_largeState(t *testing.T) {
 
 func TestConsul_stateLock(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	testCases := []string{
 		fmt.Sprintf("tf-unit/%s", time.Now().String()),
@@ -270,6 +274,7 @@ func TestConsul_stateLock(t *testing.T) {
 
 func TestConsul_destroyLock(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	testCases := []string{
 		fmt.Sprintf("tf-unit/%s", time.Now().String()),
@@ -352,6 +357,7 @@ func TestConsul_destroyLock(t *testing.T) {
 
 func TestConsul_lostLock(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	path := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
@@ -401,6 +407,7 @@ func TestConsul_lostLock(t *testing.T) {
 
 func TestConsul_lostLockConnection(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	// create an "unreliable" network by closing all the consul client's
 	// network connections
