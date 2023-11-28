@@ -146,8 +146,41 @@ test-consul: ## Runs tests using in docker container using Consul as the backend
 test-consul-clean: ## Cleans environment after `test-consul`.
 	@ docker rmi -f tofu-consul:latest
 
-.PHONY:
-integration-tests: test-s3 test-pg test-consul integration-tests-clean ## Runs all integration tests test.
+# integration test with kubernetes as backend
+.PHONY: test-kubernetes test-kubernetes-clean
+
+define infoTestK8s
+Test requires:
+* Git client
+* Docker: https://docs.docker.com/engine/install/
+Note! Please make sure that the docker configurations satisfy requirements: https://kind.sigs.k8s.io/docs/user/quick-start#settings-for-docker-desktop
+
+endef
+
+KIND_VERSION := v0.20.0
+
+test-kubernetes: test-kubernetes-clean ## Runs tests with a local kubernetes cluster as the backend.
+	@ $(info $(infoTestK8s))
+	@ echo "Installing KinD $(KIND_VERSION): https://kind.sigs.k8s.io/docs/user/quick-start/#installing-with-make"
+	@ git clone -c advice.detachedHead=false -q https://github.com/kubernetes-sigs/kind -b $(KIND_VERSION) /tmp/kind-repo 1> /dev/null && \
+ 		 cd /tmp/kind-repo &&\
+ 		 make build 1> /dev/null &&\
+ 		 mv ./bin/kind /tmp/tofuk8s &&\
+ 		 cd .. && rm -rf kind-repo
+	@ echo "Provisioning a cluster"
+	@ /tmp/tofuk8s -q create cluster --name tofu-kubernetes
+	@ /tmp/tofuk8s -q export kubeconfig --name tofu-kubernetes --kubeconfig /tmp/tofu-k8s-config
+	@ echo "Running tests"
+	@ KUBE_CONFIG_PATHS=/tmp/tofu-k8s-config TF_K8S_TEST=1 go test ./internal/backend/remote-state/kubernetes/...
+	@ echo "Deleting provisioned cluster"
+	@ make test-kubernetes-clean
+
+test-kubernetes-clean: ## Cleans environment after `test-kubernetes`.
+	@ test -s /tmp/tofu-k8s-config && rm /tmp/tofu-k8s-config || echo "" > /dev/null
+	@ test -s /tmp/tofuk8s && (/tmp/tofuk8s -q delete cluster --name tofu-kubernetes && rm /tmp/tofuk8s) || echo "" > /dev/null
 
 .PHONY:
-integration-tests-clean: test-pg-clean test-consul-clean ## Cleans environment after all integration tests.
+integration-tests: test-s3 test-pg test-consul test-kubernetes integration-tests-clean ## Runs all integration tests test.
+
+.PHONY:
+integration-tests-clean: test-pg-clean test-consul-clean test-kubernetes-clean ## Cleans environment after all integration tests.
