@@ -1,0 +1,375 @@
+---
+description: >-
+    The tofu test command performs integration tests of OpenTofu modules.
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import SimpleMain from '!!raw-loader!./examples/simple/main.tf'
+import SimpleTest from '!!raw-loader!./examples/simple/main.tftest.hcl'
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import FlatLayout from '!!raw-loader!./flat-layout.txt'
+import FlatLayoutModule from '!!raw-loader!./flat-layout-module.txt'
+import NestedLayout from '!!raw-loader!./nested-layout.txt'
+import NestedLayoutModule from '!!raw-loader!./nested-layout-module.txt'
+import ModuleHarness from '!!raw-loader!./examples/module/test-harness/helper.tf'
+import ModuleMain from '!!raw-loader!./examples/module/main.tf'
+import ModuleTest from '!!raw-loader!./examples/module/main.tftest.hcl'
+import PlanMain from '!!raw-loader!./examples/plan/main.tf'
+import PlanTest from '!!raw-loader!./examples/plan/main.tftest.hcl'
+import OfflineMain from '!!raw-loader!./examples/offline/main.tf'
+import OfflineTest from '!!raw-loader!./examples/offline/main.tftest.hcl'
+import ProviderAliasMain from '!!raw-loader!./examples/provider_alias/main.tf'
+import ProviderAliasTest from '!!raw-loader!./examples/provider_alias/main.tftest.hcl'
+import VariablesMain from '!!raw-loader!./examples/variables/main.tf'
+import VariablesTest from '!!raw-loader!./examples/variables/main.tftest.hcl'
+import ExpectFailureVariablesMain from '!!raw-loader!./examples/expect_failures_variables/main.tf'
+import ExpectFailureVariablesTest from '!!raw-loader!./examples/expect_failures_variables/main.tftest.hcl'
+import ExpectFailureResourcesMain from '!!raw-loader!./examples/expect_failures_resources/main.tf'
+import ExpectFailureResourcesTest from '!!raw-loader!./examples/expect_failures_resources/main.tftest.hcl'
+
+# Command: test
+
+The `tofu test` command lets you test your OpenTofu configuration by creating real infrastructure and checking that
+the required conditions (assertions) are met. Once the test is complete, OpenTofu destroys the resources it created.
+
+## Usage
+
+Usage: `tofu test [options]`.
+
+This command will execute all `*.tftest.hcl` files in the current directory or in a directory called `tests`. You can
+customize this behavior using the [options](#options) below.
+
+:::info Example
+
+Consider the following simple example which creates a `test.txt` file from `main.tf` and then checks that the main code
+has successfully performed its job from `main.tftest.hcl`.
+
+<Tabs>
+    <TabItem label={"main.tf"} value={"main"} default>
+        <CodeBlock language="hcl">{SimpleMain}</CodeBlock>
+    </TabItem>
+    <TabItem label={"main.tftest.hcl"} value={"test"}>
+        <CodeBlock language="hcl">{SimpleTest}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+You can run `tofu init` followed by `tofu test` to execute the test which will apply the `main.tf` file and test it
+against the assertion in `main.tftest.hcl`. This is just a simple illustration. You can find more comprehensive examples
+below.
+
+:::
+
+## Options
+
+* `-test-directory=path` Set the test directory (default: "tests"). OpenTofu will search for test files in the specified
+  directory and also the current directory when you run `tofu test`. The path should be relative to the current
+  working directory.
+* `-filter=testfile` Specify an individual test file to run. Use this option multiple times to specify more than one
+  file. The path should be relative to the current working directory.
+* `-var 'foo=bar'` Set an input variable of the root module. Specify this option multiple times to add more
+  than one variable.
+* `-var-file=filename` Set multiple variables from the specified file. In addition to this file, OpenTofu automatically
+  loads `terraform.tfvars` and `*.auto.tfvars`. Use this option multiple times to specify more than one file.
+* `-json` Change the output format to JSON.
+* `-no-color` Disable colorized output in the command output.
+* `-verbose` Print the plan or state for each test run block as it executes.
+
+## Directory structure
+
+The `tofu test` command supports two directory layouts, flat or nested:
+
+<Tabs>
+    <TabItem value="flat" label="Flat layout" default>
+        This layout places the <code>*.tftest.hcl</code> test files directly next to the <code>*.tf</code> files they
+        test. There are no rules that each <code>*.tf</code> file must have its own test file, but it is a good practice
+        to follow.
+        <CodeBlock>{FlatLayout}</CodeBlock>
+    </TabItem>
+    <TabItem value="nested" label="Nested layout">
+        This layout places the <code>*.tftest.hcl</code> files in a separate <code>tests</code> directory. Similar to
+        the flat layout, there are no rules that each <code>*.tf</code> file must have its own test file, but it is a
+        good practice to follow.
+        <CodeBlock>{NestedLayout}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+### Testing modules
+
+When testing modules, you can use one of the above directory structures for each module:
+
+<Tabs>
+    <TabItem value="flat" label="Flat layout" default>
+        With this layout, run <code>tofu test -test-directory=./path/to/module</code> to test the module in question.
+        <CodeBlock>{FlatLayoutModule}</CodeBlock>
+    </TabItem>
+    <TabItem value="nested" label="Nested layout">
+        With this layout, <strong>change your working directory to your module path</strong> and
+        run <code>tofu test</code> to test the module in question.
+        <CodeBlock>{NestedLayoutModule}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+:::tip Hint
+
+You can use the `-filter=sometest.tftest.hcl` option to run a limited set of test files. Use the option multiple
+times to run more than one test file.
+
+:::
+
+## The `*.tftest.hcl` file structure
+
+The testing language of OpenTofu is similar to the main OpenTofu language and uses the same block structure.
+
+A test file consists of:
+
+* The **[`run` blocks](#the-run-block)**: define your tests.
+* A **[`variables` block](#the-variables-and-runvariables-blocks)** (optional): define variables for all tests in the
+  current file.
+* The **[`provider` blocks](#the-providers-block)** (optional): define the providers to be used for the tests.
+
+### The `run` block
+
+A `run` block contains a single test case which runs either `tofu apply` or `tofu plan` and then evaluates all
+`assert` blocks. Once the test is complete, it uses `tofu destroy` to remove the temporarily created resources.
+
+A `run` block consists of the following elements:
+
+| Name                                                                    | Type              | Description                                                                                                                                                                                                    |
+|:------------------------------------------------------------------------|:------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [`assert`](#the-runassert-block)                                        | block             | Defines assertions that check if your code (e.g. `main.tf`) created the infrastructure correctly. If you do not specify any `assert` blocks, OpenTofu simply applies the configuration without any assertions. |
+| [`module`](#the-runmodule-block)                                        | block             | Overrides the module being tested. You can use this to load a helper module for more elaborate tests.                                                                                                          |
+| [`expect_failures`](#the-runexpect_failures-list)                       | list              | A list of resources that should fail to provision in the current run.                                                                                                                                          |
+| [`variables`](#the-variables-and-runvariables-blocks)                   | block             | Defines variables for the current test case. See the [variables section](#variables).                                                                                                                          |
+| [`command`](#the-runcommand-setting-and-the-runplan_options-block)      | `plan` or `apply` | Defines the command which OpenTofu will execute, `plan` or `apply`. Defaults to `apply`.                                                                                                                       |
+| [`plan_options`](#the-runcommand-setting-and-the-runplan_options-block) | block             | Options for the `plan` or `apply` operation.                                                                                                                                                                   |
+| [`providers`](#the-providers-block)                                     | object            | Aliases for providers.                                                                                                                                                                                         |
+
+### The `run.assert` block
+
+You can specify `assert` blocks inside your `run` block to test the state of your infrastructure after the
+`apply` or `plan` operation is complete. There is no theoretical limit to the number of blocks you can define.
+
+Each block requires the following two attributes:
+
+1. The `condition` is an [OpenTofu condition](/docs/language/expressions/custom-conditions#condition-expressions) which
+   should return `true` for the test to pass, `false` for the test to fail. The condition **must** reference a
+   resource, data source, variable, output or module from the main code, otherwise OpenTofu will refuse to run the test.
+2. The `error_message` is a string explaining what happened when the test fails.
+
+:::tip Example
+
+As a simple example, you can write an `assert` block as follows:
+
+<Tabs>
+    <TabItem label={"main.tftest.hcl"} value={"test"} default>
+        <CodeBlock language="hcl">{SimpleTest}</CodeBlock>
+    </TabItem>
+    <TabItem label={"main.tf"} value={"main"}>
+        <CodeBlock language="hcl">{SimpleMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+:::
+
+Please note that conditions only let you perform basic checks on the current OpenTofu state and use OpenTofu functions.
+**You cannot define additional data sources directly in your test code.** To work around this limitation, you can use
+[the `module` block](#the-runmodule-block) in order to load a helper module.
+
+### The `run.module` block
+
+In some cases you may find that the tools provided in the
+[condition expression](/docs/language/expressions/custom-conditions#condition-expressions) are not enough to test
+if your code created the infrastructure correctly.
+
+You can use the `module` block to override the main module `tofu test` loads. This gives you the opportunity to create
+additional resources or data sources that you can use in your `assert` conditions.
+
+Its syntax is similar to loading modules in normal OpenTofu code:
+
+```hcl
+run "test" {
+  module {
+    source = "./some-module"
+  }
+}
+```
+
+The `module` block has the following two attributes:
+
+* The `source` attribute points to the directory of the module to load or any other
+  [module source](/docs/language/modules/sources).
+* The `version` specifies the version of the module you want to use.
+
+:::warning Note
+
+You cannot pass parameters directly in the `module` block as you may be used to from the normal OpenTofu code. Instead,
+you should use the [`variables` block](#the-variables-and-runvariables-blocks) to pass parameters to your module.
+
+:::
+
+:::tip Example
+
+In this example project the `main.tf` file creates a Docker container with an `nginx` image exposed on port 8080.
+The `main.tftest.hcl` file needs to test if the webserver actually starts properly, but it cannot do that without
+a helper module.
+
+To create the `http` data source, the `main.tftest.hcl` file loads the `test-harness` module. The test helper then loads
+the main module and adds the data source to check the HTTP response. Note that the data source in the `test-harness` has
+an explicit dependency on `module.main` to make sure that the data source only returns once the main module
+has finished its work.
+
+<Tabs>
+    <TabItem value={"main"} label={"main.tf"} default>
+        <CodeBlock language={"hcl"}>{ModuleMain}</CodeBlock>
+    </TabItem>
+    <TabItem value={"test"} label={"main.tftest.hcl"}>
+        <CodeBlock language={"hcl"}>{ModuleTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"helper"} label={"test-harness/helper.tf"} default>
+        <CodeBlock language={"hcl"}>{ModuleHarness}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+This project uses a [third-party provider](https://github.com/kreuzwerker/terraform-provider-docker) to launch the
+container. You can run it locally if you have a Docker Engine installed.
+
+:::
+
+### The `variables` and `run.variables` blocks
+
+The code under test (e.g. `main.tf`) will often have variable blocks that you need to fill from your test case. You
+can provide variables to your test run using any of the following methods:
+
+| Order  | Source                                                                                                                         |
+|:------:|:-------------------------------------------------------------------------------------------------------------------------------|
+|   1    | Environment variables with the `TF_VAR_` prefix.                                                                               |
+|   2    | tfvar files specified: `terraform.tfvars` and `*.auto.tfvars`.                                                                 |
+|   3    | Commandline variables defined using the flag `-var`, and the variables defined in the files specified by the flag `-var-file`. |
+|   4    | The variables from the `variables` block in a test file.                                                                       |
+|   5    | The variables from the `variables` block in `run` block.                                                                       |
+
+OpenTofu evaluates the variables in the order listed above, so you can use it to override the previously set variable.
+For example:
+
+<Tabs>
+    <TabItem value="test" label="main.tftest.hcl" default>
+        <CodeBlock language={"hcl"}>{VariablesTest}</CodeBlock>
+    </TabItem>
+    <TabItem value="main" label="main.tf"><CodeBlock language={"hcl"}>{VariablesMain}</CodeBlock></TabItem>
+</Tabs>
+
+### The `run.expect_failures` list
+
+In some cases you may want to test deliberate failures of your code, for example to ensure your validation is working.
+
+You can use the `expect_failures` inside a `run` block to specify which variables or resources should fail when the
+code is run with the given parameters.
+
+For example, the test case below checks if the `instances` variable correctly fails validation when supplied with a
+negative number:
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{ExpectFailureVariablesTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{ExpectFailureVariablesMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+You can also use the `expect_failure` clause to check [lifecycle](/docs/language/meta-arguments/lifecycle/) events like
+pre- or postconditions as well as the results of checks.
+
+:::warning Limitation
+
+The `expect_failure` list currently does not support testing resource creation failures. You must provide a
+[lifecycle](/docs/language/meta-arguments/lifecycle/) event in order to use `expect_failure`.
+
+:::
+
+The example below checks if the misconfigured healthcheck fails. This ensures that the health check does not always
+return, even when it is running against the wrong endpoint.
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{ExpectFailureResourcesTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{ExpectFailureResourcesMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+### The `run.command` setting and the `run.plan_options` block
+
+By default, `tofu test` uses `tofu apply` to create real infrastructure. In some cases, for example if the real
+infrastructure is very expensive or impossible to run for testing purposes, it can be useful to only run `tofu plan`
+instead. You can use the `command = plan` setting to perform a plan instead of an apply. The following example tests if
+the variable is correctly passed to the `docker_image` resource without actually applying the plan:
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{PlanTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{PlanMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+Regardless of the `command` setting, you can use the `plan_options` block to specify the following additional options
+for both modes:
+
+| Name    | Description                                                                                                                                               |
+|:--------|:----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| mode    | Change this option from `normal` (default) to `refresh-only` in order to only refresh the local state from the remote infrastructure.                     |
+| refresh | Set this option to `false` to disable checking for external changes in relation to the state file. Similar to `tofu plan -refresh=false`.                 |
+| replace | Force replacing the specified list of resources, such as `[docker_image.build]` in the above example. Similar to `tofu plan -replace=docker_image.build`. |
+| target  | Limit planning to the specified list of modules or resources. Similar to `tofu plan -target=docker_image.build`.                                          |
+
+:::tip Tip
+
+You can use these options in conjunction with [provider overrides](#the-providers-block) to create fully offline tests. See the
+[Providers section below](#the-providers-block) for an example.
+
+:::
+
+### The `providers` block
+
+In some cases you may want to override provider settings for test runs. You can use the `provider` blocks outside of
+`run` block to provide additional configuration options for providers, such as credentials for a test account.
+
+```hcl
+provider "aws" {
+  // Add additional settings here
+}
+```
+
+This feature can also enable partially or fully offline tests if the provider supports it. The following example
+illustrates a fully offline test with the AWS provider and an S3 bucket resource:
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{OfflineTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{OfflineMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+#### Provider aliases
+
+In addition to provider overrides, you can alias providers in order to replace them with a different provider inside
+your `run` block. This is useful when you want to have two provider configurations within the same test file and
+switch between them.
+
+In the example below, the `sockettest` test case loads a different Docker provider configuration than the rest
+of the file.
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{ProviderAliasTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{ProviderAliasMain}</CodeBlock>
+    </TabItem>
+</Tabs>
