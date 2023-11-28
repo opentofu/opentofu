@@ -123,8 +123,31 @@ test-azure: ## Directs the developer to follow a runbook describing how to run A
 	@ echo "To run Azure integration tests, please follow the runbook in internal/backend/remote-state/azure/README.md".
 	@ exit 1 # don't want the user to miss this
 
-.PHONY:
-integration-tests: test-s3 test-pg integration-tests-clean ## Runs all integration tests test.
+# integration test with Consul as backend
+.PHONY: test-consul test-consul-clean
+
+define infoTestConsul
+Test requires:
+* Docker: https://docs.docker.com/engine/install/
+
+endef
+
+GO_VER := `cat $(PWD)/.go-version`
+
+test-consul: ## Runs tests using in docker container using Consul as the backend.
+	@ $(info $(infoTestConsul))
+	@ echo "Build docker image with Consul and Go v$(GO_VER)"
+	@ cd ./internal/backend/remote-state/consul &&\
+  		docker build --build-arg="GO_VERSION=${GO_VER}" -t tofu-consul --progress=plain . &> /dev/null
+	@ echo "Run tests"
+	@ docker run --rm --name tofu-consul -v $(PWD):/app -e TF_CONSUL_TEST=1 -t tofu-consul \
+ 		test ./internal/backend/remote-state/consul/...
+
+test-consul-clean: ## Cleans environment after `test-consul`.
+	@ docker rmi -f tofu-consul:latest
 
 .PHONY:
-integration-tests-clean: test-pg-clean ## Cleans environment after all integration tests.
+integration-tests: test-s3 test-pg test-consul integration-tests-clean ## Runs all integration tests test.
+
+.PHONY:
+integration-tests-clean: test-pg-clean test-consul-clean ## Cleans environment after all integration tests.

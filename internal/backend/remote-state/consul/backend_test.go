@@ -49,6 +49,7 @@ func newConsulTestServer(t *testing.T) *testutil.TestServer {
 
 func TestBackend(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	path := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
@@ -70,6 +71,7 @@ func TestBackend(t *testing.T) {
 
 func TestBackend_lockDisabled(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	path := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
@@ -93,6 +95,7 @@ func TestBackend_lockDisabled(t *testing.T) {
 
 func TestBackend_gzip(t *testing.T) {
 	srv := newConsulTestServer(t)
+	defer func() { _ = srv.Stop() }()
 
 	// Get the backend
 	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
