@@ -23,8 +23,5 @@ RUN apk del -q curl tar
 VOLUME "/app"
 WORKDIR "/app"
 
-# launch Consul agent
-RUN consul agent -dev 1> /dev/null &
-
 ENV TF_CONSUL_TEST=1
 ENTRYPOINT [ "go" ]
