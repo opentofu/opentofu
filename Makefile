@@ -124,7 +124,7 @@ test-azure: ## Directs the developer to follow a runbook describing how to run A
 	@ exit 1 # don't want the user to miss this
 
 # integration test with Consul as backend
-.PHONY: test-consul
+.PHONY: test-consul test-consul-clean
 
 define infoTestConsul
 Test requires:
@@ -144,7 +144,7 @@ test-consul: ## Runs tests using in docker container using Consul as the backend
  		test ./internal/backend/remote-state/consul/...
 
 test-consul-clean: ## Cleans environment after `test-consul`.
-	@ docker rmi -f tofu-consul 2> /dev/null
+	@ docker rmi -f tofu-consul:latest
 
 .PHONY:
 integration-tests: test-s3 test-pg test-consul integration-tests-clean ## Runs all integration tests test.
