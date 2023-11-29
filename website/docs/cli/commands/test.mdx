@@ -210,7 +210,7 @@ The `expect_failures` attribute lists the resources, or variable which are expec
 
 ```hcl
 run "unhappy-path" {
-  variable {
+  variables {
     input0 = "faulty-input"
   }
   expect_failures = [
