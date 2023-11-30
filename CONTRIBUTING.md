@@ -10,8 +10,6 @@ All major changes to OpenTofu Core go through the public RFC process, including 
 
 Generally, we appreciate external contributions very much and would love to work with you on them. **However, please make sure to read the [Contributing a Code Change](#contributing-a-code-change) section prior to making a contribution.**
 
-**Important Note: Since we're still in the cleanup phase of making this repository ready for the first alpha release, we encourage you to wait with any code contributions until this first alpha release is out, to avoid conflicts.**
-
 ---
 
 <!-- MarkdownTOC autolink="true" -->
