@@ -124,7 +124,7 @@ type ServerCapabilities struct {
 	// normally, and the caller can used a cached copy of the provider's
 	// schema.
 	// In other words, the providers for which GetProviderSchemaOptional is false
-	// require their schema to be read after EVERY initialisation to function normally.
+	// require their schema to be read after EVERY instantiation to function normally.
 	GetProviderSchemaOptional bool
 }
 
