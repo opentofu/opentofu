@@ -66,8 +66,6 @@ func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Inter
 // to repeatedly call this method with the same address if various different
 // parts of OpenTofu all need the same schema information.
 func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.ProviderSchema, error) {
-	log.Printf("[TRACE] tofu.contextPlugins: Initializing provider %q to read its schema", addr)
-
 	// Check the global schema cache first.
 	// This cache is only written by the provider client, and transparently
 	// used by GetProviderSchema, but we check it here because at this point we
@@ -78,6 +76,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 		return schemas, nil
 	}
 
+	log.Printf("[TRACE] tofu.contextPlugins: Initializing provider %q to read its schema", addr)
 	provider, err := cp.NewProviderInstance(addr)
 	if err != nil {
 		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
