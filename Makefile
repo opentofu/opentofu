@@ -88,6 +88,25 @@ test-s3: ## Runs tests with s3 bucket as the backend.
 	@ $(info $(infoTestS3))
 	@ TF_S3_TEST=1 go test ./internal/backend/remote-state/s3/...
 
+# integration test with gcp as backend
+.PHONY: test-gcp
+
+define infoTestGCP
+This test requires a working set of default credentials on the host.
+You can configure those by running `gcloud auth application-default login`.
+Additionally, you'll need to set the following environment variables:
+- GOOGLE_REGION to a valid GCP region, e.g. us-west1
+- GOOGLE_PROJECT to a valid GCP project ID
+
+Note: The GCP tests leave behind a keyring, because those can't easily be deleted. It will be reused across test runs.
+
+endef
+
+test-gcp: ## Runs tests with gcp as the backend.
+	@ $(info $(infoTestGCP))
+	@ TF_ACC=1 go test ./internal/backend/remote-state/gcs/...
+	@ echo "Note: this test has left behind a keyring, because those can't easily be deleted. It will be reused across test runs."
+
 # integration test with postgres as backend
 .PHONY: test-pg test-pg-clean
 
