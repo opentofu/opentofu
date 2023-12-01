@@ -70,6 +70,11 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 	// This cache is only written by the provider client, and transparently
 	// used by GetProviderSchema, but we check it here because at this point we
 	// may be able to avoid spinning up the provider instance at all.
+	//
+	// It's worth noting that ServerCapabilities.GetProviderSchemaOptional is ignored here.
+	// That is because we're checking *prior* to the provider's instantiation.
+	// GetProviderSchemaOptional only says that *if we instantiate a provider*,
+	// then we need to run the get schema call at least once.
 	schemas, ok := providers.SchemaCache.Get(addr)
 	if ok {
 		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
