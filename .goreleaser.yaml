@@ -219,5 +219,4 @@ changelog:
 
 release:
   prerelease: auto
-  # If you want to examine the release before its live, uncomment this line:
-  # draft: false
+  draft: false
