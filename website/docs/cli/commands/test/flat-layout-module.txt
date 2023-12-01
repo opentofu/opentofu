@@ -1,0 +1,10 @@
+.
+├── module1
+│    ├── main.tf
+│    ├── main.tftest.hcl
+│    ├── foo.tf
+│    ├── foo.tftest.hcl
+│    ├── bar.tf
+│    └── bar.tftest.hcl
+└── module2
+     └── ...
