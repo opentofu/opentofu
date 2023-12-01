@@ -24,6 +24,7 @@ import (
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
+
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -192,7 +193,7 @@ func (c *RemoteClient) Put(data []byte) error {
 
 	i := &s3.PutObjectInput{
 		ContentType:   &contentType,
-		ContentLength: contentLength,
+		ContentLength: aws.Int64(contentLength),
 		Body:          bytes.NewReader(data),
 		Bucket:        &c.bucketName,
 		Key:           &c.path,
