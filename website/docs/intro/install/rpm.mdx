@@ -14,8 +14,11 @@ import YumRepoScript from '!!raw-loader!./repo-yum.sh'
 import ZypperRepoScript from '!!raw-loader!./repo-zypper.sh'
 import YumInstallScript from '!!raw-loader!./install-yum.sh'
 import ZypperInstallScript from '!!raw-loader!./install-zypper.sh'
+import Buildkite from "./buildkite";
 
 # Installing OpenTofu on RHEL, Fedora, openSUSE, and other RPM-based distributions
+
+<Buildkite />
 
 OpenTofu is distributed in the .rpm package format on [Packagecloud](https://packagecloud.io/opentofu/tofu). You can install it using a convenience script or by following the step-by-step instructions below.
 
