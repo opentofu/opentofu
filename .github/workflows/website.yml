@@ -1,0 +1,26 @@
+name: Website checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'v[0-9]+.[0-9]+'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare website container
+        run: docker compose -f docker-compose.build.yml build
+        working-directory: website
+      - name: Build website
+        run: docker compose -f docker-compose.build.yml up --exit-code-from website
+        working-directory: website

@@ -2,6 +2,16 @@
 
 This directory contains the portions of [the OpenTofu website](https://opentofu.org) that pertain to the core functionality, excluding providers and the overall configuration.
 
+## Development server
+
+You can start a local development server with Docker by running the following command from this (the `website`) directory:
+
+```
+docker compose up --build
+```
+
+The development server will be available on http://localhost:3000/ .
+
 ## Suggesting Changes
 
 You can [submit an issue](https://github.com/opentofu/opentofu/issues/new/choose) with documentation requests or submit a pull request with suggested changes.
