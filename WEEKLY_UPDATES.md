@@ -1,5 +1,34 @@
 # Weekly Updates
 
+## 2023-12-05
+
+Hey there, time for a weekly update!
+
+There was no update last week, but the important bit was that we've released the *first beta release*!
+
+Going into more details:
+
+- Current Status and Up Next
+  - Registry
+    - The [stable registry implementation](https://github.com/opentofu/registry) is now the active one on `registry.opentofu.org`. It's receiving meaningful usage and working very well.
+    - The experience of using CloudFlare R2 with Caching for this has been excellent. It's snappy for both cached and non-cached responses, with a very good cache hit-ratio, that's bound to improve too.
+    - **You can help make this more stable!** If you'd like to help us ensure a good experience right from the stable release, please try running `tofu init` on your codebases, and make sure that all providers and modules you're using are available. We did our best to make it a drop-in replacement, but we might've missed a provider or two. We're constantly monitoring 404 responses on our side and will back-fill anything that's missing.
+    - We're mostly working on improvements to the flow of contributing new providers and modules here, to make sure you can easily add any new ones you make. The milestone tracking the stable release requirements is [here](https://github.com/opentofu/registry/milestone/2).
+  - Tofu Migration
+    - We're making sure to polish the migration path to OpenTofu so that community members don't hit any issues on the way. Primarily this involves documentation around the installation and migration process.
+  - [There was a bug in the global schema provider cache handling](https://github.com/opentofu/opentofu/issues/929) that we've introduced a while ago, and now fixed. It was causing slowdowns when using older versions of providers. The fix was part of the 1.6.0-beta2 release.
+- How can I help?
+  - Since the beta release is out, right now the best way to help is to take the beta for a test drive and see if there are any bugs / issues.
+    - Most importantly, as mentioned above, please try running `tofu init` with your projects to double-check everything you use is available in the registry.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for a label, `good-to-pick-up`, to find issues we've deemed are the best to pick up for external contributors (there are none available at this moment).
+  - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
+  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
+    - Issues and Pull Requests with enhancements or major changes will generally be frozen until we have the first stable release out. We will introduce a milestone to mark them as such more clearly.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2023-11-21
 
 Hello!
