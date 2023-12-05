@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  website:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../:/work/opentofu-repo
+    command:
+      - npm
+      - run
+      - build
+    restart: no
