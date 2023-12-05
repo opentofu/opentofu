@@ -18,13 +18,13 @@ Going into more details:
     - We're making sure to polish the migration path to OpenTofu so that community members don't hit any issues on the way. Primarily this involves documentation around the installation and migration process.
   - [There was a bug in the global schema provider cache handling](https://github.com/opentofu/opentofu/issues/929) that we've introduced a while ago, and now fixed. It was causing slowdowns when using older versions of providers. The fix was part of the 1.6.0-beta2 release.
 - How can I help?
-  - Since the alpha release is out, right now the best way to help is to take the alpha for a test drive and see if there are any bugs / issues.
+  - Since the beta release is out, right now the best way to help is to take the beta for a test drive and see if there are any bugs / issues.
     - Most importantly, as mentioned above, please try running `tofu init` with your projects to double-check everything you use is available in the registry.
   - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
   - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
     - You can look for a label, `good-to-pick-up`, to find issues we've deemed are the best to pick up for external contributors (there are none available at this moment).
   - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
-  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the alpha and stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
+  - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
     - Issues and Pull Requests with enhancements or major changes will generally be frozen until we have the first stable release out. We will introduce a milestone to mark them as such more clearly.
 
 Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
