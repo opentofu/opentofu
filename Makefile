@@ -199,6 +199,10 @@ test-kubernetes-clean: ## Cleans environment after `test-kubernetes`.
 	@ test -s /tmp/tofuk8s && (/tmp/tofuk8s -q delete cluster --name tofu-kubernetes && rm /tmp/tofuk8s) || echo "" > /dev/null
 
 .PHONY:
+test-linux-install-instructions:
+	@cd "$(CURDIR)/website/docs/intro/install" && ./test-install-instructions.sh
+
+.PHONY:
 integration-tests: test-s3 test-pg test-consul test-kubernetes integration-tests-clean ## Runs all integration tests test.
 
 .PHONY:
