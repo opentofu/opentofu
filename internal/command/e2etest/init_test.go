@@ -94,7 +94,7 @@ func TestInitProvidersVendored(t *testing.T) {
 
 	// This test will try to reach out to registry.opentofu.org as one of the
 	// possible installation locations for
-	// hashicorp/null, where it will find that
+	// opentofu/null, where it will find that
 	// versions do exist but will ultimately select the version that is
 	// vendored due to the version constraint.
 	skipIfCannotAccessNetwork(t)
@@ -125,7 +125,7 @@ func TestInitProvidersVendored(t *testing.T) {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
-	if !strings.Contains(stdout, "- Installing hashicorp/null v1.0.0+local") {
+	if !strings.Contains(stdout, "- Installing opentofu/null v1.0.0+local") {
 		t.Errorf("provider download message is missing from output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
