@@ -1706,7 +1706,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.4"),
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI="),
+				getproviders.HashScheme1.New("b0v9t2QIGmmThEhnnOVHq7RU9d1j5v1iEWhmI5VFOpQ="),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -1714,7 +1714,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI="),
+				getproviders.HashScheme1.New("pE4OWJznTz5mLbgr4HYfs1oMKDOnCzmSwYP6syfGAfI="),
 			},
 		),
 		addrs.NewDefaultProvider("source"): depsfile.NewProviderLock(
@@ -1722,7 +1722,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0="),
+				getproviders.HashScheme1.New("QFO4triI5Pc0nqKuAxT16LhBBmXSmPt3W4PrajMo9pw="),
 			},
 		),
 	}
