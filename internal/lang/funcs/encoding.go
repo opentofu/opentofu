@@ -260,7 +260,7 @@ func Base64Gzip(str cty.Value) (cty.Value, error) {
 	return Base64GzipFunc.Call([]cty.Value{str})
 }
 
-// GunzipBase64 decodes a Base64 encoded string and uncompresses the result with gzip.
+// GunzipBase64 decodes a Base64-encoded string and uncompresses the result with gzip.
 //
 // Terraform uses the "standard" Base64 alphabet as defined in RFC 4648 section 4.
 func GunzipBase64(str cty.Value) (cty.Value, error) {
