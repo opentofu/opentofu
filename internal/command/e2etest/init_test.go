@@ -43,7 +43,7 @@ func TestInitProviders(t *testing.T) {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
-	if !strings.Contains(stdout, "- Installing hashicorp/template v") {
+	if !strings.Contains(stdout, "- Installing opentofu/template v") {
 		t.Errorf("provider download message is missing from output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
