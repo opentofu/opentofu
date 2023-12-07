@@ -50,12 +50,12 @@ func TestLoadModuleCall(t *testing.T) {
 			SourceAddr: addrs.ModuleSourceRegistry{
 				Package: addrs.ModuleRegistryPackage{
 					Host:         addrs.DefaultModuleRegistryHost,
-					Namespace:    "hashicorp",
+					Namespace:    "opentofu",
 					Name:         "bar",
 					TargetSystem: "aws",
 				},
 			},
-			SourceAddrRaw: "hashicorp/bar/aws",
+			SourceAddrRaw: "opentofu/bar/aws",
 			SourceSet:     true,
 			SourceAddrRange: hcl.Range{
 				Filename: "module-calls.tf",
