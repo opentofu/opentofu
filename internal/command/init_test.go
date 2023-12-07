@@ -2115,7 +2115,7 @@ provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+    "h1:pE4OWJznTz5mLbgr4HYfs1oMKDOnCzmSwYP6syfGAfI=",
   ]
 }
 `)
