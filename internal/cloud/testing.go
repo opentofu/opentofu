@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname("app.opentofu.org")
+	tfeHost  = svchost.Hostname("app.terraform.io")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -61,7 +61,7 @@ var (
 
 func skipIfTFENotEnabled(t *testing.T) {
 	if os.Getenv("TF_TFC_TEST") == "" {
-		t.Skip("this test accesses app.opentofu.org; set TF_TFC_TEST=1 to run it")
+		t.Skip("this test accesses app.terraform.io; set TF_TFC_TEST=1 to run it")
 	}
 }
 
@@ -96,7 +96,7 @@ func testBackendWithName(t *testing.T) (*Cloud, func()) {
 
 func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -110,7 +110,7 @@ func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 
 func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -129,7 +129,7 @@ func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -144,7 +144,7 @@ func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 
 func testBackendWithHandlers(t *testing.T, handlers map[string]func(http.ResponseWriter, *http.Request)) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.terraform.io"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -278,7 +278,7 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	b.local = testLocalBackend(t, b)
 	b.input = true
 
-	baseURL, err := url.Parse("https://app.opentofu.org")
+	baseURL, err := url.Parse("https://app.terraform.io")
 	if err != nil {
 		t.Fatalf("testBackend: failed to parse base URL for client")
 	}
@@ -346,7 +346,7 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 	b.client.Variables = mc.Variables
 	b.client.Workspaces = mc.Workspaces
 
-	baseURL, err := url.Parse("https://app.opentofu.org")
+	baseURL, err := url.Parse("https://app.terraform.io")
 	if err != nil {
 		t.Fatalf("testBackend: failed to parse base URL for client")
 	}
@@ -585,7 +585,7 @@ func mockSROWorkspace(t *testing.T, b *Cloud, workspaceName string) {
 	}
 }
 
-// testDisco returns a *disco.Disco mapping app.opentofu.org and
+// testDisco returns a *disco.Disco mapping app.terraform.io and
 // localhost to a local test server.
 func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
@@ -594,7 +594,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname("app.opentofu.org"), services)
+	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	d.ForceHostServices(svchost.Hostname("nontfe.local"), nil)
 	return d

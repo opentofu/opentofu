@@ -399,7 +399,7 @@ func TestCloud_planWithPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error loading cloud plan file: %v", err)
 	}
-	if !strings.Contains(plan.RunID, "run-") || plan.Hostname != "app.opentofu.org" {
+	if !strings.Contains(plan.RunID, "run-") || plan.Hostname != "app.terraform.io" {
 		t.Fatalf("unexpected contents in saved cloud plan: %v", plan)
 	}
 
