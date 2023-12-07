@@ -18,16 +18,16 @@ variable "v" {
 }
 
 module "acctest_root" {
-  source  = "opentofu/module-installer-acctest/aws"
+  source  = "hashicorp/module-installer-acctest/aws"
   version = "0.0.1"
 }
 
 module "acctest_child_a" {
-  source  = "opentofu/module-installer-acctest/aws//modules/child_a"
+  source  = "hashicorp/module-installer-acctest/aws//modules/child_a"
   version = "0.0.1"
 }
 
 module "acctest_child_b" {
-  source  = "opentofu/module-installer-acctest/aws//modules/child_b"
+  source  = "hashicorp/module-installer-acctest/aws//modules/child_b"
   version = "0.0.1"
 }

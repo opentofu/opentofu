@@ -28,13 +28,13 @@ func TestDirReading(t *testing.T) {
 	}
 
 	nullProvider := addrs.NewProvider(
-		addrs.DefaultProviderRegistryHost, "opentofu", "null",
+		addrs.DefaultProviderRegistryHost, addrs.DefaultProviderNamespace, "null",
 	)
 	randomProvider := addrs.NewProvider(
-		addrs.DefaultProviderRegistryHost, "opentofu", "random",
+		addrs.DefaultProviderRegistryHost, addrs.DefaultProviderNamespace, "random",
 	)
 	randomBetaProvider := addrs.NewProvider(
-		addrs.DefaultProviderRegistryHost, "opentofu", "random-beta",
+		addrs.DefaultProviderRegistryHost, addrs.DefaultProviderNamespace, "random-beta",
 	)
 	nonExistProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost, "bloop", "nonexist",

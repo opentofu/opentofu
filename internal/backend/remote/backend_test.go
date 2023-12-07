@@ -6,7 +6,6 @@ package remote
 import (
 	"context"
 	"fmt"
-	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -51,7 +50,7 @@ func TestRemote_config(t *testing.T) {
 	}{
 		"with_a_nonexisting_organization": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
+				"hostname":     cty.StringVal("app.opentofu.org"),
 				"organization": cty.StringVal("nonexisting"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -59,7 +58,7 @@ func TestRemote_config(t *testing.T) {
 					"prefix": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "organization \"nonexisting\" at host app.terraform.io not found",
+			confErr: "organization \"nonexisting\" at host app.opentofu.org not found",
 		},
 		"with_a_missing_hostname": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -150,7 +149,7 @@ func TestRemote_config(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		s := testServer(t)
+		s := testServerTLS(t)
 		b := New(testDisco(s))
 
 		// Validate
@@ -743,11 +742,10 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 
 func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServerTLS(t)
-	hostname := fmt.Sprintf("127.0.0.1:%d", s.Listener.Addr().(*net.TCPAddr).Port)
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal(hostname),
+		"hostname":     cty.StringVal("app.opentofu.org"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{

@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname("app.terraform.io")
+	tfeHost  = svchost.Hostname("app.opentofu.org")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -122,7 +122,7 @@ func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -269,7 +269,7 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	b.local = testLocalBackend(t, b)
 	b.input = true
 
-	baseURL, err := url.Parse("https://app.terraform.io")
+	baseURL, err := url.Parse("https://app.opentofu.org")
 	if err != nil {
 		t.Fatalf("testBackend: failed to parse base URL for client")
 	}
@@ -337,7 +337,7 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 	b.client.Variables = mc.Variables
 	b.client.Workspaces = mc.Workspaces
 
-	baseURL, err := url.Parse("https://app.terraform.io")
+	baseURL, err := url.Parse("https://app.opentofu.org")
 	if err != nil {
 		t.Fatalf("testBackend: failed to parse base URL for client")
 	}
@@ -572,7 +572,7 @@ func mockSROWorkspace(t *testing.T, b *Cloud, workspaceName string) {
 	}
 }
 
-// testDisco returns a *disco.Disco mapping app.terraform.io and
+// testDisco returns a *disco.Disco mapping app.opentofu.org and
 // localhost to a local test server.
 func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{

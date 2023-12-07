@@ -55,7 +55,7 @@ func TestLoadModuleCall(t *testing.T) {
 					TargetSystem: "aws",
 				},
 			},
-			SourceAddrRaw: addrs.DefaultProviderNamespace + "/bar/aws",
+			SourceAddrRaw: "hashicorp/bar/aws",
 			SourceSet:     true,
 			SourceAddrRange: hcl.Range{
 				Filename: "module-calls.tf",
@@ -170,11 +170,11 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 			true,
 		},
 		{
-			"opentofu/subnets/cidr", // registry module
+			"hashicorp/subnets/cidr", // registry module
 			true,
 		},
 		{
-			"registry.opentofu.org/opentofu/subnets/cidr", // registry module
+			"registry.opentofu.org/hashicorp/subnets/cidr", // registry module
 			true,
 		},
 	}

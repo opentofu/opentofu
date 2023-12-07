@@ -466,7 +466,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "acctest_child_a",
-			PackageAddr: "registry.opentofu.org/opentofu/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
+			PackageAddr: "registry.opentofu.org/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
 			Version:     v,
 		},
 		{
@@ -499,7 +499,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "acctest_child_b",
-			PackageAddr: "registry.opentofu.org/opentofu/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
+			PackageAddr: "registry.opentofu.org/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
 			Version:     v,
 		},
 		{
@@ -513,7 +513,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "acctest_root",
-			PackageAddr: "registry.opentofu.org/opentofu/module-installer-acctest/aws",
+			PackageAddr: "registry.opentofu.org/hashicorp/module-installer-acctest/aws",
 			Version:     v,
 		},
 		{
@@ -547,7 +547,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 	//check that the registry reponses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
 		Host:         svchost.Hostname("registry.opentofu.org"),
-		Namespace:    addrs.DefaultProviderNamespace,
+		Namespace:    "hashicorp",
 		Name:         "module-installer-acctest",
 		TargetSystem: "aws",
 	}
@@ -803,7 +803,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "test.main.setup",
-			PackageAddr: "registry.opentofu.org/opentofu/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
+			PackageAddr: "registry.opentofu.org/hashicorp/module-installer-acctest/aws", // intentionally excludes the subdir because we're downloading the whole package here
 			Version:     v,
 		},
 		{
@@ -848,7 +848,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	//check that the registry reponses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
 		Host:         addrs.DefaultProviderRegistryHost,
-		Namespace:    addrs.DefaultProviderNamespace,
+		Namespace:    "hashicorp",
 		Name:         "module-installer-acctest",
 		TargetSystem: "aws",
 	}

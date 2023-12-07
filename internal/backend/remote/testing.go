@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname("app.terraform.io")
+	tfeHost  = svchost.Hostname("app.opentofu.org")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -205,7 +205,7 @@ func getTestServerMux(t *testing.T) http.Handler {
 	mux := http.NewServeMux()
 
 	// Respond to service discovery calls.
-	mux.HandleFunc("/well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `{
   "state.v2": "/api/v2/",
@@ -231,8 +231,8 @@ func getTestServerMux(t *testing.T) http.Handler {
 		w.Header().Set("TFP-API-Version", "2.4")
 	})
 
-	// Respond to the initial query to read the hashicorp org entitlements.
-	mux.HandleFunc("/api/v2/organizations/hashicorp/entitlement-set", func(w http.ResponseWriter, r *http.Request) {
+	// Respond to the initial query to read the  opentofu org entitlements.
+	mux.HandleFunc("/api/v2/organizations/opentofu/entitlement-set", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
 		io.WriteString(w, `{
   "data": {
@@ -269,7 +269,7 @@ func getTestServerMux(t *testing.T) http.Handler {
 }`)
 	})
 
-	// All tests that are assumed to pass will use the hashicorp organization,
+	// All tests that are assumed to pass will use the opentofu organization,
 	// so for all other organization requests we will return a 404.
 	mux.HandleFunc("/api/v2/organizations/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
@@ -297,7 +297,7 @@ func testServerTLS(t *testing.T) *httptest.Server {
 	return ts
 }
 
-// testDisco returns a *disco.Disco mapping app.terraform.io and
+// testDisco returns a *disco.Disco mapping app.opentofu.org and
 // localhost to a local test server.
 func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
