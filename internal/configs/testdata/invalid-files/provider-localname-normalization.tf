@@ -15,6 +15,6 @@ resource test_resource "test" {
 }
 
 resource test_resource "TEST" {
-  // this resource is (explicitly) provided by "hashicorp/test"
+  // this resource is (explicitly) provided by "opentofu/test"
   provider = TEST
 }

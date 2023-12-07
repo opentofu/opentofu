@@ -6,7 +6,7 @@ terraform {
             //
             // "This provider is archived and no longer needed. The terraform_remote_state
             // data source is built into the latest Terraform release."
-            source = "hashicorp/terraform"
+            source = "opentofu/terraform"
         }
     }
 }

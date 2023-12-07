@@ -6,6 +6,7 @@ package remote
 import (
 	"context"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -75,7 +76,7 @@ func TestRemote_config(t *testing.T) {
 		"with_an_unknown_host": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("nonexisting.local"),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -88,7 +89,7 @@ func TestRemote_config(t *testing.T) {
 		"without_a_token": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("localhost"),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -100,7 +101,7 @@ func TestRemote_config(t *testing.T) {
 		"with_a_name": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -111,7 +112,7 @@ func TestRemote_config(t *testing.T) {
 		"with_a_prefix": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.NullVal(cty.String),
@@ -122,7 +123,7 @@ func TestRemote_config(t *testing.T) {
 		"without_either_a_name_and_a_prefix": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.NullVal(cty.String),
@@ -134,7 +135,7 @@ func TestRemote_config(t *testing.T) {
 		"with_both_a_name_and_a_prefix": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -177,8 +178,8 @@ func TestRemote_versionConstraints(t *testing.T) {
 	}{
 		"compatible version": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
-				"organization": cty.StringVal("hashicorp"),
+				"hostname":     cty.StringVal("localhost"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -189,8 +190,8 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too old": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
-				"organization": cty.StringVal("hashicorp"),
+				"hostname":     cty.StringVal("localhost"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -202,8 +203,8 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too new": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
-				"organization": cty.StringVal("hashicorp"),
+				"hostname":     cty.StringVal("localhost"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -224,25 +225,27 @@ func TestRemote_versionConstraints(t *testing.T) {
 	}()
 
 	for name, tc := range cases {
-		s := testServer(t)
-		b := New(testDisco(s))
+		t.Run(name, func(t *testing.T) {
+			s := testServer(t)
+			b := New(testDisco(s))
 
-		// Set the version for this test.
-		tfversion.Prerelease = tc.prerelease
-		tfversion.Version = tc.version
+			// Set the version for this test.
+			tfversion.Prerelease = tc.prerelease
+			tfversion.Version = tc.version
 
-		// Validate
-		_, valDiags := b.PrepareConfig(tc.config)
-		if valDiags.HasErrors() {
-			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
-		}
+			// Validate
+			_, valDiags := b.PrepareConfig(tc.config)
+			if valDiags.HasErrors() {
+				t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
+			}
 
-		// Configure
-		confDiags := b.Configure(tc.config)
-		if (confDiags.Err() != nil || tc.result != "") &&
-			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
-			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
-		}
+			// Configure
+			confDiags := b.Configure(tc.config)
+			if (confDiags.Err() != nil || tc.result != "") &&
+				(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
+				t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
+			}
+		})
 	}
 }
 
@@ -739,12 +742,13 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 }
 
 func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
-	s := testServer(t)
+	s := testServerTLS(t)
+	hostname := fmt.Sprintf("127.0.0.1:%d", s.Listener.Addr().(*net.TCPAddr).Port)
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal(hostname),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":   cty.StringVal("prod"),

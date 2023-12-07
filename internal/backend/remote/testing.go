@@ -5,6 +5,7 @@ package remote
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
@@ -70,8 +71,8 @@ func testInput(t *testing.T, answers map[string]string) *mockInput {
 
 func testBackendDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":   cty.StringVal("prod"),
@@ -83,8 +84,8 @@ func testBackendDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":   cty.NullVal(cty.String),
@@ -96,7 +97,7 @@ func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -200,8 +201,7 @@ func testLocalBackend(t *testing.T, remote *Remote) backend.Enhanced {
 	return b
 }
 
-// testServer returns a *httptest.Server used for local testing.
-func testServer(t *testing.T) *httptest.Server {
+func getTestServerMux(t *testing.T) http.Handler {
 	mux := http.NewServeMux()
 
 	// Respond to service discovery calls.
@@ -282,8 +282,19 @@ func testServer(t *testing.T) *httptest.Server {
   ]
 }`)
 	})
+	return mux
+}
 
-	return httptest.NewServer(mux)
+// testServer returns a *httptest.Server used for local testing.
+func testServer(t *testing.T) *httptest.Server {
+	return httptest.NewServer(getTestServerMux(t))
+}
+
+// testServerTLS returns a *httptest.Server used for local testing with TLS enabled.
+func testServerTLS(t *testing.T) *httptest.Server {
+	ts := httptest.NewUnstartedServer(getTestServerMux(t))
+	ts.StartTLS()
+	return ts
 }
 
 // testDisco returns a *disco.Disco mapping app.terraform.io and
@@ -296,9 +307,14 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	}
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+	if s.TLS != nil {
+		certPool := x509.NewCertPool()
+		certPool.AddCert(s.Certificate())
+		d.Transport = httpclient.NewTransportWithCustomTrustedCertificates(certPool)
+	}
 
-	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
-	d.ForceHostServices(svchost.Hostname("localhost"), services)
+	d.ForceHostServices("app.opentofu.org", services)
+	d.ForceHostServices("localhost", services)
 	return d
 }
 

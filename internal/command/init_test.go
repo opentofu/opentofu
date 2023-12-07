@@ -484,7 +484,7 @@ func TestInit_backendReconfigure(t *testing.T) {
 	defer testChdir(t, td)()
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"hashicorp/test": {"1.2.3"},
+		"opentofu/test": {"1.2.3"},
 	})
 	defer close()
 
@@ -559,7 +559,7 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	defer testChdir(t, td)()
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"hashicorp/test": {"1.2.3"},
+		"opentofu/test": {"1.2.3"},
 	})
 	defer close()
 
@@ -1343,15 +1343,15 @@ func TestInit_getProvider(t *testing.T) {
 	}
 
 	// check that we got the providers for our config
-	exactPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/exact/1.2.3/%s", getproviders.CurrentPlatform)
+	exactPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/exact/1.2.3/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(exactPath); os.IsNotExist(err) {
 		t.Fatal("provider 'exact' not downloaded")
 	}
-	greaterThanPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/greater-than/2.3.4/%s", getproviders.CurrentPlatform)
+	greaterThanPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/greater-than/2.3.4/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(greaterThanPath); os.IsNotExist(err) {
 		t.Fatal("provider 'greater-than' not downloaded")
 	}
-	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/between/2.3.4/%s", getproviders.CurrentPlatform)
+	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/between/2.3.4/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(betweenPath); os.IsNotExist(err) {
 		t.Fatal("provider 'between' not downloaded")
 	}
@@ -1455,7 +1455,7 @@ func TestInit_getProviderSource(t *testing.T) {
 	if _, err := os.Stat(greaterThanPath); os.IsNotExist(err) {
 		t.Error("provider 'beta' not downloaded")
 	}
-	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/gamma/2.0.0/%s", getproviders.CurrentPlatform)
+	betweenPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/gamma/2.0.0/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(betweenPath); os.IsNotExist(err) {
 		t.Error("provider 'gamma' not downloaded")
 	}
@@ -1575,7 +1575,7 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	// unknown provider, and the registry source will allow us to look up the
 	// appropriate namespace if possible.
 	providerSource, psClose := newMockProviderSource(t, map[string][]string{
-		"hashicorp/foo":           {"1.2.3"},
+		"opentofu/foo":            {"1.2.3"},
 		"terraform-providers/baz": {"2.3.4"}, // this will not be installed
 	})
 	defer psClose()
@@ -1606,7 +1606,7 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	}
 
 	// foo should be installed
-	fooPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/foo/1.2.3/%s", getproviders.CurrentPlatform)
+	fooPath := fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/foo/1.2.3/%s", getproviders.CurrentPlatform)
 	if _, err := os.Stat(fooPath); os.IsNotExist(err) {
 		t.Error("provider 'foo' not installed")
 	}
@@ -1621,8 +1621,8 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	errors := []string{
 		"Failed to query available provider packages",
 		"Could not retrieve the list of available versions",
-		"registry.opentofu.org/hashicorp/baz",
-		"registry.opentofu.org/hashicorp/frob",
+		"registry.opentofu.org/opentofu/baz",
+		"registry.opentofu.org/opentofu/frob",
 	}
 	for _, want := range errors {
 		if !strings.Contains(errOutput, want) {
@@ -1731,10 +1731,10 @@ func TestInit_providerSource(t *testing.T) {
 		t.Errorf("wrong version selections after upgrade\n%s", diff)
 	}
 
-	if got, want := ui.OutputWriter.String(), "Installed hashicorp/test v1.2.3 (verified checksum)"; !strings.Contains(got, want) {
+	if got, want := ui.OutputWriter.String(), "Installed opentofu/test v1.2.3 (verified checksum)"; !strings.Contains(got, want) {
 		t.Fatalf("unexpected output: %s\nexpected to include %q", got, want)
 	}
-	if got, want := ui.ErrorWriter.String(), "\n  - hashicorp/source\n  - hashicorp/test\n  - hashicorp/test-beta"; !strings.Contains(got, want) {
+	if got, want := ui.ErrorWriter.String(), "\n  - opentofu/source\n  - opentofu/test\n  - opentofu/test-beta"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
@@ -2111,7 +2111,7 @@ func TestInit_providerLockFile(t *testing.T) {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/hashicorp/test" {
+provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2138,7 +2138,7 @@ func TestInit_providerLockFileReadonly(t *testing.T) {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/hashicorp/test" {
+provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2151,7 +2151,7 @@ provider "registry.opentofu.org/hashicorp/test" {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/hashicorp/test" {
+provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2164,7 +2164,7 @@ provider "registry.opentofu.org/hashicorp/test" {
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/hashicorp/test" {
+provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
@@ -2531,13 +2531,13 @@ func TestInit_pluginDirProvidersDoesNotGet(t *testing.T) {
 	// mention either the "exact" or "greater-than" provider, because the
 	// latter two are available via the -plugin-dir directories.
 	errStr := ui.ErrorWriter.String()
-	if subStr := "hashicorp/between"; !strings.Contains(errStr, subStr) {
+	if subStr := "opentofu/between"; !strings.Contains(errStr, subStr) {
 		t.Errorf("error output should mention the 'between' provider\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
-	if subStr := "hashicorp/exact"; strings.Contains(errStr, subStr) {
+	if subStr := "opentofu/exact"; strings.Contains(errStr, subStr) {
 		t.Errorf("error output should not mention the 'exact' provider\ndo not want substr: %s\ngot:\n%s", subStr, errStr)
 	}
-	if subStr := "hashicorp/greater-than"; strings.Contains(errStr, subStr) {
+	if subStr := "opentofu/greater-than"; strings.Contains(errStr, subStr) {
 		t.Errorf("error output should not mention the 'greater-than' provider\ndo not want substr: %s\ngot:\n%s", subStr, errStr)
 	}
 
@@ -2751,7 +2751,7 @@ func TestInit_tests(t *testing.T) {
 	provider := applyFixtureProvider() // We just want the types from this provider.
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"hashicorp/test": {"1.0.0"},
+		"opentofu/test": {"1.0.0"},
 	})
 	defer close()
 
@@ -2781,7 +2781,7 @@ func TestInit_testsWithProvider(t *testing.T) {
 	provider := applyFixtureProvider() // We just want the types from this provider.
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"hashicorp/test": {"1.0.0"},
+		"opentofu/test": {"1.0.0"},
 	})
 	defer close()
 
@@ -2824,7 +2824,7 @@ func TestInit_testsWithModule(t *testing.T) {
 	provider := applyFixtureProvider() // We just want the types from this provider.
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"hashicorp/test": {"1.0.0"},
+		"opentofu/test": {"1.0.0"},
 	})
 	defer close()
 
@@ -2861,7 +2861,7 @@ func TestInit_testsWithModule(t *testing.T) {
 //
 // Provider addresses must be valid source strings, and passing only the
 // provider name will be interpreted as a "default" provider under
-// registry.opentofu.org/hashicorp. If you need more control over the
+// registry.opentofu.org/opentofu. If you need more control over the
 // provider addresses, pass a full provider source string.
 //
 // This function also registers providers as belonging to the current platform,
@@ -2980,13 +2980,13 @@ func expectedPackageInstallPath(name, version string, exe bool) string {
 	platform := getproviders.CurrentPlatform
 	baseDir := ".terraform/providers"
 	if exe {
-		p := fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s/terraform-provider-%s_%s", name, version, platform, name, version)
+		p := fmt.Sprintf("registry.opentofu.org/opentofu/%s/%s/%s/terraform-provider-%s_%s", name, version, platform, name, version)
 		if platform.OS == "windows" {
 			p += ".exe"
 		}
 		return filepath.ToSlash(filepath.Join(baseDir, p))
 	}
 	return filepath.ToSlash(filepath.Join(
-		baseDir, fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s", name, version, platform),
+		baseDir, fmt.Sprintf("registry.opentofu.org/opentofu/%s/%s/%s", name, version, platform),
 	))
 }

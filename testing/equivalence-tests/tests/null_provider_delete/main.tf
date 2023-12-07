@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     null = {
-      source  = "hashicorp/null"
+      source  = "opentofu/null"
       version = "3.1.1"
     }
   }

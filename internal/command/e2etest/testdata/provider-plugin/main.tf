@@ -3,10 +3,10 @@
 terraform {
   required_providers {
     simple5 = {
-      source = "registry.opentofu.org/hashicorp/simple"
+      source = "registry.opentofu.org/opentofu/simple"
     }
     simple6 = {
-      source = "registry.opentofu.org/hashicorp/simple6"
+      source = "registry.opentofu.org/opentofu/simple6"
     }
   }
 }

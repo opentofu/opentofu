@@ -20,24 +20,24 @@ func TestParseAbsProviderConfig(t *testing.T) {
 		WantDiag string
 	}{
 		{
-			`provider["registry.opentofu.org/hashicorp/aws"]`,
+			`provider["registry.opentofu.org/opentofu/aws"]`,
 			AbsProviderConfig{
 				Module: RootModule,
 				Provider: Provider{
 					Type:      "aws",
-					Namespace: "hashicorp",
+					Namespace: "opentofu",
 					Hostname:  "registry.opentofu.org",
 				},
 			},
 			``,
 		},
 		{
-			`provider["registry.opentofu.org/hashicorp/aws"].foo`,
+			`provider["registry.opentofu.org/opentofu/aws"].foo`,
 			AbsProviderConfig{
 				Module: RootModule,
 				Provider: Provider{
 					Type:      "aws",
-					Namespace: "hashicorp",
+					Namespace: "opentofu",
 					Hostname:  "registry.opentofu.org",
 				},
 				Alias: "foo",
@@ -45,24 +45,24 @@ func TestParseAbsProviderConfig(t *testing.T) {
 			``,
 		},
 		{
-			`module.baz.provider["registry.opentofu.org/hashicorp/aws"]`,
+			`module.baz.provider["registry.opentofu.org/opentofu/aws"]`,
 			AbsProviderConfig{
 				Module: Module{"baz"},
 				Provider: Provider{
 					Type:      "aws",
-					Namespace: "hashicorp",
+					Namespace: "opentofu",
 					Hostname:  "registry.opentofu.org",
 				},
 			},
 			``,
 		},
 		{
-			`module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo`,
+			`module.baz.provider["registry.opentofu.org/opentofu/aws"].foo`,
 			AbsProviderConfig{
 				Module: Module{"baz"},
 				Provider: Provider{
 					Type:      "aws",
-					Namespace: "hashicorp",
+					Namespace: "opentofu",
 					Hostname:  "registry.opentofu.org",
 				},
 				Alias: "foo",
@@ -70,17 +70,17 @@ func TestParseAbsProviderConfig(t *testing.T) {
 			``,
 		},
 		{
-			`module.baz["foo"].provider["registry.opentofu.org/hashicorp/aws"]`,
+			`module.baz["foo"].provider["registry.opentofu.org/opentofu/aws"]`,
 			AbsProviderConfig{},
 			`Provider address cannot contain module indexes`,
 		},
 		{
-			`module.baz[1].provider["registry.opentofu.org/hashicorp/aws"]`,
+			`module.baz[1].provider["registry.opentofu.org/opentofu/aws"]`,
 			AbsProviderConfig{},
 			`Provider address cannot contain module indexes`,
 		},
 		{
-			`module.baz[1].module.bar.provider["registry.opentofu.org/hashicorp/aws"]`,
+			`module.baz[1].module.bar.provider["registry.opentofu.org/opentofu/aws"]`,
 			AbsProviderConfig{},
 			`Provider address cannot contain module indexes`,
 		},
@@ -173,7 +173,7 @@ func TestAbsProviderConfigString(t *testing.T) {
 				Module:   RootModule.Child("child_module"),
 				Provider: NewDefaultProvider("foo"),
 			},
-			`module.child_module.provider["registry.opentofu.org/hashicorp/foo"]`,
+			`module.child_module.provider["registry.opentofu.org/opentofu/foo"]`,
 		},
 		{
 			AbsProviderConfig{
@@ -181,7 +181,7 @@ func TestAbsProviderConfigString(t *testing.T) {
 				Alias:    "bar",
 				Provider: NewDefaultProvider("foo"),
 			},
-			`provider["registry.opentofu.org/hashicorp/foo"].bar`,
+			`provider["registry.opentofu.org/opentofu/foo"].bar`,
 		},
 		{
 			AbsProviderConfig{
@@ -189,7 +189,7 @@ func TestAbsProviderConfigString(t *testing.T) {
 				Alias:    "bar",
 				Provider: NewDefaultProvider("foo"),
 			},
-			`module.child_module.provider["registry.opentofu.org/hashicorp/foo"].bar`,
+			`module.child_module.provider["registry.opentofu.org/opentofu/foo"].bar`,
 		},
 	}
 

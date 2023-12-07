@@ -28,7 +28,7 @@ import {
 terraform {
   required_providers {
     test = {
-      source = "hashicorp/test"
+      source = "opentofu/test"
     }
   }
 }

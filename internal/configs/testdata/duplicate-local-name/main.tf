@@ -1,17 +1,17 @@
 terraform {
   required_providers {
     test = {
-      source = "hashicorp/test"
+      source = "opentofu/test"
     }
     dupe = {
-      source = "hashicorp/test"
+      source = "opentofu/test"
     }
     other = {
-      source = "hashicorp/default"
+      source = "opentofu/default"
     }
 
     wrong-name = {
-      source = "hashicorp/foo"
+      source = "opentofu/foo"
     }
   }
 }

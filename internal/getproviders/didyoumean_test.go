@@ -151,7 +151,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		defer close()
 
 		// Because this provider address isn't in
-		// registry.opentofu.org/hashicorp/..., MissingProviderSuggestion
+		// registry.opentofu.org/opentofu/..., MissingProviderSuggestion
 		// will provide the same addr since there's no alternative in Requirements
 		want := addrs.Provider{
 			Hostname:  defaultRegistryHost,
@@ -174,7 +174,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		// but different namespace, we can suggest that
 		foo := addrs.Provider{
 			Hostname:  defaultRegistryHost,
-			Namespace: "hashicorp",
+			Namespace: addrs.DefaultProviderNamespace,
 			Type:      "foo",
 		}
 		realFoo := addrs.Provider{

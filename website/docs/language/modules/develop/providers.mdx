@@ -54,7 +54,7 @@ use a `required_providers` block inside a `terraform` block:
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
+      source  = "opentofu/aws"
       version = ">= 2.7.0"
     }
   }
@@ -62,7 +62,7 @@ terraform {
 ```
 
 A provider requirement says, for example, "This module requires version v2.7.0
-of the provider `hashicorp/aws` and will refer to it as `aws`." It doesn't,
+of the provider `opentofu/aws` and will refer to it as `aws`." It doesn't,
 however, specify any of the configuration settings that determine what remote
 endpoints the provider will access, such as an AWS region; configuration
 settings come from provider _configurations_, and a particular overall OpenTofu
@@ -78,7 +78,7 @@ To declare multiple configuration names for a provider within a module, add the
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
+      source  = "opentofu/aws"
       version = ">= 2.7.0"
       configuration_aliases = [ aws.alternate ]
     }
@@ -218,7 +218,7 @@ provider so the calling module can pass configurations with these names in its `
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
+      source  = "opentofu/aws"
       version = ">= 2.7.0"
       configuration_aliases = [ aws.src, aws.dst ]
     }

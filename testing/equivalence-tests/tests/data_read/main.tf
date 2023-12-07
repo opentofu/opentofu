@@ -1,15 +1,15 @@
 terraform {
   required_providers {
     tfcoremock = {
-      source  = "hashicorp/tfcoremock"
+      source  = "opentofu/tfcoremock"
       version = "0.1.1"
     }
     local = {
-      source  = "hashicorp/local"
+      source  = "opentofu/local"
       version = "2.2.3"
     }
     random = {
-      source = "hashicorp/random"
+      source = "opentofu/random"
       version = "3.4.3"
     }
   }

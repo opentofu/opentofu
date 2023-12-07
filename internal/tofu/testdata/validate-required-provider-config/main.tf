@@ -4,7 +4,7 @@
 terraform {
   required_providers {
     arbitrary = {
-      source = "hashicorp/aws"
+      source = "opentofu/aws"
     }
   }
 }

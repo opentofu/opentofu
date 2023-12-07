@@ -29,7 +29,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 			Want: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: addrs.DefaultProviderNamespace,
 				Type:      "null",
 			},
 		},
@@ -167,7 +167,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/opentofu/aws"]`),
 		},
 	}
 	ctx.ProviderProvider = mockProvider
@@ -181,6 +181,6 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	checkStateString(t, state, `
 aws_instance.foo:
   ID = i-abc123
-  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/opentofu/aws"]
 	`)
 }

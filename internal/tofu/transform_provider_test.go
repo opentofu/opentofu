@@ -305,8 +305,8 @@ resource "test_object" "a" {
 	}
 
 	expected := `module.moda.test_object.a
-  provider["registry.opentofu.org/hashicorp/test"]
-provider["registry.opentofu.org/hashicorp/test"]`
+  provider["registry.opentofu.org/opentofu/test"]
+provider["registry.opentofu.org/opentofu/test"]`
 
 	actual := strings.TrimSpace(g.String())
 	if actual != expected {
@@ -321,7 +321,7 @@ func TestProviderConfigTransformer_nestedModuleProviders(t *testing.T) {
 terraform {
   required_providers {
     test = {
-      source = "registry.opentofu.org/hashicorp/test"
+      source = "registry.opentofu.org/opentofu/test"
 	}
   }
 }
@@ -343,7 +343,7 @@ module "moda" {
 terraform {
   required_providers {
     test = {
-      source = "registry.opentofu.org/hashicorp/test"
+      source = "registry.opentofu.org/opentofu/test"
       configuration_aliases = [ test.x ]
 	}
   }
@@ -383,13 +383,13 @@ resource "test_object" "a" {
 	}
 
 	expected := `module.moda.module.modb.test_object.a
-  module.moda.provider["registry.opentofu.org/hashicorp/test"]
-module.moda.provider["registry.opentofu.org/hashicorp/test"]
+  module.moda.provider["registry.opentofu.org/opentofu/test"]
+module.moda.provider["registry.opentofu.org/opentofu/test"]
 module.moda.test_object.a
-  module.moda.provider["registry.opentofu.org/hashicorp/test"]
+  module.moda.provider["registry.opentofu.org/opentofu/test"]
 module.moda.test_object.x
-  provider["registry.opentofu.org/hashicorp/test"].z
-provider["registry.opentofu.org/hashicorp/test"].z`
+  provider["registry.opentofu.org/opentofu/test"].z
+provider["registry.opentofu.org/opentofu/test"].z`
 
 	actual := strings.TrimSpace(g.String())
 	if actual != expected {
@@ -406,7 +406,7 @@ terraform {
 	# default config is equivalent to the provider config, the user may never
 	# see an error.
     dupe = {
-      source = "registry.opentofu.org/hashicorp/test"
+      source = "registry.opentofu.org/opentofu/test"
     }
   }
 }
@@ -425,7 +425,7 @@ provider "test" {
 		t.Fatalf("err: %s", err)
 	}
 
-	expected := `provider["registry.opentofu.org/hashicorp/test"]`
+	expected := `provider["registry.opentofu.org/opentofu/test"]`
 
 	actual := strings.TrimSpace(g.String())
 	if actual != expected {
@@ -435,60 +435,60 @@ provider "test" {
 
 const testTransformProviderBasicStr = `
 aws_instance.web
-  provider["registry.opentofu.org/hashicorp/aws"]
-provider["registry.opentofu.org/hashicorp/aws"]
+  provider["registry.opentofu.org/opentofu/aws"]
+provider["registry.opentofu.org/opentofu/aws"]
 `
 
 const testTransformCloseProviderBasicStr = `
 aws_instance.web
-  provider["registry.opentofu.org/hashicorp/aws"]
-provider["registry.opentofu.org/hashicorp/aws"]
-provider["registry.opentofu.org/hashicorp/aws"] (close)
+  provider["registry.opentofu.org/opentofu/aws"]
+provider["registry.opentofu.org/opentofu/aws"]
+provider["registry.opentofu.org/opentofu/aws"] (close)
   aws_instance.web
-  provider["registry.opentofu.org/hashicorp/aws"]
+  provider["registry.opentofu.org/opentofu/aws"]
 `
 
 const testTransformMissingProviderBasicStr = `
 aws_instance.web
-  provider["registry.opentofu.org/hashicorp/aws"]
+  provider["registry.opentofu.org/opentofu/aws"]
 foo_instance.web
-  provider["registry.opentofu.org/hashicorp/foo"]
-provider["registry.opentofu.org/hashicorp/aws"]
-provider["registry.opentofu.org/hashicorp/aws"] (close)
+  provider["registry.opentofu.org/opentofu/foo"]
+provider["registry.opentofu.org/opentofu/aws"]
+provider["registry.opentofu.org/opentofu/aws"] (close)
   aws_instance.web
-  provider["registry.opentofu.org/hashicorp/aws"]
-provider["registry.opentofu.org/hashicorp/foo"]
-provider["registry.opentofu.org/hashicorp/foo"] (close)
+  provider["registry.opentofu.org/opentofu/aws"]
+provider["registry.opentofu.org/opentofu/foo"]
+provider["registry.opentofu.org/opentofu/foo"] (close)
   foo_instance.web
-  provider["registry.opentofu.org/hashicorp/foo"]
+  provider["registry.opentofu.org/opentofu/foo"]
 `
 
 const testTransformMissingGrandchildProviderStr = `
 module.sub.module.subsub.bar_instance.two
-  provider["registry.opentofu.org/hashicorp/bar"]
+  provider["registry.opentofu.org/opentofu/bar"]
 module.sub.module.subsub.foo_instance.one
-  module.sub.provider["registry.opentofu.org/hashicorp/foo"]
-module.sub.provider["registry.opentofu.org/hashicorp/foo"]
-provider["registry.opentofu.org/hashicorp/bar"]
+  module.sub.provider["registry.opentofu.org/opentofu/foo"]
+module.sub.provider["registry.opentofu.org/opentofu/foo"]
+provider["registry.opentofu.org/opentofu/bar"]
 `
 
 const testTransformPruneProviderBasicStr = `
 foo_instance.web
-  provider["registry.opentofu.org/hashicorp/foo"]
-provider["registry.opentofu.org/hashicorp/foo"]
-provider["registry.opentofu.org/hashicorp/foo"] (close)
+  provider["registry.opentofu.org/opentofu/foo"]
+provider["registry.opentofu.org/opentofu/foo"]
+provider["registry.opentofu.org/opentofu/foo"] (close)
   foo_instance.web
-  provider["registry.opentofu.org/hashicorp/foo"]
+  provider["registry.opentofu.org/opentofu/foo"]
 `
 
 const testTransformModuleProviderConfigStr = `
 module.child.aws_instance.thing
-  provider["registry.opentofu.org/hashicorp/aws"].foo
-provider["registry.opentofu.org/hashicorp/aws"].foo
+  provider["registry.opentofu.org/opentofu/aws"].foo
+provider["registry.opentofu.org/opentofu/aws"].foo
 `
 
 const testTransformModuleProviderGrandparentStr = `
 module.child.module.grandchild.aws_instance.baz
-  provider["registry.opentofu.org/hashicorp/aws"].foo
-provider["registry.opentofu.org/hashicorp/aws"].foo
+  provider["registry.opentofu.org/opentofu/aws"].foo
+provider["registry.opentofu.org/opentofu/aws"].foo
 `

@@ -148,10 +148,10 @@ If neither are set, any configured credentials helper will be consulted.
 
 The default way to install provider plugins is from a provider registry. The
 origin registry for a provider is encoded in the provider's source address,
-like `registry.opentofu.org/hashicorp/aws`. For convenience in the common case,
+like `registry.opentofu.org/opentofu/aws`. For convenience in the common case,
 OpenTofu allows omitting the hostname portion for providers on
 `registry.opentofu.org`, so you can write shorter public provider addresses like
-`hashicorp/aws`.
+`opentofu/aws`.
 
 Downloading a plugin directly from its origin registry is not always
 appropriate, though. For example, the system where you are running OpenTofu
@@ -192,15 +192,15 @@ providers can be installed only directly from their origin registries.
 
 If you set both `include` and `exclude` for a particular installation
 method, the exclusion patterns take priority. For example, including
-`registry.opentofu.org/hashicorp/*` but also excluding
-`registry.opentofu.org/hashicorp/dns` will make that installation method apply
-to everything in the `hashicorp` namespace with the exception of
-`hashicorp/dns`.
+`registry.opentofu.org/opentofu/*` but also excluding
+`registry.opentofu.org/opentofu/dns` will make that installation method apply
+to everything in the `opentofu` namespace with the exception of
+`opentofu/dns`.
 
 As with provider source addresses in the main configuration, you can omit
 the `registry.opentofu.org/` prefix for providers distributed through the
 public OpenTofu Registry, even when using wildcards. For example,
-`registry.opentofu.org/hashicorp/*` and `hashicorp/*` are equivalent.
+`registry.opentofu.org/opentofu/*` and `opentofu/*` are equivalent.
 `*/*` is a shorthand for `registry.opentofu.org/*/*`, not for
 `*/*/*`.
 
@@ -438,11 +438,11 @@ methods, so a block of this type must always appear first in the sequence:
 provider_installation {
 
   # Use /home/developer/tmp/terraform-null as an overridden package directory
-  # for the hashicorp/null provider. This disables the version and checksum
+  # for the opentofu/null provider. This disables the version and checksum
   # verifications for this provider and forces OpenTofu to look for the
   # null provider plugin in the given directory.
   dev_overrides {
-    "hashicorp/null" = "/home/developer/tmp/terraform-null"
+    "opentofu/null" = "/home/developer/tmp/opentofuf-null"
   }
 
   # For all other providers, install them directly from their origin provider

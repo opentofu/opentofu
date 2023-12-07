@@ -97,8 +97,8 @@ error if none of the checksums match:
 ```
 Error: Failed to install provider
 
-Error while installing hashicorp/azurerm v2.1.0: the current package for
-registry.opentofu.org/hashicorp/azurerm 2.1.0 doesn't match any of the
+Error while installing opentofu/azurerm v2.1.0: the current package for
+registry.opentofu.org/opentofu/azurerm 2.1.0 doesn't match any of the
 checksums previously recorded in the dependency lock file.
 ```
 
@@ -167,7 +167,7 @@ block in the dependency lock file.
    ]
  }
 
-+provider "registry.opentofu.org/hashicorp/azurerm" {
++provider "registry.opentofu.org/opentofu/azurerm" {
 +  version     = "2.30.0"
 +  constraints = "~> 2.12"
 +  hashes = [
@@ -218,7 +218,7 @@ block to reflect that change.
 @@ -7,22 +7,22 @@
  }
 
- provider "registry.opentofu.org/hashicorp/azurerm" {
+ provider "registry.opentofu.org/opentofu/azurerm" {
 -  version     = "2.1.0"
 -  constraints = "~> 2.1.0"
 +  version     = "2.0.0"
@@ -320,7 +320,7 @@ The two hashing schemes currently supported are:
 
 OpenTofu will add a new hash to an existing provider only if the hash is
 calculated from a package that _also_ matches one of the existing hashes. In
-the above example, OpenTofu installed a `hashicorp/azurerm` package for a
+the above example, OpenTofu installed a `opentofu/azurerm` package for a
 different platform than that which produced the original `h1:` checksum, but was
 able to match it against one of the `zh:` checksums recorded previously.
 After confirming the `zh:` checksum match, OpenTofu then recorded the
@@ -373,7 +373,7 @@ file entry for that provider.
    ]
  }
 
--provider "registry.opentofu.org/hashicorp/azurerm" {
+-provider "registry.opentofu.org/opentofu/azurerm" {
 -  version     = "2.30.0"
 -  constraints = "~> 2.12"
 -  hashes = [

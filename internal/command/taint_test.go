@@ -546,22 +546,22 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 const testTaintStr = `
 test_instance.foo: (tainted)
   ID = bar
-  provider = provider["registry.opentofu.org/hashicorp/test"]
+  provider = provider["registry.opentofu.org/opentofu/test"]
 `
 
 const testTaintDefaultStr = `
 test_instance.foo:
   ID = bar
-  provider = provider["registry.opentofu.org/hashicorp/test"]
+  provider = provider["registry.opentofu.org/opentofu/test"]
 `
 
 const testTaintModuleStr = `
 test_instance.foo:
   ID = bar
-  provider = provider["registry.opentofu.org/hashicorp/test"]
+  provider = provider["registry.opentofu.org/opentofu/test"]
 
 module.child:
   test_instance.blah: (tainted)
     ID = blah
-    provider = provider["registry.opentofu.org/hashicorp/test"]
+    provider = provider["registry.opentofu.org/opentofu/test"]
 `

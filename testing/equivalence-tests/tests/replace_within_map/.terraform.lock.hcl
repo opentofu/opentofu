@@ -1,7 +1,7 @@
 # This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/hashicorp/tfcoremock" {
+provider "registry.opentofu.org/opentofu/tfcoremock" {
   version     = "0.1.1"
   constraints = "0.1.1"
   hashes = [

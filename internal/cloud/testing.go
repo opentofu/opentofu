@@ -89,8 +89,8 @@ func testBackendWithName(t *testing.T) (*Cloud, func()) {
 
 func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":    cty.StringVal(testBackendSingleWorkspaceName),
@@ -103,8 +103,8 @@ func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 
 func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name": cty.NullVal(cty.String),
@@ -137,8 +137,8 @@ func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 
 func testBackendWithHandlers(t *testing.T, handlers map[string]func(http.ResponseWriter, *http.Request)) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal("app.opentofu.org"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":    cty.StringVal(testBackendSingleWorkspaceName),
@@ -563,7 +563,7 @@ func mockColorize() *colorstring.Colorize {
 }
 
 func mockSROWorkspace(t *testing.T, b *Cloud, workspaceName string) {
-	_, err := b.client.Workspaces.Update(context.Background(), "hashicorp", workspaceName, tfe.WorkspaceUpdateOptions{
+	_, err := b.client.Workspaces.Update(context.Background(), "opentofu", workspaceName, tfe.WorkspaceUpdateOptions{
 		StructuredRunOutputEnabled: tfe.Bool(true),
 		TerraformVersion:           tfe.String("1.4.0"),
 	})
@@ -581,7 +581,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
+	d.ForceHostServices(svchost.Hostname("app.opentofu.org"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	d.ForceHostServices(svchost.Hostname("nontfe.local"), nil)
 	return d
