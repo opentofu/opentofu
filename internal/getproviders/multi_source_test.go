@@ -416,7 +416,7 @@ func TestMultiSourceSelector(t *testing.T) {
 		"default provider with non-normalized include constraint that matches it via type wildcard": {
 			MultiSourceSelector{
 				Source:  emptySource,
-				Include: mustParseMultiSourceMatchingPatterns("HashiCorp/*"),
+				Include: mustParseMultiSourceMatchingPatterns("OpenTofu/*"),
 			},
 			addrs.NewDefaultProvider("foo"),
 			true,
