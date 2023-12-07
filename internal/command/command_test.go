@@ -140,7 +140,7 @@ func testFixturePath(name string) string {
 func metaOverridesForProvider(p providers.Interface) *testingOverrides {
 	return &testingOverrides{
 		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"):                                                       providers.FactoryFixed(p),
+			addrs.NewDefaultProvider("test"):                                          providers.FactoryFixed(p),
 			addrs.NewProvider(addrs.DefaultProviderRegistryHost, "opentofu2", "test"): providers.FactoryFixed(p),
 		},
 	}

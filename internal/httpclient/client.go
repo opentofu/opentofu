@@ -38,7 +38,7 @@ func NewTransportWithCustomTrustedCertificates(pool *x509.CertPool) http.RoundTr
 	transport := cleanhttp.DefaultPooledTransport()
 	if transport.TLSClientConfig == nil {
 		transport.TLSClientConfig = &tls.Config{
-			MinVersion:                  tls.VersionTLS12,
+			MinVersion: tls.VersionTLS12,
 		}
 	}
 	transport.TLSClientConfig.RootCAs = pool

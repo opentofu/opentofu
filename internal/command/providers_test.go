@@ -118,8 +118,8 @@ func TestProviders_modules(t *testing.T) {
 	wantOutput := []string{
 		"provider[registry.opentofu.org/opentofu/foo] 1.0.0", // from required_providers
 		"provider[registry.opentofu.org/opentofu/bar] 2.0.0", // from provider config
-		"── module.kiddo",                               // tree node for child module
-		"provider[registry.opentofu.org/opentofu/baz]", // implied by a resource in the child module
+		"── module.kiddo",                                    // tree node for child module
+		"provider[registry.opentofu.org/opentofu/baz]",       // implied by a resource in the child module
 	}
 
 	output := ui.OutputWriter.String()
@@ -155,7 +155,7 @@ func TestProviders_state(t *testing.T) {
 	wantOutput := []string{
 		"provider[registry.opentofu.org/opentofu/foo] 1.0.0", // from required_providers
 		"provider[registry.opentofu.org/opentofu/bar] 2.0.0", // from a provider config block
-		"Providers required by state",                         // header for state providers
+		"Providers required by state",                        // header for state providers
 		"provider[registry.opentofu.org/opentofu/baz]",       // from a resouce in state (only)
 	}
 
