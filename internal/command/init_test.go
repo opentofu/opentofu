@@ -2142,7 +2142,7 @@ provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+    "zh:3a72690e72116f1551ef89b3638148ac7cb4c9ae54ea87402880ca42dea1451d",
   ]
 }
 `)
@@ -2168,8 +2168,8 @@ provider "registry.opentofu.org/opentofu/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
-    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+    "h1:pE4OWJznTz5mLbgr4HYfs1oMKDOnCzmSwYP6syfGAfI=",
+    "zh:3a72690e72116f1551ef89b3638148ac7cb4c9ae54ea87402880ca42dea1451d",
   ]
 }
 `)
