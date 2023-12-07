@@ -372,12 +372,12 @@ func TestInitProviderNotFound(t *testing.T) {
 │ Error: Failed to query available provider packages
 │` + ` ` + `
 │ Could not retrieve the list of available versions for provider
-│ hashicorp/nonexist: provider registry registry.opentofu.org does not have a
+│ opentofu/nonexist: provider registry registry.opentofu.org does not have a
 │ provider named registry.opentofu.org/opentofu/nonexist
 │ 
 │ All modules should specify their required_providers so that external
 │ consumers will get the correct providers when using a module. To see which
-│ modules are currently depending on hashicorp/nonexist, run the following
+│ modules are currently depending on opentofu/nonexist, run the following
 │ command:
 │     tofu providers
 ╵
