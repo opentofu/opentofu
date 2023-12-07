@@ -82,3 +82,11 @@ services:
         type: bind
     command: /data/rpm.sh
     working_dir: /data
+  brew:
+    image: ubuntu
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/brew.sh
+    working_dir: /data
