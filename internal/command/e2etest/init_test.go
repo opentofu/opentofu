@@ -380,6 +380,9 @@ func TestInitProviderNotFound(t *testing.T) {
 │ modules are currently depending on hashicorp/nonexist, run the following
 │ command:
 │     tofu providers
+│ 
+│ If you believe this provider is missing from the registry, please submit a
+│ issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/
 ╵
 
 `
