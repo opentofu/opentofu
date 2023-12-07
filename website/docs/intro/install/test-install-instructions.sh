@@ -2,18 +2,60 @@
 
 # This script tests the installation instructions on all relevant Linux operating systems listed in docker-compose.yaml.
 
-set -e
+set -eo pipefail
 
-docker compose down || true
-docker compose up $1
+TEMPFILE=$(mktemp)
 
-echo -e "Test case\tExit code"
-docker compose ps -a --format '{{ .Service}}\t{{.ExitCode}}' | tee /tmp/$$
-FAILS=$(cat /tmp/$$ | cut -f 2 | grep -v '^0$' | wc -l)
-rm /tmp/$$
-if [ "${FAILS}" -ne 0 ]; then
-  echo "${FAILS} tests failed." >&2
+set +e
+
+docker compose down >/dev/null 2>&1
+docker compose up $1 >$TEMPFILE 2>&1
+EXIT_CODE=$?
+
+if [ "${EXIT_CODE}" -ne 0 ]; then
+  echo -e "\033[0;31mFailed to execute docker compose up\033[0m"
+  cat $TEMPFILE >&2
+  rm $TEMPFILE
+  exit "${EXIT_CODE}"
+fi
+
+SERVICES=$(docker compose ps -a --format '{{.Service}}')
+FINAL_EXIT_CODE=0
+FAILED=0
+for SERVICE in $SERVICES; do
+  EXIT_CODE=$(docker compose ps -a --format '{{.Service}}\t{{.ExitCode}}' | grep -E "^${SERVICE}\s" | cut -f 2)
+  if [ "${EXIT_CODE}" -eq 0 ]; then
+    echo -e "::group::\033[0;32m✅  ${SERVICE}\033[0m"
+  else
+    echo -e "::group::\033[0;31m❌  ${SERVICE}\033[0m"
+    FAILED=$(("${FAILED}"+1))
+  fi
+  cat $TEMPFILE | grep -E "^[a-zA-Z]+-${SERVICE}-1\s+\| " | sed -E "s/^[a-zA-Z]+-${SERVICE}-1\s+\| //"
+  echo "::endgroup::"
+done
+
+if [ "${FAILED}" -ne 0 ]; then
+  echo -e "::group::\033[0;31m❌  Summary (${FAILED} failed)\033[0m"
+else
+  echo -e "::group::\033[0;32m✅  Summary (all tests passed)\033[0m"
+fi
+echo -en "\033[1m"
+printf '%-32s%s\n' 'Test case' 'Result (exit code)'
+echo -en "\033[0m"
+for SERVICE in $SERVICES; do
+  EXIT_CODE=$(docker compose ps -a --format '{{.Service}}\t{{.ExitCode}}' | grep -E "^${SERVICE}\s" | cut -f 2)
+  if [ "${EXIT_CODE}" -eq 0 ]; then
+    RESULT=$(echo -ne "\033[0;32mpass (${EXIT_CODE})\033[0m")
+  else
+    RESULT=$(echo -ne "\033[0;31mfail (${EXIT_CODE})\033[0m")
+  fi
+  printf '%-32s%s\n' "${SERVICE}" "${RESULT}"
+done
+echo "::endgroup::"
+
+docker compose down >/dev/null 2>&1
+rm $TEMPFILE
+if [ "${FAILED}" -ne 0 ]; then
   exit 1
 fi
-docker compose down
-echo "All tests passed."
+exit 0
