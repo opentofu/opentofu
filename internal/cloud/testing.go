@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -57,6 +58,12 @@ var (
 		},
 	}
 )
+
+func skipIfTFENotEnabled(t *testing.T) {
+	if os.Getenv("TF_TFC_TEST") == "" {
+		t.Skip("this test accesses app.opentofu.org; set TF_TFC_TEST=1 to run it")
+	}
+}
 
 // mockInput is a mock implementation of tofu.UIInput.
 type mockInput struct {
@@ -225,6 +232,8 @@ func testBackendWithOutputs(t *testing.T) (*Cloud, func()) {
 }
 
 func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.ResponseWriter, *http.Request)) (*Cloud, *MockClient, func()) {
+	skipIfTFENotEnabled(t)
+
 	var s *httptest.Server
 	if handlers != nil {
 		s = testServerWithHandlers(handlers)
@@ -378,6 +387,8 @@ func testLocalBackend(t *testing.T, cloud *Cloud) backend.Enhanced {
 // testServer returns a started *httptest.Server used for local testing with the default set of
 // request handlers.
 func testServer(t *testing.T) *httptest.Server {
+	skipIfTFENotEnabled(t)
+
 	return testServerWithHandlers(testDefaultRequestHandlers)
 }
 
@@ -398,6 +409,8 @@ func testServerWithHandlers(handlers map[string]func(http.ResponseWriter, *http.
 }
 
 func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server {
+	skipIfTFENotEnabled(t)
+
 	var serverURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Log(r.Method, r.URL.String())

@@ -468,6 +468,8 @@ func TestCloud_config(t *testing.T) {
 }
 
 func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
+	skipIfTFENotEnabled(t)
+
 	config := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.opentofu.org"),
 		"organization": cty.StringVal("opentofu"),
@@ -505,6 +507,8 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 }
 
 func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
+	skipIfTFENotEnabled(t)
+
 	config := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.opentofu.org"),
 		"organization": cty.StringVal("opentofu"),
