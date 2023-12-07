@@ -2805,9 +2805,8 @@ func TestInit_testsWithProvider(t *testing.T) {
 	want := `
 Error: Failed to query available provider packages
 
-Could not retrieve the list of available versions for provider
-hashicorp/test: no available releases match the given constraints 1.0.1,
-1.0.2
+Could not retrieve the list of available versions for provider opentofu/test:
+no available releases match the given constraints 1.0.1, 1.0.2
 
 `
 	if diff := cmp.Diff(got, want); len(diff) > 0 {
