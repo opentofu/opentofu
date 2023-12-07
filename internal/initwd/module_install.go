@@ -438,7 +438,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			if registry.IsModuleNotFound(err) {
 				suggestion := ""
 				if hostname == addrs.DefaultModuleRegistryHost {
-					suggestion = "\n\nIf you believe this module is missing from registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/"
+					suggestion = "\n\nIf you believe this module is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/"
 				}
 
 				diags = diags.Append(&hcl.Diagnostic{
