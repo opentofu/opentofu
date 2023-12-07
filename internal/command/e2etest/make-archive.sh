@@ -34,7 +34,7 @@ GOEXE="$(go env GOEXE)"
 OUTDIR="build/${GOOS}_${GOARCH}"
 OUTFILE="tofu-e2etest_${GOOS}_${GOARCH}.zip"
 
-LDFLAGS="-X github.com/opentofu/opentofu/internal/command/e2etest.terraformBin=./tofu$GOEXE"
+LDFLAGS="-X github.com/opentofu/opentofu/internal/command/e2etest.tofuBin=./tofu$GOEXE"
 # Caller may pass in the environment variable GO_LDFLAGS with additional
 # flags we'll use when building.
 if [ -n "${GO_LDFLAGS+set}" ]; then

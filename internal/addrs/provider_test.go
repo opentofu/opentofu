@@ -421,11 +421,11 @@ func TestParseProviderSourceStr(t *testing.T) {
 		// the longer prefix terraform-provider- to hint for users who might be
 		// accidentally using the git repository name or executable file name
 		// instead of the provider type.
-		"example.com/hashicorp/terraform-provider-bad": {
+		"example.com/opentofu/terraform-provider-bad": {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/terraform-bad": {
+		"example.com/opentofu/terraform-bad": {
 			Provider{},
 			true,
 		},

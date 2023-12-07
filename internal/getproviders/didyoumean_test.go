@@ -49,7 +49,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		defer close()
 
 		// testRegistrySource handles -/moved as a valid legacy provider
-		// lookup mapping to hashicorp/moved but with an additional "redirect"
+		// lookup mapping to opentofu/moved but with an additional "redirect"
 		// to acme/moved. This mimics how for some providers there is both
 		// a copy under terraform-providers for v0.12 compatibility _and_ a
 		// copy in some other namespace for v0.13 or later to use. Our naming

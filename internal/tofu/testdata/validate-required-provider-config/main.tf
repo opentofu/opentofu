@@ -9,8 +9,8 @@ terraform {
   }
 }
 
-# hashicorp/test has required provider config attributes. This "arbitrary"
-# provider configuration block should map to hashicorp/test.
+# opentofu/test has required provider config attributes. This "arbitrary"
+# provider configuration block should map to opentofu/test.
 provider "arbitrary" {
   required_attribute = "bloop"
 }

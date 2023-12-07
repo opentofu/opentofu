@@ -32,7 +32,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "full-workflow-null")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	//// INIT
 	stdout, stderr, err := tf.Run("init")
@@ -152,7 +152,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 	// safe to run it even when network access is disallowed.
 
 	fixturePath := filepath.Join("testdata", "chdir-option")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	//// INIT
 	_, stderr, err := tf.Run("-chdir=subdir", "init")

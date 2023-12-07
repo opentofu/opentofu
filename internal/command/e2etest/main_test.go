@@ -12,7 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
-var terraformBin string
+var tofuBin string
 
 // canRunGoBuild is a short-term compromise to account for the fact that we
 // have a small number of tests that work by building helper programs using
@@ -23,7 +23,7 @@ var terraformBin string
 // (test plugins, etc) as part of the initial suite setup, and in the
 // make-archive.sh script, so that we can run all of the tests in both
 // situations with the tests just using the executable already built for
-// them, as we do for terraformBin.
+// them, as we do for tofuBin.
 var canRunGoBuild bool
 
 func TestMain(m *testing.M) {
@@ -34,14 +34,14 @@ func TestMain(m *testing.M) {
 }
 
 func setup() func() {
-	if terraformBin != "" {
+	if tofuBin != "" {
 		// this is pre-set when we're running in a binary produced from
 		// the make-archive.sh script, since that is for testing an
 		// executable obtained from a real release package. However, we do
 		// need to turn it into an absolute path so that we can find it
 		// when we change the working directory during tests.
 		var err error
-		terraformBin, err = filepath.Abs(terraformBin)
+		tofuBin, err = filepath.Abs(tofuBin)
 		if err != nil {
 			panic(fmt.Sprintf("failed to find absolute path of tofu executable: %s", err))
 		}
@@ -51,7 +51,7 @@ func setup() func() {
 	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu/cmd/tofu", "tofu")
 
 	// Make the executable available for use in tests
-	terraformBin = tmpFilename
+	tofuBin = tmpFilename
 
 	// Tests running in the ad-hoc testing mode are allowed to use "go build"
 	// and similar to produce other test executables.

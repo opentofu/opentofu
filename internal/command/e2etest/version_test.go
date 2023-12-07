@@ -22,7 +22,7 @@ func TestVersion(t *testing.T) {
 	t.Parallel()
 
 	fixturePath := filepath.Join("testdata", "empty")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("version")
 	if err != nil {
@@ -50,7 +50,7 @@ func TestVersionWithProvider(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "template-provider")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	// Initial run (before "init") should work without error but will not
 	// include the provider version, since we've not "locked" one yet.

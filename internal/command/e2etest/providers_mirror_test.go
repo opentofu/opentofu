@@ -37,7 +37,7 @@ func testTerraformProvidersMirror(t *testing.T, fixture string) {
 	t.Logf("creating mirror directory in %s", outputDir)
 
 	fixturePath := filepath.Join("testdata", fixture)
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("providers", "mirror", "-platform=linux_amd64", "-platform=windows_386", outputDir)
 	if err != nil {

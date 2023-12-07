@@ -660,7 +660,7 @@ func TestContext2Validate_providerConfig_good(t *testing.T) {
 	}
 }
 
-// In this test there is a mismatch between the provider's fqn (hashicorp/test)
+// In this test there is a mismatch between the provider's fqn (opentofu/test)
 // and it's local name set in required_providers (arbitrary).
 func TestContext2Validate_requiredProviderConfig(t *testing.T) {
 	m := testModule(t, "validate-required-provider-config")

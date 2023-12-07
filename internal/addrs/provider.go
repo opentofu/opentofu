@@ -66,18 +66,18 @@ func NewProvider(hostname svchost.Hostname, namespace, typeName string) Provider
 // provider FQN a user intended when only a naked type name is available.
 //
 // For all except the type name "terraform" this returns a so-called "default"
-// provider, which is under the registry.terraform.io/hashicorp/ namespace.
+// provider, which is under the registry.opentofu.org/opentofu/ namespace.
 //
 // As a special case, the string "terraform" maps to
 // "terraform.io/builtin/terraform" because that is the more likely user
 // intent than the now-unmaintained "registry.terraform.io/hashicorp/terraform"
-// which remains only for compatibility with older OpenTofu versions.
+// which remains only for compatibility with older Terraform versions.
 func ImpliedProviderForUnqualifiedType(typeName string) Provider {
 	switch typeName {
 	case "terraform":
 		// Note for future maintainers: any additional strings we add here
 		// as implied to be builtin must never also be use as provider names
-		// in the registry.terraform.io/hashicorp/... namespace, because
+		// in the registry.opentofu.org/opentofu/... namespace, because
 		// otherwise older versions of OpenTofu could implicitly select
 		// the registry name instead of the internal one.
 		return NewBuiltInProvider(typeName)
