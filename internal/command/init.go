@@ -658,6 +658,10 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					)
 				}
 
+				if provider.Hostname == addrs.DefaultProviderRegistryHost {
+					suggestion += "\n\nIf you believe this provider is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/"
+				}
+
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to query available provider packages",

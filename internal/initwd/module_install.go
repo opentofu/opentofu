@@ -436,10 +436,15 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 		resp, err = reg.ModuleVersions(ctx, regsrcAddr)
 		if err != nil {
 			if registry.IsModuleNotFound(err) {
+				suggestion := ""
+				if hostname == addrs.DefaultModuleRegistryHost {
+					suggestion = "\n\nIf you believe this module is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/"
+				}
+
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Module not found",
-					Detail:   fmt.Sprintf("Module %q (from %s:%d) cannot be found in the module registry at %s.", req.Name, req.CallRange.Filename, req.CallRange.Start.Line, hostname),
+					Detail:   fmt.Sprintf("Module %s (%q from %s:%d) cannot be found in the module registry at %s.%s", addr.Package.ForRegistryProtocol(), req.Name, req.CallRange.Filename, req.CallRange.Start.Line, hostname, suggestion),
 					Subject:  req.CallRange.Ptr(),
 				})
 			} else if errors.Is(err, context.Canceled) {
