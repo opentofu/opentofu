@@ -227,7 +227,7 @@ func (c *LoginCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
-	if hostname == "app.terraform.io" { // OpenTofu Cloud (:
+	if hostname == "app.terraform.io" { // Terraform Cloud
 		var motd struct {
 			Message string        `json:"msg"`
 			Errors  []interface{} `json:"errors"`

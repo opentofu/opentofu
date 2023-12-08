@@ -75,7 +75,7 @@ func TestLogin(t *testing.T) {
 				},
 			})
 			svcs.ForceHostServices(svchost.Hostname("app.terraform.io"), map[string]interface{}{
-				// This represents Terraform Cloud (:, which does not yet support the
+				// This represents Terraform Cloud, which does not yet support the
 				// login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
 				"tfe.v2.1": ts.URL + "/api/v2",
