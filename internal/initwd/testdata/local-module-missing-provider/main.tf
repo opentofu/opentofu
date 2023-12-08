@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     foo = {
-      source = "hashicorp/foo"
+      source = "opentofu/foo"
       // since this module declares an alias with no config, it is not valid as
       // a root module.
       configuration_aliases = [ foo.alternate ]

@@ -19,7 +19,7 @@ func TestProviderString(t *testing.T) {
 			Provider{
 				Type:      "test",
 				Hostname:  DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 			},
 			NewDefaultProvider("test").String(),
 		},
@@ -27,17 +27,17 @@ func TestProviderString(t *testing.T) {
 			Provider{
 				Type:      "test-beta",
 				Hostname:  DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 			},
 			NewDefaultProvider("test-beta").String(),
 		},
 		{
 			Provider{
 				Type:      "test",
-				Hostname:  "registry.terraform.com",
-				Namespace: "hashicorp",
+				Hostname:  "registry.example.com",
+				Namespace: DefaultProviderNamespace,
 			},
-			"registry.terraform.com/hashicorp/test",
+			"registry.example.com/" + DefaultProviderNamespace + "/test",
 		},
 		{
 			Provider{
@@ -97,17 +97,17 @@ func TestProviderDisplay(t *testing.T) {
 			Provider{
 				Type:      "test",
 				Hostname:  DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 			},
-			"hashicorp/test",
+			DefaultProviderNamespace + "/test",
 		},
 		{
 			Provider{
 				Type:      "test",
-				Hostname:  "registry.terraform.com",
-				Namespace: "hashicorp",
+				Hostname:  "registry.example.com",
+				Namespace: DefaultProviderNamespace,
 			},
-			"registry.terraform.com/hashicorp/test",
+			"registry.example.com/" + DefaultProviderNamespace + "/test",
 		},
 		{
 			Provider{
@@ -136,15 +136,15 @@ func TestProviderIsDefaultProvider(t *testing.T) {
 			Provider{
 				Type:      "test",
 				Hostname:  DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 			},
 			true,
 		},
 		{
 			Provider{
 				Type:      "test",
-				Hostname:  "registry.terraform.com",
-				Namespace: "hashicorp",
+				Hostname:  "registry.example.com",
+				Namespace: DefaultProviderNamespace,
 			},
 			false,
 		},
@@ -207,15 +207,15 @@ func TestProviderIsBuiltIn(t *testing.T) {
 			Provider{
 				Type:      "test",
 				Hostname:  DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 			},
 			false,
 		},
 		{
 			Provider{
 				Type:      "test",
-				Hostname:  "registry.terraform.com",
-				Namespace: "hashicorp",
+				Hostname:  "registry.example.com",
+				Namespace: DefaultProviderNamespace,
 			},
 			false,
 		},
@@ -253,7 +253,7 @@ func TestProviderIsLegacy(t *testing.T) {
 		{
 			Provider{
 				Type:      "test",
-				Hostname:  "registry.terraform.com",
+				Hostname:  "registry.example.com",
 				Namespace: LegacyProviderNamespace,
 			},
 			false,
@@ -262,7 +262,7 @@ func TestProviderIsLegacy(t *testing.T) {
 			Provider{
 				Type:      "test",
 				Hostname:  DefaultProviderRegistryHost,
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 			},
 			false,
 		},
@@ -281,34 +281,36 @@ func TestParseProviderSourceStr(t *testing.T) {
 		Want Provider
 		Err  bool
 	}{
-		"registry.opentofu.org/hashicorp/aws": {
+		string(DefaultProviderRegistryHost) + "/" + DefaultProviderNamespace + "/aws": {
 			Provider{
 				Type:      "aws",
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 				Hostname:  DefaultProviderRegistryHost,
 			},
 			false,
 		},
-		"registry.opentofu.org/HashiCorp/AWS": {
+		// Note: this is a capitalization test and intentionally spells out the namespace intentionally.
+		string(DefaultProviderRegistryHost) + "/OpenTofu/AWS": {
 			Provider{
 				Type:      "aws",
-				Namespace: "hashicorp",
+				Namespace: "opentofu",
 				Hostname:  DefaultProviderRegistryHost,
 			},
 			false,
 		},
-		"hashicorp/aws": {
+		DefaultProviderNamespace + "/aws": {
 			Provider{
 				Type:      "aws",
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 				Hostname:  DefaultProviderRegistryHost,
 			},
 			false,
 		},
-		"HashiCorp/AWS": {
+		// Note: this is a capitalization test and intentionally spells out the namespace intentionally.
+		"OpenTofu/AWS": {
 			Provider{
 				Type:      "aws",
-				Namespace: "hashicorp",
+				Namespace: "opentofu",
 				Hostname:  DefaultProviderRegistryHost,
 			},
 			false,
@@ -316,7 +318,7 @@ func TestParseProviderSourceStr(t *testing.T) {
 		"aws": {
 			Provider{
 				Type:      "aws",
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 				Hostname:  DefaultProviderRegistryHost,
 			},
 			false,
@@ -324,7 +326,7 @@ func TestParseProviderSourceStr(t *testing.T) {
 		"AWS": {
 			Provider{
 				Type:      "aws",
-				Namespace: "hashicorp",
+				Namespace: DefaultProviderNamespace,
 				Hostname:  DefaultProviderRegistryHost,
 			},
 			false,
@@ -369,7 +371,7 @@ func TestParseProviderSourceStr(t *testing.T) {
 			Provider{},
 			true,
 		},
-		"badhost!/hashicorp/aws": {
+		"badhost!/opentofu/aws": {
 			Provider{},
 			true,
 		},
@@ -393,23 +395,23 @@ func TestParseProviderSourceStr(t *testing.T) {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/badtype!": {
+		"example.com/opentofu/badtype!": {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/bad--type": {
+		"example.com/opentofu/bad--type": {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/-badtype": {
+		"example.com/opentofu/-badtype": {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/badtype-": {
+		"example.com/opentofu/badtype-": {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/bad.type": {
+		"example.com/opentofu/bad.type": {
 			Provider{},
 			true,
 		},
@@ -419,11 +421,11 @@ func TestParseProviderSourceStr(t *testing.T) {
 		// the longer prefix terraform-provider- to hint for users who might be
 		// accidentally using the git repository name or executable file name
 		// instead of the provider type.
-		"example.com/hashicorp/terraform-provider-bad": {
+		"example.com/opentofu/terraform-provider-bad": {
 			Provider{},
 			true,
 		},
-		"example.com/hashicorp/terraform-bad": {
+		"example.com/opentofu/terraform-bad": {
 			Provider{},
 			true,
 		},

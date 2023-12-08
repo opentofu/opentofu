@@ -29,20 +29,20 @@ func TestProviderTampering(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "provider-tampering-base")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("init")
 	if err != nil {
 		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 	}
-	if !strings.Contains(stdout, "Installing hashicorp/null v") {
+	if !strings.Contains(stdout, "Installing opentofu/null v") {
 		t.Errorf("null provider download message is missing from init output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
 
 	seedDir := tf.WorkDir()
 	const providerVersion = "3.1.0" // must match the version in the fixture config
-	pluginDir := filepath.Join(".terraform", "providers", "registry.opentofu.org", "hashicorp", "null", providerVersion, getproviders.CurrentPlatform.String())
+	pluginDir := filepath.Join(".terraform", "providers", "registry.opentofu.org", "opentofu", "null", providerVersion, getproviders.CurrentPlatform.String())
 	pluginExe := filepath.Join(pluginDir, "terraform-provider-null_v"+providerVersion+"_x5")
 	if getproviders.CurrentPlatform.OS == "windows" {
 		pluginExe += ".exe" // ugh
@@ -53,7 +53,7 @@ func TestProviderTampering(t *testing.T) {
 	providerCacheDir := filepath.Join(".terraform", "providers")
 
 	t.Run("cache dir totally gone", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.RemoveAll(filepath.Join(workDir, ".terraform"))
@@ -65,7 +65,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.opentofu.org/hashicorp/null: there is no package for registry.opentofu.org/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/opentofu/null: there is no package for registry.opentofu.org/opentofu/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -83,7 +83,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("cache dir totally gone, explicit backend", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.WriteFile(filepath.Join(workDir, "backend.tf"), []byte(localBackendConfig), 0600)
@@ -118,7 +118,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("null plugin package modified before plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.WriteFile(filepath.Join(workDir, pluginExe), []byte("tamper"), 0600)
@@ -130,7 +130,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.opentofu.org/hashicorp/null: the cached package for registry.opentofu.org/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/opentofu/null: the cached package for registry.opentofu.org/opentofu/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -138,14 +138,14 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("version constraint changed in config before plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.WriteFile(filepath.Join(workDir, "provider-tampering-base.tf"), []byte(`
 			terraform {
 				required_providers {
 					null = {
-						source  = "hashicorp/null"
+						source  = "opentofu/null"
 						version = "1.0.0"
 					}
 				}
@@ -159,7 +159,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.opentofu.org/hashicorp/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/opentofu/null: locked version selection 3.1.0 doesn't match the updated version constraints "1.0.0"`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init -upgrade`; !strings.Contains(stderr, want) {
@@ -167,7 +167,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("lock file modified before plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		// NOTE: We're just emptying out the lock file here because that's
@@ -185,7 +185,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected plan success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/opentofu/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `tofu init`; !strings.Contains(stderr, want) {
@@ -193,7 +193,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("lock file modified after plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		_, stderr, err := tf.Run("plan", "-out", "tfplan")
@@ -210,7 +210,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
+		if want := `provider registry.opentofu.org/opentofu/null: required by this configuration but no version is selected`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 		if want := `Create a new plan from the updated configuration.`; !strings.Contains(stderr, want) {
@@ -218,7 +218,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("plugin cache dir entirely removed after plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		_, stderr, err := tf.Run("plan", "-out", "tfplan")
@@ -235,12 +235,12 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.opentofu.org/hashicorp/null: there is no package for registry.opentofu.org/hashicorp/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/opentofu/null: there is no package for registry.opentofu.org/opentofu/null 3.1.0 cached in ` + providerCacheDir; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})
 	t.Run("null plugin package modified after plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		_, stderr, err := tf.Run("plan", "-out", "tfplan")
@@ -257,7 +257,7 @@ func TestProviderTampering(t *testing.T) {
 		if err == nil {
 			t.Fatalf("unexpected apply success\nstdout:\n%s", stdout)
 		}
-		if want := `registry.opentofu.org/hashicorp/null: the cached package for registry.opentofu.org/hashicorp/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
+		if want := `registry.opentofu.org/opentofu/null: the cached package for registry.opentofu.org/opentofu/null 3.1.0 (in ` + providerCacheDir + `) does not match any of the checksums recorded in the dependency lock file`; !strings.Contains(stderr, want) {
 			t.Errorf("missing expected error message\nwant substring: %s\ngot:\n%s", want, stderr)
 		}
 	})

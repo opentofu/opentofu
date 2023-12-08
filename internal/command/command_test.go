@@ -140,8 +140,8 @@ func testFixturePath(name string) string {
 func metaOverridesForProvider(p providers.Interface) *testingOverrides {
 	return &testingOverrides{
 		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"):                                           providers.FactoryFixed(p),
-			addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp2", "test"): providers.FactoryFixed(p),
+			addrs.NewDefaultProvider("test"):                                          providers.FactoryFixed(p),
+			addrs.NewProvider(addrs.DefaultProviderRegistryHost, "opentofu2", "test"): providers.FactoryFixed(p),
 		},
 	}
 }
@@ -978,10 +978,10 @@ func mustResourceAddr(s string) addrs.ConfigResource {
 // when called via LookupLegacyProvider. Providers not in this map will return
 // a 404 Not Found error.
 var legacyProviderNamespaces = map[string]string{
-	"foo": "hashicorp",
-	"bar": "hashicorp",
+	"foo": "opentofu",
+	"bar": "opentofu",
 	"baz": "terraform-providers",
-	"qux": "hashicorp",
+	"qux": "opentofu",
 }
 
 // This map is used to mock the provider redirect feature.

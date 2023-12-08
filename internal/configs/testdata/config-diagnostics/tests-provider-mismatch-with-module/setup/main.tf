@@ -1,11 +1,11 @@
 terraform {
     required_providers {
         foo = {
-            source = "hashicorp/bar"
+            source = "opentofu/bar"
             configuration_aliases = [ foo.bar ]
         }
         bar = {
-            source = "hashicorp/foo"
+            source = "opentofu/foo"
         }
     }
 }

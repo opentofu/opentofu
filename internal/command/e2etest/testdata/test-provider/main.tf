@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     simple = {
-      source = "hashicorp/test"
+      source = "opentofu/test"
     }
   }
 }

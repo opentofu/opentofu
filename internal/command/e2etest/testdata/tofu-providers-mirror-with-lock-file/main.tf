@@ -1,7 +1,7 @@
 terraform {
   required_providers {
-    template  = { source = "hashicorp/template" }
-    null      = { source = "hashicorp/null" }
+    template  = { source = "opentofu/template" }
+    null      = { source = "opentofu/null" }
     terraform = { source = "terraform.io/builtin/terraform" }
   }
 }

@@ -1,7 +1,7 @@
 # This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/hashicorp/local" {
+provider "registry.opentofu.org/opentofu/local" {
   version     = "2.2.3"
   constraints = "2.2.3"
   hashes = [

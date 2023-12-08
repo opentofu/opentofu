@@ -88,7 +88,7 @@ func testAnalyzer(t *testing.T, fixtureName string) *Analyzer {
 		},
 	}
 	schemas := map[addrs.Provider]providers.ProviderSchema{
-		addrs.MustParseProviderSourceString("hashicorp/test"): {
+		addrs.MustParseProviderSourceString("opentofu/test"): {
 			ResourceTypes: map[string]providers.Schema{
 				"test_thing": {
 					Block: resourceTypeSchema,

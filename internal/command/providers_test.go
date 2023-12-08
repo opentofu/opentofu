@@ -34,9 +34,9 @@ func TestProviders(t *testing.T) {
 	}
 
 	wantOutput := []string{
-		"provider[registry.opentofu.org/hashicorp/foo]",
-		"provider[registry.opentofu.org/hashicorp/bar]",
-		"provider[registry.opentofu.org/hashicorp/baz]",
+		"provider[registry.opentofu.org/opentofu/foo]",
+		"provider[registry.opentofu.org/opentofu/bar]",
+		"provider[registry.opentofu.org/opentofu/baz]",
 	}
 
 	output := ui.OutputWriter.String()
@@ -116,10 +116,10 @@ func TestProviders_modules(t *testing.T) {
 	}
 
 	wantOutput := []string{
-		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
-		"provider[registry.opentofu.org/hashicorp/bar] 2.0.0", // from provider config
-		"── module.kiddo",                               // tree node for child module
-		"provider[registry.opentofu.org/hashicorp/baz]", // implied by a resource in the child module
+		"provider[registry.opentofu.org/opentofu/foo] 1.0.0", // from required_providers
+		"provider[registry.opentofu.org/opentofu/bar] 2.0.0", // from provider config
+		"── module.kiddo",                                    // tree node for child module
+		"provider[registry.opentofu.org/opentofu/baz]",       // implied by a resource in the child module
 	}
 
 	output := ui.OutputWriter.String()
@@ -153,10 +153,10 @@ func TestProviders_state(t *testing.T) {
 	}
 
 	wantOutput := []string{
-		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
-		"provider[registry.opentofu.org/hashicorp/bar] 2.0.0", // from a provider config block
-		"Providers required by state",                         // header for state providers
-		"provider[registry.opentofu.org/hashicorp/baz]",       // from a resouce in state (only)
+		"provider[registry.opentofu.org/opentofu/foo] 1.0.0", // from required_providers
+		"provider[registry.opentofu.org/opentofu/bar] 2.0.0", // from a provider config block
+		"Providers required by state",                        // header for state providers
+		"provider[registry.opentofu.org/opentofu/baz]",       // from a resouce in state (only)
 	}
 
 	output := ui.OutputWriter.String()
@@ -190,9 +190,9 @@ func TestProviders_tests(t *testing.T) {
 	}
 
 	wantOutput := []string{
-		"provider[registry.opentofu.org/hashicorp/foo]",
+		"provider[registry.opentofu.org/opentofu/foo]",
 		"test.main",
-		"provider[registry.opentofu.org/hashicorp/bar]",
+		"provider[registry.opentofu.org/opentofu/bar]",
 	}
 
 	output := ui.OutputWriter.String()

@@ -50,7 +50,7 @@ func TestRemote_config(t *testing.T) {
 	}{
 		"with_a_nonexisting_organization": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
+				"hostname":     cty.StringVal("app.example.com"),
 				"organization": cty.StringVal("nonexisting"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -58,7 +58,7 @@ func TestRemote_config(t *testing.T) {
 					"prefix": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "organization \"nonexisting\" at host app.terraform.io not found",
+			confErr: "organization \"nonexisting\" at host app.example.com not found",
 		},
 		"with_a_missing_hostname": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -75,7 +75,7 @@ func TestRemote_config(t *testing.T) {
 		"with_an_unknown_host": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("nonexisting.local"),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -88,7 +88,7 @@ func TestRemote_config(t *testing.T) {
 		"without_a_token": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("localhost"),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -100,7 +100,7 @@ func TestRemote_config(t *testing.T) {
 		"with_a_name": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -111,7 +111,7 @@ func TestRemote_config(t *testing.T) {
 		"with_a_prefix": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.NullVal(cty.String),
@@ -122,7 +122,7 @@ func TestRemote_config(t *testing.T) {
 		"without_either_a_name_and_a_prefix": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.NullVal(cty.String),
@@ -134,7 +134,7 @@ func TestRemote_config(t *testing.T) {
 		"with_both_a_name_and_a_prefix": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -149,7 +149,7 @@ func TestRemote_config(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		s := testServer(t)
+		s := testServerTLS(t)
 		b := New(testDisco(s))
 
 		// Validate
@@ -177,8 +177,8 @@ func TestRemote_versionConstraints(t *testing.T) {
 	}{
 		"compatible version": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
-				"organization": cty.StringVal("hashicorp"),
+				"hostname":     cty.StringVal("localhost"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -189,8 +189,8 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too old": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
-				"organization": cty.StringVal("hashicorp"),
+				"hostname":     cty.StringVal("localhost"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -202,8 +202,8 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too new": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
-				"organization": cty.StringVal("hashicorp"),
+				"hostname":     cty.StringVal("localhost"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":   cty.StringVal("prod"),
@@ -224,25 +224,27 @@ func TestRemote_versionConstraints(t *testing.T) {
 	}()
 
 	for name, tc := range cases {
-		s := testServer(t)
-		b := New(testDisco(s))
+		t.Run(name, func(t *testing.T) {
+			s := testServer(t)
+			b := New(testDisco(s))
 
-		// Set the version for this test.
-		tfversion.Prerelease = tc.prerelease
-		tfversion.Version = tc.version
+			// Set the version for this test.
+			tfversion.Prerelease = tc.prerelease
+			tfversion.Version = tc.version
 
-		// Validate
-		_, valDiags := b.PrepareConfig(tc.config)
-		if valDiags.HasErrors() {
-			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
-		}
+			// Validate
+			_, valDiags := b.PrepareConfig(tc.config)
+			if valDiags.HasErrors() {
+				t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
+			}
 
-		// Configure
-		confDiags := b.Configure(tc.config)
-		if (confDiags.Err() != nil || tc.result != "") &&
-			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
-			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
-		}
+			// Configure
+			confDiags := b.Configure(tc.config)
+			if (confDiags.Err() != nil || tc.result != "") &&
+				(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
+				t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
+			}
+		})
 	}
 }
 
@@ -732,19 +734,19 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	if got, want := diags[0].Description().Summary, "OpenTofu version mismatch"; got != want {
 		t.Errorf("wrong summary: got %s, want %s", got, want)
 	}
-	wantDetail := "The local OpenTofu version (0.14.0) does not match the configured version for remote workspace hashicorp/prod (0.13.5)."
+	wantDetail := "The local OpenTofu version (0.14.0) does not match the configured version for remote workspace opentofu/prod (0.13.5)."
 	if got := diags[0].Description().Detail; got != wantDetail {
 		t.Errorf("wrong summary: got %s, want %s", got, wantDetail)
 	}
 }
 
 func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
-	s := testServer(t)
+	s := testServerTLS(t)
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"hostname":     cty.StringVal("app.example.com"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":   cty.StringVal("prod"),

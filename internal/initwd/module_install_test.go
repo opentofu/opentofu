@@ -847,7 +847,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	//check that the registry reponses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
-		Host:         svchost.Hostname("registry.opentofu.org"),
+		Host:         addrs.DefaultProviderRegistryHost,
 		Namespace:    "hashicorp",
 		Name:         "module-installer-acctest",
 		TargetSystem: "aws",

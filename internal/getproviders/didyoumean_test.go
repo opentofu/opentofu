@@ -49,7 +49,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		defer close()
 
 		// testRegistrySource handles -/moved as a valid legacy provider
-		// lookup mapping to hashicorp/moved but with an additional "redirect"
+		// lookup mapping to opentofu/moved but with an additional "redirect"
 		// to acme/moved. This mimics how for some providers there is both
 		// a copy under terraform-providers for v0.12 compatibility _and_ a
 		// copy in some other namespace for v0.13 or later to use. Our naming
@@ -151,7 +151,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		defer close()
 
 		// Because this provider address isn't in
-		// registry.opentofu.org/hashicorp/..., MissingProviderSuggestion
+		// registry.opentofu.org/opentofu/..., MissingProviderSuggestion
 		// will provide the same addr since there's no alternative in Requirements
 		want := addrs.Provider{
 			Hostname:  defaultRegistryHost,
@@ -174,7 +174,7 @@ func TestMissingProviderSuggestion(t *testing.T) {
 		// but different namespace, we can suggest that
 		foo := addrs.Provider{
 			Hostname:  defaultRegistryHost,
-			Namespace: "hashicorp",
+			Namespace: addrs.DefaultProviderNamespace,
 			Type:      "foo",
 		}
 		realFoo := addrs.Provider{

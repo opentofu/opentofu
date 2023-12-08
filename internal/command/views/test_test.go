@@ -568,7 +568,7 @@ something bad happened during this test
 										Module: addrs.RootModule,
 										Provider: addrs.Provider{
 											Hostname:  addrs.DefaultProviderRegistryHost,
-											Namespace: "hashicorp",
+											Namespace: addrs.DefaultProviderNamespace,
 											Type:      "test",
 										},
 									},
@@ -592,7 +592,7 @@ something bad happened during this test
 					Providers: map[addrs.Provider]providers.ProviderSchema{
 						addrs.Provider{
 							Hostname:  addrs.DefaultProviderRegistryHost,
-							Namespace: "hashicorp",
+							Namespace: addrs.DefaultProviderNamespace,
 							Type:      "test",
 						}: {
 							ResourceTypes: map[string]providers.Schema{
@@ -654,7 +654,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 								Module: addrs.RootModule,
 								Provider: addrs.Provider{
 									Hostname:  addrs.DefaultProviderRegistryHost,
-									Namespace: "hashicorp",
+									Namespace: addrs.DefaultProviderNamespace,
 									Type:      "test",
 								},
 							})
@@ -663,7 +663,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 					Providers: map[addrs.Provider]providers.ProviderSchema{
 						addrs.Provider{
 							Hostname:  addrs.DefaultProviderRegistryHost,
-							Namespace: "hashicorp",
+							Namespace: addrs.DefaultProviderNamespace,
 							Type:      "test",
 						}: {
 							ResourceTypes: map[string]providers.Schema{
@@ -2537,7 +2537,7 @@ func TestTestJSON_Run(t *testing.T) {
 										Module: addrs.RootModule,
 										Provider: addrs.Provider{
 											Hostname:  addrs.DefaultProviderRegistryHost,
-											Namespace: "hashicorp",
+											Namespace: addrs.DefaultProviderNamespace,
 											Type:      "test",
 										},
 									},
@@ -2565,7 +2565,7 @@ func TestTestJSON_Run(t *testing.T) {
 					Providers: map[addrs.Provider]providers.ProviderSchema{
 						addrs.Provider{
 							Hostname:  addrs.DefaultProviderRegistryHost,
-							Namespace: "hashicorp",
+							Namespace: addrs.DefaultProviderNamespace,
 							Type:      "test",
 						}: {
 							ResourceTypes: map[string]providers.Schema{
@@ -2615,7 +2615,7 @@ func TestTestJSON_Run(t *testing.T) {
 										"address":          "test_resource.creating",
 										"mode":             "managed",
 										"name":             "creating",
-										"provider_name":    "registry.opentofu.org/hashicorp/test",
+										"provider_name":    "registry.opentofu.org/opentofu/test",
 										"schema_version":   0.0,
 										"sensitive_values": map[string]interface{}{},
 										"type":             "test_resource",
@@ -2641,7 +2641,7 @@ func TestTestJSON_Run(t *testing.T) {
 								},
 								"mode":          "managed",
 								"name":          "creating",
-								"provider_name": "registry.opentofu.org/hashicorp/test",
+								"provider_name": "registry.opentofu.org/opentofu/test",
 								"type":          "test_resource",
 							},
 						},
@@ -2678,7 +2678,7 @@ func TestTestJSON_Run(t *testing.T) {
 								Module: addrs.RootModule,
 								Provider: addrs.Provider{
 									Hostname:  addrs.DefaultProviderRegistryHost,
-									Namespace: "hashicorp",
+									Namespace: addrs.DefaultProviderNamespace,
 									Type:      "test",
 								},
 							})
@@ -2689,7 +2689,7 @@ func TestTestJSON_Run(t *testing.T) {
 					Providers: map[addrs.Provider]providers.ProviderSchema{
 						addrs.Provider{
 							Hostname:  addrs.DefaultProviderRegistryHost,
-							Namespace: "hashicorp",
+							Namespace: addrs.DefaultProviderNamespace,
 							Type:      "test",
 						}: {
 							ResourceTypes: map[string]providers.Schema{
@@ -2735,7 +2735,7 @@ func TestTestJSON_Run(t *testing.T) {
 										"address":          "test_resource.creating",
 										"mode":             "managed",
 										"name":             "creating",
-										"provider_name":    "registry.opentofu.org/hashicorp/test",
+										"provider_name":    "registry.opentofu.org/opentofu/test",
 										"schema_version":   0.0,
 										"sensitive_values": map[string]interface{}{},
 										"type":             "test_resource",

@@ -122,20 +122,20 @@ follows:
 For example,
 [the official HTTP provider](https://registry.terraform.io/providers/hashicorp/http)
 belongs to the `hashicorp` namespace on `registry.opentofu.org`, so its
-source address is `registry.opentofu.org/hashicorp/http` or, more commonly, just
+source address is `registry.opentofu.org/opentofu/http` or, more commonly, just
 `hashicorp/http`.
 
 The source address with all three components given explicitly is called the
 provider's _fully-qualified address_. You will see fully-qualified address in
 various outputs, like error messages, but in most cases a simplified display
 version is used. This display version omits the source host when it is the
-public registry, so you may see the shortened version `"hashicorp/random"` instead
-of `"registry.opentofu.org/hashicorp/random"`.
+public registry, so you may see the shortened version `"opentofu/random"` instead
+of `"registry.opentofu.org/opentofu/random"`.
 
 :::note
 If you omit the `source` argument when requiring a provider,
 OpenTofu uses an implied source address of
-`registry.opentofu.org/hashicorp/<LOCAL NAME>`.
+`registry.opentofu.org/opentofu/<LOCAL NAME>`.
 We recommend using explicit source addresses for all providers.
 :::
 
@@ -160,7 +160,7 @@ terraform {
     # have the same type name -- "http" in this example --
     # use a compound local name to distinguish them.
     hashicorp-http = {
-      source  = "hashicorp/http"
+      source  = "opentofu/http"
       version = "~> 2.0"
     }
     mycorp-http = {
@@ -177,7 +177,7 @@ provider "mycorp-http" {
 }
 
 data "http" "example" {
-  provider = hashicorp-http
+  provider = opentofu-http
   #...
 }
 ```
@@ -216,7 +216,7 @@ to work with, using the `>=` version constraint syntax:
 terraform {
   required_providers {
     mycloud = {
-      source  = "hashicorp/aws"
+      source  = "opentofu/aws"
       version = ">= 1.0"
     }
   }
@@ -235,7 +235,7 @@ specific minor release:
 terraform {
   required_providers {
     mycloud = {
-      source  = "hashicorp/aws"
+      source  = "opentofu/aws"
       version = "~> 1.0.4"
     }
   }

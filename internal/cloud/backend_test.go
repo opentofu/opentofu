@@ -58,7 +58,7 @@ func TestCloud_backendWithoutHost(t *testing.T) {
 
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.NullVal(cty.String),
-		"organization": cty.StringVal("hashicorp"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":    cty.StringVal(testBackendSingleWorkspaceName),
@@ -221,7 +221,7 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 		},
 		"null workspace": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"workspaces":   cty.NullVal(cty.String),
 			}),
 			vars: map[string]string{
@@ -234,7 +234,7 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 				"workspaces":   cty.NullVal(cty.String),
 			}),
 			vars: map[string]string{
-				"TF_CLOUD_ORGANIZATION": "hashicorp",
+				"TF_CLOUD_ORGANIZATION": "opentofu",
 				"TF_WORKSPACE":          "my-workspace",
 				"TF_CLOUD_PROJECT":      "example-project",
 			},
@@ -358,7 +358,7 @@ func TestCloud_config(t *testing.T) {
 		"with_a_non_tfe_host": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("nontfe.local"),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":    cty.StringVal("prod"),
@@ -372,7 +372,7 @@ func TestCloud_config(t *testing.T) {
 		"without_a_token": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.StringVal("localhost"),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":    cty.StringVal("prod"),
@@ -385,7 +385,7 @@ func TestCloud_config(t *testing.T) {
 		"with_tags": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name": cty.NullVal(cty.String),
@@ -401,7 +401,7 @@ func TestCloud_config(t *testing.T) {
 		"with_a_name": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":    cty.StringVal("prod"),
@@ -413,7 +413,7 @@ func TestCloud_config(t *testing.T) {
 		"without_a_name_tags": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name":    cty.NullVal(cty.String),
@@ -426,7 +426,7 @@ func TestCloud_config(t *testing.T) {
 		"with_both_a_name_and_tags": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"hostname":     cty.NullVal(cty.String),
-				"organization": cty.StringVal("hashicorp"),
+				"organization": cty.StringVal("opentofu"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("prod"),
@@ -468,9 +468,11 @@ func TestCloud_config(t *testing.T) {
 }
 
 func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
+	skipIfTFENotEnabled(t)
+
 	config := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name": cty.NullVal(cty.String),
@@ -505,9 +507,11 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 }
 
 func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
+	skipIfTFENotEnabled(t)
+
 	config := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name": cty.NullVal(cty.String),
@@ -551,7 +555,7 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 
 	config := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name": cty.NullVal(cty.String),
@@ -1206,7 +1210,7 @@ func TestCloud_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 	if got, want := diags[0].Description().Summary, "Incompatible TF version"; got != want {
 		t.Errorf("wrong summary: got %s, want %s", got, want)
 	}
-	wantDetail := "The local OpenTofu version (0.14.0) does not meet the version requirements for remote workspace hashicorp/app-prod (0.13.5)."
+	wantDetail := "The local OpenTofu version (0.14.0) does not meet the version requirements for remote workspace opentofu/app-prod (0.13.5)."
 	if got := diags[0].Description().Detail; got != wantDetail {
 		t.Errorf("wrong summary: got %s, want %s", got, wantDetail)
 	}
@@ -1294,7 +1298,7 @@ func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal("app.terraform.io"),
-		"organization": cty.StringVal("hashicorp"),
+		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
 			"name":    cty.StringVal("prod"),

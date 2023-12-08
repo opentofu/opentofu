@@ -2,7 +2,7 @@
 terraform {
   required_providers {
     test = {
-      source = "hashicorp/test"
+      source = "opentofu/test"
       configuration_aliases = [test.primary, test.secondary]
     }
   }

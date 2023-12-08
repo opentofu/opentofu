@@ -18,7 +18,7 @@ func TestInitModuleArchive(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "module-archive")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("init")
 	if err != nil {

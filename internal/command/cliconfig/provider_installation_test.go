@@ -43,8 +43,8 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 						},
 
 						DevOverrides: map[addrs.Provider]getproviders.PackageLocalDir{
-							addrs.MustParseProviderSourceString("hashicorp/boop"):  getproviders.PackageLocalDir(filepath.FromSlash("/tmp/boop")),
-							addrs.MustParseProviderSourceString("hashicorp/blorp"): getproviders.PackageLocalDir(filepath.FromSlash("/tmp/blorp")),
+							addrs.MustParseProviderSourceString("opentofu/boop"):  getproviders.PackageLocalDir(filepath.FromSlash("/tmp/boop")),
+							addrs.MustParseProviderSourceString("opentofu/blorp"): getproviders.PackageLocalDir(filepath.FromSlash("/tmp/blorp")),
 						},
 					},
 				},

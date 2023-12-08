@@ -225,7 +225,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`null`),
 						"woozles": json.RawMessage(`"confuzles"`),
@@ -267,7 +267,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`"sensuzles"`),
 						"woozles": json.RawMessage(`"confuzles"`),
@@ -313,7 +313,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`"confuzles"`),
 						"woozles": json.RawMessage(`null`),
@@ -384,7 +384,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        json.RawMessage(`0`),
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`null`),
 						"woozles": json.RawMessage(`"confuzles"`),
@@ -426,7 +426,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        json.RawMessage(`"rockhopper"`),
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`null`),
 						"woozles": json.RawMessage(`"confuzles"`),
@@ -470,7 +470,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					DeposedKey:   deposedKey.String(),
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`null`),
@@ -519,7 +519,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`null`),
 						"woozles": json.RawMessage(`"confuzles"`),
@@ -532,7 +532,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_thing",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					DeposedKey:   deposedKey.String(),
 					AttributeValues: AttributeValues{
 						"foozles": json.RawMessage(`null`),
@@ -579,7 +579,7 @@ func TestMarshalResources(t *testing.T) {
 					Type:         "test_map_attr",
 					Name:         "bar",
 					Index:        nil,
-					ProviderName: "registry.opentofu.org/hashicorp/test",
+					ProviderName: "registry.opentofu.org/opentofu/test",
 					AttributeValues: AttributeValues{
 						"data": json.RawMessage(`{"woozles":"confuzles"}`),
 					},

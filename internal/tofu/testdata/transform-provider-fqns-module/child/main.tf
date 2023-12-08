@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     your-aws = {
-      source = "hashicorp/aws"
+      source = "opentofu/aws"
     }
   }
 }

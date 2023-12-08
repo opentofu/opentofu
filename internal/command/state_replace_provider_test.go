@@ -84,7 +84,7 @@ func TestStateReplaceProvider(t *testing.T) {
 
 		args := []string{
 			"-state", statePath,
-			"hashicorp/aws",
+			"opentofu/aws",
 			"acmecorp/aws",
 		}
 		if code := c.Run(args); code != 0 {
@@ -120,7 +120,7 @@ func TestStateReplaceProvider(t *testing.T) {
 		args := []string{
 			"-state", statePath,
 			"-auto-approve",
-			"hashicorp/aws",
+			"opentofu/aws",
 			"acmecorp/aws",
 		}
 		if code := c.Run(args); code != 0 {
@@ -156,7 +156,7 @@ func TestStateReplaceProvider(t *testing.T) {
 
 		args := []string{
 			"-state", statePath,
-			"hashicorp/aws",
+			"opentofu/aws",
 			"acmecorp/aws",
 		}
 		if code := c.Run(args); code != 0 {
@@ -187,7 +187,7 @@ func TestStateReplaceProvider(t *testing.T) {
 
 		args := []string{
 			"-state", statePath,
-			"hashicorp/google",
+			"opentofu/google",
 			"acmecorp/google",
 		}
 		if code := c.Run(args); code != 0 {
@@ -216,7 +216,7 @@ func TestStateReplaceProvider(t *testing.T) {
 
 		args := []string{
 			"-invalid",
-			"hashicorp/google",
+			"opentofu/google",
 			"acmecorp/google",
 		}
 		if code := c.Run(args); code == 0 {
@@ -263,7 +263,7 @@ func TestStateReplaceProvider(t *testing.T) {
 		}
 
 		args := []string{
-			"hashicorp/google_cloud",
+			"opentofu/google_cloud",
 			"-/-/google",
 		}
 		if code := c.Run(args); code == 0 {
@@ -272,7 +272,7 @@ func TestStateReplaceProvider(t *testing.T) {
 
 		got := ui.ErrorWriter.String()
 		msgs := []string{
-			`Invalid "from" provider "hashicorp/google_cloud"`,
+			`Invalid "from" provider "opentofu/google_cloud"`,
 			"Invalid provider type",
 			`Invalid "to" provider "-/-/google"`,
 			"Invalid provider source hostname",
@@ -370,7 +370,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 
 	args := []string{
 		"-state", statePath,
-		"hashicorp/aws",
+		"opentofu/aws",
 		"acmecorp/aws",
 	}
 	if code := c.Run(args); code != 1 {
@@ -393,12 +393,12 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 const testStateReplaceProviderOutputOriginal = `
 aws_instance.alpha:
   ID = alpha
-  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/opentofu/aws"]
   bar = value
   foo = value
 aws_instance.beta:
   ID = beta
-  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  provider = provider["registry.opentofu.org/opentofu/aws"]
   bar = value
   foo = value
 azurerm_virtual_machine.gamma:

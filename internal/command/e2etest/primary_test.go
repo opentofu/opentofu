@@ -32,7 +32,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "full-workflow-null")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	//// INIT
 	stdout, stderr, err := tf.Run("init")
@@ -42,11 +42,11 @@ func TestPrimarySeparatePlan(t *testing.T) {
 
 	// Make sure we actually downloaded the plugins, rather than picking up
 	// copies that might be already installed globally on the system.
-	if !strings.Contains(stdout, "Installing hashicorp/template v") {
+	if !strings.Contains(stdout, "Installing opentofu/template v") {
 		t.Errorf("template provider download message is missing from init output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
-	if !strings.Contains(stdout, "Installing hashicorp/null v") {
+	if !strings.Contains(stdout, "Installing opentofu/null v") {
 		t.Errorf("null provider download message is missing from init output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
@@ -152,7 +152,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 	// safe to run it even when network access is disallowed.
 
 	fixturePath := filepath.Join("testdata", "chdir-option")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	//// INIT
 	_, stderr, err := tf.Run("-chdir=subdir", "init")

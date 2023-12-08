@@ -16,17 +16,17 @@ func TestFindSourceProviderConfig(t *testing.T) {
 	}{
 		{
 			StartKey:    "null",
-			FullName:    "hashicorp/null",
+			FullName:    "opentofu/null",
 			ProviderMap: map[string]providerConfig{},
 			Want:        "",
 		},
 		{
 			StartKey: "null",
-			FullName: "hashicorp/null",
+			FullName: "opentofu/null",
 			ProviderMap: map[string]providerConfig{
 				"null": {
 					Name:          "null",
-					FullName:      "hashicorp/null",
+					FullName:      "opentofu/null",
 					ModuleAddress: "",
 				},
 			},
@@ -34,11 +34,11 @@ func TestFindSourceProviderConfig(t *testing.T) {
 		},
 		{
 			StartKey: "null2",
-			FullName: "hashicorp/null",
+			FullName: "opentofu/null",
 			ProviderMap: map[string]providerConfig{
 				"null": {
 					Name:          "null",
-					FullName:      "hashicorp/null",
+					FullName:      "opentofu/null",
 					ModuleAddress: "",
 				},
 			},
@@ -46,11 +46,11 @@ func TestFindSourceProviderConfig(t *testing.T) {
 		},
 		{
 			StartKey: "null",
-			FullName: "hashicorp2/null",
+			FullName: "opentofu2/null",
 			ProviderMap: map[string]providerConfig{
 				"null": {
 					Name:          "null",
-					FullName:      "hashicorp/null",
+					FullName:      "opentofu/null",
 					ModuleAddress: "",
 				},
 			},
@@ -58,16 +58,16 @@ func TestFindSourceProviderConfig(t *testing.T) {
 		},
 		{
 			StartKey: "module.a:null",
-			FullName: "hashicorp/null",
+			FullName: "opentofu/null",
 			ProviderMap: map[string]providerConfig{
 				"null": {
 					Name:          "null",
-					FullName:      "hashicorp/null",
+					FullName:      "opentofu/null",
 					ModuleAddress: "",
 				},
 				"module.a:null": {
 					Name:          "module.a:null",
-					FullName:      "hashicorp/null",
+					FullName:      "opentofu/null",
 					ModuleAddress: "module.a",
 					parentKey:     "null",
 				},
@@ -76,16 +76,16 @@ func TestFindSourceProviderConfig(t *testing.T) {
 		},
 		{
 			StartKey: "module.a:null",
-			FullName: "hashicorp2/null",
+			FullName: "opentofu2/null",
 			ProviderMap: map[string]providerConfig{
 				"null": {
 					Name:          "null",
-					FullName:      "hashicorp/null",
+					FullName:      "opentofu/null",
 					ModuleAddress: "",
 				},
 				"module.a:null": {
 					Name:          "module.a:null",
-					FullName:      "hashicorp2/null",
+					FullName:      "opentofu2/null",
 					ModuleAddress: "module.a",
 					parentKey:     "null",
 				},

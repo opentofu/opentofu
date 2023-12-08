@@ -7,7 +7,7 @@
       "mode": "managed",
       "type": "null_resource",
       "name": "foo",
-      "provider_name": "registry.opentofu.org/hashicorp/null",
+      "provider_name": "registry.opentofu.org/opentofu/null",
       "change": {
         "actions": [
           "create"
@@ -27,7 +27,7 @@
   "relevant_attributes": [],
   "output_changes": {},
   "provider_schemas": {
-    "registry.opentofu.org/hashicorp/null": {
+    "registry.opentofu.org/opentofu/null": {
       "provider": {
         "version": 0,
         "block": {

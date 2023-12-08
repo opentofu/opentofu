@@ -13,5 +13,5 @@ resource "test_instance" "explicit" {
   provider = foo-test
 }
 
-// the provider for this resource should default to "hashicorp/test"
+// the provider for this resource should default to "opentofu/test"
 resource "test_instance" "default" {}

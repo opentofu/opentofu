@@ -14,6 +14,10 @@ import (
 // extended to include additional fields including Namespace and SourceHost
 type Provider = tfaddr.Provider
 
+// DefaultProviderNamespace contains the registry namespace OpenTofu looks up providers in
+// if no namespace has been explicitly specified.
+const DefaultProviderNamespace = "opentofu"
+
 // DefaultProviderRegistryHost is the hostname used for provider addresses that do
 // not have an explicit hostname.
 const DefaultProviderRegistryHost = tfaddr.DefaultProviderRegistryHost
@@ -40,7 +44,7 @@ const BuiltInProviderNamespace = tfaddr.BuiltInProviderNamespace
 const LegacyProviderNamespace = tfaddr.LegacyProviderNamespace
 
 func IsDefaultProvider(addr Provider) bool {
-	return addr.Hostname == DefaultProviderRegistryHost && addr.Namespace == "hashicorp"
+	return addr.Hostname == DefaultProviderRegistryHost && addr.Namespace == DefaultProviderNamespace
 }
 
 // NewProvider constructs a provider address from its parts, and normalizes
@@ -62,18 +66,18 @@ func NewProvider(hostname svchost.Hostname, namespace, typeName string) Provider
 // provider FQN a user intended when only a naked type name is available.
 //
 // For all except the type name "terraform" this returns a so-called "default"
-// provider, which is under the registry.terraform.io/hashicorp/ namespace.
+// provider, which is under the registry.opentofu.org/opentofu/ namespace.
 //
 // As a special case, the string "terraform" maps to
 // "terraform.io/builtin/terraform" because that is the more likely user
 // intent than the now-unmaintained "registry.terraform.io/hashicorp/terraform"
-// which remains only for compatibility with older OpenTofu versions.
+// which remains only for compatibility with older Terraform versions.
 func ImpliedProviderForUnqualifiedType(typeName string) Provider {
 	switch typeName {
 	case "terraform":
 		// Note for future maintainers: any additional strings we add here
 		// as implied to be builtin must never also be use as provider names
-		// in the registry.terraform.io/hashicorp/... namespace, because
+		// in the registry.opentofu.org/opentofu/... namespace, because
 		// otherwise older versions of OpenTofu could implicitly select
 		// the registry name instead of the internal one.
 		return NewBuiltInProvider(typeName)
@@ -87,7 +91,7 @@ func ImpliedProviderForUnqualifiedType(typeName string) Provider {
 func NewDefaultProvider(name string) Provider {
 	return tfaddr.Provider{
 		Type:      MustParseProviderPart(name),
-		Namespace: "hashicorp",
+		Namespace: DefaultProviderNamespace,
 		Hostname:  DefaultProviderRegistryHost,
 	}
 }
@@ -139,7 +143,7 @@ func ParseProviderSourceString(str string) (tfaddr.Provider, tfdiags.Diagnostics
 	}
 
 	if !ret.HasKnownNamespace() {
-		ret.Namespace = "hashicorp"
+		ret.Namespace = DefaultProviderNamespace
 	}
 
 	return ret, nil

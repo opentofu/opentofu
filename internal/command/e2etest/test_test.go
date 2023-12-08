@@ -20,7 +20,7 @@ func TestMultipleRunBlocks(t *testing.T) {
 
 	go func() {
 		fixturePath := filepath.Join("testdata", "multiple-run-blocks")
-		tf := e2e.NewBinary(t, terraformBin, fixturePath)
+		tf := e2e.NewBinary(t, tofuBin, fixturePath)
 		stdout, stderr, err := tf.Run("test")
 		done <- &testResult{
 			stdout: stdout,

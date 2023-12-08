@@ -5,7 +5,7 @@ module "foo" {
 }
 
 module "bar" {
-  source = "hashicorp/bar/aws"
+  source = "opentofu/bar/aws"
 
   boom = "🎆"
   yes  = true

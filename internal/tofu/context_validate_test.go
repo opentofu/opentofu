@@ -660,7 +660,7 @@ func TestContext2Validate_providerConfig_good(t *testing.T) {
 	}
 }
 
-// In this test there is a mismatch between the provider's fqn (hashicorp/test)
+// In this test there is a mismatch between the provider's fqn (opentofu/test)
 // and it's local name set in required_providers (arbitrary).
 func TestContext2Validate_requiredProviderConfig(t *testing.T) {
 	m := testModule(t, "validate-required-provider-config")
@@ -994,8 +994,8 @@ func TestContext2Validate_targetedDestroy(t *testing.T) {
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
-	testSetResourceInstanceCurrent(root, "aws_instance.foo", `{"id":"i-bcd345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
-	testSetResourceInstanceCurrent(root, "aws_instance.bar", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.foo", `{"id":"i-bcd345"}`, `provider["registry.opentofu.org/opentofu/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.bar", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/opentofu/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1948,7 +1948,7 @@ func TestContext2Validate_passInheritedProvider(t *testing.T) {
 terraform {
   required_providers {
 	test = {
-	  source = "hashicorp/test"
+	  source = "opentofu/test"
 	}
   }
 }
@@ -1968,7 +1968,7 @@ module "first" {
 terraform {
   required_providers {
     test = {
-	  source = "hashicorp/test"
+	  source = "opentofu/test"
     }
   }
 }
@@ -1984,7 +1984,7 @@ module "second" {
 terraform {
   required_providers {
     test = {
-	  source = "hashicorp/test"
+	  source = "opentofu/test"
       configuration_aliases = [test.alias]
     }
   }

@@ -1,7 +1,7 @@
 provider_installation {
   dev_overrides {
-    "hashicorp/boop" = "/tmp/bloop/../boop"
-    "hashicorp/blorp" = "/tmp/blorp"
+    "opentofu/boop" = "/tmp/bloop/../boop"
+    "opentofu/blorp" = "/tmp/blorp"
   }
   filesystem_mirror {
     path    = "/tmp/example1"

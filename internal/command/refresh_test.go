@@ -968,10 +968,10 @@ foo = "bar"
 const testRefreshStr = `
 test_instance.foo:
   ID = yes
-  provider = provider["registry.opentofu.org/hashicorp/test"]
+  provider = provider["registry.opentofu.org/opentofu/test"]
 `
 const testRefreshCwdStr = `
 test_instance.foo:
   ID = yes
-  provider = provider["registry.opentofu.org/hashicorp/test"]
+  provider = provider["registry.opentofu.org/opentofu/test"]
 `
