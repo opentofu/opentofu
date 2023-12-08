@@ -31,6 +31,7 @@ ENHANCEMENTS:
 * config: The `import` block `id` field now accepts an expression referencing other values such as resource attributes, as long as the value is a string known at plan time. ([#33618](https://github.com/hashicorp/terraform/issues/33618))
 * telemetry: All checkpoint telemetry was removed ([#151](https://github.com/opentofu/opentofu/pull/151))
 * state: Provider addresses in the statefile referring to registry.terraform.io will be treated as referring to registry.opentofu.org unless the full provider address is specified in the config or `OPENTOFU_STATEFILE_PROVIDER_ADDRESS_TRANSLATION` is set to `0`. ([#773](https://github.com/opentofu/opentofu/pull/773))
+* The default provider namespace has been changed from "hasicorp" to "opentofu". This only impacts providers that do not explicitly have a namespace set, ex "aws" vs "hasicorp/aws". This change should be transparent and not require action to be taken by users.
 * init: Ensured that the `tofu init` command has consistent spelling of the word `initialization` in its output. ([#855](https://github.com/opentofu/opentofu/pull/855/files))
 
 BUG FIXES:
