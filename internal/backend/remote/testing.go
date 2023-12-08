@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname("app.opentofu.org")
+	tfeHost  = svchost.Hostname("app.example.com")
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
 		tfeHost: {"token": testCred},
 	})
@@ -71,7 +71,7 @@ func testInput(t *testing.T, answers map[string]string) *mockInput {
 
 func testBackendDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.example.com"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -84,7 +84,7 @@ func testBackendDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.example.com"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -97,7 +97,7 @@ func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.example.com"),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -297,7 +297,7 @@ func testServerTLS(t *testing.T) *httptest.Server {
 	return ts
 }
 
-// testDisco returns a *disco.Disco mapping app.opentofu.org and
+// testDisco returns a *disco.Disco mapping app.example.com and
 // localhost to a local test server.
 func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
@@ -313,7 +313,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 		d.Transport = httpclient.NewTransportWithCustomTrustedCertificates(certPool)
 	}
 
-	d.ForceHostServices("app.opentofu.org", services)
+	d.ForceHostServices("app.example.com", services)
 	d.ForceHostServices("localhost", services)
 	return d
 }

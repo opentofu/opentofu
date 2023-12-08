@@ -50,7 +50,7 @@ func TestRemote_config(t *testing.T) {
 	}{
 		"with_a_nonexisting_organization": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.opentofu.org"),
+				"hostname":     cty.StringVal("app.example.com"),
 				"organization": cty.StringVal("nonexisting"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -58,7 +58,7 @@ func TestRemote_config(t *testing.T) {
 					"prefix": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "organization \"nonexisting\" at host app.opentofu.org not found",
+			confErr: "organization \"nonexisting\" at host app.example.com not found",
 		},
 		"with_a_missing_hostname": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -745,7 +745,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.opentofu.org"),
+		"hostname":     cty.StringVal("app.example.com"),
 		"organization": cty.StringVal("opentofu"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
