@@ -67,7 +67,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{}`),
 					},
-					makeRootProviderAddr("registry.opentofu.org/opentofu/random"),
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -75,7 +75,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{}`),
 					},
-					makeRootProviderAddr("registry.opentofu.org/opentofu/aws"),
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
 				)
 			}),
 		},
@@ -109,7 +109,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{}`),
 					},
-					makeRootProviderAddr("registry.opentofu.org/opentofu/random"),
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -132,7 +132,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							Status:    states.ObjectReady,
 							AttrsJSON: []byte(`{}`),
 						},
-						makeRootProviderAddr("registry.opentofu.org/opentofu/random"),
+						makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -140,7 +140,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							Status:    states.ObjectReady,
 							AttrsJSON: []byte(`{}`),
 						},
-						makeRootProviderAddr("registry.opentofu.org/opentofu/aws"),
+						makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
 					)
 				}),
 			},
@@ -151,7 +151,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{}`),
 					},
-					makeRootProviderAddr("registry.opentofu.org/opentofu/random"),
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -159,7 +159,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{}`),
 					},
-					makeRootProviderAddr("registry.opentofu.org/opentofu/aws"),
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
 				)
 			}),
 		},

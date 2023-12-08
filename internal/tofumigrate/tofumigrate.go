@@ -3,7 +3,6 @@ package tofumigrate
 import (
 	"os"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -21,7 +20,7 @@ import (
 //	 }
 //	}
 //
-// we will migrate the in-memory view of the statefile to use registry.opentofu.org/opentofu/random.
+// we will migrate the in-memory view of the statefile to use registry.opentofu.org/hashicorp/random.
 // However, if the configuration contains a provider block like this:
 //
 //	terraform {
@@ -53,9 +52,6 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 			_, referencedInConfig := providers[resource.ProviderConfig.Provider]
 			if resource.ProviderConfig.Provider.Hostname == "registry.terraform.io" && !referencedInConfig {
 				resource.ProviderConfig.Provider.Hostname = tfaddr.DefaultProviderRegistryHost
-			}
-			if resource.ProviderConfig.Provider.Namespace == "hashicorp" && !referencedInConfig {
-				resource.ProviderConfig.Provider.Namespace = addrs.DefaultProviderNamespace
 			}
 		}
 	}
