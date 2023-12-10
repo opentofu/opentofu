@@ -9,6 +9,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	tfaddr "github.com/opentofu/registry-address"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -240,6 +241,10 @@ func decodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Dia
 			} else {
 				rp.Type = addrs.ImpliedProviderForUnqualifiedType(pType)
 			}
+		}
+
+		if rp.Type.Namespace == "hashicorp" && rp.Type.Hostname == tfaddr.DefaultProviderRegistryHost {
+			rp.Type.Namespace = "opentofu"
 		}
 
 		ret.RequiredProviders[rp.Name] = rp

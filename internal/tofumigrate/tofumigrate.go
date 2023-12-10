@@ -53,6 +53,9 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 			if resource.ProviderConfig.Provider.Hostname == "registry.terraform.io" && !referencedInConfig {
 				resource.ProviderConfig.Provider.Hostname = tfaddr.DefaultProviderRegistryHost
 			}
+			if resource.ProviderConfig.Provider.Namespace == "hashicorp" && resource.ProviderConfig.Provider.Hostname == tfaddr.DefaultProviderRegistryHost {
+				resource.ProviderConfig.Provider.Namespace = "opentofu"
+			}
 		}
 	}
 
