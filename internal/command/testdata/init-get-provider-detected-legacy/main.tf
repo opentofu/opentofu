@@ -1,7 +1,7 @@
-// This should result in installing opentofu/foo
+// This should result in installing hashicorp/foo
 provider foo {}
 
-// This will try to install opentofu/baz, fail, and then suggest
+// This will try to install hashicorp/baz, fail, and then suggest
 // terraform-providers/baz
 provider baz {}
 

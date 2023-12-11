@@ -36,7 +36,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 	}
 	providerAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
-		Provider: addrs.MustParseProviderSourceString("opentofu/foo"),
+		Provider: addrs.MustParseProviderSourceString("hashicorp/foo"),
 	}
 
 	rootCfg, _ := loadRefactoringFixture(t, "testdata/move-statement-implied")

@@ -35,10 +35,10 @@ func TestFriendlyHost(t *testing.T) {
 		},
 		{
 			name:        "IDN",
-			source:      "ʎɹʇsıƃǝɹ.nɟoʇuǝdo.io",
-			wantHost:    "ʎɹʇsıƃǝɹ.nɟoʇuǝdo.io",
-			wantDisplay: "ʎɹʇsıƃǝɹ.nɟoʇuǝdo.io",
-			wantNorm:    "xn--s-fka0wmm0zea7g8b.xn--noudo-6yb12ggj.io",
+			source:      "ʎɹʇsıƃǝɹ.ɯɹoɟɐɹɹǝʇ.io",
+			wantHost:    "ʎɹʇsıƃǝɹ.ɯɹoɟɐɹɹǝʇ.io",
+			wantDisplay: "ʎɹʇsıƃǝɹ.ɯɹoɟɐɹɹǝʇ.io",
+			wantNorm:    "xn--s-fka0wmm0zea7g8b.xn--o-8ta85a3b1dwcda1k.io",
 			wantValid:   true,
 		},
 		{
@@ -59,9 +59,9 @@ func TestFriendlyHost(t *testing.T) {
 		},
 		{
 			name:        "Punycode is invalid as an input format",
-			source:      "xn--s-fka0wmm0zea7g8b.xn--noudo-6yb12ggj.io",
-			wantHost:    "xn--s-fka0wmm0zea7g8b.xn--noudo-6yb12ggj.io",
-			wantDisplay: "ʎɹʇsıƃǝɹ.nɟoʇuǝdo.io",
+			source:      "xn--s-fka0wmm0zea7g8b.xn--o-8ta85a3b1dwcda1k.io",
+			wantHost:    "xn--s-fka0wmm0zea7g8b.xn--o-8ta85a3b1dwcda1k.io",
+			wantDisplay: "ʎɹʇsıƃǝɹ.ɯɹoɟɐɹɹǝʇ.io",
 			wantNorm:    InvalidHostString,
 			wantValid:   false,
 		},

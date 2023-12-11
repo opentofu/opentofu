@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     test = {
-      source = "opentofu/test"
+      source = "hashicorp/test"
       version = "1.0.2"
     }
   }

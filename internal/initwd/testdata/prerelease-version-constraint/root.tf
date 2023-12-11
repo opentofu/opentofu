@@ -3,6 +3,6 @@
 # prerelease.
 
 module "acctest_partial" {
-  source = "opentofu/module-installer-acctest/aws"
+  source = "hashicorp/module-installer-acctest/aws"
   version = "<=0.0.3-alpha.1"
 }

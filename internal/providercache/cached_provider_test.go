@@ -14,11 +14,11 @@ func TestCachedProviderHash(t *testing.T) {
 	cp := &CachedProvider{
 		Provider: addrs.NewProvider(
 			addrs.DefaultProviderRegistryHost,
-			"opentofu", "null",
+			"hashicorp", "null",
 		),
 		Version: getproviders.MustParseVersion("2.0.0"),
 
-		PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/darwin_amd64",
+		PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/darwin_amd64",
 	}
 
 	want := getproviders.MustParseHash("h1:qjsREM4DqEWECD43FcPqddZ9oxCG+IaMTxvWPciS05g=")
@@ -44,11 +44,11 @@ func TestCachedProviderHash(t *testing.T) {
 	cp2 := &CachedProvider{
 		Provider: addrs.NewProvider(
 			addrs.DefaultProviderRegistryHost,
-			"opentofu", "null",
+			"hashicorp", "null",
 		),
 		Version: getproviders.MustParseVersion("2.0.0"),
 
-		PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/windows_amd64",
+		PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 	}
 	gotMatches, err = cp2.MatchesHash(want)
 	if err != nil {
@@ -68,19 +68,19 @@ func TestExecutableFile(t *testing.T) {
 	}{
 		"linux": {
 			cp: &CachedProvider{
-				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "opentofu", "null"),
+				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", "null"),
 				Version:    getproviders.MustParseVersion("2.0.0"),
-				PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/linux_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64",
 			},
-			file: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/linux_amd64/terraform-provider-null",
+			file: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64/terraform-provider-null",
 		},
 		"windows": {
 			cp: &CachedProvider{
-				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "opentofu", "null"),
+				Provider:   addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", "null"),
 				Version:    getproviders.MustParseVersion("2.0.0"),
-				PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/windows_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 			},
-			file: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/windows_amd64/terraform-provider-null.exe",
+			file: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64/terraform-provider-null.exe",
 		},
 		"missing-executable": {
 			cp: &CachedProvider{

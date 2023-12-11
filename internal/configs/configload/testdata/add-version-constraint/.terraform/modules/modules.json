@@ -7,7 +7,7 @@
         },
         {
             "Key": "child",
-            "Source": "opentofu/module-installer-acctest/aws",
+            "Source": "hashicorp/module-installer-acctest/aws",
             "Dir": "testdata/add-version-constraint/.terraform/modules/child"
         }
     ]

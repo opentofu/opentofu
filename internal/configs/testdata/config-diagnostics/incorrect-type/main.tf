@@ -1,10 +1,10 @@
 terraform {
   required_providers {
     foo = {
-      source = "opentofu/foo"
+      source = "hashicorp/foo"
     }
     baz = {
-      source = "opentofu/baz"
+      source = "hashicorp/baz"
     }
   }
 }

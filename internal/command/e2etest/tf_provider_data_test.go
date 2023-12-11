@@ -15,7 +15,7 @@ import (
 func TestTerraformProviderData(t *testing.T) {
 
 	fixturePath := filepath.Join("testdata", "tofu-managed-data")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	_, stderr, err := tf.Run("init", "-input=false")
 	if err != nil {

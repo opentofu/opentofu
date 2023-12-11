@@ -114,7 +114,7 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	actual := strings.TrimSpace(state.String())
 	expected := `aws_instance.foo:
   ID = bar
-  provider = provider["registry.opentofu.org/opentofu/aws"]`
+  provider = provider["registry.opentofu.org/hashicorp/aws"]`
 	if actual != expected {
 		t.Fatalf("bad state after import: \n%s", actual)
 	}

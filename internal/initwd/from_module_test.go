@@ -43,7 +43,7 @@ func TestDirFromModule_registry(t *testing.T) {
 	reg := registry.NewClient(nil, nil)
 	loader, cleanup := configload.NewLoaderForTests(t)
 	defer cleanup()
-	diags := DirFromModule(context.Background(), loader, dir, modsDir, "opentofu/module-installer-acctest/aws//examples/main", reg, hooks)
+	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, hooks)
 	assertNoDiagnostics(t, diags)
 
 	v := version.Must(version.NewVersion("0.0.2"))
@@ -62,7 +62,7 @@ func TestDirFromModule_registry(t *testing.T) {
 		{
 			Name:        "Download",
 			ModuleAddr:  "root",
-			PackageAddr: "registry.opentofu.org/opentofu/module-installer-acctest/aws",
+			PackageAddr: "registry.opentofu.org/hashicorp/module-installer-acctest/aws",
 			Version:     v,
 		},
 		{

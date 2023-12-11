@@ -149,7 +149,7 @@ func TestUnmanagedSeparatePlan(t *testing.T) {
 	t.Parallel()
 
 	fixturePath := filepath.Join("testdata", "test-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	reattachCh := make(chan *plugin.ReattachConfig)
 	closeCh := make(chan struct{})
@@ -185,7 +185,7 @@ func TestUnmanagedSeparatePlan(t *testing.T) {
 		t.Fatalf("no reattach config received")
 	}
 	reattachStr, err := json.Marshal(map[string]reattachConfig{
-		"opentofu/test": {
+		"hashicorp/test": {
 			Protocol:        string(config.Protocol),
 			ProtocolVersion: 6,
 			Pid:             config.Pid,
@@ -209,10 +209,10 @@ func TestUnmanagedSeparatePlan(t *testing.T) {
 	}
 
 	// Make sure we didn't download the binary
-	if strings.Contains(stdout, "Installing opentofu/test v") {
+	if strings.Contains(stdout, "Installing hashicorp/test v") {
 		t.Errorf("test provider download message is present in init output:\n%s", stdout)
 	}
-	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.opentofu.org", "opentofu", "test")) {
+	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.opentofu.org", "hashicorp", "test")) {
 		t.Errorf("test provider binary found in .terraform dir")
 	}
 
@@ -254,7 +254,7 @@ func TestUnmanagedSeparatePlan_proto5(t *testing.T) {
 	t.Parallel()
 
 	fixturePath := filepath.Join("testdata", "test-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	reattachCh := make(chan *plugin.ReattachConfig)
 	closeCh := make(chan struct{})
@@ -290,7 +290,7 @@ func TestUnmanagedSeparatePlan_proto5(t *testing.T) {
 		t.Fatalf("no reattach config received")
 	}
 	reattachStr, err := json.Marshal(map[string]reattachConfig{
-		"opentofu/test": {
+		"hashicorp/test": {
 			Protocol:        string(config.Protocol),
 			ProtocolVersion: 5,
 			Pid:             config.Pid,
@@ -314,10 +314,10 @@ func TestUnmanagedSeparatePlan_proto5(t *testing.T) {
 	}
 
 	// Make sure we didn't download the binary
-	if strings.Contains(stdout, "Installing opentofu/test v") {
+	if strings.Contains(stdout, "Installing hashicorp/test v") {
 		t.Errorf("test provider download message is present in init output:\n%s", stdout)
 	}
-	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.opentofu.org", "opentofu", "test")) {
+	if tf.FileExists(filepath.Join(".terraform", "plugins", "registry.opentofu.org", "hashicorp", "test")) {
 		t.Errorf("test provider binary found in .terraform dir")
 	}
 

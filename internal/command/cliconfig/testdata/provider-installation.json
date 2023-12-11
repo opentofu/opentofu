@@ -1,8 +1,8 @@
 {
   "provider_installation": {
     "dev_overrides": {
-      "opentofu/boop": "/tmp/bloop/../boop",
-      "opentofu/blorp": "/tmp/blorp"
+      "hashicorp/boop": "/tmp/bloop/../boop",
+      "hashicorp/blorp": "/tmp/blorp"
     },
     "filesystem_mirror": [{
       "path": "/tmp/example1",

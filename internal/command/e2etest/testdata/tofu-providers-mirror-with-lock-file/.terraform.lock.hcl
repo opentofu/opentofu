@@ -1,7 +1,7 @@
 # This file is maintained automatically by "terraform init".
 # Manual edits may be lost in future updates.
 
-provider "registry.opentofu.org/opentofu/null" {
+provider "registry.opentofu.org/hashicorp/null" {
   version     = "2.1.0"
   constraints = "2.1.0"
   hashes = [
@@ -22,7 +22,7 @@ provider "registry.opentofu.org/opentofu/null" {
   ]
 }
 
-provider "registry.opentofu.org/opentofu/template" {
+provider "registry.opentofu.org/hashicorp/template" {
   version     = "2.1.1"
   constraints = "2.1.1"
   hashes = [

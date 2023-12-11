@@ -50,17 +50,17 @@ func TestLoadModuleCall(t *testing.T) {
 			SourceAddr: addrs.ModuleSourceRegistry{
 				Package: addrs.ModuleRegistryPackage{
 					Host:         addrs.DefaultModuleRegistryHost,
-					Namespace:    "opentofu",
+					Namespace:    "hashicorp",
 					Name:         "bar",
 					TargetSystem: "aws",
 				},
 			},
-			SourceAddrRaw: "opentofu/bar/aws",
+			SourceAddrRaw: "hashicorp/bar/aws",
 			SourceSet:     true,
 			SourceAddrRange: hcl.Range{
 				Filename: "module-calls.tf",
 				Start:    hcl.Pos{Line: 8, Column: 12, Byte: 113},
-				End:      hcl.Pos{Line: 8, Column: 30, Byte: 131},
+				End:      hcl.Pos{Line: 8, Column: 31, Byte: 132},
 			},
 			DeclRange: hcl.Range{
 				Filename: "module-calls.tf",
@@ -77,8 +77,8 @@ func TestLoadModuleCall(t *testing.T) {
 			SourceSet:     true,
 			SourceAddrRange: hcl.Range{
 				Filename: "module-calls.tf",
-				Start:    hcl.Pos{Line: 15, Column: 12, Byte: 192},
-				End:      hcl.Pos{Line: 15, Column: 39, Byte: 219},
+				Start:    hcl.Pos{Line: 15, Column: 12, Byte: 193},
+				End:      hcl.Pos{Line: 15, Column: 39, Byte: 220},
 			},
 			DependsOn: []hcl.Traversal{
 				{
@@ -86,16 +86,16 @@ func TestLoadModuleCall(t *testing.T) {
 						Name: "module",
 						SrcRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 23, Column: 5, Byte: 294},
-							End:      hcl.Pos{Line: 23, Column: 11, Byte: 300},
+							Start:    hcl.Pos{Line: 23, Column: 5, Byte: 295},
+							End:      hcl.Pos{Line: 23, Column: 11, Byte: 301},
 						},
 					},
 					hcl.TraverseAttr{
 						Name: "bar",
 						SrcRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 23, Column: 11, Byte: 300},
-							End:      hcl.Pos{Line: 23, Column: 15, Byte: 304},
+							Start:    hcl.Pos{Line: 23, Column: 11, Byte: 301},
+							End:      hcl.Pos{Line: 23, Column: 15, Byte: 305},
 						},
 					},
 				},
@@ -106,30 +106,30 @@ func TestLoadModuleCall(t *testing.T) {
 						Name: "aws",
 						NameRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 27, Column: 5, Byte: 331},
-							End:      hcl.Pos{Line: 27, Column: 8, Byte: 334},
+							Start:    hcl.Pos{Line: 27, Column: 5, Byte: 332},
+							End:      hcl.Pos{Line: 27, Column: 8, Byte: 335},
 						},
 					},
 					InParent: &ProviderConfigRef{
 						Name: "aws",
 						NameRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 27, Column: 11, Byte: 337},
-							End:      hcl.Pos{Line: 27, Column: 14, Byte: 340},
+							Start:    hcl.Pos{Line: 27, Column: 11, Byte: 338},
+							End:      hcl.Pos{Line: 27, Column: 14, Byte: 341},
 						},
 						Alias: "foo",
 						AliasRange: &hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 27, Column: 14, Byte: 340},
-							End:      hcl.Pos{Line: 27, Column: 18, Byte: 344},
+							Start:    hcl.Pos{Line: 27, Column: 14, Byte: 341},
+							End:      hcl.Pos{Line: 27, Column: 18, Byte: 345},
 						},
 					},
 				},
 			},
 			DeclRange: hcl.Range{
 				Filename: "module-calls.tf",
-				Start:    hcl.Pos{Line: 14, Column: 1, Byte: 166},
-				End:      hcl.Pos{Line: 14, Column: 13, Byte: 178},
+				Start:    hcl.Pos{Line: 14, Column: 1, Byte: 167},
+				End:      hcl.Pos{Line: 14, Column: 13, Byte: 179},
 			},
 		},
 	}

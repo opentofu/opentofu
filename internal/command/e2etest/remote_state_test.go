@@ -15,7 +15,7 @@ func TestTerraformProviderRead(t *testing.T) {
 
 	t.Parallel()
 	fixturePath := filepath.Join("testdata", "tf-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	//// INIT
 	_, stderr, err := tf.Run("init")

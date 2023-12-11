@@ -37,7 +37,7 @@ func testTerraformProvidersMirror(t *testing.T, fixture string) {
 	t.Logf("creating mirror directory in %s", outputDir)
 
 	fixturePath := filepath.Join("testdata", fixture)
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("providers", "mirror", "-platform=linux_amd64", "-platform=windows_386", outputDir)
 	if err != nil {
@@ -49,14 +49,14 @@ func testTerraformProvidersMirror(t *testing.T, fixture string) {
 	// In the (unlikely) event that these particular versions of these
 	// providers are removed from the registry, this test will start to fail.
 	want := []string{
-		"registry.opentofu.org/opentofu/null/2.1.0.json",
-		"registry.opentofu.org/opentofu/null/index.json",
-		"registry.opentofu.org/opentofu/null/terraform-provider-null_2.1.0_linux_amd64.zip",
-		"registry.opentofu.org/opentofu/null/terraform-provider-null_2.1.0_windows_386.zip",
-		"registry.opentofu.org/opentofu/template/2.1.1.json",
-		"registry.opentofu.org/opentofu/template/index.json",
-		"registry.opentofu.org/opentofu/template/terraform-provider-template_2.1.1_linux_amd64.zip",
-		"registry.opentofu.org/opentofu/template/terraform-provider-template_2.1.1_windows_386.zip",
+		"registry.opentofu.org/hashicorp/null/2.1.0.json",
+		"registry.opentofu.org/hashicorp/null/index.json",
+		"registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip",
+		"registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_windows_386.zip",
+		"registry.opentofu.org/hashicorp/template/2.1.1.json",
+		"registry.opentofu.org/hashicorp/template/index.json",
+		"registry.opentofu.org/hashicorp/template/terraform-provider-template_2.1.1_linux_amd64.zip",
+		"registry.opentofu.org/hashicorp/template/terraform-provider-template_2.1.1_windows_386.zip",
 	}
 	var got []string
 	walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {

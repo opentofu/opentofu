@@ -28,7 +28,7 @@ func TestInitProviders(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "template-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("init")
 	if err != nil {
@@ -43,7 +43,7 @@ func TestInitProviders(t *testing.T) {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
-	if !strings.Contains(stdout, "- Installing opentofu/template v") {
+	if !strings.Contains(stdout, "- Installing hashicorp/template v") {
 		t.Errorf("provider download message is missing from output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
@@ -61,7 +61,7 @@ func TestInitProvidersInternal(t *testing.T) {
 	// provider is internal to the core tofu binary.
 
 	fixturePath := filepath.Join("testdata", "tf-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("init")
 	if err != nil {
@@ -76,7 +76,7 @@ func TestInitProvidersInternal(t *testing.T) {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
-	if strings.Contains(stdout, "Installing opentofu/terraform") {
+	if strings.Contains(stdout, "Installing hashicorp/terraform") {
 		// Shouldn't have downloaded anything with this config, because the
 		// provider is built in.
 		t.Errorf("provider download message appeared in output:\n%s", stdout)
@@ -94,19 +94,19 @@ func TestInitProvidersVendored(t *testing.T) {
 
 	// This test will try to reach out to registry.opentofu.org as one of the
 	// possible installation locations for
-	// opentofu/null, where it will find that
+	// hashicorp/null, where it will find that
 	// versions do exist but will ultimately select the version that is
 	// vendored due to the version constraint.
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "vendored-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	// Our fixture dir has a generic os_arch dir, which we need to customize
 	// to the actual OS/arch where this test is running in order to get the
 	// desired result.
-	fixtMachineDir := tf.Path("terraform.d/plugins/registry.opentofu.org/opentofu/null/1.0.0+local/os_arch")
-	wantMachineDir := tf.Path("terraform.d/plugins/registry.opentofu.org/opentofu/null/1.0.0+local/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
+	fixtMachineDir := tf.Path("terraform.d/plugins/registry.opentofu.org/hashicorp/null/1.0.0+local/os_arch")
+	wantMachineDir := tf.Path("terraform.d/plugins/registry.opentofu.org/hashicorp/null/1.0.0+local/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 	err := os.Rename(fixtMachineDir, wantMachineDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -125,7 +125,7 @@ func TestInitProvidersVendored(t *testing.T) {
 		t.Errorf("success message is missing from output:\n%s", stdout)
 	}
 
-	if !strings.Contains(stdout, "- Installing opentofu/null v1.0.0+local") {
+	if !strings.Contains(stdout, "- Installing hashicorp/null v1.0.0+local") {
 		t.Errorf("provider download message is missing from output:\n%s", stdout)
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
@@ -143,7 +143,7 @@ func TestInitProvidersLocalOnly(t *testing.T) {
 	// the test fixture.)
 
 	fixturePath := filepath.Join("testdata", "local-only-provider")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 	// If you run this test on a workstation with a plugin-cache directory
 	// configured, it will leave a bad directory behind and tofu init will
 	// not work until you remove it.
@@ -193,7 +193,7 @@ func TestInitProvidersCustomMethod(t *testing.T) {
 	for _, configFile := range []string{"cliconfig.tfrc", "cliconfig.tfrc.json"} {
 		t.Run(configFile, func(t *testing.T) {
 			fixturePath := filepath.Join("testdata", "custom-provider-install-method")
-			tf := e2e.NewBinary(t, tofuBin, fixturePath)
+			tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 			// Our fixture dir has a generic os_arch dir, which we need to customize
 			// to the actual OS/arch where this test is running in order to get the
@@ -238,13 +238,13 @@ func TestInitProviders_pluginCache(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "plugin-cache")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	// Our fixture dir has a generic os_arch dir, which we need to customize
 	// to the actual OS/arch where this test is running in order to get the
 	// desired result.
-	fixtMachineDir := tf.Path("cache/registry.opentofu.org/opentofu/template/2.1.0/os_arch")
-	wantMachineDir := tf.Path("cache/registry.opentofu.org/opentofu/template/2.1.0/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
+	fixtMachineDir := tf.Path("cache/registry.opentofu.org/hashicorp/template/2.1.0/os_arch")
+	wantMachineDir := tf.Path("cache/registry.opentofu.org/hashicorp/template/2.1.0/", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 	err := os.Rename(fixtMachineDir, wantMachineDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -260,7 +260,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
+	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
 	content, err := tf.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read installed plugin from %s: %s", path, err)
@@ -269,7 +269,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("template plugin was not installed from local cache")
 	}
 
-	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/opentofu/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
+	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
 	if runtime.GOOS == "windows" {
 		nullLinkPath = nullLinkPath + ".exe"
 	}
@@ -277,7 +277,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("null plugin was not installed into %s", nullLinkPath)
 	}
 
-	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/opentofu/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
+	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
 	if runtime.GOOS == "windows" {
 		nullCachePath = nullCachePath + ".exe"
 	}
@@ -294,7 +294,7 @@ func TestInit_fromModule(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "empty")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	cmd := tf.Cmd("init", "-from-module=hashicorp/vault/aws")
 	cmd.Stdin = nil
@@ -323,11 +323,11 @@ func TestInitProviderNotFound(t *testing.T) {
 	t.Parallel()
 
 	// This test will reach out to registry.opentofu.org as one of the possible
-	// installation locations for opentofu/nonexist, which should not exist.
+	// installation locations for hashicorp/nonexist, which should not exist.
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "provider-not-found")
-	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 
 	t.Run("registry provider not found", func(t *testing.T) {
 		_, stderr, err := tf.Run("init", "-no-color")
@@ -336,7 +336,7 @@ func TestInitProviderNotFound(t *testing.T) {
 		}
 
 		oneLineStderr := strings.ReplaceAll(stderr, "\n", " ")
-		if !strings.Contains(oneLineStderr, "provider registry registry.opentofu.org does not have a provider named registry.opentofu.org/opentofu/nonexist") {
+		if !strings.Contains(oneLineStderr, "provider registry registry.opentofu.org does not have a provider named registry.opentofu.org/hashicorp/nonexist") {
 			t.Errorf("expected error message is missing from output:\n%s", stderr)
 		}
 
@@ -357,7 +357,7 @@ func TestInitProviderNotFound(t *testing.T) {
 			t.Fatal("expected error, got success")
 		}
 
-		if !strings.Contains(stderr, "provider registry.opentofu.org/opentofu/nonexist was not\nfound in any of the search locations\n\n  - "+pluginDir) {
+		if !strings.Contains(stderr, "provider registry.opentofu.org/hashicorp/nonexist was not\nfound in any of the search locations\n\n  - "+pluginDir) {
 			t.Errorf("expected error message is missing from output:\n%s", stderr)
 		}
 	})
@@ -372,12 +372,12 @@ func TestInitProviderNotFound(t *testing.T) {
 │ Error: Failed to query available provider packages
 │` + ` ` + `
 │ Could not retrieve the list of available versions for provider
-│ opentofu/nonexist: provider registry registry.opentofu.org does not have a
-│ provider named registry.opentofu.org/opentofu/nonexist
+│ hashicorp/nonexist: provider registry registry.opentofu.org does not have a
+│ provider named registry.opentofu.org/hashicorp/nonexist
 │ 
 │ All modules should specify their required_providers so that external
 │ consumers will get the correct providers when using a module. To see which
-│ modules are currently depending on opentofu/nonexist, run the following
+│ modules are currently depending on hashicorp/nonexist, run the following
 │ command:
 │     tofu providers
 │ 
@@ -402,7 +402,7 @@ func TestInitProviderNotFound(t *testing.T) {
 //	skipIfCannotAccessNetwork(t)
 //
 //	fixturePath := filepath.Join("testdata", "provider-warnings")
-//	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+//	tf := e2e.NewBinary(t, terraformBin, fixturePath)
 //
 //	stdout, _, err := tf.Run("init")
 //	if err == nil {
