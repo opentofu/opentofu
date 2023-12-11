@@ -1,0 +1,98 @@
+version: '3.8'
+services:
+  debian-auto:
+    image: debian:buster
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh
+    working_dir: /data
+  debian-manual:
+    image: debian:buster
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh deb
+    working_dir: /data
+  ubuntu-auto:
+    image: ubuntu:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh
+    working_dir: /data
+  ubuntu-manual:
+    image: ubuntu:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh deb
+    working_dir: /data
+  fedora-auto:
+    image: fedora:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh
+    working_dir: /data
+  fedora-manual:
+    image: fedora:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh rpm
+    working_dir: /data
+  opensuse-auto:
+    image: opensuse/leap:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh
+    working_dir: /data
+  opensuse-manual:
+    image: opensuse/leap:latest
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh rpm
+    working_dir: /data
+  rockylinux-auto:
+    image: rockylinux:9
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh
+    working_dir: /data
+  rockylinux-manual:
+    image: rockylinux:9
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/test.sh rpm
+    working_dir: /data
+  brew-auto:
+    image: ubuntu
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/brew.sh
+    working_dir: /data
+  brew-manual:
+    image: ubuntu
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/brew.sh brew
+    working_dir: /data
