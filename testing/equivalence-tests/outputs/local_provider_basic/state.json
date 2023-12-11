@@ -7,7 +7,7 @@
           "address": "local_file.local_file",
           "mode": "managed",
           "name": "local_file",
-          "provider_name": "registry.opentofu.org/opentofu/local",
+          "provider_name": "registry.opentofu.org/hashicorp/local",
           "schema_version": 0,
           "sensitive_values": {
             "sensitive_content": true

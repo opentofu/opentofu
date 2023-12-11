@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     foo = {
-      source = "opentofu/foo"
+      source = "hashicorp/foo"
       version = "1.0.0"
       configuration_aliases = [ foo.bar ]
     }

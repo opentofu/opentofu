@@ -28,13 +28,13 @@ func TestDirReading(t *testing.T) {
 	}
 
 	nullProvider := addrs.NewProvider(
-		addrs.DefaultProviderRegistryHost, addrs.DefaultProviderNamespace, "null",
+		addrs.DefaultProviderRegistryHost, "hashicorp", "null",
 	)
 	randomProvider := addrs.NewProvider(
-		addrs.DefaultProviderRegistryHost, addrs.DefaultProviderNamespace, "random",
+		addrs.DefaultProviderRegistryHost, "hashicorp", "random",
 	)
 	randomBetaProvider := addrs.NewProvider(
-		addrs.DefaultProviderRegistryHost, addrs.DefaultProviderNamespace, "random-beta",
+		addrs.DefaultProviderRegistryHost, "hashicorp", "random-beta",
 	)
 	nonExistProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost, "bloop", "nonexist",
@@ -56,7 +56,7 @@ func TestDirReading(t *testing.T) {
 				// still packed and thus not considered to be a cache member.
 				Version: versions.MustParseVersion("2.0.0"),
 
-				PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/windows_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -96,7 +96,7 @@ func TestDirReading(t *testing.T) {
 				Provider: nullProvider,
 				Version:  versions.MustParseVersion("2.0.0"),
 
-				PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/windows_amd64",
+				PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64",
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -154,21 +154,21 @@ func TestDirReading(t *testing.T) {
 				{
 					Provider:   nullProvider,
 					Version:    versions.MustParseVersion("2.0.0"),
-					PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/null/2.0.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64",
 				},
 			},
 			randomProvider: {
 				{
 					Provider:   randomProvider,
 					Version:    versions.MustParseVersion("1.2.0"),
-					PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/random/1.2.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/random/1.2.0/linux_amd64",
 				},
 			},
 			randomBetaProvider: {
 				{
 					Provider:   randomBetaProvider,
 					Version:    versions.MustParseVersion("1.2.0"),
-					PackageDir: "testdata/cachedir/registry.opentofu.org/opentofu/random-beta/1.2.0/linux_amd64",
+					PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/random-beta/1.2.0/linux_amd64",
 				},
 			},
 			missingExecutableProvider: {

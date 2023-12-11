@@ -29,7 +29,7 @@ func TestNodeAbstractResourceProvider(t *testing.T) {
 			}.InModule(addrs.RootModule),
 			Want: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
-				Namespace: addrs.DefaultProviderNamespace,
+				Namespace: "hashicorp",
 				Type:      "null",
 			},
 		},
@@ -219,7 +219,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			}),
 			Node: &NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/opentofu/aws"]`),
+				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
@@ -285,7 +285,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 			}),
 			Node: &NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/opentofu/aws"]`),
+				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},

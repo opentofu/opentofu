@@ -247,7 +247,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 		}),
 		Provider: addrs.Provider{
 			Hostname:  addrs.DefaultProviderRegistryHost,
-			Namespace: addrs.DefaultProviderNamespace,
+			Namespace: "hashicorp",
 			Type:      "test",
 		},
 	}
@@ -494,7 +494,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 						Name: "foo",
 						Provider: addrs.Provider{
 							Hostname:  addrs.DefaultProviderRegistryHost,
-							Namespace: addrs.DefaultProviderNamespace,
+							Namespace: "hashicorp",
 							Type:      "test",
 						},
 					},

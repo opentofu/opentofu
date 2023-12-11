@@ -330,9 +330,6 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Token:        token,
 		Headers:      make(http.Header),
 		RetryLogHook: b.retryLogHook,
-		// services.Transport defaults to the same cleanhttp pooled transport as tfe.DefaultClient
-		// We need to pass in this transport for ssl overrides during testing
-		HTTPClient: &http.Client{Transport: b.services.Transport},
 	}
 
 	// Set the version header to the current version.

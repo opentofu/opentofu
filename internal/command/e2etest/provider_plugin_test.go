@@ -26,7 +26,7 @@ func TestProviderProtocols(t *testing.T) {
 	}
 	t.Parallel()
 
-	tf := e2e.NewBinary(t, tofuBin, "testdata/provider-plugin")
+	tf := e2e.NewBinary(t, terraformBin, "testdata/provider-plugin")
 
 	// In order to do a decent end-to-end test for this case we will need a real
 	// enough provider plugin to try to run and make sure we are able to
@@ -41,7 +41,7 @@ func TestProviderProtocols(t *testing.T) {
 	// Move the provider binaries into a directory that we will point tofu
 	// to using the -plugin-dir cli flag.
 	platform := getproviders.CurrentPlatform.String()
-	hashiDir := "cache/registry.opentofu.org/opentofu/"
+	hashiDir := "cache/registry.opentofu.org/hashicorp/"
 	if err := os.MkdirAll(tf.Path(hashiDir, "simple6/0.0.1/", platform), os.ModePerm); err != nil {
 		t.Fatal(err)
 	}

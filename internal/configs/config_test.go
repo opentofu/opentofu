@@ -137,7 +137,7 @@ func TestConfigProviderRequirements(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	happycloudProvider := addrs.NewProvider(
 		svchost.Hostname("tf.example.com"),
@@ -180,7 +180,7 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
@@ -222,7 +222,7 @@ func TestConfigProviderRequirementsShallow(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
@@ -258,7 +258,7 @@ func TestConfigProviderRequirementsShallowInclTests(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	impliedProvider := addrs.NewDefaultProvider("implied")
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
@@ -289,7 +289,7 @@ func TestConfigProviderRequirementsByModule(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	happycloudProvider := addrs.NewProvider(
 		svchost.Hostname("tf.example.com"),
@@ -361,7 +361,7 @@ func TestConfigProviderRequirementsByModuleInclTests(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
@@ -421,7 +421,7 @@ func TestVerifyDependencySelections(t *testing.T) {
 
 	tlsProvider := addrs.NewProvider(
 		addrs.DefaultProviderRegistryHost,
-		"opentofu", "tls",
+		"hashicorp", "tls",
 	)
 	happycloudProvider := addrs.NewProvider(
 		svchost.Hostname("tf.example.com"),
@@ -442,12 +442,12 @@ func TestVerifyDependencySelections(t *testing.T) {
 				// Intentionally blank
 			},
 			[]string{
-				`provider registry.opentofu.org/opentofu/configured: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/grandchild: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/implied: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/null: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/random: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/tls: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/configured: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/grandchild: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/implied: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/random: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/tls: required by this configuration but no version is selected`,
 				`provider tf.example.com/awesomecorp/happycloud: required by this configuration but no version is selected`,
 			},
 		},
@@ -474,7 +474,7 @@ func TestVerifyDependencySelections(t *testing.T) {
 				locks.SetProvider(happycloudProvider, getproviders.MustParseVersion("0.0.1"), nil, nil)
 			},
 			[]string{
-				`provider registry.opentofu.org/opentofu/null: locked version selection 3.0.0 doesn't match the updated version constraints "~> 2.0.0, 2.0.1"`,
+				`provider registry.opentofu.org/hashicorp/null: locked version selection 3.0.0 doesn't match the updated version constraints "~> 2.0.0, 2.0.1"`,
 			},
 		},
 		"null provider lock changed": {
@@ -492,7 +492,7 @@ func TestVerifyDependencySelections(t *testing.T) {
 				locks.SetProvider(happycloudProvider, getproviders.MustParseVersion("0.0.1"), nil, nil)
 			},
 			[]string{
-				`provider registry.opentofu.org/opentofu/null: version constraints "~> 2.0.0, 2.0.1" don't match the locked version selection 3.0.0`,
+				`provider registry.opentofu.org/hashicorp/null: version constraints "~> 2.0.0, 2.0.1" don't match the locked version selection 3.0.0`,
 			},
 		},
 		"overridden provider": {
@@ -501,12 +501,12 @@ func TestVerifyDependencySelections(t *testing.T) {
 			},
 			[]string{
 				// We still catch all of the other ones, because only happycloud was overridden
-				`provider registry.opentofu.org/opentofu/configured: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/grandchild: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/implied: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/null: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/random: required by this configuration but no version is selected`,
-				`provider registry.opentofu.org/opentofu/tls: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/configured: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/grandchild: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/implied: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/random: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/tls: required by this configuration but no version is selected`,
 			},
 		},
 	}

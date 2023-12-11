@@ -2,7 +2,7 @@ provider "" { # ERROR: Invalid provider source address
 
 }
 
-provider "opentofu/aws" { # ERROR: Non-normalized provider source address
+provider "hashicorp/aws" { # ERROR: Non-normalized provider source address
 
 }
 

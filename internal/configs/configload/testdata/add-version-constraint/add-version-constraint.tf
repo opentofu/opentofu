@@ -5,6 +5,6 @@
 # registry does not need to be accessed when this test is successful.
 
 module "child" {
-  source  = "opentofu/module-installer-acctest/aws"
+  source  = "hashicorp/module-installer-acctest/aws"
   version = "0.0.1"
 }

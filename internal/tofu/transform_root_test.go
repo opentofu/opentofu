@@ -87,11 +87,11 @@ root
 
 const testTransformRootBasicStr = `
 aws_instance.foo
-  provider["registry.opentofu.org/opentofu/aws"]
+  provider["registry.opentofu.org/hashicorp/aws"]
 do_droplet.bar
-  provider["registry.opentofu.org/opentofu/do"]
-provider["registry.opentofu.org/opentofu/aws"]
-provider["registry.opentofu.org/opentofu/do"]
+  provider["registry.opentofu.org/hashicorp/do"]
+provider["registry.opentofu.org/hashicorp/aws"]
+provider["registry.opentofu.org/hashicorp/do"]
 root
   aws_instance.foo
   do_droplet.bar
