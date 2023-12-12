@@ -90,7 +90,7 @@ func (m *MockApplies) create(cvID, workspaceID string) (*tfe.Apply, error) {
 	}
 
 	id := GenerateID("apply-")
-	url := fmt.Sprintf("https://app.terraform.io/_archivist/%s", id)
+	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	a := &tfe.Apply{
 		ID:         id,
@@ -205,7 +205,7 @@ func (m *MockConfigurationVersions) List(ctx context.Context, workspaceID string
 
 func (m *MockConfigurationVersions) Create(ctx context.Context, workspaceID string, options tfe.ConfigurationVersionCreateOptions) (*tfe.ConfigurationVersion, error) {
 	id := GenerateID("cv-")
-	url := fmt.Sprintf("https://app.terraform.io/_archivist/%s", id)
+	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	cv := &tfe.ConfigurationVersion{
 		ID:        id,
@@ -543,7 +543,7 @@ func newMockPlans(client *MockClient) *MockPlans {
 // working directory to find the logfile.
 func (m *MockPlans) create(cvID, workspaceID string) (*tfe.Plan, error) {
 	id := GenerateID("plan-")
-	url := fmt.Sprintf("https://app.terraform.io/_archivist/%s", id)
+	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	p := &tfe.Plan{
 		ID:         id,
@@ -1372,7 +1372,7 @@ func (m *MockStateVersions) List(ctx context.Context, options *tfe.StateVersionL
 func (m *MockStateVersions) Create(ctx context.Context, workspaceID string, options tfe.StateVersionCreateOptions) (*tfe.StateVersion, error) {
 	id := GenerateID("sv-")
 	runID := os.Getenv("TFE_RUN_ID")
-	url := fmt.Sprintf("https://app.terraform.io/_archivist/%s", id)
+	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	if runID != "" && (options.Run == nil || runID != options.Run.ID) {
 		return nil, fmt.Errorf("option.Run.ID does not contain the ID exported by TFE_RUN_ID")
