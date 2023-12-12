@@ -329,6 +329,8 @@ NeedProvider:
 			err = fmt.Errorf("the previously-selected version %s is no longer available", lock.Version())
 		} else {
 			err = fmt.Errorf("no available releases match the given constraints %s", getproviders.VersionConstraintsString(reqs[provider]))
+			log.Printf("[DEBUG] %s", err.Error())
+			log.Printf("[DEBUG] Available releases: %s", available)
 		}
 		errs[provider] = err
 		if cb := evts.QueryPackagesFailure; cb != nil {
