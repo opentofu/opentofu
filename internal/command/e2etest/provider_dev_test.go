@@ -91,7 +91,7 @@ func TestProviderDevOverrides(t *testing.T) {
 	if got, want := stdout, `Provider development overrides are in effect`; !strings.Contains(got, want) {
 		t.Errorf("stdout doesn't include the warning about development overrides\nwant: %s\n%s", want, got)
 	}
-	if got, want := stderr, `Failed to query available provider packages`; !strings.Contains(got, want) {
+	if got, want := stderr, `Failed to resolve provider packages`; !strings.Contains(got, want) {
 		t.Errorf("stderr doesn't include the error about listing unavailable development provider\nwant: %s\n%s", want, got)
 	}
 }
