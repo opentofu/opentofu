@@ -715,8 +715,8 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
-					"Failed to query available provider packages",
-					fmt.Sprintf("Could not retrieve the list of available versions for provider %s: %s",
+					"Failed to resolve provider packages",
+					fmt.Sprintf("Could not resolve provider %s: %s",
 						provider.ForDisplay(), err,
 					),
 				))
