@@ -716,7 +716,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to resolve provider packages",
-					fmt.Sprintf("Could resolve provider %s: %s",
+					fmt.Sprintf("Could not resolve provider %s: %s",
 						provider.ForDisplay(), err,
 					),
 				))
