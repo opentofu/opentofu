@@ -469,7 +469,7 @@ func TestCloud_config(t *testing.T) {
 
 func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 	config := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -506,7 +506,7 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 
 func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 	config := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -550,7 +550,7 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 	workspaceName := "unavailable-terraform-version"
 
 	config := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -1293,7 +1293,7 @@ func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
