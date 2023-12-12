@@ -74,7 +74,7 @@ func TestLogin(t *testing.T) {
 					"scopes": []interface{}{"app1.full_access", "app2.read_only"},
 				},
 			})
-			svcs.ForceHostServices(svchost.Hostname("app.terraform.io"), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname(tfeHost), map[string]interface{}{
 				// This represents Terraform Cloud, which does not yet support the
 				// login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
@@ -123,13 +123,13 @@ func TestLogin(t *testing.T) {
 			"approve": "yes",
 			"token":   "  good-token ",
 		})()
-		status := c.Run([]string{"app.terraform.io"})
+		status := c.Run([]string{tfeHost})
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("app.terraform.io"))
+		creds, err := credsSrc.ForHost(svchost.Hostname(tfeHost))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
@@ -278,7 +278,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "no",
 		})()
-		status := c.Run([]string{"app.terraform.io"})
+		status := c.Run([]string{tfeHost})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
@@ -293,7 +293,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "y",
 		})()
-		status := c.Run([]string{"app.terraform.io"})
+		status := c.Run([]string{tfeHost})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}

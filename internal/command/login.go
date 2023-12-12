@@ -35,6 +35,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// This is HashiCorp's cloud host.
+// There are a few special circumstances that depend on this whitelisted hostname.
+const tfeHost = "app.terraform.io"
+
 // LoginCommand is a Command implementation that runs an interactive login
 // flow for a remote service host. It then stashes credentials in a tfrc
 // file in the user's home directory.
@@ -187,7 +191,7 @@ func (c *LoginCommand) Run(args []string) int {
 		case clientConfig.SupportedGrantTypes.Has(disco.OAuthAuthzCodeGrant):
 			// We prefer an OAuth code grant if the server supports it.
 			oauthToken, tokenDiags = c.interactiveGetTokenByCode(hostname, credsCtx, clientConfig)
-		case clientConfig.SupportedGrantTypes.Has(disco.OAuthOwnerPasswordGrant) && hostname == svchost.Hostname("app.terraform.io"):
+		case clientConfig.SupportedGrantTypes.Has(disco.OAuthOwnerPasswordGrant) && hostname == svchost.Hostname(tfeHost):
 			// The password grant type is allowed only for Terraform Cloud SaaS.
 			// Note this case is purely theoretical at this point, as TFC currently uses
 			// its own bespoke login protocol (tfe)
@@ -227,7 +231,7 @@ func (c *LoginCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
-	if hostname == "app.terraform.io" { // Terraform Cloud
+	if hostname == tfeHost { // Terraform Cloud
 		var motd struct {
 			Message string        `json:"msg"`
 			Errors  []interface{} `json:"errors"`
