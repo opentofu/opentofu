@@ -2805,8 +2805,8 @@ func TestInit_testsWithProvider(t *testing.T) {
 	want := `
 Error: Failed to resolve provider packages
 
-Could not resolve provider hashicorp/test: no available releases match the given
-constraints 1.0.1, 1.0.2
+Could not resolve provider hashicorp/test: no available releases match the
+given constraints 1.0.1, 1.0.2
 
 `
 	if diff := cmp.Diff(got, want); len(diff) > 0 {
