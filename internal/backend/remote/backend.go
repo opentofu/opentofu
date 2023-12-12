@@ -39,7 +39,7 @@ const (
 	defaultParallelism = 10
 	stateServiceID     = "state.v2"
 	tfeServiceID       = "tfe.v2.1"
-	genericHostname    = "localterraform.com"
+	genericHostname    = "localtofu.com"
 )
 
 // Remote is an implementation of EnhancedBackend that performs all

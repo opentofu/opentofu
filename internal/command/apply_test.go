@@ -1734,7 +1734,7 @@ func TestApply_disableBackup(t *testing.T) {
 }
 
 // Test that the Terraform env is passed through
-func TestApply_terraformEnv(t *testing.T) {
+func TestApply_tofuEnv(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tofu-workspace"), td)
@@ -1771,7 +1771,7 @@ output = default
 }
 
 // Test that the Terraform env is passed through
-func TestApply_terraformEnvNonDefault(t *testing.T) {
+func TestApply_tofuEnvNonDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tofu-workspace"), td)
