@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -44,9 +45,9 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname("app.terraform.io")
+	tfeHost  = "app.terraform.io"
 	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		tfeHost: {"token": testCred},
+		svchost.Hostname(tfeHost): {"token": testCred},
 	})
 	testBackendSingleWorkspaceName = "app-prod"
 	defaultTFCPing                 = map[string]func(http.ResponseWriter, *http.Request){
@@ -57,6 +58,12 @@ var (
 		},
 	}
 )
+
+func skipIfTFENotEnabled(t *testing.T) {
+	if os.Getenv("TF_TFC_TEST") == "" {
+		t.Skip("this test accesses app.terraform.io; set TF_TFC_TEST=1 to run it")
+	}
+}
 
 // mockInput is a mock implementation of tofu.UIInput.
 type mockInput struct {
@@ -79,6 +86,7 @@ func (m *mockInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, er
 }
 
 func testInput(t *testing.T, answers map[string]string) *mockInput {
+	skipIfTFENotEnabled(t)
 	return &mockInput{answers: answers}
 }
 
@@ -89,7 +97,7 @@ func testBackendWithName(t *testing.T) (*Cloud, func()) {
 
 func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -103,7 +111,7 @@ func testBackendAndMocksWithName(t *testing.T) (*Cloud, *MockClient, func()) {
 
 func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -122,7 +130,7 @@ func testBackendWithTags(t *testing.T) (*Cloud, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -137,7 +145,7 @@ func testBackendNoOperations(t *testing.T) (*Cloud, func()) {
 
 func testBackendWithHandlers(t *testing.T, handlers map[string]func(http.ResponseWriter, *http.Request)) (*Cloud, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -225,6 +233,7 @@ func testBackendWithOutputs(t *testing.T) (*Cloud, func()) {
 }
 
 func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.ResponseWriter, *http.Request)) (*Cloud, *MockClient, func()) {
+	skipIfTFENotEnabled(t)
 	var s *httptest.Server
 	if handlers != nil {
 		s = testServerWithHandlers(handlers)
@@ -305,6 +314,8 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 // testUnconfiguredBackend is used for testing the configuration of the backend
 // with the mock client
 func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
+	skipIfTFENotEnabled(t)
+
 	s := testServer(t)
 	b := New(testDisco(s))
 
@@ -354,6 +365,8 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 }
 
 func testLocalBackend(t *testing.T, cloud *Cloud) backend.Enhanced {
+	skipIfTFENotEnabled(t)
+
 	b := backendLocal.NewWithBackend(cloud)
 
 	// Add a test provider to the local backend.
@@ -378,6 +391,8 @@ func testLocalBackend(t *testing.T, cloud *Cloud) backend.Enhanced {
 // testServer returns a started *httptest.Server used for local testing with the default set of
 // request handlers.
 func testServer(t *testing.T) *httptest.Server {
+	skipIfTFENotEnabled(t)
+
 	return testServerWithHandlers(testDefaultRequestHandlers)
 }
 
@@ -398,6 +413,8 @@ func testServerWithHandlers(handlers map[string]func(http.ResponseWriter, *http.
 }
 
 func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server {
+	skipIfTFENotEnabled(t)
+
 	var serverURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Log(r.Method, r.URL.String())
@@ -581,7 +598,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
+	d.ForceHostServices(svchost.Hostname(tfeHost), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	d.ForceHostServices(svchost.Hostname("nontfe.local"), nil)
 	return d
