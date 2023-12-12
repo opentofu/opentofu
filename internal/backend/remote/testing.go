@@ -38,9 +38,9 @@ const (
 )
 
 var (
-	tfeHost  = svchost.Hostname("app.terraform.io")
-	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		tfeHost: {"token": testCred},
+	mockedBackendHost = "app.example.com"
+	credsSrc          = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
+		svchost.Hostname(mockedBackendHost): {"token": testCred},
 	})
 )
 
@@ -70,7 +70,7 @@ func testInput(t *testing.T, answers map[string]string) *mockInput {
 
 func testBackendDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -83,7 +83,7 @@ func testBackendDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -96,7 +96,7 @@ func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 
 func testBackendNoOperations(t *testing.T) (*Remote, func()) {
 	obj := cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("no-operations"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -286,7 +286,7 @@ func testServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
-// testDisco returns a *disco.Disco mapping app.terraform.io and
+// testDisco returns a *disco.Disco mapping to mockedBackendHost and
 // localhost to a local test server.
 func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
@@ -297,7 +297,7 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	d := disco.NewWithCredentialsSource(credsSrc)
 	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	d.ForceHostServices(svchost.Hostname("app.terraform.io"), services)
+	d.ForceHostServices(svchost.Hostname(mockedBackendHost), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
 	return d
 }

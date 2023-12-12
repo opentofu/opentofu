@@ -50,7 +50,7 @@ func TestRemote_config(t *testing.T) {
 	}{
 		"with_a_nonexisting_organization": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
+				"hostname":     cty.StringVal(mockedBackendHost),
 				"organization": cty.StringVal("nonexisting"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -58,7 +58,7 @@ func TestRemote_config(t *testing.T) {
 					"prefix": cty.NullVal(cty.String),
 				}),
 			}),
-			confErr: "organization \"nonexisting\" at host app.terraform.io not found",
+			confErr: "organization \"nonexisting\" at host " + mockedBackendHost + " not found",
 		},
 		"with_a_missing_hostname": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -177,7 +177,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 	}{
 		"compatible version": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
+				"hostname":     cty.StringVal(mockedBackendHost),
 				"organization": cty.StringVal("hashicorp"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -189,7 +189,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too old": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
+				"hostname":     cty.StringVal(mockedBackendHost),
 				"organization": cty.StringVal("hashicorp"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -202,7 +202,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 		},
 		"version too new": {
 			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal("app.terraform.io"),
+				"hostname":     cty.StringVal(mockedBackendHost),
 				"organization": cty.StringVal("hashicorp"),
 				"token":        cty.NullVal(cty.String),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
@@ -743,7 +743,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	b := New(testDisco(s))
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
-		"hostname":     cty.StringVal("app.terraform.io"),
+		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
 		"workspaces": cty.ObjectVal(map[string]cty.Value{
