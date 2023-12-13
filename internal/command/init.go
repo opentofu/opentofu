@@ -546,7 +546,11 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		reqs = reqs.Merge(stateReqs)
 	}
 
+	providersByName := make(map[string][]string)
+
 	for providerAddr := range reqs {
+		providersByName[providerAddr.Type] = append(providersByName[providerAddr.Type], providerAddr.ForDisplay())
+
 		if providerAddr.IsLegacy() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -554,6 +558,20 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				fmt.Sprintf(
 					"This configuration or its associated state refers to the unqualified provider %q.\n\nYou must complete the Terraform 0.13 upgrade process before upgrading to later versions.",
 					providerAddr.Type,
+				),
+			))
+		}
+	}
+
+	for name, addrs := range providersByName {
+		if len(addrs) > 1 {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Potential provider misconfiguration",
+				fmt.Sprintf(
+					"OpenTofu has detected multiple providers of type %s (%s) which may be a misconfiguration.\n\nIf this is intentional you can ignore this warning",
+					name,
+					strings.Join(addrs, ", "),
 				),
 			))
 		}
