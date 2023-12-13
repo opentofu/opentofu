@@ -154,10 +154,10 @@ func TestChecksHappyPath(t *testing.T) {
 
 	/////////////////////////////////////////////////////////////////////////
 
-	// The following are steps that would normally be done by Terraform Core
+	// The following are steps that would normally be done by OpenTofu Core
 	// as part of visiting checkable objects during the graph walk. We're
 	// simulating a likely sequence of calls here for testing purposes, but
-	// Terraform Core won't necessarily visit all of these in exactly the
+	// OpenTofu Core won't necessarily visit all of these in exactly the
 	// same order every time and so this is just one possible valid ordering
 	// of calls.
 

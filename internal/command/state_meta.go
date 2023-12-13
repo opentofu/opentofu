@@ -45,7 +45,7 @@ func (c *StateMeta) State() (statemgr.Full, error) {
 			return nil, err
 		}
 
-		// Check remote Terraform version is compatible
+		// Check remote OpenTofu version is compatible
 		remoteVersionDiags := c.remoteVersionCheck(b, workspace)
 		c.showDiagnostics(remoteVersionDiags)
 		if remoteVersionDiags.HasErrors() {

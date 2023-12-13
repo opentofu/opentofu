@@ -122,7 +122,7 @@ type ResourceDiff struct {
 	// diff.
 	state *tofu.InstanceState
 
-	// The diff created by Terraform. This diff is used, along with state,
+	// The diff created by Tofu. This diff is used, along with state,
 	// config, and custom-set diff data, to provide a multi-level reader
 	// experience similar to ResourceData.
 	diff *tofu.InstanceDiff

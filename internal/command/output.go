@@ -14,7 +14,7 @@ import (
 )
 
 // OutputCommand is a Command implementation that reads an output
-// from a Terraform state and prints it.
+// from a OpenTofu state and prints it.
 type OutputCommand struct {
 	Meta
 }

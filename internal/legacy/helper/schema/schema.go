@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // schema is a high-level framework for easily writing new providers
-// for Terraform. Usage of schema is recommended over attempting to write
+// for OpenTofu. Usage of schema is recommended over attempting to write
 // to the low-level plugin interfaces manually.
 //
 // schema breaks down provider creation into simple CRUD operations for
@@ -247,7 +247,7 @@ type Schema struct {
 
 	// Sensitive ensures that the attribute's value does not get displayed in
 	// logs or regular output. It should be used for passwords or other
-	// secret fields. Future versions of Terraform may encrypt these
+	// secret fields. Future versions of OpenTofu may encrypt these
 	// values.
 	Sensitive bool
 }

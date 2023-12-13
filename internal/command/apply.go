@@ -14,7 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ApplyCommand is a Command implementation that applies a Terraform
+// ApplyCommand is a Command implementation that applies a OpenTofu
 // configuration and actually builds or changes infrastructure.
 type ApplyCommand struct {
 	Meta
@@ -88,7 +88,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	c.Meta.input = args.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
-	// Terraform operations. At the moment, this value is used both to
+	// OpenTofu operations. At the moment, this value is used both to
 	// initialize the backend via the ContextOpts field inside CLIOpts, and to
 	// set a largely unused field on the Operation request. Again, there is no
 	// clear path to pass this value down, so we continue to mutate the Meta
@@ -133,7 +133,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Render the resource count and outputs, unless those counts are being
-	// rendered already in a remote Terraform process.
+	// rendered already in a remote OpenTofu process.
 	if rb, isRemoteBackend := be.(BackendWithRemoteTerraformVersion); !isRemoteBackend || rb.IsLocalOperations() {
 		view.ResourceCount(args.State.StateOutPath)
 		if !c.Destroy && op.State != nil {

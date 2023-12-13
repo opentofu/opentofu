@@ -107,7 +107,7 @@ func marshalExpressions(body hcl.Body, schema *configschema.Block) expressions {
 	// Use the low-level schema with the body to decode one level We'll just
 	// ignore any additional content that's not covered by the schema, which
 	// will effectively ignore "dynamic" blocks, and may also ignore other
-	// unknown stuff but anything else would get flagged by Terraform as an
+	// unknown stuff but anything else would get flagged by OpenTofu as an
 	// error anyway, and so we wouldn't end up in here.
 	content, _, _ := body.PartialContent(lowSchema)
 	if content == nil {

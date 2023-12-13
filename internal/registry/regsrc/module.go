@@ -55,7 +55,7 @@ var (
 	}
 )
 
-// Module describes a Terraform Registry Module source.
+// Module describes a OpenTofu Registry Module source.
 type Module struct {
 	// RawHost is the friendly host prefix if one was present. It might be nil
 	// if the original source had no host prefix which implies
@@ -132,7 +132,7 @@ func ModuleFromRegistryPackageAddr(addr addrs.ModuleRegistryPackage) *Module {
 	}
 }
 
-// ParseModuleSource attempts to parse source as a Terraform registry module
+// ParseModuleSource attempts to parse source as a OpenTofu registry module
 // source. If the string is not found to be in a valid format,
 // ErrInvalidModuleSource is returned. Note that this can only be used on
 // "input" strings, e.g. either ones supplied by the user or potentially

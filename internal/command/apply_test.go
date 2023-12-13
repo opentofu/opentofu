@@ -597,7 +597,7 @@ result = foo
 	testStateOutput(t, statePath, expected)
 }
 
-// When only a partial set of the variables are set, Terraform
+// When only a partial set of the variables are set, OpenTofu
 // should still ask for the unset ones by default (with -input=true)
 func TestApply_inputPartial(t *testing.T) {
 	// Create a temporary working directory that is empty
@@ -1733,7 +1733,7 @@ func TestApply_disableBackup(t *testing.T) {
 	}
 }
 
-// Test that the Terraform env is passed through
+// Test that the OpenTofu env is passed through
 func TestApply_tofuEnv(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
@@ -1770,7 +1770,7 @@ output = default
 	testStateOutput(t, statePath, expected)
 }
 
-// Test that the Terraform env is passed through
+// Test that the OpenTofu env is passed through
 func TestApply_tofuEnvNonDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
@@ -2187,7 +2187,7 @@ func applyFixtureSchema() *providers.GetProviderSchemaResponse {
 // operation with the configuration in testdata/apply. This mock has
 // GetSchemaResponse, PlanResourceChangeFn, and ApplyResourceChangeFn populated,
 // with the plan/apply steps just passing through the data determined by
-// Terraform Core.
+// OpenTofu Core.
 func applyFixtureProvider() *tofu.MockProvider {
 	p := testProvider()
 	p.GetProviderSchemaResponse = applyFixtureSchema()

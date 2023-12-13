@@ -1327,7 +1327,7 @@ func TestStateHasResources(t *testing.T) {
 	}
 }
 
-func TestStateFromFutureTerraform(t *testing.T) {
+func TestStateFromFutureTofu(t *testing.T) {
 	cases := []struct {
 		In     string
 		Result bool
@@ -1348,7 +1348,7 @@ func TestStateFromFutureTerraform(t *testing.T) {
 
 	for _, tc := range cases {
 		state := &State{TFVersion: tc.In}
-		actual := state.FromFutureTerraform()
+		actual := state.FromFutureTofu()
 		if actual != tc.Result {
 			t.Fatalf("%s: bad: %v", tc.In, actual)
 		}

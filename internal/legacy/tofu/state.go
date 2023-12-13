@@ -617,9 +617,9 @@ func (s *State) DeepCopy() *State {
 	return copy.(*State)
 }
 
-// FromFutureTerraform checks if this state was written by a OpenTofu
+// FromFutureTofu checks if this state was written by a OpenTofu
 // version from the future.
-func (s *State) FromFutureTerraform() bool {
+func (s *State) FromFutureTofu() bool {
 	s.Lock()
 	defer s.Unlock()
 

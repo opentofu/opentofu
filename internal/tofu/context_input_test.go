@@ -319,7 +319,7 @@ func TestContext2Input_providerOnly(t *testing.T) {
 	}
 
 	actualStr := strings.TrimSpace(state.String())
-	expectedStr := strings.TrimSpace(testTerraformInputProviderOnlyStr)
+	expectedStr := strings.TrimSpace(testTofuInputProviderOnlyStr)
 	if actualStr != expectedStr {
 		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actualStr, expectedStr)
 	}

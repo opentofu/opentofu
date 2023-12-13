@@ -10,7 +10,7 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
-func TestTerraformProviderRead(t *testing.T) {
+func TestOpenTofuProviderRead(t *testing.T) {
 	// Ensure the tofu provider can correctly read a remote state
 
 	t.Parallel()

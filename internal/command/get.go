@@ -11,7 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// GetCommand is a Command implementation that takes a Terraform
+// GetCommand is a Command implementation that takes a OpenTofu
 // configuration and downloads all the modules.
 type GetCommand struct {
 	Meta

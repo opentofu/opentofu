@@ -13,7 +13,7 @@ import (
 )
 
 // State is a container for state tracking of all of the the checks declared in
-// a particular Terraform configuration and their current statuses.
+// a particular OpenTofu configuration and their current statuses.
 //
 // A State object is mutable during plan and apply operations but should
 // otherwise be treated as a read-only snapshot of the status of checks

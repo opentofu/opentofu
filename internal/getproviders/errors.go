@@ -19,11 +19,11 @@ type ErrHostNoProviders struct {
 
 	// HasOtherVersionis set to true if the discovery process detected
 	// declarations of services named "providers" whose version numbers did not
-	// match any version supported by the current version of Terraform.
+	// match any version supported by the current version of OpenTofu.
 	//
 	// If this is set, it's helpful to hint to the user in an error message
 	// that the provider host may be expecting an older or a newer version
-	// of Terraform, rather than that it isn't a provider registry host at all.
+	// of OpenTofu, rather than that it isn't a provider registry host at all.
 	HasOtherVersion bool
 }
 
@@ -154,7 +154,7 @@ func (err ErrPlatformNotSupported) Error() string {
 }
 
 // ErrProtocolNotSupported is an error type used to indicate that a particular
-// version of a provider is not supported by the current version of Terraform.
+// version of a provider is not supported by the current version of OpenTofu.
 //
 // Specfically, this is returned when the version's plugin protocol is not supported.
 //

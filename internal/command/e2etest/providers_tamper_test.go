@@ -15,7 +15,7 @@ import (
 
 // TestProviderTampering tests various ways that the provider plugins in the
 // local cache directory might be modified after an initial "tofu init",
-// which other Terraform commands which use those plugins should catch and
+// which other OpenTofu commands which use those plugins should catch and
 // report early.
 func TestProviderTampering(t *testing.T) {
 	// General setup: we'll do a one-off init of a test directory as our

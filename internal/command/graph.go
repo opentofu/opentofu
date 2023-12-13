@@ -16,7 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-// GraphCommand is a Command implementation that takes a Terraform
+// GraphCommand is a Command implementation that takes a OpenTofu
 // configuration and outputs the dependency tree in graphical form.
 type GraphCommand struct {
 	Meta

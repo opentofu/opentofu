@@ -769,7 +769,7 @@ var commonResourceAttributes = []hcl.AttributeSchema{
 }
 
 // ResourceBlockSchema is the schema for a resource or data resource type within
-// Terraform.
+// OpenTofu.
 //
 // This schema is public as it is required elsewhere in order to validate and
 // use generated config.
