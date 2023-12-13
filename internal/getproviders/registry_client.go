@@ -167,7 +167,7 @@ func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provid
 //     under the assumption that the caller previously checked that the provider
 //     and version are valid.
 //   - ErrProtocolNotSupported if the requested provider version's protocols are not
-//     supported by this version of terraform.
+//     supported by this version of tofu.
 //   - ErrUnauthorized if the registry responds with 401 or 403 status codes
 //   - ErrQueryFailed for any other operational problem.
 func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provider, version Version, target Platform) (PackageMeta, error) {
@@ -250,7 +250,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 	protoVersions.Sort()
 
-	// Verify that this version of terraform supports the providers' protocol
+	// Verify that this version of tofu supports the providers' protocol
 	// version(s)
 	if len(protoVersions) > 0 {
 		supportedProtos := MeetingConstraints(SupportedPluginProtocols)

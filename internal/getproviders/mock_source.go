@@ -152,7 +152,7 @@ func FakePackageMeta(provider addrs.Provider, version Version, protocols Version
 // should call the callback even if this function returns an error, because
 // some error conditions leave a partially-created file on disk.
 func FakeInstallablePackageMeta(provider addrs.Provider, version Version, protocols VersionList, target Platform, execFilename string) (PackageMeta, func(), error) {
-	f, err := os.CreateTemp("", "terraform-getproviders-fake-package-")
+	f, err := os.CreateTemp("", "tofu-getproviders-fake-package-")
 	if err != nil {
 		return PackageMeta{}, func() {}, err
 	}

@@ -29,7 +29,7 @@ func TestProviderTampering(t *testing.T) {
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "provider-tampering-base")
-	tf := e2e.NewBinary(t, terraformBin, fixturePath)
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	stdout, stderr, err := tf.Run("init")
 	if err != nil {
@@ -53,7 +53,7 @@ func TestProviderTampering(t *testing.T) {
 	providerCacheDir := filepath.Join(".terraform", "providers")
 
 	t.Run("cache dir totally gone", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.RemoveAll(filepath.Join(workDir, ".terraform"))
@@ -83,7 +83,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("cache dir totally gone, explicit backend", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.WriteFile(filepath.Join(workDir, "backend.tf"), []byte(localBackendConfig), 0600)
@@ -118,7 +118,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("null plugin package modified before plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.WriteFile(filepath.Join(workDir, pluginExe), []byte("tamper"), 0600)
@@ -138,7 +138,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("version constraint changed in config before plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		err := os.WriteFile(filepath.Join(workDir, "provider-tampering-base.tf"), []byte(`
@@ -167,7 +167,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("lock file modified before plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		// NOTE: We're just emptying out the lock file here because that's
@@ -193,7 +193,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("lock file modified after plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		_, stderr, err := tf.Run("plan", "-out", "tfplan")
@@ -218,7 +218,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("plugin cache dir entirely removed after plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		_, stderr, err := tf.Run("plan", "-out", "tfplan")
@@ -240,7 +240,7 @@ func TestProviderTampering(t *testing.T) {
 		}
 	})
 	t.Run("null plugin package modified after plan", func(t *testing.T) {
-		tf := e2e.NewBinary(t, terraformBin, seedDir)
+		tf := e2e.NewBinary(t, tofuBin, seedDir)
 		workDir := tf.WorkDir()
 
 		_, stderr, err := tf.Run("plan", "-out", "tfplan")
