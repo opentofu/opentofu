@@ -81,7 +81,7 @@ func (e Experiment) IsConcluded() bool {
 var currentExperiments = make(Set)
 
 // concludedExperiments are those which were available to activate in an earlier
-// version of Terraform but are no longer available, either because the feature
+// version of OpenTofu but are no longer available, either because the feature
 // in question has been implemented or because the experiment failed and the
 // feature was abandoned. Each experiment maps to a message describing the
 // outcome, so we can give users feedback about what they might do in modules

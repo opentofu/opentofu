@@ -136,7 +136,7 @@ func (m *Meta) providerGlobalCacheDir() *providercache.Dir {
 
 // providerInstallSource returns an object that knows how to consult one or
 // more external sources to determine the availability of and package
-// locations for versions of Terraform providers that are available for
+// locations for versions of OpenTofu providers that are available for
 // automatic installation.
 //
 // This returns the standard provider install source that consults a number

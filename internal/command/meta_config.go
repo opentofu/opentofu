@@ -368,7 +368,7 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	return m.configLoader, nil
 }
 
-// registryClient instantiates and returns a new Terraform Registry client.
+// registryClient instantiates and returns a new Registry client.
 func (m *Meta) registryClient() *registry.Client {
 	return registry.NewClient(m.Services, nil)
 }

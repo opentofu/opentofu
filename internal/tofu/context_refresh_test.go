@@ -988,7 +988,7 @@ func TestContext2Refresh_dataStateRefData(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(s.String())
-	expected := strings.TrimSpace(testTerraformRefreshDataRefDataStr)
+	expected := strings.TrimSpace(testTofuRefreshDataRefDataStr)
 	if actual != expected {
 		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
 	}

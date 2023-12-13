@@ -30,6 +30,6 @@ type InputOpts struct {
 	Default string
 
 	// Secret should be true if we are asking for sensitive input.
-	// If attached to a TTY, Terraform will disable echo.
+	// If attached to a TTY, OpenTofu will disable echo.
 	Secret bool
 }

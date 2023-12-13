@@ -325,7 +325,7 @@ type TestSuiteRunner struct {
 	Stopped   bool
 	Cancelled bool
 
-	// StoppedCtx and CancelledCtx allow in progress Terraform operations to
+	// StoppedCtx and CancelledCtx allow in progress OpenTofu operations to
 	// respond to external calls from the test command.
 	StoppedCtx   context.Context
 	CancelledCtx context.Context
@@ -1102,7 +1102,7 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 	}
 
 	// We've gathered all the values we have, let's convert them into
-	// tofu.InputValues so they can be passed into the Terraform graph.
+	// tofu.InputValues so they can be passed into the OpenTofu graph.
 
 	inputs := make(tofu.InputValues, len(variables))
 	var diags tfdiags.Diagnostics

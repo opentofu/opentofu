@@ -35,7 +35,7 @@ import (
 //
 // In practice today this function only knows how to suggest alternatives for
 // "default" providers, which is to say ones that are in the hashicorp
-// namespace in the Terraform registry. It will always return no result for
+// namespace in the OpenTofu registry. It will always return no result for
 // any other provider. That might change in future if we introduce other ways
 // to discover provider suggestions.
 //

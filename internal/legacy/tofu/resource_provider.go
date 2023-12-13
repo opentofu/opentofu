@@ -25,7 +25,7 @@ type ResourceProvider interface {
 	// Input was used prior to v0.12 to ask the provider to prompt the user
 	// for input to complete the configuration.
 	//
-	// From v0.12 onwards this method is never called because Terraform Core
+	// From v0.12 onwards this method is never called because OpenTofu Core
 	// is able to handle the necessary input logic itself based on the
 	// schema returned from GetSchema.
 	Input(UIInput, *ResourceConfig) (*ResourceConfig, error)
@@ -56,15 +56,15 @@ type ResourceProvider interface {
 
 	// Stop is called when the provider should halt any in-flight actions.
 	//
-	// This can be used to make a nicer Ctrl-C experience for Terraform.
+	// This can be used to make a nicer Ctrl-C experience for OpenTofu.
 	// Even if this isn't implemented to do anything (just returns nil),
-	// Terraform will still cleanly stop after the currently executing
+	// OpenTofu will still cleanly stop after the currently executing
 	// graph node is complete. However, this API can be used to make more
 	// efficient halts.
 	//
 	// Stop doesn't have to and shouldn't block waiting for in-flight actions
 	// to complete. It should take any action it wants and return immediately
-	// acknowledging it has received the stop request. Terraform core will
+	// acknowledging it has received the stop request. OpenTofu core will
 	// automatically not make any further API calls to the provider soon
 	// after Stop is called (technically exactly once the currently executing
 	// graph nodes are complete).
@@ -127,7 +127,7 @@ type ResourceProvider interface {
 	// This function can return multiple states. Normally, an import
 	// will map 1:1 to a physical resource. However, some resources map
 	// to multiple. For example, an AWS security group may contain many rules.
-	// Each rule is represented by a separate resource in Terraform,
+	// Each rule is represented by a separate resource in OpenTofu,
 	// therefore multiple states are returned.
 	ImportState(*InstanceInfo, string) ([]*InstanceState, error)
 

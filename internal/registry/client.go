@@ -61,7 +61,7 @@ func init() {
 	configureRequestTimeout()
 }
 
-// Client provides methods to query Terraform Registries.
+// Client provides methods to query OpenTofu Registries.
 type Client struct {
 	// this is the client to be used for all requests.
 	client *retryablehttp.Client

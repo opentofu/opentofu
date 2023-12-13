@@ -17,7 +17,7 @@ var (
 )
 
 // MetadataFunctionsCommand is a Command implementation that prints out information
-// about the available functions in Terraform.
+// about the available functions in OpenTofu.
 type MetadataFunctionsCommand struct {
 	Meta
 }

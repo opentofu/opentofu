@@ -12,7 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
-// LoadConfig reads the Terraform module in the given directory and uses it as the
+// LoadConfig reads the OpenTofu module in the given directory and uses it as the
 // root module to build the static module tree that represents a configuration,
 // assuming that all required descendent modules have already been installed.
 //

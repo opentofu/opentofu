@@ -80,7 +80,7 @@ func (c *TaintCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check remote Terraform version is compatible
+	// Check remote OpenTofu version is compatible
 	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
 	diags = diags.Append(remoteVersionDiags)
 	c.showDiagnostics(diags)

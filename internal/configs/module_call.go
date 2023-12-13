@@ -204,7 +204,7 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 // directly via a remote source address or indirectly via a registry source
 // address.
 //
-// Other behaviors in Terraform may treat package crossings as a special
+// Other behaviors in OpenTofu may treat package crossings as a special
 // situation, because that indicates that the caller and callee can change
 // independently of one another and thus we should disallow using any features
 // where the caller assumes anything about the callee other than its input

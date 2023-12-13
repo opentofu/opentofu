@@ -13,7 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// PlanCommand is a Command implementation that compares a Terraform
+// PlanCommand is a Command implementation that compares a OpenTofu
 // configuration to an actual infrastructure and shows the differences.
 type PlanCommand struct {
 	Meta
@@ -57,7 +57,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	c.Meta.input = args.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
-	// Terraform operations. At the moment, this value is used both to
+	// OpenTofu operations. At the moment, this value is used both to
 	// initialize the backend via the ContextOpts field inside CLIOpts, and to
 	// set a largely unused field on the Operation request. Again, there is no
 	// clear path to pass this value down, so we continue to mutate the Meta

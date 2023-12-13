@@ -388,7 +388,7 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 func expandStringSlice(s []interface{}) []string {
 	result := make([]string, len(s), len(s))
 	for k, v := range s {
-		// Handle the Terraform parser bug which turns empty strings in lists to nil.
+		// Handle the OpenTofu parser bug which turns empty strings in lists to nil.
 		if v == nil {
 			result[k] = ""
 		} else {

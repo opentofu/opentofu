@@ -50,8 +50,8 @@ func NewView(streams *terminal.Streams) *View {
 
 // SetRunningInAutomation modifies the view's "running in automation" flag,
 // which causes some slight adjustments to certain messages that would normally
-// suggest specific Terraform commands to run, to make more conceptual gestures
-// instead for situations where the user isn't running Terraform directly.
+// suggest specific OpenTofu commands to run, to make more conceptual gestures
+// instead for situations where the user isn't running OpenTofu directly.
 //
 // For convenient use during initialization (in conjunction with NewView),
 // SetRunningInAutomation returns the reciever after modifying it.

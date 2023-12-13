@@ -105,7 +105,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	} else if vDiags := rootMod.CheckCoreVersionRequirements(nil, nil); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future
-		// Terraform versions.
+		// OpenTofu versions.
 		diags = diags.Append(vDiags)
 	} else {
 		diags = diags.Append(mDiags)
@@ -246,7 +246,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 					} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 						// If the core version requirements are not met, we drop any other
 						// diagnostics, as they may reflect language changes from future
-						// Terraform versions.
+						// OpenTofu versions.
 						diags = diags.Extend(vDiags)
 					} else {
 						diags = diags.Extend(mDiags)
@@ -392,7 +392,7 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future
-		// Terraform versions.
+		// OpenTofu versions.
 		diags = diags.Extend(vDiags)
 	} else {
 		diags = diags.Extend(mDiags)
@@ -676,7 +676,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future
-		// Terraform versions.
+		// OpenTofu versions.
 		diags = diags.Extend(vDiags)
 	} else {
 		diags = diags.Extend(mDiags)
@@ -777,7 +777,7 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future
-		// Terraform versions.
+		// OpenTofu versions.
 		diags = diags.Extend(vDiags)
 	} else {
 		diags = diags.Extend(mDiags)
@@ -899,7 +899,7 @@ func maybeImproveLocalInstallError(req *configs.ModuleRequest, diags hcl.Diagnos
 			// ...but we'll replace any errors with this more precise error.
 			var suggestion string
 			if strings.HasPrefix(packageAddr, "/") || filepath.VolumeName(packageAddr) != "" {
-				// It might be somewhat surprising that Terraform treats
+				// It might be somewhat surprising that OpenTofu treats
 				// absolute filesystem paths as "external" even though it
 				// treats relative paths as local, so if it seems like that's
 				// what the user was doing then we'll add an additional note

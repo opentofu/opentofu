@@ -102,7 +102,7 @@ func New(v cty.Value) (*Communicator, error) {
 	// Set up the random number generator once. The seed value is the
 	// time multiplied by the PID. This can overflow the int64 but that
 	// is okay. We multiply by the PID in case we have multiple processes
-	// grabbing this at the same time. This is possible with Terraform and
+	// grabbing this at the same time. This is possible with OpenTofu and
 	// if we communicate to the same host at the same instance, we could
 	// overwrite the same files. Multiplying by the PID prevents this.
 	randLock.Lock()

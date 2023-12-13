@@ -76,7 +76,7 @@ type DiagnosticSnippet struct {
 	// the resource block in which an expression causes an error.
 	Context *string `json:"context"`
 
-	// Code is a possibly-multi-line string of Terraform configuration, which
+	// Code is a possibly-multi-line string of OpenTofu configuration, which
 	// includes both the diagnostic source and any relevant context as defined
 	// by the diagnostic.
 	Code string `json:"code"`

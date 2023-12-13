@@ -90,7 +90,7 @@ func (c *StatePushCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check remote Terraform version is compatible
+	// Check remote OpenTofu version is compatible
 	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
 	c.showDiagnostics(remoteVersionDiags)
 	if remoteVersionDiags.HasErrors() {

@@ -76,7 +76,7 @@ func (m *Meta) pluginDirs(includeAutoInstalled bool) []string {
 	// vendor dir(s).
 	dirs := []string{"."}
 
-	// Look in the same directory as the Terraform executable.
+	// Look in the same directory as the OpenTofu executable.
 	// If found, this replaces what we found in the config path.
 	exePath, err := osext.Executable()
 	if err != nil {

@@ -230,7 +230,7 @@ func (r *Resource) merge(or *Resource, rps map[string]*RequiredProvider) hcl.Dia
 		}
 	}
 
-	// Provider FQN is set by Terraform during Merge
+	// Provider FQN is set by OpenTofu during Merge
 
 	if r.Mode == addrs.ManagedResourceMode {
 		// or.Managed is always non-nil for managed resource mode
