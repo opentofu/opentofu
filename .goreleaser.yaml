@@ -180,6 +180,12 @@ nfpms:
         dst: /usr/share/doc/opentofu/copyright
         file_info:
           mode: 0444
+    rpm:
+      signature:
+        key_file: "{{.Env.GPG_KEY_FILE}}"
+    deb:
+      signature:
+        key_file: "{{.Env.GPG_KEY_FILE}}"
 
 snapcrafts:
   - name: opentofu
