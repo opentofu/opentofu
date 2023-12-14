@@ -33,7 +33,7 @@ ENHANCEMENTS:
 * state: Provider addresses in the statefile referring to registry.terraform.io will be treated as referring to registry.opentofu.org unless the full provider address is specified in the config or `OPENTOFU_STATEFILE_PROVIDER_ADDRESS_TRANSLATION` is set to `0`. ([#773](https://github.com/opentofu/opentofu/pull/773))
 * The default provider namespace has been changed from "hasicorp" to "opentofu". This only impacts providers that do not explicitly have a namespace set, ex "aws" vs "hasicorp/aws". This change should be transparent and not require action to be taken by users.
 * init: Ensured that the `tofu init` command has consistent spelling of the word `initialization` in its output. ([#855](https://github.com/opentofu/opentofu/pull/855/files))
-* init: A warning is now emitted when two providers who share the same name are detected.  This can help prevent misconfigurations when switching a project to use a fork of a provider. ([#1009](https://github.com/opentofu/opentofu/pull/1009))
+* init: A warning is now emitted when two providers who share the same name are detected.  This can help prevent misconfigurations when switching a project to use a fork of a provider.  This currently only functions for the opentofu and hashicorp namespaces ([#1009](https://github.com/opentofu/opentofu/pull/1009))
 
 BUG FIXES:
 
