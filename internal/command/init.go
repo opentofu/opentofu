@@ -546,10 +546,12 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		reqs = reqs.Merge(stateReqs)
 	}
 
-	providersByName := make(map[string][]string)
+	potentialProviderConflicts := make(map[string][]string)
 
 	for providerAddr := range reqs {
-		providersByName[providerAddr.Type] = append(providersByName[providerAddr.Type], providerAddr.ForDisplay())
+		if providerAddr.Namespace == "hashicorp" || providerAddr.Namespace == "opentofu" {
+			potentialProviderConflicts[providerAddr.Type] = append(potentialProviderConflicts[providerAddr.Type], providerAddr.ForDisplay())
+		}
 
 		if providerAddr.IsLegacy() {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -563,7 +565,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		}
 	}
 
-	for name, addrs := range providersByName {
+	for name, addrs := range potentialProviderConflicts {
 		if len(addrs) > 1 {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
