@@ -9,17 +9,18 @@ This week's been mostly about delivering that last 1% of work before we can publ
 The steering committee has also gathered (you can find the details [here](https://github.com/opentofu/opentofu/blob/main/TSC_SUMMARY.md#2023-12-11)) and planned the official date for the stable release to be the 10th of January.
 
 - Current Status and Up Next
-  - We've added GPG key signing to debian and rpm archives that we're distributing (thanks to BuildKite for sponsoring PackageCloud!)
+  - We've added GPG key signing to Debian and RPM archives that we're distributing in upcoming releases (thanks to BuildKite for sponsoring PackageCloud!)
   - We've worked on changing the default provider namespace to `opentofu`, but ended up rolling that back, and (softly) deprecating the whole concept of namespace-less provider references altogether, due to the edge-cases involved.
   - The registry now has an improved development workflow with a proper dev environment. It's also seen big runtime optimizations so refreshing providers and modules is now ~50% faster.
   - We're working on the final documentation improvements before the stable release.
+  - We're working on an improved convenience script that will support all available installation methods.
   - We'll soon be starting work on 1.7 features.
 - How can I help?
   - Since the beta release is out, right now the best way to help is to take the beta for a test drive and see if there are any bugs / issues.
     - Most importantly, as mentioned above, please try running `tofu init` with your projects to double-check everything you use is available in the registry.
   - **With the release candidate around the corner, it's the perfect time to start implementing OpenTofu support in 3rd party tooling!**
   - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
-  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. We’re also happy to accept any minor refactors or linter fixes. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+  - There are some occasional minor issues which are accepted and open to external contribution, esp. ones outside the release-blocking path. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
     - You can look for a label, `good-to-pick-up`, to find issues we've deemed are the best to pick up for external contributors.
   - We have multiple engineers available full-time in the core team, so we’re generally trying to own any issues that are release blockers - this way we can make sure we get to the release as soon as possible.
   - The amount of pending-decision-labeled issues on the repository might be a bit off-putting. The reason for that is that right now we’re prioritizing the stable release. Only after we have a stable release in place do we aim to start actually accepting enhancement proposals and getting them implemented/merged. Still, we encourage you to open those issues and discuss them!
