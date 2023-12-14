@@ -23,7 +23,7 @@ is loaded completely into memory and verified prior to being written to
 the destination state.
 
 :::note
-OpenTofu state files must be in UTF-8 format without a byte order mark (BOM). For PowerShell on Windows, use `Set-Content` to automatically encode files in UTF-8 format. For example, run `tofu state push | sc tofu.tfstate`.
+OpenTofu state files must be in UTF-8 format without a byte order mark (BOM). For PowerShell on Windows, use `Set-Content` to automatically encode files in UTF-8 format. For example, run `tofu state push | sc terraform.tfstate`.
 :::
 
 OpenTofu will perform a number of safety checks to prevent you from
