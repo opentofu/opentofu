@@ -2,6 +2,10 @@ name: release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag (leave empty for dry run)"
+        required: false
 
 jobs:
   release:
@@ -21,7 +25,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(inputs.tag, 'v')
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -31,12 +35,13 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag }}
 
       - name: Fetch tags
         run: git fetch --force --tags
 
       - name: Compare versions
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(inputs.tag, 'v')
         run: ./.github/scripts/compare-release-version.sh
 
       - name: Determine Go version
@@ -67,7 +72,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Import GPG key
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(inputs.tag, 'v')
         run: |
           GPG_KEY_FILE=/tmp/signing-key.gpg
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > "${GPG_KEY_FILE}"
@@ -92,7 +97,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Remove GPG key
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(inputs.tag, 'v')
         run:
           rm -rf ~/.gnupg
           if [ -n "${GPG_KEY_FILE}" ]; then
@@ -106,7 +111,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(inputs.tag, 'v')
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -115,7 +120,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(inputs.tag, 'v')
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
