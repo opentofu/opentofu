@@ -100,7 +100,7 @@ jobs:
 
       - name: Remove GPG key
         if: always()
-        run:
+        run: |
           rm -rf ~/.gnupg
           if [ -n "${GPG_KEY_FILE}" ]; then
             rm -rf "${GPG_KEY_FILE}"
