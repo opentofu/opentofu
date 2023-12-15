@@ -43,6 +43,8 @@ jobs:
       - name: Compare versions
         if: startsWith(inputs.tag, 'v')
         run: ./.github/scripts/compare-release-version.sh
+        env:
+          TARGET_VERSION: ${{inputs.tag}}
 
       - name: Determine Go version
         id: go
@@ -89,7 +91,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v4
         with:
           version: v1.21.2
-          args: release --clean --timeout=60m --snapshot=${{ !startsWith(github.ref, 'refs/tags/v') }}
+          args: release --clean --timeout=60m --snapshot=${{ !startsWith(inputs.tag, 'v') }}
         env:
           # Note: the GPG_FINGERPRINT and GPG_KEY_FILE are defined in the task above. If they are not set,
           # goreleaser won't sign the packages.
@@ -97,7 +99,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Remove GPG key
-        if: startsWith(inputs.tag, 'v')
+        if: always()
         run:
           rm -rf ~/.gnupg
           if [ -n "${GPG_KEY_FILE}" ]; then
