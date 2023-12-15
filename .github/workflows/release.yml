@@ -2,9 +2,6 @@ name: release
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
   release:
@@ -39,6 +36,7 @@ jobs:
         run: git fetch --force --tags
 
       - name: Compare versions
+        if: startsWith(github.ref, 'refs/tags/v')
         run: ./.github/scripts/compare-release-version.sh
 
       - name: Determine Go version
@@ -69,17 +67,16 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Import GPG key
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        id: import_gpg
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           GPG_KEY_FILE=/tmp/signing-key.gpg
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > $GPG_KEY_FILE
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > "${GPG_KEY_FILE}"
           
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode | gpg --import
-          FINGERPRINT=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{sub(/.*\//, "", $2); print $2; exit}')
+          GPG_FINGERPRINT=$(gpg --list-secret-keys --keyid-format LONG | awk '/^sec/{sub(/.*\//, "", $2); print $2; exit}')
           
-          echo "::set-output name=fingerprint::${FINGERPRINT}"
-          echo "::set-output name=file::${GPG_KEY_FILE}"
+          echo "GPG_FINGERPRINT=${GPG_FINGERPRINT}" >>"${GITHUB_ENV}"
+          echo "GPG_KEY_FILE=${GPG_KEY_FILE}" >> "${GITHUB_ENV}"
         env:
           GPG_TTY: /dev/ttys000  # Set the GPG_TTY to avoid issues with pinentry
 
@@ -89,20 +86,27 @@ jobs:
           version: v1.21.2
           args: release --clean --timeout=60m --snapshot=${{ !startsWith(github.ref, 'refs/tags/v') }}
         env:
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-          GPG_KEY_FILE: ${{steps.import_gpg.outputs.file }}
+          # Note: the GPG_FINGERPRINT and GPG_KEY_FILE are defined in the task above. If they are not set,
+          # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Remove GPG key
-        if: always()
-        env:
-          GPG_KEY_FILE: ${{ steps.import_gpg.outputs.file }}
+        if: startsWith(github.ref, 'refs/tags/v')
         run:
           rm -rf ~/.gnupg
-          rm -rf "$GPG_KEY_FILE"
+          if [ -n "${GPG_KEY_FILE}" ]; then
+            rm -rf "${GPG_KEY_FILE}"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
 
       - name: Upload Debian packages to PackageCloud
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -111,6 +115,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm

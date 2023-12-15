@@ -182,10 +182,10 @@ nfpms:
           mode: 0444
     rpm:
       signature:
-        key_file: "{{.Env.GPG_KEY_FILE}}"
+        key_file: "{{ if index .Env \"GPG_KEY_FILE\"  }}{{.Env.GPG_KEY_FILE}}{{ end }}"
     deb:
       signature:
-        key_file: "{{.Env.GPG_KEY_FILE}}"
+        key_file: "{{ if index .Env \"GPG_KEY_FILE\"  }}{{.Env.GPG_KEY_FILE}}{{ end }}"
 
 snapcrafts:
   - name: opentofu
