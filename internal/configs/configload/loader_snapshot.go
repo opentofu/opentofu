@@ -18,13 +18,14 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/spf13/afero"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
 func (l *Loader) LoadConfigWithSnapshot(rootDir string) (*configs.Config, *Snapshot, hcl.Diagnostics) {
-	rootMod, diags := l.parser.LoadConfigDir(rootDir)
+	rootMod, diags := l.parser.LoadConfigDir(rootDir, make(map[string]cty.Value))
 	if rootMod == nil {
 		return nil, nil, diags
 	}

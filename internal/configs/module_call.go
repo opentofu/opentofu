@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -38,6 +39,19 @@ type ModuleCall struct {
 	DependsOn []hcl.Traversal
 
 	DeclRange hcl.Range
+}
+
+func (m ModuleCall) Variables(ctx *hcl.EvalContext) map[string]cty.Value {
+	result := make(map[string]cty.Value)
+
+	attr, _ := m.Config.JustAttributes()
+	for k, v := range attr {
+		val, _ := v.Expr.Value(ctx)
+		// TODO diags/nil
+		result[k] = val
+	}
+
+	return result
 }
 
 func evaluateStringLiteralAsExpression(literal string, ctx *hcl.EvalContext) (string, hcl.Diagnostics) {

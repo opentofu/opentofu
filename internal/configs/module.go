@@ -64,6 +64,8 @@ type Module struct {
 	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
 	IsOverridden bool
+
+	Ctx *hcl.EvalContext
 }
 
 // File describes the contents of a single configuration file.
