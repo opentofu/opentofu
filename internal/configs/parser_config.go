@@ -120,7 +120,7 @@ func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostic
 				switch innerBlock.Type {
 
 				case "backend":
-					backendCfg, cfgDiags := decodeBackendBlock(innerBlock)
+					backendCfg, cfgDiags := decodeBackendBlock(innerBlock, ctx)
 					diags = append(diags, cfgDiags...)
 					if backendCfg != nil {
 						file.Backends = append(file.Backends, backendCfg)

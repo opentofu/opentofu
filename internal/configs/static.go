@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -357,4 +358,9 @@ func (s StaticContext) Decode(expr hcl.Expression, fullName string, val any) hcl
 	}
 
 	return nil
+}
+
+func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec) (cty.Value, hcl.Diagnostics) {
+	// TODO integrated errors
+	return hcldec.Decode(body, spec, s.EvalContext)
 }
