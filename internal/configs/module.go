@@ -78,6 +78,9 @@ type Module struct {
 // analysis of individual elements, but must be built into a Module to detect
 // duplicate declarations.
 type File struct {
+	body     hcl.Body
+	override bool
+
 	CoreVersionConstraints []VersionConstraint
 
 	ActiveExperiments experiments.Set
