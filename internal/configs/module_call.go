@@ -5,6 +5,7 @@ package configs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -37,13 +38,21 @@ type ModuleCall struct {
 	DeclRange hcl.Range
 }
 
-func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagnostics) {
+func evaluateStringLiteralAsExpression(literal string, ctx *hcl.EvalContext) (string, hcl.Diagnostics) {
+	var output string
+	formatted := fmt.Sprintf("\"%s\"", strings.ReplaceAll(literal, "{", "${"))
+	expr, diags := hclsyntax.ParseExpression([]byte(formatted), literal, hcl.InitialPos)
+	return output, append(diags, gohcl.DecodeExpression(expr, ctx, &output)...)
+}
+
+func decodeModuleBlock(block *hcl.Block, override bool, ctx *hcl.EvalContext) (*ModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mc := &ModuleCall{
-		Name:      block.Labels[0],
 		DeclRange: block.DefRange,
 	}
+
+	mc.Name, diags = evaluateStringLiteralAsExpression(block.Labels[0], ctx)
 
 	schema := moduleBlockSchema
 	if override {
@@ -74,7 +83,7 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	if attr, exists := content.Attributes["source"]; exists {
 		mc.SourceSet = true
 		mc.SourceAddrRange = attr.Expr.Range()
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &mc.SourceAddrRaw)
+		valDiags := gohcl.DecodeExpression(attr.Expr, ctx, &mc.SourceAddrRaw)
 		diags = append(diags, valDiags...)
 		if !valDiags.HasErrors() {
 			var addr addrs.ModuleSource

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -119,6 +120,48 @@ func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnost
 		if f != nil {
 			files = append(files, f)
 		}
+	}
+
+	for _, f := range files {
+		fDiags := f.preParse()
+		diags = append(diags, fDiags...)
+	}
+
+	locals := make(map[string]cty.Value)
+	vars := make(map[string]cty.Value)
+	// TODO inject vars from environment
+	for _, f := range files {
+		for _, v := range f.Variables {
+			vars[v.Name] = v.Default
+		}
+	}
+
+	ctx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{
+			"var": cty.ObjectVal(vars),
+		},
+	}
+
+	ctx.Variables["local"] = cty.ObjectVal(locals)
+
+	// This is quite terrible...
+	// We iterate until no new locals are successfully constructed
+	for last := -1; last != len(locals); {
+		last = len(locals)
+		for _, f := range files {
+			for _, l := range f.Locals {
+				val, lDiags := l.Expr.Value(ctx)
+				if len(lDiags) == 0 && val != cty.NilVal {
+					locals[l.Name] = val
+				}
+			}
+		}
+		ctx.Variables["local"] = cty.ObjectVal(locals)
+	}
+
+	for _, f := range files {
+		fDiags := f.parse(p.allowExperiments, ctx)
+		diags = append(diags, fDiags...)
 	}
 
 	return files, diags

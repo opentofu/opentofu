@@ -23,6 +23,7 @@ import (
 //
 // This method wraps LoadHCLFile, and so it inherits the syntax selection
 // behaviors documented for that method.
+// TODO this is dead code
 func (p *Parser) LoadValuesFile(path string) (map[string]cty.Value, hcl.Diagnostics) {
 	body, diags := p.LoadHCLFile(path)
 	if body == nil {
