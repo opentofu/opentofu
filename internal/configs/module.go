@@ -55,6 +55,8 @@ type Module struct {
 	Checks map[string]*Check
 
 	Tests map[string]*TestFile
+
+	Ctx *hcl.EvalContext
 }
 
 // File describes the contents of a single configuration file.

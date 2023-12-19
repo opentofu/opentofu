@@ -37,36 +37,41 @@ const (
 //
 // .tf files are parsed using the HCL native syntax while .tf.json files are
 // parsed using the HCL JSON syntax.
-func (p *Parser) LoadConfigDir(path string) (*Module, hcl.Diagnostics) {
+func (p *Parser) LoadConfigDir(path string, rootVars map[string]cty.Value) (*Module, hcl.Diagnostics) {
 	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	primary, fDiags := p.loadFiles(primaryPaths, false)
+	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{}}
+
+	primary, fDiags := p.loadFiles(primaryPaths, false, ctx, rootVars)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true)
+	override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
 	diags = append(diags, fDiags...)
 
 	mod, modDiags := NewModule(primary, override)
 	diags = append(diags, modDiags...)
 
 	mod.SourceDir = path
+	mod.Ctx = ctx
 
 	return mod, diags
 }
 
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
-func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Module, hcl.Diagnostics) {
+func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, rootVars map[string]cty.Value) (*Module, hcl.Diagnostics) {
 	primaryPaths, overridePaths, testPaths, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	primary, fDiags := p.loadFiles(primaryPaths, false)
+	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{}}
+
+	primary, fDiags := p.loadFiles(primaryPaths, false, ctx, rootVars)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true)
+	override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
 	diags = append(diags, fDiags...)
 	tests, fDiags := p.loadTestFiles(path, testPaths)
 	diags = append(diags, fDiags...)
@@ -75,6 +80,7 @@ func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Mod
 	diags = append(diags, modDiags...)
 
 	mod.SourceDir = path
+	mod.Ctx = ctx
 
 	return mod, diags
 }
@@ -104,7 +110,7 @@ func (p *Parser) IsConfigDir(path string) bool {
 	return (len(primaryPaths) + len(overridePaths)) > 0
 }
 
-func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnostics) {
+func (p *Parser) loadFiles(paths []string, override bool, ctx *hcl.EvalContext, rootVars map[string]cty.Value) ([]*File, hcl.Diagnostics) {
 	var files []*File
 	var diags hcl.Diagnostics
 
@@ -129,19 +135,20 @@ func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnost
 
 	locals := make(map[string]cty.Value)
 	vars := make(map[string]cty.Value)
-	// TODO inject vars from environment
 	for _, f := range files {
 		for _, v := range f.Variables {
-			vars[v.Name] = v.Default
+			if val, ok := rootVars[v.Name]; ok {
+				// TODO validation + parse
+				vars[v.Name] = val
+			} else {
+				// TODO v.Default expression
+				vars[v.Name] = v.Default
+			}
 		}
 	}
 
-	ctx := &hcl.EvalContext{
-		Variables: map[string]cty.Value{
-			"var": cty.ObjectVal(vars),
-		},
-	}
-
+	ctx.Variables["var"] = cty.ObjectVal(vars)
+	// Init empty locals for better error messages
 	ctx.Variables["local"] = cty.ObjectVal(locals)
 
 	// This is quite terrible...
