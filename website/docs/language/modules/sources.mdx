@@ -327,7 +327,7 @@ optionally return a different result when OpenTofu is requesting it.
 If the response is successful (`200`-range status code), OpenTofu looks in
 the following locations in order for the next address to access:
 
-- The value of a response header field named `X-OpenTofu-Get`.
+- The value of a response header field named `X-Terraform-Get`.
 
 - If the response is an HTML page, a `meta` element with the name `tofu-get`:
 

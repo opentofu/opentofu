@@ -11,14 +11,13 @@ if [[ ! -f version/VERSION ]]; then
     exit 1
 fi
 
-# Bail if the input was not a tag
-if [[ ! "$GITHUB_REF_TYPE" == "tag" ]]; then
-    echo "This action only runs on tags. Please create a tag and try again."
+if [ -z "$TARGET_VERSION" ]; then
+    echo "The TARGET_VERSION environment variable is not set."
     exit 1
 fi
 
 # Create a clean semver tag without the v prefix
-CLEAN_TAG=$(echo "$GITHUB_REF_NAME" | sed 's/^v//')
+CLEAN_TAG=$(echo "$TARGET_VERSION" | sed 's/^v//')
 
 VERSION=$(cat version/VERSION)
 if [[ "$VERSION" != "$CLEAN_TAG" ]]; then

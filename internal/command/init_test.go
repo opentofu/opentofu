@@ -1631,6 +1631,71 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	}
 }
 
+func TestInit_getProviderDetectedDuplicate(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("init-get-provider-detected-duplicate"), td)
+	defer testChdir(t, td)()
+
+	// We need to construct a multisource with a mock source and a registry
+	// source: the mock source will return ErrRegistryProviderNotKnown for an
+	// unknown provider, and the registry source will allow us to look up the
+	// appropriate namespace if possible.
+	providerSource, psClose := newMockProviderSource(t, map[string][]string{
+		"hashicorp/foo": {"1.2.3"},
+		"opentofu/foo":  {"1.2.3"},
+		"hashicorp/bar": {"1.2.3"},
+	})
+	defer psClose()
+	registrySource, rsClose := testRegistrySource(t)
+	defer rsClose()
+	multiSource := getproviders.MultiSource{
+		{Source: providerSource},
+		{Source: registrySource},
+	}
+
+	ui := new(cli.MockUi)
+	view, _ := testView(t)
+	m := Meta{
+		Ui:             ui,
+		View:           view,
+		ProviderSource: multiSource,
+	}
+
+	c := &InitCommand{
+		Meta: m,
+	}
+
+	args := []string{
+		"-backend=false", // should be possible to install plugins without backend init
+	}
+	if code := c.Run(args); code != 0 {
+		t.Fatalf("expected error, got output: \n%s\n%s", ui.OutputWriter.String(), ui.ErrorWriter.String())
+	}
+
+	// error output is the main focus of this test
+	errOutput := ui.ErrorWriter.String()
+	errors := []string{
+		"Warning: Potential provider misconfiguration",
+		"OpenTofu has detected multiple providers of type foo",
+		"If this is intentional you can ignore this warning",
+	}
+	unexpected := []string{
+		"OpenTofu has detected multiple providers of type bar",
+	}
+	for _, want := range errors {
+		if !strings.Contains(errOutput, want) {
+			t.Fatalf("expected error %q: %s", want, errOutput)
+		}
+	}
+	for _, unwanted := range unexpected {
+		if strings.Contains(errOutput, unwanted) {
+			t.Fatalf("unexpected error %q: %s", unwanted, errOutput)
+		}
+	}
+
+}
+
 func TestInit_providerSource(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
