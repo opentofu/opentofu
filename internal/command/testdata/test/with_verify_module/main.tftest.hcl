@@ -11,7 +11,7 @@ run "verify" {
     source = "./verify"
   }
 
- assert {
+  assert {
     condition = data.test_data_source.resource_data.value == "Hello, world!"
     error_message = "bad value"
   }
