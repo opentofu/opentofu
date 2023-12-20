@@ -94,10 +94,10 @@ to get started with OpenTofu and find modules created by others in the
 community.
 
 You can also use a
-[private registry](/docs/registry/private), either
+[private registry](/docs/internals/module-registry-protocol), either
 via TACOS (TF Automation and Collaboration Software), or by running a custom
 service that implements
-[the module registry protocol](/docs/registry/api-docs).
+[the module registry protocol](/docs/internals/module-registry-protocol).
 
 Modules on the public registry can be referenced using a registry
 source address of the form `<NAMESPACE>/<NAME>/<PROVIDER>`, with each
@@ -112,7 +112,7 @@ module "consul" {
 ```
 
 The above example will use the
-[Consul module for AWS](https://registry.terraform.io/modules/hashicorp/consul/aws)
+[Consul module for AWS](https://github.com/hashicorp/terraform-aws-consul)
 from a public registry.
 
 For modules hosted in other registries, prefix the source address with an
@@ -130,7 +130,7 @@ in the above examples, or use flexible
 [version constraints](/docs/language/modules/syntax#version).
 
 You can learn more about the registry at the
-[Module Registry documentation](/docs/registry/modules/use#using-modules).
+[Module Registry documentation](/docs/internals/module-registry-protocol).
 
 To access modules from a private registry, you may need to configure an access
 token [in the CLI config](/docs/cli/config/config-file#credentials). Use the
