@@ -780,58 +780,98 @@ can remove the provider configuration again.
 	}
 }
 
-func TestTest_NestedSetupModules(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath(path.Join("test", "with_nested_setup_modules")), td)
-	defer testChdir(t, td)()
-
-	provider := testing_command.NewProvider(nil)
-
-	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"test": {"1.0.0"},
-	})
-	defer close()
-
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
-	ui := new(cli.MockUi)
-
-	meta := Meta{
-		testingOverrides: metaOverridesForProvider(provider.Provider),
-		Ui:               ui,
-		View:             view,
-		Streams:          streams,
-		ProviderSource:   providerSource,
+func TestTest_Modules(t *testing.T) {
+	tcs := map[string]struct {
+		expected string
+		code     int
+		skip     bool
+	}{
+		"with_nested_setup_modules": {
+			expected: "main.tftest.hcl... pass\n  run \"load_module\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
+			code:     0,
+		},
+		"with_verify_module": {
+			expected: "main.tftest.hcl... pass\n  run \"test\"... pass\n  run \"verify\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+		},
+		"only_modules": {
+			expected: "main.tftest.hcl... pass\n  run \"first\"... pass\n  run \"second\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+		},
 	}
 
-	init := &InitCommand{
-		Meta: meta,
-	}
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
 
-	if code := init.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
-	}
+			file := name
 
-	command := &TestCommand{
-		Meta: meta,
-	}
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
 
-	code := command.Run(nil)
-	output := done(t)
+			provider := testing_command.NewProvider(nil)
+			providerSource, close := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer close()
 
-	printedOutput := false
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
 
-	if code != 0 {
-		printedOutput = true
-		t.Errorf("expected status code 0 but got %d: %s", code, output.All())
-	}
+			init := &InitCommand{
+				Meta: meta,
+			}
 
-	if provider.ResourceCount() > 0 {
-		if !printedOutput {
-			t.Errorf("should have deleted all resources on completion but left %s\n\n%s", provider.ResourceString(), output.All())
-		} else {
-			t.Errorf("should have deleted all resources on completion but left %s", provider.ResourceString())
-		}
+			if code := init.Run(nil); code != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+
+			command := &TestCommand{
+				Meta: meta,
+			}
+
+			code := command.Run([]string{"-no-color"})
+			output := done(t)
+			printedOutput := false
+
+			if code != tc.code {
+				printedOutput = true
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+			}
+
+			actual := output.All()
+
+			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
+				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+			}
+
+			if provider.ResourceCount() > 0 {
+				if !printedOutput {
+					t.Errorf("should have deleted all resources on completion but left %s\n\n%s", provider.ResourceString(), output.All())
+				} else {
+					t.Errorf("should have deleted all resources on completion but left %s", provider.ResourceString())
+				}
+			}
+
+			if provider.DataSourceCount() > 0 {
+				if !printedOutput {
+					t.Errorf("should have deleted all data sources on completion but left %s\n\n%s", provider.DataSourceString(), output.All())
+				} else {
+					t.Errorf("should have deleted all data sources on completion but left %s", provider.DataSourceString())
+				}
+			}
+		})
 	}
 }
 
@@ -938,67 +978,6 @@ OpenTofu will perform the following actions:
 Plan: 0 to add, 1 to change, 0 to destroy.
 
 Success! 5 passed, 0 failed.
-`
-
-	actual := output.All()
-
-	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
-		t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
-	}
-
-	if provider.ResourceCount() > 0 {
-		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
-	}
-}
-
-func TestTest_OnlyExternalModules(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath(path.Join("test", "only_modules")), td)
-	defer testChdir(t, td)()
-
-	provider := testing_command.NewProvider(nil)
-
-	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"test": {"1.0.0"},
-	})
-	defer close()
-
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
-	ui := new(cli.MockUi)
-
-	meta := Meta{
-		testingOverrides: metaOverridesForProvider(provider.Provider),
-		Ui:               ui,
-		View:             view,
-		Streams:          streams,
-		ProviderSource:   providerSource,
-	}
-
-	init := &InitCommand{
-		Meta: meta,
-	}
-
-	if code := init.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
-	}
-
-	c := &TestCommand{
-		Meta: meta,
-	}
-
-	code := c.Run([]string{"-no-color"})
-	output := done(t)
-
-	if code != 0 {
-		t.Errorf("expected status code 0 but got %d", code)
-	}
-
-	expected := `main.tftest.hcl... pass
-  run "first"... pass
-  run "second"... pass
-
-Success! 2 passed, 0 failed.
 `
 
 	actual := output.All()
