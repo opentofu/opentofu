@@ -514,12 +514,12 @@
             "path": "language/functions/base64gzip"
           },
           {
-            "title": "<code>gunzipbase64</code>",
-            "path": "language/functions/gunzipbase64"
-          },
-          {
             "title": "<code>csvdecode</code>",
             "path": "language/functions/csvdecode"
+          },
+          {
+            "title": "<code>gunzipbase64</code>",
+            "path": "language/functions/gunzipbase64"
           },
           {
             "title": "<code>jsondecode</code>",
@@ -772,11 +772,6 @@
         "hidden": true
       },
       {
-        "title": "gunzipbase64",
-        "path": "language/functions/gunzipbase64",
-        "hidden": true
-      },
-      {
         "title": "base64sha512",
         "path": "language/functions/base64sha512",
         "hidden": true
@@ -934,6 +929,11 @@
       {
         "title": "formatlist",
         "path": "language/functions/formatlist",
+        "hidden": true
+      },
+      {
+        "title": "gunzipbase64",
+        "path": "language/functions/gunzipbase64",
         "hidden": true
       },
       {
