@@ -762,13 +762,13 @@
         "hidden": true
       },
       {
-        "title": "base64sha256",
-        "path": "language/functions/base64sha256",
+        "title": "base64gzip",
+        "path": "language/functions/base64gzip",
         "hidden": true
       },
       {
-        "title": "base64gzip",
-        "path": "language/functions/base64gzip",
+        "title": "base64sha256",
+        "path": "language/functions/base64sha256",
         "hidden": true
       },
       {
