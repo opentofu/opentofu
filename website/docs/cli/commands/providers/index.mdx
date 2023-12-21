@@ -15,4 +15,17 @@ This command also has several subcommands with different purposes.
 
 ## Usage
 
-Usage: `tofu providers`
+Usage:
+```
+$ tofu providers
+
+Providers required by configuration:
+.
+└── module.submodule
+    ├── provider[registry.opentofu.org/hashicorp/tfcoremock]
+    └── module.nested
+
+Providers required by state:
+
+    provider[registry.opentofu.org/hashicorp/tfcoremock]
+```

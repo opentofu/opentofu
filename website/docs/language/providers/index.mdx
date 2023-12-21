@@ -31,24 +31,18 @@ generating random numbers for unique resource names.
 Providers are distributed separately from OpenTofu itself, and each provider
 has its own release cadence and version numbers.
 
-The [Public Terraform Registry](https://registry.terraform.io/browse/providers)
+The [Public OpenTofu Registry](https://github.com/opentofu/registry/tree/main/providers)
 is the main directory of publicly available providers, and hosts
 providers for most major infrastructure platforms.
 
 ## Provider Documentation
 
 Each provider has its own documentation, describing its resource
-types and their arguments.
+types and their arguments. This documentation can be found in the provider's
+github repository.
 
-The [Public Terraform Registry](https://registry.terraform.io/browse/providers)
-includes documentation for a wide range of providers developed by HashiCorp, third-party vendors, and our OpenTofu community. Use the
-"Documentation" link in a provider's header to browse its documentation.
-
-Provider documentation in the Registry is versioned; you can use the version
-menu in the header to change which version you're viewing.
-
-For details about writing, generating, and previewing provider documentation,
-see the [provider publishing documentation](/docs/registry/providers/docs).
+Provider documentation is versioned, make sure you are referring to the correct
+tag/release.
 
 ## How to Use Providers
 
@@ -91,7 +85,7 @@ installing providers.
 ## How to Find Providers
 
 To find providers for the infrastructure platforms you use, browse the
-[Public Terraform Registry](https://registry.terraform.io/browse/providers).
+[Public OpenTofu Registry](https://github.com/opentofu/registry/tree/main/providers).
 
 Some providers on the Registry are developed and published by HashiCorp, some
 are published by platform maintainers, and some are published by users and
@@ -100,4 +94,4 @@ volunteers.
 ## How to Develop Providers
 
 Providers are written in Go, using the Terraform Plugin SDK. For more
-information on developing providers, see the [Plugin Development](/docs/plugin) documentation.
+information on developing providers, see the [Plugin Development](https://developer.hashicorp.com/terraform/plugin) documentation.
