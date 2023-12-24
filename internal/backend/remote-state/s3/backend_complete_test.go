@@ -222,7 +222,8 @@ aws_secret_access_key = ProfileSharedCredentialsSecretKey
 
 		"environment AWS_ACCESS_KEY_ID overrides config Profile": { // Legacy behavior
 			config: map[string]any{
-				"profile": "SharedCredentialsProfile",
+				"profile":             "SharedCredentialsProfile",
+				"use_legacy_workflow": true,
 			},
 			EnvironmentVariables: map[string]string{
 				"AWS_ACCESS_KEY_ID":     servicemocks.MockEnvAccessKey,
@@ -240,13 +241,16 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 aws_access_key_id = ProfileSharedCredentialsAccessKey
 aws_secret_access_key = ProfileSharedCredentialsSecretKey
 `,
-			ValidateDiags: ExpectNoDiags,
+			ValidateDiags: ExpectDiagsMatching(
+				tfdiags.Warning,
+				equalsMatcher("Deprecated Parameter"),
+				noopMatcher{},
+			),
 		},
 
 		"environment AWS_ACCESS_KEY_ID does not override config Profile": {
 			config: map[string]any{
-				"profile":             "SharedCredentialsProfile",
-				"use_legacy_workflow": false,
+				"profile": "SharedCredentialsProfile",
 			},
 			EnvironmentVariables: map[string]string{
 				"AWS_ACCESS_KEY_ID":     servicemocks.MockEnvAccessKey,

@@ -287,6 +287,7 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.Bool,
 				Optional:    true,
 				Description: "Use the legacy authentication workflow, preferring environment variables over backend configuration.",
+				Deprecated:  true,
 			},
 			"custom_ca_bundle": {
 				Type:        cty.String,
@@ -569,6 +570,18 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 			attrPath))
 	}
 
+	if val := obj.GetAttr("use_legacy_workflow"); !val.IsNull() {
+		attrPath := cty.GetAttrPath("use_legacy_workflow")
+		detail := fmt.Sprintf(
+			`Parameter "%s" is deprecated and will be removed in an upcoming minor version.`,
+			pathString(attrPath))
+
+		diags = diags.Append(attributeWarningDiag(
+			"Deprecated Parameter",
+			detail,
+			attrPath))
+	}
+
 	validateAttributesConflict(
 		cty.GetAttrPath("force_path_style"),
 		cty.GetAttrPath("use_path_style"),
@@ -748,11 +761,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Logger:                         baselog,
 	}
 
-	if val, ok := boolAttrOk(obj, "use_legacy_workflow"); ok {
-		cfg.UseLegacyWorkflow = val
-	} else {
-		cfg.UseLegacyWorkflow = true
-	}
+	cfg.UseLegacyWorkflow = boolAttr(obj, "use_legacy_workflow")
 
 	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
 		if val {
