@@ -25,6 +25,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+var errUnsupportedProtocolVersion = errors.New("unsupported protocol version")
+
 // The TF_DISABLE_PLUGIN_TLS environment variable is intended only for use by
 // the plugin SDK test framework, to reduce startup overhead when rapidly
 // launching and killing lots of instances of the same provider.
@@ -378,11 +380,11 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 		protoVer := client.NegotiatedVersion()
 		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
-		if err != nil {
+		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
 
-		return p, nil
+		return p, err
 	}
 }
 
@@ -402,7 +404,7 @@ func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *
 		p.Addr = pluginAddr
 		return p, nil
 	default:
-		return nil, fmt.Errorf("unsupported protocol version %d", protoVer)
+		return nil, errUnsupportedProtocolVersion
 	}
 }
 
