@@ -1,0 +1,10 @@
+package aes256state
+
+import "github.com/placeholderplaceholderplaceholder/opentf/internal/states/statecrypto/cryptoconfig"
+
+// New creates a new client-side/AES256-CFB/SHA256 state encryption wrapper.
+func New(configuration cryptoconfig.StateCryptoConfig) (*AES256StateWrapper, error) {
+	instance := &AES256StateWrapper{}
+	err := instance.parseKeyFromConfiguration(configuration)
+	return instance, err
+}
