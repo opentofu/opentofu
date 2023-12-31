@@ -96,12 +96,12 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 		return diags
 	}
 
-	diags = diags.Append(n.checkPreventDestroy(change))
+	diags = diags.Append(n.writeChange(ctx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.writeChange(ctx, change, ""))
+	diags = diags.Append(n.checkPreventDestroy(change))
 	return diags
 }
 

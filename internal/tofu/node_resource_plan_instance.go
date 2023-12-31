@@ -318,11 +318,6 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			change.ActionReason = plans.ResourceInstanceReplaceByTriggers
 		}
 
-		diags = diags.Append(n.checkPreventDestroy(change))
-		if diags.HasErrors() {
-			return diags
-		}
-
 		// FIXME: it is currently important that we write resource changes to
 		// the plan (n.writeChange) before we write the corresponding state
 		// (n.writeResourceInstanceState).
@@ -338,6 +333,13 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// update these two data structures incorrectly through any objects
 		// reachable via the tofu.EvalContext API.
 		diags = diags.Append(n.writeChange(ctx, change, ""))
+		if diags.HasErrors() {
+			return diags
+		}
+		diags = diags.Append(n.checkPreventDestroy(change))
+		if diags.HasErrors() {
+			return diags
+		}
 
 		diags = diags.Append(n.writeResourceInstanceState(ctx, instancePlanState, workingState))
 		if diags.HasErrors() {
