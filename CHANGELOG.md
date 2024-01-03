@@ -8,6 +8,11 @@ NEW FEATURES:
 
 ENHANCEMENTS:
 * `nonsensitive` function no longer returns error when applied to values that are not sensitive ([#369](https://github.com/opentofu/opentofu/pull/369))
+* Managing large local terraform.tfstate files is now much faster. ([#579](https://github.com/opentofu/opentofu/pull/579))
+ - Previously, every call to state.Write() would also Persist to disk. This was not following the intended API and had longstanding TODOs in the code.
+ - This change fixes the local state filesystem interface to function as the statemgr API describes.
+ - A possible side effect is that a hard crash mid-apply will no longer have a in-progress state file to reference. This matches the other state managers.
+
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
