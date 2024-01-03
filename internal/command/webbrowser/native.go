@@ -4,7 +4,7 @@
 package webbrowser
 
 import (
-	"github.com/pkg/browser"
+	"github.com/cli/browser"
 )
 
 // NewNativeLauncher creates and returns a Launcher that will attempt to interact

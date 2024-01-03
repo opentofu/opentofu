@@ -24,6 +24,7 @@ require (
 	github.com/bgentry/speakeasy v0.1.0
 	github.com/bmatcuk/doublestar v1.1.5
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
+	github.com/cli/browser v1.3.0
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dylanmei/winrmtest v0.0.0-20210303004826-fbc9ae56efb6
@@ -69,7 +70,6 @@ require (
 	github.com/nishanths/exhaustive v0.7.11
 	github.com/opentofu/registry-address v0.0.0-20230920144404-f1e51167f633
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
-	github.com/pkg/browser v0.0.0-20201207095918-0426ae3fba23
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
 	github.com/spf13/afero v1.9.3
