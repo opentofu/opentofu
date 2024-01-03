@@ -18,7 +18,7 @@ import (
 //
 // The first time a particular instance is requested, Instance may bail out due to invalid configuration.
 //
-// See also RemoteStateInstance, StatefileInstance, PlanfileInstance.
+// See also RemoteStateInstance(), StatefileInstance(), PlanfileInstance().
 func Instance(configKey string) flow.Flow {
 	// TODO validate "at least one .", bail out if wrong
 	return instance(configKey, true)
@@ -46,5 +46,5 @@ func instance(configKey string, defaultsApply bool) flow.Flow {
 	// TODO cache instances
 	// TODO instances must remember their configurations
 	// TODO instances must be provided with configurations (default if true+configKey) from Env when first created
-	return flow.New(configKey)
+	return flow.NewMock(configKey)
 }

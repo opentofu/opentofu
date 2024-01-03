@@ -28,7 +28,8 @@ type Flow interface {
 	// fallback configuration. If neither produces a valid result it fails.
 	//
 	// payload must be a json document passed in as a []byte.
-	// This can be encrypted or unencrypted state.
+	// This can be encrypted or unencrypted state. Encryption is detected
+	// by presence of the "encryption" key at the 1st level.
 	//
 	// If no error is returned, then the first return value will always
 	// be a json document, possibly the same one passed in as payload
@@ -41,16 +42,18 @@ type Flow interface {
 	// state. This happens when you only configure a decryption fallback,
 	// but not encryption. This is not an error.
 	//
-	// state is a json document passed in as a []byte.
+	// state is a json document passed in as a []byte. It is an error
+	// if this document already contains the "encryption" key at the 1st level.
 	//
 	// If no error is returned, then the first return value will always
-	// be a json document as a []byte.
+	// be a json document as a []byte. If encryption took place,
+	// this json document will have the "encryption" key at the 1st level.
 	EncryptState(state []byte) ([]byte, error)
 
 	// DecryptPlan decrypts an encrypted plan.
 	//
 	// The presence of encryption is detected by attempting to parse
-	// payload as a json document and looking at the "encryption" key.
+	// payload as a json document and looking at the "encryption" key at the 1st level.
 	//
 	// If the plan is not actually encrypted, but plan encryption is configured,
 	// this will fail to prevent working with invalid plans (plans are binary data).

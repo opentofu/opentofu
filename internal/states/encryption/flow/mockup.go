@@ -12,7 +12,7 @@ type MockUpLoggingFlow struct {
 	logger    hclog.Logger
 }
 
-func New(configKey string) Flow {
+func NewMock(configKey string) Flow {
 	return &MockUpLoggingFlow{
 		configKey: configKey,
 		logger:    logging.HCLogger(),
