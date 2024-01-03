@@ -23,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.46.0
 	github.com/bgentry/speakeasy v0.1.0
 	github.com/bmatcuk/doublestar v1.1.5
-	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
+	github.com/chzyer/readline v1.5.1
 	github.com/cli/browser v1.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dylanmei/winrmtest v0.0.0-20210303004826-fbc9ae56efb6

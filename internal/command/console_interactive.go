@@ -1,12 +1,6 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !solaris
-// +build !solaris
-
-// The readline library we use doesn't currently support solaris so
-// we just build tag it off.
-
 package command
 
 import (
