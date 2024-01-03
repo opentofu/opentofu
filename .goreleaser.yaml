@@ -208,10 +208,16 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
 
 signs:
-  - artifacts: checksum
+  - artifacts: all
+    id: cosign
     cmd: cosign
     certificate: "${artifact}.pem"
     args: [ "sign-blob", "--oidc-issuer=https://token.actions.githubusercontent.com", "--output-certificate=${certificate}", "--output-signature=${signature}", "${artifact}", "--yes" ]
+  - artifacts: all
+    signature: "${artifact}.gpgsig"
+    id: gpg
+    cmd: gpg
+    args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}" ]
 
 docker_signs:
   - artifacts: all
