@@ -1,6 +1,15 @@
 // Package encryptionconfig contains the data structures and constants to configure client-side state encryption.
 package encryptionconfig
 
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/opentofu/opentofu/internal/logging"
+	"os"
+	"strings"
+)
+
 // Config is a configuration for transparent client-side state encryption.
 //
 // There can be more than one configuration with different encryption or key derivation methods.
@@ -43,6 +52,10 @@ type ConfigEnvJsonStructure map[string]Config
 // to disable encryption (default behaviour).
 var ConfigEnvName = "TF_STATE_ENCRYPTION"
 
+func EncryptionConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
+	return parseEnvJsonStructure(ConfigEnvName, "encryption configuration")
+}
+
 // FallbackConfigEnvName is the name of the environment variable used to configure fallback decryption
 //
 // Set this environment variable to a json representation of ConfigEnvJsonStructure, or leave it unset/blank
@@ -55,6 +68,10 @@ var ConfigEnvName = "TF_STATE_ENCRYPTION"
 //   - key rotation (put the old key here until all state has been migrated)
 //   - decryption (leave TF_STATE_ENCRYPTION unset, but set this variable, and your state will be decrypted on next write)
 var FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
+
+func FallbackConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
+	return parseEnvJsonStructure(FallbackConfigEnvName, "fallback decryption configuration")
+}
 
 type KeyProviderName string
 
@@ -73,6 +90,20 @@ type KeyProviderConfig struct {
 	Config map[string]string `json:"config"`
 }
 
+// Validate checks the configuration after it has been merged from all sources.
+func (k KeyProviderConfig) Validate() error {
+	validator, ok := keyProviderConfigValidation[k.Name]
+	if !ok || validator == nil {
+		return fmt.Errorf("error in configuration for key provider %s: no registered key provider with this name", k.Name)
+	}
+
+	if err := validator(k); err != nil {
+		return fmt.Errorf("error in configuration for key provider %s: %s", k.Name, err.Error())
+	}
+
+	return nil
+}
+
 type EncryptionMethodName string
 
 const (
@@ -87,4 +118,48 @@ type EncryptionMethodConfig struct {
 	//
 	// The available values are key provider dependent.
 	Config map[string]string `json:"config"`
+}
+
+// Validate checks the configuration after it has been merged from all sources.
+func (m EncryptionMethodConfig) Validate() error {
+	validator, ok := encryptionMethodConfigValidation[m.Name]
+	if !ok || validator == nil {
+		return fmt.Errorf("error in configuration for encryption method %s: no registered encryption method with this name", m.Name)
+	}
+
+	if err := validator(m); err != nil {
+		return fmt.Errorf("error in configuration for encryption method %s: %s", m.Name, err.Error())
+	}
+
+	return nil
+}
+
+func parseJsonStructure(jsonValue string) (ConfigEnvJsonStructure, error) {
+	parsed := make(ConfigEnvJsonStructure)
+
+	decoder := json.NewDecoder(strings.NewReader(jsonValue))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		logging.HCLogger().Trace("json parse error", "details", err.Error())
+		return nil, errors.New("json parse error, wrong structure, or unknown fields - details omitted for security reasons (may contain key related settings)")
+	}
+
+	// we cannot validate just this part of the configuration - may need to be merged with
+	// values from code first
+	return parsed, nil
+}
+
+func parseEnvJsonStructure(envName string, what string) (ConfigEnvJsonStructure, error) {
+	envValue := os.Getenv(envName)
+	if envValue == "" {
+		return nil, nil
+	}
+
+	parsed, err := parseJsonStructure(envValue)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing %s from environment variable %s: %s", what, envName, err.Error())
+	}
+
+	return parsed, nil
 }
