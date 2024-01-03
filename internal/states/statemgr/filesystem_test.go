@@ -247,7 +247,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			false, // not sensitive
 		)
 	})
-	err = ls.WriteState(newState)
+	err = WriteAndPersist(ls, newState, nil)
 	if err != nil {
 		t.Fatalf("failed to write new state: %s", err)
 	}

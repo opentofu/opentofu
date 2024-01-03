@@ -120,13 +120,8 @@ func (s *Filesystem) State() *states.State {
 	return s.file.DeepCopy().State
 }
 
-// WriteState is an incorrect implementation of Writer that actually also
-// persists.
+// WriteState is an implementation of Writer.
 func (s *Filesystem) WriteState(state *states.State) error {
-	// TODO: this should use a more robust method of writing state, by first
-	// writing to a temp file on the same filesystem, and renaming the file over
-	// the original.
-
 	defer s.mutex()()
 
 	if s.readFile == nil {
@@ -140,12 +135,44 @@ func (s *Filesystem) WriteState(state *states.State) error {
 }
 
 func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
+	s.file = s.file.DeepCopy()
+	if s.file == nil {
+		s.file = NewStateFile()
+	}
+	s.file.State = state.DeepCopy()
+
+	if meta != nil {
+		// Force new metadata
+		s.file.Lineage = meta.Lineage
+		s.file.Serial = meta.Serial
+		log.Printf("[TRACE] statemgr.Filesystem: forcing lineage %q serial %d for migration/import", s.file.Lineage, s.file.Serial)
+	}
+
+	return nil
+}
+
+// PersistState writes state to a tfstate file.
+func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
+	defer s.mutex()()
+
+	return s.persistState(schemas)
+}
+
+func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
+	// TODO: this should use a more robust method of writing state, by first
+	// writing to a temp file on the same filesystem, and renaming the file over
+	// the original.
 	if s.stateFileOut == nil {
 		if err := s.createStateFiles(); err != nil {
 			return nil
 		}
 	}
 	defer s.stateFileOut.Sync()
+
+	if s.file == nil {
+		s.file = NewStateFile()
+	}
+	state := s.file.State
 
 	// We'll try to write our backup first, so we can be sure we've created
 	// it successfully before clobbering the original file it came from.
@@ -181,12 +208,6 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 		}
 	}
 
-	s.file = s.file.DeepCopy()
-	if s.file == nil {
-		s.file = NewStateFile()
-	}
-	s.file.State = state.DeepCopy()
-
 	if _, err := s.stateFileOut.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
@@ -200,18 +221,11 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 		return nil
 	}
 
-	if meta == nil {
-		if s.readFile == nil || !statefile.StatesMarshalEqual(s.file.State, s.readFile.State) {
-			s.file.Serial++
-			log.Printf("[TRACE] statemgr.Filesystem: state has changed since last snapshot, so incrementing serial to %d", s.file.Serial)
-		} else {
-			log.Print("[TRACE] statemgr.Filesystem: no state changes since last snapshot")
-		}
+	if s.readFile == nil || !statefile.StatesMarshalEqual(s.file.State, s.readFile.State) {
+		s.file.Serial++
+		log.Printf("[TRACE] statemgr.Filesystem: state has changed since last snapshot, so incrementing serial to %d", s.file.Serial)
 	} else {
-		// Force new metadata
-		s.file.Lineage = meta.Lineage
-		s.file.Serial = meta.Serial
-		log.Printf("[TRACE] statemgr.Filesystem: forcing lineage %q serial %d for migration/import", s.file.Lineage, s.file.Serial)
+		log.Print("[TRACE] statemgr.Filesystem: no state changes since last snapshot")
 	}
 
 	log.Printf("[TRACE] statemgr.Filesystem: writing snapshot at %s", s.path)
@@ -221,12 +235,6 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 
 	// Any future reads must come from the file we've now updated
 	s.readPath = s.path
-	return nil
-}
-
-// PersistState is an implementation of Persister that does nothing because
-// this type's Writer implementation does its own persistence.
-func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
 	return nil
 }
 
@@ -456,7 +464,7 @@ func (s *Filesystem) WriteStateForMigration(f *statefile.File, force bool) error
 		return err
 	}
 
-	return nil
+	return s.persistState(nil)
 }
 
 // Open the state file, creating the directories and file as needed.
