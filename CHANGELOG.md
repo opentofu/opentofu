@@ -12,6 +12,7 @@ ENHANCEMENTS:
  - Previously, every call to state.Write() would also Persist to disk. This was not following the intended API and had longstanding TODOs in the code.
  - This change fixes the local state filesystem interface to function as the statemgr API describes.
  - A possible side effect is that a hard crash mid-apply will no longer have a in-progress state file to reference. This matches the other state managers.
+* `tofu console` should work in Solaris and AIX as readline has been updated. ([#632](https://github.com/opentofu/opentofu/pull/632))
 
 
 BUG FIXES:
