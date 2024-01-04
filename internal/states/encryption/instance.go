@@ -3,6 +3,7 @@ package encryption
 import (
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/states/encryption/flow"
+	"strings"
 )
 
 // Instance obtains the instance of the encryption flow for the given configKey.
@@ -20,31 +21,63 @@ import (
 //
 // See also RemoteStateInstance(), StatefileInstance(), PlanfileInstance().
 func Instance(configKey string) flow.Flow {
-	// TODO validate "at least one .", bail out if wrong
-	return instance(configKey, true)
+	if !strings.Contains(configKey, ".") {
+		panic("call to encryption.Instance with a key that does not contain '.'. This is a bug. " +
+			"Instance() is intended to obtain named instances only. For predefined instances use " +
+			"RemoteStateInstance(), StatefileInstance(), or PlanfileInstance()")
+	}
+	if !environmentParsedSuccessfully {
+		panic("call to Instance() before ParseEnvironmentVariables(). This is a bug.")
+	}
+	return cachedInstance(configKey, true)
 }
 
 // RemoteStateInstance obtains the instance of the encryption flow that is intended for our own remote
 // state backend, as opposed to terraform_remote_state data sources.
 func RemoteStateInstance() flow.Flow {
-	return instance(encryptionconfig.ConfigKeyBackend, true)
+	if !environmentParsedSuccessfully {
+		panic("call to RemoteStateInstance() before ParseEnvironmentVariables(). This is a bug.")
+	}
+	return cachedInstance(encryptionconfig.ConfigKeyBackend, true)
 }
 
 // StatefileInstance obtains the instance of the encryption flow that is intended for our own local state file.
 func StatefileInstance() flow.Flow {
-	return instance(encryptionconfig.ConfigKeyStatefile, false)
+	if !environmentParsedSuccessfully {
+		panic("call to StatefileInstance() before ParseEnvironmentVariables(). This is a bug.")
+	}
+	return cachedInstance(encryptionconfig.ConfigKeyStatefile, false)
 }
 
 // PlanfileInstance obtains the instance of the encryption flow that is intended for our plan file.
 func PlanfileInstance() flow.Flow {
-	return instance(encryptionconfig.ConfigKeyPlanfile, false)
+	if !environmentParsedSuccessfully {
+		panic("call to PlanfileInstance() before ParseEnvironmentVariables(). This is a bug.")
+	}
+	return cachedInstance(encryptionconfig.ConfigKeyPlanfile, false)
 }
 
-func instance(configKey string, defaultsApply bool) flow.Flow {
-	// TODO parse config in env when first called + cache result
-	// TODO bail out and log a meaningful error for invalid configurations in env
-	// TODO cache instances
-	// TODO instances must remember their configurations
-	// TODO instances must be provided with configurations (default if true+configKey) from Env when first created
-	return flow.NewMock(configKey)
+var instanceCache = make(map[string]flow.Flow)
+
+func cachedInstance(configKey string, defaultsApply bool) flow.Flow {
+	instance, found := instanceCache[configKey]
+	if found {
+		return instance
+	}
+
+	return newInstance(configKey, defaultsApply)
+}
+
+func newInstance(configKey string, defaultsApply bool) flow.Flow {
+	instance := flow.NewMock(configKey)
+
+	if defaultsApply {
+		_ = applyEncryptionConfigIfExists(instance, flow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault)
+		_ = applyDecryptionFallbackConfigIfExists(instance, flow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault)
+	}
+
+	_ = applyEncryptionConfigIfExists(instance, flow.ConfigurationSourceEnv, configKey)
+	_ = applyDecryptionFallbackConfigIfExists(instance, flow.ConfigurationSourceEnv, configKey)
+
+	return instance
 }
