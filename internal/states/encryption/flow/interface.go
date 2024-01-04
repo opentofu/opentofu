@@ -12,6 +12,29 @@ const (
 	ConfigurationSourceEnv        ConfigurationSource = "env"
 )
 
+func (s ConfigurationSource) IsValid() bool {
+	return s == ConfigurationSourceEnvDefault || s == ConfigurationSourceCode || s == ConfigurationSourceEnv
+}
+
+// IsForExternalUse checks that a ConfigurationSource is suitable for production-code outside this package tree.
+//
+// Provided mainly for documentation purposes.
+//
+// All other ConfigurationSource values are used internally, though you may need them when writing tests,
+// which is why they are exported.
+func (s ConfigurationSource) IsForExternalUse() bool {
+	return s == ConfigurationSourceCode
+}
+
+// EncryptionTopLevelJsonKey is the json key used to mark state or plans as encrypted.
+//
+// Changing this will invalidate all existing encrypted state, so migration code would have to be added
+// that can deal with the old key.
+//
+// Unencrypted state must not contain this key, so you cannot choose any of the top-level keys of the current
+// state data structure (currently stateV4).
+var EncryptionTopLevelJsonKey = "encryption"
+
 // Flow represents the top-level state or plan encryption/decryption flow
 // for a particular encryption configuration.
 //
@@ -29,7 +52,7 @@ type Flow interface {
 	//
 	// payload must be a json document passed in as a []byte.
 	// This can be encrypted or unencrypted state. Encryption is detected
-	// by presence of the "encryption" key at the 1st level.
+	// by presence of the EncryptionTopLevelJsonKey key at the 1st level.
 	//
 	// If no error is returned, then the first return value will always
 	// be a json document, possibly the same one passed in as payload
@@ -43,17 +66,20 @@ type Flow interface {
 	// but not encryption. This is not an error.
 	//
 	// state is a json document passed in as a []byte. It is an error
-	// if this document already contains the "encryption" key at the 1st level.
+	// if this document already contains the EncryptionTopLevelJsonKey key
+	// at the 1st level.
 	//
 	// If no error is returned, then the first return value will always
 	// be a json document as a []byte. If encryption took place,
-	// this json document will have the "encryption" key at the 1st level.
+	// this json document will have the EncryptionTopLevelJsonKey key
+	// at the 1st level.
 	EncryptState(state []byte) ([]byte, error)
 
 	// DecryptPlan decrypts an encrypted plan.
 	//
 	// The presence of encryption is detected by attempting to parse
-	// payload as a json document and looking at the "encryption" key at the 1st level.
+	// payload as a json document and looking at the EncryptionTopLevelJsonKey key
+	// at the 1st level.
 	//
 	// If the plan is not actually encrypted, but plan encryption is configured,
 	// this will fail to prevent working with invalid plans (plans are binary data).
@@ -72,8 +98,8 @@ type Flow interface {
 	//
 	// In the presence of a configuration suitable for plan encryption
 	// (must be full encryption because plans are binary data),
-	// EncryptPlan returns a json document which contains the "encryption"
-	// key at top level.
+	// EncryptPlan returns a json document which contains the EncryptionTopLevelJsonKey key
+	// at the 1st level.
 	//
 	// A configuration that is not suitable for plan encryption is treated as
 	// an error.
