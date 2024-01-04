@@ -7,6 +7,59 @@ import (
 	"testing"
 )
 
+func TestConfigValidate(t *testing.T) {
+	testCases := []struct {
+		testcase    string
+		config      Config
+		expectedErr error
+	}{
+		{
+			testcase: "correct",
+			config: Config{
+				KeyProvider: KeyProviderConfig{
+					Name:   "passphrase",
+					Config: map[string]string{"passphrase": "quick brown fox"},
+				},
+				Method: EncryptionMethodConfig{
+					Name: "full",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			testcase: "key_provider_wrong",
+			config: Config{
+				KeyProvider: KeyProviderConfig{
+					Name: "unknown",
+				},
+				Method: EncryptionMethodConfig{
+					Name: "full",
+				},
+			},
+			expectedErr: errors.New("error in configuration for key provider unknown: no registered key provider with this name"),
+		},
+		{
+			testcase: "method_wrong",
+			config: Config{
+				KeyProvider: KeyProviderConfig{
+					Name:   "passphrase",
+					Config: map[string]string{"passphrase": "quick brown fox"},
+				},
+				Method: EncryptionMethodConfig{
+					Name: "unknown",
+				},
+			},
+			expectedErr: errors.New("error in configuration for encryption method unknown: no registered encryption method with this name"),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.testcase, func(t *testing.T) {
+			err := tc.config.Validate()
+			expectErr(t, err, tc.expectedErr)
+		})
+	}
+}
+
 func TestEncryptionConfigurationsFromEnv(t *testing.T) {
 	empty, err := EncryptionConfigurationsFromEnv()
 	if err != nil {

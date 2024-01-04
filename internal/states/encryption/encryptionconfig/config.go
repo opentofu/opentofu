@@ -25,6 +25,16 @@ type Config struct {
 	Required bool `json:"required"`
 }
 
+func (c Config) Validate() error {
+	if err := c.KeyProvider.Validate(); err != nil {
+		return err
+	}
+	if err := c.Method.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 const (
 	ConfigKeyDefault   = "default"   // a default for all remote states (backend + any remote_state data sources)
 	ConfigKeyBackend   = "backend"   // for our own remote state backend
@@ -50,6 +60,9 @@ type ConfigEnvJsonStructure map[string]Config
 //
 // Set this environment variable to a json representation of ConfigEnvJsonStructure, or leave it unset/blank
 // to disable encryption (default behaviour).
+//
+// Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
+// as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
 var ConfigEnvName = "TF_STATE_ENCRYPTION"
 
 func EncryptionConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
@@ -67,6 +80,9 @@ func EncryptionConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
 // Why is this useful?
 //   - key rotation (put the old key here until all state has been migrated)
 //   - decryption (leave TF_STATE_ENCRYPTION unset, but set this variable, and your state will be decrypted on next write)
+//
+// Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
+// as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
 var FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
 
 func FallbackConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
