@@ -128,4 +128,17 @@ type Flow interface {
 	//
 	// Note: Some errors in the configuration can only be detected once it is used.
 	DecryptionFallbackConfiguration(source ConfigurationSource, config encryptionconfig.Config) error
+
+	// MergeAndValidateConfigurations merges and validates all configurations of this Flow.
+	//
+	// Call this only after all configurations have been supplied via EncryptionConfiguration()
+	// and DecryptionFallbackConfiguration().
+	//
+	// This validation is far more complete than what EncryptionConfiguration() and
+	// DecryptionFallbackConfiguration() can detect, because the configurations are now
+	// completely known.
+	//
+	// Note: Some errors in the encryption or decryption fallback configurations can only be
+	// detected once they are used, especially when external key management systems are involved.
+	MergeAndValidateConfigurations() error
 }

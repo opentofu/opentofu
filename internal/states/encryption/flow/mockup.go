@@ -25,7 +25,7 @@ func NewMock(configKey string) Flow {
 
 func (m *MockUpLoggingFlow) DecryptState(payload []byte) ([]byte, error) {
 	m.logger.Trace("encryption:DecryptState", "key", m.configKey, "payloadSize", len(payload))
-	if err := m.mergeAndValidateConfigurations(); err != nil {
+	if err := m.MergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
 	return payload, nil
@@ -33,7 +33,7 @@ func (m *MockUpLoggingFlow) DecryptState(payload []byte) ([]byte, error) {
 
 func (m *MockUpLoggingFlow) EncryptState(state []byte) ([]byte, error) {
 	m.logger.Trace("encryption:EncryptState", "key", m.configKey, "stateSize", len(state))
-	if err := m.mergeAndValidateConfigurations(); err != nil {
+	if err := m.MergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
 	return state, nil
@@ -41,7 +41,7 @@ func (m *MockUpLoggingFlow) EncryptState(state []byte) ([]byte, error) {
 
 func (m *MockUpLoggingFlow) DecryptPlan(payload []byte) ([]byte, error) {
 	m.logger.Trace("encryption:DecryptPlan", "key", m.configKey, "payloadSize", len(payload))
-	if err := m.mergeAndValidateConfigurations(); err != nil {
+	if err := m.MergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
 	return payload, nil
@@ -49,7 +49,7 @@ func (m *MockUpLoggingFlow) DecryptPlan(payload []byte) ([]byte, error) {
 
 func (m *MockUpLoggingFlow) EncryptPlan(plan []byte) ([]byte, error) {
 	m.logger.Trace("encryption:EncryptPlan", "key", m.configKey, "planSize", len(plan))
-	if err := m.mergeAndValidateConfigurations(); err != nil {
+	if err := m.MergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
 	return plan, nil
@@ -75,7 +75,7 @@ func (m *MockUpLoggingFlow) DecryptionFallbackConfiguration(source Configuration
 	return nil
 }
 
-func (m *MockUpLoggingFlow) mergeAndValidateConfigurations() error {
+func (m *MockUpLoggingFlow) MergeAndValidateConfigurations() error {
 	// this logic will appear in a similar form in the actual flow implementation. For now, we just merge
 	// and validate the configuration.
 
