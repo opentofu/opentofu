@@ -7,10 +7,8 @@ package configs
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -54,21 +52,13 @@ func (m ModuleCall) Variables(ctx *StaticContext) (StaticReferences, hcl.Diagnos
 	return result, diags
 }
 
-func evaluateStringLiteralAsExpression(literal string, ctx *hcl.EvalContext) (string, hcl.Diagnostics) {
-	var output string
-	formatted := fmt.Sprintf("\"%s\"", strings.ReplaceAll(literal, "{", "${"))
-	expr, diags := hclsyntax.ParseExpression([]byte(formatted), literal, hcl.InitialPos)
-	return output, append(diags, gohcl.DecodeExpression(expr, ctx, &output)...)
-}
-
 func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*ModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mc := &ModuleCall{
 		DeclRange: block.DefRange,
+		Name:      block.Labels[0],
 	}
-
-	mc.Name, diags = evaluateStringLiteralAsExpression(block.Labels[0], ctx.EvalContext)
 
 	schema := moduleBlockSchema
 	if override {
