@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -98,39 +97,9 @@ func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*Mod
 	if attr, exists := content.Attributes["source"]; exists {
 		mc.SourceSet = true
 		mc.SourceAddrRange = attr.Expr.Range()
-		//valDiags := gohcl.DecodeExpression(attr.Expr, ctx, &mc.SourceAddrRaw)
-		val, valDiags := ctx.Evaluate(attr.Expr, ctx.Params.Name+"."+mc.Name)
+		valDiags := ctx.Decode(attr.Expr, ctx.Params.Name+"."+mc.Name, &mc.SourceAddrRaw)
 		diags = append(diags, valDiags...)
-		if val.Value != nil {
-			_ = gocty.FromCtyValue(*val.Value, &mc.SourceAddrRaw)
-		} else {
-			chain := val.Missing.Chain()
-			for _, m := range chain {
-				summary := ""
-				reason := ""
-				if m.Reason != nil {
-					summary = "Unable to use dynamic value in static context"
-					reason = fmt.Sprintf("%s: %s", m.Name, *m.Reason)
-				} else {
-					summary = "Unable to reference dynamic value in static context"
-					reason = fmt.Sprintf("%s attempted to use %s in static context", m.Name, m.Reference.Missing.Name)
-				}
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  summary,
-					Detail:   reason,
-					Subject:  m.Decl.Ptr(),
-				})
-			}
-
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid module source address",
-				Detail:   fmt.Sprintf("Unable to use dynamic source as module address"),
-				Subject:  &mc.SourceAddrRange,
-			})
-		}
-		if !valDiags.HasErrors() && val.Value != nil {
+		if !valDiags.HasErrors() {
 			var addr addrs.ModuleSource
 			var err error
 			if haveVersionArg {
