@@ -1,6 +1,7 @@
 package encryption
 
 import (
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/states/encryption/flow"
 	"strings"
@@ -62,13 +63,17 @@ var instanceCache = make(map[string]flow.Flow)
 func cachedInstance(configKey string, defaultsApply bool) flow.Flow {
 	instance, found := instanceCache[configKey]
 	if found {
+		logging.HCLogger().Trace("found state encryption flow instance in cache", "configKey", configKey)
 		return instance
 	}
 
-	return newInstance(configKey, defaultsApply)
+	instance = newInstance(configKey, defaultsApply)
+	instanceCache[configKey] = instance
+	return instance
 }
 
 func newInstance(configKey string, defaultsApply bool) flow.Flow {
+	logging.HCLogger().Trace("constructing new state encryption flow instance", "configKey", configKey)
 	instance := flow.NewMock(configKey)
 
 	if defaultsApply {
