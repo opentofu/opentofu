@@ -106,13 +106,24 @@ type KeyProviderConfig struct {
 	Config map[string]string `json:"config"`
 }
 
-// Validate checks the configuration after it has been merged from all sources.
-func (k KeyProviderConfig) Validate() error {
+// NameValid checks that the name has been registered correctly.
+//
+// This is an early check, unlike Validate().
+func (k KeyProviderConfig) NameValid() error {
 	validator, ok := keyProviderConfigValidation[k.Name]
 	if !ok || validator == nil {
 		return fmt.Errorf("error in configuration for key provider %s: no registered key provider with this name", k.Name)
 	}
+	return nil
+}
 
+// Validate checks the configuration after it has been merged from all sources.
+func (k KeyProviderConfig) Validate() error {
+	if err := k.NameValid(); err != nil {
+		return err
+	}
+
+	validator := keyProviderConfigValidation[k.Name]
 	if err := validator(k); err != nil {
 		return fmt.Errorf("error in configuration for key provider %s: %s", k.Name, err.Error())
 	}
@@ -136,12 +147,24 @@ type EncryptionMethodConfig struct {
 	Config map[string]string `json:"config"`
 }
 
-// Validate checks the configuration after it has been merged from all sources.
-func (m EncryptionMethodConfig) Validate() error {
+// NameValid checks that the name has been registered correctly.
+//
+// This is an early check, unlike Validate().
+func (m EncryptionMethodConfig) NameValid() error {
 	validator, ok := encryptionMethodConfigValidation[m.Name]
 	if !ok || validator == nil {
 		return fmt.Errorf("error in configuration for encryption method %s: no registered encryption method with this name", m.Name)
 	}
+	return nil
+}
+
+// Validate checks the configuration after it has been merged from all sources.
+func (m EncryptionMethodConfig) Validate() error {
+	if err := m.NameValid(); err != nil {
+		return err
+	}
+
+	validator := encryptionMethodConfigValidation[m.Name]
 
 	if err := validator(m); err != nil {
 		return fmt.Errorf("error in configuration for encryption method %s: %s", m.Name, err.Error())

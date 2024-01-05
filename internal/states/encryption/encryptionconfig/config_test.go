@@ -90,6 +90,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 	testCases := []struct {
 		testcase    string
 		config      KeyProviderConfig
+		nameInvalid bool
 		expectedErr error
 	}{
 		{
@@ -105,6 +106,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 			config: KeyProviderConfig{
 				Name: "unknown",
 			},
+			nameInvalid: true,
 			expectedErr: errors.New("error in configuration for key provider unknown: no registered key provider with this name"),
 		},
 		// tests for "passphrase" validation
@@ -200,6 +202,13 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 		t.Run(tc.testcase, func(t *testing.T) {
 			err := tc.config.Validate()
 			expectErr(t, err, tc.expectedErr)
+
+			err = tc.config.NameValid()
+			if tc.nameInvalid {
+				expectErr(t, err, tc.expectedErr)
+			} else {
+				expectErr(t, err, nil)
+			}
 		})
 	}
 }
@@ -208,6 +217,7 @@ func TestEncryptionMethodConfigValidate(t *testing.T) {
 	testCases := []struct {
 		testcase    string
 		config      EncryptionMethodConfig
+		nameInvalid bool
 		expectedErr error
 	}{
 		{
@@ -222,6 +232,7 @@ func TestEncryptionMethodConfigValidate(t *testing.T) {
 			config: EncryptionMethodConfig{
 				Name: "unknown",
 			},
+			nameInvalid: true,
 			expectedErr: errors.New("error in configuration for encryption method unknown: no registered encryption method with this name"),
 		},
 		{
@@ -237,6 +248,13 @@ func TestEncryptionMethodConfigValidate(t *testing.T) {
 		t.Run(tc.testcase, func(t *testing.T) {
 			err := tc.config.Validate()
 			expectErr(t, err, tc.expectedErr)
+
+			err = tc.config.NameValid()
+			if tc.nameInvalid {
+				expectErr(t, err, tc.expectedErr)
+			} else {
+				expectErr(t, err, nil)
+			}
 		})
 	}
 }
