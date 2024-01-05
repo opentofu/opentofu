@@ -11,7 +11,6 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -134,6 +133,12 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 		copy(path, parent.Path)
 		path[len(path)-1] = call.Name
 
+		vars, vDiags := call.Variables(parent.Module.Ctx)
+		if len(vDiags) != 0 {
+			diags = append(diags, vDiags...)
+			continue
+		}
+
 		req := ModuleRequest{
 			Name:              call.Name,
 			Path:              path,
@@ -142,7 +147,7 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
-			Variables:         call.Variables(parent.Module.Ctx),
+			Variables:         vars,
 		}
 		child, modDiags := loadModule(parent.Root, &req, walker)
 		diags = append(diags, modDiags...)
@@ -300,7 +305,7 @@ type ModuleRequest struct {
 	// rather than to either its source address or its version number.
 	CallRange hcl.Range
 
-	Variables map[string]cty.Value
+	Variables StaticReferences
 }
 
 // DisabledModuleWalker is a ModuleWalker that doesn't support

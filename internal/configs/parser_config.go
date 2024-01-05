@@ -86,7 +86,7 @@ func (file *File) preParse() hcl.Diagnostics {
 	return diags
 }
 
-func (file *File) parse(allowExperiments bool, ctx *hcl.EvalContext) hcl.Diagnostics {
+func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	body := file.body
 	override := file.override

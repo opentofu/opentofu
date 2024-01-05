@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -39,17 +39,18 @@ type ModuleCall struct {
 	DeclRange hcl.Range
 }
 
-func (m ModuleCall) Variables(ctx *hcl.EvalContext) map[string]cty.Value {
-	result := make(map[string]cty.Value)
+func (m ModuleCall) Variables(ctx *StaticContext) (StaticReferences, hcl.Diagnostics) {
+	diags := make(hcl.Diagnostics, 0)
+	result := make(StaticReferences)
 
 	attr, _ := m.Config.JustAttributes()
 	for k, v := range attr {
-		val, _ := v.Expr.Value(ctx)
-		// TODO diags/nil
+		val, vDiags := ctx.Evaluate(v.Expr, ctx.Params.Name+"."+m.Name+"."+k)
+		diags = append(diags, vDiags...)
 		result[k] = val
 	}
 
-	return result
+	return result, diags
 }
 
 func evaluateStringLiteralAsExpression(literal string, ctx *hcl.EvalContext) (string, hcl.Diagnostics) {
@@ -59,14 +60,14 @@ func evaluateStringLiteralAsExpression(literal string, ctx *hcl.EvalContext) (st
 	return output, append(diags, gohcl.DecodeExpression(expr, ctx, &output)...)
 }
 
-func decodeModuleBlock(block *hcl.Block, override bool, ctx *hcl.EvalContext) (*ModuleCall, hcl.Diagnostics) {
+func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*ModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mc := &ModuleCall{
 		DeclRange: block.DefRange,
 	}
 
-	mc.Name, diags = evaluateStringLiteralAsExpression(block.Labels[0], ctx)
+	mc.Name, diags = evaluateStringLiteralAsExpression(block.Labels[0], ctx.EvalContext)
 
 	schema := moduleBlockSchema
 	if override {
@@ -97,9 +98,39 @@ func decodeModuleBlock(block *hcl.Block, override bool, ctx *hcl.EvalContext) (*
 	if attr, exists := content.Attributes["source"]; exists {
 		mc.SourceSet = true
 		mc.SourceAddrRange = attr.Expr.Range()
-		valDiags := gohcl.DecodeExpression(attr.Expr, ctx, &mc.SourceAddrRaw)
+		//valDiags := gohcl.DecodeExpression(attr.Expr, ctx, &mc.SourceAddrRaw)
+		val, valDiags := ctx.Evaluate(attr.Expr, ctx.Params.Name+"."+mc.Name)
 		diags = append(diags, valDiags...)
-		if !valDiags.HasErrors() {
+		if val.Value != nil {
+			_ = gocty.FromCtyValue(*val.Value, &mc.SourceAddrRaw)
+		} else {
+			chain := val.Missing.Chain()
+			for _, m := range chain {
+				summary := ""
+				reason := ""
+				if m.Reason != nil {
+					summary = "Unable to use dynamic value in static context"
+					reason = fmt.Sprintf("%s: %s", m.Name, *m.Reason)
+				} else {
+					summary = "Unable to reference dynamic value in static context"
+					reason = fmt.Sprintf("%s attempted to use %s in static context", m.Name, m.Reference.Missing.Name)
+				}
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  summary,
+					Detail:   reason,
+					Subject:  m.Decl.Ptr(),
+				})
+			}
+
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid module source address",
+				Detail:   fmt.Sprintf("Unable to use dynamic source as module address"),
+				Subject:  &mc.SourceAddrRange,
+			})
+		}
+		if !valDiags.HasErrors() && val.Value != nil {
 			var addr addrs.ModuleSource
 			var err error
 			if haveVersionArg {
