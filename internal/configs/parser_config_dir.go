@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -39,20 +38,18 @@ const (
 //
 // .tf files are parsed using the HCL native syntax while .tf.json files are
 // parsed using the HCL JSON syntax.
-func (p *Parser) LoadConfigDir(path string, rootVars map[string]cty.Value) (*Module, hcl.Diagnostics) {
-	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
+func (p *Parser) LoadConfigDir(path string, params StaticParams) (*Module, hcl.Diagnostics) {
+	primaryPaths, _, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{}}
-
-	primary, fDiags := p.loadFiles(primaryPaths, false, ctx, rootVars)
+	primary, ctx, fDiags := p.loadFiles(primaryPaths, false, params)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
-	diags = append(diags, fDiags...)
+	//override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
+	//diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModule(primary, override)
+	mod, modDiags := NewModule(primary, nil) //override)
 	diags = append(diags, modDiags...)
 
 	mod.SourceDir = path
@@ -63,22 +60,20 @@ func (p *Parser) LoadConfigDir(path string, rootVars map[string]cty.Value) (*Mod
 
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
-func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, rootVars map[string]cty.Value) (*Module, hcl.Diagnostics) {
-	primaryPaths, overridePaths, testPaths, diags := p.dirFiles(path, testDirectory)
+func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, params StaticParams) (*Module, hcl.Diagnostics) {
+	primaryPaths, _, testPaths, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{}}
-
-	primary, fDiags := p.loadFiles(primaryPaths, false, ctx, rootVars)
+	primary, ctx, fDiags := p.loadFiles(primaryPaths, false, params)
 	diags = append(diags, fDiags...)
-	override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
-	diags = append(diags, fDiags...)
+	//override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
+	//diags = append(diags, fDiags...)
 	tests, fDiags := p.loadTestFiles(path, testPaths)
 	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModuleWithTests(primary, override, tests)
+	mod, modDiags := NewModuleWithTests(primary, nil /*override*/, tests)
 	diags = append(diags, modDiags...)
 
 	mod.SourceDir = path
@@ -112,7 +107,7 @@ func (p *Parser) IsConfigDir(path string) bool {
 	return (len(primaryPaths) + len(overridePaths)) > 0
 }
 
-func (p *Parser) loadFiles(paths []string, override bool, ctx *hcl.EvalContext, rootVars map[string]cty.Value) ([]*File, hcl.Diagnostics) {
+func (p *Parser) loadFiles(paths []string, override bool, params StaticParams) ([]*File, *StaticContext, hcl.Diagnostics) {
 	var files []*File
 	var diags hcl.Diagnostics
 
@@ -135,45 +130,28 @@ func (p *Parser) loadFiles(paths []string, override bool, ctx *hcl.EvalContext, 
 		diags = append(diags, fDiags...)
 	}
 
-	locals := make(map[string]cty.Value)
-	vars := make(map[string]cty.Value)
+	locals := make(map[string]*Local)
+	variables := make(map[string]*Variable)
 	for _, f := range files {
+		for _, l := range f.Locals {
+			locals[l.Name] = l
+		}
 		for _, v := range f.Variables {
-			if val, ok := rootVars[v.Name]; ok {
-				// TODO validation + parse
-				vars[v.Name] = val
-			} else {
-				// TODO v.Default expression
-				vars[v.Name] = v.Default
-			}
+			variables[v.Name] = v
 		}
 	}
 
-	ctx.Variables["var"] = cty.ObjectVal(vars)
-	// Init empty locals for better error messages
-	ctx.Variables["local"] = cty.ObjectVal(locals)
+	ctx, sDiags := CreateStaticContext(variables, locals, params)
+	diags = append(diags, sDiags...)
 
-	// This is quite terrible...
-	// We iterate until no new locals are successfully constructed
-	for last := -1; last != len(locals); {
-		last = len(locals)
+	if ctx != nil {
 		for _, f := range files {
-			for _, l := range f.Locals {
-				val, lDiags := l.Expr.Value(ctx)
-				if len(lDiags) == 0 && val != cty.NilVal {
-					locals[l.Name] = val
-				}
-			}
+			fDiags := f.parse(p.allowExperiments, *ctx) // TODO switch to ctx through parse stage
+			diags = append(diags, fDiags...)
 		}
-		ctx.Variables["local"] = cty.ObjectVal(locals)
 	}
 
-	for _, f := range files {
-		fDiags := f.parse(p.allowExperiments, ctx)
-		diags = append(diags, fDiags...)
-	}
-
-	return files, diags
+	return files, ctx, diags
 }
 
 // dirFiles finds OpenTofu configuration files within dir, splitting them into

@@ -65,7 +65,7 @@ type Module struct {
 	// testing framework to not call the underlying module.
 	IsOverridden bool
 
-	Ctx *hcl.EvalContext
+	Ctx *StaticContext
 }
 
 // File describes the contents of a single configuration file.
