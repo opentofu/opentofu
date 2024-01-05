@@ -24,7 +24,7 @@ func NewMock(configKey string) Flow {
 }
 
 func (m *MockUpLoggingFlow) DecryptState(payload []byte) ([]byte, error) {
-	m.logger.Trace("encryption:DecryptState", "payloadSize", len(payload))
+	m.logger.Trace("encryption:DecryptState", "key", m.configKey, "payloadSize", len(payload))
 	if err := m.mergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
@@ -32,7 +32,7 @@ func (m *MockUpLoggingFlow) DecryptState(payload []byte) ([]byte, error) {
 }
 
 func (m *MockUpLoggingFlow) EncryptState(state []byte) ([]byte, error) {
-	m.logger.Trace("encryption:EncryptState", "stateSize", len(state))
+	m.logger.Trace("encryption:EncryptState", "key", m.configKey, "stateSize", len(state))
 	if err := m.mergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
@@ -40,7 +40,7 @@ func (m *MockUpLoggingFlow) EncryptState(state []byte) ([]byte, error) {
 }
 
 func (m *MockUpLoggingFlow) DecryptPlan(payload []byte) ([]byte, error) {
-	m.logger.Trace("encryption:DecryptPlan", "payloadSize", len(payload))
+	m.logger.Trace("encryption:DecryptPlan", "key", m.configKey, "payloadSize", len(payload))
 	if err := m.mergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
@@ -48,7 +48,7 @@ func (m *MockUpLoggingFlow) DecryptPlan(payload []byte) ([]byte, error) {
 }
 
 func (m *MockUpLoggingFlow) EncryptPlan(plan []byte) ([]byte, error) {
-	m.logger.Trace("encryption:EncryptPlan", "planSize", len(plan))
+	m.logger.Trace("encryption:EncryptPlan", "key", m.configKey, "planSize", len(plan))
 	if err := m.mergeAndValidateConfigurations(); err != nil {
 		return []byte{}, err
 	}
@@ -59,7 +59,7 @@ func (m *MockUpLoggingFlow) EncryptionConfiguration(source ConfigurationSource, 
 	if !source.IsValid() {
 		panic("EncryptionConfiguration() called with invalid source value. This is a bug.")
 	}
-	m.logger.Trace("encryption:EncryptionConfiguration", "source", source, "config", config)
+	m.logger.Trace("encryption:EncryptionConfiguration", "key", m.configKey, "source", source, "config", config)
 	// for this simple mock, we just store the configuration, so we can later merge and validate it
 	m.encryptionConfigs[source] = config
 	return nil
@@ -69,7 +69,7 @@ func (m *MockUpLoggingFlow) DecryptionFallbackConfiguration(source Configuration
 	if !source.IsValid() {
 		panic("DecryptionFallbackConfiguration() called with invalid source value. This is a bug.")
 	}
-	m.logger.Trace("encryption:DecryptionFallbackConfiguration", "source", source, "config", config)
+	m.logger.Trace("encryption:DecryptionFallbackConfiguration", "key", m.configKey, "source", source, "config", config)
 	// for this simple mock, we just store the configuration, so we can later merge and validate it
 	m.decryptionFallbackConfigs[source] = config
 	return nil
@@ -94,11 +94,13 @@ func (m *MockUpLoggingFlow) mergeAndValidateConfigurations() error {
 	encryptionconfig.InjectDefaultNamesIfUnset(mergedDecryptionFallbackConfig)
 
 	if mergedEncryptionConfig != nil {
+		m.logger.Trace("encryption:mergeAndValidateConfigurations using encryption config", "key", m.configKey, "config", *mergedEncryptionConfig)
 		if err := mergedEncryptionConfig.Validate(); err != nil {
 			return err
 		}
 	}
 	if mergedDecryptionFallbackConfig != nil {
+		m.logger.Trace("encryption:mergeAndValidateConfigurations using fallback config", "key", m.configKey, "config", *mergedEncryptionConfig)
 		if err := mergedDecryptionFallbackConfig.Validate(); err != nil {
 			return err
 		}
