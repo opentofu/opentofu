@@ -26,91 +26,91 @@ import (
 func New() backend.Backend {
 	s := &schema.Backend{
 		Schema: map[string]*schema.Schema{
-			"address": &schema.Schema{
+			"address": {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_ADDRESS", nil),
 				Description: "The address of the REST endpoint",
 			},
-			"update_method": &schema.Schema{
+			"update_method": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_UPDATE_METHOD", "POST"),
 				Description: "HTTP method to use when updating state",
 			},
-			"lock_address": &schema.Schema{
+			"lock_address": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_LOCK_ADDRESS", nil),
 				Description: "The address of the lock REST endpoint",
 			},
-			"unlock_address": &schema.Schema{
+			"unlock_address": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_UNLOCK_ADDRESS", nil),
 				Description: "The address of the unlock REST endpoint",
 			},
-			"lock_method": &schema.Schema{
+			"lock_method": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_LOCK_METHOD", "LOCK"),
 				Description: "The HTTP method to use when locking",
 			},
-			"unlock_method": &schema.Schema{
+			"unlock_method": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_UNLOCK_METHOD", "UNLOCK"),
 				Description: "The HTTP method to use when unlocking",
 			},
-			"username": &schema.Schema{
+			"username": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_USERNAME", nil),
 				Description: "The username for HTTP basic authentication",
 			},
-			"password": &schema.Schema{
+			"password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_PASSWORD", nil),
 				Description: "The password for HTTP basic authentication",
 			},
-			"skip_cert_verification": &schema.Schema{
+			"skip_cert_verification": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Default:     false,
 				Description: "Whether to skip TLS verification.",
 			},
-			"retry_max": &schema.Schema{
+			"retry_max": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_RETRY_MAX", 2),
 				Description: "The number of HTTP request retries.",
 			},
-			"retry_wait_min": &schema.Schema{
+			"retry_wait_min": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_RETRY_WAIT_MIN", 1),
 				Description: "The minimum time in seconds to wait between HTTP request attempts.",
 			},
-			"retry_wait_max": &schema.Schema{
+			"retry_wait_max": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_RETRY_WAIT_MAX", 30),
 				Description: "The maximum time in seconds to wait between HTTP request attempts.",
 			},
-			"client_ca_certificate_pem": &schema.Schema{
+			"client_ca_certificate_pem": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_CLIENT_CA_CERTIFICATE_PEM", ""),
 				Description: "A PEM-encoded CA certificate chain used by the client to verify server certificates during TLS authentication.",
 			},
-			"client_certificate_pem": &schema.Schema{
+			"client_certificate_pem": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_CLIENT_CERTIFICATE_PEM", ""),
 				Description: "A PEM-encoded certificate used by the server to verify the client during mutual TLS (mTLS) authentication.",
 			},
-			"client_private_key_pem": &schema.Schema{
+			"client_private_key_pem": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_CLIENT_PRIVATE_KEY_PEM", ""),
