@@ -58,8 +58,9 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 	}
 
 	return &File{
-		body:     body,
-		override: override,
+		body:             body,
+		override:         override,
+		allowExperiments: p.allowExperiments,
 	}, nil
 }
 
