@@ -21,68 +21,66 @@ import (
 // The first time a particular instance is requested, Instance may bail out due to invalid configuration.
 //
 // See also RemoteStateInstance(), StatefileInstance(), PlanfileInstance().
-func Instance(configKey string) flow.Flow {
+func Instance(configKey string) (flow.Flow, error) {
 	if !strings.Contains(configKey, ".") {
 		panic("call to encryption.Instance with a key that does not contain '.'. This is a bug. " +
 			"Instance() is intended to obtain named instances only. For predefined instances use " +
 			"RemoteStateInstance(), StatefileInstance(), or PlanfileInstance()")
 	}
-	if !environmentParsedSuccessfully {
-		panic("call to Instance() before ParseEnvironmentVariables(). This is a bug.")
+	if cache != nil {
+		return cache.cachedOrNewInstance(configKey, true)
+	} else {
+		return newInstance(configKey, true)
 	}
-	return cachedInstance(configKey, true)
 }
 
 // RemoteStateInstance obtains the instance of the encryption flow that is intended for our own remote
 // state backend, as opposed to terraform_remote_state data sources.
-func RemoteStateInstance() flow.Flow {
-	if !environmentParsedSuccessfully {
-		panic("call to RemoteStateInstance() before ParseEnvironmentVariables(). This is a bug.")
+func RemoteStateInstance() (flow.Flow, error) {
+	if cache != nil {
+		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyBackend, true)
+	} else {
+		return newInstance(encryptionconfig.ConfigKeyBackend, true)
 	}
-	return cachedInstance(encryptionconfig.ConfigKeyBackend, true)
 }
 
 // StatefileInstance obtains the instance of the encryption flow that is intended for our own local state file.
-func StatefileInstance() flow.Flow {
-	if !environmentParsedSuccessfully {
-		panic("call to StatefileInstance() before ParseEnvironmentVariables(). This is a bug.")
+func StatefileInstance() (flow.Flow, error) {
+	if cache != nil {
+		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyStatefile, false)
+	} else {
+		return newInstance(encryptionconfig.ConfigKeyStatefile, false)
 	}
-	return cachedInstance(encryptionconfig.ConfigKeyStatefile, false)
 }
 
 // PlanfileInstance obtains the instance of the encryption flow that is intended for our plan file.
-func PlanfileInstance() flow.Flow {
-	if !environmentParsedSuccessfully {
-		panic("call to PlanfileInstance() before ParseEnvironmentVariables(). This is a bug.")
+func PlanfileInstance() (flow.Flow, error) {
+	if cache != nil {
+		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyPlanfile, false)
+	} else {
+		return newInstance(encryptionconfig.ConfigKeyPlanfile, false)
 	}
-	return cachedInstance(encryptionconfig.ConfigKeyPlanfile, false)
 }
 
-var instanceCache = make(map[string]flow.Flow)
-
-func cachedInstance(configKey string, defaultsApply bool) flow.Flow {
-	instance, found := instanceCache[configKey]
-	if found {
-		logging.HCLogger().Trace("found state encryption flow instance in cache", "configKey", configKey)
-		return instance
-	}
-
-	instance = newInstance(configKey, defaultsApply)
-	instanceCache[configKey] = instance
-	return instance
-}
-
-func newInstance(configKey string, defaultsApply bool) flow.Flow {
+func newInstance(configKey string, defaultsApply bool) (flow.Flow, error) {
 	logging.HCLogger().Trace("constructing new state encryption flow instance", "configKey", configKey)
 	instance := flow.NewMock(configKey)
 
 	if defaultsApply {
-		_ = applyEncryptionConfigIfExists(instance, flow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault)
-		_ = applyDecryptionFallbackConfigIfExists(instance, flow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault)
+		if err := applyEncryptionConfigIfExists(instance, flow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault); err != nil {
+			return nil, err
+		}
+		if err := applyDecryptionFallbackConfigIfExists(instance, flow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault); err != nil {
+			return nil, err
+		}
 	}
 
-	_ = applyEncryptionConfigIfExists(instance, flow.ConfigurationSourceEnv, configKey)
-	_ = applyDecryptionFallbackConfigIfExists(instance, flow.ConfigurationSourceEnv, configKey)
+	if err := applyEncryptionConfigIfExists(instance, flow.ConfigurationSourceEnv, configKey); err != nil {
+		return nil, err
+	}
+	if err := applyDecryptionFallbackConfigIfExists(instance, flow.ConfigurationSourceEnv, configKey); err != nil {
+		return nil, err
+	}
 
-	return instance
+	return instance, nil
 }

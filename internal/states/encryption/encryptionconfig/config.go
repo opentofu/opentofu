@@ -65,6 +65,11 @@ type ConfigEnvJsonStructure map[string]Config
 // as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
 var ConfigEnvName = "TF_STATE_ENCRYPTION"
 
+// EncryptionConfigurationsFromEnv parses the encryption configuration from the environment variable configured
+// in ConfigEnvName.
+//
+// It is not an error if the environment variable is unset or empty, that just means no encryption configuration
+// is provided via environment.
 func EncryptionConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
 	return parseEnvJsonStructure(ConfigEnvName, "encryption configuration")
 }
@@ -85,6 +90,11 @@ func EncryptionConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
 // as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
 var FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
 
+// FallbackConfigurationsFromEnv parses the decryption fallback configuration from the environment variable
+// configured in FallbackConfigEnvName.
+//
+// It is not an error if the environment variable is unset or empty, that just means no decryption fallback
+// configuration is provided via environment.
 func FallbackConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
 	return parseEnvJsonStructure(FallbackConfigEnvName, "fallback decryption configuration")
 }
