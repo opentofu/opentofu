@@ -1,6 +1,7 @@
 package encryptionflow
 
 import (
+	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
@@ -94,15 +95,15 @@ func (m *MockUpLoggingFlow) MergeAndValidateConfigurations() error {
 	encryptionconfig.InjectDefaultNamesIfUnset(mergedDecryptionFallbackConfig)
 
 	if mergedEncryptionConfig != nil {
-		m.logger.Trace("encryption:mergeAndValidateConfigurations using encryption config", "key", m.configKey, "config", *mergedEncryptionConfig)
+		m.logger.Trace("encryption:MergeAndValidateConfigurations using encryption config", "key", m.configKey, "config", *mergedEncryptionConfig)
 		if err := mergedEncryptionConfig.Validate(); err != nil {
-			return err
+			return fmt.Errorf("error invalid encryption configuration after merge: %s", err.Error())
 		}
 	}
 	if mergedDecryptionFallbackConfig != nil {
-		m.logger.Trace("encryption:mergeAndValidateConfigurations using fallback config", "key", m.configKey, "config", *mergedEncryptionConfig)
+		m.logger.Trace("encryption:MergeAndValidateConfigurations using fallback config", "key", m.configKey, "config", *mergedEncryptionConfig)
 		if err := mergedDecryptionFallbackConfig.Validate(); err != nil {
-			return err
+			return fmt.Errorf("error invalid decryption fallback configuration after merge: %s", err.Error())
 		}
 	}
 
