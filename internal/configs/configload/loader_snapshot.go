@@ -23,8 +23,8 @@ import (
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
-func (l *Loader) LoadConfigWithSnapshot(rootDir string) (*configs.Config, *Snapshot, hcl.Diagnostics) {
-	rootMod, diags := l.parser.LoadConfigDir(rootDir, configs.StaticModuleCall{Name: "root"})
+func (l *Loader) LoadConfigWithSnapshot(rootDir string, vars configs.RawVariables) (*configs.Config, *Snapshot, hcl.Diagnostics) {
+	rootMod, diags := l.parser.LoadConfigDir(rootDir, configs.StaticModuleCall{Name: "root", Raw: vars})
 	if rootMod == nil {
 		return nil, nil, diags
 	}

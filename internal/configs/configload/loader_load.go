@@ -31,8 +31,8 @@ func (l *Loader) LoadConfig(rootDir string) (*configs.Config, hcl.Diagnostics) {
 
 // LoadConfigWithTests matches LoadConfig, except the configs.Config contains
 // any relevant .tftest.hcl files.
-func (l *Loader) LoadConfigWithTests(rootDir string, testDir string) (*configs.Config, hcl.Diagnostics) {
-	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir, configs.StaticModuleCall{Name: "root"}))
+func (l *Loader) LoadConfigWithTests(rootDir string, testDir string, vars configs.RawVariables) (*configs.Config, hcl.Diagnostics) {
+	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir, configs.StaticModuleCall{Name: "root", Raw: vars}))
 }
 
 func (l *Loader) loadConfig(rootMod *configs.Module, diags hcl.Diagnostics) (*configs.Config, hcl.Diagnostics) {
@@ -84,7 +84,7 @@ func (l *Loader) moduleWalkerLoad(req *configs.ModuleRequest) (*configs.Module, 
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module source has changed",
-			Detail:   "The source address was changed since this module was installed. Run \"tofu init\" to install all modules required by this configuration.",
+			Detail:   fmt.Sprintf("The source address was changed from %q to %q since this module was installed. Run \"tofu init\" to install all modules required by this configuration.", record.SourceAddr, req.SourceAddr.String()),
 			Subject:  &req.SourceAddrRange,
 		})
 	}

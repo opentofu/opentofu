@@ -106,6 +106,8 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
 
+	c.GatherVariables(args.Vars)
+
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
 	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.State())
@@ -120,7 +122,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	diags = diags.Append(opDiags)
 
 	// Collect variable value and add them to the operation request
-	diags = diags.Append(c.GatherVariables(opReq, args.Vars))
+	diags = diags.Append(c.StuffVariables(opReq))
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
 	// we've accumulated here, since the backend will start fresh with its own
@@ -297,9 +299,7 @@ func (c *ApplyCommand) OperationRequest(
 	return opReq, diags
 }
 
-func (c *ApplyCommand) GatherVariables(opReq *backend.Operation, args *arguments.Vars) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
+func (c *ApplyCommand) GatherVariables(args *arguments.Vars) {
 	// FIXME the arguments package currently trivially gathers variable related
 	// arguments in a heterogenous slice, in order to minimize the number of
 	// code paths gathering variables during the transition to this structure.
@@ -314,8 +314,11 @@ func (c *ApplyCommand) GatherVariables(opReq *backend.Operation, args *arguments
 		items[i].Value = varArgs[i].Value
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
-	opReq.Variables, diags = c.collectVariableValues()
+}
 
+func (c *ApplyCommand) StuffVariables(opReq *backend.Operation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	opReq.Variables, diags = c.collectVariableValues()
 	return diags
 }
 

@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/hashicorp/hcl/v2"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/mitchellh/go-homedir"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -333,6 +334,22 @@ func (o *Operation) Config() (*configs.Config, tfdiags.Diagnostics) {
 	config, hclDiags := o.ConfigLoader.LoadConfig(o.ConfigDir)
 	diags = diags.Append(hclDiags)
 	return config, diags
+}
+
+func (o *Operation) RawVariables() configs.RawVariables {
+	// TODO copy paste from meta_config.go
+	vars := make(configs.RawVariables)
+	for k, v := range o.Variables {
+		v := v
+		vars[k] = func(mode configs.VariableParsingMode) (cty.Value, hcl.Diagnostics) {
+			parsed, _ := v.ParseVariableValue(mode)
+			// TODO DIAGS
+			return parsed.Value, nil
+
+		}
+	}
+
+	return vars
 }
 
 // ReportResult is a helper for the common chore of setting the status of
