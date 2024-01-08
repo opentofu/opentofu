@@ -148,6 +148,11 @@ func (s *StaticContext) resolveVariable(variable *Variable) (StaticReference, hc
 		return ref, nil
 	}
 
+	if variable.Default.IsNull() {
+		ref.Error = "Variable not set with null default"
+		return ref, nil
+	}
+
 	ref.Value = &variable.Default
 	return ref, nil
 }
