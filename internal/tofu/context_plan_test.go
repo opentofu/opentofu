@@ -1390,6 +1390,12 @@ func TestContext2Plan_preventDestroy_bad(t *testing.T) {
 		}
 		t.Fatalf("expected err would contain %q\nerr: %s", expectedErr, err)
 	}
+
+	// Plan should show the expected changes, even though prevent_destroy validation fails
+	// So we could see why the resource was attempted to be destroyed
+	if got, want := 1, len(plan.Changes.Resources); got != want {
+		t.Fatalf("wrong number of planned resource changes %d; want %d\n%s", got, want, spew.Sdump(plan.Changes.Resources))
+	}
 }
 
 func TestContext2Plan_preventDestroy_good(t *testing.T) {
@@ -1461,6 +1467,12 @@ func TestContext2Plan_preventDestroy_countBad(t *testing.T) {
 			t.Logf(legacyDiffComparisonString(plan.Changes))
 		}
 		t.Fatalf("expected err would contain %q\nerr: %s", expectedErr, err)
+	}
+
+	// Plan should show the expected changes, even though prevent_destroy validation fails
+	// So we could see why the resource was attempted to be destroyed
+	if got, want := 1, len(plan.Changes.Resources); got != want {
+		t.Fatalf("wrong number of planned resource changes %d; want %d\n%s", got, want, spew.Sdump(plan.Changes.Resources))
 	}
 }
 

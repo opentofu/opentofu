@@ -139,17 +139,17 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 		return diags
 	}
 
-	diags = diags.Append(n.checkPreventDestroy(change))
-	if diags.HasErrors() {
-		return diags
-	}
-
 	// We might be able to offer an approximate reason for why we are
 	// planning to delete this object. (This is best-effort; we might
 	// sometimes not have a reason.)
 	change.ActionReason = n.deleteActionReason(ctx)
 
 	diags = diags.Append(n.writeChange(ctx, change, ""))
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = diags.Append(n.checkPreventDestroy(change))
 	if diags.HasErrors() {
 		return diags
 	}
