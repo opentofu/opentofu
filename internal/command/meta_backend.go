@@ -1399,6 +1399,19 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 		return nil, cty.NilVal, diags
 	}
 
+	// Try to coerce the provided value into the desired configuration type.
+	configVal, err := schema.CoerceValue(configVal)
+	if err != nil {
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Invalid backend configuration",
+			fmt.Sprintf("The given configuration is not valid for backend %q: %s.", c.Type,
+				tfdiags.FormatError(err)),
+			cty.Path(nil).GetAttr("backend"),
+		))
+		return nil, cty.NilVal, diags
+	}
+
 	if !configVal.IsWhollyKnown() {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
