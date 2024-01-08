@@ -65,7 +65,10 @@ func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tf
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir)
+	vars, vDiags := m.rootModuleVariables()
+	diags.Append(vDiags)
+
+	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir, vars)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -88,9 +91,29 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticModuleCall{Name: "root"})
+	vars, vDiags := m.rootModuleVariables()
+	diags.Append(vDiags)
+
+	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticModuleCall{Name: "root", Raw: vars})
 	diags = diags.Append(hclDiags)
 	return module, diags
+}
+
+func (m *Meta) rootModuleVariables() (configs.RawVariables, tfdiags.Diagnostics) {
+	variables, diags := m.collectVariableValues()
+
+	vars := make(configs.RawVariables)
+	for k, v := range variables {
+		v := v
+		vars[k] = func(mode configs.VariableParsingMode) (cty.Value, hcl.Diagnostics) {
+			parsed, _ := v.ParseVariableValue(mode)
+			// TODO DIAGS
+			return parsed.Value, nil
+
+		}
+	}
+
+	return vars, diags
 }
 
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any
@@ -105,7 +128,10 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticModuleCall{Name: "root"})
+	vars, vDiags := m.rootModuleVariables()
+	diags.Append(vDiags)
+
+	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticModuleCall{Name: "root", Raw: vars})
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -203,7 +229,10 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 
 	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
 
-	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks)
+	vars, vDiags := m.rootModuleVariables()
+	diags.Append(vDiags)
+
+	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks, vars)
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {

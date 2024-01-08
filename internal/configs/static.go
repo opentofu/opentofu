@@ -60,11 +60,14 @@ func (r StaticReferences) ToCty() cty.Value {
 	return cty.ObjectVal(values)
 }
 
+type VariableValueFunc func(VariableParsingMode) (cty.Value, hcl.Diagnostics)
+type RawVariables map[string]VariableValueFunc
+
 type StaticModuleCall struct {
 	// Absolute Module Name
 	Name string
-	Raw  map[string]string // CLI
-	Call StaticReferences  // Module Call
+	Raw  RawVariables     // CLI
+	Call StaticReferences // Module Call
 }
 
 type StaticContext struct {
@@ -128,7 +131,7 @@ func (s *StaticContext) resolveVariable(variable *Variable) (StaticReference, hc
 	// This is a raw value passed in via the command line.
 	// Currently not EvalContextuated with any context.
 	if v, ok := s.Params.Raw[variable.Name]; ok {
-		val, diags := variable.ParsingMode.Parse(variable.Name, v)
+		val, diags := v(variable.ParsingMode)
 		if len(diags) == 0 {
 			ref.Value = &val
 			return ref, nil

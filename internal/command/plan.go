@@ -66,6 +66,8 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
+	c.GatherVariables(args.Vars)
+
 	// Prepare the backend with the backend-specific arguments
 	be, beDiags := c.PrepareBackend(args.State, args.ViewType)
 	diags = diags.Append(beDiags)
@@ -83,7 +85,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Collect variable value and add them to the operation request
-	diags = diags.Append(c.GatherVariables(opReq, args.Vars))
+	diags = diags.Append(c.StuffVariables(opReq))
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -171,8 +173,7 @@ func (c *PlanCommand) OperationRequest(
 	return opReq, diags
 }
 
-func (c *PlanCommand) GatherVariables(opReq *backend.Operation, args *arguments.Vars) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
+func (c *PlanCommand) GatherVariables(args *arguments.Vars) {
 
 	// FIXME the arguments package currently trivially gathers variable related
 	// arguments in a heterogenous slice, in order to minimize the number of
@@ -188,8 +189,11 @@ func (c *PlanCommand) GatherVariables(opReq *backend.Operation, args *arguments.
 		items[i].Value = varArgs[i].Value
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
-	opReq.Variables, diags = c.collectVariableValues()
+}
 
+func (c *PlanCommand) StuffVariables(opReq *backend.Operation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	opReq.Variables, diags = c.collectVariableValues()
 	return diags
 }
 
