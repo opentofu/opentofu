@@ -179,8 +179,8 @@ var Base64GzipFunc = function.New(&function.Spec{
 	},
 })
 
-// GunzipBase64Func constructs a function that Bae64 decodes a string and decompresses the result with gunzip.
-var GunzipBase64Func = function.New(&function.Spec{
+// Base64GunzipFunc constructs a function that Bae64 decodes a string and decompresses the result with gunzip.
+var Base64GunzipFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
 			Name: "str",
@@ -260,11 +260,11 @@ func Base64Gzip(str cty.Value) (cty.Value, error) {
 	return Base64GzipFunc.Call([]cty.Value{str})
 }
 
-// GunzipBase64 decodes a Base64-encoded string and uncompresses the result with gzip.
+// Base64Gunzip decodes a Base64-encoded string and uncompresses the result with gzip.
 //
 // Opentofu uses the "standard" Base64 alphabet as defined in RFC 4648 section 4.
-func GunzipBase64(str cty.Value) (cty.Value, error) {
-	return GunzipBase64Func.Call([]cty.Value{str})
+func Base64Gunzip(str cty.Value) (cty.Value, error) {
+	return Base64GunzipFunc.Call([]cty.Value{str})
 }
 
 // URLEncode applies URL encoding to a given string.
