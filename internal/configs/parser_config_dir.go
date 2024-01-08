@@ -36,7 +36,7 @@ const (
 //
 // .tf files are parsed using the HCL native syntax while .tf.json files are
 // parsed using the HCL JSON syntax.
-func (p *Parser) LoadConfigDir(path string, params StaticParams) (*Module, hcl.Diagnostics) {
+func (p *Parser) LoadConfigDir(path string, params StaticModuleCall) (*Module, hcl.Diagnostics) {
 	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
@@ -57,7 +57,7 @@ func (p *Parser) LoadConfigDir(path string, params StaticParams) (*Module, hcl.D
 
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
-func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, params StaticParams) (*Module, hcl.Diagnostics) {
+func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, params StaticModuleCall) (*Module, hcl.Diagnostics) {
 	primaryPaths, overridePaths, testPaths, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags

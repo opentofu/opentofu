@@ -102,7 +102,7 @@ type File struct {
 
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, params StaticParams) (*Module, hcl.Diagnostics) {
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, params StaticModuleCall) (*Module, hcl.Diagnostics) {
 	mod, diags := NewModule(primaryFiles, overrideFiles, params)
 	if mod != nil {
 		mod.Tests = testFiles
@@ -118,7 +118,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, params StaticParams) (*Module, hcl.Diagnostics) {
+func NewModule(primaryFiles, overrideFiles []*File, params StaticModuleCall) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
