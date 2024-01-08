@@ -25,6 +25,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+var errUnsupportedProtocolVersion = errors.New("unsupported protocol version")
+
 // The TF_DISABLE_PLUGIN_TLS environment variable is intended only for use by
 // the plugin SDK test framework, to reduce startup overhead when rapidly
 // launching and killing lots of instances of the same provider.
@@ -376,22 +378,33 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			return nil, err
 		}
 
-		// store the client so that the plugin can kill the child process
 		protoVer := client.NegotiatedVersion()
-		switch protoVer {
-		case 5:
-			p := raw.(*tfplugin.GRPCProvider)
-			p.PluginClient = client
-			p.Addr = meta.Provider
-			return p, nil
-		case 6:
-			p := raw.(*tfplugin6.GRPCProvider)
-			p.PluginClient = client
-			p.Addr = meta.Provider
-			return p, nil
-		default:
-			panic("unsupported protocol version")
+		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
+		if errors.Is(err, errUnsupportedProtocolVersion) {
+			panic(err)
 		}
+
+		return p, err
+	}
+}
+
+// initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
+// per the protocol version
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+	// store the client so that the plugin can kill the child process
+	switch protoVer {
+	case 5:
+		p := plugin.(*tfplugin.GRPCProvider)
+		p.PluginClient = pluginClient
+		p.Addr = pluginAddr
+		return p, nil
+	case 6:
+		p := plugin.(*tfplugin6.GRPCProvider)
+		p.PluginClient = pluginClient
+		p.Addr = pluginAddr
+		return p, nil
+	default:
+		return nil, errUnsupportedProtocolVersion
 	}
 }
 
@@ -451,25 +464,17 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			return nil, err
 		}
 
-		// store the client so that the plugin can kill the child process
 		protoVer := client.NegotiatedVersion()
-		switch protoVer {
-		case 0, 5:
+		if protoVer == 0 {
 			// As of the 0.15 release, sdk.v2 doesn't include the protocol
 			// version in the ReattachConfig (only recently added to
 			// go-plugin), so client.NegotiatedVersion() always returns 0. We
 			// assume that an unmanaged provider reporting protocol version 0 is
 			// actually using proto v5 for backwards compatibility.
-			p := raw.(*tfplugin.GRPCProvider)
-			p.PluginClient = client
-			return p, nil
-		case 6:
-			p := raw.(*tfplugin6.GRPCProvider)
-			p.PluginClient = client
-			return p, nil
-		default:
-			return nil, fmt.Errorf("unsupported protocol version %d", protoVer)
+			protoVer = 5
 		}
+
+		return initializeProviderInstance(raw, protoVer, client, provider)
 	}
 }
 
