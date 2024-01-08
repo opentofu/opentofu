@@ -13,9 +13,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // TestFunctions tests that functions are callable through the functionality
@@ -108,9 +109,9 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
-		"gunzipbase64": {
+		"base64gunzip": {
 			{
-				`gunzipbase64("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA")`,
+				`base64gunzip("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA")`,
 				cty.StringVal("test"),
 			},
 		},

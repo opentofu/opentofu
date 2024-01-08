@@ -174,7 +174,7 @@ func TestBase64Gunzip(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("gunzipbase64(%#v)", test.String), func(t *testing.T) {
+		t.Run(fmt.Sprintf("base64gunzip(%#v)", test.String), func(t *testing.T) {
 			got, err := Base64Gunzip(test.String)
 
 			if test.Err {
