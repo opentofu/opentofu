@@ -37,21 +37,20 @@ const (
 // .tf files are parsed using the HCL native syntax while .tf.json files are
 // parsed using the HCL JSON syntax.
 func (p *Parser) LoadConfigDir(path string, params StaticParams) (*Module, hcl.Diagnostics) {
-	primaryPaths, _, _, diags := p.dirFiles(path, "")
+	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	primary, ctx, fDiags := p.loadFiles(primaryPaths, false, params)
+	primary, fDiags := p.loadFiles(primaryPaths, false)
 	diags = append(diags, fDiags...)
-	//override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
-	//diags = append(diags, fDiags...)
+	override, fDiags := p.loadFiles(overridePaths, true)
+	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModule(primary, nil) //override)
+	mod, modDiags := NewModule(primary, override, params)
 	diags = append(diags, modDiags...)
 
 	mod.SourceDir = path
-	mod.Ctx = ctx
 
 	return mod, diags
 }
@@ -59,23 +58,22 @@ func (p *Parser) LoadConfigDir(path string, params StaticParams) (*Module, hcl.D
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
 func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, params StaticParams) (*Module, hcl.Diagnostics) {
-	primaryPaths, _, testPaths, diags := p.dirFiles(path, testDirectory)
+	primaryPaths, overridePaths, testPaths, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	primary, ctx, fDiags := p.loadFiles(primaryPaths, false, params)
+	primary, fDiags := p.loadFiles(primaryPaths, false)
 	diags = append(diags, fDiags...)
-	//override, fDiags := p.loadFiles(overridePaths, true, ctx, rootVars)
-	//diags = append(diags, fDiags...)
+	override, fDiags := p.loadFiles(overridePaths, true)
+	diags = append(diags, fDiags...)
 	tests, fDiags := p.loadTestFiles(path, testPaths)
 	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModuleWithTests(primary, nil /*override*/, tests)
+	mod, modDiags := NewModuleWithTests(primary, override, tests, params)
 	diags = append(diags, modDiags...)
 
 	mod.SourceDir = path
-	mod.Ctx = ctx
 
 	return mod, diags
 }
@@ -105,7 +103,7 @@ func (p *Parser) IsConfigDir(path string) bool {
 	return (len(primaryPaths) + len(overridePaths)) > 0
 }
 
-func (p *Parser) loadFiles(paths []string, override bool, params StaticParams) ([]*File, *StaticContext, hcl.Diagnostics) {
+func (p *Parser) loadFiles(paths []string, override bool) ([]*File, hcl.Diagnostics) {
 	var files []*File
 	var diags hcl.Diagnostics
 
@@ -123,33 +121,7 @@ func (p *Parser) loadFiles(paths []string, override bool, params StaticParams) (
 		}
 	}
 
-	for _, f := range files {
-		fDiags := f.preParse()
-		diags = append(diags, fDiags...)
-	}
-
-	locals := make(map[string]*Local)
-	variables := make(map[string]*Variable)
-	for _, f := range files {
-		for _, l := range f.Locals {
-			locals[l.Name] = l
-		}
-		for _, v := range f.Variables {
-			variables[v.Name] = v
-		}
-	}
-
-	ctx, sDiags := CreateStaticContext(variables, locals, params)
-	diags = append(diags, sDiags...)
-
-	if ctx != nil {
-		for _, f := range files {
-			fDiags := f.parse(p.allowExperiments, *ctx) // TODO switch to ctx through parse stage
-			diags = append(diags, fDiags...)
-		}
-	}
-
-	return files, ctx, diags
+	return files, diags
 }
 
 // dirFiles finds OpenTofu configuration files within dir, splitting them into
