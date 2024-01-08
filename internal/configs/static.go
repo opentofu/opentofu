@@ -60,7 +60,7 @@ func (r StaticReferences) ToCty() cty.Value {
 	return cty.ObjectVal(values)
 }
 
-type StaticParams struct {
+type StaticModuleCall struct {
 	// Absolute Module Name
 	Name string
 	Raw  map[string]string // CLI
@@ -73,7 +73,7 @@ type StaticContext struct {
 	Locals    map[string]*Local
 
 	// Parameters
-	Params StaticParams
+	Params StaticModuleCall
 
 	// Current Evaluation Context
 	EvalContext *hcl.EvalContext
@@ -81,7 +81,7 @@ type StaticContext struct {
 	locals      StaticReferences
 }
 
-func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Params StaticParams) (*StaticContext, hcl.Diagnostics) {
+func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Params StaticModuleCall) (*StaticContext, hcl.Diagnostics) {
 	ctx := StaticContext{
 		Variables: vars,
 		Locals:    locals,

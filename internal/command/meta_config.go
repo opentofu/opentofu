@@ -90,7 +90,7 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticParams{Name: "root"})
+	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticModuleCall{Name: "root"})
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -107,7 +107,7 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticParams{Name: "root"})
+	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticModuleCall{Name: "root"})
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
