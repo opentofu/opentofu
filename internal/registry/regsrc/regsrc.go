@@ -7,5 +7,5 @@ package regsrc
 
 var (
 	// PublicRegistryHost is a FriendlyHost that represents the public registry.
-	PublicRegistryHost = NewFriendlyHost("registry.opentofu.org")
+	PublicRegistryHost = newFriendlyHost("registry.opentofu.org")
 )

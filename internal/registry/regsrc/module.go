@@ -71,48 +71,6 @@ type Module struct {
 	RawSubmodule string
 }
 
-// NewModule construct a new module source from separate parts. Pass empty
-// string if host or submodule are not needed.
-func NewModule(host, namespace, name, provider, submodule string) (*Module, error) {
-	m := &Module{
-		RawNamespace: namespace,
-		RawName:      name,
-		RawProvider:  provider,
-		RawSubmodule: submodule,
-	}
-	if host != "" {
-		h := NewFriendlyHost(host)
-		if h != nil {
-			fmt.Println("HOST:", h)
-			if !h.Valid() || disallowed[h.Display()] {
-				return nil, ErrInvalidModuleSource
-			}
-		}
-		m.RawHost = h
-	}
-	return m, nil
-}
-
-// ModuleFromModuleSourceAddr is an adapter to automatically transform the
-// modern representation of registry module addresses,
-// addrs.ModuleSourceRegistry, into the legacy representation regsrc.Module.
-//
-// Note that the new-style model always does normalization during parsing and
-// does not preserve the raw user input at all, and so although the fields
-// of regsrc.Module are all called "Raw...", initializing a Module indirectly
-// through an addrs.ModuleSourceRegistry will cause those values to be the
-// normalized ones, not the raw user input.
-//
-// Use this only for temporary shims to call into existing code that still
-// uses regsrc.Module. Eventually all other subsystems should be updated to
-// use addrs.ModuleSourceRegistry instead, and then package regsrc can be
-// removed altogether.
-func ModuleFromModuleSourceAddr(addr addrs.ModuleSourceRegistry) *Module {
-	ret := ModuleFromRegistryPackageAddr(addr.Package)
-	ret.RawSubmodule = addr.Subdir
-	return ret
-}
-
 // ModuleFromRegistryPackageAddr is similar to ModuleFromModuleSourceAddr, but
 // it works with just the isolated registry package address, and not the
 // full source address.
@@ -125,7 +83,7 @@ func ModuleFromModuleSourceAddr(addr addrs.ModuleSourceRegistry) *Module {
 // for the higher-level module installer to deal with.
 func ModuleFromRegistryPackageAddr(addr addrs.ModuleRegistryPackage) *Module {
 	return &Module{
-		RawHost:      NewFriendlyHost(addr.Host.String()),
+		RawHost:      newFriendlyHost(addr.Host.String()),
 		RawNamespace: addr.Namespace,
 		RawName:      addr.Name,
 		RawProvider:  addr.TargetSystem, // this field was never actually enforced to be a provider address, so now has a more general name
@@ -143,7 +101,7 @@ func ModuleFromRegistryPackageAddr(addr addrs.ModuleRegistryPackage) *Module {
 // string equality operator.
 func ParseModuleSource(source string) (*Module, error) {
 	// See if there is a friendly host prefix.
-	host, rest := ParseFriendlyHost(source)
+	host, rest := parseFriendlyHost(source)
 	if host != nil {
 		if !host.Valid() || disallowed[host.Display()] {
 			return nil, ErrInvalidModuleSource
@@ -169,17 +127,6 @@ func ParseModuleSource(source string) (*Module, error) {
 	return m, nil
 }
 
-// Display returns the source formatted for display to the user in CLI or web
-// output.
-func (m *Module) Display() string {
-	return m.formatWithPrefix(m.normalizedHostPrefix(m.Host().Display()), false)
-}
-
-// Normalized returns the source formatted for internal reference or comparison.
-func (m *Module) Normalized() string {
-	return m.formatWithPrefix(m.normalizedHostPrefix(m.Host().Normalized()), false)
-}
-
 // String returns the source formatted as the user originally typed it assuming
 // it was parsed from user input.
 func (m *Module) String() string {
@@ -190,29 +137,6 @@ func (m *Module) String() string {
 		hostPrefix = m.RawHost.String() + "/"
 	}
 	return m.formatWithPrefix(hostPrefix, true)
-}
-
-// Equal compares the module source against another instance taking
-// normalization into account.
-func (m *Module) Equal(other *Module) bool {
-	return m.Normalized() == other.Normalized()
-}
-
-// Host returns the FriendlyHost object describing which registry this module is
-// in. If the original source string had not host component this will return the
-// PublicRegistryHost.
-func (m *Module) Host() *FriendlyHost {
-	if m.RawHost == nil {
-		return PublicRegistryHost
-	}
-	return m.RawHost
-}
-
-func (m *Module) normalizedHostPrefix(host string) string {
-	if m.Host().Equal(PublicRegistryHost) {
-		return ""
-	}
-	return host + "/"
 }
 
 func (m *Module) formatWithPrefix(hostPrefix string, preserveCase bool) string {

@@ -6,7 +6,6 @@ package registry
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 )
 
@@ -23,14 +22,6 @@ func (e *errModuleNotFound) Error() string {
 // as distinct from operational errors such as poor network connectivity.
 func IsModuleNotFound(err error) bool {
 	_, ok := err.(*errModuleNotFound)
-	return ok
-}
-
-// IsServiceNotProvided returns true only if the given error is a "service not provided"
-// error. This allows callers to recognize this particular error condition
-// as distinct from operational errors such as poor network connectivity.
-func IsServiceNotProvided(err error) bool {
-	_, ok := err.(*disco.ErrServiceNotProvided)
 	return ok
 }
 

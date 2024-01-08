@@ -63,11 +63,11 @@ type FriendlyHost struct {
 	Raw string
 }
 
-func NewFriendlyHost(host string) *FriendlyHost {
+func newFriendlyHost(host string) *FriendlyHost {
 	return &FriendlyHost{Raw: host}
 }
 
-// ParseFriendlyHost attempts to parse a valid "friendly host" prefix from the
+// parseFriendlyHost attempts to parse a valid "friendly host" prefix from the
 // given string. If no valid prefix is found, host will be nil and rest will
 // contain the full source string. The host prefix must terminate at the end of
 // the input or at the first / character. If one or more characters exist after
@@ -77,7 +77,7 @@ func NewFriendlyHost(host string) *FriendlyHost {
 // invalid if the string came from a user directly. This must be checked
 // explicitly for user-input strings by calling Valid() on the
 // returned host.
-func ParseFriendlyHost(source string) (host *FriendlyHost, rest string) {
+func parseFriendlyHost(source string) (host *FriendlyHost, rest string) {
 	parts := strings.SplitN(source, "/", 2)
 
 	if hostRe.MatchString(parts[0]) {
