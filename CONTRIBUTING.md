@@ -8,6 +8,7 @@ Welcome and thank you for wanting to contribute!
 - Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
 - Have a feature idea? [Submit it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=enhancement%2Cpending-decision&projects=&template=feature_request.yml)
 - Want to provide detailed documentation on a feature idea? [Write it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=rfc%2Cpending-decision&projects=&template=rfc.yml)
+- Want to provide a proof-of-concept for an issue? Please [submit a draft PR here ➡️](https://github.com/opentofu/opentofu/compare)
 - Want to write code?
   1. Check if there is an issue with the `accepted` label open!
   2. Comment on the issue that you want to work on it,
