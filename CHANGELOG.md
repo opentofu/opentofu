@@ -17,6 +17,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
+* `tofu login` now can be interrrupted with `Ctrl+C` shortcut. ([#1074](https://github.com/opentofu/opentofu/pull/1074))
 
 ## Previous Releases
 
