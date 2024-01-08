@@ -1,6 +1,6 @@
-// Package flow contains the top-level flow for client-side state encryption and the interfaces an encryption
+// Package encryptionflow contains the top-level flow for client-side state encryption and the interfaces an encryption
 // or key derivation method need to implement.
-package flow
+package encryptionflow
 
 import "github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 

@@ -3,7 +3,7 @@ package encryption
 import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
-	"github.com/opentofu/opentofu/internal/states/encryption/flow"
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
 )
 
 // ParseEnvironmentVariables checks the state encryption environment variables for structure and syntax errors.
@@ -32,7 +32,7 @@ func ParseEnvironmentVariables() error {
 	return nil
 }
 
-func applyEncryptionConfigIfExists(flow flow.Flow, source flow.ConfigurationSource, configKey string) error {
+func applyEncryptionConfigIfExists(flow encryptionflow.Flow, source encryptionflow.ConfigurationSource, configKey string) error {
 	configs, err := encryptionconfig.EncryptionConfigurationsFromEnv()
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func applyEncryptionConfigIfExists(flow flow.Flow, source flow.ConfigurationSour
 	return nil
 }
 
-func applyDecryptionFallbackConfigIfExists(flow flow.Flow, source flow.ConfigurationSource, configKey string) error {
+func applyDecryptionFallbackConfigIfExists(flow encryptionflow.Flow, source encryptionflow.ConfigurationSource, configKey string) error {
 	configs, err := encryptionconfig.FallbackConfigurationsFromEnv()
 	if err != nil {
 		return err

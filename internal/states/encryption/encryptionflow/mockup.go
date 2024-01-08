@@ -1,4 +1,4 @@
-package flow
+package encryptionflow
 
 import (
 	"github.com/hashicorp/go-hclog"
