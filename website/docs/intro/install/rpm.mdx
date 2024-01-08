@@ -8,8 +8,7 @@ description: |-
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 import CodeBlock from '@theme/CodeBlock';
-import YumConvenienceScript from '!!raw-loader!./rpm-convenience-yum.sh'
-import ZypperConvenienceScript from '!!raw-loader!./rpm-convenience-zypper.sh'
+import RpmConvenienceScript from '!!raw-loader!./rpm-convenience.sh'
 import YumRepoScript from '!!raw-loader!./repo-yum.sh'
 import ZypperRepoScript from '!!raw-loader!./repo-zypper.sh'
 import YumInstallScript from '!!raw-loader!./install-yum.sh'
@@ -21,6 +20,12 @@ import Buildkite from "./buildkite";
 <Buildkite />
 
 You can install OpenTofu from our RPM repository by following the step-by-step instructions below.
+
+## Installing using the installer
+
+You can use the OpenTofu installer script to run the installation.
+
+<CodeBlock language="bash">{RpmConvenienceScript}</CodeBlock>
 
 ## Step-by-step instructions
 

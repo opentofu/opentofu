@@ -6,6 +6,7 @@ repo_gpgcheck=0
 gpgcheck=1
 enabled=1
 gpgkey=https://get.opentofu.org/opentofu.gpg
+       https://packages.opentofu.org/opentofu/tofu/gpgkey
 sslverify=1
 sslcacert=/etc/pki/tls/certs/ca-bundle.crt
 metadata_expire=300
@@ -17,6 +18,7 @@ repo_gpgcheck=0
 gpgcheck=1
 enabled=1
 gpgkey=https://get.opentofu.org/opentofu.gpg
+       https://packages.opentofu.org/opentofu/tofu/gpgkey
 sslverify=1
 sslcacert=/etc/pki/tls/certs/ca-bundle.crt
 metadata_expire=300
