@@ -10,12 +10,12 @@ Welcome and thank you for wanting to contribute!
 - Want to provide detailed documentation on a feature idea? [Write it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=rfc%2Cpending-decision&projects=&template=rfc.yml)
 - Want to provide a proof-of-concept for an issue? Please [submit a draft PR here ➡️](https://github.com/opentofu/opentofu/compare)
 - Want to write code?
-  1. Check if there is an issue with the `accepted` label open!
+  1. Check if there is an issue with the `accepted` label open,
   2. Comment on the issue that you want to work on it,
   3. Wait for a maintainer to assign it to you,
   4. Then (and only then) [submit your code here ➡️](https://github.com/opentofu/opentofu/compare)
 
-**⚠️ Important:** Please avoid working on issues without an `accepted` label on them. OpenTofu is a project with several hundred thousand lines of code and every change needs careful consideration. We cannot merge pull requests without first having a discussion about them, no matter how trivial the issue may seem.
+**⚠️ Important:** Please avoid working on issues without an `accepted` label on them. OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
 We specifically do not merge PRs **without prior issues** that:
 
