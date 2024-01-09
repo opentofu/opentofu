@@ -2,9 +2,9 @@ package encryptionflow
 
 import "testing"
 
-func TestConfigurationSourceEnum(t *testing.T) {
-	const invalidConfigurationSource ConfigurationSource = "invalid"
+const invalidConfigurationSource ConfigurationSource = "invalid"
 
+func TestConfigurationSourceEnum(t *testing.T) {
 	testCases := []struct {
 		value                ConfigurationSource
 		expectValid          bool

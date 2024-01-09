@@ -2,7 +2,9 @@ package encryptionflow
 
 import (
 	"errors"
+	"fmt"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
+	"strings"
 	"testing"
 )
 
@@ -108,6 +110,23 @@ func TestMergeAndValidateConfigurations(t *testing.T) {
 	}
 }
 
+func TestDecryptEncryptPropagateErrors(t *testing.T) {
+	cut := tstCodeConfigurationInstance(false, true)
+	expected := errors.New("error invalid encryption configuration after merge: error in configuration for key provider passphrase: passphrase missing or empty")
+
+	_, err := cut.DecryptState([]byte(`{"version":"4"}`))
+	expectErr(t, err, expected)
+
+	_, err = cut.EncryptState([]byte(`{"version":"4"}`))
+	expectErr(t, err, expected)
+
+	_, err = cut.DecryptPlan([]byte(`zip64`))
+	expectErr(t, err, expected)
+
+	_, err = cut.EncryptPlan([]byte(`zip64`))
+	expectErr(t, err, expected)
+}
+
 func expectErr(t *testing.T, actual error, expected error) {
 	if actual != nil {
 		if expected == nil {
@@ -118,6 +137,34 @@ func expectErr(t *testing.T, actual error, expected error) {
 	} else {
 		if expected != nil {
 			t.Errorf("unexpected success instead of expected error '%s'", expected.Error())
+		}
+	}
+}
+
+func TestEncryptionConfigurationEnforcesSource(t *testing.T) {
+	cut := tstNoConfigurationInstance()
+
+	defer tstExpectPanic(t, "called with invalid source value")()
+	_ = cut.EncryptionConfiguration(invalidConfigurationSource, encryptionconfig.Config{})
+}
+
+func TestDecryptionFallbackConfigurationEnforcesSource(t *testing.T) {
+	cut := tstNoConfigurationInstance()
+
+	defer tstExpectPanic(t, "called with invalid source value")()
+	_ = cut.DecryptionFallbackConfiguration(invalidConfigurationSource, encryptionconfig.Config{})
+}
+
+func tstExpectPanic(t *testing.T, snippet string) func() {
+	return func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("expected a panic")
+		} else {
+			actual := fmt.Sprintf("%v", r)
+			if !strings.Contains(actual, snippet) {
+				t.Errorf("panic message did not contain '%s'", snippet)
+			}
 		}
 	}
 }
