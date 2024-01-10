@@ -24,12 +24,15 @@ import Admonition from '@theme/Admonition';
 <Tabs>
     <TabItem value="posix" label="Linux/MacOS/Unix (POSIX)">
         <CodeBlock language="bash">{LinuxScript}</CodeBlock>
+        <Admonition type="info">The standalone installer verifies the integrity of the downloaded files. You need to install <a href="https://docs.sigstore.dev/system_config/installation/">cosign</a>, <a href="https://gnupg.org/">GnuPG</a>, or disable the integrity verification by using the <code>--skip-verify</code> option.</Admonition>
     </TabItem>
     <TabItem value="powershell" label="Windows (PowerShell)">
         <CodeBlock language="powershell">{WindowsScript}</CodeBlock>
         <Admonition type="info">If you run into script execution policy issues when running this script, please run <code>Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process</code> before running the installer.</Admonition>
+        <Admonition type="info">The standalone installer verifies the integrity of the downloaded files. You need to install <a href="https://docs.sigstore.dev/system_config/installation/">cosign</a>, <a href="https://gnupg.org/">GnuPG</a>, or disable the integrity verification by using the <code>-skipVerify</code> option.</Admonition>
     </TabItem>
 </Tabs>
+
 
 ## Using OpenTofu as a standalone binary
 
