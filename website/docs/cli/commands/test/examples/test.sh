@@ -3,7 +3,7 @@
 tofu version 2>/dev/null >/dev/null
 if [ $? -ne 0 ]; then
   set -e
-  TOFU_VERSION="1.6.0-alpha2"
+  TOFU_VERSION="1.6.0"
   OS="$(uname | tr '[:upper:]' '[:lower:]')"
   ARCH="$(uname -m | sed -e 's/aarch64/arm64/' -e 's/x86_64/amd64/')"
   TEMPDIR="$(mktemp -d)"
