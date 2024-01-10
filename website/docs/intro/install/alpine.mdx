@@ -5,17 +5,21 @@ description: |-
   Install OpenTofu on Alpine Linux.
 ---
 
+import CodeBlock from '@theme/CodeBlock';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ApkConvenienceScript from '!!raw-loader!./alpine-convenience.sh'
+import ApkManualScript from '!!raw-loader!./alpine-manual.sh'
+
 # Installing OpenTofu on Alpine Linux
 
 OpenTofu is available in the [Alpine Linux testing repository](https://pkgs.alpinelinux.org/packages?name=opentofu) or as an `.apk` package from the [GitHub releases page](https://github.com/opentofu/opentofu/releases/latest/).
 
-## Installing from the testing repository
+## Installing using the installer
 
-OpenTofu is available in the Alpine Testing repository and can be installed from there:
+You can use the OpenTofu installer script to run the installation.
 
-```bash
-apk add opentofu --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing/
-```
+<CodeBlock language="bash">{ApkConvenienceScript}</CodeBlock>
 
 ## Installing the .apk
 
@@ -24,3 +28,9 @@ You can also [download the .apk](https://github.com/opentofu/opentofu/releases/l
 ```bash
 apk add --allow-untrusted tofu_*.apk
 ```
+
+## Installing from the testing repository
+
+OpenTofu is currently available in the Alpine Testing repository and coming to Alpine stable. You can use the following commands to test Alpine installation.
+
+<CodeBlock language="bash">{ApkManualScript}</CodeBlock>
