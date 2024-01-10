@@ -8,7 +8,7 @@ chmod +x install-opentofu.sh
 # Please inspect the downloaded script
 
 # Run the installer:
-./install-opentofu.sh --install-method alpine
+./install-opentofu.sh --install-method apk
 
 # Remove the installer:
 rm install-opentofu.sh
