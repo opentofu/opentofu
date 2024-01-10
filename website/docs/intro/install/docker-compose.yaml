@@ -2,6 +2,22 @@
 # test-install-instructions.sh for details.
 version: '3.2'
 services:
+  alpine-convenience:
+    image: alpine
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/alpine.sh --convenience
+    working_dir: /data
+  alpine-manual:
+    image: alpine
+    volumes:
+      - source: ./
+        target: /data
+        type: bind
+    command: /data/alpine.sh
+    working_dir: /data
   debian-convenience:
     image: debian:buster
     volumes:
