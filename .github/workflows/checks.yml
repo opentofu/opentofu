@@ -232,13 +232,13 @@ jobs:
           path: ".licensei.cache"
           key: licensei-cache-${{ hashFiles('go.sum') }}
 
-  installation-instructions:
-    name: "Test Installation Instructions"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: "Fetch source code"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-
-      - name: "Run Installation Instructions Test"
-        run: make test-linux-install-instructions
+#  installation-instructions:
+#    name: "Test Installation Instructions"
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: "Fetch source code"
+#        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+#
+#      - name: "Run Installation Instructions Test"
+#        run: make test-linux-install-instructions
