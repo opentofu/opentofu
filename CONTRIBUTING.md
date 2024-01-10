@@ -50,6 +50,10 @@ Generally, we appreciate external contributions very much and would love to work
 
 <!-- /MarkdownTOC -->
 
+## Core Team
+
+The core team consists of the individuals in the [MAINTAINERS](MAINTAINERS) file.  This team exists as stewards of OpenTofu: to triage issues, to implement features, to help with and review community contributions, and to communicate with the Technical Steering Committee.
+
 ## Contributing a Code Change
 
 In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issue for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
