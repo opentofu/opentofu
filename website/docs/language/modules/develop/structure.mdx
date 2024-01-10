@@ -18,7 +18,7 @@ don't need to do any extra work to follow the standard structure.
   module structure. OpenTofu files must exist in the root directory of
   the repository. This should be the primary entrypoint for the module and is
   expected to be opinionated. For the
-  [Consul module](https://registry.terraform.io/modules/hashicorp/consul)
+  [Consul module](https://github.com/hashicorp/terraform-aws-consul)
   the root module sets up a complete Consul cluster. It makes a lot of assumptions
   however, and we expect that advanced users will use specific _nested modules_
   to more carefully control what they want.
@@ -64,7 +64,7 @@ don't need to do any extra work to follow the standard structure.
   of internal modules. Nested modules should be used to split complex behavior
   into multiple small modules that advanced users can carefully pick and
   choose. For example, the
-  [Consul module](https://registry.terraform.io/modules/hashicorp/consul)
+  [Consul module](https://github.com/hashicorp/terraform-aws-consul)
   has a nested module for creating the Cluster that is separate from the
   module to setup necessary IAM policies. This allows a user to bring in their
   own IAM policy choices.
