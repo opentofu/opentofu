@@ -1,5 +1,33 @@
 # Contributing to OpenTofu
 
+Welcome and thank you for wanting to contribute! 
+
+## In a hurry? Here's the short version:
+
+- Have a question? 💬 Post it in [GitHub Discussions](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack](https://opentofu.org/slack/)!
+- Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
+- Have a feature idea? [Submit it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=enhancement%2Cpending-decision&projects=&template=feature_request.yml)
+- Want to provide detailed documentation on a feature idea? [Write an RFC here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=rfc%2Cpending-decision&projects=&template=rfc.yml)
+- Want to provide a proof-of-concept for an issue? Please [submit a draft PR here ➡️](https://github.com/opentofu/opentofu/compare)
+- Want to add a feature, fix a linter error, refactor something, or add CI tooling?
+  1. Check if there is an [open issue with the `accepted` label](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted),
+  2. Comment on the issue that you want to work on it,
+  3. Wait for a maintainer to assign it to you,
+  4. Then [submit your code here ➡️](https://github.com/opentofu/opentofu/compare)
+- Want to fix a bug? [Submit a PR here ➡️](https://github.com/opentofu/opentofu/compare)
+
+**⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
+
+We specifically do not merge PRs **without prior issues** that:
+
+- Reformat code
+- Rename things
+- Move code around
+- Fix linter warnings for tools not currently in the CI pipeline
+- Add new CI tooling
+
+## Long version
+
 This repository contains OpenTofu Core, which includes the command line interface, the main graph engine, and the documentation for them.
 
 This document provides guidance on OpenTofu contribution recommended practices. It covers how to submit issues, how to get involved in the discussion, how to work on the code, and how to contribute code changes.
@@ -26,7 +54,7 @@ Generally, we appreciate external contributions very much and would love to work
 
 In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issue for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
 
-Only issues with the `accepted` label have been officially accepted for implementation, so please avoid working on issues without that label.
+**⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
 In order for a code change to be accepted, you'll also have to accept the Developer Certificate of Origin (DCO). It's very lightweight, and you can find it [here](https://developercertificate.org). Accepting is accomplished by signing off on your commits, you can do this by adding a `Signed-off-by` line to your commit message, like here:
 ```
