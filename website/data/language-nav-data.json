@@ -678,6 +678,10 @@
         "title": "IP Network Functions",
         "routes": [
           {
+            "title": "<code>cidrcontains</code>",
+            "path": "language/functions/cidrcontains"
+          },
+          {
             "title": "<code>cidrhost</code>",
             "path": "language/functions/cidrhost"
           },
