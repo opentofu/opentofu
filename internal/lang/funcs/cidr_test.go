@@ -505,7 +505,7 @@ func TestCidrContains(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("otf_cidrcontains(%#v, %#v)", test.Prefix, test.Address), func(t *testing.T) {
+		t.Run(fmt.Sprintf("cidrcontains(%#v, %#v)", test.Prefix, test.Address), func(t *testing.T) {
 			got, err := CidrContains(test.Prefix, test.Address)
 
 			if !test.ErrFn(err) {

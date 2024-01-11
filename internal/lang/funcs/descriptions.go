@@ -95,6 +95,13 @@ var DescriptionList = map[string]descriptionEntry{
 			"The maximum length of each chunk. All but the last element of the result is guaranteed to be of exactly this size.",
 		},
 	},
+	"cidrcontains": {
+		Description: "`cidrcontains` determines whether a given IP address or an address prefix given in CIDR notation is within a given IP network address prefix.",
+		ParamDescription: []string{
+			"`containing_prefix` must be given in CIDR notation, as defined in [RFC 4632 section 3.1](https://tools.ietf.org/html/rfc4632#section-3.1).",
+			"`contained_ip_or_prefix` is either an IP address or an address prefix given in CIDR notation.",
+		},
+	},
 	"cidrhost": {
 		Description: "`cidrhost` calculates a full host IP address for a given host number within a given IP network address prefix.",
 		ParamDescription: []string{
@@ -307,13 +314,6 @@ var DescriptionList = map[string]descriptionEntry{
 	"one": {
 		Description:      "`one` takes a list, set, or tuple value with either zero or one elements. If the collection is empty, `one` returns `null`. Otherwise, `one` returns the first element. If there are two or more elements then `one` will return an error.",
 		ParamDescription: []string{""},
-	},
-	"otf_cidrcontains": {
-		Description: "`otf_cidrcontains` determines whether a given IP address or an address prefix given in CIDR notation is within a given IP network address prefix.",
-		ParamDescription: []string{
-			"`containing_prefix` must be given in CIDR notation, as defined in [RFC 4632 section 3.1](https://tools.ietf.org/html/rfc4632#section-3.1).",
-			"`contained_ip_or_prefix` is either an IP address or an address prefix given in CIDR notation.",
-		},
 	},
 	"parseint": {
 		Description:      "`parseint` parses the given string as a representation of an integer in the specified base and returns the resulting number. The base must be between 2 and 62 inclusive.",

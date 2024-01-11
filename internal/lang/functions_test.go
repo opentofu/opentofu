@@ -189,6 +189,13 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"cidrcontains": {
+			{
+				`cidrcontains("192.168.1.0/24", "192.168.1.1")`,
+				cty.True,
+			},
+		},
+
 		"cidrhost": {
 			{
 				`cidrhost("192.168.1.0/24", 5)`,
@@ -663,13 +670,6 @@ func TestFunctions(t *testing.T) {
 			},
 			{
 				`one([true])`,
-				cty.True,
-			},
-		},
-
-		"otf_cidrcontains": {
-			{
-				`otf_cidrcontains("192.168.1.0/24", "192.168.1.1")`,
 				cty.True,
 			},
 		},
