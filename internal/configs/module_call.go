@@ -87,7 +87,7 @@ func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*Mod
 	if attr, exists := content.Attributes["source"]; exists {
 		mc.SourceSet = true
 		mc.SourceAddrRange = attr.Expr.Range()
-		valDiags := ctx.Decode(attr.Expr, ctx.Params.Name+"."+mc.Name, &mc.SourceAddrRaw)
+		valDiags := ctx.DecodeExpression(attr.Expr, ctx.Params.Name+"."+mc.Name, &mc.SourceAddrRaw)
 		diags = append(diags, valDiags...)
 		if !valDiags.HasErrors() {
 			var addr addrs.ModuleSource
