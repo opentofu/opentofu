@@ -396,3 +396,125 @@ func TestCidrSubnets(t *testing.T) {
 		})
 	}
 }
+
+func TestCidrContains(t *testing.T) {
+	noError := func(err error) bool { return err == nil }
+
+	tests := []struct {
+		Prefix  cty.Value
+		Address cty.Value
+		Want    cty.Value
+		ErrFn   func(error) bool
+	}{
+		{
+			// IPv4, contained (IP).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.168.2.1"),
+			cty.True,
+			noError,
+		},
+		{
+			// IPv4, contained (CIDR).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.168.2.0/22"),
+			cty.True,
+			noError,
+		},
+		{
+			// IPv4, not contained.
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.126.2.1"),
+			cty.False,
+			noError,
+		},
+		{
+			// IPv4, not contained (CIDR).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("192.126.2.0/18"),
+			cty.False,
+			noError,
+		},
+		{
+			// IPv6, contained.
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("fe80::1"),
+			cty.True,
+			noError,
+		},
+		{
+			// IPv6, not contained.
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("fe81::1"),
+			cty.False,
+			noError,
+		},
+		{
+			// Address family mismatch: IPv4 containing_prefix, IPv6 contained_ip_or_prefix (IP).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("fe80::1"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "address family mismatch: 192.168.2.0/20 vs. fe80::1"
+			},
+		},
+		{
+			// Address family mismatch: IPv4 containing_prefix, IPv6 contained_ip_or_prefix (prefix).
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("fe80::/24"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "address family mismatch: 192.168.2.0/20 vs. fe80::/24"
+			},
+		},
+		{
+			// Address family mismatch: IPv6 containing_prefix, IPv4 contained_ip_or_prefix (IP).
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("192.168.2.1"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "address family mismatch: fe80::/48 vs. 192.168.2.1"
+			},
+		},
+		{
+			// Address family mismatch: IPv6 containing_prefix, IPv4 contained_ip_or_prefix (prefix).
+			cty.StringVal("fe80::/48"),
+			cty.StringVal("192.168.2.0/20"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "address family mismatch: fe80::/48 vs. 192.168.2.0/20"
+			},
+		},
+		{
+			// Input error: invalid CIDR address.
+			cty.StringVal("not-a-cidr"),
+			cty.StringVal("192.168.2.1"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "invalid CIDR address: not-a-cidr"
+			},
+		},
+		{
+			// Input error: invalid IP address.
+			cty.StringVal("192.168.2.0/20"),
+			cty.StringVal("not-an-address"),
+			cty.NilVal,
+			func(err error) bool {
+				return err != nil && err.Error() == "invalid IP address or prefix: not-an-address"
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("cidrcontains(%#v, %#v)", test.Prefix, test.Address), func(t *testing.T) {
+			got, err := CidrContains(test.Prefix, test.Address)
+
+			if !test.ErrFn(err) {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			if !got.RawEquals(test.Want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+			}
+		})
+	}
+}

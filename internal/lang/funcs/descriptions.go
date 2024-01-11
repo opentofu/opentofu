@@ -95,6 +95,13 @@ var DescriptionList = map[string]descriptionEntry{
 			"The maximum length of each chunk. All but the last element of the result is guaranteed to be of exactly this size.",
 		},
 	},
+	"cidrcontains": {
+		Description: "`cidrcontains` determines whether a given IP address or an address prefix given in CIDR notation is within a given IP network address prefix.",
+		ParamDescription: []string{
+			"`containing_prefix` must be given in CIDR notation, as defined in [RFC 4632 section 3.1](https://tools.ietf.org/html/rfc4632#section-3.1).",
+			"`contained_ip_or_prefix` is either an IP address or an address prefix given in CIDR notation.",
+		},
+	},
 	"cidrhost": {
 		Description: "`cidrhost` calculates a full host IP address for a given host number within a given IP network address prefix.",
 		ParamDescription: []string{
