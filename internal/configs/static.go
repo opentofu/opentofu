@@ -328,7 +328,7 @@ func (s StaticContext) Evaluate(expr hcl.Expression, fullName string) (StaticRef
 }
 
 // This is heavily inspired by gohcl.DecodeExpression
-func (s StaticContext) Decode(expr hcl.Expression, fullName string, val any) hcl.Diagnostics {
+func (s StaticContext) DecodeExpression(expr hcl.Expression, fullName string, val any) hcl.Diagnostics {
 	ref, refDiags := s.Evaluate(expr, fullName)
 	if refDiags.HasErrors() {
 		return refDiags
