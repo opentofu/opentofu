@@ -4631,6 +4631,39 @@ func TestContext2Plan_importIdVariable(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_importIdReference(t *testing.T) {
+	p := testProvider("aws")
+	m := testModule(t, "import-id-reference")
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "aws_instance",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id": cty.StringVal("foo"),
+				}),
+			},
+		},
+	}
+
+	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		SetVariables: InputValues{
+			"the_id": &InputValue{
+				// let var take its default value
+				Value: cty.NilVal,
+			},
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+}
+
 func TestContext2Plan_importIdFunc(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-id-func")
