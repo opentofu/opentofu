@@ -38,18 +38,16 @@ type ModuleCall struct {
 	DeclRange hcl.Range
 }
 
-func (m ModuleCall) Variables(ctx *StaticContext) (StaticReferences, hcl.Diagnostics) {
-	diags := make(hcl.Diagnostics, 0)
+func (m ModuleCall) Variables(ctx *StaticContext) StaticReferences {
 	result := make(StaticReferences)
 
 	attr, _ := m.Config.JustAttributes()
 	for k, v := range attr {
-		val, vDiags := ctx.Evaluate(v.Expr, ctx.Params.Name+"."+m.Name+"."+k)
-		diags = append(diags, vDiags...)
+		val := ctx.Evaluate(v.Expr, ctx.Params.Name+"."+m.Name+"."+k)
 		result[k] = val
 	}
 
-	return result, diags
+	return result
 }
 
 func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*ModuleCall, hcl.Diagnostics) {
