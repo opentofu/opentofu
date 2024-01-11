@@ -203,7 +203,7 @@ func mustResourceInstanceAddr(s string) addrs.AbsResourceInstance {
 
 // assertBackendStateUnlocked attempts to lock the backend state. Failure
 // indicates that the state was locked and false is returned. True is
-// returned is a lock obtained.
+// returned if a lock was obtained.
 func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 	t.Helper()
 	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
