@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -91,7 +92,7 @@ func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Pa
 		Params:    Params,
 		EvalContext: &hcl.EvalContext{
 			Variables: map[string]cty.Value{},
-			// TODO functions
+			Functions: (&lang.Scope{PureOnly: true}).Functions(),
 		},
 		vars:   make(StaticReferences),
 		locals: make(StaticReferences),
@@ -326,6 +327,7 @@ func (s StaticContext) Decode(expr hcl.Expression, fullName string, val any) hcl
 		return valDiags
 	}
 	srcVal := *refVal
+	// TODO make sure refVal IsKnown().  Some impure functions can break that
 
 	convTy, err := gocty.ImpliedType(val)
 	if err != nil {
