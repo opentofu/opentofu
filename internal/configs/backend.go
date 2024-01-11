@@ -60,5 +60,5 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 }
 
 func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
-	return b.ctx.DecodeBlock(b.Config, schema.DecoderSpec())
+	return b.ctx.DecodeBlock(b.Config, schema.DecoderSpec(), "terraform.backend."+b.Type)
 }

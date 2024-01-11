@@ -12,6 +12,8 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
+// TODO len(diags) -> diags.HasErrors()
+
 type StaticReference struct {
 	Name  string
 	Range hcl.Range
@@ -186,89 +188,98 @@ func traversalToIdentifier(ident hcl.Traversal) (string, string, hcl.Diagnostics
 	return root.Name, attr.Name, nil
 }
 
-func (s *StaticContext) evaluate(expr hcl.Expression, ref StaticReference, locals []string) (StaticReference, hcl.Diagnostics) {
-	// Determine dependencies, fail on first problem area and set the references source to the ident location
-	for _, ident := range expr.Variables() {
-		root, attr, diags := traversalToIdentifier(ident)
-		if len(diags) != 0 {
-			ref.Error = diags.Error()
-			ref.Range = ident.SourceRange()
-			return ref, diags
-		}
+func (s *StaticContext) checkTraversal(ident hcl.Traversal, ref StaticReference, locals []string) (StaticReference, hcl.Diagnostics) {
+	root, attr, diags := traversalToIdentifier(ident)
+	if len(diags) != 0 {
+		ref.Error = diags.Error()
+		ref.Range = ident.SourceRange()
+		return ref, diags
+	}
 
-		switch root {
-		case "var":
-			// All variables should be known at this point.  This could change if we make variable defaults an expression
-			variable, ok := s.vars[attr]
-			if !ok {
-				ref.Error = fmt.Sprintf("Undefined variable %s.%s used in %s", root, attr, ref.Name)
+	switch root {
+	case "var":
+		// All variables should be known at this point.  This could change if we make variable defaults an expression
+		variable, ok := s.vars[attr]
+		if !ok {
+			ref.Error = fmt.Sprintf("Undefined variable %s.%s used in %s", root, attr, ref.Name)
+			ref.Range = ident.SourceRange()
+			return ref, hcl.Diagnostics{&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Undefined variable",
+				Detail:   ref.Error,
+				Subject:  &ref.Range,
+			}}
+		} else if variable.Value == nil {
+			// Not Static
+			ref.Reference = &variable
+			ref.Range = ident.SourceRange()
+			return ref, nil
+		}
+	case "local":
+		// First check if we have already processed this local
+		local, ok := s.locals[attr]
+		if !ok {
+			// If not, let's try to load this local
+			loadLocal, exists := s.Locals[attr]
+			if !exists {
+				ref.Error = fmt.Sprintf("Undefined local %s.%s used in %s", root, attr, ref.Name)
 				ref.Range = ident.SourceRange()
 				return ref, hcl.Diagnostics{&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Undefined variable",
+					Summary:  "Undefined local",
 					Detail:   ref.Error,
 					Subject:  &ref.Range,
 				}}
-			} else if variable.Value == nil {
-				// Not Static
-				ref.Reference = &variable
-				ref.Range = ident.SourceRange()
-				return ref, nil
 			}
-		case "local":
-			// First check if we have already processed this local
-			local, ok := s.locals[attr]
-			if !ok {
-				// If not, let's try to load this local
-				loadLocal, exists := s.Locals[attr]
-				if !exists {
-					ref.Error = fmt.Sprintf("Undefined local %s.%s used in %s", root, attr, ref.Name)
+
+			// Make sure we have not tried to circularly reference a local
+			for _, l := range locals {
+				if l == loadLocal.Name {
+					ref.Error = fmt.Sprintf("Circular reference when attempting to load local %s -> %s", strings.Join(locals, " -> "), loadLocal.Name)
 					ref.Range = ident.SourceRange()
 					return ref, hcl.Diagnostics{&hcl.Diagnostic{
 						Severity: hcl.DiagError,
-						Summary:  "Undefined local",
+						Summary:  "Circular local reference",
 						Detail:   ref.Error,
 						Subject:  &ref.Range,
 					}}
 				}
-
-				// Make sure we have not tried to circularly reference a local
-				for _, l := range locals {
-					if l == loadLocal.Name {
-						ref.Error = fmt.Sprintf("Circular reference when attempting to load local %s -> %s", strings.Join(locals, " -> "), loadLocal.Name)
-						ref.Range = ident.SourceRange()
-						return ref, hcl.Diagnostics{&hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Circular local reference",
-							Detail:   ref.Error,
-							Subject:  &ref.Range,
-						}}
-					}
-				}
-
-				var diags hcl.Diagnostics
-				local, diags = s.addLocal(loadLocal, locals)
-				if len(diags) != 0 {
-					// Unable to load inner local
-					ref.Reference = &local
-					ref.Range = ident.SourceRange()
-					return ref, diags
-				}
 			}
-			// We now have a valid ref, though it may not be available for use in a static context
-			if local.Value == nil {
-				// Not static
+
+			var diags hcl.Diagnostics
+			local, diags = s.addLocal(loadLocal, locals)
+			if len(diags) != 0 {
+				// Unable to load inner local
 				ref.Reference = &local
 				ref.Range = ident.SourceRange()
-				return ref, nil
+				return ref, diags
 			}
-		case "terraform":
-			// Static, rely on the EvalContext below.
-		default:
-			// not supported
-			ref.Error = fmt.Sprintf("Unable to use %s.%s in static context", root, attr)
+		}
+		// We now have a valid ref, though it may not be available for use in a static context
+		if local.Value == nil {
+			// Not static
+			ref.Reference = &local
 			ref.Range = ident.SourceRange()
 			return ref, nil
+		}
+	case "terraform":
+		// Static, rely on the EvalContext below.
+	default:
+		// not supported
+		ref.Error = fmt.Sprintf("Unable to use %s.%s in static context", root, attr)
+		ref.Range = ident.SourceRange()
+		return ref, nil
+	}
+	return ref, nil
+}
+
+func (s *StaticContext) evaluate(expr hcl.Expression, ref StaticReference, locals []string) (StaticReference, hcl.Diagnostics) {
+	// Determine dependencies, fail on first problem area and set the references source to the ident location
+	for _, ident := range expr.Variables() {
+		ref, diags := s.checkTraversal(ident, ref, locals)
+		if len(diags) != 0 || ref.Reference != nil || len(ref.Error) != 0 {
+			// Something is wrong with this reference, can't evaluate
+			return ref, diags
 		}
 	}
 
@@ -360,7 +371,28 @@ func (s StaticContext) Decode(expr hcl.Expression, fullName string, val any) hcl
 	return nil
 }
 
-func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec) (cty.Value, hcl.Diagnostics) {
-	// TODO integrated errors
-	return hcldec.Decode(body, spec, s.EvalContext)
+func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec, path string) (cty.Value, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	ref := StaticReference{
+		Name: path,
+	}
+	for _, ident := range hcldec.Variables(body, spec) {
+		ref, refDiags := s.checkTraversal(ident, ref, nil)
+		diags = append(diags, refDiags...)
+		if !refDiags.HasErrors() {
+			_, refDiags = ref.StaticValue()
+			diags = append(diags, refDiags...)
+		}
+	}
+
+	val, valDiags := hcldec.Decode(body, spec, s.EvalContext)
+	if !diags.HasErrors() {
+		// We rely on the Decode for generating a valid return cty.Value, even if references are not
+		// satisfiable.  We only care about the valDiags if we think all of the references are valid.
+		// Otherwise, we would get junk in the diags about variables that don't exist.
+		diags = append(diags, valDiags...)
+	}
+
+	return val, diags
 }
