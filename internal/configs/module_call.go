@@ -41,7 +41,7 @@ func (m ModuleCall) Variables(ctx *StaticContext) StaticReferences {
 
 	attr, _ := m.Config.JustAttributes()
 	for k, v := range attr {
-		val := ctx.Evaluate(v.Expr, ctx.Params.Name+"."+m.Name+"."+k)
+		val := ctx.Evaluate(v.Expr, StaticIdentifier{Module: ctx.Params.Name, Type: m.Name, Name: k})
 		result[k] = val
 	}
 
@@ -85,7 +85,7 @@ func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*Mod
 	if attr, exists := content.Attributes["source"]; exists {
 		mc.SourceSet = true
 		mc.SourceAddrRange = attr.Expr.Range()
-		valDiags := ctx.DecodeExpression(attr.Expr, ctx.Params.Name+"."+mc.Name, &mc.SourceAddrRaw)
+		valDiags := ctx.DecodeExpression(attr.Expr, StaticIdentifier{Module: ctx.Params.Name, Name: mc.Name}, &mc.SourceAddrRaw)
 		diags = append(diags, valDiags...)
 		if !valDiags.HasErrors() {
 			var addr addrs.ModuleSource
