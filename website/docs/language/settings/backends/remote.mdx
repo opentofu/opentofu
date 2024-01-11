@@ -11,15 +11,15 @@ description: >-
 **We recommend using the [`cloud` built-in integration](/docs/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
 :::
 
-The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute operations for TACOS (TF Automation and Collaboration Software) [CLI-driven run workflow](/docs/cloud-docs/run/cli). It used to be called an "enhanced" backend.
+The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TACOS (TF Automation and Collaboration Software) backends if supported by your TACOS provider. It used to be called an "enhanced" backend.
 
-When using full remote operations, operations like `tofu plan` or `tofu apply` can be executed in TACOS (TF Automation and Collaboration Software) run environment, with log output streaming to the local terminal. Remote plans and applies use variable values from the associated remote workspace.
+If your TACOS provider enables full remote operations, you can execute commands such as `tofu plan` or `tofu apply` within the TACOS runtime environment, with log output streaming directly to your local terminal. Remote plans and applies use variable values from the associated remote workspace.
 
-You can also use TACOS (TF Automation and Collaboration Software) with local operations, in which case only state is stored in the remote backend.
+You can also use TACOS with local operations, where only state is stored in the TACOS remote backend.
 
 ## Command Support
 
-The remote backend supports the following OpenTofu commands:
+The remote backend supports the following OpenTofu commands (it's up to the TACOS provider to implement support for each command):
 
 - `apply`
 - `console`
@@ -73,26 +73,6 @@ Because of this, the [`terraform.workspace`](/docs/language/state/workspaces#cur
 
 - For local operations, `terraform.workspace` = `prod`
 - For remote operations, `terraform.workspace`=  `networking-prod`
-
-### Determining Run Environment
-
-If you need to determine whether a run is local or remote in your OpenTofu configuration, we recommend using [run environment variables](/docs/cloud-docs/run/run-environment#environment-variables). The example below uses `TFC_RUN_ID`.
-
-```
-output "current_workspace_name" {
-  value = terraform.workspace
-}
-
-variable "TFC_RUN_ID" {
-  type    = string
-  default = ""
-}
-
-output "remote_execution_determine" {
-  value = "Remote run environment? %{if var.TFC_RUN_ID != ""}Yes%{else}No this is local%{endif}!"
-}
-```
-
 
 ## Example Configurations
 
@@ -227,7 +207,7 @@ the remote workspace accept the following option to modify that behavior:
 
 ## Excluding Files from Upload with .terraformignore
 
-When executing a remote `plan` or `apply` in a [CLI-driven run](/docs/cloud-docs/run/cli),
+When executing a remote `plan` or `apply` in a CLI-driven run,
 an archive of your configuration directory is uploaded to TACOS (TF Automation and Collaboration Software). You can define
 paths to ignore from upload via a `.terraformignore` file at the root of your configuration directory. If this file is not present, the archive will exclude the following by default:
 
