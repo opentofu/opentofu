@@ -202,11 +202,11 @@ var CidrSubnetsFunc = function.New(&function.Spec{
 var CidrContainsFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
-			Name: "prefix",
+			Name: "containing_prefix",
 			Type: cty.String,
 		},
 		{
-			Name: "ip_or_prefix",
+			Name: "contained_ip_or_prefix",
 			Type: cty.String,
 		},
 	},
