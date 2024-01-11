@@ -29,7 +29,7 @@ func (ref StaticIdentifier) String() string {
 
 type StaticReference struct {
 	Identifier StaticIdentifier
-	Value      func() (cty.Value, hcl.Diagnostics)
+	Value      func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)
 }
 
 func (ref StaticReference) Cached() StaticReference {
@@ -39,9 +39,9 @@ func (ref StaticReference) Cached() StaticReference {
 
 	return StaticReference{
 		Identifier: ref.Identifier,
-		Value: func() (cty.Value, hcl.Diagnostics) {
+		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			if !cached {
-				val, diags = ref.Value()
+				val, diags = ref.Value(stack)
 				cached = true
 			}
 			return val, diags
@@ -81,7 +81,7 @@ func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Pa
 				Type: "terraform",
 				Name: "workspace",
 			},
-			Value: func() (cty.Value, hcl.Diagnostics) {
+			Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 				return cty.StringVal("TODO"), nil
 			},
 		},
@@ -107,7 +107,7 @@ func (s *StaticContext) addVariable(variable *Variable) {
 			Type:   "var",
 			Name:   variable.Name,
 		},
-		Value: func() (cty.Value, hcl.Diagnostics) {
+		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			// This is a raw value passed in via the command line.
 			// Currently not EvalContextuated with any context.
 			if v, ok := s.Params.Raw[variable.Name]; ok {
@@ -117,7 +117,7 @@ func (s *StaticContext) addVariable(variable *Variable) {
 			// This is a module call parameter and may or may not be a resolved reference
 			if call, ok := s.Params.Call[variable.Name]; ok {
 				// We might want to enhance the diags here if diags.HasErrors()
-				return call.Value()
+				return call.Value(nil)
 			}
 
 			// TODO use type checking to figure this out
@@ -190,7 +190,7 @@ func (s *StaticContext) followTraversal(trav hcl.Traversal) (*StaticReference, h
 	}
 }
 
-func (s *StaticContext) buildEvaluationContext(deps []hcl.Traversal, source StaticIdentifier) (*hcl.EvalContext, hcl.Diagnostics) {
+func (s *StaticContext) buildEvaluationContext(deps []hcl.Traversal, source StaticIdentifier, stack []StaticIdentifier) (*hcl.EvalContext, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	variables := make(map[string]map[string]cty.Value)
@@ -208,7 +208,24 @@ func (s *StaticContext) buildEvaluationContext(deps []hcl.Traversal, source Stat
 			variables[ref.Identifier.Type] = make(map[string]cty.Value)
 		}
 
-		val, vDiags := ref.Value()
+		circular := false
+		for _, frame := range stack {
+			if frame.String() == source.String() {
+				circular = true
+				break
+			}
+		}
+		if circular {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Circular reference",
+				Detail:   fmt.Sprintf("%s is self referential", ref.Identifier.String()), // TODO use stack in error message
+				Subject:  ident.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		val, vDiags := ref.Value(append(stack, ref.Identifier))
 		diags = append(diags, vDiags...)
 		if vDiags.HasErrors() {
 			diags = append(diags, &hcl.Diagnostic{
@@ -246,8 +263,8 @@ func (s *StaticContext) addLocal(local *Local) {
 	}
 	s.locals[local.Name] = StaticReference{
 		Identifier: ident,
-		Value: func() (cty.Value, hcl.Diagnostics) {
-			ctx, diags := s.buildEvaluationContext(local.Expr.Variables(), ident)
+		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+			ctx, diags := s.buildEvaluationContext(local.Expr.Variables(), ident, stack)
 			if diags.HasErrors() {
 				return cty.NilVal, diags
 			}
@@ -259,8 +276,8 @@ func (s *StaticContext) addLocal(local *Local) {
 func (s StaticContext) Evaluate(expr hcl.Expression, ident StaticIdentifier) StaticReference {
 	return StaticReference{
 		Identifier: ident,
-		Value: func() (cty.Value, hcl.Diagnostics) {
-			ctx, diags := s.buildEvaluationContext(expr.Variables(), ident)
+		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+			ctx, diags := s.buildEvaluationContext(expr.Variables(), ident, stack)
 			if diags.HasErrors() {
 				return cty.NilVal, diags
 			}
@@ -271,7 +288,7 @@ func (s StaticContext) Evaluate(expr hcl.Expression, ident StaticIdentifier) Sta
 
 // This is heavily inspired by gohcl.DecodeExpression
 func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
-	ctx, diags := s.buildEvaluationContext(expr.Variables(), ident)
+	ctx, diags := s.buildEvaluationContext(expr.Variables(), ident, nil)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -280,7 +297,7 @@ func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentif
 }
 
 func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-	ctx, diags := s.buildEvaluationContext(hcldec.Variables(body, spec), ident)
+	ctx, diags := s.buildEvaluationContext(hcldec.Variables(body, spec), ident, nil)
 
 	val, valDiags := hcldec.Decode(body, spec, ctx)
 	if !diags.HasErrors() {
