@@ -35,7 +35,7 @@ func TestLogin(t *testing.T) {
 	ts := httptest.NewServer(tfeserver.Handler)
 	defer ts.Close()
 
-	loginTestCase := func(test func(t *testing.T, c *LoginCommand, ui *cli.MockUi)) func(t *testing.T) {
+	loginTestCase := func(test func(t *testing.T, c *LoginCommand, ui *cli.MockUi), useBrowserLauncher bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
 			workDir := t.TempDir()
@@ -49,7 +49,11 @@ func TestLogin(t *testing.T) {
 			// the call to init until after setting up the input mocks
 			ui := new(cli.MockUi)
 
-			browserLauncher := webbrowser.NewMockLauncher(ctx)
+			var browserLauncher webbrowser.Launcher = nil
+			if useBrowserLauncher {
+				browserLauncher = webbrowser.NewMockLauncher(ctx)
+			}
+
 			creds := cliconfig.EmptyCredentialsSourceForTests(filepath.Join(workDir, "credentials.tfrc.json"))
 			svcs := disco.NewWithCredentialsSource(creds)
 			svcs.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
@@ -114,7 +118,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.ErrorWriter.String(), "The login command expects exactly one argument"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run(tfeHost+" (no login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt, then paste a token with some
@@ -139,7 +143,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run("example.com with authorization code flow", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt.
@@ -163,7 +167,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.OutputWriter.String(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 
@@ -172,7 +176,7 @@ func TestLogin(t *testing.T) {
 		if len(client.Scopes) != 0 {
 			t.Errorf("unexpected scopes %q; expected none", client.Scopes)
 		}
-	}))
+	}, true))
 
 	t.Run("with-scopes.example.com with authorization code flow and scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt.
@@ -198,7 +202,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.OutputWriter.String(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 
@@ -213,7 +217,7 @@ func TestLogin(t *testing.T) {
 		if foundScopes != expectedScopes || len(client.Scopes) != len(expectedScopes) {
 			t.Errorf("unexpected scopes %q; want %q", client.Scopes, expectedScopes)
 		}
-	}))
+	}, true))
 
 	t.Run("TFE host without login support", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt, then paste a token with some
@@ -239,7 +243,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.OutputWriter.String(), "Logged in to the cloud backend"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run("TFE host without login support, incorrectly pasted token", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt, then paste an invalid token.
@@ -260,7 +264,7 @@ func TestLogin(t *testing.T) {
 		if creds != nil {
 			t.Errorf("wrong token %q; should have no token", creds.Token())
 		}
-	}))
+	}, true))
 
 	t.Run("host without login or TFE API support", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		status := c.Run([]string{"unsupported.example.net"})
@@ -271,7 +275,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.ErrorWriter.String(), "Error: Host does not support OpenTofu tokens API"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run("answering no cancels", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "no" at the consent prompt
@@ -286,7 +290,7 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.ErrorWriter.String(), "Login cancelled"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
-	}))
+	}, true))
 
 	t.Run("answering y cancels", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "y" at the consent prompt
@@ -301,5 +305,39 @@ func TestLogin(t *testing.T) {
 		if got, want := ui.ErrorWriter.String(), "Login cancelled"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
-	}))
+	}, true))
+
+	// The following test does not use browser MockLauncher() and forces `tofu login` command print URL
+	// and wait for the callback with code.
+	// There is no timeout in `tofu login` OAuth2 callback server code, so the only way to interrupt it
+	// is to wirte to the shutdown channel (or complete the login process).
+	t.Run("example.com Ctrl+C interrupts login command", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+		// Enter "yes" at the consent prompt.
+		defer testInputMap(t, map[string]string{
+			"approve": "yes",
+		})()
+
+		// override the command's shutdown channel so we can write to it
+		abortCh := make(chan struct{})
+		c.ShutdownCh = abortCh
+
+		// statusCh will receive command Run result
+		statusCh := make(chan int)
+		go func() {
+			statusCh <- c.Run([]string{"example.com"})
+		}()
+
+		// abort background Login command and wait for its result
+		// removing the following lint results in default test timeout, since we don't run mocked webbrowser
+		// and OAuth2 callback server will never get request with 'code'.
+		abortCh <- struct{}{}
+		status := <-statusCh
+		if status != 1 {
+			t.Fatalf("unexpected error code %d after interrupting the command\nstderr:\n%s", status, ui.ErrorWriter.String())
+		}
+
+		if got, want := ui.ErrorWriter.String(), "Action aborted"; !strings.Contains(got, want) {
+			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
+		}
+	}, false))
 }

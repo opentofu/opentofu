@@ -505,7 +505,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	var ok bool
 	select {
 	case <-c.ShutdownCh:
-		diags = append(diags,
+		diags = diags.Append(
 			tfdiags.Sourceless(
 				tfdiags.Error,
 				"Action aborted",
@@ -531,7 +531,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 
 	if code == "" {
 		// empty code is not possible in happy path as it is validated in the HTTP handler of our callback server
-		// so it means, the current command was interrupted byt the shutdown signal
+		// so it means, the current command was interrupted by the shutdown signal
 		return nil, diags
 	}
 
