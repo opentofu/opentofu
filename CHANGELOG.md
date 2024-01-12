@@ -1,3 +1,9 @@
+## 1.6.1
+
+BUG FIXES:
+
+* Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
+
 ## 1.6.0
 
 IMPORTANT NOTES:
