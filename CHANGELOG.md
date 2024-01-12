@@ -18,6 +18,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
+* Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
 
 ## Previous Releases
 

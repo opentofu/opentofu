@@ -111,6 +111,7 @@ var (
 	_ GraphNodeModuleInstance            = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeReferenceable             = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeReferencer                = (*NodeAbstractResourceInstance)(nil)
+	_ GraphNodeRootReferencer            = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeProviderConsumer          = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeProvisionerConsumer       = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeConfigResource            = (*NodeAbstractResourceInstance)(nil)
@@ -205,12 +206,18 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		}
 	}
 
+	return result
+}
+
+func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
+	var root []*addrs.Reference
+
 	for _, importTarget := range n.importTargets {
 		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, importTarget.ID)
-		result = append(result, refs...)
+		root = append(root, refs...)
 	}
 
-	return result
+	return root
 }
 
 func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
