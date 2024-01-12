@@ -5,7 +5,7 @@ set -e
 if [ -f /usr/bin/zypper ]; then
   zypper install -y sudo
   if [ "$1" = "--convenience" ]; then
-    bash -ex rpm-convenience-zypper.sh
+    bash -ex rpm-convenience.sh
   else
     bash -ex repo-zypper.sh
     bash -ex install-zypper.sh
@@ -13,7 +13,7 @@ if [ -f /usr/bin/zypper ]; then
 else
   yum install -y sudo
   if [ "$1" = "--convenience" ]; then
-    bash -ex rpm-convenience-yum.sh
+    bash -ex rpm-convenience.sh
   else
     bash -ex repo-yum.sh
     bash -ex install-yum.sh

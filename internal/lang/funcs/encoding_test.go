@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func TestBase64Decode(t *testing.T) {
@@ -159,7 +160,7 @@ func TestBase64Gzip(t *testing.T) {
 	}
 }
 
-func TestGunzipBase64(t *testing.T) {
+func TestBase64Gunzip(t *testing.T) {
 	tests := []struct {
 		String cty.Value
 		Want   cty.Value
@@ -173,8 +174,8 @@ func TestGunzipBase64(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("gunzipbase64(%#v)", test.String), func(t *testing.T) {
-			got, err := GunzipBase64(test.String)
+		t.Run(fmt.Sprintf("base64gunzip(%#v)", test.String), func(t *testing.T) {
+			got, err := Base64Gunzip(test.String)
 
 			if test.Err {
 				if err == nil {

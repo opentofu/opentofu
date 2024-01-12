@@ -1,5 +1,33 @@
 # Contributing to OpenTofu
 
+Welcome and thank you for wanting to contribute! 
+
+## In a hurry? Here's the short version:
+
+- Have a question? 💬 Post it in [GitHub Discussions](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack](https://opentofu.org/slack/)!
+- Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
+- Have a feature idea? [Submit it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=enhancement%2Cpending-decision&projects=&template=feature_request.yml)
+- Want to provide detailed documentation on a feature idea? [Write an RFC here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=rfc%2Cpending-decision&projects=&template=rfc.yml)
+- Want to provide a proof-of-concept for an issue? Please [submit a draft PR here ➡️](https://github.com/opentofu/opentofu/compare)
+- Want to add a feature, fix a linter error, refactor something, or add CI tooling?
+  1. Check if there is an [open issue with the `accepted` label](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted),
+  2. Comment on the issue that you want to work on it,
+  3. Wait for a maintainer to assign it to you,
+  4. Then [submit your code here ➡️](https://github.com/opentofu/opentofu/compare)
+- Want to fix a bug? [Submit a PR here ➡️](https://github.com/opentofu/opentofu/compare)
+
+**⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
+
+We specifically do not merge PRs **without prior issues** that:
+
+- Reformat code
+- Rename things
+- Move code around
+- Fix linter warnings for tools not currently in the CI pipeline
+- Add new CI tooling
+
+## Long version
+
 This repository contains OpenTofu Core, which includes the command line interface, the main graph engine, and the documentation for them.
 
 This document provides guidance on OpenTofu contribution recommended practices. It covers how to submit issues, how to get involved in the discussion, how to work on the code, and how to contribute code changes.
@@ -22,11 +50,15 @@ Generally, we appreciate external contributions very much and would love to work
 
 <!-- /MarkdownTOC -->
 
+## Core Team
+
+The core team consists of the individuals in the [MAINTAINERS](MAINTAINERS) file.  This team exists as stewards of OpenTofu: to triage issues, to implement features, to help with and review community contributions, and to communicate with the Technical Steering Committee.
+
 ## Contributing a Code Change
 
 In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issue for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
 
-Only issues with the `accepted` label have been officially accepted for implementation, so please avoid working on issues without that label.
+**⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
 In order for a code change to be accepted, you'll also have to accept the Developer Certificate of Origin (DCO). It's very lightweight, and you can find it [here](https://developercertificate.org). Accepting is accomplished by signing off on your commits, you can do this by adding a `Signed-off-by` line to your commit message, like here:
 ```
@@ -45,17 +77,23 @@ Additionally, please update [the changelog](CHANGELOG.md) if you're making any u
 
 ## Working on the Code
 
-If you wish to work on the OpenTofu CLI source code, you'll first need to install the [Go](https://golang.org/) compiler and the version control system [Git](https://git-scm.com/).
+If you wish to work on the OpenTofu CLI source code, you'll first need to install the [Git](https://git-scm.com/) version control system. Use Git to clone this repository into a location of your choice. OpenTofu uses [Go Modules](https://blog.golang.org/using-go-modules), and so you should *not* clone it inside your `GOPATH`.
 
-At this time the OpenTofu development environment is targeting only Linux and Mac OS X systems. While OpenTofu itself is compatible with Windows, unfortunately the unit test suite currently contains Unix-specific assumptions around maximum path lengths, path separators, etc.
+After that, you can either install the [Go](https://golang.org/) compiler locally, or use [Docker](https://www.docker.com/) to build in a container. At this time the OpenTofu development environment targets only Linux and MacOS systems. While OpenTofu itself is compatible with Windows, unfortunately the unit test suite currently contains Unix-specific assumptions around maximum path lengths, path separators, etc. This means that using Docker is the best option if working on Windows.
+
+If using Visual Studio Code or Goland/IntelliJ, a [devcontainer](.devcontainer.json) is included which integrates directly with Docker. In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension, then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if [building natively](#building-natively) on Linux.
+
+If not using the devcontainer (if using an incompatible IDE), you can still still build with Docker (and thus need not install any dependencies locally) by running docker commands directly. See the [Building with Docker](#building-with-docker) section.
+
+### Building Natively
 
 Refer to the file [`.go-version`](.go-version) to see which version of Go OpenTofu is currently built with. Other versions will often work, but if you run into any build or testing problems please try with the specific Go version indicated. You can optionally simplify the installation of multiple specific versions of Go on your system by installing [`goenv`](https://github.com/syndbg/goenv), which reads `.go-version` and automatically selects the correct Go version.
 
-Use Git to clone this repository into a location of your choice. OpenTofu is using [Go Modules](https://blog.golang.org/using-go-modules), and so you should *not* clone it inside your `GOPATH`.
+### Build with Go
 
 Switch into the root directory of the cloned repository and build OpenTofu using the Go toolchain in the standard way:
 
-```
+```sh
 cd opentofu
 go install ./cmd/tofu
 ```
@@ -81,7 +119,17 @@ go test ./internal/command/...
 go test ./internal/addrs
 ```
 
-For debugging the code, please refer to the [DEBUGGING.md](./DEBUGGING.md) file.
+### Building with Docker
+
+The easiest way to get started with Docker on Windows and MacOS is using [Docker Desktop](https://www.docker.com/products/docker-desktop/), though other solutions exist. On Linux, follow the steps to [install Docker Engine](https://docs.docker.com/engine/install/) and run the [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/). Then to build, run:
+
+```sh
+docker run --rm -v "$PWD":/usr/src/opentofu -w /usr/src/opentofu golang:1.20.7 GOOS=linux GOARCH=amd64 go build -v -buildvcs=false .
+```
+
+Replace the values for `GOOS` snd `GOARCH` with those of your preferred target, e.g. `GOOS=windows` to build a Windows binary.
+
+This will create the `opentofu` binary in the current working directory, which you can run with `./opentofu --version` or [move it to $PATH](https://ubuntuforums.org/showthread.php?t=1056425) for Linux to find it running just `opentofu --version`.
 
 ## Adding or updating dependencies
 
