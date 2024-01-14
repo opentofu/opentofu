@@ -1,0 +1,28 @@
+---
+page_title: cidrcontains - Functions - Configuration Language
+description: |-
+  The cidrcontains function determines whether a given IP address or an address prefix given in CIDR notation is within a given IP network address prefix.
+---
+
+# `cidrcontains` Function
+
+`cidrcontains` determines whether a given IP address or an address prefix given in CIDR notation is within a given IP network address prefix.
+
+Note that both arguments must belong to the same address family, either IPv4 or IPv6. A family mismatch will result in an error.
+
+## Examples
+
+```
+> cidrcontains("192.168.2.0/20", "192.168.2.1")
+true
+> cidrcontains("192.168.2.0/20", "192.168.2.0/22")
+true
+> cidrcontains("192.168.2.0/20", "192.126.2.1")
+false
+> cidrcontains("192.168.2.0/20", "192.126.2.0/18")
+false
+> cidrcontains("fe80::/48", "fe80::1")
+true
+> cidrcontains("fe80::/48", "fe81::1")
+false
+```

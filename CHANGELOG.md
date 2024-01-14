@@ -14,9 +14,11 @@ ENHANCEMENTS:
  - A possible side effect is that a hard crash mid-apply will no longer have a in-progress state file to reference. This matches the other state managers.
 * `tofu console` should work in Solaris and AIX as readline has been updated. ([#632](https://github.com/opentofu/opentofu/pull/632))
 * Added "base64gunzip" function. ([$800](https://github.com/opentofu/opentofu/issues/800))
+* Added "cidrcontains" function. ([$366](https://github.com/opentofu/opentofu/issues/366))
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
+* Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
 
 ## Previous Releases
 
