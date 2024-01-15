@@ -69,6 +69,9 @@ func (c *UnlockCommand) Run(args []string) int {
 		return 1
 	}
 
+	// unlocking is read only when looking at state data
+	c.ignoreRemoteVersionConflict(b)
+
 	env, err := c.Workspace()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
