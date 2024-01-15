@@ -3,6 +3,7 @@
 BUG FIXES:
 
 * Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
+* Fix Global Schema Cache not working in provider acceptance tests ([#1054](https://github.com/opentofu/opentofu/pull/1054))
 
 ## 1.6.0
 
