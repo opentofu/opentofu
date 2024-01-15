@@ -2,6 +2,7 @@ package encryptionflow
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"

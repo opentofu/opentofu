@@ -1,10 +1,11 @@
 package encryption
 
 import (
+	"strings"
+
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
-	"strings"
 )
 
 // Instance obtains the instance of the encryption flow for the given configKey.

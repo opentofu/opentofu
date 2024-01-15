@@ -2,6 +2,7 @@ package encryption
 
 import (
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
