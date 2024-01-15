@@ -3,6 +3,7 @@
 BUG FIXES:
 
 * Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
+* Show resource plan even if it failed plan due to `prevent_destroy` ([#1060](https://github.com/opentofu/opentofu/pull/1060))
 
 ## 1.6.0
 
