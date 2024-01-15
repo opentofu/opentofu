@@ -3,9 +3,10 @@ package encryptionflow
 import (
 	"errors"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 )
 
 // tstNoConfigurationInstance constructs a mockup Flow with no configuration.

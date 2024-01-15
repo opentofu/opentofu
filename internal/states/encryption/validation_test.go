@@ -2,9 +2,10 @@ package encryption
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"testing"
 )
 
 func TestValidateAllCachedInstances_NoCache(t *testing.T) {

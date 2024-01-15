@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/logging"
 	"os"
 	"strings"
+
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // Config is a configuration for transparent client-side state encryption.

@@ -3,9 +3,10 @@ package encryption
 import (
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
-	"testing"
 )
 
 func TestParseEnvironmentVariables(t *testing.T) {
