@@ -3,13 +3,13 @@ package encryption
 import "testing"
 
 func TestEnableDisableCaching(t *testing.T) {
-	EnableCaching() // MUST be followed by defer DisableCaching() in tests
+	EnableSingletonCaching() // MUST be followed by defer DisableCaching() in tests
 	defer func() {
 		if cache != nil {
 			t.Errorf("DisableCaching did not remove the cache, it was still non-nil")
 		}
 	}()
-	defer DisableCaching()
+	defer DisableSingletonCaching()
 
 	if cache == nil {
 		t.Fatalf("EnableCaching did not create the cache, it was still nil")
@@ -17,8 +17,8 @@ func TestEnableDisableCaching(t *testing.T) {
 }
 
 func TestCachedOrNewInstance(t *testing.T) {
-	EnableCaching() // MUST be followed by defer DisableCaching() in tests
-	defer DisableCaching()
+	EnableSingletonCaching() // MUST be followed by defer DisableCaching() in tests
+	defer DisableSingletonCaching()
 
 	const configKey = "unit_testing.test_cached_or_new[1]"
 

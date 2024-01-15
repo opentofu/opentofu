@@ -8,7 +8,39 @@ import (
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
 )
 
-// Instance obtains the instance of the encryption flow for the given configKey.
+// --------------------------------------------------------------------------------------------
+// IMPORTANT NOTE:
+// This package contains a cache for singleton instances.
+//   - there is one instance for our own remote state
+//   - there is one instance for our local state file
+//   - there is one instance for our local plan file
+//   - there is one instance for each remote state data source
+//
+// One way to configure state/plan encryption is adding settings to the terraform {} block
+// (or the terraform_remote_state block, respectively). These blocks are parsed by code far removed
+// from where they are used, and they are parsed multiple times by OpenTofu.
+//
+// Combine that with procedural code in internal/states/statefile (local state file) and
+// internal/plans (local plan file), which is called from all over the place.
+//
+// This is why caching singleton instances in this package is the less painful option.
+// --------------------------------------------------------------------------------------------
+// How to write tests?
+//
+// Solution 1: Suitable for more integrative tests
+//
+//   EnableSingletonCaching()
+//   defer DisableSingletonCaching()
+//
+// Solution 2: Suitable for lower level tests
+//
+// Obtain your singleton once during the test, and configure it directly using its methods such as
+//
+//   singleton.EncryptionConfiguration(...)
+//
+// --------------------------------------------------------------------------------------------
+
+// GetSingleton obtains the singleton instance of the encryption flow for the given configKey.
 //
 // configKey specifies a resource that accesses remote state. It must contain at least one ".".
 //
@@ -19,14 +51,14 @@ import (
 // For enumerated resources, the format is "terraform_remote_state.foo[17]" or
 // "terraform_remote_state.foo[key]" (no quotes around the for_each key).
 //
-// The first time a particular instance is requested, Instance may bail out due to invalid configuration.
+// The first time a particular instance is requested, GetSingleton may bail out due to invalid configuration.
 //
-// See also RemoteStateInstance(), StatefileInstance(), PlanfileInstance().
-func Instance(configKey string) (encryptionflow.Flow, error) {
+// See also GetRemoteStateSingleton(), GetStatefileSingleton(), GetPlanfileSingleton().
+func GetSingleton(configKey string) (encryptionflow.Flow, error) {
 	if !strings.Contains(configKey, ".") {
-		panic("call to encryption.Instance with a key that does not contain '.'. This is a bug. " +
-			"Instance() is intended to obtain named instances only. For predefined instances use " +
-			"RemoteStateInstance(), StatefileInstance(), or PlanfileInstance()")
+		panic("call to encryption.GetSingleton with a key that does not contain '.'. This is a bug. " +
+			"GetSingleton() is intended to obtain named instances only. For predefined instances use " +
+			"GetRemoteStateSingleton(), GetStatefileSingleton(), or GetPlanfileSingleton()")
 	}
 	if cache != nil {
 		return cache.cachedOrNewInstance(configKey, true)
@@ -35,9 +67,9 @@ func Instance(configKey string) (encryptionflow.Flow, error) {
 	}
 }
 
-// RemoteStateInstance obtains the instance of the encryption flow that is intended for our own remote
+// GetRemoteStateSingleton obtains the singleton instance of the encryption flow that is intended for our own remote
 // state backend, as opposed to terraform_remote_state data sources.
-func RemoteStateInstance() (encryptionflow.Flow, error) {
+func GetRemoteStateSingleton() (encryptionflow.Flow, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyBackend, true)
 	} else {
@@ -45,8 +77,8 @@ func RemoteStateInstance() (encryptionflow.Flow, error) {
 	}
 }
 
-// StatefileInstance obtains the instance of the encryption flow that is intended for our own local state file.
-func StatefileInstance() (encryptionflow.Flow, error) {
+// GetStatefileSingleton obtains the singleton instance of the encryption flow that is intended for our own local state file.
+func GetStatefileSingleton() (encryptionflow.Flow, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyStatefile, false)
 	} else {
@@ -54,8 +86,8 @@ func StatefileInstance() (encryptionflow.Flow, error) {
 	}
 }
 
-// PlanfileInstance obtains the instance of the encryption flow that is intended for our plan file.
-func PlanfileInstance() (encryptionflow.Flow, error) {
+// GetPlanfileSingleton obtains the instance of the encryption flow that is intended for our plan file.
+func GetPlanfileSingleton() (encryptionflow.Flow, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyPlanfile, false)
 	} else {

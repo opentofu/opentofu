@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
+
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 )
 
-func TestInstanceEnforcesDotInKey(t *testing.T) {
-	defer expectPanic(t, "call to encryption.Instance with a key that does not contain '.'. This is a bug.")()
-	_, _ = Instance("no_dot")
+func TestGetSingletonEnforcesDotInKey(t *testing.T) {
+	defer expectPanic(t, "call to encryption.GetSingleton with a key that does not contain '.'. This is a bug.")()
+	_, _ = GetSingleton("no_dot")
 }
 
 func envConfig(configKey string, logicallyValid bool) string {
@@ -31,7 +33,7 @@ type instanceTestCase struct {
 	expectValidationError error
 }
 
-func instanceTestCases(configKey string, canExtendConfigKey bool) []instanceTestCase {
+func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instanceTestCase {
 	key := func(base string, num int) string {
 		if canExtendConfigKey {
 			return fmt.Sprintf("%s[%d]", base, num)
@@ -107,208 +109,116 @@ func instanceTestCases(configKey string, canExtendConfigKey bool) []instanceTest
 	}
 }
 
-func TestInstance_NoCache(t *testing.T) {
-	testCases := instanceTestCases("unit_testing.instance_no_cache", true)
+func runGetSingletonTestcase(t *testing.T, tc instanceTestCase, useSingletonCache bool, functionUnderTest func() (encryptionflow.Flow, error)) {
+	if cache != nil {
+		t.Fatal("cache was enabled at start of test - probably some other test forgot to defer DisableSingletonCaching()")
+	}
+
+	if useSingletonCache {
+		EnableSingletonCaching()
+		defer DisableSingletonCaching()
+	}
+
+	if tc.encEnv != "" {
+		t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
+	}
+	if tc.decEnv != "" {
+		t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
+	}
+
+	instance, err := functionUnderTest()
+	expectErr(t, err, tc.expectInstanceError)
+	if err == nil {
+		if instance == nil {
+			t.Fatal("instance was unexpectedly nil despite no error")
+		}
+
+		err := instance.MergeAndValidateConfigurations()
+		expectErr(t, err, tc.expectValidationError)
+	}
+
+}
+
+func TestGetSingleton_NoCache(t *testing.T) {
+	testCases := getSingletonTestCases("unit_testing.instance_no_cache", true)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			if cache != nil {
-				t.Fatal("cache was enabled at start of test - probably some other test forgot to defer DisableCache()")
-			}
-
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := Instance(tc.key)
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-
-				err := instance.MergeAndValidateConfigurations()
-				expectErr(t, err, tc.expectValidationError)
-			}
+			runGetSingletonTestcase(t, tc, false, func() (encryptionflow.Flow, error) {
+				return GetSingleton(tc.key)
+			})
 		})
 	}
 }
 
-func TestInstance_Cache(t *testing.T) {
-	testCases := instanceTestCases("unit_testing.instance_cache", true)
+func TestGetSingleton_Cache(t *testing.T) {
+	testCases := getSingletonTestCases("unit_testing.instance_cache", true)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			EnableCaching()
-			defer DisableCaching()
-
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := Instance(tc.key)
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-
-				err := instance.MergeAndValidateConfigurations()
-				expectErr(t, err, tc.expectValidationError)
-			}
+			runGetSingletonTestcase(t, tc, true, func() (encryptionflow.Flow, error) {
+				return GetSingleton(tc.key)
+			})
 		})
 	}
 }
 
 func TestRemoteStateInstance_NoCache(t *testing.T) {
-	testCases := instanceTestCases("backend", false)
+	testCases := getSingletonTestCases("backend", false)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := RemoteStateInstance()
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-			}
+			runGetSingletonTestcase(t, tc, false, GetRemoteStateSingleton)
 		})
 	}
 }
 
 func TestRemoteStateInstance_Cache(t *testing.T) {
-	testCases := instanceTestCases("backend", false)
+	testCases := getSingletonTestCases("backend", false)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			EnableCaching()
-			defer DisableCaching()
-
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := RemoteStateInstance()
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-			}
+			runGetSingletonTestcase(t, tc, true, GetRemoteStateSingleton)
 		})
 	}
 }
 
 func TestStatefileInstance_NoCache(t *testing.T) {
-	testCases := instanceTestCases("statefile", false)
+	testCases := getSingletonTestCases("statefile", false)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := StatefileInstance()
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-			}
+			runGetSingletonTestcase(t, tc, false, GetStatefileSingleton)
 		})
 	}
 }
 
 func TestStatefileInstance_Cache(t *testing.T) {
-	testCases := instanceTestCases("statefile", false)
+	testCases := getSingletonTestCases("statefile", false)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			EnableCaching()
-			defer DisableCaching()
-
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := StatefileInstance()
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-			}
+			runGetSingletonTestcase(t, tc, true, GetStatefileSingleton)
 		})
 	}
 }
 
 func TestPlanfileInstance_NoCache(t *testing.T) {
-	testCases := instanceTestCases("planfile", false)
+	testCases := getSingletonTestCases("planfile", false)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := PlanfileInstance()
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-			}
+			runGetSingletonTestcase(t, tc, false, GetPlanfileSingleton)
 		})
 	}
 }
 
 func TestPlanfileInstance_Cache(t *testing.T) {
-	testCases := instanceTestCases("planfile", false)
+	testCases := getSingletonTestCases("planfile", false)
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			EnableCaching()
-			defer DisableCaching()
-
-			if tc.encEnv != "" {
-				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
-			}
-			if tc.decEnv != "" {
-				t.Setenv(encryptionconfig.FallbackConfigEnvName, tc.decEnv)
-			}
-
-			instance, err := PlanfileInstance()
-			expectErr(t, err, tc.expectInstanceError)
-			if err == nil {
-				if instance == nil {
-					t.Fatal("instance was unexpectedly nil despite no error")
-				}
-			}
+			runGetSingletonTestcase(t, tc, true, GetPlanfileSingleton)
 		})
 	}
 }

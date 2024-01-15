@@ -56,14 +56,14 @@ func TestValidateAllCachedInstances(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			EnableCaching()
-			defer DisableCaching()
+			EnableSingletonCaching()
+			defer DisableSingletonCaching()
 
 			if tc.encEnv != "" {
 				t.Setenv(encryptionconfig.ConfigEnvName, tc.encEnv)
 			}
 
-			_, err := Instance(tc.key)
+			_, err := GetSingleton(tc.key)
 			if err != nil {
 				t.Fatal("unexpected error during instance creation")
 			}
