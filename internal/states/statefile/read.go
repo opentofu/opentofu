@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/states/encryption"
 	"io"
 	"os"
 
@@ -73,7 +74,39 @@ func Read(r io.Reader) (*File, error) {
 		return nil, ErrNoState
 	}
 
-	state, err := readState(src)
+	encryptionFlowBuilder, err := encryption.GetStatefileSingleton()
+	if err != nil {
+		// this should not normally happen because we have validated the environment variables much earlier
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to construct state file decryption instance - probably wrong configuration in environment",
+			err.Error(),
+		))
+		return nil, err
+	}
+
+	encryptionFlow, err := encryptionFlowBuilder.Build()
+	if err != nil {
+		// this should not normally happen because we have built the flow before
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to construct state file decryption instance - probably wrong configuration in terraform block",
+			err.Error(),
+		))
+		return nil, err
+	}
+
+	decrypted, err := encryptionFlow.DecryptState(src)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to decrypt state file contents",
+			fmt.Sprintf("state decryption failed: %s", err),
+		))
+		return nil, err
+	}
+
+	state, err := readState(decrypted)
 	if err != nil {
 		return nil, err
 	}

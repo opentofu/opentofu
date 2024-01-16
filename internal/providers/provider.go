@@ -161,6 +161,24 @@ type ValidateDataResourceConfigRequest struct {
 	// Config is the configuration value to validate, which may contain unknown
 	// values.
 	Config cty.Value
+
+	// TODO this is the big one. Can we just expand this, or will it have side effects?
+
+	// ResourcePath provides a unique addressing name for the resource determined from code.
+	//
+	// In the top-level module, this will be the resource name assigned in code,
+	// possibly followed by the for_each key or iterator in square brackets.
+	// For submodules, the name assigned to the module, possibly again with
+	// the for_each or iterator, is placed before that.
+	//
+	// Examples:
+	//  - "resource_type.foo"
+	//  - "resource_type.foo[17]"
+	//  - "resource_type.foo[my_for_each_key]"
+	//  - "module.bar.resource_type.foo[17]" (maybe?)
+	//  - "module.bar[3].resource_type.foo[17]" (maybe?)
+	//  - "module.bar[for_each_key].resource_type.foo[another_for_each_key]" (maybe?)
+	ResourcePath string
 }
 
 type ValidateDataResourceConfigResponse struct {

@@ -13,6 +13,8 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/encryption"
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -26,6 +28,9 @@ type State struct {
 	mu sync.Mutex
 
 	Client Client
+
+	// different states can have different encryption configurations and keys
+	EncryptionFlowBuilder encryptionflow.FlowBuilder
 
 	// We track two pieces of meta data in addition to the state itself:
 	//
@@ -51,6 +56,11 @@ type State struct {
 var _ statemgr.Full = (*State)(nil)
 var _ statemgr.Migrator = (*State)(nil)
 var _ local.IntermediateStateConditionalPersister = (*State)(nil)
+
+// statemgr.SupportsEncryption impl.
+func (s *State) UseEncryptionFlowBuilder(instance encryptionflow.FlowBuilder) {
+	s.EncryptionFlowBuilder = instance
+}
 
 // statemgr.Reader impl.
 func (s *State) State() *states.State {
@@ -148,7 +158,31 @@ func (s *State) refreshState() error {
 		return nil
 	}
 
-	stateFile, err := statefile.Read(bytes.NewReader(payload.Data))
+	encryptionFlowBuilder := s.EncryptionFlowBuilder
+	if encryptionFlowBuilder == nil {
+		// use the standard instance for our own remote state
+		encryptionFlowBuilder, err = encryption.GetRemoteStateSingleton()
+		if err != nil {
+			// this should not happen because we have validated the environment variables much earlier
+			log.Printf("[ERROR] remote state decryption failed due to invalid configuration: %s", err.Error())
+			return err
+		}
+	}
+
+	encryptionFlow, err := encryptionFlowBuilder.Build()
+	if err != nil {
+		// this should not happen because we have built all flows in the cache earlier
+		log.Printf("[ERROR] remote state decryption failed due to invalid configuration: %s", err.Error())
+		return err
+	}
+
+	decrypted, err := encryptionFlow.DecryptState(payload.Data)
+	if err != nil {
+		log.Printf("[ERROR] remote state decryption failed: %s", err.Error())
+		return err
+	}
+
+	stateFile, err := statefile.Read(bytes.NewReader(decrypted))
 	if err != nil {
 		return err
 	}
@@ -210,7 +244,31 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 		return err
 	}
 
-	err = s.Client.Put(buf.Bytes())
+	encryptionFlowBuilder := s.EncryptionFlowBuilder
+	if encryptionFlowBuilder == nil {
+		// use the standard instance for our own remote state
+		encryptionFlowBuilder, err = encryption.GetRemoteStateSingleton()
+		if err != nil {
+			// this should not happen because we have validated the environment variables much earlier
+			log.Printf("[ERROR] remote state encryption failed due to invalid configuration: %s", err.Error())
+			return err
+		}
+	}
+
+	encryptionFlow, err := encryptionFlowBuilder.Build()
+	if err != nil {
+		// this should not happen because we have built the flows in the cache earlier
+		log.Printf("[ERROR] remote state encryption failed due to invalid configuration: %s", err.Error())
+		return err
+	}
+
+	maybeEncrypted, err := encryptionFlow.EncryptState(buf.Bytes())
+	if err != nil {
+		log.Printf("[ERROR] remote state encryption failed: %s", err.Error())
+		return err
+	}
+
+	err = s.Client.Put(maybeEncrypted)
 	if err != nil {
 		return err
 	}

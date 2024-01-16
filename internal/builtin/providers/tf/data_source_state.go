@@ -5,12 +5,15 @@ package tf
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/states/encryption"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
@@ -60,6 +63,10 @@ func dataSourceRemoteStateGetSchema() providers.Schema {
 					Optional:        true,
 				},
 			},
+			BlockTypes: map[string]*configschema.NestedBlock{
+				"state_encryption":          StateEncryptionConfigSchema(),
+				"state_decryption_fallback": StateDecryptionFallbackConfigSchema(),
+			},
 		},
 	}
 }
@@ -70,6 +77,11 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	// Getting the backend implicitly validates the configuration for it,
 	// but we can only do that if it's all known already.
 	if cfg.GetAttr("config").IsWhollyKnown() && cfg.GetAttr("backend").IsKnown() {
+		// TODO this is the big one
+		// TODO construct the resourcePath on the way to here, because here we don't know the resource name or the for_each count
+		// resourcePath := "terraform_remote_state.foo[3]"
+
+		// TODO pass the resourcePath down to getBackend, so config can be validated before trying the read
 		_, _, moreDiags := getBackend(cfg)
 		diags = diags.Append(moreDiags)
 	} else {
@@ -103,6 +115,12 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// TODO this is the big one
+	// TODO construct the resourcePath on the way to here, because here we don't know the resource name or the for_each count
+	resourcePath := "terraform_remote_state.foo[3]"
+
+	// TODO pass the resourcePath down to getBackend, too so config can be validated before trying the read
+	// (or live with validation a little later, then we can do this here)
 	b, cfg, moreDiags := getBackend(d)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -138,6 +156,20 @@ func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 			cty.Path(nil).GetAttr("backend"),
 		))
 		return cty.NilVal, diags
+	}
+
+	stateSupportsEncryption, ok := state.(statemgr.SupportsEncryption)
+	if ok {
+		// here we could also parse the configuration from d, just not very nice in terms of early error messages
+
+		instance, err := encryption.GetSingleton(resourcePath)
+		if err != nil {
+			// this shouldn't happen because we've already validated the environment variables much earlier
+			diags = diags.Append(err)
+			return cty.NilVal, diags
+		}
+
+		stateSupportsEncryption.UseEncryptionFlowBuilder(instance)
 	}
 
 	if err := state.RefreshState(); err != nil {
@@ -246,6 +278,61 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 	// check, because this is a read-only operation
 	if rb, ok := b.(*remote.Remote); ok {
 		rb.IgnoreVersionConflict()
+	}
+
+	{
+		// TODO this is the big one
+		// TODO construct the resourcePath on the way to here, because here we don't know the resource name or the for_each count
+		resourcePath := "terraform_remote_state.foo[3]"
+
+		instance, err := encryption.GetSingleton(resourcePath)
+		if err != nil {
+			// this shouldn't happen because we've already validated the environment variables
+			diags = diags.Append(err)
+			return nil, cty.NilVal, diags
+		}
+
+		stateEncryption := cfg.GetAttr("state_encryption")
+		if !stateEncryption.IsNull() {
+			encConfig, err := ParseEncryptionConfig(stateEncryption)
+			if err != nil {
+				// TODO provide better diag message
+				diags = diags.Append(err)
+				return nil, cty.NilVal, diags
+			}
+
+			err = instance.EncryptionConfiguration(encryptionflow.ConfigurationSourceCode, encConfig)
+			if err != nil {
+				// this shouldn't happen
+				diags = diags.Append(err)
+				return nil, cty.NilVal, diags
+			}
+		}
+
+		stateDecryptionFallback := cfg.GetAttr("state_decryption_fallback")
+		if !stateDecryptionFallback.IsNull() {
+			decConfig, err := ParseEncryptionConfig(stateDecryptionFallback)
+			if err != nil {
+				// TODO provide better diag message
+				diags = diags.Append(err)
+				return nil, cty.NilVal, diags
+			}
+
+			err = instance.DecryptionFallbackConfiguration(encryptionflow.ConfigurationSourceCode, decConfig)
+			if err != nil {
+				// this shouldn't happen
+				diags = diags.Append(err)
+				return nil, cty.NilVal, diags
+			}
+		}
+
+		// configuration is now complete, so can validate it by building the flow
+		_, err = instance.Build()
+		if err != nil {
+			// TODO provide better diag message
+			diags = diags.Append(err)
+			return nil, cty.NilVal, diags
+		}
 	}
 
 	return b, newVal, diags

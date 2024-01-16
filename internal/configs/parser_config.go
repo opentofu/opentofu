@@ -109,6 +109,12 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 						file.ProviderMetas = append(file.ProviderMetas, providerCfg)
 					}
 
+				case "state_encryption":
+					encDiags := handleStateEncryptionBlock(innerBlock)
+					diags = append(diags, encDiags...)
+
+				// TODO same for state_decryption_fallback
+
 				default:
 					// Should never happen because the above cases should be exhaustive
 					// for all block type names in our schema.
@@ -317,6 +323,10 @@ var terraformBlockSchema = &hcl.BodySchema{
 			Type:       "provider_meta",
 			LabelNames: []string{"provider"},
 		},
+		{
+			Type: "state_encryption",
+		},
+		// TODO same for state_decryption_fallback
 	},
 }
 

@@ -52,6 +52,11 @@ func (p *Provider) ValidateDataResourceConfig(req providers.ValidateDataResource
 		return res
 	}
 
+	// TODO this is the big one
+	// TODO construct the resourcePath on the way to here, because further down we don't know what it is
+	// resourcePath := "foo[3]"
+
+	// TODO pass the resourcePath down to this
 	diags := dataSourceRemoteStateValidate(req.Config)
 	res.Diagnostics = diags
 
