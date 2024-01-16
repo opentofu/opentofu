@@ -64,6 +64,13 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// plan may need encryption, so set this up first
+	diags = diags.Append(c.Meta.SetupEncryption())
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+
 	// Attempt to load the plan file, if specified
 	planFile, diags := c.LoadPlanFile(args.PlanPath)
 	if diags.HasErrors() {
@@ -156,6 +163,12 @@ func (c *ApplyCommand) LoadPlanFile(path string) (*planfile.WrappedPlanFile, tfd
 
 	// Try to load plan if path is specified
 	if path != "" {
+		// Plan files may need encryption, so do basic setup
+		diags = diags.Append(c.SetupEncryption())
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
 		var err error
 		planFile, err = c.PlanFile(path)
 		if err != nil {

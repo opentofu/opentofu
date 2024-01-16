@@ -92,6 +92,13 @@ type BackendWithRemoteTerraformVersion interface {
 func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// backend may need encryption, so set this up first
+	encryptionDiags := m.SetupEncryption()
+	diags = diags.Append(encryptionDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	// If no opts are set, then initialize
 	if opts == nil {
 		opts = &BackendOpts{}

@@ -6,6 +6,7 @@ package statefile
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/states/encryption"
 	"io"
 	"sort"
 
@@ -433,7 +434,28 @@ func writeStateV4(file *File, w io.Writer) tfdiags.Diagnostics {
 	}
 	src = append(src, '\n')
 
-	_, err = w.Write(src)
+	encryptionFlow, err := encryption.GetSingleton().StateFile()
+	if err != nil {
+		// this should not normally happen because we have built the flow before
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to construct state file encryption instance - probably wrong configuration in environment or terraform block",
+			err.Error(),
+		))
+		return diags
+	}
+
+	maybeEncrypted, err := encryptionFlow.EncryptState(src)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to encrypt state file contents",
+			fmt.Sprintf("state encryption failed: %s", err),
+		))
+		return diags
+	}
+
+	_, err = w.Write(maybeEncrypted)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

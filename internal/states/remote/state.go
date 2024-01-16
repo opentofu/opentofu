@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -148,7 +149,24 @@ func (s *State) refreshState() error {
 		return nil
 	}
 
-	stateFile, err := statefile.Read(bytes.NewReader(payload.Data))
+	// on this branch, always use the standard instance for our own remote state
+	// (configured under key "backend" in the environment variable)
+	//
+	// if you want to support separate configurations, need to get the correct flow here
+	encryptionFlow, err := encryption.GetSingleton().RemoteState()
+	if err != nil {
+		// this should not happen because we have built the flow before
+		log.Printf("[ERROR] remote state decryption failed due to invalid configuration: %s", err.Error())
+		return err
+	}
+
+	decrypted, err := encryptionFlow.DecryptState(payload.Data)
+	if err != nil {
+		log.Printf("[ERROR] remote state decryption failed: %s", err.Error())
+		return err
+	}
+
+	stateFile, err := statefile.Read(bytes.NewReader(decrypted))
 	if err != nil {
 		return err
 	}
@@ -210,7 +228,21 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 		return err
 	}
 
-	err = s.Client.Put(buf.Bytes())
+	// use the standard instance for our own remote state
+	encryptionFlow, err := encryption.GetSingleton().RemoteState()
+	if err != nil {
+		// this should not happen because we have built the flow before
+		log.Printf("[ERROR] remote state encryption failed due to invalid configuration: %s", err.Error())
+		return err
+	}
+
+	maybeEncrypted, err := encryptionFlow.EncryptState(buf.Bytes())
+	if err != nil {
+		log.Printf("[ERROR] remote state encryption failed: %s", err.Error())
+		return err
+	}
+
+	err = s.Client.Put(maybeEncrypted)
 	if err != nil {
 		return err
 	}
