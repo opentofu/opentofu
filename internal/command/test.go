@@ -1052,6 +1052,10 @@ func (v testVariableValueExpression) ParseVariableValue(mode configs.VariablePar
 // within the config. This allows the assertions to refer to variables defined
 // solely within the test file, and not only those within the configuration.
 //
+// It also allows references to previously run test module's outputs as variable
+// expressions.  This relies upon the evaluation order and will not sort the test cases
+// to run in the dependent order.
+//
 // In addition, it modifies the provided config so that any variables that are
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
