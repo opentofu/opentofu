@@ -367,7 +367,6 @@ func (c *LoginCommand) defaultOutputFile() string {
 
 func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
 	confirm, confirmDiags := c.interactiveContextConsent(hostname, disco.OAuthAuthzCodeGrant, credsCtx)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
@@ -502,7 +501,22 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 
 	c.Ui.Output("OpenTofu will now wait for the host to signal that login was successful.\n")
 
-	code, ok := <-codeCh
+	var code string
+	var ok bool
+	select {
+	case <-c.ShutdownCh:
+		diags = diags.Append(
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Action aborted",
+				"Current command was aborted by the calling code.",
+			),
+		)
+		code, ok = "", true
+		close(codeCh)
+	case code, ok = <-codeCh:
+	}
+
 	if !ok {
 		// If we got no code at all then the server wasn't able to start
 		// up, so we'll just give up.
@@ -513,6 +527,12 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		// The server will close soon enough when our process exits anyway,
 		// so we won't fuss about it for right now.
 		log.Printf("[WARN] login: callback server can't shut down: %s", err)
+	}
+
+	if code == "" {
+		// empty code is not possible in happy path as it is validated in the HTTP handler of our callback server
+		// so it means, the current command was interrupted by the shutdown signal
+		return nil, diags
 	}
 
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, httpclient.New())
