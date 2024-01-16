@@ -223,7 +223,7 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 	return diags
 }
 
-// unparsedVariableValueLiteral is a backend.UnparsedVariableValue
+// unparsedVariableValueExpression is a backend.UnparsedVariableValue
 // implementation that was actually already parsed (!). This is
 // intended to deal with expressions inside "tfvars" files.
 type unparsedVariableValueExpression struct {
