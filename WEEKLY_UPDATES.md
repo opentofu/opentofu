@@ -1,5 +1,30 @@
 # Weekly Updates
 
+## 2024-01-16
+
+Hey there! Long time no see in these weekly updates! We've skipped them during the holidays and the release week, but now we'll be back to the regular cadence.
+
+Much has happened over the last few weeks, with the biggest news being the [OpenTofu Stable 1.6 Release](https://github.com/opentofu/opentofu/releases/tag/v1.6.0) last week!
+
+Since the stable release, we've been working to get 1.6.1 and 1.7.0 into your hands. We've also seen immense community interest, with members of the community contributing great changes, and others integrating it into third party tooling. This is all amazing, and we really appreciate it!
+
+- Current Status and Up Next
+  - The top priority is making sure the client-side encryption project is moving forward. This is a topic where the core team (owned by @janosdebugs) is collaborating with @StephanHCB, and we hope to have the first PR in this week. This PR will contain the "skeleton" of the solution, and let us start working on integrations (encryption methods) with more parallelism. Track the issue [here](https://github.com/opentofu/opentofu/issues/1030).
+  - Second-biggest priority is the 1.6.1 release. There's a [GitHub Milestone](https://github.com/opentofu/opentofu/milestone/4) for it, and we're aiming to have it out next week, ideally.
+    - Here we're done with [interpolating locals into import blocks](https://github.com/opentofu/opentofu/issues/1084),
+    - and also [performance improvements for provider acceptance tests](https://github.com/opentofu/opentofu/issues/1044).
+    - Pending is support for [passing variables between test run blocks](https://github.com/opentofu/opentofu/issues/1045).
+  - The current plan for the 1.7.0 release is to have it out whenever we're done with the client-side state encryption. Thus, expect a release February-March.
+  - We've accepted numerous community contributions, you can check [the 1.7 changelog](https://github.com/opentofu/opentofu/blob/3b4069e697259021b97a11fc9263e4316ea1b8c4/CHANGELOG.md) for details.
+  - We'll be focusing on working down the issue backlog this and next week. Expect more accepted or responded-to issues. We'll also be introducing a bunch of labels to better signal the status of each issue.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2023-12-14
 
 Hey there!
