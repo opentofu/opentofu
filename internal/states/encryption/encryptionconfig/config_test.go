@@ -3,7 +3,6 @@ package encryptionconfig
 import (
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 )
 
@@ -346,8 +345,7 @@ func TestParseEnvJsonStructure(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
 			envName := fmt.Sprintf("STATE_ENCRYPTION_TESTCASE_TestParseEnvJsonStructure_%s", tc.testcase)
-			os.Setenv(envName, tc.input)
-			defer os.Unsetenv(envName)
+			t.Setenv(envName, tc.input)
 
 			actual, err := parseEnvJsonStructure(envName, "what")
 			expectErr(t, err, tc.expectedErr)

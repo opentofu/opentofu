@@ -38,10 +38,10 @@ var EncryptionTopLevelJsonKey = "encryption"
 // Flow represents the top-level state or plan encryption/decryption flow
 // for a particular encryption configuration.
 //
-// Instances of Flow are kept in an internal cache per configuration key.
+// Instances of Flow are kept in an internal singleton cache per configuration key.
 // Unless you are writing tests, you should not create them in your code.
 //
-// See also encryption.Instance().
+// See also encryption.GetSingleton().
 type Flow interface {
 	// DecryptState decrypts encrypted state.
 	//
@@ -84,6 +84,9 @@ type Flow interface {
 	// If the plan is not actually encrypted, but plan encryption is configured,
 	// this will fail to prevent working with invalid plans (plans are binary data).
 	//
+	// Note that decryption fallback configurations are not considered for plans.
+	// Plans are not stored for a long time, so key rotation is not an issue for them.
+	//
 	// If DecryptPlan returns no error, then
 	//  - either there is no configuration for plan encryption, and
 	//    payload is returned as-is
@@ -96,13 +99,14 @@ type Flow interface {
 	// If no configuration for plan encryption is specified, the plan
 	// is returned as-is. This is not an error.
 	//
-	// In the presence of a configuration suitable for plan encryption
-	// (must be full encryption because plans are binary data),
-	// EncryptPlan returns a json document which contains the EncryptionTopLevelJsonKey key
+	// In the presence of a configuration suitable for plan encryption, EncryptPlan
+	// returns a json document which contains the EncryptionTopLevelJsonKey key
 	// at the 1st level.
 	//
 	// A configuration that is not suitable for plan encryption is treated as
-	// an error.
+	// an error. Whether a configuration is suitable for plan encryption or not is mostly determined
+	// by the encryption method. For example, plans cannot be partially encrypted, because
+	// they are binary data.
 	EncryptPlan(plan []byte) ([]byte, error)
 
 	// EncryptionConfiguration provides this Flow with configuration for

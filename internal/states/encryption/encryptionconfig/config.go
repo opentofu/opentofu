@@ -119,7 +119,7 @@ type KeyProviderConfig struct {
 //
 // This is an early check, unlike Validate().
 func (k KeyProviderConfig) NameValid() error {
-	validator, ok := keyProviderConfigValidation[k.Name]
+	validator, ok := getKeyProviderConfigValidation(k.Name)
 	if !ok || validator == nil {
 		return fmt.Errorf("error in configuration for key provider %s: no registered key provider with this name", k.Name)
 	}
@@ -132,7 +132,7 @@ func (k KeyProviderConfig) Validate() error {
 		return err
 	}
 
-	validator := keyProviderConfigValidation[k.Name]
+	validator, _ := getKeyProviderConfigValidation(k.Name)
 	if err := validator(k); err != nil {
 		return fmt.Errorf("error in configuration for key provider %s: %s", k.Name, err.Error())
 	}
@@ -160,7 +160,7 @@ type EncryptionMethodConfig struct {
 //
 // This is an early check, unlike Validate().
 func (m EncryptionMethodConfig) NameValid() error {
-	validator, ok := encryptionMethodConfigValidation[m.Name]
+	validator, ok := getEncryptionMethodConfigValidation(m.Name)
 	if !ok || validator == nil {
 		return fmt.Errorf("error in configuration for encryption method %s: no registered encryption method with this name", m.Name)
 	}
@@ -173,7 +173,7 @@ func (m EncryptionMethodConfig) Validate() error {
 		return err
 	}
 
-	validator := encryptionMethodConfigValidation[m.Name]
+	validator, _ := getEncryptionMethodConfigValidation(m.Name)
 
 	if err := validator(m); err != nil {
 		return fmt.Errorf("error in configuration for encryption method %s: %s", m.Name, err.Error())
