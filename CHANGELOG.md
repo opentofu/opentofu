@@ -2,7 +2,7 @@
 
 ENHANCEMENTS:
 
-* Allow test run blocks to reference module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
+* Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 
 BUG FIXES:
 
