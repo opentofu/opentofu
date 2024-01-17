@@ -1,5 +1,9 @@
 ## 1.6.1
 
+ENHANCEMENTS:
+
+* Allow test run blocks to reference module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
+
 BUG FIXES:
 
 * Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
