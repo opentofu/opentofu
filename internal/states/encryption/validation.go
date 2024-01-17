@@ -28,7 +28,10 @@ func ValidateAllCachedInstances() tfdiags.Diagnostics {
 		return diags
 	}
 
-	for configKey, instance := range cache.instances {
+	cache.mutex.RLock()
+	defer cache.mutex.RUnlock()
+
+	for configKey, instance := range cache.instances_useGetAndSet {
 		if err := instance.MergeAndValidateConfigurations(); err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

@@ -13,8 +13,8 @@ import (
 //
 // It is not an error if either of the environment variables has an empty value or is unset.
 //
-// If this function returns nil, Instance(), RemoteStateInstance(), StatefileInstance(), and PlanfileInstance()
-// will not fail at inopportune times.
+// If this function returns nil, GetSingleton(), GetRemoteStateSingleton(), GetStatefileSingleton(), and
+// GetPlanfileSingleton() are much less likely to fail at inopportune times.
 //
 // Note: You should generally avoid setting the state encryption environment variables in tests, as this may make
 // tests depend on each other. Just obtain a suitable Instance(), then call EncryptionConfiguration() and/or

@@ -30,7 +30,7 @@ func TestCachedOrNewInstance(t *testing.T) {
 		t.Errorf("instance on initial creation was unexpectedly nil")
 	}
 
-	if len(cache.instances) == 0 {
+	if len(cache.instances_useGetAndSet) == 0 {
 		t.Error("instance was not cached after creation")
 	}
 

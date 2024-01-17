@@ -2,6 +2,7 @@ package encryptionflow
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/opentofu/opentofu/internal/logging"
@@ -13,6 +14,7 @@ type MockUpLoggingFlow struct {
 	configKey                 string
 	encryptionConfigs         map[ConfigurationSource]encryptionconfig.Config
 	decryptionFallbackConfigs map[ConfigurationSource]encryptionconfig.Config
+	configMutex               sync.RWMutex
 	logger                    hclog.Logger
 }
 
@@ -63,6 +65,8 @@ func (m *MockUpLoggingFlow) EncryptionConfiguration(source ConfigurationSource, 
 	}
 	m.logger.Trace("encryption:EncryptionConfiguration", "key", m.configKey, "source", source, "config", config)
 	// for this simple mock, we just store the configuration, so we can later merge and validate it
+	m.configMutex.Lock()
+	defer m.configMutex.Unlock()
 	m.encryptionConfigs[source] = config
 	return nil
 }
@@ -73,6 +77,8 @@ func (m *MockUpLoggingFlow) DecryptionFallbackConfiguration(source Configuration
 	}
 	m.logger.Trace("encryption:DecryptionFallbackConfiguration", "key", m.configKey, "source", source, "config", config)
 	// for this simple mock, we just store the configuration, so we can later merge and validate it
+	m.configMutex.Lock()
+	defer m.configMutex.Unlock()
 	m.decryptionFallbackConfigs[source] = config
 	return nil
 }
@@ -80,6 +86,9 @@ func (m *MockUpLoggingFlow) DecryptionFallbackConfiguration(source Configuration
 func (m *MockUpLoggingFlow) MergeAndValidateConfigurations() error {
 	// this logic will appear in a similar form in the actual flow implementation. For now, we just merge
 	// and validate the configuration.
+
+	m.configMutex.RLock()
+	defer m.configMutex.RUnlock()
 
 	mergedEncryptionConfig := encryptionconfig.MergeConfigs(
 		configOrNil(m.encryptionConfigs, ConfigurationSourceEnvDefault),
