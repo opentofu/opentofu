@@ -4,7 +4,7 @@ variables {
 
 run "setup" {
   module {
-        source = "./setup"
+    source = "./setup"
   }
 }
 
