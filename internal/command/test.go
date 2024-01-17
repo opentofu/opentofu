@@ -501,7 +501,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 			return state, false
 		}
 
-		variables, resetVariables, variableDiags := prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
+		variables, resetVariables, variableDiags := runner.prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
 		defer resetVariables()
 
 		run.Diagnostics = run.Diagnostics.Append(variableDiags)
@@ -574,7 +574,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		return updated, true
 	}
 
-	variables, resetVariables, variableDiags := prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
+	variables, resetVariables, variableDiags := runner.prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
 	defer resetVariables()
 
 	run.Diagnostics = run.Diagnostics.Append(variableDiags)
@@ -1023,6 +1023,26 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 	return backend.ParseVariableValues(variables, config.Module.Variables)
 }
 
+type testVariableValueExpression struct {
+	expr       hcl.Expression
+	sourceType tofu.ValueSourceType
+	ctx        *hcl.EvalContext
+}
+
+func (v testVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	val, hclDiags := v.expr.Value(v.ctx)
+	diags = diags.Append(hclDiags)
+
+	rng := tfdiags.SourceRangeFromHCL(v.expr.Range())
+
+	return &tofu.InputValue{
+		Value:       val,
+		SourceType:  v.sourceType,
+		SourceRange: rng,
+	}, diags
+}
+
 // prepareInputVariablesForAssertions creates a tofu.InputValues mapping
 // that contains all the variables defined for a given run and file, alongside
 // any unset variables that have defaults within the provided config.
@@ -1032,17 +1052,36 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 // within the config. This allows the assertions to refer to variables defined
 // solely within the test file, and not only those within the configuration.
 //
+// It also allows references to previously run test module's outputs as variable
+// expressions.  This relies upon the evaluation order and will not sort the test cases
+// to run in the dependent order.
+//
 // In addition, it modifies the provided config so that any variables that are
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
-func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, func(), tfdiags.Diagnostics) {
+func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, func(), tfdiags.Diagnostics) {
+	runCtx := make(map[string]cty.Value)
+	for _, state := range runner.States {
+		if state.Run == nil {
+			continue
+		}
+		outputs := make(map[string]cty.Value)
+		mod := state.State.Modules[""] // Empty string is what is used by the module in the test runner
+		for outName, out := range mod.OutputValues {
+			outputs[outName] = out.Value
+		}
+		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
+	}
+	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
+
 	variables := make(map[string]backend.UnparsedVariableValue)
 
 	if run != nil {
 		for name, expr := range run.Config.Variables {
-			variables[name] = unparsedVariableValueExpression{
+			variables[name] = testVariableValueExpression{
 				expr:       expr,
 				sourceType: tofu.ValueFromConfig,
+				ctx:        ctx,
 			}
 		}
 	}
@@ -1054,9 +1093,10 @@ func prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.
 				// that value to take precedence.
 				continue
 			}
-			variables[name] = unparsedVariableValueExpression{
+			variables[name] = testVariableValueExpression{
 				expr:       expr,
 				sourceType: tofu.ValueFromConfig,
+				ctx:        ctx,
 			}
 		}
 	}

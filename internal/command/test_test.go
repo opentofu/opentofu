@@ -798,6 +798,10 @@ func TestTest_Modules(t *testing.T) {
 			expected: "main.tftest.hcl... pass\n  run \"first\"... pass\n  run \"second\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 		},
+		"variables_reference": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"test\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+		},
 	}
 
 	for name, tc := range tcs {
