@@ -14,6 +14,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
@@ -527,6 +528,46 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
 	if _, err := b.StateMgr(backend.DefaultStateName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
+	}
+}
+
+func TestRemote_Unlock_ignoreVersion(t *testing.T) {
+	b, bCleanup := testBackendDefault(t)
+	defer bCleanup()
+
+	// this is set by the unlock command
+	b.IgnoreVersionConflict()
+
+	v111 := version.Must(version.NewSemver("1.1.1"))
+
+	// Save original local version state and restore afterwards
+	p := tfversion.Prerelease
+	v := tfversion.Version
+	s := tfversion.SemVer
+	defer func() {
+		tfversion.Prerelease = p
+		tfversion.Version = v
+		tfversion.SemVer = s
+	}()
+
+	// For this test, the local Terraform version is set to 1.1.1
+	tfversion.Prerelease = ""
+	tfversion.Version = v111.String()
+	tfversion.SemVer = v111
+
+	state, err := b.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	lockID, err := state.Lock(statemgr.NewLockInfo())
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	// this should succeed since the version conflict is ignored
+	if err = state.Unlock(lockID); err != nil {
+		t.Fatalf("error: %v", err)
 	}
 }
 
