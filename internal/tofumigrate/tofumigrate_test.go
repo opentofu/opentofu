@@ -4,7 +4,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -163,12 +166,58 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 				)
 			}),
 		},
+		{
+			name: "if there is no code, migrate",
+			args: args{
+				configDir: "",
+				state: states.BuildState(func(s *states.SyncState) {
+					s.SetResourceInstanceCurrent(
+						mustParseInstAddr("random_id.example"),
+						&states.ResourceInstanceObjectSrc{
+							Status:    states.ObjectReady,
+							AttrsJSON: []byte(`{}`),
+						},
+						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
+					)
+					s.SetResourceInstanceCurrent(
+						mustParseInstAddr("aws_instance.example"),
+						&states.ResourceInstanceObjectSrc{
+							Status:    states.ObjectReady,
+							AttrsJSON: []byte(`{}`),
+						},
+						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
+					)
+				}),
+			},
+			want: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(
+					mustParseInstAddr("random_id.example"),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: []byte(`{}`),
+					},
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
+				)
+				s.SetResourceInstanceCurrent(
+					mustParseInstAddr("aws_instance.example"),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: []byte(`{}`),
+					},
+					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
+				)
+			}),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, hclDiags := loader.LoadConfig(tt.args.configDir)
-			if hclDiags.HasErrors() {
-				t.Fatalf("invalid configuration: %s", hclDiags.Error())
+			var cfg *configs.Config
+			if tt.args.configDir != "" {
+				var hclDiags hcl.Diagnostics
+				cfg, hclDiags = loader.LoadConfig(tt.args.configDir)
+				if hclDiags.HasErrors() {
+					t.Fatalf("invalid configuration: %s", hclDiags.Error())
+				}
 			}
 
 			got, err := MigrateStateProviderAddresses(cfg, tt.args.state)

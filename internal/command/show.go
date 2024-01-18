@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -108,7 +109,7 @@ func (c *ShowCommand) Synopsis() string {
 }
 
 func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
-	var diags, showDiags tfdiags.Diagnostics
+	var diags, showDiags, migrateDiags tfdiags.Diagnostics
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
 	var stateFile *statefile.File
@@ -132,6 +133,14 @@ func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON,
 		plan, jsonPlan, stateFile, config, showDiags = c.showFromPath(path)
 		diags = diags.Append(showDiags)
 		if showDiags.HasErrors() {
+			return plan, jsonPlan, stateFile, config, schemas, diags
+		}
+	}
+
+	if stateFile != nil {
+		stateFile.State, migrateDiags = tofumigrate.MigrateStateProviderAddresses(config, stateFile.State)
+		diags = diags.Append(migrateDiags)
+		if migrateDiags.HasErrors() {
 			return plan, jsonPlan, stateFile, config, schemas, diags
 		}
 	}
