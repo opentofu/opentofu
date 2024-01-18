@@ -3,9 +3,11 @@ package tofumigrate
 import (
 	"os"
 
+	"github.com/hashicorp/hcl/v2"
 	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -37,14 +39,23 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 		return state, nil
 	}
 
+	if state == nil {
+		return nil, nil
+	}
+
 	var diags tfdiags.Diagnostics
 
 	stateCopy := state.DeepCopy()
 
-	providers, hclDiags := config.ProviderRequirements()
-	diags = diags.Append(hclDiags)
-	if hclDiags.HasErrors() {
-		return nil, diags
+	providers := getproviders.Requirements{}
+	// config could be nil when we're e.g. showing a statefile without the configuration present
+	if config != nil {
+		var hclDiags hcl.Diagnostics
+		providers, hclDiags = config.ProviderRequirements()
+		diags = diags.Append(hclDiags)
+		if hclDiags.HasErrors() {
+			return nil, diags
+		}
 	}
 
 	for _, module := range stateCopy.Modules {
