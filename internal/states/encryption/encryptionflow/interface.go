@@ -108,6 +108,11 @@ type Flow interface {
 	// by the encryption method. For example, plans cannot be partially encrypted, because
 	// they are binary data.
 	EncryptPlan(plan []byte) ([]byte, error)
+}
+
+// FlowBuilder is the configuration builder for an encryption flow. Use this interface to allow assembling a valid
+// encryption configuration.
+type FlowBuilder interface {
 
 	// EncryptionConfiguration provides this Flow with configuration for
 	// encryption and decryption.
@@ -133,7 +138,7 @@ type Flow interface {
 	// Note: Some errors in the configuration can only be detected once it is used.
 	DecryptionFallbackConfiguration(source ConfigurationSource, config encryptionconfig.Config) error
 
-	// MergeAndValidateConfigurations merges and validates all configurations of this Flow.
+	// Build merges and validates all configurations of this Flow.
 	//
 	// Call this only after all configurations have been supplied via EncryptionConfiguration()
 	// and DecryptionFallbackConfiguration().
@@ -144,5 +149,5 @@ type Flow interface {
 	//
 	// Note: Some errors in the encryption or decryption fallback configurations can only be
 	// detected once they are used, especially when external key management systems are involved.
-	MergeAndValidateConfigurations() error
+	Build() (Flow, error)
 }

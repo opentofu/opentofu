@@ -137,11 +137,20 @@ func ExampleGetRemoteStateSingleton() {
 		// code block to isolate variables in sections of this example that would normally
 		// be in different places in the tofu code
 
-		instance, err := GetRemoteStateSingleton()
+		builder, err := GetRemoteStateSingleton()
 		if err != nil {
+			// TODO update this comment.
 			// errors here should not normally happen if the singleton cache was enabled using EnableSingletonCaching()
 			// and ValidateAllCachedInstances() was successful, but if they do, fail state read or write
-			fmt.Println("error constructing instance", err.Error())
+			fmt.Println("error fetching singleton", err.Error())
+			return
+		}
+		instance, err := builder.Build()
+		if err != nil {
+			// TODO update this comment.
+			// errors here should not normally happen if the singleton cache was enabled using EnableSingletonCaching()
+			// and ValidateAllCachedInstances() was successful, but if they do, fail state read or write
+			fmt.Println("error building encryption flow", err.Error())
 			return
 		}
 

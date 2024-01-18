@@ -32,7 +32,7 @@ func ValidateAllCachedInstances() tfdiags.Diagnostics {
 	defer cache.mutex.RUnlock()
 
 	for configKey, instance := range cache.instances_useGetAndSet {
-		if err := instance.MergeAndValidateConfigurations(); err != nil {
+		if _, err := instance.Build(); err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				fmt.Sprintf("Invalid state encryption configuration for configuration key %s", configKey),
