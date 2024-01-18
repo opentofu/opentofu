@@ -61,43 +61,27 @@ func TestParseEnvironmentVariables(t *testing.T) {
 	}
 }
 
-type tstAlwaysFailingFlow struct{}
+type tstAlwaysFailingFlowBuilder struct{}
 
 var alwaysFailError = errors.New("always fails")
 
-func (t *tstAlwaysFailingFlow) DecryptState(_ []byte) ([]byte, error) {
-	return []byte{}, alwaysFailError
-}
-
-func (t *tstAlwaysFailingFlow) EncryptState(_ []byte) ([]byte, error) {
-	return []byte{}, alwaysFailError
-}
-
-func (t *tstAlwaysFailingFlow) DecryptPlan(_ []byte) ([]byte, error) {
-	return []byte{}, alwaysFailError
-}
-
-func (t *tstAlwaysFailingFlow) EncryptPlan(_ []byte) ([]byte, error) {
-	return []byte{}, alwaysFailError
-}
-
-func (t *tstAlwaysFailingFlow) EncryptionConfiguration(_ encryptionflow.ConfigurationSource, _ encryptionconfig.Config) error {
+func (t *tstAlwaysFailingFlowBuilder) EncryptionConfiguration(_ encryptionflow.ConfigurationSource, _ encryptionconfig.Config) error {
 	return alwaysFailError
 }
 
-func (t *tstAlwaysFailingFlow) DecryptionFallbackConfiguration(_ encryptionflow.ConfigurationSource, _ encryptionconfig.Config) error {
+func (t *tstAlwaysFailingFlowBuilder) DecryptionFallbackConfiguration(_ encryptionflow.ConfigurationSource, _ encryptionconfig.Config) error {
 	return alwaysFailError
 }
 
-func (t *tstAlwaysFailingFlow) MergeAndValidateConfigurations() error {
-	return alwaysFailError
+func (t *tstAlwaysFailingFlowBuilder) Build() (encryptionflow.Flow, error) {
+	return nil, alwaysFailError
 }
 
 func TestApplyEncryptionConfigIfExists_ApplyError(t *testing.T) {
 	configKey := "unit_testing.apply_encryption_config_if_exists"
 	t.Setenv(encryptionconfig.ConfigEnvName, envConfig(configKey, true))
 
-	failFlow := &tstAlwaysFailingFlow{}
+	failFlow := &tstAlwaysFailingFlowBuilder{}
 	err := applyEncryptionConfigIfExists(failFlow, encryptionflow.ConfigurationSourceEnv, configKey)
 	expectErr(t, err, alwaysFailError)
 }
@@ -106,7 +90,7 @@ func TestApplyDecryptionFallbackConfigIfExists_ApplyError(t *testing.T) {
 	configKey := "unit_testing.apply_decryption_fallback_config_if_exists"
 	t.Setenv(encryptionconfig.FallbackConfigEnvName, envConfig(configKey, true))
 
-	failFlow := &tstAlwaysFailingFlow{}
+	failFlow := &tstAlwaysFailingFlowBuilder{}
 	err := applyDecryptionFallbackConfigIfExists(failFlow, encryptionflow.ConfigurationSourceEnv, configKey)
 	expectErr(t, err, alwaysFailError)
 }
