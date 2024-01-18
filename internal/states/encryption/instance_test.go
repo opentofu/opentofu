@@ -109,7 +109,7 @@ func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instance
 	}
 }
 
-func runGetSingletonTestcase(t *testing.T, tc instanceTestCase, useSingletonCache bool, functionUnderTest func() (encryptionflow.Flow, error)) {
+func runGetSingletonTestcase(t *testing.T, tc instanceTestCase, useSingletonCache bool, functionUnderTest func() (encryptionflow.FlowBuilder, error)) {
 	if cache != nil {
 		t.Fatal("cache was enabled at start of test - probably some other test forgot to defer DisableSingletonCaching()")
 	}
@@ -133,7 +133,7 @@ func runGetSingletonTestcase(t *testing.T, tc instanceTestCase, useSingletonCach
 			t.Fatal("instance was unexpectedly nil despite no error")
 		}
 
-		err := instance.MergeAndValidateConfigurations()
+		_, err := instance.Build()
 		expectErr(t, err, tc.expectValidationError)
 	}
 
@@ -144,7 +144,7 @@ func TestGetSingleton_NoCache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			runGetSingletonTestcase(t, tc, false, func() (encryptionflow.Flow, error) {
+			runGetSingletonTestcase(t, tc, false, func() (encryptionflow.FlowBuilder, error) {
 				return GetSingleton(tc.key)
 			})
 		})
@@ -156,7 +156,7 @@ func TestGetSingleton_Cache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			runGetSingletonTestcase(t, tc, true, func() (encryptionflow.Flow, error) {
+			runGetSingletonTestcase(t, tc, true, func() (encryptionflow.FlowBuilder, error) {
 				return GetSingleton(tc.key)
 			})
 		})

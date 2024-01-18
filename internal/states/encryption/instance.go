@@ -54,7 +54,7 @@ import (
 // The first time a particular instance is requested, GetSingleton may bail out due to invalid configuration.
 //
 // See also GetRemoteStateSingleton(), GetStatefileSingleton(), GetPlanfileSingleton().
-func GetSingleton(configKey string) (encryptionflow.Flow, error) {
+func GetSingleton(configKey string) (encryptionflow.FlowBuilder, error) {
 	if !strings.Contains(configKey, ".") {
 		panic("call to encryption.GetSingleton with a key that does not contain '.'. This is a bug. " +
 			"GetSingleton() is intended to obtain named instances only. For predefined instances use " +
@@ -69,7 +69,7 @@ func GetSingleton(configKey string) (encryptionflow.Flow, error) {
 
 // GetRemoteStateSingleton obtains the singleton instance of the encryption flow that is intended for our own remote
 // state backend, as opposed to terraform_remote_state data sources.
-func GetRemoteStateSingleton() (encryptionflow.Flow, error) {
+func GetRemoteStateSingleton() (encryptionflow.FlowBuilder, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyBackend, true)
 	} else {
@@ -78,7 +78,7 @@ func GetRemoteStateSingleton() (encryptionflow.Flow, error) {
 }
 
 // GetStatefileSingleton obtains the singleton instance of the encryption flow that is intended for our own local state file.
-func GetStatefileSingleton() (encryptionflow.Flow, error) {
+func GetStatefileSingleton() (encryptionflow.FlowBuilder, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyStatefile, false)
 	} else {
@@ -87,7 +87,7 @@ func GetStatefileSingleton() (encryptionflow.Flow, error) {
 }
 
 // GetPlanfileSingleton obtains the instance of the encryption flow that is intended for our plan file.
-func GetPlanfileSingleton() (encryptionflow.Flow, error) {
+func GetPlanfileSingleton() (encryptionflow.FlowBuilder, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyPlanfile, false)
 	} else {
@@ -95,7 +95,7 @@ func GetPlanfileSingleton() (encryptionflow.Flow, error) {
 	}
 }
 
-func newInstance(configKey string, defaultsApply bool) (encryptionflow.Flow, error) {
+func newInstance(configKey string, defaultsApply bool) (encryptionflow.FlowBuilder, error) {
 	logging.HCLogger().Trace("constructing new state encryption flow instance", "configKey", configKey)
 	instance := encryptionflow.NewMock(configKey)
 

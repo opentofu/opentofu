@@ -14,7 +14,7 @@ import (
 // This is the most important case, because this will happen if tofu is run without
 // any encryption configuration. We need to ensure all state and plans are passed through
 // unchanged.
-func tstNoConfigurationInstance() Flow {
+func tstNoConfigurationInstance() FlowBuilder {
 	return NewMock("testing_no_configuration")
 }
 
@@ -29,26 +29,38 @@ func tstPassthrough(t *testing.T, value string, method func([]byte) ([]byte, err
 }
 
 func TestDecryptState_Passthrough(t *testing.T) {
-	cut := tstNoConfigurationInstance()
+	cut, err := tstNoConfigurationInstance().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	tstPassthrough(t, `{"version":"4"}`, cut.DecryptState)
 }
 
 func TestEncryptState_Passthrough(t *testing.T) {
-	cut := tstNoConfigurationInstance()
+	cut, err := tstNoConfigurationInstance().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	tstPassthrough(t, `{"version":"4"}`, cut.EncryptState)
 }
 
 func TestDecryptPlan_Passthrough(t *testing.T) {
-	cut := tstNoConfigurationInstance()
+	cut, err := tstNoConfigurationInstance().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	tstPassthrough(t, `zip64`, cut.DecryptPlan)
 }
 
 func TestEncryptPlan_Passthrough(t *testing.T) {
-	cut := tstNoConfigurationInstance()
+	cut, err := tstNoConfigurationInstance().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 	tstPassthrough(t, `zip64`, cut.EncryptPlan)
 }
 
-func tstCodeConfigurationInstance(encValid bool, decValid bool) Flow {
+func tstCodeConfigurationInstance(encValid bool, decValid bool) FlowBuilder {
 	encConfig := encryptionconfig.Config{
 		KeyProvider: encryptionconfig.KeyProviderConfig{
 			Config: map[string]string{},
@@ -78,7 +90,7 @@ func tstCodeConfigurationInstance(encValid bool, decValid bool) Flow {
 func TestMergeAndValidateConfigurations(t *testing.T) {
 	testCases := []struct {
 		testcase    string
-		cut         Flow
+		cut         FlowBuilder
 		expectError error
 	}{
 		{
@@ -105,7 +117,7 @@ func TestMergeAndValidateConfigurations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			err := tc.cut.MergeAndValidateConfigurations()
+			_, err := tc.cut.Build()
 			expectErr(t, err, tc.expectError)
 		})
 	}
@@ -115,16 +127,7 @@ func TestDecryptEncryptPropagateErrors(t *testing.T) {
 	cut := tstCodeConfigurationInstance(false, true)
 	expected := errors.New("error invalid encryption configuration after merge: error in configuration for key provider passphrase: passphrase missing or empty")
 
-	_, err := cut.DecryptState([]byte(`{"version":"4"}`))
-	expectErr(t, err, expected)
-
-	_, err = cut.EncryptState([]byte(`{"version":"4"}`))
-	expectErr(t, err, expected)
-
-	_, err = cut.DecryptPlan([]byte(`zip64`))
-	expectErr(t, err, expected)
-
-	_, err = cut.EncryptPlan([]byte(`zip64`))
+	_, err := cut.Build()
 	expectErr(t, err, expected)
 }
 
