@@ -16,6 +16,7 @@ ENHANCEMENTS:
 * Added "base64gunzip" function. ([$800](https://github.com/opentofu/opentofu/issues/800))
 * Added "cidrcontains" function. ([$366](https://github.com/opentofu/opentofu/issues/366))
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
+* Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
