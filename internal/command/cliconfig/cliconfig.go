@@ -96,6 +96,11 @@ func ConfigDir() (string, error) {
 	return configDir()
 }
 
+// PluginDir returns the plugin directory for OpenTofu.
+func PluginDir() (string, error) {
+	return pluginDir()
+}
+
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.

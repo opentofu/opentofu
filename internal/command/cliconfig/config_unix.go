@@ -45,6 +45,20 @@ func configDir() (string, error) {
 	return configDir, nil
 }
 
+func pluginDir() (string, error) {
+	dir, err := homeDir()
+	if err != nil {
+		return "", err
+	}
+
+	configDir := filepath.Join(dir, ".terraform.d")
+	if xdgDir := os.Getenv("XDG_DATA_HOME"); xdgDir != "" && !pathExists(configDir) {
+		configDir = filepath.Join(xdgDir, "opentofu")
+	}
+
+	return configDir, nil
+}
+
 func homeDir() (string, error) {
 	// First prefer the HOME environmental variable
 	if home := os.Getenv("HOME"); home != "" {
