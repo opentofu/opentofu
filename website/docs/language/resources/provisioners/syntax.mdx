@@ -195,7 +195,7 @@ provisioners must connect to the remote system using SSH or WinRM.
 You must include [a `connection` block](/docs/language/resources/provisioners/connection) so that OpenTofu knows how to communicate with the server.
 
 OpenTofu includes several built-in provisioners. You can also use third-party provisioners as plugins, by placing them
-in `%APPDATA%\terraform.d\plugins`, `~/.terraform.d/plugins`, or the same
+in `%APPDATA%\terraform.d\plugins`, `~/.terraform.d/plugins`, `$XDG_DATA_HOME/opentofu/plugins`, or the same
 directory where the OpenTofu binary is installed. However, we do not recommend
 using any provisioners except the built-in `file`, `local-exec`, and
 `remote-exec` provisioners.
