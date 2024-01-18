@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
 // StateShowCommand is a Command implementation that shows a single resource.
@@ -124,6 +125,13 @@ func (c *StateShowCommand) Run(args []string) int {
 		c.Streams.Eprintln(errStateNotFound)
 		return 1
 	}
+	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(lr.Config, state)
+	diags = diags.Append(migrateDiags)
+	if migrateDiags.HasErrors() {
+		c.View.Diagnostics(diags)
+		return 1
+	}
+	state = migratedState
 
 	is := state.ResourceInstance(addr)
 	if !is.HasCurrent() {
