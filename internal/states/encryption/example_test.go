@@ -139,18 +139,17 @@ func ExampleGetRemoteStateSingleton() {
 
 		builder, err := GetRemoteStateSingleton()
 		if err != nil {
-			// TODO update this comment.
 			// errors here should not normally happen if the singleton cache was enabled using EnableSingletonCaching()
-			// and ValidateAllCachedInstances() was successful, but if they do, fail state read or write
-			fmt.Println("error fetching singleton", err.Error())
+			// and ParseEnvironmentVariables() was successful, but if errors do happen, fail state read or write
+			fmt.Println("error fetching singleton, most likely invalid configuration in environment variables", err.Error())
 			return
 		}
 		instance, err := builder.Build()
 		if err != nil {
-			// TODO update this comment.
 			// errors here should not normally happen if the singleton cache was enabled using EnableSingletonCaching()
 			// and ValidateAllCachedInstances() was successful, but if they do, fail state read or write
-			fmt.Println("error building encryption flow", err.Error())
+			fmt.Println("error building encryption flow, most likely invalid configuration in terraform block, "+
+				"or merged configuration between environment variable and terraform block was incomplete or invalid", err.Error())
 			return
 		}
 

@@ -6,10 +6,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ValidateAllCachedInstances validates the configuration of all known flow.Flow instances.
+// ValidateAllCachedInstances validates the configuration of all known encryptionflow.FlowBuilder instances.
 //
-// Call this after tofu is done with the configuration phase and all instances are configured
-// to get early errors.
+// Call this after tofu is done with the configuration phase to get early errors as soon as all configurations
+// are known.
 //
 // This avoids that errors will occur when first reading state, with possibly misleading
 // error message titles such as "could not acquire state lock". The detailed error

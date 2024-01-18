@@ -18,12 +18,12 @@ type instanceCache struct {
 
 var cache *instanceCache
 
-// EnableSingletonCaching enables encryption flow instance caching.
+// EnableSingletonCaching enables encryption flow builder instance caching.
 //
-// This allows code outside this package to call Instance() multiple times with the same key and receive
+// This allows code outside this package to call GetSingleton() multiple times with the same key and receive
 // the same instance each time.
 //
-// Similarly, RemoteStateInstance(), StatefileInstance(), or PlanfileInstance() will only construct their
+// Similarly, GetRemoteStateSingleton(), GetStatefileSingleton(), or GetPlanfileSingleton() will only construct their
 // instance the first time they are called.
 //
 // Note: you should not enable the instance cache in low level unit tests, but if you do use it in a test,
@@ -41,7 +41,7 @@ func EnableSingletonCaching() {
 	}
 }
 
-// DisableSingletonCaching disables encryption flow instance caching.
+// DisableSingletonCaching disables encryption flow builder instance caching.
 //
 // see EnableSingletonCaching().
 func DisableSingletonCaching() {
@@ -65,7 +65,7 @@ func (c *instanceCache) set(configKey string, cacheEntry encryptionflow.FlowBuil
 func (c *instanceCache) cachedOrNewInstance(configKey string, defaultsApply bool) (encryptionflow.FlowBuilder, error) {
 	instance, found := c.get(configKey)
 	if found {
-		logging.HCLogger().Trace("found state encryption flow singleton instance in cache", "configKey", configKey)
+		logging.HCLogger().Trace("found state encryption flow builder singleton in cache", "configKey", configKey)
 		return instance, nil
 	}
 
