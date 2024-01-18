@@ -457,7 +457,10 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	absAddr := addr.Resource.Absolute(ctx.Path())
 
 	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
-		return h.PrePlanImport(absAddr, importId)
+		// Changing this causes to logs to be "Importing from ID XXX" instead of "Preparing import"
+		// To be aligned to the current logs of `tofu import`
+		// If we'd like to keep having different logs for `tofu import` vs `tofu apply` with import blocks, this would need a fork
+		return h.PreImportState(absAddr, importId)
 	}))
 	if diags.HasErrors() {
 		return nil, diags
@@ -474,6 +477,9 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	imported := resp.ImportedResources
 
+	// NOTE - This validation does not fail for `tofu import` prior to this change, but will fail now
+	// Technically a provider could update multiple states in a single import command
+	// So this use-case would be broken in `tofu import` (if it actually exists), unless this code is somehow adapted
 	if len(imported) == 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -503,7 +509,10 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	// call post-import hook
 	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostPlanImport(absAddr, imported)
+		// Changing this causes to logs to be "Import prepared!" and display the imported states
+		// To be aligned to the current logs of `tofu import`
+		// If we'd like to keep having different logs for `tofu import` vs `tofu apply` with import blocks, this would need a fork
+		return h.PostImportState(absAddr, imported)
 	}))
 
 	if imported[0].TypeName == "" {

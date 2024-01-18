@@ -313,31 +313,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		var m *NodePlannableResourceInstance
 
-		// If we're in legacy import mode (the import CLI command), we only need
-		// to return the import node, not a plannable resource node.
-		if n.legacyImportMode {
-			for _, importTarget := range n.importTargets {
-				if importTarget.Addr.Equal(a.Addr) {
-
-					// The import ID was supplied as a string on the command
-					// line and made into a synthetic HCL expression.
-					importId, diags := evaluateImportIdExpression(importTarget.ID, ctx)
-					if diags.HasErrors() {
-						// This should be impossible, because the import command
-						// arg parsing builds the synth expression from a
-						// non-null string.
-						panic(fmt.Sprintf("Invalid import id: %s. This is a bug in OpenTofu; please report it!", diags.Err()))
-					}
-
-					return &graphNodeImportState{
-						Addr:             importTarget.Addr,
-						ID:               importId,
-						ResolvedProvider: n.ResolvedProvider,
-					}
-				}
-			}
-		}
-
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider

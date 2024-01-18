@@ -230,6 +230,10 @@ func (c *ImportCommand) Run(args []string) int {
 		}
 	}()
 
+	// In the import block, the ID can be an arbitrary hcl.Expression,
+	// but here it's always interpreted as a literal string.
+	importId := hcl.StaticExpr(cty.StringVal(args[1]), configs.SynthBody("import", nil).MissingItemRange())
+
 	// Perform the import. Note that as you can see it is possible for this
 	// API to import more than one resource at once. For now, we only allow
 	// one while we stabilize this feature.
@@ -237,10 +241,13 @@ func (c *ImportCommand) Run(args []string) int {
 		Targets: []*tofu.ImportTarget{
 			{
 				Addr: addr,
-
-				// In the import block, the ID can be an arbitrary hcl.Expression,
-				// but here it's always interpreted as a literal string.
-				ID: hcl.StaticExpr(cty.StringVal(args[1]), configs.SynthBody("import", nil).MissingItemRange()),
+				ID:   importId,
+				Config: &configs.Import{
+					ID: importId,
+					To: addr,
+					// Would also require an ToHCL field here later, requiring us to parse the address argument as HCL
+					// HCL: hclsyntax.ParseExpression(traversalSrc, "import", hcl.Pos{Line: 1, Column: 1})
+				},
 			},
 		},
 
