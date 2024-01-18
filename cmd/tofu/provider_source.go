@@ -145,7 +145,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	}
 
 	addLocalDir("terraform.d/plugins") // our "vendor" directory
-	cliConfigDir, err := cliconfig.PluginDir()
+	cliConfigDir, err := cliconfig.DataDir()
 	if err == nil {
 		addLocalDir(filepath.Join(cliConfigDir, "plugins"))
 	}

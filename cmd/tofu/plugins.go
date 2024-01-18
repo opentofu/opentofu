@@ -21,7 +21,7 @@ import (
 func globalPluginDirs() []string {
 	var ret []string
 	// Look in ~/.terraform.d/plugins/, $XDG_DATA_HOME/opentofu/plugins, or its equivalent on non-UNIX platforms
-	dir, err := cliconfig.PluginDir()
+	dir, err := cliconfig.DataDir()
 	if err != nil {
 		log.Printf("[ERROR] Error finding global config directory: %s", err)
 	} else {

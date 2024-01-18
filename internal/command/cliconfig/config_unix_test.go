@@ -81,19 +81,19 @@ func TestConfigFileConfigDir(t *testing.T) {
 		},
 		{
 			name:     "pluginDir: no xdg",
-			testFunc: pluginDir,
+			testFunc: dataDir,
 			expect:   filepath.Join(homeDir, ".terraform.d"),
 		},
 		{
 			name:        "pluginDir: xdg but path exists",
-			testFunc:    pluginDir,
+			testFunc:    dataDir,
 			xdgDataHome: filepath.Join(baseDir, "xdg"),
 			files:       []string{filepath.Join(homeDir, ".terraform.d", "placeholder")},
 			expect:      filepath.Join(homeDir, ".terraform.d"),
 		},
 		{
 			name:        "pluginDir: use xdg",
-			testFunc:    pluginDir,
+			testFunc:    dataDir,
 			xdgDataHome: filepath.Join(baseDir, "xdg"),
 			expect:      filepath.Join(baseDir, "xdg", "opentofu"),
 		},
