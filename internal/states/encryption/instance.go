@@ -10,7 +10,7 @@ import (
 
 // --------------------------------------------------------------------------------------------
 // IMPORTANT NOTE:
-// This package contains a cache for singleton instances.
+// This package contains a cache for singleton instances of encryptionflow.FlowBuilder
 //   - there is one instance for our own remote state
 //   - there is one instance for our local state file
 //   - there is one instance for our local plan file
@@ -40,7 +40,7 @@ import (
 //
 // --------------------------------------------------------------------------------------------
 
-// GetSingleton obtains the singleton instance of the encryption flow for the given configKey.
+// GetSingleton obtains the singleton instance of the encryption flow builder for the given configKey.
 //
 // configKey specifies a resource that accesses remote state. It must contain at least one ".".
 //
@@ -67,7 +67,7 @@ func GetSingleton(configKey string) (encryptionflow.FlowBuilder, error) {
 	}
 }
 
-// GetRemoteStateSingleton obtains the singleton instance of the encryption flow that is intended for our own remote
+// GetRemoteStateSingleton obtains the singleton instance of the encryption flow builder that is intended for our own remote
 // state backend, as opposed to terraform_remote_state data sources.
 func GetRemoteStateSingleton() (encryptionflow.FlowBuilder, error) {
 	if cache != nil {
@@ -77,7 +77,7 @@ func GetRemoteStateSingleton() (encryptionflow.FlowBuilder, error) {
 	}
 }
 
-// GetStatefileSingleton obtains the singleton instance of the encryption flow that is intended for our own local state file.
+// GetStatefileSingleton obtains the singleton instance of the encryption flow builder that is intended for our own local state file.
 func GetStatefileSingleton() (encryptionflow.FlowBuilder, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyStatefile, false)
@@ -86,7 +86,7 @@ func GetStatefileSingleton() (encryptionflow.FlowBuilder, error) {
 	}
 }
 
-// GetPlanfileSingleton obtains the instance of the encryption flow that is intended for our plan file.
+// GetPlanfileSingleton obtains the instance of the encryption flow builder that is intended for our plan file.
 func GetPlanfileSingleton() (encryptionflow.FlowBuilder, error) {
 	if cache != nil {
 		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyPlanfile, false)
