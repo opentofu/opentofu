@@ -40,6 +40,31 @@ Generally, we appreciate external contributions very much and would love to work
 
 ---
 
+## Core Team
+
+The Core Team consists of the individuals in the [MAINTAINERS](MAINTAINERS) file. This team exists as stewards of OpenTofu: to triage issues, to implement features, to help with and review community contributions, and to communicate with the Technical Steering Committee.
+
+### Issue Triaging
+
+As issues are filed in the OpenTofu project, they go through a processes driven by the Core Team.  This process is in place to prevent duplicate work and to ensure that a discussion happens before work is contributed to avoid frustration.
+
+Steps:
+* Issue is filed and given the `pending-decision` label and an additional label to identify their type (`bug`, `enhancement`, `rfc`).
+* Issue will first be discussed between the Core Team and the community to iron out any missing details.
+* Once the Issue is well understood, the Core Team may decide to accept it, reject it, or pass the decision along to the [Technical Steering Committee](https://github.com/opentofu/opentofu/blob/main/TSC_SUMMARY.md) (`pending-steering-committee-decision`).
+  - Occasionally, the Core Team may wait to make a decision to gauge the level of community interest and will add the label `needs-community-input`.
+  - To advocate for an issue, give it a reaction and/or add a comment.
+* If Accepted:
+  - It will have the `pending-decision` label removed and the `accepted` label added.
+  - The Core Team may assign one of their members to work on it or may wait for a community member to ask for it to be assigned to them.
+  - It may sometimes be labeled with `help-wanted` or `good-first-issue` when the Core Team hopes that someone in the community will be able to pitch in and help on it.
+* If Rejected:
+  - Not all issues will make it into OpenTofu, but the decision process should be clear and documented.
+  - The issue will be closed.
+
+
+---
+
 <!-- MarkdownTOC autolink="true" -->
 
 - [Contributing a Code Change](#contributing-a-code-change)
@@ -49,10 +74,6 @@ Generally, we appreciate external contributions very much and would love to work
 - [Generated Code](#generated-code)
 
 <!-- /MarkdownTOC -->
-
-## Core Team
-
-The core team consists of the individuals in the [MAINTAINERS](MAINTAINERS) file.  This team exists as stewards of OpenTofu: to triage issues, to implement features, to help with and review community contributions, and to communicate with the Technical Steering Committee.
 
 ## Contributing a Code Change
 
