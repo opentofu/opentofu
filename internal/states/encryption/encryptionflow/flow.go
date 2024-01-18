@@ -1,6 +1,9 @@
 package encryptionflow
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 )
@@ -89,8 +92,7 @@ type PlanFlow interface {
 	EncryptPlan(plan []byte) ([]byte, error)
 }
 
-// flow is currently not implemented and will be provided in a later pull request. The current implementation passes
-// all data through.
+// flow is the main implementation of both PlanFlow and StateFlow.
 type flow struct {
 	configKey        encryptionconfig.Key
 	logger           hclog.Logger
@@ -98,22 +100,233 @@ type flow struct {
 	fallbackConfig   *encryptionconfig.Config
 }
 
-func (m *flow) DecryptState(payload []byte) ([]byte, error) {
-	m.logger.Trace("encryption:DecryptState", "key", m.configKey, "payloadSize", len(payload))
-	return payload, nil
+var (
+	errNotEncrypted   = errors.New("not encrypted")
+	errNotJson        = errors.New("not a json object")
+	errMethodJsonOnly = errors.New("encryption method can only be used on json documents - not suitable for plans")
+)
+
+func (e *flow) DecryptState(state []byte) ([]byte, error) {
+	e.logger.Trace("encryption:DecryptState", "key", e.configKey, "stateSize", len(state))
+	return e.decrypt(state, true)
 }
 
-func (m *flow) EncryptState(state []byte) ([]byte, error) {
-	m.logger.Trace("encryption:EncryptState", "key", m.configKey, "stateSize", len(state))
-	return state, nil
+func (e *flow) EncryptState(state []byte) ([]byte, error) {
+	e.logger.Trace("encryption:EncryptState", "key", e.configKey, "stateSize", len(state))
+	return e.encrypt(state, true)
 }
 
-func (m *flow) DecryptPlan(payload []byte) ([]byte, error) {
-	m.logger.Trace("encryption:DecryptPlan", "key", m.configKey, "payloadSize", len(payload))
-	return payload, nil
+func (e *flow) DecryptPlan(payload []byte) ([]byte, error) {
+	e.logger.Trace("encryption:DecryptPlan", "key", e.configKey, "payloadSize", len(payload))
+	return e.decrypt(payload, false)
 }
 
-func (m *flow) EncryptPlan(plan []byte) ([]byte, error) {
-	m.logger.Trace("encryption:EncryptPlan", "key", m.configKey, "planSize", len(plan))
-	return plan, nil
+func (e *flow) EncryptPlan(plan []byte) ([]byte, error) {
+	e.logger.Trace("encryption:EncryptPlan", "key", e.configKey, "planSize", len(plan))
+	return e.encrypt(plan, false)
+}
+
+func (e *flow) tryDecryptionWithConfig(encrypted EncryptedDocument, info *EncryptionInfo, config *encryptionconfig.Config) ([]byte, error) {
+	deepCopiedConfig := e.deepCopyConfig(config)
+
+	method, err := constructMethod(config.Method.Name)
+	if err != nil {
+		return []byte{}, err
+	}
+	keyProvider, err := constructKeyProvider(config.KeyProvider.Name)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return method.Decrypt(encrypted, info, *deepCopiedConfig, keyProvider)
+}
+
+func (e *flow) tryEncryptionWithConfig(payload []byte, config *encryptionconfig.Config) ([]byte, error) {
+	deepCopiedConfig := e.deepCopyConfig(config)
+
+	method, err := constructMethod(config.Method.Name)
+	if err != nil {
+		return []byte{}, err
+	}
+	keyProvider, err := constructKeyProvider(config.KeyProvider.Name)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	info := EncryptionInfo{
+		Version: 1,
+		Method: MethodInfo{
+			Name: config.Method.Name,
+		},
+	}
+
+	encrypted, err := method.Encrypt(payload, &info, *deepCopiedConfig, keyProvider)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return e.marshalEncrypted(encrypted, &info)
+}
+
+func (e *flow) unmarshalEncrypted(payload []byte) (EncryptedDocument, *EncryptionInfo, error) {
+	document := make(map[string]any)
+
+	err := json.Unmarshal(payload, &document)
+	if err != nil {
+		e.logger.Trace("encryption:unmarshalEncrypted not json - not encrypted")
+		return nil, nil, errNotJson
+	}
+
+	infoRaw, ok := document[EncryptionTopLevelJsonKey]
+	if !ok {
+		e.logger.Trace("encryption:unmarshalEncrypted not encrypted")
+		return nil, nil, errNotEncrypted
+	}
+	delete(document, EncryptionTopLevelJsonKey)
+
+	info, err := e.convertToEncryptionInfo(infoRaw)
+	return document, info, err
+}
+
+func (e *flow) convertToEncryptionInfo(raw any) (*EncryptionInfo, error) {
+	// re-marshal into the data structure we need (it's small enough)
+	infoJson, err := json.Marshal(raw)
+	if err != nil {
+		e.logger.Trace("encryption:convertToEncryptionInfo info marshal failed", "err", err.Error())
+		return nil, fmt.Errorf("encryption marker in payload has invalid structure: %s", err.Error())
+	}
+	info := EncryptionInfo{}
+	err = json.Unmarshal(infoJson, &info)
+	if err != nil {
+		e.logger.Trace("encryption:convertToEncryptionInfo info unmarshal failed", "err", err.Error())
+		return nil, fmt.Errorf("encryption marker in payload has invalid structure: %s", err.Error())
+	}
+	return &info, nil
+}
+
+func (e *flow) marshalEncrypted(encrypted EncryptedDocument, info *EncryptionInfo) ([]byte, error) {
+	_, ok := encrypted[EncryptionTopLevelJsonKey]
+	if ok {
+		return []byte{}, fmt.Errorf("encryption internal error, reserved key '%s' is not empty in encrypted "+
+			"document produced by method '%s' - this is a bug in the encryption method",
+			EncryptionTopLevelJsonKey, info.Method.Name)
+	}
+
+	encrypted[EncryptionTopLevelJsonKey] = *info
+
+	return json.MarshalIndent(encrypted, "", "  ")
+}
+
+func mapCopy(original map[string]string) map[string]string {
+	if original == nil {
+		return nil
+	}
+	result := make(map[string]string)
+	for k, v := range original {
+		result[k] = v
+	}
+	return result
+}
+
+func (e *flow) deepCopyConfig(config *encryptionconfig.Config) *encryptionconfig.Config {
+	return &encryptionconfig.Config{
+		KeyProvider: encryptionconfig.KeyProviderConfig{
+			Name:   config.KeyProvider.Name,
+			Config: mapCopy(config.KeyProvider.Config),
+		},
+		Method: encryptionconfig.MethodConfig{
+			Name:   config.Method.Name,
+			Config: mapCopy(config.Method.Config),
+		},
+		Enforced: config.Enforced,
+	}
+}
+
+func (e *flow) decrypt(payload []byte, tryFallback bool) ([]byte, error) {
+	e.logger.Trace("encryption:decrypt", "key", e.configKey, "payloadSize", len(payload))
+
+	doc, info, err := e.unmarshalEncrypted(payload)
+	if err != nil {
+		if errors.Is(err, errNotJson) {
+			e.logger.Trace("found state or plan that is not json, therefore not encrypted, passing through to avoid changing behaviour", "key", e.configKey)
+			return payload, nil
+		}
+		if errors.Is(err, errNotEncrypted) {
+			e.logger.Info("found unencrypted state, passing through (possibly initial encryption)", "key", e.configKey)
+			return payload, nil
+		}
+
+		e.logger.Trace("encryption:decrypt unmarshalEncrypted failed", "key", e.configKey, "error", err.Error())
+		return []byte{}, err
+	}
+
+	if e.encryptionConfig != nil {
+		e.logger.Trace("encryption:decrypt trying primary configuration", "key", e.configKey, "method", e.encryptionConfig.Method.Name, "key_provider", e.encryptionConfig.KeyProvider.Name)
+
+		state, err := e.tryDecryptionWithConfig(doc, info, e.encryptionConfig)
+		if err != nil {
+			e.logger.Trace("encryption:decrypt primary configuration failed to decrypt", "key", e.configKey, "error", err.Error())
+			firstError := err
+
+			e.logger.Trace("")
+			if tryFallback && e.fallbackConfig != nil {
+				e.logger.Trace("encryption:decrypt now trying fallback configuration", "key", e.configKey, "method", e.fallbackConfig.Method.Name, "key_provider", e.fallbackConfig.KeyProvider.Name)
+				state, err := e.tryDecryptionWithConfig(doc, info, e.fallbackConfig)
+				if err != nil {
+					e.logger.Trace("encryption:decrypt failed to decrypt state with fallback configuration", "key", e.configKey, "error", err.Error())
+					e.logger.Error("failed to decrypt state with both primary and fallback configuration, bailing out", "key", e.configKey, "error", firstError.Error())
+					return []byte{}, firstError
+				}
+
+				e.logger.Trace("encryption:decrypt fallback configuration success", "key", e.configKey)
+				return state, nil
+			}
+
+			return []byte{}, firstError
+		} else {
+			e.logger.Trace("encryption:decrypt primary configuration success", "key", e.configKey)
+			return state, nil
+		}
+	}
+
+	if tryFallback && e.fallbackConfig != nil {
+		e.logger.Trace("encryption:decrypt trying fallback configuration with no primary configuration", "key", e.configKey, "method", e.fallbackConfig.Method.Name, "key_provider", e.fallbackConfig.KeyProvider.Name)
+
+		state, err := e.tryDecryptionWithConfig(doc, info, e.fallbackConfig)
+		if err != nil {
+			e.logger.Trace("encryption:decrypt fallback configuration failed to decrypt", "key", e.configKey, "error", err.Error())
+			e.logger.Error("failed to decrypt state or plan with fallback configuration and no primary configuration present, bailing out", "key", e.configKey, "error", err.Error())
+			return []byte{}, err
+		} else {
+			e.logger.Trace("encryption:decrypt fallback configuration success", "key", e.configKey)
+			return state, nil
+		}
+	}
+
+	e.logger.Trace("encryption:decrypt input is encrypted but neither primary nor fallback configuration present", "key", e.configKey)
+	return []byte{}, errors.New("failed to decrypt encrypted state or plan - completely missing configuration, maybe forgot to set environment variables")
+}
+
+func (e *flow) encrypt(stateOrPlan []byte, isJson bool) ([]byte, error) {
+	e.logger.Trace("encryption:encrypt", "key", e.configKey, "size", len(stateOrPlan))
+
+	if e.encryptionConfig == nil {
+		// this cannot happen if required = true, because then there WOULD be an encConfig, because required is a field inside it
+		e.logger.Trace("encryption:encrypt no configuration, passing through", "key", e.configKey)
+		return stateOrPlan, nil
+	}
+
+	if !isJson && methodIsJsonOnly(e.encryptionConfig.Method.Name) {
+		e.logger.Trace("encryption:encrypt method does not apply to non-json payloads", "key", e.configKey)
+		return []byte{}, errMethodJsonOnly
+	}
+
+	encrypted, err := e.tryEncryptionWithConfig(stateOrPlan, e.encryptionConfig)
+	if err != nil {
+		e.logger.Trace("encryption:encrypt failed to encrypt", "key", e.configKey, "error", err.Error())
+		return []byte{}, err
+	}
+
+	e.logger.Trace("encryption:encrypt success", "key", e.configKey, "outputSize", len(encrypted))
+	return encrypted, nil
 }

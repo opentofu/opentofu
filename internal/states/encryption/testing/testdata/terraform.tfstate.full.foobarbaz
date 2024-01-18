@@ -1,0 +1,18 @@
+{
+  "encryption": {
+    "version": 1,
+    "key_provider": {
+      "name": "passphrase",
+      "config": {
+        "salt": "c6dad5da157fba0c4824d34d4246240a"
+      }
+    },
+    "method": {
+      "name": "full",
+      "config": {
+        "salt": "20924faf8783c3d8035d8bd39ec3447f"
+      }
+    }
+  },
+  "payload": "ENC[qsaWLpL54ojWJ+LroxT1MTaduZWN+Zg4ISnrVppA3VDcx0/KV4N+KUIsc19yPAjxbQme82ykzMM14MJr7x19ubSQGEp1pce2LREr5uEhEkpYzVymWId+xn7FdeXZk+9XFxiq8ixnSwIBQObWW0FJl3A28rQ5TnE5qJ50HtXsiZB8kWErc0+gTkAR77epPQlEpAPcaD2DCE4x2zUTObLlBr7yaHEtfio2cejSfHxbb0xwhMpUCMXReygniocKzUK7JhXPqxx9hKgZY4r8KvDDnawBq55dVxjh3t5XlSx2OgtXE5x+qSXff0neYuQswYqv5PP/vk9m2gCxTuBbSqFo07F5Hy4p7W/RZDBpP7t8g3sDR0wLnoS0VgHXKcnlt97a2m7OgK9F0/p7dadrJ32+seXQWQEZzVIsYPuZjQhhukgOVoetxyDARQ2z3p4Z2Qcksc5aRJV08KbCgqLxvlyYmQS3VR8yNB21tcEVNciBMhpJvvoCe/0hyqYgSA/1+MVO+h+47zkdKAKyP2mi2PcDerUGSHwyZhExnOD/SGcthI7fuIvOaL78dsBejbHSgXr5cwLtEufAOopmvkuU8Aeu+C9Hqe14jrZPahh35c+65nUqh/jG8TaSb7F6FmORDia9LgDq/m+ZD3w1sxQjDXt/zFx8dAPrF3ZAlZD4REoEVnSOjmmowkQr1C3PuBfF226Wn4CoWH3Eu8e4/H4cwliCOBD1H0On+3U64Yi7bMtLg2kEbYeSy6cNsugqG+yrygBj4hBZxNHGVhjB4YOs/hljR6uY7tu7C353FtI=]"
+}

@@ -2,10 +2,18 @@ package encryptionconfig
 
 import (
 	"errors"
-	"fmt"
-	"strings"
+	"os"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	_ = RegisterKeyProviderValidator(KeyProviderPassphrase, ValidateKPPassphraseConfig)
+	_ = RegisterKeyProviderValidator(KeyProviderDirect, ValidateKPDirectConfig)
+
+	_ = RegisterMethodValidator(MethodFull, ValidateEMFullConfig)
+
+	os.Exit(m.Run())
+}
 
 func TestRegisterKeyProviderConfigValidationFunction(t *testing.T) {
 	testCases := []struct {
@@ -17,7 +25,7 @@ func TestRegisterKeyProviderConfigValidationFunction(t *testing.T) {
 		{
 			testcase:    "duplicate", // already done in init()
 			name:        KeyProviderPassphrase,
-			validator:   validateKPPassphraseConfig,
+			validator:   ValidateKPPassphraseConfig,
 			expectedErr: errors.New("duplicate registration for key provider \"passphrase\""),
 		},
 		{
@@ -46,7 +54,7 @@ func TestRegisterEncryptionMethodConfigValidationFunction(t *testing.T) {
 		{
 			testcase:    "duplicate", // already done in init()
 			name:        MethodFull,
-			validator:   validateEMFullConfig,
+			validator:   ValidateEMFullConfig,
 			expectedErr: errors.New("duplicate registration for encryption method \"full\""),
 		},
 		{
@@ -63,26 +71,4 @@ func TestRegisterEncryptionMethodConfigValidationFunction(t *testing.T) {
 			expectErr(t, err, tc.expectedErr)
 		})
 	}
-}
-
-func TestMust_NoPanic(t *testing.T) {
-	must(nil)
-}
-
-func TestMust_Panic(t *testing.T) {
-	err := errors.New("message in the panic")
-
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Errorf("expected a panic")
-		} else {
-			actual := fmt.Sprintf("%v", r)
-			if !strings.Contains(actual, err.Error()) {
-				t.Errorf("panic message did not contain '%s'", err.Error())
-			}
-		}
-	}()
-
-	must(err)
 }

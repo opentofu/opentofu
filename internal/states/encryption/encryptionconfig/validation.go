@@ -85,7 +85,9 @@ var methodConfigValidators = newLockingMap[MethodName, MethodValidator]()
 
 // validation for the built-in key providers and encryption methods
 
-func validateKPPassphraseConfig(k KeyProviderConfig) error {
+// TODO move to their packages (will need to add simple versions to tests in this package)
+
+func ValidateKPPassphraseConfig(k KeyProviderConfig) error {
 	phrase, ok := k.Config["passphrase"]
 	if !ok || phrase == "" {
 		return errors.New("passphrase missing or empty")
@@ -98,7 +100,7 @@ func validateKPPassphraseConfig(k KeyProviderConfig) error {
 	return nil
 }
 
-func validateKPDirectConfig(k KeyProviderConfig) error {
+func ValidateKPDirectConfig(k KeyProviderConfig) error {
 	keyStr, ok := k.Config["key"]
 	if !ok || keyStr == "" {
 		return errors.New("field 'key' missing or empty")
@@ -116,23 +118,10 @@ func validateKPDirectConfig(k KeyProviderConfig) error {
 	return nil
 }
 
-func validateEMFullConfig(m MethodConfig) error {
+func ValidateEMFullConfig(m MethodConfig) error {
 	if len(m.Config) > 0 {
 		return errors.New("unexpected fields, this method needs no configuration")
 	}
 	// no config fields
 	return nil
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func init() {
-	must(RegisterKeyProviderValidator(KeyProviderPassphrase, validateKPPassphraseConfig))
-	must(RegisterKeyProviderValidator(KeyProviderDirect, validateKPDirectConfig))
-
-	must(RegisterMethodValidator(MethodFull, validateEMFullConfig))
 }
