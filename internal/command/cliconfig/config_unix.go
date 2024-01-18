@@ -45,7 +45,7 @@ func configDir() (string, error) {
 	return configDir, nil
 }
 
-func pluginDir() (string, error) {
+func dataDir() (string, error) {
 	dir, err := homeDir()
 	if err != nil {
 		return "", err

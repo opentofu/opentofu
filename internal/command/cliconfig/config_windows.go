@@ -40,7 +40,7 @@ func configDir() (string, error) {
 	return filepath.Join(dir, "terraform.d"), nil
 }
 
-func pluginDir() (string, error) {
+func dataDir() (string, error) {
 	return configDir()
 }
 
