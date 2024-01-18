@@ -40,6 +40,10 @@ func configDir() (string, error) {
 	return filepath.Join(dir, "terraform.d"), nil
 }
 
+func pluginDir() (string, error) {
+	return configDir()
+}
+
 func homeDir() (string, error) {
 	b := make([]uint16, syscall.MAX_PATH)
 
