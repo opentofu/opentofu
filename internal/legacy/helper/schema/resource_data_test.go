@@ -5,7 +5,6 @@ package schema
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"reflect"
 	"testing"
@@ -1981,7 +1980,12 @@ func TestResourceDataSet(t *testing.T) {
 					Computed: true,
 					Elem:     &Schema{Type: TypeFloat},
 					Set: func(a interface{}) int {
-						return int(math.Float64bits(a.(float64)))
+						// Because we want to be safe on a 32-bit and 64-bit system,
+						// we can just set a "scale factor" here that's always larger than the number of
+						// decimal places we expect to see., and then multiply by that to cast to int
+						// otherwise we could get clashes in unique ids
+						scaleFactor := 100000
+						return int(a.(float64) * float64(scaleFactor))
 					},
 				},
 			},
@@ -2152,7 +2156,7 @@ func TestResourceDataSet(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(v, tc.GetValue) {
-			t.Fatalf("Get Bad: %d\n\n%#v", i, v)
+			t.Fatalf("Get Bad: %d\n\n%#v, expected:%v", i, v, tc.GetValue)
 		}
 	}
 }
