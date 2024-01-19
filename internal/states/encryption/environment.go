@@ -21,11 +21,11 @@ import (
 // DecryptionFallbackConfiguration() on it to explicitly set up configuration that would normally have come from
 // the environment.
 func ParseEnvironmentVariables() error {
-	if _, err := encryptionconfig.EncryptionConfigurationsFromEnv(); err != nil {
+	if _, err := encryptionconfig.ConfigurationFromEnv(encryptionconfig.ConfigEnvName); err != nil {
 		return err
 	}
 
-	if _, err := encryptionconfig.FallbackConfigurationsFromEnv(); err != nil {
+	if _, err := encryptionconfig.ConfigurationFromEnv(encryptionconfig.FallbackConfigEnvName); err != nil {
 		return err
 	}
 
@@ -33,7 +33,7 @@ func ParseEnvironmentVariables() error {
 }
 
 func applyEncryptionConfigIfExists(flow encryptionflow.FlowBuilder, source encryptionflow.ConfigurationSource, configKey string) error {
-	configs, err := encryptionconfig.EncryptionConfigurationsFromEnv()
+	configs, err := encryptionconfig.ConfigurationFromEnv(encryptionconfig.ConfigEnvName)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func applyEncryptionConfigIfExists(flow encryptionflow.FlowBuilder, source encry
 }
 
 func applyDecryptionFallbackConfigIfExists(flow encryptionflow.FlowBuilder, source encryptionflow.ConfigurationSource, configKey string) error {
-	configs, err := encryptionconfig.FallbackConfigurationsFromEnv()
+	configs, err := encryptionconfig.ConfigurationFromEnv(encryptionconfig.FallbackConfigEnvName)
 	if err != nil {
 		return err
 	}

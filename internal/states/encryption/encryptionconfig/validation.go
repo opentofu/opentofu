@@ -7,41 +7,41 @@ import (
 	"sync"
 )
 
-type KeyProviderConfigValidationFunction func(config KeyProviderConfig) error
+type KeyProviderValidator func(config KeyProviderConfig) error
 
-// RegisterKeyProviderConfigValidationFunction allows registering config validation for additional key providers.
+// RegisterKeyProviderValidator allows registering config validation for additional key providers.
 //
 // The default key providers KeyProviderPassphrase and KeyProviderDirect are automatically registered.
 //
 // Note: You must also register the key provider with the encryption flow, or it will still not be available.
-func RegisterKeyProviderConfigValidationFunction(name KeyProviderName, validator KeyProviderConfigValidationFunction) error {
+func RegisterKeyProviderValidator(name KeyProviderName, validator KeyProviderValidator) error {
 	if validator == nil {
-		return fmt.Errorf("missing validator during registration for key provider %s: nil", name)
+		return fmt.Errorf("missing validator during registration for key provider \"%s\": nil", name)
 	}
 
-	conflict := setKeyProviderConfigValidation(name, validator)
+	conflict := keyProviderConfigValidators.set(name, validator)
 	if conflict {
-		return fmt.Errorf("duplicate registration for key provider %s", name)
+		return fmt.Errorf("duplicate registration for key provider \"%s\"", name)
 	}
 
 	return nil
 }
 
-type EncryptionMethodConfigValidationFunction func(config EncryptionMethodConfig) error
+type MethodValidator func(config MethodConfig) error
 
-// RegisterEncryptionMethodConfigValidationFunction allows registering config validation for additional encryption methods.
+// RegisterMethodValidator allows registering config validation for additional encryption methods.
 //
-// The default encryption method EncryptionMethodFull is automatically registered.
+// The default encryption method MethodFull is automatically registered.
 //
 // Note: You must also register the method with the encryption flow, or it will still not be available.
-func RegisterEncryptionMethodConfigValidationFunction(name EncryptionMethodName, validator EncryptionMethodConfigValidationFunction) error {
+func RegisterMethodValidator(name MethodName, validator MethodValidator) error {
 	if validator == nil {
-		return fmt.Errorf("missing validator during registration for encryption method %s: nil", name)
+		return fmt.Errorf("missing validator during registration for encryption method \"%s\": nil", name)
 	}
 
-	conflict := setEncryptionMethodConfigValidation(name, validator)
+	conflict := methodConfigValidators.set(name, validator)
 	if conflict {
-		return fmt.Errorf("duplicate registration for encryption method %s", name)
+		return fmt.Errorf("duplicate registration for encryption method \"%s\"", name)
 	}
 
 	return nil
@@ -49,49 +49,39 @@ func RegisterEncryptionMethodConfigValidationFunction(name EncryptionMethodName,
 
 // low level implementation and locking for validators
 
-var keyProviderConfigValidation_useGetAndSet = make(map[KeyProviderName]KeyProviderConfigValidationFunction)
-var keyProviderConfigValidationMutex = sync.RWMutex{}
+func newLockingMap[K comparable, V any]() *lockingMap[K, V] {
+	return &lockingMap[K, V]{
+		make(map[K]V),
+		sync.RWMutex{},
+	}
+}
 
-func getKeyProviderConfigValidation(name KeyProviderName) (validator KeyProviderConfigValidationFunction, ok bool) {
-	keyProviderConfigValidationMutex.RLock()
-	defer keyProviderConfigValidationMutex.RUnlock()
+type lockingMap[K comparable, V any] struct {
+	data map[K]V
+	lock sync.RWMutex
+}
 
-	validator, ok = keyProviderConfigValidation_useGetAndSet[name]
+func (l *lockingMap[K, V]) get(name K) (value V, ok bool) {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	value, ok = l.data[name]
 	return
 }
 
-func setKeyProviderConfigValidation(name KeyProviderName, validator KeyProviderConfigValidationFunction) (conflict bool) {
-	keyProviderConfigValidationMutex.Lock()
-	defer keyProviderConfigValidationMutex.Unlock()
+func (l *lockingMap[K, V]) set(name K, value V) (conflict bool) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
 
-	_, conflict = keyProviderConfigValidation_useGetAndSet[name]
+	_, conflict = l.data[name]
 	if !conflict {
-		keyProviderConfigValidation_useGetAndSet[name] = validator
+		l.data[name] = value
 	}
 	return
 }
 
-var encryptionMethodConfigValidation_useGetAndSet = make(map[EncryptionMethodName]EncryptionMethodConfigValidationFunction)
-var encryptionMethodConfigValidationMutex = sync.RWMutex{}
-
-func getEncryptionMethodConfigValidation(name EncryptionMethodName) (validator EncryptionMethodConfigValidationFunction, ok bool) {
-	encryptionMethodConfigValidationMutex.RLock()
-	defer encryptionMethodConfigValidationMutex.RUnlock()
-
-	validator, ok = encryptionMethodConfigValidation_useGetAndSet[name]
-	return
-}
-
-func setEncryptionMethodConfigValidation(name EncryptionMethodName, validator EncryptionMethodConfigValidationFunction) (conflict bool) {
-	encryptionMethodConfigValidationMutex.Lock()
-	defer encryptionMethodConfigValidationMutex.Unlock()
-
-	_, conflict = encryptionMethodConfigValidation_useGetAndSet[name]
-	if !conflict {
-		encryptionMethodConfigValidation_useGetAndSet[name] = validator
-	}
-	return
-}
+var keyProviderConfigValidators = newLockingMap[KeyProviderName, KeyProviderValidator]()
+var methodConfigValidators = newLockingMap[MethodName, MethodValidator]()
 
 // validation for the built-in key providers and encryption methods
 
@@ -126,7 +116,7 @@ func validateKPDirectConfig(k KeyProviderConfig) error {
 	return nil
 }
 
-func validateEMFullConfig(m EncryptionMethodConfig) error {
+func validateEMFullConfig(m MethodConfig) error {
 	if len(m.Config) > 0 {
 		return errors.New("unexpected fields, this method needs no configuration")
 	}
@@ -135,8 +125,8 @@ func validateEMFullConfig(m EncryptionMethodConfig) error {
 }
 
 func init() {
-	_ = RegisterKeyProviderConfigValidationFunction(KeyProviderPassphrase, validateKPPassphraseConfig)
-	_ = RegisterKeyProviderConfigValidationFunction(KeyProviderDirect, validateKPDirectConfig)
+	_ = RegisterKeyProviderValidator(KeyProviderPassphrase, validateKPPassphraseConfig)
+	_ = RegisterKeyProviderValidator(KeyProviderDirect, validateKPDirectConfig)
 
-	_ = RegisterEncryptionMethodConfigValidationFunction(EncryptionMethodFull, validateEMFullConfig)
+	_ = RegisterMethodValidator(MethodFull, validateEMFullConfig)
 }

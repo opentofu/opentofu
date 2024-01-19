@@ -68,14 +68,14 @@ func (m *MockUpLoggingFlowBuilder) Build() (Flow, error) {
 		configOrNil(m.encryptionConfigs, ConfigurationSourceCode),
 		configOrNil(m.encryptionConfigs, ConfigurationSourceEnv),
 	)
-	encryptionconfig.InjectDefaultNamesIfUnset(mergedEncryptionConfig)
+	encryptionconfig.InjectDefaultNamesIfNotSet(mergedEncryptionConfig)
 
 	mergedDecryptionFallbackConfig := encryptionconfig.MergeConfigs(
 		configOrNil(m.decryptionFallbackConfigs, ConfigurationSourceEnvDefault),
 		configOrNil(m.decryptionFallbackConfigs, ConfigurationSourceCode),
 		configOrNil(m.decryptionFallbackConfigs, ConfigurationSourceEnv),
 	)
-	encryptionconfig.InjectDefaultNamesIfUnset(mergedDecryptionFallbackConfig)
+	encryptionconfig.InjectDefaultNamesIfNotSet(mergedDecryptionFallbackConfig)
 
 	if mergedEncryptionConfig != nil {
 		m.logger.Trace("encryption:MergeAndValidateConfigurations using encryption config", "key", m.configKey, "config", *mergedEncryptionConfig)

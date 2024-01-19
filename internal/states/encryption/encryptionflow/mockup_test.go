@@ -65,7 +65,7 @@ func tstCodeConfigurationInstance(encValid bool, decValid bool) FlowBuilder {
 		KeyProvider: encryptionconfig.KeyProviderConfig{
 			Config: map[string]string{},
 		},
-		Method: encryptionconfig.EncryptionMethodConfig{},
+		Method: encryptionconfig.MethodConfig{},
 	}
 	if encValid {
 		encConfig.KeyProvider.Config["passphrase"] = "a new passphrase"
@@ -75,7 +75,7 @@ func tstCodeConfigurationInstance(encValid bool, decValid bool) FlowBuilder {
 		KeyProvider: encryptionconfig.KeyProviderConfig{
 			Config: map[string]string{},
 		},
-		Method: encryptionconfig.EncryptionMethodConfig{},
+		Method: encryptionconfig.MethodConfig{},
 	}
 	if decValid {
 		decConfig.KeyProvider.Config["passphrase"] = "the old passphrase"

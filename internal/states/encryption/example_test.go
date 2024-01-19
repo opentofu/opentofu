@@ -71,10 +71,10 @@ func ExampleGetRemoteStateSingleton() {
 			KeyProvider: encryptionconfig.KeyProviderConfig{
 				Name: "passphrase",
 			},
-			Method: encryptionconfig.EncryptionMethodConfig{
+			Method: encryptionconfig.MethodConfig{
 				Name: "full",
 			},
-			Required: true,
+			Enforced: true,
 		}
 
 		// this is what you might parse from terraform.state_decryption_fallback (if set)
@@ -82,10 +82,10 @@ func ExampleGetRemoteStateSingleton() {
 			KeyProvider: encryptionconfig.KeyProviderConfig{
 				Name: "passphrase",
 			},
-			Method: encryptionconfig.EncryptionMethodConfig{
+			Method: encryptionconfig.MethodConfig{
 				Name: "full",
 			},
-			Required: true,
+			Enforced: true,
 		}
 		// yes, it's the same configuration in this example. The difference might be a different passphrase
 		// which should come from the TF_STATE_DECRYPTION_FALLBACK environment variable.

@@ -1,6 +1,7 @@
 package encryptionconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -29,7 +30,7 @@ func TestInjectDefaultNamesIfUnset(t *testing.T) {
 		{
 			testcase: "key_provider_default",
 			config: &Config{
-				Method: EncryptionMethodConfig{
+				Method: MethodConfig{
 					Name: "other",
 				},
 			},
@@ -54,7 +55,7 @@ func TestInjectDefaultNamesIfUnset(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			InjectDefaultNamesIfUnset(tc.config)
+			InjectDefaultNamesIfNotSet(tc.config)
 			if tc.expectNil != (tc.config == nil) {
 				t.Error("unexpected nil state change")
 			}
@@ -70,13 +71,13 @@ func TestInjectDefaultNamesIfUnset(t *testing.T) {
 	}
 }
 
-func tstConfig(kp string, kpcount int, m string, mcount int, required bool) *Config {
-	tstMap := func(base string, count int) map[string]string {
+func deepMergeTestConfig(keyProviderName string, keyProviderKeyCount int, methodName string, methodKeyCount int, enforced bool) *Config {
+	buildTestConfiguration := func(configKeyPrefix string, configKeyCount int) map[string]string {
 		var result map[string]string
-		if count >= 0 {
+		if configKeyCount >= 0 {
 			result = make(map[string]string)
-			for i := 0; i < count; i++ {
-				result[fmt.Sprintf("%s.%d", base, i+1)] = fmt.Sprintf("%d", i+1)
+			for i := 0; i < configKeyCount; i++ {
+				result[fmt.Sprintf("%s.%d", configKeyPrefix, i+1)] = fmt.Sprintf("%d", i+1)
 			}
 		}
 		return result
@@ -84,17 +85,18 @@ func tstConfig(kp string, kpcount int, m string, mcount int, required bool) *Con
 
 	return &Config{
 		KeyProvider: KeyProviderConfig{
-			Name:   KeyProviderName(kp),
-			Config: tstMap(kp, kpcount),
+			Name:   KeyProviderName(keyProviderName),
+			Config: buildTestConfiguration(keyProviderName, keyProviderKeyCount),
 		},
-		Method: EncryptionMethodConfig{
-			Name:   EncryptionMethodName(m),
-			Config: tstMap(m, mcount),
+		Method: MethodConfig{
+			Name:   MethodName(methodName),
+			Config: buildTestConfiguration(methodName, methodKeyCount),
 		},
-		Required: required,
+		Enforced: enforced,
 	}
 }
 
+// TODO missing a test case for empty maps and for showing maps with overlapping config values.
 func TestMergeConfigs(t *testing.T) {
 	testCases := []struct {
 		testcase      string
@@ -116,29 +118,29 @@ func TestMergeConfigs(t *testing.T) {
 		},
 		{
 			testcase:      "use_default",
-			defaultConfig: tstConfig("kpdefault", 1, "mdefault", 2, false),
+			defaultConfig: deepMergeTestConfig("kpdefault", 1, "mdefault", 2, false),
 			mergeList:     []*Config{nil, nil},
-			expected:      tstConfig("kpdefault", 1, "mdefault", 2, false),
+			expected:      deepMergeTestConfig("kpdefault", 1, "mdefault", 2, false),
 		},
 		{
 			testcase:      "use_non_nil1_ignore_default",
-			defaultConfig: tstConfig("kpdefault", 1, "mdefault", 2, false),
-			mergeList:     []*Config{tstConfig("kp1", 0, "m1", 1, true), nil, nil},
-			expected:      tstConfig("kp1", 0, "m1", 1, true),
+			defaultConfig: deepMergeTestConfig("kpdefault", 1, "mdefault", 2, false),
+			mergeList:     []*Config{deepMergeTestConfig("kp1", 0, "m1", 1, true), nil, nil},
+			expected:      deepMergeTestConfig("kp1", 0, "m1", 1, true),
 		},
 		{
 			testcase:      "use_non_nil2",
 			defaultConfig: nil,
-			mergeList:     []*Config{nil, tstConfig("kp2", 3, "m2", 2, false)},
-			expected:      tstConfig("kp2", 3, "m2", 2, false),
+			mergeList:     []*Config{nil, deepMergeTestConfig("kp2", 3, "m2", 2, false)},
+			expected:      deepMergeTestConfig("kp2", 3, "m2", 2, false),
 		},
 		{
 			testcase:      "merge_ignore_default",
-			defaultConfig: tstConfig("kpdefault", 1, "mdefault", 2, true),
+			defaultConfig: deepMergeTestConfig("kpdefault", 1, "mdefault", 2, true),
 			mergeList: []*Config{
-				tstConfig("kp1", 1, "m1", 0, false),
-				tstConfig("kp2", 0, "m2", 2, false),
-				tstConfig("kp3", 1, "m3", 1, false),
+				deepMergeTestConfig("kp1", 1, "m1", 0, false),
+				deepMergeTestConfig("kp2", 0, "m2", 2, false),
+				deepMergeTestConfig("kp3", 1, "m3", 1, false),
 			},
 			expected: &Config{
 				KeyProvider: KeyProviderConfig{
@@ -148,7 +150,7 @@ func TestMergeConfigs(t *testing.T) {
 						"kp3.1": "1",
 					},
 				},
-				Method: EncryptionMethodConfig{
+				Method: MethodConfig{
 					Name: "m3",
 					Config: map[string]string{
 						"m2.1": "1",
@@ -156,26 +158,40 @@ func TestMergeConfigs(t *testing.T) {
 						"m3.1": "1",
 					},
 				},
-				Required: false,
+				Enforced: false,
 			},
 		},
 	}
 
 	helpfulDeepCompare := func(t *testing.T, expected Config, actual Config) {
-		if expected.Required != actual.Required {
-			t.Error("unexpected value for required")
+		if expected.Enforced != actual.Enforced {
+			t.Errorf("expected enforced to be %T, received %T", expected.Enforced, actual.Enforced)
 		}
 		if expected.KeyProvider.Name != actual.KeyProvider.Name {
-			t.Errorf("unexpected key provider name '%s' instead of '%s'", actual.KeyProvider.Name, expected.KeyProvider.Name)
+			t.Errorf("expected key provider name '%s', received '%s'", actual.KeyProvider.Name, expected.KeyProvider.Name)
 		}
 		if !reflect.DeepEqual(expected.KeyProvider.Config, actual.KeyProvider.Config) {
-			t.Error("key provider parameters differ")
+			expectedConfigJSON, _ := json.Marshal(expected.KeyProvider.Config)
+			actualConfigJSON, _ := json.Marshal(actual.KeyProvider.Config)
+			t.Errorf("expected key provider config:\n%s\nreceived:\n%s", expectedConfigJSON, actualConfigJSON)
 		}
 		if expected.Method.Name != actual.Method.Name {
-			t.Errorf("unexpected method name '%s' instead of '%s'", actual.Method.Name, expected.Method.Name)
+			t.Errorf("expected method name: '%s', received: '%s'", actual.Method.Name, expected.Method.Name)
 		}
 		if !reflect.DeepEqual(expected.Method.Config, actual.Method.Config) {
-			t.Error("method parameters differ")
+			expectedConfigJSON, _ := json.Marshal(expected.Method.Config)
+			actualConfigJSON, _ := json.Marshal(actual.Method.Config)
+			t.Errorf("expected method config:\n%s\nreceived:\n%s", expectedConfigJSON, actualConfigJSON)
+		}
+		if !reflect.DeepEqual(expected, actual) {
+			expectedJSON, _ := json.Marshal(expected)
+			actualJSON, _ := json.Marshal(actual)
+			t.Errorf(
+				"⚠️ Missing test case for one or more fields, unexpected config difference. "+
+					"Please add an explicit check.\nExpected:\n%s\nReceived:\n%s",
+				expectedJSON,
+				actualJSON,
+			)
 		}
 	}
 

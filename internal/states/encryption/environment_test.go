@@ -27,9 +27,9 @@ func TestParseEnvironmentVariables(t *testing.T) {
 			encEnv:   `{`,
 			decEnv:   envConfig(configKey, true),
 			expectError: fmt.Errorf(
-				"error parsing encryption configuration from environment variable %s: "+
-					"json parse error, wrong structure, or unknown fields - "+
-					"details omitted for security reasons (may contain key related settings)",
+				"error parsing environment variable %s ("+
+					"failed to parse encryption configuration, please check if your configuration is correct "+
+					"(not showing error because it may contain sensitive credentials))",
 				encryptionconfig.ConfigEnvName,
 			),
 		},
@@ -38,9 +38,9 @@ func TestParseEnvironmentVariables(t *testing.T) {
 			encEnv:   envConfig(configKey, true),
 			decEnv:   `{not_a_json}}}}}}`,
 			expectError: fmt.Errorf(
-				"error parsing fallback decryption configuration from environment variable %s: "+
-					"json parse error, wrong structure, or unknown fields - "+
-					"details omitted for security reasons (may contain key related settings)",
+				"error parsing environment variable %s ("+
+					"failed to parse encryption configuration, please check if your configuration is correct "+
+					"(not showing error because it may contain sensitive credentials))",
 				encryptionconfig.FallbackConfigEnvName,
 			),
 		},
