@@ -19,7 +19,7 @@ func TestConfigValidate(t *testing.T) {
 					Name:   "passphrase",
 					Config: map[string]string{"passphrase": "quick brown fox"},
 				},
-				Method: EncryptionMethodConfig{
+				Method: MethodConfig{
 					Name: "full",
 				},
 			},
@@ -31,7 +31,7 @@ func TestConfigValidate(t *testing.T) {
 				KeyProvider: KeyProviderConfig{
 					Name: "unknown",
 				},
-				Method: EncryptionMethodConfig{
+				Method: MethodConfig{
 					Name: "full",
 				},
 			},
@@ -44,7 +44,7 @@ func TestConfigValidate(t *testing.T) {
 					Name:   "passphrase",
 					Config: map[string]string{"passphrase": "quick brown fox"},
 				},
-				Method: EncryptionMethodConfig{
+				Method: MethodConfig{
 					Name: "unknown",
 				},
 			},
@@ -60,7 +60,7 @@ func TestConfigValidate(t *testing.T) {
 }
 
 func TestEncryptionConfigurationsFromEnv(t *testing.T) {
-	empty, err := EncryptionConfigurationsFromEnv()
+	empty, err := ConfigurationFromEnv(ConfigEnvName)
 	if err != nil {
 		t.Fatalf("unexpected error for empty env: %s", err)
 	}
@@ -69,8 +69,9 @@ func TestEncryptionConfigurationsFromEnv(t *testing.T) {
 	}
 }
 
+// TODO missing the happy path test cases here.
 func TestFallbackConfigurationsFromEnv(t *testing.T) {
-	empty, err := FallbackConfigurationsFromEnv()
+	empty, err := ConfigurationFromEnv(FallbackConfigEnvName)
 	if err != nil {
 		t.Fatalf("unexpected error for empty env fallback: %s", err)
 	}
@@ -89,7 +90,6 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 	testCases := []struct {
 		testcase    string
 		config      KeyProviderConfig
-		nameInvalid bool
 		expectedErr error
 	}{
 		{
@@ -105,7 +105,6 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 			config: KeyProviderConfig{
 				Name: "unknown",
 			},
-			nameInvalid: true,
 			expectedErr: errors.New("error in configuration for key provider unknown: no registered key provider with this name"),
 		},
 		// tests for "passphrase" validation
@@ -201,59 +200,6 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 		t.Run(tc.testcase, func(t *testing.T) {
 			err := tc.config.Validate()
 			expectErr(t, err, tc.expectedErr)
-
-			err = tc.config.NameValid()
-			if tc.nameInvalid {
-				expectErr(t, err, tc.expectedErr)
-			} else {
-				expectErr(t, err, nil)
-			}
-		})
-	}
-}
-
-func TestEncryptionMethodConfigValidate(t *testing.T) {
-	testCases := []struct {
-		testcase    string
-		config      EncryptionMethodConfig
-		nameInvalid bool
-		expectedErr error
-	}{
-		{
-			testcase: "correct",
-			config: EncryptionMethodConfig{
-				Name: "full",
-			},
-			expectedErr: nil,
-		},
-		{
-			testcase: "unknown_name",
-			config: EncryptionMethodConfig{
-				Name: "unknown",
-			},
-			nameInvalid: true,
-			expectedErr: errors.New("error in configuration for encryption method unknown: no registered encryption method with this name"),
-		},
-		{
-			testcase: "incorrect",
-			config: EncryptionMethodConfig{
-				Name:   "full",
-				Config: map[string]string{"unexpected": "quick brown fox"},
-			},
-			expectedErr: errors.New("error in configuration for encryption method full: unexpected fields, this method needs no configuration"),
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.testcase, func(t *testing.T) {
-			err := tc.config.Validate()
-			expectErr(t, err, tc.expectedErr)
-
-			err = tc.config.NameValid()
-			if tc.nameInvalid {
-				expectErr(t, err, tc.expectedErr)
-			} else {
-				expectErr(t, err, nil)
-			}
 		})
 	}
 }
@@ -281,7 +227,7 @@ const validJsonConfig = `{
 	"method": {
 	  "name": "full"
     },
-	"required": true
+	"enforced": true
   }
 }`
 
@@ -296,13 +242,13 @@ func TestParseJsonStructure(t *testing.T) {
 			testcase:    "invalid_syntax",
 			input:       invalidJsonConfigSyntax,
 			outputSize:  0,
-			expectedErr: errors.New("json parse error, wrong structure, or unknown fields - details omitted for security reasons (may contain key related settings)"),
+			expectedErr: errors.New("failed to parse encryption configuration, please check if your configuration is correct (not showing error because it may contain sensitive credentials)"),
 		},
 		{
 			testcase:    "unknown_fields",
 			input:       invalidJsonConfigUnexpectedKeys,
 			outputSize:  0,
-			expectedErr: errors.New("json parse error, wrong structure, or unknown fields - details omitted for security reasons (may contain key related settings)"),
+			expectedErr: errors.New("failed to parse encryption configuration, please check if your configuration is correct (not showing error because it may contain sensitive credentials)"),
 		},
 		{
 			testcase:    "valid",
@@ -333,7 +279,7 @@ func TestParseEnvJsonStructure(t *testing.T) {
 			testcase:    "invalid",
 			input:       invalidJsonConfigUnexpectedKeys,
 			outputSize:  0,
-			expectedErr: errors.New("error parsing what from environment variable STATE_ENCRYPTION_TESTCASE_TestParseEnvJsonStructure_invalid: json parse error, wrong structure, or unknown fields - details omitted for security reasons (may contain key related settings)"),
+			expectedErr: errors.New("error parsing environment variable STATE_ENCRYPTION_TESTCASE_TestParseEnvJsonStructure_invalid (failed to parse encryption configuration, please check if your configuration is correct (not showing error because it may contain sensitive credentials))"),
 		},
 		{
 			testcase:    "valid",
@@ -347,7 +293,7 @@ func TestParseEnvJsonStructure(t *testing.T) {
 			envName := fmt.Sprintf("STATE_ENCRYPTION_TESTCASE_TestParseEnvJsonStructure_%s", tc.testcase)
 			t.Setenv(envName, tc.input)
 
-			actual, err := parseEnvJsonStructure(envName, "what")
+			actual, err := ConfigurationFromEnv(envName)
 			expectErr(t, err, tc.expectedErr)
 			if len(actual) != tc.outputSize {
 				t.Errorf("wrong output size %d instead of %d", len(actual), tc.outputSize)
@@ -357,8 +303,11 @@ func TestParseEnvJsonStructure(t *testing.T) {
 }
 
 func expectErr(t *testing.T, actual error, expected error) {
+	t.Helper()
 	if actual != nil {
-		if actual.Error() != expected.Error() {
+		if expected == nil {
+			t.Errorf("received unexpected error '%s' instead of success", actual.Error())
+		} else if actual.Error() != expected.Error() {
 			t.Errorf("received unexpected error '%s' instead of '%s'", actual.Error(), expected.Error())
 		}
 	} else {

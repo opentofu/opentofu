@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // Config is a configuration for transparent client-side state encryption.
@@ -17,11 +15,11 @@ import (
 type Config struct {
 	KeyProvider KeyProviderConfig `json:"key_provider"`
 
-	Method EncryptionMethodConfig `json:"method"`
+	Method MethodConfig `json:"method"`
 
-	// Required forces encryption operations to fail if they would
+	// Enforced forces encryption operations to fail if they would
 	// result in an unencrypted output.
-	Required bool `json:"required"`
+	Enforced bool `json:"enforced"`
 }
 
 func (c Config) Validate() error {
@@ -35,170 +33,85 @@ func (c Config) Validate() error {
 }
 
 const (
-	ConfigKeyDefault   = "default"   // a default for all remote states (backend + any remote_state data sources)
-	ConfigKeyBackend   = "backend"   // for our own remote state backend
-	ConfigKeyStatefile = "statefile" // for local state files
-	ConfigKeyPlanfile  = "planfile"  // for plan files
+	ConfigKeyDefault   = "default"   // configuration for all remote states that do not have an explicit configuration
+	ConfigKeyBackend   = "backend"   // when uploading the state to a remote backend
+	ConfigKeyStatefile = "statefile" // for a locally stored state file
+	ConfigKeyPlanfile  = "planfile"  // for a locally stored plan file
 )
 
-// ConfigEnvJsonStructure is used to parse multiple named configurations from environment variables.
+// ConfigEnvStructure is used to hold multiple named configurations from environment variables.
 //
-// The key either specifies a resource that accesses remote state, such as "terraform_remote_state.foo", or
-// it is one of the pre-defined convenience keys ConfigKeyDefault, ConfigKeyBackend, ConfigKeyStatefile, or
-// ConfigKeyPlanfile.
+// For the map key, you can specify a resource this configuration is relevant for, or you can use one of the
+// predefined keys to specify the base configuration for all resources.
 //
-// If the key is "terraform_remote_state.foo", its value sets/overrides encryption configuration for
+// Predefined keys:
+//
+// You can use the following constants as map keys to provide base configuration:
+//
+//   - ConfigKeyDefault for all remote states that do not have an explicit configuration (including the backend)
+//   - ConfigKeyBackend when uploading the state to a remote backend
+//   - ConfigKeyStatefile for a locally stored state file
+//   - ConfigKeyPlanfile for a locally stored plan file
+//
+// Explicit resources:
+//
+// You can specify an explicit configuration for a remote state data source (see terraform_remote_state). You can use
+// this to specify a different encryption key or method when you want to read a state file from a different remote
+// storage than the backend for the current project.
+//
+// If the key is "terraform_remote_state.foo", its value sets/overrides the encryption configuration for
 //
 //	data "terraform_remote_state" "foo" {}
 //
-// For enumerated resources, the format is "terraform_remote_state.foo[17]" or "terraform_remote_state.foo[key]"
-// (no quotes around the for_each key).
-type ConfigEnvJsonStructure map[string]Config
+// For indexed resources, the format is "terraform_remote_state.foo[17]" or "terraform_remote_state.foo[key]"
+// (no quotes around the index).
+//
+// Use case:
+//
+// This is useful when you need to access information from another tofu environment. For example, you may want to
+// segment your tofu setup into multiple projects for both security and to optimize the run time. One such example
+// is Terragrunt. You may, for example, wish to obtain resources IDs for DNS entries from the project responsible for
+// DNS configuration for the purpose of setting up a web server.
+//
+// When using shared state and shared encryption in this fashion, the author of the other project must pay attention
+// to only expose information that is intended for the current environment in the state.
+type ConfigEnvStructure map[string]Config
 
-// ConfigEnvName is the name of the environment variable used to configure encryption and decryption
+// ConfigEnvName is the name of the environment variable used to configure encryption and decryption as an alternative
+// to providing the configuration in the .tf files directly.
 //
-// Set this environment variable to a json representation of ConfigEnvJsonStructure, or leave it unset/blank
-// to disable encryption (default behaviour).
-//
-// Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
-// as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
-var ConfigEnvName = "TF_STATE_ENCRYPTION"
-
-// EncryptionConfigurationsFromEnv parses the encryption configuration from the environment variable configured
-// in ConfigEnvName.
-//
-// It is not an error if the environment variable is unset or empty, that just means no encryption configuration
-// is provided via environment.
-func EncryptionConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
-	return parseEnvJsonStructure(ConfigEnvName, "encryption configuration")
-}
-
-// FallbackConfigEnvName is the name of the environment variable used to configure fallback decryption
-//
-// Set this environment variable to a json representation of ConfigEnvJsonStructure, or leave it unset/blank
-// in order to not supply any fallbacks (default behaviour).
-//
-// Note that decryption will always try the relevant configuration specified in TF_STATE_ENCRYPTION first.
-// Only if decryption fails with that, it will try this configuration.
-//
-// Why is this useful?
-//   - key rotation (put the old key here until all state has been migrated)
-//   - decryption (leave TF_STATE_ENCRYPTION unset, but set this variable, and your state will be decrypted on next write)
+// Set this environment variable to a JSON representation of ConfigEnvStructure, or leave it unset/blank
+// to disable encryption (default behaviour). If you do not specify a configuration but "enforced" is set to true, tofu
+// will refuse to function. If you specify an invalid JSON, the entire tofu run will fail regardless of the "enforced"
+// setting.
 //
 // Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
 // as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
-var FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
+const ConfigEnvName = "TF_STATE_ENCRYPTION"
 
-// FallbackConfigurationsFromEnv parses the decryption fallback configuration from the environment variable
-// configured in FallbackConfigEnvName.
+// FallbackConfigEnvName is the name of the environment variable used to configure fallback decryption of the state.
 //
-// It is not an error if the environment variable is unset or empty, that just means no decryption fallback
-// configuration is provided via environment.
-func FallbackConfigurationsFromEnv() (ConfigEnvJsonStructure, error) {
-	return parseEnvJsonStructure(FallbackConfigEnvName, "fallback decryption configuration")
-}
-
-type KeyProviderName string
-
-const (
-	KeyProviderPassphrase KeyProviderName = "passphrase" // derive key from config field "passphrase"
-	KeyProviderDirect     KeyProviderName = "direct"     // key is explicitly specified in config field "key"
-)
-
-type KeyProviderConfig struct {
-	// Name specifies which key provider to use.
-	Name KeyProviderName `json:"name"`
-
-	// Config configures the key provider.
-	//
-	// The available values are key provider dependent.
-	Config map[string]string `json:"config"`
-}
-
-// NameValid checks that the name has been registered correctly.
+// OpenTofu will always try to decrypt the state with the primary key and method, and falls back to this key and
+// method if it fails.
 //
-// This is an early check, unlike Validate().
-func (k KeyProviderConfig) NameValid() error {
-	validator, ok := getKeyProviderConfigValidation(k.Name)
-	if !ok || validator == nil {
-		return fmt.Errorf("error in configuration for key provider %s: no registered key provider with this name", k.Name)
-	}
-	return nil
-}
-
-// Validate checks the configuration after it has been merged from all sources.
-func (k KeyProviderConfig) Validate() error {
-	if err := k.NameValid(); err != nil {
-		return err
-	}
-
-	validator, _ := getKeyProviderConfigValidation(k.Name)
-	if err := validator(k); err != nil {
-		return fmt.Errorf("error in configuration for key provider %s: %s", k.Name, err.Error())
-	}
-
-	return nil
-}
-
-type EncryptionMethodName string
-
-const (
-	EncryptionMethodFull EncryptionMethodName = "full" // full state encryption
-)
-
-type EncryptionMethodConfig struct {
-	// Name specifies which encryption method to use.
-	Name EncryptionMethodName `json:"name"`
-
-	// Config configures the key provider.
-	//
-	// The available values are key provider dependent.
-	Config map[string]string `json:"config"`
-}
-
-// NameValid checks that the name has been registered correctly.
+// You can use the fallback configuration for decrypting the state with the specified key and method, and then
+// re-encrypt the state with the primary configuration as a means of key or method rollover. If you do not specify a
+// primary configuration, the state will be decrypted unless you set the "enforced" flag to true, which prevents a
+// decryption and results in a failure.
 //
-// This is an early check, unlike Validate().
-func (m EncryptionMethodConfig) NameValid() error {
-	validator, ok := getEncryptionMethodConfigValidation(m.Name)
-	if !ok || validator == nil {
-		return fmt.Errorf("error in configuration for encryption method %s: no registered encryption method with this name", m.Name)
-	}
-	return nil
-}
+// Set this environment variable to a JSON representation of ConfigEnvStructure, or leave it unset/blank
+// in order to not supply any fallbacks (default behaviour). If you specify an invalid JSON, the entire tofu run will
+// fail regardless of the "enforced" setting.
+//
+// Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
+// as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
+const FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
 
-// Validate checks the configuration after it has been merged from all sources.
-func (m EncryptionMethodConfig) Validate() error {
-	if err := m.NameValid(); err != nil {
-		return err
-	}
-
-	validator, _ := getEncryptionMethodConfigValidation(m.Name)
-
-	if err := validator(m); err != nil {
-		return fmt.Errorf("error in configuration for encryption method %s: %s", m.Name, err.Error())
-	}
-
-	return nil
-}
-
-func parseJsonStructure(jsonValue string) (ConfigEnvJsonStructure, error) {
-	parsed := make(ConfigEnvJsonStructure)
-
-	decoder := json.NewDecoder(strings.NewReader(jsonValue))
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&parsed)
-	if err != nil {
-		logging.HCLogger().Trace("json parse error", "details", err.Error())
-		return nil, errors.New("json parse error, wrong structure, or unknown fields - details omitted for security reasons (may contain key related settings)")
-	}
-
-	// we cannot validate just this part of the configuration - may need to be merged with
-	// values from code first
-	return parsed, nil
-}
-
-func parseEnvJsonStructure(envName string, what string) (ConfigEnvJsonStructure, error) {
+// ConfigurationFromEnv parses the encryption configuration from the environment variable envName.
+//
+// If the provided environment variable is empty, nil will be returned without an error as an empty configuration
+// means no encryption is desired.
+func ConfigurationFromEnv(envName string) (ConfigEnvStructure, error) {
 	envValue := os.Getenv(envName)
 	if envValue == "" {
 		return nil, nil
@@ -206,8 +119,25 @@ func parseEnvJsonStructure(envName string, what string) (ConfigEnvJsonStructure,
 
 	parsed, err := parseJsonStructure(envValue)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing %s from environment variable %s: %s", what, envName, err.Error())
+		return nil, fmt.Errorf("error parsing environment variable %s (%w)", envName, err)
 	}
 
+	return parsed, nil
+}
+
+func parseJsonStructure(jsonValue string) (ConfigEnvStructure, error) {
+	parsed := make(ConfigEnvStructure)
+
+	// This JSON decoder is needed to disallow unknown fields
+	decoder := json.NewDecoder(strings.NewReader(jsonValue))
+	// Avoid typos in configuration
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		return nil, errors.New("failed to parse encryption configuration, please check if your configuration is correct (not showing error because it may contain sensitive credentials)")
+	}
+
+	// we cannot validate just this part of the configuration - may need to be merged with
+	// values from code first
 	return parsed, nil
 }

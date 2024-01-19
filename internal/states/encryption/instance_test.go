@@ -88,9 +88,9 @@ func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instance
 			encEnv:   `{`,
 			decEnv:   envConfig(key(configKey, 6), true),
 			expectInstanceError: fmt.Errorf(
-				"error parsing encryption configuration from environment variable %s: "+
-					"json parse error, wrong structure, or unknown fields - "+
-					"details omitted for security reasons (may contain key related settings)",
+				"error parsing environment variable %s ("+
+					"failed to parse encryption configuration, please check if your configuration is correct "+
+					"(not showing error because it may contain sensitive credentials))",
 				encryptionconfig.ConfigEnvName,
 			),
 		},
@@ -100,9 +100,9 @@ func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instance
 			encEnv:   envConfig(key(configKey, 7), true),
 			decEnv:   `{not_a_json}}}}}}`,
 			expectInstanceError: fmt.Errorf(
-				"error parsing fallback decryption configuration from environment variable %s: "+
-					"json parse error, wrong structure, or unknown fields - "+
-					"details omitted for security reasons (may contain key related settings)",
+				"error parsing environment variable %s ("+
+					"failed to parse encryption configuration, please check if your configuration is correct "+
+					"(not showing error because it may contain sensitive credentials))",
 				encryptionconfig.FallbackConfigEnvName,
 			),
 		},
@@ -224,7 +224,9 @@ func TestPlanfileInstance_Cache(t *testing.T) {
 }
 
 func expectPanic(t *testing.T, snippet string) func() {
+	t.Helper()
 	return func() {
+		t.Helper()
 		r := recover()
 		if r == nil {
 			t.Errorf("expected a panic")
@@ -238,11 +240,12 @@ func expectPanic(t *testing.T, snippet string) func() {
 }
 
 func expectErr(t *testing.T, actual error, expected error) {
+	t.Helper()
 	if actual != nil {
 		if expected == nil {
 			t.Errorf("received unexpected error '%s' instead of success", actual.Error())
 		} else if actual.Error() != expected.Error() {
-			t.Errorf("received unexpected error '%s' instead of '%s'", actual.Error(), expected.Error())
+			t.Errorf("received unexpected error:\n%s\ninstead of\n%s", actual.Error(), expected.Error())
 		}
 	} else {
 		if expected != nil {

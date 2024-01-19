@@ -9,26 +9,26 @@ func TestRegisterKeyProviderConfigValidationFunction(t *testing.T) {
 	testCases := []struct {
 		testcase    string
 		name        KeyProviderName
-		validator   KeyProviderConfigValidationFunction
+		validator   KeyProviderValidator
 		expectedErr error
 	}{
 		{
 			testcase:    "duplicate", // already done in init()
 			name:        KeyProviderPassphrase,
 			validator:   validateKPPassphraseConfig,
-			expectedErr: errors.New("duplicate registration for key provider passphrase"),
+			expectedErr: errors.New("duplicate registration for key provider \"passphrase\""),
 		},
 		{
 			testcase:    "no_validator",
 			name:        "some_fancy_kms",
 			validator:   nil,
-			expectedErr: errors.New("missing validator during registration for key provider some_fancy_kms: nil"),
+			expectedErr: errors.New("missing validator during registration for key provider \"some_fancy_kms\": nil"),
 		},
 		// success case covered via init()
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			err := RegisterKeyProviderConfigValidationFunction(tc.name, tc.validator)
+			err := RegisterKeyProviderValidator(tc.name, tc.validator)
 			expectErr(t, err, tc.expectedErr)
 		})
 	}
@@ -37,27 +37,27 @@ func TestRegisterKeyProviderConfigValidationFunction(t *testing.T) {
 func TestRegisterEncryptionMethodConfigValidationFunction(t *testing.T) {
 	testCases := []struct {
 		testcase    string
-		name        EncryptionMethodName
-		validator   EncryptionMethodConfigValidationFunction
+		name        MethodName
+		validator   MethodValidator
 		expectedErr error
 	}{
 		{
 			testcase:    "duplicate", // already done in init()
-			name:        EncryptionMethodFull,
+			name:        MethodFull,
 			validator:   validateEMFullConfig,
-			expectedErr: errors.New("duplicate registration for encryption method full"),
+			expectedErr: errors.New("duplicate registration for encryption method \"full\""),
 		},
 		{
 			testcase:    "no_validator",
 			name:        "base64encrypt",
 			validator:   nil,
-			expectedErr: errors.New("missing validator during registration for encryption method base64encrypt: nil"),
+			expectedErr: errors.New("missing validator during registration for encryption method \"base64encrypt\": nil"),
 		},
 		// success case covered via init()
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			err := RegisterEncryptionMethodConfigValidationFunction(tc.name, tc.validator)
+			err := RegisterMethodValidator(tc.name, tc.validator)
 			expectErr(t, err, tc.expectedErr)
 		})
 	}
