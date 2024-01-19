@@ -13,8 +13,7 @@ import (
 )
 
 func TestConfigFileConfigDir(t *testing.T) {
-	baseDir := t.TempDir()
-	homeDir := filepath.Join(baseDir, "home")
+	homeDir := filepath.Join(t.TempDir(), "home")
 
 	tests := []struct {
 		name          string
@@ -37,65 +36,65 @@ func TestConfigFileConfigDir(t *testing.T) {
 			expect:   filepath.Join(homeDir, ".terraformrc"),
 		},
 		{
-			name:     "configFile: use home tofurc fallback",
+			name:     "configFile: use default XDG config directory",
 			testFunc: configFile,
-			expect:   filepath.Join(homeDir, ".tofurc"),
+			expect:   filepath.Join(homeDir, defaultConfigDir, "opentofu", "tofurc"),
 		},
 		{
-			name:          "configFile: use xdg tofurc",
+			name:          "configFile: use XDG tofurc",
 			testFunc:      configFile,
-			xdgConfigHome: filepath.Join(baseDir, "xdg"),
-			expect:        filepath.Join(baseDir, "xdg", "opentofu", "tofurc"),
+			xdgConfigHome: filepath.Join(homeDir, "xdg"),
+			expect:        filepath.Join(homeDir, "xdg", "opentofu", "tofurc"),
 		},
 		{
 			name:          "configFile: prefer home tofurc",
 			testFunc:      configFile,
-			xdgConfigHome: filepath.Join(baseDir, "xdg"),
+			xdgConfigHome: filepath.Join(homeDir, "xdg"),
 			files:         []string{filepath.Join(homeDir, ".tofurc")},
 			expect:        filepath.Join(homeDir, ".tofurc"),
 		},
 		{
 			name:          "configFile: prefer home terraformrc",
 			testFunc:      configFile,
-			xdgConfigHome: filepath.Join(baseDir, "xdg"),
+			xdgConfigHome: filepath.Join(homeDir, "xdg"),
 			files:         []string{filepath.Join(homeDir, ".terraformrc")},
 			expect:        filepath.Join(homeDir, ".terraformrc"),
 		},
 		{
-			name:     "configDir: no xdg",
+			name:     "configDir: use XDG default",
 			testFunc: configDir,
-			expect:   filepath.Join(homeDir, ".terraform.d"),
+			expect:   filepath.Join(homeDir, defaultConfigDir, "opentofu"),
 		},
 		{
-			name:          "configDir: xdg but path exists",
+			name:          "configDir: prefer .terraform.d",
 			testFunc:      configDir,
-			xdgConfigHome: filepath.Join(baseDir, "xdg"),
+			xdgConfigHome: filepath.Join(homeDir, "xdg"),
 			files:         []string{filepath.Join(homeDir, ".terraform.d", "placeholder")},
 			expect:        filepath.Join(homeDir, ".terraform.d"),
 		},
 		{
-			name:          "configDir: use xdg",
+			name:          "configDir: use XDG value",
 			testFunc:      configDir,
-			xdgConfigHome: filepath.Join(baseDir, "xdg"),
-			expect:        filepath.Join(baseDir, "xdg", "opentofu"),
+			xdgConfigHome: filepath.Join(homeDir, "xdg"),
+			expect:        filepath.Join(homeDir, "xdg", "opentofu"),
 		},
 		{
-			name:     "pluginDir: no xdg",
+			name:     "pluginDir: use XDG default",
 			testFunc: dataDir,
-			expect:   filepath.Join(homeDir, ".terraform.d"),
+			expect:   filepath.Join(homeDir, defaultDataDir, "opentofu"),
 		},
 		{
-			name:        "pluginDir: xdg but path exists",
+			name:        "pluginDir: prefer .terraform.d",
 			testFunc:    dataDir,
-			xdgDataHome: filepath.Join(baseDir, "xdg"),
+			xdgDataHome: filepath.Join(homeDir, "xdg"),
 			files:       []string{filepath.Join(homeDir, ".terraform.d", "placeholder")},
 			expect:      filepath.Join(homeDir, ".terraform.d"),
 		},
 		{
-			name:        "pluginDir: use xdg",
+			name:        "pluginDir: use XDG value",
 			testFunc:    dataDir,
-			xdgDataHome: filepath.Join(baseDir, "xdg"),
-			expect:      filepath.Join(baseDir, "xdg", "opentofu"),
+			xdgDataHome: filepath.Join(homeDir, "xdg"),
+			expect:      filepath.Join(homeDir, "xdg", "opentofu"),
 		},
 	}
 
