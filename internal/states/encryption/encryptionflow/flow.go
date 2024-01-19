@@ -1,30 +1,9 @@
-// Package encryptionflow contains the top-level flow for client-side state encryption and the interfaces
-// an encryption method or key provider need to implement.
 package encryptionflow
 
-import "github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
-
-type ConfigurationSource string
-
-const (
-	ConfigurationSourceEnvDefault ConfigurationSource = "env-default"
-	ConfigurationSourceCode       ConfigurationSource = "code"
-	ConfigurationSourceEnv        ConfigurationSource = "env"
+import (
+	"github.com/hashicorp/go-hclog"
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 )
-
-func (s ConfigurationSource) IsValid() bool {
-	return s == ConfigurationSourceEnvDefault || s == ConfigurationSourceCode || s == ConfigurationSourceEnv
-}
-
-// IsForExternalUse checks that a ConfigurationSource is suitable for production-code outside this package tree.
-//
-// Provided mainly for documentation purposes.
-//
-// All other ConfigurationSource values are used internally, though you may need them when writing tests,
-// which is why they are exported.
-func (s ConfigurationSource) IsForExternalUse() bool {
-	return s == ConfigurationSourceCode
-}
 
 // EncryptionTopLevelJsonKey is the json key used to mark state or plans as encrypted.
 //
@@ -33,7 +12,7 @@ func (s ConfigurationSource) IsForExternalUse() bool {
 //
 // Unencrypted state must not contain this key, so you cannot choose any of the top-level keys of the current
 // state data structure (currently stateV4).
-var EncryptionTopLevelJsonKey = "encryption"
+const EncryptionTopLevelJsonKey = "encryption"
 
 // Flow represents the top-level state or plan encryption/decryption flow
 // for a particular encryption configuration.
@@ -110,44 +89,30 @@ type Flow interface {
 	EncryptPlan(plan []byte) ([]byte, error)
 }
 
-// FlowBuilder is the configuration builder for an encryption flow. Use this interface to allow assembling a valid
-// encryption configuration.
-type FlowBuilder interface {
+// flow will be removed when we replace it with the real implementation.
+type flow struct {
+	configKey        encryptionconfig.Key
+	logger           hclog.Logger
+	encryptionConfig *encryptionconfig.Config
+	fallbackConfig   *encryptionconfig.Config
+}
 
-	// EncryptionConfiguration provides this Flow with configuration for
-	// encryption and decryption.
-	//
-	// Configurations are deep-merged with ConfigurationSourceEnv taking precedence
-	// over ConfigurationSourceCode.
-	//
-	// The configuration from ConfigurationSourceEnvDefault is only considered if
-	// no specific configuration is present.
-	//
-	// Note: Some errors in the configuration can only be detected once it is used.
-	EncryptionConfiguration(source ConfigurationSource, config encryptionconfig.Config) error
+func (m *flow) DecryptState(payload []byte) ([]byte, error) {
+	m.logger.Trace("encryption:DecryptState", "key", m.configKey, "payloadSize", len(payload))
+	return payload, nil
+}
 
-	// DecryptionFallbackConfiguration provides this Flow with a fallback configuration
-	// for decryption.
-	//
-	// Configurations are deep-merged with ConfigurationSourceEnv taking precedence
-	// over ConfigurationSourceCode.
-	//
-	// The configuration from ConfigurationSourceEnvDefault is only considered if
-	// no specific configuration is present.
-	//
-	// Note: Some errors in the configuration can only be detected once it is used.
-	DecryptionFallbackConfiguration(source ConfigurationSource, config encryptionconfig.Config) error
+func (m *flow) EncryptState(state []byte) ([]byte, error) {
+	m.logger.Trace("encryption:EncryptState", "key", m.configKey, "stateSize", len(state))
+	return state, nil
+}
 
-	// Build merges and validates all configurations of this Flow.
-	//
-	// Call this only after all configurations have been supplied via EncryptionConfiguration()
-	// and DecryptionFallbackConfiguration().
-	//
-	// This validation is far more complete than what EncryptionConfiguration() and
-	// DecryptionFallbackConfiguration() can detect, because the configurations are now
-	// completely known.
-	//
-	// Note: Some errors in the encryption or decryption fallback configurations can only be
-	// detected once they are used, especially when external key management systems are involved.
-	Build() (Flow, error)
+func (m *flow) DecryptPlan(payload []byte) ([]byte, error) {
+	m.logger.Trace("encryption:DecryptPlan", "key", m.configKey, "payloadSize", len(payload))
+	return payload, nil
+}
+
+func (m *flow) EncryptPlan(plan []byte) ([]byte, error) {
+	m.logger.Trace("encryption:EncryptPlan", "key", m.configKey, "planSize", len(plan))
+	return plan, nil
 }

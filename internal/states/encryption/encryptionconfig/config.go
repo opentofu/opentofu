@@ -13,6 +13,8 @@ import (
 //
 // There can be more than one configuration with different encryption or key derivation methods.
 type Config struct {
+	Meta `json:"-"`
+
 	KeyProvider KeyProviderConfig `json:"key_provider"`
 
 	Method MethodConfig `json:"method"`
@@ -32,26 +34,62 @@ func (c Config) Validate() error {
 	return nil
 }
 
-const (
-	ConfigKeyDefault   = "default"   // configuration for all remote states that do not have an explicit configuration
-	ConfigKeyBackend   = "backend"   // when uploading the state to a remote backend
-	ConfigKeyStatefile = "statefile" // for a locally stored state file
-	ConfigKeyPlanfile  = "planfile"  // for a locally stored plan file
-)
+// Meta holds the metadata about a config structure.
+type Meta struct {
+	Source Source `json:"-"`
+	Key    Key    `json:"-"`
+}
 
-// ConfigEnvStructure is used to hold multiple named configurations from environment variables.
+type ConfigMap map[Meta]Config
+
+// Merge merges the configuration map for the specified config key according to the following rules:
 //
-// For the map key, you can specify a resource this configuration is relevant for, or you can use one of the
-// predefined keys to specify the base configuration for all resources.
+//   - If no configuration exists for the specified key, the default configuration is read from the environment.
+//   - Otherwise, the configuration from the environment and from HCL for the specific config key is merged, where the
+//     values from the environment take precedence.
+//
+// When the configuration from HCL and the environment is merged, a deep merge is performed.
+//
+// If no default or specific configuration is found, the function returns nil.
+func (c ConfigMap) Merge(configKey Key) (*Config, error) {
+	configOrNil := func(configs ConfigMap, meta Meta) *Config {
+		conf, ok := configs[meta]
+		if ok {
+			return &conf
+		} else {
+			return nil
+		}
+	}
+
+	merged := mergeConfigs(
+		configOrNil(c, Meta{SourceEnv, KeyDefault}),
+		configOrNil(c, Meta{SourceHCL, configKey}),
+		configOrNil(c, Meta{SourceEnv, configKey}),
+	)
+
+	injectDefaultNamesIfNotSet(merged)
+
+	if merged != nil {
+		if err := merged.Validate(); err != nil {
+			return merged, fmt.Errorf("invalid configuration after merge (%w)", err)
+		}
+	}
+
+	return merged, nil
+}
+
+// Key is a value type indicating that a string is intended to be used as a configuration key. You can use this type to
+// specify a resource this configuration is relevant for, or you can use one of the predefined keys to specify the base
+// configuration for all resources.
 //
 // Predefined keys:
 //
 // You can use the following constants as map keys to provide base configuration:
 //
-//   - ConfigKeyDefault for all remote states that do not have an explicit configuration (including the backend)
-//   - ConfigKeyBackend when uploading the state to a remote backend
-//   - ConfigKeyStatefile for a locally stored state file
-//   - ConfigKeyPlanfile for a locally stored plan file
+//   - KeyDefault for all remote states that do not have an explicit configuration (including the backend)
+//   - KeyBackend when uploading the state to a remote backend
+//   - KeyStatefile for a locally stored state file
+//   - KeyPlanfile for a locally stored plan file
 //
 // Explicit resources:
 //
@@ -75,7 +113,18 @@ const (
 //
 // When using shared state and shared encryption in this fashion, the author of the other project must pay attention
 // to only expose information that is intended for the current environment in the state.
-type ConfigEnvStructure map[string]Config
+type Key string
+
+const (
+	KeyDefault   Key = "default"   // configuration for all remote states that do not have an explicit configuration
+	KeyBackend   Key = "backend"   // when uploading the state to a remote backend
+	KeyStatefile Key = "statefile" // for a locally stored state file
+	KeyPlanfile  Key = "planfile"  // for a locally stored plan file
+)
+
+// ConfigEnvStructure is used to hold multiple named configurations from environment variables. See also the
+// documentation for Key.
+type ConfigEnvStructure map[Key]Config
 
 // ConfigEnvName is the name of the environment variable used to configure encryption and decryption as an alternative
 // to providing the configuration in the .tf files directly.
@@ -120,6 +169,13 @@ func ConfigurationFromEnv(envName string) (ConfigEnvStructure, error) {
 	parsed, err := parseJsonStructure(envValue)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing environment variable %s (%w)", envName, err)
+	}
+
+	for key, _ := range parsed {
+		var item = parsed[key]
+		item.Key = key
+		item.Source = SourceEnv
+		parsed[key] = item
 	}
 
 	return parsed, nil

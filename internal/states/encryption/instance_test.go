@@ -16,7 +16,7 @@ func TestGetSingletonEnforcesDotInKey(t *testing.T) {
 	_, _ = GetSingleton("no_dot")
 }
 
-func envConfig(configKey string, logicallyValid bool) string {
+func envConfig(configKey encryptionconfig.Key, logicallyValid bool) string {
 	if logicallyValid {
 		return fmt.Sprintf(`{"%s":{"key_provider":{"config":{"passphrase":"somephrase"}}}}`, configKey)
 	} else {
@@ -26,7 +26,7 @@ func envConfig(configKey string, logicallyValid bool) string {
 
 type instanceTestCase struct {
 	testcase              string
-	key                   string
+	key                   encryptionconfig.Key
 	encEnv                string
 	decEnv                string
 	expectInstanceError   error
@@ -34,11 +34,11 @@ type instanceTestCase struct {
 }
 
 func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instanceTestCase {
-	key := func(base string, num int) string {
+	key := func(base string, num int) encryptionconfig.Key {
 		if canExtendConfigKey {
-			return fmt.Sprintf("%s[%d]", base, num)
+			return encryptionconfig.Key(fmt.Sprintf("%s[%d]", base, num))
 		} else {
-			return base
+			return encryptionconfig.Key(base)
 		}
 	}
 
@@ -67,8 +67,9 @@ func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instance
 			encEnv:   envConfig(key(configKey, 4), false),
 			decEnv:   envConfig(key(configKey, 4), true),
 			expectValidationError: errors.New(
-				"error invalid encryption configuration after merge: " +
-					"error in configuration for key provider passphrase: passphrase missing or empty",
+				"failed to merge encryption configuration " +
+					"(invalid configuration after merge " +
+					"(error in configuration for key provider passphrase (passphrase missing or empty)))",
 			),
 		},
 		{
@@ -77,8 +78,9 @@ func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instance
 			encEnv:   envConfig(key(configKey, 5), true),
 			decEnv:   envConfig(key(configKey, 5), false),
 			expectValidationError: errors.New(
-				"error invalid decryption fallback configuration after merge: " +
-					"error in configuration for key provider passphrase: passphrase missing or empty",
+				"failed to merge fallback configuration " +
+					"(invalid configuration after merge " +
+					"(error in configuration for key provider passphrase (passphrase missing or empty)))",
 			),
 		},
 		// instance creation error cases (parse failure)
@@ -109,7 +111,7 @@ func getSingletonTestCases(configKey string, canExtendConfigKey bool) []instance
 	}
 }
 
-func runGetSingletonTestcase(t *testing.T, tc instanceTestCase, useSingletonCache bool, functionUnderTest func() (encryptionflow.FlowBuilder, error)) {
+func runGetSingletonTestcase(t *testing.T, tc instanceTestCase, useSingletonCache bool, functionUnderTest func() (encryptionflow.Builder, error)) {
 	if cache != nil {
 		t.Fatal("cache was enabled at start of test - probably some other test forgot to defer DisableSingletonCaching()")
 	}
@@ -144,7 +146,7 @@ func TestGetSingleton_NoCache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			runGetSingletonTestcase(t, tc, false, func() (encryptionflow.FlowBuilder, error) {
+			runGetSingletonTestcase(t, tc, false, func() (encryptionflow.Builder, error) {
 				return GetSingleton(tc.key)
 			})
 		})
@@ -156,7 +158,7 @@ func TestGetSingleton_Cache(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			runGetSingletonTestcase(t, tc, true, func() (encryptionflow.FlowBuilder, error) {
+			runGetSingletonTestcase(t, tc, true, func() (encryptionflow.Builder, error) {
 				return GetSingleton(tc.key)
 			})
 		})

@@ -1,6 +1,7 @@
 package encryption
 
 import (
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/logging"
@@ -12,8 +13,8 @@ import (
 // please read the note at the top of instance.go for details
 
 type instanceCache struct {
-	instances_useGetAndSet map[string]encryptionflow.FlowBuilder
-	mutex                  sync.RWMutex
+	instances map[encryptionconfig.Key]encryptionflow.Builder
+	mutex     sync.RWMutex
 }
 
 var cache *instanceCache
@@ -36,7 +37,7 @@ func EnableSingletonCaching() {
 	logging.HCLogger().Trace("enabling state encryption flow singleton instance cache")
 	if cache == nil {
 		cache = &instanceCache{
-			instances_useGetAndSet: make(map[string]encryptionflow.FlowBuilder),
+			instances: make(map[encryptionconfig.Key]encryptionflow.Builder),
 		}
 	}
 }
@@ -49,20 +50,20 @@ func DisableSingletonCaching() {
 	cache = nil
 }
 
-func (c *instanceCache) get(configKey string) (cacheEntry encryptionflow.FlowBuilder, ok bool) {
+func (c *instanceCache) get(configKey encryptionconfig.Key) (cacheEntry encryptionflow.Builder, ok bool) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	cacheEntry, ok = c.instances_useGetAndSet[configKey]
+	cacheEntry, ok = c.instances[configKey]
 	return
 }
 
-func (c *instanceCache) set(configKey string, cacheEntry encryptionflow.FlowBuilder) {
+func (c *instanceCache) set(configKey encryptionconfig.Key, cacheEntry encryptionflow.Builder) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	c.instances_useGetAndSet[configKey] = cacheEntry
+	c.instances[configKey] = cacheEntry
 }
 
-func (c *instanceCache) cachedOrNewInstance(configKey string, defaultsApply bool) (encryptionflow.FlowBuilder, error) {
+func (c *instanceCache) cachedOrNewInstance(configKey encryptionconfig.Key, defaultsApply bool) (encryptionflow.Builder, error) {
 	instance, found := c.get(configKey)
 	if found {
 		logging.HCLogger().Trace("found state encryption flow builder singleton in cache", "configKey", configKey)

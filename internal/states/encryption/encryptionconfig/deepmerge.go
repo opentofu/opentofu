@@ -2,7 +2,7 @@ package encryptionconfig
 
 import "maps"
 
-// InjectDefaultNamesIfNotSet sets the default key provider name and method name if encryption is enabled, but the
+// injectDefaultNamesIfNotSet sets the default key provider name and method name if encryption is enabled, but the
 // names are not explicitly set.
 //
 // Default values:
@@ -12,7 +12,7 @@ import "maps"
 //
 // Note: if you specify an encryption configuration, but do not set any parameters in it, the encryption will fail due
 // to the missing passphrase for the default key provider.
-func InjectDefaultNamesIfNotSet(config *Config) {
+func injectDefaultNamesIfNotSet(config *Config) {
 	if config == nil {
 		return
 	}
@@ -25,7 +25,7 @@ func InjectDefaultNamesIfNotSet(config *Config) {
 	}
 }
 
-// MergeConfigs performs a merge of a number of (optional) configurations.
+// mergeConfigs performs a merge of a number of (optional) configurations.
 //
 // Each argument is permitted to be nil, the result is nil if and only if all arguments are nil.
 //
@@ -34,7 +34,7 @@ func InjectDefaultNamesIfNotSet(config *Config) {
 //
 // If you specify no otherConfigs, the defaultConfig is returned. However, the defaultConfig is not merged into the
 // configs.
-func MergeConfigs(defaultConfig *Config, configs ...*Config) *Config {
+func mergeConfigs(defaultConfig *Config, configs ...*Config) *Config {
 	var current *Config
 	for _, deepMergeMe := range configs {
 		current = deepMergeConfig(deepMergeMe, current)

@@ -124,9 +124,15 @@ func validateEMFullConfig(m MethodConfig) error {
 	return nil
 }
 
-func init() {
-	_ = RegisterKeyProviderValidator(KeyProviderPassphrase, validateKPPassphraseConfig)
-	_ = RegisterKeyProviderValidator(KeyProviderDirect, validateKPDirectConfig)
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
 
-	_ = RegisterMethodValidator(MethodFull, validateEMFullConfig)
+func init() {
+	must(RegisterKeyProviderValidator(KeyProviderPassphrase, validateKPPassphraseConfig))
+	must(RegisterKeyProviderValidator(KeyProviderDirect, validateKPDirectConfig))
+
+	must(RegisterMethodValidator(MethodFull, validateEMFullConfig))
 }

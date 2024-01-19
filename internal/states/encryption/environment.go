@@ -32,68 +32,68 @@ func ParseEnvironmentVariables() error {
 	return nil
 }
 
-func applyEncryptionConfigIfExists(flow encryptionflow.FlowBuilder, source encryptionflow.ConfigurationSource, configKey string) error {
+func applyEncryptionConfigIfExists(flow encryptionflow.Builder, configKey encryptionconfig.Key) error {
 	configs, err := encryptionconfig.ConfigurationFromEnv(encryptionconfig.ConfigEnvName)
 	if err != nil {
 		return err
 	}
 	if configs == nil {
 		logging.HCLogger().Trace("nothing to apply, environment variable for encryption is not set",
-			"source", source, "configKey", configKey)
+			"configKey", configKey)
 		return nil
 	}
 
 	config, ok := configs[configKey]
 	if !ok {
 		logging.HCLogger().Trace("nothing to apply from environment variable for encryption",
-			"source", source, "configKey", configKey)
+			"configKey", configKey)
 		return nil
 	}
 
-	err = flow.EncryptionConfiguration(source, config)
+	err = flow.EncryptionConfiguration(config)
 	if err != nil {
 		logging.HCLogger().Error("encryption configuration from environment failed to apply. "+
 			"This is a bug. It should not be validated, only stored at this point in time because it could still "+
 			"be incomplete. Validation of the configuration can only occur once it is known to be complete.",
-			"source", source, "configKey", configKey)
+			"configKey", configKey)
 		logging.HCLogger().Error(err.Error())
 		return err
 	}
 
 	logging.HCLogger().Trace("successfully applied config from environment variable for encryption",
-		"source", source, "configKey", configKey)
+		"configKey", configKey)
 	return nil
 }
 
-func applyDecryptionFallbackConfigIfExists(flow encryptionflow.FlowBuilder, source encryptionflow.ConfigurationSource, configKey string) error {
+func applyDecryptionFallbackConfigIfExists(flow encryptionflow.Builder, configKey encryptionconfig.Key) error {
 	configs, err := encryptionconfig.ConfigurationFromEnv(encryptionconfig.FallbackConfigEnvName)
 	if err != nil {
 		return err
 	}
 	if configs == nil {
 		logging.HCLogger().Trace("nothing to apply, environment variable for decryption fallback is not set",
-			"source", source, "configKey", configKey)
+			"configKey", configKey)
 		return nil
 	}
 
 	config, ok := configs[configKey]
 	if !ok {
 		logging.HCLogger().Trace("nothing to apply from environment variable for decryption fallback",
-			"source", source, "configKey", configKey)
+			"configKey", configKey)
 		return nil
 	}
 
-	err = flow.DecryptionFallbackConfiguration(source, config)
+	err = flow.DecryptionFallbackConfiguration(config)
 	if err != nil {
 		logging.HCLogger().Error("decryption fallback configuration from environment failed to apply. "+
 			"This is a bug. It should not be validated, only stored at this point in time because it could still "+
 			"be incomplete. Validation of the configuration can only occur once it is known to be complete.",
-			"source", source, "configKey", configKey)
+			"configKey", configKey)
 		logging.HCLogger().Error(err.Error())
 		return err
 	}
 
 	logging.HCLogger().Trace("successfully applied config from environment variable for encryption",
-		"source", source, "configKey", configKey)
+		"configKey", configKey)
 	return nil
 }

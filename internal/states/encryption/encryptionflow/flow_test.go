@@ -14,8 +14,8 @@ import (
 // This is the most important case, because this will happen if tofu is run without
 // any encryption configuration. We need to ensure all state and plans are passed through
 // unchanged.
-func tstNoConfigurationInstance() FlowBuilder {
-	return NewMock("testing_no_configuration")
+func tstNoConfigurationInstance() Builder {
+	return NewBuilder("testing_no_configuration")
 }
 
 func tstPassthrough(t *testing.T, value string, method func([]byte) ([]byte, error)) {
@@ -60,8 +60,10 @@ func TestEncryptPlan_Passthrough(t *testing.T) {
 	tstPassthrough(t, `zip64`, cut.EncryptPlan)
 }
 
-func tstCodeConfigurationInstance(encValid bool, decValid bool) FlowBuilder {
+func tstCodeConfigurationInstance(encValid bool, decValid bool) Builder {
+	configKey := encryptionconfig.Key("testing_code_configuration")
 	encConfig := encryptionconfig.Config{
+		Meta: encryptionconfig.Meta{encryptionconfig.SourceHCL, configKey},
 		KeyProvider: encryptionconfig.KeyProviderConfig{
 			Config: map[string]string{},
 		},
@@ -72,6 +74,7 @@ func tstCodeConfigurationInstance(encValid bool, decValid bool) FlowBuilder {
 	}
 
 	decConfig := encryptionconfig.Config{
+		Meta: encryptionconfig.Meta{encryptionconfig.SourceHCL, configKey},
 		KeyProvider: encryptionconfig.KeyProviderConfig{
 			Config: map[string]string{},
 		},
@@ -81,16 +84,17 @@ func tstCodeConfigurationInstance(encValid bool, decValid bool) FlowBuilder {
 		decConfig.KeyProvider.Config["passphrase"] = "the old passphrase"
 	}
 
-	cut := NewMock("testing_code_configuration")
-	_ = cut.EncryptionConfiguration(ConfigurationSourceCode, encConfig)
-	_ = cut.DecryptionFallbackConfiguration(ConfigurationSourceCode, decConfig)
+	cut := NewBuilder(configKey)
+	_ = cut.EncryptionConfiguration(encConfig)
+	_ = cut.DecryptionFallbackConfiguration(decConfig)
 	return cut
 }
 
+// TODO move this to encryptionconfig
 func TestMergeAndValidateConfigurations(t *testing.T) {
 	testCases := []struct {
 		testcase    string
-		cut         FlowBuilder
+		cut         Builder
 		expectError error
 	}{
 		{
@@ -106,12 +110,12 @@ func TestMergeAndValidateConfigurations(t *testing.T) {
 		{
 			testcase:    "invalid_enc_config",
 			cut:         tstCodeConfigurationInstance(false, true),
-			expectError: errors.New("error invalid encryption configuration after merge: error in configuration for key provider passphrase: passphrase missing or empty"),
+			expectError: errors.New("failed to merge encryption configuration (invalid configuration after merge (error in configuration for key provider passphrase (passphrase missing or empty)))"),
 		},
 		{
 			testcase:    "invalid_dec_config",
 			cut:         tstCodeConfigurationInstance(true, false),
-			expectError: errors.New("error invalid decryption fallback configuration after merge: error in configuration for key provider passphrase: passphrase missing or empty"),
+			expectError: errors.New("failed to merge fallback configuration (invalid configuration after merge (error in configuration for key provider passphrase (passphrase missing or empty)))"),
 		},
 	}
 
@@ -125,22 +129,23 @@ func TestMergeAndValidateConfigurations(t *testing.T) {
 
 func TestDecryptEncryptPropagateErrors(t *testing.T) {
 	cut := tstCodeConfigurationInstance(false, true)
-	expected := errors.New("error invalid encryption configuration after merge: error in configuration for key provider passphrase: passphrase missing or empty")
+	expected := errors.New("failed to merge encryption configuration (invalid configuration after merge (error in configuration for key provider passphrase (passphrase missing or empty)))")
 
 	_, err := cut.Build()
 	expectErr(t, err, expected)
 }
 
 func expectErr(t *testing.T, actual error, expected error) {
+	t.Helper()
 	if actual != nil {
 		if expected == nil {
-			t.Errorf("received unexpected error '%s' instead of success", actual.Error())
+			t.Errorf("received unexpected error:\n%s\nexpected: success", actual.Error())
 		} else if actual.Error() != expected.Error() {
-			t.Errorf("received unexpected error '%s' instead of '%s'", actual.Error(), expected.Error())
+			t.Errorf("received unexpected error:\n%s\nexpected:\n%s", actual.Error(), expected.Error())
 		}
 	} else {
 		if expected != nil {
-			t.Errorf("unexpected success instead of expected error '%s'", expected.Error())
+			t.Errorf("unexpected success instead of expected error:\n%s", expected.Error())
 		}
 	}
 }
@@ -149,14 +154,28 @@ func TestEncryptionConfigurationEnforcesSource(t *testing.T) {
 	cut := tstNoConfigurationInstance()
 
 	defer tstExpectPanic(t, "called with invalid source value")()
-	_ = cut.EncryptionConfiguration(invalidConfigurationSource, encryptionconfig.Config{})
+	_ = cut.EncryptionConfiguration(
+		encryptionconfig.Config{
+			Meta: encryptionconfig.Meta{
+				"invalid",
+				encryptionconfig.KeyDefault,
+			},
+		},
+	)
 }
 
 func TestDecryptionFallbackConfigurationEnforcesSource(t *testing.T) {
 	cut := tstNoConfigurationInstance()
 
 	defer tstExpectPanic(t, "called with invalid source value")()
-	_ = cut.DecryptionFallbackConfiguration(invalidConfigurationSource, encryptionconfig.Config{})
+	_ = cut.DecryptionFallbackConfiguration(
+		encryptionconfig.Config{
+			Meta: encryptionconfig.Meta{
+				"invalid",
+				encryptionconfig.KeyDefault,
+			},
+		},
+	)
 }
 
 func tstExpectPanic(t *testing.T, snippet string) func() {

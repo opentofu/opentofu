@@ -23,11 +23,11 @@ func TestValidateAllCachedInstances_NoCache(t *testing.T) {
 }
 
 func TestValidateAllCachedInstances(t *testing.T) {
-	configKey := "unit_testing.validate_all_cached_instances"
+	configKey := encryptionconfig.Key("unit_testing.validate_all_cached_instances")
 
 	testCases := []struct {
 		testcase        string
-		key             string
+		key             encryptionconfig.Key
 		encEnv          string
 		expectDiagCount int
 		expectSeverity  tfdiags.Severity
@@ -49,8 +49,9 @@ func TestValidateAllCachedInstances(t *testing.T) {
 			expectDiagCount: 1,
 			expectSeverity:  tfdiags.Error,
 			expectSummary:   fmt.Sprintf("Invalid state encryption configuration for configuration key %s", configKey),
-			expectDetail: "error invalid encryption configuration after merge: " +
-				"error in configuration for key provider passphrase: passphrase missing or empty",
+			expectDetail: "failed to merge encryption configuration " +
+				"(invalid configuration after merge " +
+				"(error in configuration for key provider passphrase (passphrase missing or empty)))",
 		},
 	}
 
@@ -80,6 +81,7 @@ func TestValidateAllCachedInstances(t *testing.T) {
 }
 
 func expectDiag(t *testing.T, actual tfdiags.Diagnostic, expectSeverity tfdiags.Severity, expectSummary string, expectDetail string) {
+	t.Helper()
 	if actual == nil {
 		t.Error("unexpected nil diag")
 	} else {
@@ -87,7 +89,7 @@ func expectDiag(t *testing.T, actual tfdiags.Diagnostic, expectSeverity tfdiags.
 			t.Error("unexpected severity")
 		}
 		if expectSummary != actual.Description().Summary || expectDetail != actual.Description().Detail {
-			t.Errorf("unexpected '%s'/'%s' instead of '%s'/'%s'",
+			t.Errorf("unexpected:\n%s\n%s\nexpected:\n%s\n%s",
 				actual.Description().Summary, actual.Description().Detail,
 				expectSummary, expectDetail)
 		}
