@@ -13,6 +13,13 @@ import (
 	"path/filepath"
 )
 
+// Default directories to use when XDG_* is not defined
+// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+const (
+	defaultConfigDir = ".config"
+	defaultDataDir   = ".local/share"
+)
+
 func configFile() (string, error) {
 	dir, err := homeDir()
 	if err != nil {
@@ -22,10 +29,9 @@ func configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, ".tofurc")
 	legacyConfigFile := filepath.Join(dir, ".terraformrc")
 
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" &&
-		!pathExists(legacyConfigFile) && !pathExists(newConfigFile) {
-		// a fresh install should not use legacy naming
-		return filepath.Join(xdgDir, "opentofu", "tofurc"), nil
+	if !pathExists(legacyConfigFile) && !pathExists(newConfigFile) {
+		// a fresh install should not use terraform naming
+		return filepath.Join(lookupEnv("XDG_CONFIG_HOME", filepath.Join(dir, defaultConfigDir)), "opentofu", "tofurc"), nil
 	}
 
 	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
@@ -38,8 +44,8 @@ func configDir() (string, error) {
 	}
 
 	configDir := filepath.Join(dir, ".terraform.d")
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(configDir) {
-		configDir = filepath.Join(xdgDir, "opentofu")
+	if !pathExists(configDir) {
+		configDir = filepath.Join(lookupEnv("XDG_CONFIG_HOME", filepath.Join(dir, defaultConfigDir)), "opentofu")
 	}
 
 	return configDir, nil
@@ -51,12 +57,19 @@ func dataDir() (string, error) {
 		return "", err
 	}
 
-	configDir := filepath.Join(dir, ".terraform.d")
-	if xdgDir := os.Getenv("XDG_DATA_HOME"); xdgDir != "" && !pathExists(configDir) {
-		configDir = filepath.Join(xdgDir, "opentofu")
+	dataDir := filepath.Join(dir, ".terraform.d")
+	if !pathExists(dataDir) {
+		dataDir = filepath.Join(lookupEnv("XDG_DATA_HOME", filepath.Join(dir, defaultDataDir)), "opentofu")
 	}
 
-	return configDir, nil
+	return dataDir, nil
+}
+
+func lookupEnv(name, defaultValue string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func homeDir() (string, error) {
