@@ -55,7 +55,7 @@ func TestInjectDefaultNamesIfUnset(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			InjectDefaultNamesIfNotSet(tc.config)
+			injectDefaultNamesIfNotSet(tc.config)
 			if tc.expectNil != (tc.config == nil) {
 				t.Error("unexpected nil state change")
 			}
@@ -197,7 +197,7 @@ func TestMergeConfigs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
-			actual := MergeConfigs(tc.defaultConfig, tc.mergeList...)
+			actual := mergeConfigs(tc.defaultConfig, tc.mergeList...)
 			if tc.expected == nil || actual == nil {
 				if tc.expected != actual {
 					t.Error("unexpected nil state")

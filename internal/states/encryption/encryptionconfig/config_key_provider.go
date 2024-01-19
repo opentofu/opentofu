@@ -24,11 +24,11 @@ type KeyProviderConfig struct {
 func (k KeyProviderConfig) Validate() error {
 	validator, ok := keyProviderConfigValidators.get(k.Name)
 	if !ok || validator == nil {
-		return fmt.Errorf("error in configuration for key provider %s: no registered key provider with this name", k.Name)
+		return fmt.Errorf("error in configuration for key provider %s (no registered key provider with this name)", k.Name)
 	}
 
 	if err := validator(k); err != nil {
-		return fmt.Errorf("error in configuration for key provider %s: %s", k.Name, err.Error())
+		return fmt.Errorf("error in configuration for key provider %s (%w)", k.Name, err)
 	}
 
 	return nil

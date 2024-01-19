@@ -10,7 +10,7 @@ import (
 
 // --------------------------------------------------------------------------------------------
 // IMPORTANT NOTE:
-// This package contains a cache for singleton instances of encryptionflow.FlowBuilder
+// This package contains a cache for singleton instances of encryptionflow.Builder
 //   - there is one instance for our own remote state
 //   - there is one instance for our local state file
 //   - there is one instance for our local plan file
@@ -54,8 +54,8 @@ import (
 // The first time a particular instance is requested, GetSingleton may bail out due to invalid configuration.
 //
 // See also GetRemoteStateSingleton(), GetStatefileSingleton(), GetPlanfileSingleton().
-func GetSingleton(configKey string) (encryptionflow.FlowBuilder, error) {
-	if !strings.Contains(configKey, ".") {
+func GetSingleton(configKey encryptionconfig.Key) (encryptionflow.Builder, error) {
+	if !strings.Contains(string(configKey), ".") {
 		panic("call to encryption.GetSingleton with a key that does not contain '.'. This is a bug. " +
 			"GetSingleton() is intended to obtain named instances only. For predefined instances use " +
 			"GetRemoteStateSingleton(), GetStatefileSingleton(), or GetPlanfileSingleton()")
@@ -69,49 +69,49 @@ func GetSingleton(configKey string) (encryptionflow.FlowBuilder, error) {
 
 // GetRemoteStateSingleton obtains the singleton instance of the encryption flow builder that is intended for our own remote
 // state backend, as opposed to terraform_remote_state data sources.
-func GetRemoteStateSingleton() (encryptionflow.FlowBuilder, error) {
+func GetRemoteStateSingleton() (encryptionflow.Builder, error) {
 	if cache != nil {
-		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyBackend, true)
+		return cache.cachedOrNewInstance(encryptionconfig.KeyBackend, true)
 	} else {
-		return newInstance(encryptionconfig.ConfigKeyBackend, true)
+		return newInstance(encryptionconfig.KeyBackend, true)
 	}
 }
 
 // GetStatefileSingleton obtains the singleton instance of the encryption flow builder that is intended for our own local state file.
-func GetStatefileSingleton() (encryptionflow.FlowBuilder, error) {
+func GetStatefileSingleton() (encryptionflow.Builder, error) {
 	if cache != nil {
-		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyStatefile, false)
+		return cache.cachedOrNewInstance(encryptionconfig.KeyStatefile, false)
 	} else {
-		return newInstance(encryptionconfig.ConfigKeyStatefile, false)
+		return newInstance(encryptionconfig.KeyStatefile, false)
 	}
 }
 
 // GetPlanfileSingleton obtains the instance of the encryption flow builder that is intended for our plan file.
-func GetPlanfileSingleton() (encryptionflow.FlowBuilder, error) {
+func GetPlanfileSingleton() (encryptionflow.Builder, error) {
 	if cache != nil {
-		return cache.cachedOrNewInstance(encryptionconfig.ConfigKeyPlanfile, false)
+		return cache.cachedOrNewInstance(encryptionconfig.KeyPlanfile, false)
 	} else {
-		return newInstance(encryptionconfig.ConfigKeyPlanfile, false)
+		return newInstance(encryptionconfig.KeyPlanfile, false)
 	}
 }
 
-func newInstance(configKey string, defaultsApply bool) (encryptionflow.FlowBuilder, error) {
+func newInstance(configKey encryptionconfig.Key, defaultsApply bool) (encryptionflow.Builder, error) {
 	logging.HCLogger().Trace("constructing new state encryption flow instance", "configKey", configKey)
-	instance := encryptionflow.NewMock(configKey)
+	instance := encryptionflow.NewBuilder(configKey)
 
 	if defaultsApply {
-		if err := applyEncryptionConfigIfExists(instance, encryptionflow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault); err != nil {
+		if err := applyEncryptionConfigIfExists(instance, encryptionconfig.KeyDefault); err != nil {
 			return nil, err
 		}
-		if err := applyDecryptionFallbackConfigIfExists(instance, encryptionflow.ConfigurationSourceEnvDefault, encryptionconfig.ConfigKeyDefault); err != nil {
+		if err := applyDecryptionFallbackConfigIfExists(instance, encryptionconfig.KeyDefault); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := applyEncryptionConfigIfExists(instance, encryptionflow.ConfigurationSourceEnv, configKey); err != nil {
+	if err := applyEncryptionConfigIfExists(instance, configKey); err != nil {
 		return nil, err
 	}
-	if err := applyDecryptionFallbackConfigIfExists(instance, encryptionflow.ConfigurationSourceEnv, configKey); err != nil {
+	if err := applyDecryptionFallbackConfigIfExists(instance, configKey); err != nil {
 		return nil, err
 	}
 

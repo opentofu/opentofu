@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
-	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -19,24 +18,24 @@ func ExampleGetRemoteStateSingleton() {
 	// are set by the user executing tofu. It is ok to not set either of them.
 
 	// Here is an example value that affects our own remote state (providing a passphrase):
-	TF_STATE_ENCRYPTION := `{
-      "backend": {
-		"key_provider": {
-			"config": {
-				"passphrase": "the current passphrase"
+	TF_STATE_ENCRYPTION := fmt.Sprintf(`{
+		"%s": {
+			"key_provider": {
+				"config": {
+					"passphrase": "the current passphrase"
+				}
 			}
 		}
-	  }
-    }`
-	TF_STATE_DECRYPTION_FALLBACK := `{
-      "backend": {
-		"key_provider": {
-			"config": {
-				"passphrase": "the previous passphrase for key rotation"
+	}`, encryptionconfig.KeyBackend)
+	TF_STATE_DECRYPTION_FALLBACK := fmt.Sprintf(`{
+		"%s": {
+			"key_provider": {
+				"config": {
+					"passphrase": "the previous passphrase for key rotation"
+				}
 			}
 		}
-	  }
-    }`
+	}`, encryptionconfig.KeyBackend)
 
 	// For the sake of this example, we set them here, but YOU WOULD NOT DO THAT IN YOUR CODE.
 	_ = os.Setenv(encryptionconfig.ConfigEnvName, TF_STATE_ENCRYPTION)
@@ -68,6 +67,7 @@ func ExampleGetRemoteStateSingleton() {
 
 		// this is what you might parse from terraform.state_encryption (if set)
 		config := encryptionconfig.Config{
+			Meta: encryptionconfig.Meta{encryptionconfig.SourceHCL, encryptionconfig.KeyBackend},
 			KeyProvider: encryptionconfig.KeyProviderConfig{
 				Name: "passphrase",
 			},
@@ -79,6 +79,7 @@ func ExampleGetRemoteStateSingleton() {
 
 		// this is what you might parse from terraform.state_decryption_fallback (if set)
 		fallbackConfig := encryptionconfig.Config{
+			Meta: encryptionconfig.Meta{encryptionconfig.SourceHCL, encryptionconfig.KeyBackend},
 			KeyProvider: encryptionconfig.KeyProviderConfig{
 				Name: "passphrase",
 			},
@@ -98,14 +99,14 @@ func ExampleGetRemoteStateSingleton() {
 		}
 
 		// only call this if terraform.state_encryption block was present
-		err = instance.EncryptionConfiguration(encryptionflow.ConfigurationSourceCode, config)
+		err = instance.EncryptionConfiguration(config)
 		if err != nil {
 			fmt.Println("errors here mean the supplied configuration was invalid (not all problems can be detected at this time)", err.Error())
 			return
 		}
 
 		// only call this if terraform.state_decryption_fallback block was present
-		err = instance.DecryptionFallbackConfiguration(encryptionflow.ConfigurationSourceCode, fallbackConfig)
+		err = instance.DecryptionFallbackConfiguration(fallbackConfig)
 		if err != nil {
 			fmt.Println("errors here mean the supplied fallback configuration was invalid (not all problems can be detected at this time)", err.Error())
 			return

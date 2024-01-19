@@ -35,7 +35,7 @@ func TestConfigValidate(t *testing.T) {
 					Name: "full",
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider unknown: no registered key provider with this name"),
+			expectedErr: errors.New("error in configuration for key provider unknown (no registered key provider with this name)"),
 		},
 		{
 			testcase: "method_wrong",
@@ -105,7 +105,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 			config: KeyProviderConfig{
 				Name: "unknown",
 			},
-			expectedErr: errors.New("error in configuration for key provider unknown: no registered key provider with this name"),
+			expectedErr: errors.New("error in configuration for key provider unknown (no registered key provider with this name)"),
 		},
 		// tests for "passphrase" validation
 		{
@@ -113,7 +113,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 			config: KeyProviderConfig{
 				Name: "passphrase",
 			},
-			expectedErr: errors.New("error in configuration for key provider passphrase: passphrase missing or empty"),
+			expectedErr: errors.New("error in configuration for key provider passphrase (passphrase missing or empty)"),
 		},
 		{
 			testcase: "passphrase_additional",
@@ -124,7 +124,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 					"additional": "nonsense",
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider passphrase: unexpected additional configuration fields, only 'passphrase' is allowed for this key provider"),
+			expectedErr: errors.New("error in configuration for key provider passphrase (unexpected additional configuration fields, only 'passphrase' is allowed for this key provider)"),
 		},
 		// tests for "direct" validation
 		{
@@ -132,7 +132,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 			config: KeyProviderConfig{
 				Name: "direct",
 			},
-			expectedErr: errors.New("error in configuration for key provider direct: field 'key' missing or empty"),
+			expectedErr: errors.New("error in configuration for key provider direct (field 'key' missing or empty)"),
 		},
 		{
 			testcase: "direct_empty_key",
@@ -142,7 +142,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 					"key": "",
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider direct: field 'key' missing or empty"),
+			expectedErr: errors.New("error in configuration for key provider direct (field 'key' missing or empty)"),
 		},
 		{
 			testcase: "direct_invalid_key",
@@ -152,7 +152,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 					"key": invalidChars,
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider direct: field 'key' is not a hex string representing 32 bytes"),
+			expectedErr: errors.New("error in configuration for key provider direct (field 'key' is not a hex string representing 32 bytes)"),
 		},
 		{
 			testcase: "direct_key_short",
@@ -162,7 +162,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 					"key": tooShortKey,
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider direct: field 'key' is not a hex string representing 32 bytes"),
+			expectedErr: errors.New("error in configuration for key provider direct (field 'key' is not a hex string representing 32 bytes)"),
 		},
 		{
 			testcase: "direct_key_long",
@@ -172,7 +172,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 					"key": tooLongKey,
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider direct: field 'key' is not a hex string representing 32 bytes"),
+			expectedErr: errors.New("error in configuration for key provider direct (field 'key' is not a hex string representing 32 bytes)"),
 		},
 		{
 			testcase: "direct_additional",
@@ -183,7 +183,7 @@ func TestKeyProviderConfigValidate(t *testing.T) {
 					"additional": "nonsense",
 				},
 			},
-			expectedErr: errors.New("error in configuration for key provider direct: unexpected additional configuration fields, only 'key' is allowed for this key provider"),
+			expectedErr: errors.New("error in configuration for key provider direct (unexpected additional configuration fields, only 'key' is allowed for this key provider)"),
 		},
 		{
 			testcase: "direct_success",
