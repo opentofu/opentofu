@@ -194,6 +194,10 @@ Options:
   -ignore-remote-version  Continue even if remote and local OpenTofu versions
                           are incompatible. This may result in an unusable
                           workspace, and should be used with extreme caution.
+Aliases:
+
+	remove,
+	rm
 
 `
 	return strings.TrimSpace(helpText)

@@ -125,6 +125,11 @@ Options:
                       resource types have an attribute named "id" whose value
                       equals the given id string.
 
+Subcommand Aliases:
+
+	list,
+	ls
+
 `
 	return strings.TrimSpace(helpText)
 }

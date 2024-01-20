@@ -554,6 +554,10 @@ Options:
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 
+Subcommand Aliases:
+
+	move,
+	mv
 `
 	return strings.TrimSpace(helpText)
 }

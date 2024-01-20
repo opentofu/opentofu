@@ -112,6 +112,35 @@ func initCommands(
 		AllowExperimentalFeatures: experimentsAreAllowed(),
 	}
 
+	// Most commands are open-coded in the `Commands` assignment below. In
+	// some cases, though, we'd like to have mulitiple aliases to a single
+	// command; we could still open-code those, but it'd be a bit cleaner
+	// to define them just once.
+	// The original idea for this fix was from ajf-firstup and is
+	// an elegant solution
+
+	stateListCommandFactory := func() (cli.Command, error) {
+		return &command.StateListCommand{
+			Meta: meta,
+		}, nil
+	}
+
+	stateMoveCommandFactory := func() (cli.Command, error) {
+		return &command.StateMvCommand{
+			StateMeta: command.StateMeta{
+				Meta: meta,
+			},
+		}, nil
+	}
+
+	stateRemoveCommandFactory := func() (cli.Command, error) {
+		return &command.StateRmCommand{
+			StateMeta: command.StateMeta{
+				Meta: meta,
+			},
+		}, nil
+	}
+
 	// The command list is included in the tofu -help
 	// output, which is in turn included in the docs at
 	// website/docs/cli/commands/index.html.markdown; if you
@@ -364,27 +393,14 @@ func initCommands(
 			return &command.StateCommand{}, nil
 		},
 
-		"state list": func() (cli.Command, error) {
-			return &command.StateListCommand{
-				Meta: meta,
-			}, nil
-		},
+		"state list": stateListCommandFactory,
+		"state ls": stateListCommandFactory,
 
-		"state rm": func() (cli.Command, error) {
-			return &command.StateRmCommand{
-				StateMeta: command.StateMeta{
-					Meta: meta,
-				},
-			}, nil
-		},
+		"state remove": stateRemoveCommandFactory,
+		"state rm": stateRemoveCommandFactory,
 
-		"state mv": func() (cli.Command, error) {
-			return &command.StateMvCommand{
-				StateMeta: command.StateMeta{
-					Meta: meta,
-				},
-			}, nil
-		},
+		"state move": stateMoveCommandFactory,
+		"state mv": stateMoveCommandFactory,
 
 		"state pull": func() (cli.Command, error) {
 			return &command.StatePullCommand{
