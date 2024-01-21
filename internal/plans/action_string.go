@@ -15,6 +15,7 @@ func _() {
 	_ = x[DeleteThenCreate-8723]
 	_ = x[CreateThenDelete-177]
 	_ = x[Delete-45]
+	_ = x[Forget-46]
 }
 
 const (
@@ -25,6 +26,7 @@ const (
 	_Action_name_4 = "CreateThenDelete"
 	_Action_name_5 = "Read"
 	_Action_name_6 = "DeleteThenCreate"
+	_Action_name_7 = "Forget"
 )
 
 func (i Action) String() string {
@@ -35,6 +37,8 @@ func (i Action) String() string {
 		return _Action_name_1
 	case i == 45:
 		return _Action_name_2
+	case i == 46:
+		return _Action_name_7
 	case i == 126:
 		return _Action_name_3
 	case i == 177:

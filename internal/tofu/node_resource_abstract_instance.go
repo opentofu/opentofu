@@ -348,6 +348,55 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 	return nil
 }
 
+// planForget returns a removed from state diff.
+func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) (*plans.ResourceInstanceChange, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var plan *plans.ResourceInstanceChange
+
+	absAddr := n.Addr
+
+	// If there is no state or our attributes object is null then the resource
+	// was already forgotten.
+	if currentState == nil || currentState.Value.IsNull() {
+		// We still need to generate a NoOp change, because that allows
+		// outside consumers of the plan to distinguish between us affirming
+		// that we checked something and concluded no changes were needed
+		// vs. that something being entirely excluded e.g. due to -target.
+		noop := &plans.ResourceInstanceChange{
+			Addr:        absAddr,
+			PrevRunAddr: n.prevRunAddr(ctx),
+			DeposedKey:  deposedKey,
+			Change: plans.Change{
+				Action: plans.NoOp,
+				Before: cty.NullVal(cty.DynamicPseudoType),
+				After:  cty.NullVal(cty.DynamicPseudoType),
+			},
+			ProviderAddr: n.ResolvedProvider,
+		}
+		return noop, nil
+	}
+
+	unmarkedPriorVal, _ := currentState.Value.UnmarkDeep()
+
+	// The config and new value are null to signify that this is a forget
+	// operation.
+	nullVal := cty.NullVal(unmarkedPriorVal.Type())
+
+	plan = &plans.ResourceInstanceChange{
+		Addr:        absAddr,
+		PrevRunAddr: n.prevRunAddr(ctx),
+		DeposedKey:  deposedKey,
+		Change: plans.Change{
+			Action: plans.Forget,
+			Before: currentState.Value,
+			After:  nullVal,
+		},
+		ProviderAddr: n.ResolvedProvider,
+	}
+
+	return plan, diags
+}
+
 // planDestroy returns a plain destroy diff.
 func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) (*plans.ResourceInstanceChange, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
