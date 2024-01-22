@@ -34,7 +34,7 @@ func injectDefaultNamesIfNotSet(config *Config) {
 //
 // If you specify no otherConfigs, the defaultConfig is returned. However, the defaultConfig is not merged into the
 // configs.
-func mergeConfigs(key Key, defaultConfig *Config, configs ...*Config) *Config {
+func mergeConfigs(defaultConfig *Config, configs ...*Config) *Config {
 	var current *Config
 	for _, deepMergeMe := range configs {
 		current = deepMergeConfig(deepMergeMe, current)
