@@ -14,82 +14,83 @@ import (
 // state data structure (currently stateV4).
 const EncryptionTopLevelJsonKey = "encryption"
 
+// New creates an encryption flow with the specified configuration.
+func New(
+	configKey encryptionconfig.Key,
+	encryptionConfig *encryptionconfig.Config,
+	fallbackConfig *encryptionconfig.Config,
+	logger hclog.Logger,
+) Flow {
+	return &flow{
+		configKey:        configKey,
+		logger:           logger,
+		encryptionConfig: encryptionConfig,
+		fallbackConfig:   fallbackConfig,
+	}
+}
+
 // Flow represents the top-level state or plan encryption/decryption flow
 // for a particular encryption configuration.
 //
-// Instances of Flow are kept in an internal singleton cache per configuration key.
-// Unless you are writing tests, you should not create them in your code.
+// You can obtain a copy of this interface by creating a Builder first and supplying it with the correct
+// encryption configuration, then calling the Build function.
 //
-// See also encryption.GetSingleton().
+// Note, that all encrypted data must be in JSON format and must contain a key specified in EncryptionTopLevelJsonKey
+// to indicate that it is valid encrypted data.
 type Flow interface {
+	StateFlow
+	PlanFlow
+}
+
+type StateFlow interface {
 	// DecryptState decrypts encrypted state.
 	//
-	// If the state is not actually encrypted, it will be returned
-	// as-is. DecryptState will first try decryption using the state
-	// encryption configuration. If this fails, it tries the decryption
-	// fallback configuration. If neither produces a valid result it fails.
+	// You can pass it an encrypted or decrypted state in JSON format as a []byte. If the state is already decrypted
+	// (has no EncryptionTopLevelJsonKey), the function will return the state unmodified.
 	//
-	// payload must be a json document passed in as a []byte.
-	// This can be encrypted or unencrypted state. Encryption is detected
-	// by presence of the EncryptionTopLevelJsonKey key at the 1st level.
-	//
-	// If no error is returned, then the first return value will always
-	// be a json document, possibly the same one passed in as payload
-	// if the payload was not actually encrypted.
+	// If the state is encrypted, the method will attempt to decrypt the state according to its internal configuration,
+	// first with the primary encryption key, then with the fallback decryption key. If neither produces a valid result
+	// it fails.
 	DecryptState(payload []byte) ([]byte, error)
 
 	// EncryptState encrypts plaintext state.
 	//
-	// There are special configurations that will not actually encrypt
-	// state. This happens when you only configure a decryption fallback,
-	// but not encryption. This is not an error.
+	// To encrypt the state, pass the unencrypted state in JSON format to this function. This function will attempt to
+	// encrypt it with the encryption key and return a valid, but encrypted JSON.
 	//
-	// state is a json document passed in as a []byte. It is an error
-	// if this document already contains the EncryptionTopLevelJsonKey key
-	// at the 1st level.
+	// If no encryption is configured, but "enforced" is enabled, the encryption will fail. Otherwise, this function
+	// will return the state unmodified.
 	//
-	// If no error is returned, then the first return value will always
-	// be a json document as a []byte. If encryption took place,
-	// this json document will have the EncryptionTopLevelJsonKey key
-	// at the 1st level.
+	// Implementations must ensure that the first return value is always a valid JSON unless an error is returned,
+	// because there are remote state backends that require state to be JSON.
 	EncryptState(state []byte) ([]byte, error)
+}
 
+type PlanFlow interface {
 	// DecryptPlan decrypts an encrypted plan.
 	//
-	// The presence of encryption is detected by attempting to parse
-	// payload as a json document and looking at the EncryptionTopLevelJsonKey key
-	// at the 1st level.
+	// To decrypt an encrypted plan, pass the encrypted plan to this function. If the plan is not encrypted, but
+	// encryption is configured, this function will fail. If no encryption is configured, this function will pass
+	// the provided plan data through without modification.
 	//
-	// If the plan is not actually encrypted, but plan encryption is configured,
-	// this will fail to prevent working with invalid plans (plans are binary data).
-	//
-	// Note that decryption fallback configurations are not considered for plans.
-	// Plans are not stored for a long time, so key rotation is not an issue for them.
-	//
-	// If DecryptPlan returns no error, then
-	//  - either there is no configuration for plan encryption, and
-	//    payload is returned as-is
-	//  - or it has successfully decrypted the payload using the configuration
-	//    for plan encryption.
+	// For plan decryption the fallback decryption configuration is not used, only the primary encryption configuration
+	// applies.
 	DecryptPlan(payload []byte) ([]byte, error)
 
-	// EncryptPlan encrypts a plaintext plan.
+	// EncryptPlan encrypts an unencrypted plan.
 	//
-	// If no configuration for plan encryption is specified, the plan
-	// is returned as-is. This is not an error.
+	// To encrypt a plan, pass the plan data to this function. If no encryption is configured, the plan data is
+	// passed through without modification. If encryption is configured, the data is encrypted and returned in JSON
+	// format.
 	//
-	// In the presence of a configuration suitable for plan encryption, EncryptPlan
-	// returns a json document which contains the EncryptionTopLevelJsonKey key
-	// at the 1st level.
-	//
-	// A configuration that is not suitable for plan encryption is treated as
-	// an error. Whether a configuration is suitable for plan encryption or not is mostly determined
-	// by the encryption method. For example, plans cannot be partially encrypted, because
-	// they are binary data.
+	// A configuration that is not suitable for plan encryption results in an error. Whether a configuration is suitable
+	// for plan encryption or not is determined by the encryption method. For example, plans cannot be partially
+	// encrypted, because they are binary data.
 	EncryptPlan(plan []byte) ([]byte, error)
 }
 
-// flow will be removed when we replace it with the real implementation.
+// flow is currently not implemented and will be provided in a later pull request. The current implementation passes
+// all data through.
 type flow struct {
 	configKey        encryptionconfig.Key
 	logger           hclog.Logger
