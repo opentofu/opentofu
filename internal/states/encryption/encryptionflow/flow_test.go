@@ -1,8 +1,9 @@
 package encryptionflow
 
 import (
-	"github.com/hashicorp/go-hclog"
 	"testing"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 // tstNoConfigurationInstance constructs a Flow with no configuration.

@@ -2,9 +2,10 @@ package encryption
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"os"
 )
 
 // Note: at the moment, we are still using a mockup Flow, which does not actually encrypt anything.

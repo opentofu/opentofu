@@ -1,8 +1,9 @@
 package encryption
 
 import (
-	"github.com/opentofu/opentofu/internal/logging"
 	"sync"
+
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // GetSingleton is a big bad SingleTroll. It has green skin, smells like sweat and coffee beans, and is a generally
