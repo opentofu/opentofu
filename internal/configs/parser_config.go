@@ -57,43 +57,7 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 		return nil, diags
 	}
 
-	return &File{
-		body:             body,
-		override:         override,
-		allowExperiments: p.allowExperiments,
-	}, nil
-}
-
-func (file *File) preParse() hcl.Diagnostics {
-	body := file.body
-	override := file.override
-
-	content, diags := body.Content(configFileSchema)
-
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "variable":
-			cfg, cfgDiags := decodeVariableBlock(block, override)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Variables = append(file.Variables, cfg)
-			}
-
-		case "locals":
-			defs, defsDiags := decodeLocalsBlock(block)
-			diags = append(diags, defsDiags...)
-			file.Locals = append(file.Locals, defs...)
-
-		}
-	}
-
-	return diags
-}
-
-func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-	body := file.body
-	override := file.override
+	file := &File{}
 
 	var reqDiags hcl.Diagnostics
 	file.CoreVersionConstraints, reqDiags = sniffCoreVersionRequirements(body)
@@ -102,7 +66,7 @@ func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostic
 	// We'll load the experiments first because other decoding logic in the
 	// loop below might depend on these experiments.
 	var expDiags hcl.Diagnostics
-	file.ActiveExperiments, expDiags = sniffActiveExperiments(body, allowExperiments)
+	file.ActiveExperiments, expDiags = sniffActiveExperiments(body, p.allowExperiments)
 	diags = append(diags, expDiags...)
 
 	content, contentDiags := body.Content(configFileSchema)
@@ -123,7 +87,7 @@ func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostic
 				switch innerBlock.Type {
 
 				case "backend":
-					backendCfg, cfgDiags := decodeBackendBlock(innerBlock, ctx)
+					backendCfg, cfgDiags := decodeBackendBlock(innerBlock)
 					diags = append(diags, cfgDiags...)
 					if backendCfg != nil {
 						file.Backends = append(file.Backends, backendCfg)
@@ -179,6 +143,18 @@ func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostic
 				file.ProviderConfigs = append(file.ProviderConfigs, cfg)
 			}
 
+		case "variable":
+			cfg, cfgDiags := decodeVariableBlock(block, override)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.Variables = append(file.Variables, cfg)
+			}
+
+		case "locals":
+			defs, defsDiags := decodeLocalsBlock(block)
+			diags = append(diags, defsDiags...)
+			file.Locals = append(file.Locals, defs...)
+
 		case "output":
 			cfg, cfgDiags := decodeOutputBlock(block, override)
 			diags = append(diags, cfgDiags...)
@@ -187,7 +163,7 @@ func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostic
 			}
 
 		case "module":
-			cfg, cfgDiags := decodeModuleBlock(block, override, ctx)
+			cfg, cfgDiags := decodeModuleBlock(block, override)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.ModuleCalls = append(file.ModuleCalls, cfg)
@@ -243,7 +219,7 @@ func (file *File) parse(allowExperiments bool, ctx StaticContext) hcl.Diagnostic
 		}
 	}
 
-	return diags
+	return file, diags
 }
 
 // sniffCoreVersionRequirements does minimal parsing of the given body for

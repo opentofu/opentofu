@@ -19,14 +19,17 @@ import (
 type ModuleCall struct {
 	Name string
 
-	SourceAddr      addrs.ModuleSource
-	SourceAddrRaw   string
-	SourceAddrRange hcl.Range
-	SourceSet       bool
+	Source        hcl.Expression
+	SourceAddrRaw string
+	SourceAddr    addrs.ModuleSource
+	SourceSet     bool
+
+	Variables StaticReferences
 
 	Config hcl.Body
 
-	Version VersionConstraint
+	HasVersion bool
+	Version    VersionConstraint
 
 	Count   hcl.Expression
 	ForEach hcl.Expression
@@ -38,19 +41,80 @@ type ModuleCall struct {
 	DeclRange hcl.Range
 }
 
-func (m ModuleCall) Variables(ctx *StaticContext) StaticReferences {
-	result := make(StaticReferences)
+func (mc *ModuleCall) IncludeContext(ctx *StaticContext) hcl.Diagnostics {
+	var diags hcl.Diagnostics
 
-	attr, _ := m.Config.JustAttributes()
-	for k, v := range attr {
-		val := ctx.Evaluate(v.Expr, StaticIdentifier{Module: ctx.Params.Name, Type: m.Name, Name: k})
-		result[k] = val
+	valDiags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Params.Name, Name: mc.Name}, &mc.SourceAddrRaw)
+	diags = append(diags, valDiags...)
+	if !valDiags.HasErrors() {
+		var addr addrs.ModuleSource
+		var err error
+		if mc.HasVersion {
+			addr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
+		} else {
+			addr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
+		}
+		mc.SourceAddr = addr
+		if err != nil {
+			// NOTE: We leave SourceAddr as nil for any situation where the
+			// source attribute is invalid, so any code which tries to carefully
+			// use the partial result of a failed config decode must be
+			// resilient to that.
+			mc.SourceAddr = nil
+
+			// NOTE: In practice it's actually very unlikely to end up here,
+			// because our source address parser can turn just about any string
+			// into some sort of remote package address, and so for most errors
+			// we'll detect them only during module installation. There are
+			// still a _few_ purely-syntax errors we can catch at parsing time,
+			// though, mostly related to remote package sub-paths and local
+			// paths.
+			switch err := err.(type) {
+			case *getmodules.MaybeRelativePathErr:
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid module source address",
+					Detail: fmt.Sprintf(
+						"OpenTofu failed to determine your intended installation method for remote module package %q.\n\nIf you intended this as a path relative to the current module, use \"./%s\" instead. The \"./\" prefix indicates that the address is a relative filesystem path.",
+						err.Addr, err.Addr,
+					),
+					Subject: mc.Source.Range().Ptr(),
+				})
+			default:
+				if mc.HasVersion {
+					// In this case we'll include some extra context that
+					// we assumed a registry source address due to the
+					// version argument.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid registry module source address",
+						Detail:   fmt.Sprintf("Failed to parse module registry address: %s.\n\nOpenTofu assumed that you intended a module registry source address because you also set the argument \"version\", which applies only to registry modules.", err),
+						Subject:  mc.Source.Range().Ptr(),
+					})
+				} else {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid module source address",
+						Detail:   fmt.Sprintf("Failed to parse module source address: %s.", err),
+						Subject:  mc.Source.Range().Ptr(),
+					})
+				}
+			}
+		}
 	}
 
-	return result
+	mc.Variables = make(StaticReferences)
+
+	attr, _ := mc.Config.JustAttributes()
+	for k, v := range attr {
+		val := ctx.Evaluate(v.Expr, StaticIdentifier{Module: ctx.Params.Name, Type: mc.Name, Name: k})
+		mc.Variables[k] = val
+	}
+
+	return diags
 }
 
-func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*ModuleCall, hcl.Diagnostics) {
+func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mc := &ModuleCall{
@@ -76,75 +140,17 @@ func decodeModuleBlock(block *hcl.Block, override bool, ctx StaticContext) (*Mod
 		})
 	}
 
-	haveVersionArg := false
+	mc.HasVersion = false
 	if attr, exists := content.Attributes["version"]; exists {
 		var versionDiags hcl.Diagnostics
 		mc.Version, versionDiags = decodeVersionConstraint(attr)
 		diags = append(diags, versionDiags...)
-		haveVersionArg = true
+		mc.HasVersion = true
 	}
 
 	if attr, exists := content.Attributes["source"]; exists {
 		mc.SourceSet = true
-		mc.SourceAddrRange = attr.Expr.Range()
-		valDiags := ctx.DecodeExpression(attr.Expr, StaticIdentifier{Module: ctx.Params.Name, Name: mc.Name}, &mc.SourceAddrRaw)
-		diags = append(diags, valDiags...)
-		if !valDiags.HasErrors() {
-			var addr addrs.ModuleSource
-			var err error
-			if haveVersionArg {
-				addr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
-			} else {
-				addr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
-			}
-			mc.SourceAddr = addr
-			if err != nil {
-				// NOTE: We leave mc.SourceAddr as nil for any situation where the
-				// source attribute is invalid, so any code which tries to carefully
-				// use the partial result of a failed config decode must be
-				// resilient to that.
-				mc.SourceAddr = nil
-
-				// NOTE: In practice it's actually very unlikely to end up here,
-				// because our source address parser can turn just about any string
-				// into some sort of remote package address, and so for most errors
-				// we'll detect them only during module installation. There are
-				// still a _few_ purely-syntax errors we can catch at parsing time,
-				// though, mostly related to remote package sub-paths and local
-				// paths.
-				switch err := err.(type) {
-				case *getmodules.MaybeRelativePathErr:
-					diags = append(diags, &hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Invalid module source address",
-						Detail: fmt.Sprintf(
-							"OpenTofu failed to determine your intended installation method for remote module package %q.\n\nIf you intended this as a path relative to the current module, use \"./%s\" instead. The \"./\" prefix indicates that the address is a relative filesystem path.",
-							err.Addr, err.Addr,
-						),
-						Subject: mc.SourceAddrRange.Ptr(),
-					})
-				default:
-					if haveVersionArg {
-						// In this case we'll include some extra context that
-						// we assumed a registry source address due to the
-						// version argument.
-						diags = append(diags, &hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Invalid registry module source address",
-							Detail:   fmt.Sprintf("Failed to parse module registry address: %s.\n\nOpenTofu assumed that you intended a module registry source address because you also set the argument \"version\", which applies only to registry modules.", err),
-							Subject:  mc.SourceAddrRange.Ptr(),
-						})
-					} else {
-						diags = append(diags, &hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Invalid module source address",
-							Detail:   fmt.Sprintf("Failed to parse module source address: %s.", err),
-							Subject:  mc.SourceAddrRange.Ptr(),
-						})
-					}
-				}
-			}
-		}
+		mc.Source = attr.Expr
 	}
 
 	if attr, exists := content.Attributes["count"]; exists {
