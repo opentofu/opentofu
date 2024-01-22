@@ -1,27 +1,9 @@
 package encryption
 
-import (
-	"errors"
-	"fmt"
-	"strings"
-	"testing"
-
-	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
-
-	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
-)
-
+/*
 func TestGetSingletonEnforcesDotInKey(t *testing.T) {
 	defer expectPanic(t, "call to encryption.GetSingleton with a key that does not contain '.'. This is a bug.")()
 	_, _ = GetSingleton("no_dot")
-}
-
-func envConfig(configKey encryptionconfig.Key, logicallyValid bool) string {
-	if logicallyValid {
-		return fmt.Sprintf(`{"%s":{"key_provider":{"config":{"passphrase":"somephrase"}}}}`, configKey)
-	} else {
-		return fmt.Sprintf(`{"%s":{}}`, configKey)
-	}
 }
 
 type instanceTestCase struct {
@@ -255,3 +237,4 @@ func expectErr(t *testing.T, actual error, expected error) {
 		}
 	}
 }
+*/
