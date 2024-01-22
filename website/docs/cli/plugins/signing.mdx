@@ -33,5 +33,5 @@ A temporary change has been introduced to skip GPG validation under specific con
 
 ### `OPENTOFU_ENFORCE_GPG_EXPIRATION=false`
 
-Many older keys present in the registry have expired and are no longer strictly valid. Historically, tofu has not cared about the expiration date of keys in the registry and has ignored that field. When switching to a new crypto library, this functionality was
+Many older keys present in the registry have expired and are no longer strictly valid. Historically, Terraform has not cared about the expiration date of keys in the registry and has ignored that field. When switching to a new crypto library, this functionality was
 made available. For legacy reasons, this is currently disabled by default (set to `false`), but may default to `true` in a future release as workflows are built into the registry for keeping keys up to date.
