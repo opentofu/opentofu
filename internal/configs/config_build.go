@@ -137,11 +137,11 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 			Name:              call.Name,
 			Path:              path,
 			SourceAddr:        call.SourceAddr,
-			SourceAddrRange:   call.SourceAddrRange,
+			SourceAddrRange:   call.Source.Range(),
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
-			Variables:         call.Variables(parent.Module.Ctx),
+			Variables:         call.Variables,
 		}
 		child, modDiags := loadModule(parent.Root, &req, walker)
 		diags = append(diags, modDiags...)

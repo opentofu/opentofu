@@ -14,18 +14,17 @@ import (
 type Backend struct {
 	Type   string
 	Config hcl.Body
-	ctx    StaticContext
+	ctx    *StaticContext
 
 	TypeRange hcl.Range
 	DeclRange hcl.Range
 }
 
-func decodeBackendBlock(block *hcl.Block, ctx StaticContext) (*Backend, hcl.Diagnostics) {
+func decodeBackendBlock(block *hcl.Block) (*Backend, hcl.Diagnostics) {
 	return &Backend{
 		Type:      block.Labels[0],
 		TypeRange: block.LabelRanges[0],
 		Config:    block.Body,
-		ctx:       ctx,
 		DeclRange: block.DefRange,
 	}, nil
 }

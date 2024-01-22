@@ -71,10 +71,6 @@ type Module struct {
 // analysis of individual elements, but must be built into a Module to detect
 // duplicate declarations.
 type File struct {
-	body             hcl.Body
-	override         bool
-	allowExperiments bool
-
 	CoreVersionConstraints []VersionConstraint
 
 	ActiveExperiments experiments.Set
@@ -134,45 +130,6 @@ func NewModule(primaryFiles, overrideFiles []*File, params StaticModuleCall) (*M
 		Tests:              map[string]*TestFile{},
 	}
 
-	// Pre-process the files before static evaluation
-	for _, f := range primaryFiles {
-		fDiags := f.preParse()
-		diags = append(diags, fDiags...)
-	}
-	for _, f := range overrideFiles {
-		fDiags := f.preParse()
-		diags = append(diags, fDiags...)
-	}
-
-	// At this point, we should have all of the Locals and Vars parsed into the primary and override files
-	// Now we can start merging them into the Module structure prior to static evaluation
-	for _, file := range primaryFiles {
-		fileDiags := mod.appendFilePre(file)
-		diags = append(diags, fileDiags...)
-	}
-
-	for _, file := range overrideFiles {
-		fileDiags := mod.mergeFilePre(file)
-		diags = append(diags, fileDiags...)
-	}
-
-	// Static evaluation to build a StaticContext now that module has all relavent Locals / Variables
-	ctx, sDiags := CreateStaticContext(mod.Variables, mod.Locals, params)
-	diags = append(diags, sDiags...)
-
-	if ctx != nil {
-		for _, f := range primaryFiles {
-			fDiags := f.parse(f.allowExperiments, *ctx)
-			diags = append(diags, fDiags...)
-		}
-		for _, f := range overrideFiles {
-			fDiags := f.parse(f.allowExperiments, *ctx)
-			diags = append(diags, fDiags...)
-		}
-
-		mod.Ctx = ctx
-	}
-
 	// Process the required_providers blocks first, to ensure that all
 	// resources have access to the correct provider FQNs
 	for _, file := range primaryFiles {
@@ -218,6 +175,18 @@ func NewModule(primaryFiles, overrideFiles []*File, params StaticModuleCall) (*M
 		diags = append(diags, fileDiags...)
 	}
 
+	// Static evaluation to build a StaticContext now that module has all relavent Locals / Variables
+	ctx, sDiags := CreateStaticContext(mod.Variables, mod.Locals, params)
+	diags = append(diags, sDiags...)
+	mod.Ctx = ctx
+	if mod.Backend != nil {
+		mod.Backend.ctx = ctx
+	}
+
+	for _, mc := range mod.ModuleCalls {
+		mc.IncludeContext(ctx)
+	}
+
 	diags = append(diags, checkModuleExperiments(mod)...)
 
 	// Generate the FQN -> LocalProviderName map
@@ -238,34 +207,6 @@ func (m *Module) ResourceByAddr(addr addrs.Resource) *Resource {
 	default:
 		return nil
 	}
-}
-
-func (m *Module) appendFilePre(file *File) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-	for _, v := range file.Variables {
-		if existing, exists := m.Variables[v.Name]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Duplicate variable declaration",
-				Detail:   fmt.Sprintf("A variable named %q was already declared at %s. Variable names must be unique within a module.", existing.Name, existing.DeclRange),
-				Subject:  &v.DeclRange,
-			})
-		}
-		m.Variables[v.Name] = v
-	}
-
-	for _, l := range file.Locals {
-		if existing, exists := m.Locals[l.Name]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Duplicate local value definition",
-				Detail:   fmt.Sprintf("A local value named %q was already defined at %s. Local value names must be unique within a module.", existing.Name, existing.DeclRange),
-				Subject:  &l.DeclRange,
-			})
-		}
-		m.Locals[l.Name] = l
-	}
-	return diags
 }
 
 func (m *Module) appendFile(file *File) hcl.Diagnostics {
@@ -347,6 +288,30 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			})
 		}
 		m.ProviderMetas[provider] = pm
+	}
+
+	for _, v := range file.Variables {
+		if existing, exists := m.Variables[v.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate variable declaration",
+				Detail:   fmt.Sprintf("A variable named %q was already declared at %s. Variable names must be unique within a module.", existing.Name, existing.DeclRange),
+				Subject:  &v.DeclRange,
+			})
+		}
+		m.Variables[v.Name] = v
+	}
+
+	for _, l := range file.Locals {
+		if existing, exists := m.Locals[l.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate local value definition",
+				Detail:   fmt.Sprintf("A local value named %q was already defined at %s. Local value names must be unique within a module.", existing.Name, existing.DeclRange),
+				Subject:  &l.DeclRange,
+			})
+		}
+		m.Locals[l.Name] = l
 	}
 
 	for _, o := range file.Outputs {
@@ -518,42 +483,6 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	return diags
 }
 
-func (m *Module) mergeFilePre(file *File) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-
-	for _, v := range file.Variables {
-		existing, exists := m.Variables[v.Name]
-		if !exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Missing base variable declaration to override",
-				Detail:   fmt.Sprintf("There is no variable named %q. An override file can only override a variable that was already declared in a primary configuration file.", v.Name),
-				Subject:  &v.DeclRange,
-			})
-			continue
-		}
-		mergeDiags := existing.merge(v)
-		diags = append(diags, mergeDiags...)
-	}
-
-	for _, l := range file.Locals {
-		existing, exists := m.Locals[l.Name]
-		if !exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Missing base local value definition to override",
-				Detail:   fmt.Sprintf("There is no local value named %q. An override file can only override a local value that was already defined in a primary configuration file.", l.Name),
-				Subject:  &l.DeclRange,
-			})
-			continue
-		}
-		mergeDiags := existing.merge(l)
-		diags = append(diags, mergeDiags...)
-	}
-
-	return diags
-}
-
 func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
@@ -629,6 +558,36 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 			mergeDiags := existing.merge(pc)
 			diags = append(diags, mergeDiags...)
 		}
+	}
+
+	for _, v := range file.Variables {
+		existing, exists := m.Variables[v.Name]
+		if !exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing base variable declaration to override",
+				Detail:   fmt.Sprintf("There is no variable named %q. An override file can only override a variable that was already declared in a primary configuration file.", v.Name),
+				Subject:  &v.DeclRange,
+			})
+			continue
+		}
+		mergeDiags := existing.merge(v)
+		diags = append(diags, mergeDiags...)
+	}
+
+	for _, l := range file.Locals {
+		existing, exists := m.Locals[l.Name]
+		if !exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing base local value definition to override",
+				Detail:   fmt.Sprintf("There is no local value named %q. An override file can only override a local value that was already defined in a primary configuration file.", l.Name),
+				Subject:  &l.DeclRange,
+			})
+			continue
+		}
+		mergeDiags := existing.merge(l)
+		diags = append(diags, mergeDiags...)
 	}
 
 	for _, o := range file.Outputs {

@@ -167,9 +167,7 @@ func (mc *ModuleCall) merge(omc *ModuleCall) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if omc.SourceSet {
-		mc.SourceAddr = omc.SourceAddr
-		mc.SourceAddrRaw = omc.SourceAddrRaw
-		mc.SourceAddrRange = omc.SourceAddrRange
+		mc.Source = omc.Source
 		mc.SourceSet = omc.SourceSet
 	}
 
