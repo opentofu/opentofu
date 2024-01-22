@@ -196,15 +196,15 @@ Options:
                           workspace, and should be used with extreme caution.
 Aliases:
 
-	remove,
-	rm
+  remove,
+  rm
 
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *StateRmCommand) Synopsis() string {
-	return "Remove instances from the state"
+	return "Remove instances from the state (alias: 'rm')"
 }
 
 const errStateRmPersist = `Error saving the state: %s

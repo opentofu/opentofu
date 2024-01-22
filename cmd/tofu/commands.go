@@ -394,13 +394,13 @@ func initCommands(
 		},
 
 		"state list": stateListCommandFactory,
-		"state ls": stateListCommandFactory,
+		"state ls":   stateListCommandFactory,
 
 		"state remove": stateRemoveCommandFactory,
-		"state rm": stateRemoveCommandFactory,
+		"state rm":     stateRemoveCommandFactory,
 
 		"state move": stateMoveCommandFactory,
-		"state mv": stateMoveCommandFactory,
+		"state mv":   stateMoveCommandFactory,
 
 		"state pull": func() (cli.Command, error) {
 			return &command.StatePullCommand{

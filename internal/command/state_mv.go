@@ -556,14 +556,14 @@ Options:
 
 Subcommand Aliases:
 
-	move,
-	mv
+  move,
+  mv
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *StateMvCommand) Synopsis() string {
-	return "Move an item in the state"
+	return "Move an item in the state (alias: 'mv')"
 }
 
 const errStateMv = `Error moving state: %s
