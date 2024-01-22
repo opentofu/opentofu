@@ -96,7 +96,6 @@ func deepMergeTestConfig(keyProviderName string, keyProviderKeyCount int, method
 	}
 }
 
-// TODO missing a test case for empty maps and for showing maps with overlapping config values.
 func TestMergeConfigs(t *testing.T) {
 	testCases := []struct {
 		testcase      string
@@ -159,6 +158,76 @@ func TestMergeConfigs(t *testing.T) {
 					},
 				},
 				Enforced: false,
+			},
+		},
+		{
+			testcase:      "empty_maps",
+			defaultConfig: nil,
+			mergeList: []*Config{
+				deepMergeTestConfig("kp1", 1, "m1", 1, false),
+				deepMergeTestConfig("kp2", 0, "m2", 0, false),
+			},
+			expected: &Config{
+				KeyProvider: KeyProviderConfig{
+					Name: "kp2",
+					Config: map[string]string{
+						"kp1.1": "1",
+					},
+				},
+				Method: MethodConfig{
+					Name: "m2",
+					Config: map[string]string{
+						"m1.1": "1",
+					},
+				},
+			},
+		},
+		{
+			testcase:      "overlapping_config_values",
+			defaultConfig: nil,
+			mergeList: []*Config{
+				{
+					KeyProvider: KeyProviderConfig{
+						Name: "kp1",
+						Config: map[string]string{
+							"overlapping": "key-foo",
+						},
+					},
+					Method: MethodConfig{
+						Name: "m1",
+						Config: map[string]string{
+							"overlapping": "method-foo",
+						},
+					},
+				},
+				{
+					KeyProvider: KeyProviderConfig{
+						Name: "kp2",
+						Config: map[string]string{
+							"overlapping": "key-bar",
+						},
+					},
+					Method: MethodConfig{
+						Name: "m2",
+						Config: map[string]string{
+							"overlapping": "method-bar",
+						},
+					},
+				},
+			},
+			expected: &Config{
+				KeyProvider: KeyProviderConfig{
+					Name: "kp2",
+					Config: map[string]string{
+						"overlapping": "key-bar",
+					},
+				},
+				Method: MethodConfig{
+					Name: "m2",
+					Config: map[string]string{
+						"overlapping": "method-bar",
+					},
+				},
 			},
 		},
 	}
