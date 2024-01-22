@@ -14,7 +14,7 @@ import (
 // an encryptionflow.StateFlow or encryptionflow.PlanFlow as needed.
 //
 // Note: a large portion of the OpenTofu codebase is still procedural, which means there is no way to properly inject
-// the Encryption struct and carry the information it holds across subsystem boundaries. In most cases you should use
+// the Encryption object and carry the information it holds across subsystem boundaries. In most cases you should use
 // GetSingleton() to get a globally scoped copy of the Encryption object. However, for tests you should use this
 // function and hopefully, some time in the future, we can get rid of the singleton entirely.
 func New(logger hclog.Logger) Encryption {
@@ -30,7 +30,7 @@ func New(logger hclog.Logger) Encryption {
 // the actual encryption.
 //
 // Note: a large portion of the OpenTofu codebase is still procedural, which means there is no way to properly inject
-// the Encryption struct and carry the information it holds across subsystem boundaries. In most cases you should use
+// the Encryption object and carry the information it holds across subsystem boundaries. In most cases you should use
 // GetSingleton() to get a globally scoped copy of the Encryption object. However, for tests you should use the New()
 // function and hopefully, some time in the future, we can get rid of the singleton entirely.
 type Encryption interface {
