@@ -11,7 +11,7 @@ import (
 // However, if you can, please remove it.
 //
 // On a more serious note, a large portion of the OpenTofu codebase is still procedural, which means there is no way to
-// properly inject the Encryption struct and carry the information it holds across subsystem boundaries. In most cases
+// properly inject the Encryption object and carry the information it holds across subsystem boundaries. In most cases
 // you should use this function to get a globally scoped copy of the Encryption object. However, for tests you should
 // use the New() function and hopefully, some time in the future, we can get rid of the singleton entirely.
 //
