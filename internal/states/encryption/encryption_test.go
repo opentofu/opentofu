@@ -104,8 +104,8 @@ func TestEncryption_ApplyEnvConfigurations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
+			t.Cleanup(ClearSingleton)
 			singleton := GetSingleton()
-			defer ClearSingleton()
 
 			encryptionConfigsFromEnv, err := encryptionconfig.ConfigurationFromEnv(tc.encEnv)
 			expectErr(t, err, tc.expectEncParseError)
@@ -204,8 +204,8 @@ func TestEncryption_ApplyHCLEncryptionConfiguration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
+			t.Cleanup(ClearSingleton)
 			singleton := GetSingleton()
-			defer ClearSingleton()
 
 			err := singleton.ApplyHCLEncryptionConfiguration(tc.key, tc.config)
 			expectErr(t, err, tc.expectError)
@@ -276,8 +276,8 @@ func TestEncryption_ApplyHCLDecryptionFallbackConfiguration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
+			t.Cleanup(ClearSingleton)
 			singleton := GetSingleton()
-			defer ClearSingleton()
 
 			err := singleton.ApplyHCLDecryptionFallbackConfiguration(tc.key, tc.config)
 			expectErr(t, err, tc.expectError)
@@ -340,8 +340,8 @@ func TestEncryption_Validate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testcase, func(t *testing.T) {
+			t.Cleanup(ClearSingleton)
 			singleton := GetSingleton()
-			defer ClearSingleton()
 
 			encryptionConfigsFromEnv, err := encryptionconfig.ConfigurationFromEnv(tc.encEnv)
 			expectErr(t, err, nil)
@@ -515,8 +515,8 @@ func TestEncryption_RemoteStateDatasource_NotRemote(t *testing.T) {
 }
 
 func runEncryptionBuilderTestcase(t *testing.T, tc buildMethodTestCase, functionUnderTest func(Encryption) (encryptionflow.Flow, error)) {
+	t.Cleanup(ClearSingleton)
 	singleton := GetSingleton()
-	defer ClearSingleton()
 
 	enc, err := encryptionconfig.ConfigurationFromEnv(tc.encEnv)
 	if err != nil {

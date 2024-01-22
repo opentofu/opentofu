@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -168,9 +169,11 @@ func (k Key) Validate() error {
 	}
 }
 
+var remoteDatasourceRe = regexp.MustCompile(`^[a-z0-9_]+\.[a-z0-9_]+(|\[(\d+|[a-z0-9_]+)])$`)
+
 // IsRemoteDataSource returns true if the specified key is a valid remote data source key.
 func (k Key) IsRemoteDataSource() bool {
-	return strings.Contains(string(k), ".")
+	return remoteDatasourceRe.MatchString(string(k))
 }
 
 // ConfigEnvName is the name of the environment variable used to configure encryption and decryption as an alternative

@@ -13,13 +13,15 @@ import (
 // New creates a new Encryption object. You can use this object to feed in encryption configuration and then create
 // an encryptionflow.StateFlow or encryptionflow.PlanFlow as needed.
 //
-// Note: due to a lot of procedural code you probably want to use GetSingleton() to obtain the Encryption implementation
-// that's globally scoped.
+// Note: a large portion of the OpenTofu codebase is still procedural, which means there is no way to properly inject
+// the Encryption struct and carry the information it holds across subsystem boundaries. In most cases you should use
+// GetSingleton() to get a globally scoped copy of the Encryption object. However, for tests you should use this
+// function and hopefully, some time in the future, we can get rid of the singleton entirely.
 func New(logger hclog.Logger) Encryption {
 	return &encryption{
 		encryptionConfigs:         make(encryptionconfig.ConfigMap),
 		decryptionFallbackConfigs: make(encryptionconfig.ConfigMap),
-		mutex:                     &sync.Mutex{},
+		mutex:                     sync.Mutex{},
 		logger:                    logger,
 	}
 }
@@ -27,25 +29,24 @@ func New(logger hclog.Logger) Encryption {
 // Encryption is the main interface to feed the encryption configuration and obtain the encryptionflow.Flow for running
 // the actual encryption.
 //
-// Note: due to a lot of procedural code you probably want to use GetSingleton() to obtain the Encryption implementation
-// that's globally scoped.
+// Note: a large portion of the OpenTofu codebase is still procedural, which means there is no way to properly inject
+// the Encryption struct and carry the information it holds across subsystem boundaries. In most cases you should use
+// GetSingleton() to get a globally scoped copy of the Encryption object. However, for tests you should use the New()
+// function and hopefully, some time in the future, we can get rid of the singleton entirely.
 type Encryption interface {
-	// ApplyEnvConfigurations applies a configuration coming from the operating system environment. The
-	// encryptionconfig.Config structures embedded in the parameters should have the source set to Environment in order
-	// for the priorities to be applies correctly.
+	// ApplyEnvConfigurations applies a configuration coming from the operating system environment.
 	ApplyEnvConfigurations(
 		encryption map[encryptionconfig.Key]encryptionconfig.Config,
 		decryptionFallback map[encryptionconfig.Key]encryptionconfig.Config,
 	) error
 
-	// ApplyHCLEncryptionConfiguration applies a single encryption configuration coming from HCL. The config should
-	// have its source set to HCL.
+	// ApplyHCLEncryptionConfiguration applies a single encryption configuration coming from HCL.
 	ApplyHCLEncryptionConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
 	// ApplyHCLDecryptionFallbackConfiguration applies a single decryption fallback configuration coming from HCL.
-	// The config should have its source set to HCL.
 	ApplyHCLDecryptionFallbackConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
 
-	// Validate ensures that the previously-applied configuration is valid.
+	// Validate ensures that the previously-applied configuration is valid. You can call this function after you
+	// applied all configurations in order to verify that all configurations are valid.
 	Validate() tfdiags.Diagnostics
 
 	// RemoteState returns an encryption flow suitable for the remote state of the current project.
@@ -125,7 +126,7 @@ type Encryption interface {
 type encryption struct {
 	encryptionConfigs         encryptionconfig.ConfigMap
 	decryptionFallbackConfigs encryptionconfig.ConfigMap
-	mutex                     *sync.Mutex
+	mutex                     sync.Mutex
 	logger                    hclog.Logger
 }
 
