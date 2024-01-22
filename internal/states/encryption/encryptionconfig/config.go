@@ -33,8 +33,8 @@ func (c Config) Validate() error {
 
 // Meta holds the metadata about a config structure.
 type Meta struct {
-	Source Source `json:"-"`
-	Key    Key    `json:"-"`
+	Source Source
+	Key    Key
 }
 
 type ConfigMap map[Meta]Config
@@ -60,14 +60,12 @@ func (c ConfigMap) Merge(configKey Key) (*Config, error) {
 	var merged *Config
 	if configKey.UsesRemoteDefaults() {
 		merged = mergeConfigs(
-			configKey,
 			configOrNil(c, Meta{SourceEnv, KeyDefaultRemote}),
 			configOrNil(c, Meta{SourceHCL, configKey}),
 			configOrNil(c, Meta{SourceEnv, configKey}),
 		)
 	} else {
 		merged = mergeConfigs(
-			configKey,
 			nil,
 			configOrNil(c, Meta{SourceHCL, configKey}),
 			configOrNil(c, Meta{SourceEnv, configKey}),
@@ -148,6 +146,8 @@ func (k Key) Validate() error {
 	switch k {
 	case KeyDefaultRemote:
 		return nil
+	case KeyBackend:
+		return nil
 	case KeyPlanFile:
 		return nil
 	case KeyStateFile:
@@ -159,7 +159,7 @@ func (k Key) Validate() error {
 				k,
 				strings.Join(
 					[]string{
-						string(KeyDefaultRemote), string(KeyPlanFile), string(KeyStateFile),
+						string(KeyDefaultRemote), string(KeyBackend), string(KeyPlanFile), string(KeyStateFile),
 					}, ", ",
 				),
 			)
@@ -206,9 +206,9 @@ const FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
 // ConfigurationFromEnv parses the encryption configuration from the value originating from the operating system
 // environment.
 //
-// If the provided environment variable is empty, nil will be returned without an error as an empty configuration
+// If the provided environment variable value is empty, nil will be returned without an error as an empty configuration
 // means no encryption is desired.
-func ConfigurationFromEnv(envValue string) (ConfigMap, error) {
+func ConfigurationFromEnv(envValue string) (map[Key]Config, error) {
 	if envValue == "" {
 		return nil, nil
 	}
@@ -218,17 +218,7 @@ func ConfigurationFromEnv(envValue string) (ConfigMap, error) {
 		return nil, fmt.Errorf("error parsing environment variable (%w)", err)
 	}
 
-	result := make(ConfigMap, len(parsed))
-	for key, _ := range parsed {
-		var item = parsed[key]
-		meta := Meta{
-			Key:    key,
-			Source: SourceEnv,
-		}
-		result[meta] = item
-	}
-
-	return result, nil
+	return parsed, nil
 }
 
 func parseJsonStructure(jsonValue string) (map[Key]Config, error) {

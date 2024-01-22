@@ -4,7 +4,7 @@ import "fmt"
 
 type KeyProviderName string
 
-// TODO possibly remove this
+// TODO remove this in a follow-up PR (when the key providers are actually introduced)
 const (
 	KeyProviderPassphrase KeyProviderName = "passphrase" // derive key from config field "passphrase"
 	KeyProviderDirect     KeyProviderName = "direct"     // key is explicitly specified in config field "key"

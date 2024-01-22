@@ -4,6 +4,7 @@ import "fmt"
 
 type MethodName string
 
+// TODO remove this in a follow-up PR (when the method is actually introduced)
 const (
 	MethodFull MethodName = "full" // full state encryption
 )
