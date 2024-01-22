@@ -9,6 +9,7 @@ package cliconfig
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -18,7 +19,6 @@ func TestConfigFileConfigDir(t *testing.T) {
 	tests := []struct {
 		name          string
 		xdgConfigHome string
-		xdgDataHome   string
 		files         []string
 		testFunc      func() (string, error)
 		expect        string
@@ -78,31 +78,12 @@ func TestConfigFileConfigDir(t *testing.T) {
 			xdgConfigHome: filepath.Join(homeDir, "xdg"),
 			expect:        filepath.Join(homeDir, "xdg", "opentofu"),
 		},
-		{
-			name:     "pluginDir: use XDG default",
-			testFunc: dataDir,
-			expect:   filepath.Join(homeDir, defaultDataDir, "opentofu"),
-		},
-		{
-			name:        "pluginDir: prefer .terraform.d",
-			testFunc:    dataDir,
-			xdgDataHome: filepath.Join(homeDir, "xdg"),
-			files:       []string{filepath.Join(homeDir, ".terraform.d", "placeholder")},
-			expect:      filepath.Join(homeDir, ".terraform.d"),
-		},
-		{
-			name:        "pluginDir: use XDG value",
-			testFunc:    dataDir,
-			xdgDataHome: filepath.Join(homeDir, "xdg"),
-			expect:      filepath.Join(homeDir, "xdg", "opentofu"),
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("HOME", homeDir)
 			t.Setenv("XDG_CONFIG_HOME", test.xdgConfigHome)
-			t.Setenv("XDG_DATA_HOME", test.xdgDataHome)
 			for _, f := range test.files {
 				createFile(t, f)
 			}
@@ -113,6 +94,56 @@ func TestConfigFileConfigDir(t *testing.T) {
 			}
 			if test.expect != file {
 				t.Fatalf("expected %q, but got %q", test.expect, file)
+			}
+		})
+	}
+}
+
+func TestDataDirs(t *testing.T) {
+	homeDir := filepath.Join(t.TempDir(), "home")
+
+	tests := []struct {
+		name        string
+		xdgDataHome string
+		expect      []string
+	}{
+		{
+			name:        "use custom XDG data dir",
+			xdgDataHome: filepath.Join(homeDir, "xdg"),
+			expect: []string{
+				filepath.Join(homeDir, ".terraform.d"),
+				filepath.Join(homeDir, defaultDataDir, "opentofu"),
+				filepath.Join(homeDir, "xdg", "opentofu"),
+			},
+		},
+		{
+			name:        "XDG data home with default value",
+			xdgDataHome: filepath.Join(homeDir, defaultDataDir),
+			expect: []string{
+				filepath.Join(homeDir, ".terraform.d"),
+				filepath.Join(homeDir, defaultDataDir, "opentofu"),
+			},
+		},
+		{
+			name: "no XDG data home value",
+			expect: []string{
+				filepath.Join(homeDir, ".terraform.d"),
+				filepath.Join(homeDir, defaultDataDir, "opentofu"),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("HOME", homeDir)
+			t.Setenv("XDG_DATA_HOME", test.xdgDataHome)
+
+			dirs, err := dataDirs()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !slices.Equal(test.expect, dirs) {
+				t.Fatalf("expected %+v, but got %+v", test.expect, dirs)
 			}
 		})
 	}

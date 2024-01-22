@@ -96,9 +96,9 @@ func ConfigDir() (string, error) {
 	return configDir()
 }
 
-// DataDir returns the data directory for OpenTofu.
-func DataDir() (string, error) {
-	return dataDir()
+// DataDirs returns the data directories for OpenTofu.
+func DataDirs() ([]string, error) {
+	return dataDirs()
 }
 
 // LoadConfig reads the CLI configuration from the various filesystem locations

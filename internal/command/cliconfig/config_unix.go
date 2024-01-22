@@ -51,18 +51,24 @@ func configDir() (string, error) {
 	return configDir, nil
 }
 
-func dataDir() (string, error) {
+func dataDirs() ([]string, error) {
 	dir, err := homeDir()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	dataDir := filepath.Join(dir, ".terraform.d")
-	if !pathExists(dataDir) {
-		dataDir = filepath.Join(lookupEnv("XDG_DATA_HOME", filepath.Join(dir, defaultDataDir)), "opentofu")
+	defaultDir := filepath.Join(dir, defaultDataDir)
+	customDir := lookupEnv("XDG_DATA_HOME", defaultDir)
+
+	dirs := []string{
+		filepath.Join(dir, ".terraform.d"),
+		filepath.Join(defaultDir, "opentofu"),
+	}
+	if customDir != defaultDir {
+		dirs = append(dirs, filepath.Join(customDir, "opentofu"))
 	}
 
-	return dataDir, nil
+	return dirs, nil
 }
 
 func lookupEnv(name, defaultValue string) string {

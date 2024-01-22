@@ -278,10 +278,11 @@ the operating system where you are running OpenTofu:
   `~/Library/Application Support/io.terraform/plugins`, and
   `/Library/Application Support/io.terraform/plugins`
 * **Linux and other Unix-like systems**:`$HOME/.terraform.d/plugins` and
-  `terraform/plugins` located within a valid
+  `opentofu/plugins` located within a valid
   [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   data directory such as `$XDG_DATA_HOME/opentofu/plugins`.
-  Without any XDG environment variables set, OpenTofu will use `~/.terraform.d/plugins`.
+  OpenTofu will always look in `~/.local/share/opentofu/plugins`,
+  regardless whether `XDG_DATA_HOME` is defined or not.
 
 If a `terraform.d/plugins` directory exists in the current working directory
 then OpenTofu will also include that directory, regardless of your operating
