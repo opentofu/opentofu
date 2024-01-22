@@ -17,7 +17,13 @@ import (
 //
 // If you are writing tests and you have the ability to inject an interface, please consider using the New() function
 // instead of relying on the singleton. If you must rely on this singleton, make sure that tests are not running in
-// parallel and that you call ClearSingleton() in the cleanup function.
+// parallel and that you call ClearSingleton() in the cleanup function:
+//
+//	func test_something(t *testing.T) {
+//	    // Do not call this: t.Parallel()
+//	    t.Cleanup(ClearSingleton)
+//	    encryption := encryption.GetSingleton()
+//	}
 func GetSingleton() Encryption {
 	lock.Lock()
 	defer lock.Unlock()
