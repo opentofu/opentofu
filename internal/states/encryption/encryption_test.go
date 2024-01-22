@@ -3,8 +3,9 @@ package encryption
 import (
 	"errors"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 )
 
 func envConfig(configKey encryptionconfig.Key, logicallyValid bool) string {

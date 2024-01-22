@@ -2,11 +2,12 @@ package encryption
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
 	"github.com/opentofu/opentofu/internal/states/encryption/encryptionflow"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"sync"
 )
 
 // New creates a new Encryption object. You can use this object to feed in encryption configuration and then create
