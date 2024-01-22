@@ -193,7 +193,7 @@ func (e *encryption) ApplyHCLDecryptionFallbackConfiguration(key encryptionconfi
 func (e *encryption) Validate() (diags tfdiags.Diagnostics) {
 	keys := e.allConfigKeys()
 
-	for key, _ := range keys {
+	for key := range keys {
 		if _, err := e.build(key); err != nil {
 			diags = append(diags, tfdiags.Sourceless(
 				tfdiags.Error,
@@ -223,10 +223,10 @@ func (e *encryption) allConfigKeys() map[encryptionconfig.Key]struct{} {
 			keys[key] = struct{}{}
 		}
 	}
-	for meta, _ := range e.encryptionConfigs {
+	for meta := range e.encryptionConfigs {
 		addKey(meta.Key)
 	}
-	for meta, _ := range e.decryptionFallbackConfigs {
+	for meta := range e.decryptionFallbackConfigs {
 		addKey(meta.Key)
 	}
 
