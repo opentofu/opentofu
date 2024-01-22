@@ -42,6 +42,8 @@ type Flow interface {
 	PlanFlow
 }
 
+// StateFlow contains the encryption and decryption functions that should be used for state files only.
+// State files are JSON, so they are treated accordingly.
 type StateFlow interface {
 	// DecryptState decrypts encrypted state.
 	//
@@ -66,6 +68,8 @@ type StateFlow interface {
 	EncryptState(state []byte) ([]byte, error)
 }
 
+// PlanFlow contains the encryption and decryption functions that should be used for plan files only.
+// Plan files are not JSON, they are ZIP files, so they are treated accordingly. The encrypted data may still be JSON.
 type PlanFlow interface {
 	// DecryptPlan decrypts an encrypted plan.
 	//
