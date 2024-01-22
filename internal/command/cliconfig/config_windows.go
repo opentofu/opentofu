@@ -40,8 +40,12 @@ func configDir() (string, error) {
 	return filepath.Join(dir, "terraform.d"), nil
 }
 
-func dataDir() (string, error) {
-	return configDir()
+func dataDirs() ([]string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return nil, err
+	}
+	return []string{dir}, nil
 }
 
 func homeDir() (string, error) {
