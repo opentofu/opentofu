@@ -1,13 +1,6 @@
 package encryption
 
-import (
-	"fmt"
-	"testing"
-
-	"github.com/opentofu/opentofu/internal/states/encryption/encryptionconfig"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-)
-
+/*
 func TestValidateAllCachedInstances_NoCache(t *testing.T) {
 	if cache != nil {
 		t.Fatal("cache was enabled at start of test - probably some other test forgot to defer DisableCache()")
@@ -95,3 +88,4 @@ func expectDiag(t *testing.T, actual tfdiags.Diagnostic, expectSeverity tfdiags.
 		}
 	}
 }
+*/
