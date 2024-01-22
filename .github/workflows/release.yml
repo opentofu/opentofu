@@ -6,6 +6,11 @@ on:
       tag:
         description: "Git tag (leave empty for dry run)"
         required: false
+    inputs:
+      prerelease:
+        description: "Is this a pre-release?"
+        required: true
+        type: boolean
 
 jobs:
   release:
@@ -97,6 +102,7 @@ jobs:
           # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+          SNAPCRAFT_CHANNEL: ${{!inputs.prerelease &&  'stable' || 'edge' }}
 
       - name: Remove GPG key
         if: always()
@@ -113,7 +119,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.tag, 'v')
+        if: startsWith(inputs.tag, 'v') && !inputs.prerelease
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -122,7 +128,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.tag, 'v')
+        if: startsWith(inputs.tag, 'v') && !inputs.prerelease
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
