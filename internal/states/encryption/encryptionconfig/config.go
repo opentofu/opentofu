@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -13,8 +12,6 @@ import (
 //
 // There can be more than one configuration with different encryption or key derivation methods.
 type Config struct {
-	Meta `json:"-"`
-
 	KeyProvider KeyProviderConfig `json:"key_provider"`
 
 	Method MethodConfig `json:"method"`
@@ -44,7 +41,8 @@ type ConfigMap map[Meta]Config
 
 // Merge merges the configuration map for the specified config key according to the following rules:
 //
-//   - If no configuration exists for the specified key, the default configuration is read from the environment.
+//   - If no configuration exists for the specified key and the key uses defaults, the default configuration is used
+//     from the environment.
 //   - Otherwise, the configuration from the environment and from HCL for the specific config key is merged, where the
 //     values from the environment take precedence.
 //
@@ -53,19 +51,29 @@ type ConfigMap map[Meta]Config
 // If no default or specific configuration is found, the function returns nil.
 func (c ConfigMap) Merge(configKey Key) (*Config, error) {
 	configOrNil := func(configs ConfigMap, meta Meta) *Config {
-		conf, ok := configs[meta]
-		if ok {
+		if conf, ok := configs[meta]; ok {
 			return &conf
-		} else {
-			return nil
 		}
+		return nil
 	}
 
-	merged := mergeConfigs(
-		configOrNil(c, Meta{SourceEnv, KeyDefault}),
-		configOrNil(c, Meta{SourceHCL, configKey}),
-		configOrNil(c, Meta{SourceEnv, configKey}),
-	)
+	var merged *Config
+	if configKey.UsesRemoteDefaults() {
+		merged = mergeConfigs(
+			configKey,
+			configOrNil(c, Meta{SourceEnv, KeyDefaultRemote}),
+			configOrNil(c, Meta{SourceHCL, configKey}),
+			configOrNil(c, Meta{SourceEnv, configKey}),
+		)
+	} else {
+		merged = mergeConfigs(
+			configKey,
+			nil,
+			configOrNil(c, Meta{SourceHCL, configKey}),
+			configOrNil(c, Meta{SourceEnv, configKey}),
+		)
+
+	}
 
 	injectDefaultNamesIfNotSet(merged)
 
@@ -86,10 +94,10 @@ func (c ConfigMap) Merge(configKey Key) (*Config, error) {
 //
 // You can use the following constants as map keys to provide base configuration:
 //
-//   - KeyDefault for all remote states that do not have an explicit configuration (including the backend)
+//   - KeyDefaultRemote for all remote states that do not have an explicit configuration (including the backend)
 //   - KeyBackend when uploading the state to a remote backend
-//   - KeyStatefile for a locally stored state file
-//   - KeyPlanfile for a locally stored plan file
+//   - KeyStateFile for a locally stored state file
+//   - KeyPlanFile for a locally stored plan file
 //
 // Explicit resources:
 //
@@ -116,15 +124,54 @@ func (c ConfigMap) Merge(configKey Key) (*Config, error) {
 type Key string
 
 const (
-	KeyDefault   Key = "default"   // configuration for all remote states that do not have an explicit configuration
-	KeyBackend   Key = "backend"   // when uploading the state to a remote backend
-	KeyStatefile Key = "statefile" // for a locally stored state file
-	KeyPlanfile  Key = "planfile"  // for a locally stored plan file
+	// KeyDefaultRemote contains the configuration key for default values applied only to remote state encryption,
+	// and only if the user provided no other configuration.
+	KeyDefaultRemote Key = "default_remote"
+	// KeyBackend contains the configuration key for overriding the default value when uploading the state to a
+	// remote backend.
+	KeyBackend Key = "backend"
+	// KeyStateFile contains the configuration key for encryption configuration for local state files. The default
+	// remote configuration is not applied to this encryption.
+	KeyStateFile Key = "statefile"
+	// KeyPlanFile contains the configuration key for encryption configuration for local plan files. The default
+	// remote configuration is not applied to this encryption.
+	KeyPlanFile Key = "planfile"
 )
 
-// ConfigEnvStructure is used to hold multiple named configurations from environment variables. See also the
-// documentation for Key.
-type ConfigEnvStructure map[Key]Config
+// UsesRemoteDefaults returns true if KeyDefaultRemote should be applied in addition to the current key.
+func (k Key) UsesRemoteDefaults() bool {
+	return k != KeyDefaultRemote && k != KeyStateFile && k != KeyPlanFile
+}
+
+// Validate checks if the key is a valid configuration key.
+func (k Key) Validate() error {
+	switch k {
+	case KeyDefaultRemote:
+		return nil
+	case KeyPlanFile:
+		return nil
+	case KeyStateFile:
+		return nil
+	default:
+		if !k.IsRemoteDataSource() {
+			return fmt.Errorf(
+				"invalid encryption configuration key: %s (must be one of %s or contain a dot to specify a remote state data source)",
+				k,
+				strings.Join(
+					[]string{
+						string(KeyDefaultRemote), string(KeyPlanFile), string(KeyStateFile),
+					}, ", ",
+				),
+			)
+		}
+		return nil
+	}
+}
+
+// IsRemoteDataSource returns true if the specified key is a valid remote data source key.
+func (k Key) IsRemoteDataSource() bool {
+	return strings.Contains(string(k), ".")
+}
 
 // ConfigEnvName is the name of the environment variable used to configure encryption and decryption as an alternative
 // to providing the configuration in the .tf files directly.
@@ -156,33 +203,36 @@ const ConfigEnvName = "TF_STATE_ENCRYPTION"
 // as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
 const FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
 
-// ConfigurationFromEnv parses the encryption configuration from the environment variable envName.
+// ConfigurationFromEnv parses the encryption configuration from the value originating from the operating system
+// environment.
 //
 // If the provided environment variable is empty, nil will be returned without an error as an empty configuration
 // means no encryption is desired.
-func ConfigurationFromEnv(envName string) (ConfigEnvStructure, error) {
-	envValue := os.Getenv(envName)
+func ConfigurationFromEnv(envValue string) (ConfigMap, error) {
 	if envValue == "" {
 		return nil, nil
 	}
 
 	parsed, err := parseJsonStructure(envValue)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing environment variable %s (%w)", envName, err)
+		return nil, fmt.Errorf("error parsing environment variable (%w)", err)
 	}
 
+	result := make(ConfigMap, len(parsed))
 	for key, _ := range parsed {
 		var item = parsed[key]
-		item.Key = key
-		item.Source = SourceEnv
-		parsed[key] = item
+		meta := Meta{
+			Key:    key,
+			Source: SourceEnv,
+		}
+		result[meta] = item
 	}
 
-	return parsed, nil
+	return result, nil
 }
 
-func parseJsonStructure(jsonValue string) (ConfigEnvStructure, error) {
-	parsed := make(ConfigEnvStructure)
+func parseJsonStructure(jsonValue string) (map[Key]Config, error) {
+	parsed := make(map[Key]Config)
 
 	// This JSON decoder is needed to disallow unknown fields
 	decoder := json.NewDecoder(strings.NewReader(jsonValue))

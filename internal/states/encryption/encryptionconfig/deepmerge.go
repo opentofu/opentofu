@@ -34,16 +34,15 @@ func injectDefaultNamesIfNotSet(config *Config) {
 //
 // If you specify no otherConfigs, the defaultConfig is returned. However, the defaultConfig is not merged into the
 // configs.
-func mergeConfigs(defaultConfig *Config, configs ...*Config) *Config {
+func mergeConfigs(key Key, defaultConfig *Config, configs ...*Config) *Config {
 	var current *Config
 	for _, deepMergeMe := range configs {
 		current = deepMergeConfig(deepMergeMe, current)
 	}
 	if current != nil {
 		return current
-	} else {
-		return defaultConfig
 	}
+	return defaultConfig
 }
 
 func deepMergeConfig(addon *Config, base *Config) *Config {
@@ -84,7 +83,6 @@ func valOrDefault[T comparable](val T, empty T, defaultVal T) T {
 	}
 }
 
-// TODO can this entire function be replaced by maps.Copy?
 func mapMerge[K comparable, V any](base map[K]V, addon map[K]V) map[K]V {
 	if len(addon) == 0 {
 		return base

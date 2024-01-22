@@ -158,7 +158,7 @@ func TestEncryptionConfigurationEnforcesSource(t *testing.T) {
 		encryptionconfig.Config{
 			Meta: encryptionconfig.Meta{
 				"invalid",
-				encryptionconfig.KeyDefault,
+				encryptionconfig.KeyDefaultRemote,
 			},
 		},
 	)
@@ -172,7 +172,7 @@ func TestDecryptionFallbackConfigurationEnforcesSource(t *testing.T) {
 		encryptionconfig.Config{
 			Meta: encryptionconfig.Meta{
 				"invalid",
-				encryptionconfig.KeyDefault,
+				encryptionconfig.KeyDefaultRemote,
 			},
 		},
 	)
