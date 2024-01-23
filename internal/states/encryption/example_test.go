@@ -109,14 +109,14 @@ func ExampleGetSingleton() {
 		singleton := GetSingleton()
 
 		// only call this if terraform.state_encryption block was present
-		err := singleton.ApplyHCLEncryptionConfiguration(encryptionconfig.KeyBackend, config)
+		err := singleton.ApplyCodeEncryptionConfiguration(encryptionconfig.KeyBackend, config)
 		if err != nil {
 			fmt.Println("errors here mean the supplied configuration was invalid (not all problems can be detected at this time)", err.Error())
 			return
 		}
 
 		// only call this if terraform.state_decryption_fallback block was present
-		err = singleton.ApplyHCLDecryptionFallbackConfiguration(encryptionconfig.KeyBackend, fallbackConfig)
+		err = singleton.ApplyCodeDecryptionFallbackConfiguration(encryptionconfig.KeyBackend, fallbackConfig)
 		if err != nil {
 			fmt.Println("errors here mean the supplied fallback configuration was invalid (not all problems can be detected at this time)", err.Error())
 			return

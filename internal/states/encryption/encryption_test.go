@@ -175,7 +175,7 @@ func TestEncryption_ApplyHCLEncryptionConfiguration(t *testing.T) {
 			config:      tstCodeConfiguration(true),
 			expectError: nil,
 			expectState: map[encryptionconfig.Meta]encryptionconfig.Config{
-				encryptionconfig.Meta{encryptionconfig.SourceHCL, configKey}: {
+				encryptionconfig.Meta{encryptionconfig.SourceCode, configKey}: {
 					KeyProvider: encryptionconfig.KeyProviderConfig{
 						Config: map[string]string{
 							"passphrase": "a new passphrase",
@@ -192,7 +192,7 @@ func TestEncryption_ApplyHCLEncryptionConfiguration(t *testing.T) {
 			config:      tstCodeConfiguration(false),
 			expectError: nil,
 			expectState: map[encryptionconfig.Meta]encryptionconfig.Config{
-				encryptionconfig.Meta{encryptionconfig.SourceHCL, configKey}: {
+				encryptionconfig.Meta{encryptionconfig.SourceCode, configKey}: {
 					KeyProvider: encryptionconfig.KeyProviderConfig{
 						Config: map[string]string{},
 					},
@@ -207,14 +207,14 @@ func TestEncryption_ApplyHCLEncryptionConfiguration(t *testing.T) {
 			t.Cleanup(ClearSingleton)
 			singleton := GetSingleton()
 
-			err := singleton.ApplyHCLEncryptionConfiguration(tc.key, tc.config)
+			err := singleton.ApplyCodeEncryptionConfiguration(tc.key, tc.config)
 			expectErr(t, err, tc.expectError)
 			if err != nil {
 				return
 			}
 
 			if !reflect.DeepEqual(tc.expectState, singleton.(*encryption).encryptionConfigs) {
-				t.Error("unexpected encryption config state after ApplyHCLEncryptionConfiguration()")
+				t.Error("unexpected encryption config state after ApplyCodeEncryptionConfiguration()")
 			}
 		})
 	}
@@ -247,7 +247,7 @@ func TestEncryption_ApplyHCLDecryptionFallbackConfiguration(t *testing.T) {
 			config:      tstCodeConfiguration(true),
 			expectError: nil,
 			expectState: map[encryptionconfig.Meta]encryptionconfig.Config{
-				encryptionconfig.Meta{encryptionconfig.SourceHCL, configKey}: {
+				encryptionconfig.Meta{encryptionconfig.SourceCode, configKey}: {
 					KeyProvider: encryptionconfig.KeyProviderConfig{
 						Config: map[string]string{
 							"passphrase": "a new passphrase",
@@ -264,7 +264,7 @@ func TestEncryption_ApplyHCLDecryptionFallbackConfiguration(t *testing.T) {
 			config:      tstCodeConfiguration(false),
 			expectError: nil,
 			expectState: map[encryptionconfig.Meta]encryptionconfig.Config{
-				encryptionconfig.Meta{encryptionconfig.SourceHCL, configKey}: {
+				encryptionconfig.Meta{encryptionconfig.SourceCode, configKey}: {
 					KeyProvider: encryptionconfig.KeyProviderConfig{
 						Config: map[string]string{},
 					},
@@ -279,14 +279,14 @@ func TestEncryption_ApplyHCLDecryptionFallbackConfiguration(t *testing.T) {
 			t.Cleanup(ClearSingleton)
 			singleton := GetSingleton()
 
-			err := singleton.ApplyHCLDecryptionFallbackConfiguration(tc.key, tc.config)
+			err := singleton.ApplyCodeDecryptionFallbackConfiguration(tc.key, tc.config)
 			expectErr(t, err, tc.expectError)
 			if err != nil {
 				return
 			}
 
 			if !reflect.DeepEqual(tc.expectState, singleton.(*encryption).decryptionFallbackConfigs) {
-				t.Error("unexpected decryption config state after ApplyHCLDecryptionFallbackConfiguration()")
+				t.Error("unexpected decryption config state after ApplyCodeDecryptionFallbackConfiguration()")
 			}
 		})
 	}

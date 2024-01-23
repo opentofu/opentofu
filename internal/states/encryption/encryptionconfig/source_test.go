@@ -17,7 +17,7 @@ func TestConfigurationSourceEnum(t *testing.T) {
 			expectValid: false,
 		},
 		{
-			value:       SourceHCL,
+			value:       SourceCode,
 			expectValid: true,
 		},
 		{

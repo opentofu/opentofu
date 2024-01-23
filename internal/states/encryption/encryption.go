@@ -40,10 +40,11 @@ type Encryption interface {
 		decryptionFallback map[encryptionconfig.Key]encryptionconfig.Config,
 	) error
 
-	// ApplyHCLEncryptionConfiguration applies a single encryption configuration coming from HCL.
-	ApplyHCLEncryptionConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
-	// ApplyHCLDecryptionFallbackConfiguration applies a single decryption fallback configuration coming from HCL.
-	ApplyHCLDecryptionFallbackConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
+	// ApplyCodeEncryptionConfiguration applies a single encryption configuration coming from HCL/JSON/etc.
+	ApplyCodeEncryptionConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
+	// ApplyCodeDecryptionFallbackConfiguration applies a single decryption fallback configuration coming from
+	// HCL/JSON/etc.
+	ApplyCodeDecryptionFallbackConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
 
 	// Validate ensures that the previously-applied configuration is valid. You should call this function after you
 	// applied all configurations in order to verify that all configurations are valid.
@@ -161,7 +162,7 @@ func (e *encryption) ApplyEnvConfigurations(
 	return nil
 }
 
-func (e *encryption) ApplyHCLEncryptionConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error {
+func (e *encryption) ApplyCodeEncryptionConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -169,14 +170,14 @@ func (e *encryption) ApplyHCLEncryptionConfiguration(key encryptionconfig.Key, c
 		return fmt.Errorf("failed to parse encryption configuration from HCL (%w)", err)
 	}
 	meta := encryptionconfig.Meta{
-		encryptionconfig.SourceHCL,
+		encryptionconfig.SourceCode,
 		key,
 	}
 	e.encryptionConfigs[meta] = config
 	return nil
 }
 
-func (e *encryption) ApplyHCLDecryptionFallbackConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error {
+func (e *encryption) ApplyCodeDecryptionFallbackConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -184,7 +185,7 @@ func (e *encryption) ApplyHCLDecryptionFallbackConfiguration(key encryptionconfi
 		return fmt.Errorf("failed to parse decryption fallback configuration from HCL (%w)", err)
 	}
 	meta := encryptionconfig.Meta{
-		encryptionconfig.SourceHCL,
+		encryptionconfig.SourceCode,
 		key,
 	}
 	e.decryptionFallbackConfigs[meta] = config
