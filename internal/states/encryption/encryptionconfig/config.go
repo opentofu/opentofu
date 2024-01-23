@@ -71,7 +71,6 @@ func (c ConfigMap) Merge(configKey Key) (*Config, error) {
 			configOrNil(c, Meta{SourceHCL, configKey}),
 			configOrNil(c, Meta{SourceEnv, configKey}),
 		)
-
 	}
 
 	injectDefaultNamesIfNotSet(merged)
