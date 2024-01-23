@@ -5,7 +5,6 @@ package schema
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"reflect"
 	"testing"
@@ -1587,6 +1586,7 @@ func TestResourceDataSet(t *testing.T) {
 	var testNilPtr *string
 
 	cases := []struct {
+		TestName string
 		Schema   map[string]*Schema
 		State    *tofu.InstanceState
 		Diff     *tofu.InstanceDiff
@@ -1600,8 +1600,8 @@ func TestResourceDataSet(t *testing.T) {
 		// compared to GetValue
 		GetPreProcess func(interface{}) interface{}
 	}{
-		// #0: Basic good
 		{
+			TestName: "Basic good",
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
 					Type:     TypeString,
@@ -1621,9 +1621,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "availability_zone",
 			GetValue: "foo",
 		},
-
-		// #1: Basic int
 		{
+			TestName: "Basic int",
 			Schema: map[string]*Schema{
 				"port": &Schema{
 					Type:     TypeInt,
@@ -1643,9 +1642,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "port",
 			GetValue: 80,
 		},
-
-		// #2: Basic bool
 		{
+			TestName: "Basic bool, true",
 			Schema: map[string]*Schema{
 				"vpc": &Schema{
 					Type:     TypeBool,
@@ -1663,9 +1661,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "vpc",
 			GetValue: true,
 		},
-
-		// #3
 		{
+			TestName: "Basic bool, false",
 			Schema: map[string]*Schema{
 				"vpc": &Schema{
 					Type:     TypeBool,
@@ -1683,9 +1680,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "vpc",
 			GetValue: false,
 		},
-
-		// #4: Invalid type
 		{
+			TestName: "Invalid type",
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
 					Type:     TypeString,
@@ -1706,9 +1702,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "availability_zone",
 			GetValue: "",
 		},
-
-		// #5: List of primitives, set list
 		{
+			TestName: "List of primitives, set list",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type:     TypeList,
@@ -1727,9 +1722,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ports",
 			GetValue: []interface{}{1, 2, 5},
 		},
-
-		// #6: List of primitives, set list with error
 		{
+			TestName: "List of primitives, set list with error",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type:     TypeList,
@@ -1749,9 +1743,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ports",
 			GetValue: []interface{}{},
 		},
-
-		// #7: Set a list of maps
 		{
+			TestName: "Set a list of maps",
 			Schema: map[string]*Schema{
 				"config_vars": &Schema{
 					Type:     TypeList,
@@ -1788,9 +1781,8 @@ func TestResourceDataSet(t *testing.T) {
 				},
 			},
 		},
-
-		// #8: Set, with list
 		{
+			TestName: "Set, with list",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type:     TypeSet,
@@ -1818,9 +1810,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ports",
 			GetValue: []interface{}{100, 125},
 		},
-
-		// #9: Set, with Set
 		{
+			TestName: " Set, with Set",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type:     TypeSet,
@@ -1853,9 +1844,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ports",
 			GetValue: []interface{}{1, 2},
 		},
-
-		// #10: Set single item
 		{
+			TestName: "Set single item",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type:     TypeSet,
@@ -1883,9 +1873,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ports",
 			GetValue: []interface{}{100, 80},
 		},
-
-		// #11: Set with nested set
 		{
+			TestName: "Set with nested set",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type: TypeSet,
@@ -1951,9 +1940,8 @@ func TestResourceDataSet(t *testing.T) {
 				return v
 			},
 		},
-
-		// #12: List of floats, set list
 		{
+			TestName: "List of floats, set list",
 			Schema: map[string]*Schema{
 				"ratios": &Schema{
 					Type:     TypeList,
@@ -1972,16 +1960,20 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ratios",
 			GetValue: []interface{}{1.0, 2.2, 5.5},
 		},
-
-		// #12: Set of floats, set list
 		{
+			TestName: "Set of floats, set list",
 			Schema: map[string]*Schema{
 				"ratios": &Schema{
 					Type:     TypeSet,
 					Computed: true,
 					Elem:     &Schema{Type: TypeFloat},
 					Set: func(a interface{}) int {
-						return int(math.Float64bits(a.(float64)))
+						// Because we want to be safe on a 32-bit and 64-bit system,
+						// we can just set a "scale factor" here that's always larger than the number of
+						// decimal places we expect to see., and then multiply by that to cast to int
+						// otherwise we could get clashes in unique ids
+						scaleFactor := 100000
+						return int(a.(float64) * float64(scaleFactor))
 					},
 				},
 			},
@@ -1996,9 +1988,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "ratios",
 			GetValue: []interface{}{1.0, 2.2, 5.5},
 		},
-
-		// #13: Basic pointer
 		{
+			TestName: "Basic pointer",
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
 					Type:     TypeString,
@@ -2018,9 +2009,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "availability_zone",
 			GetValue: "foo",
 		},
-
-		// #14: Basic nil value
 		{
+			TestName: "Basic nil value",
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
 					Type:     TypeString,
@@ -2040,9 +2030,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "availability_zone",
 			GetValue: "",
 		},
-
-		// #15: Basic nil pointer
 		{
+			TestName: "Basic nil pointer",
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
 					Type:     TypeString,
@@ -2062,9 +2051,8 @@ func TestResourceDataSet(t *testing.T) {
 			GetKey:   "availability_zone",
 			GetValue: "",
 		},
-
-		// #16: Set in a list
 		{
+			TestName: "Set in a list",
 			Schema: map[string]*Schema{
 				"ports": &Schema{
 					Type: TypeList,
@@ -2131,29 +2119,31 @@ func TestResourceDataSet(t *testing.T) {
 	os.Setenv(PanicOnErr, "")
 	defer os.Setenv(PanicOnErr, oldEnv)
 
-	for i, tc := range cases {
-		d, err := schemaMap(tc.Schema).Data(tc.State, tc.Diff)
-		if err != nil {
-			t.Fatalf("err: %s", err)
-		}
+	for _, tc := range cases {
+		t.Run(tc.TestName, func(t *testing.T) {
+			d, err := schemaMap(tc.Schema).Data(tc.State, tc.Diff)
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
 
-		err = d.Set(tc.Key, tc.Value)
-		if err != nil != tc.Err {
-			t.Fatalf("%d err: %s", i, err)
-		}
+			err = d.Set(tc.Key, tc.Value)
+			if err != nil != tc.Err {
+				t.Fatalf("unexpected err: %s", err)
+			}
 
-		v := d.Get(tc.GetKey)
-		if s, ok := v.(*Set); ok {
-			v = s.List()
-		}
+			v := d.Get(tc.GetKey)
+			if s, ok := v.(*Set); ok {
+				v = s.List()
+			}
 
-		if tc.GetPreProcess != nil {
-			v = tc.GetPreProcess(v)
-		}
+			if tc.GetPreProcess != nil {
+				v = tc.GetPreProcess(v)
+			}
 
-		if !reflect.DeepEqual(v, tc.GetValue) {
-			t.Fatalf("Get Bad: %d\n\n%#v", i, v)
-		}
+			if !reflect.DeepEqual(v, tc.GetValue) {
+				t.Fatalf("Got unexpected value\nactual: %#v\nexpected:%#v", v, tc.GetValue)
+			}
+		})
 	}
 }
 

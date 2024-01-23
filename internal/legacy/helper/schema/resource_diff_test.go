@@ -129,7 +129,7 @@ func testDiffCases(t *testing.T, oldPrefix string, oldOffset int, computed bool)
 							NewComputed: true,
 						}
 					} else {
-						result["foo.2800005064"] = &tofu.ResourceAttrDiff{
+						result["foo.1494962232"] = &tofu.ResourceAttrDiff{
 							Old: "",
 							New: "qux",
 						}

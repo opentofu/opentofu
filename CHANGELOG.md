@@ -9,6 +9,7 @@ BUG FIXES:
 * Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
 * Fix Global Schema Cache not working in provider acceptance tests ([#1054](https://github.com/opentofu/opentofu/pull/1054))
 * Fix `tofu show` and `tofu state show` not working with state files referencing Terraform registry providers in some instances ([#1141](https://github.com/opentofu/opentofu/pull/1141))
+* Improved stability on 32-bit architectures ([#1154](https://github.com/opentofu/opentofu/pull/1154))
 
 ## 1.6.0
 
