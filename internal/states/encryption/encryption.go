@@ -192,8 +192,31 @@ func (e *encryption) ApplyHCLDecryptionFallbackConfiguration(key encryptionconfi
 }
 
 func (e *encryption) Validate() (diags tfdiags.Diagnostics) {
-	keys := e.allConfigKeys()
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 
+	// Collect all the keys between the encryption and decryption fallback configuration. We do this to make sure
+	// we don't process keys twice, which would result in duplicate errors. We also make sure that the
+	// default key is tested as a backend key since that's where it will actually be used.
+	keys2 := map[encryptionconfig.Key]struct{}{}
+	addKey := func(key encryptionconfig.Key) {
+		if key == encryptionconfig.KeyDefaultRemote {
+			// The presence of the default key means that there should be a valid backend configuration as the
+			// default key is automatically applied to it.
+			keys2[encryptionconfig.KeyBackend] = struct{}{}
+		} else {
+			keys2[key] = struct{}{}
+		}
+	}
+	for meta := range e.encryptionConfigs {
+		addKey(meta.Key)
+	}
+	for meta := range e.decryptionFallbackConfigs {
+		addKey(meta.Key)
+	}
+	keys := keys2
+
+	// Build each configuration once so we find all the errors.
 	for key := range keys {
 		if _, err := e.build(key); err != nil {
 			diags = append(diags, tfdiags.Sourceless(
@@ -207,56 +230,36 @@ func (e *encryption) Validate() (diags tfdiags.Diagnostics) {
 	return diags
 }
 
-func (e *encryption) allConfigKeys() map[encryptionconfig.Key]struct{} {
+func (e *encryption) RemoteState() (encryptionflow.StateFlow, error) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-
-	// Collect all the keys between the encryption and decryption fallback configuration. We do this to make sure
-	// we don't process keys twice, which would result in duplicate errors. We also make sure that the
-	// default key is tested as a backend key since that's where it will actually be used.
-	keys := map[encryptionconfig.Key]struct{}{}
-	addKey := func(key encryptionconfig.Key) {
-		if key == encryptionconfig.KeyDefaultRemote {
-			// The presence of the default key means that there should be a valid backend configuration as the
-			// default key is automatically applied to it.
-			keys[encryptionconfig.KeyBackend] = struct{}{}
-		} else {
-			keys[key] = struct{}{}
-		}
-	}
-	for meta := range e.encryptionConfigs {
-		addKey(meta.Key)
-	}
-	for meta := range e.decryptionFallbackConfigs {
-		addKey(meta.Key)
-	}
-
-	return keys
-}
-
-func (e *encryption) RemoteState() (encryptionflow.StateFlow, error) {
 	return e.build(encryptionconfig.KeyBackend)
 }
 
 func (e *encryption) StateFile() (encryptionflow.StateFlow, error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 	return e.build(encryptionconfig.KeyStateFile)
 }
 
 func (e *encryption) PlanFile() (encryptionflow.PlanFlow, error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 	return e.build(encryptionconfig.KeyPlanFile)
 }
 
 func (e *encryption) RemoteStateDatasource(configKey encryptionconfig.Key) (encryptionflow.StateFlow, error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 	if !configKey.IsRemoteDataSource() {
 		return nil, fmt.Errorf("the specified configuration key is not a valid remote data source key (this is likely a bug, did you want to call RemoteState(), StateFile(), or PlanFile()?)")
 	}
 	return e.build(configKey)
 }
 
+// build builds the encryption and decryption fallback configuration. This function should be called inside a
+// lock from e.mutex to avoid parallel changes while the build is happening.
 func (e *encryption) build(key encryptionconfig.Key) (encryptionflow.Flow, error) {
-	e.mutex.Lock()
-	defer e.mutex.Unlock()
-
 	mergedEncryptionConfig, err := e.encryptionConfigs.Merge(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge encryption configuration (%w)", err)
