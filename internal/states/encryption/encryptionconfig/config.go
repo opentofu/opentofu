@@ -62,13 +62,13 @@ func (c ConfigMap) Merge(configKey Key) (*Config, error) {
 	if configKey.UsesRemoteDefaults() {
 		merged = mergeConfigs(
 			configOrNil(c, Meta{SourceEnv, KeyDefaultRemote}),
-			configOrNil(c, Meta{SourceHCL, configKey}),
+			configOrNil(c, Meta{SourceCode, configKey}),
 			configOrNil(c, Meta{SourceEnv, configKey}),
 		)
 	} else {
 		merged = mergeConfigs(
 			nil,
-			configOrNil(c, Meta{SourceHCL, configKey}),
+			configOrNil(c, Meta{SourceCode, configKey}),
 			configOrNil(c, Meta{SourceEnv, configKey}),
 		)
 	}

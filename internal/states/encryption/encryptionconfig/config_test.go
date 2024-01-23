@@ -153,7 +153,7 @@ func TestConfigMap_Merge(t *testing.T) {
 			testcase: "incomplete_code_config",
 			key:      KeyBackend,
 			config: ConfigMap{
-				Meta{SourceHCL, KeyBackend}: incompleteConfig,
+				Meta{SourceCode, KeyBackend}: incompleteConfig,
 			},
 			expectedResult: &mergedIncompleteConfig,
 			expectedErr:    errors.New("invalid configuration after merge (error in configuration for key provider passphrase (passphrase missing or empty))"),
@@ -163,8 +163,8 @@ func TestConfigMap_Merge(t *testing.T) {
 			testcase: "successful_merge_with_injected_default_names",
 			key:      KeyPlanFile,
 			config: ConfigMap{
-				Meta{SourceHCL, KeyPlanFile}: incompleteConfig,
-				Meta{SourceEnv, KeyPlanFile}: passphraseConfig,
+				Meta{SourceCode, KeyPlanFile}: incompleteConfig,
+				Meta{SourceEnv, KeyPlanFile}:  passphraseConfig,
 			},
 			expectedResult: &mergedEnforcingConfig,
 			expectedErr:    nil,
@@ -175,9 +175,9 @@ func TestConfigMap_Merge(t *testing.T) {
 			key:      KeyStateFile,
 			config: ConfigMap{
 				Meta{SourceEnv, KeyDefaultRemote}: incompleteConfig,
-				Meta{SourceHCL, KeyPlanFile}:      incompleteConfig,
+				Meta{SourceCode, KeyPlanFile}:     incompleteConfig,
 				Meta{SourceEnv, KeyPlanFile}:      passphraseConfig,
-				Meta{SourceHCL, KeyBackend}:       incompleteConfig,
+				Meta{SourceCode, KeyBackend}:      incompleteConfig,
 				Meta{SourceEnv, KeyBackend}:       passphraseConfig,
 			},
 			expectedResult: nil,
@@ -188,9 +188,9 @@ func TestConfigMap_Merge(t *testing.T) {
 			key:      KeyBackend,
 			config: ConfigMap{
 				Meta{SourceEnv, KeyDefaultRemote}: incompleteConfig,
-				Meta{SourceHCL, KeyPlanFile}:      completeConfig,
+				Meta{SourceCode, KeyPlanFile}:     completeConfig,
 				Meta{SourceEnv, KeyPlanFile}:      completeConfig,
-				Meta{SourceHCL, KeyStateFile}:     completeConfig,
+				Meta{SourceCode, KeyStateFile}:    completeConfig,
 				Meta{SourceEnv, KeyStateFile}:     completeConfig,
 			},
 			expectedResult: &mergedIncompleteConfig,
