@@ -4,7 +4,7 @@
 
 This week we've been focusing on work related to the 1.6.1 release, the 1.7.0 release, and on going through our issue backlog.
 
-On an unrelated note, we'll have a stand on FOSDEM and have OpenTofu t-shirts and stickers, so if you're there, come say hi!
+On an unrelated note, we'll have a stand at FOSDEM and will have OpenTofu t-shirts and stickers, so if you're there, come say hi!
 
 - Current Status and Up Next
   - The client-side state encryption project is moving forward, and [the first PR](https://github.com/opentofu/opentofu/pull/1063), laying down the groundwork, is almost ready to be merged. It's been going through extensive review, and it's the thing that's blocking us from better parallelising the work on this project. Once that is merged, [the tracking issue](https://github.com/opentofu/opentofu/issues/1030) now contains a list of subtasks that we'll be working on next in this project.
