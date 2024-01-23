@@ -179,13 +179,13 @@ func (k Key) IsRemoteDataSource() bool {
 // ConfigEnvName is the name of the environment variable used to configure encryption and decryption as an alternative
 // to providing the configuration in the .tf files directly.
 //
-// Set this environment variable to a JSON representation of ConfigEnvStructure, or leave it unset/blank
+// Set this environment variable to a JSON representation of map[Key]Config, or leave it unset/blank
 // to disable encryption (default behaviour). If you do not specify a configuration but "enforced" is set to true, tofu
 // will refuse to function. If you specify an invalid JSON, the entire tofu run will fail regardless of the "enforced"
 // setting.
 //
 // Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
-// as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
+// as this may make tests depend on each other. See the comments on encryption.ConfigurationFromEnv().
 const ConfigEnvName = "TF_STATE_ENCRYPTION"
 
 // FallbackConfigEnvName is the name of the environment variable used to configure fallback decryption of the state.
@@ -198,12 +198,12 @@ const ConfigEnvName = "TF_STATE_ENCRYPTION"
 // primary configuration, the state will be decrypted unless you set the "enforced" flag to true, which prevents a
 // decryption and results in a failure.
 //
-// Set this environment variable to a JSON representation of ConfigEnvStructure, or leave it unset/blank
+// Set this environment variable to a JSON representation of map[Key]Config, or leave it unset/blank
 // in order to not supply any fallbacks (default behaviour). If you specify an invalid JSON, the entire tofu run will
 // fail regardless of the "enforced" setting.
 //
 // Note: With rare exceptions, you should avoid setting the state encryption environment variables in tests,
-// as this may make tests depend on each other. See the comments on encryption.ParseEnvironmentVariables().
+// as this may make tests depend on each other. See the comments on encryption.ConfigurationFromEnv().
 const FallbackConfigEnvName = "TF_STATE_DECRYPTION_FALLBACK"
 
 // ConfigurationFromEnv parses the encryption configuration from the value originating from the operating system
