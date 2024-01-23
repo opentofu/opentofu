@@ -45,7 +45,7 @@ type Encryption interface {
 	// ApplyHCLDecryptionFallbackConfiguration applies a single decryption fallback configuration coming from HCL.
 	ApplyHCLDecryptionFallbackConfiguration(key encryptionconfig.Key, config encryptionconfig.Config) error
 
-	// Validate ensures that the previously-applied configuration is valid. You can call this function after you
+	// Validate ensures that the previously-applied configuration is valid. You should call this function after you
 	// applied all configurations in order to verify that all configurations are valid.
 	Validate() tfdiags.Diagnostics
 
