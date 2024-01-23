@@ -1,5 +1,32 @@
 # Weekly Updates
 
+## 2024-01-23
+
+This week we've been focusing on work related to the 1.6.1 release, the 1.7.0 release, and on going through our issue backlog.
+
+On an unrelated note, we'll have a stand at FOSDEM and will have OpenTofu t-shirts and stickers, so if you're there, come say hi!
+
+- Current Status and Up Next
+  - The client-side state encryption project is moving forward, and [the first PR](https://github.com/opentofu/opentofu/pull/1063), laying down the groundwork, is almost ready to be merged. It's been going through extensive review, and it's the thing that's blocking us from better parallelising the work on this project. Once that is merged, [the tracking issue](https://github.com/opentofu/opentofu/issues/1030) now contains a list of subtasks that we'll be working on next in this project.
+  - We're working our way towards the 1.6.1 release, which we hope to get out this week, ideally tomorrow.
+    - We now support [passing variables between run blocks](https://github.com/opentofu/opentofu/pull/1129),
+    - and fixed a bug that's prohibiting [using the `tofu show` command on a legacy state file](https://github.com/opentofu/opentofu/issues/1139).
+    - We're fixing [some edge-cases with running tofu on 32-bit architectures](https://github.com/opentofu/opentofu/issues/1069), mostly relating to unit tests. This is currently a blocker for the inclusion of OpenTofu in the Alpine package repository.
+  - Other than the client-side state encryption project, other 1.7 work is ongoing as well, with
+    - a draft PR already being open and worked on to support [the new `removed` block](https://github.com/opentofu/opentofu/pull/1158),
+    - and work being done on the [support for `for_each` in the `import` block](https://github.com/opentofu/opentofu/issues/1033).
+  - We've been focusing on working down the issue backlog. We've already had two 1h+ meetings since last week, and are planning to continue this twice-a-week cadence until we work the backlog down. We're giving each issue a great deal of thought, so we expect this to take another few weeks.
+    - Expect more accepted, responded-to, or closed issues.
+    - We've also introduced a bunch of labels to better signal the status of each issue.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
+
 ## 2024-01-16
 
 Hey there! Long time no see in these weekly updates! We've skipped them during the holidays and the release week, but now we'll be back to the regular cadence.
