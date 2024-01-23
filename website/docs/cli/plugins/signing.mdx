@@ -17,3 +17,21 @@ is verified at time of installation.
 
 OpenTofu does **NOT** support fetching and using unsigned binaries, but you can manually install
 unsigned binaries. You should take extreme care when doing so as no programatic authentication is performed.
+
+## Environment Variables
+
+### `OPENTOFU_ENFORCE_GPG_VALIDATION=false`
+
+A temporary change has been introduced to skip GPG validation under specific conditions:
+  - **Registry Scope**: This change only affects provider packages from the default registry.
+  - **Key Availability**: GPG validation will be skipped when and only when the provider's GPG keys are not available in the default registry.
+  - **Temporary Measure**: This is a stopgap measure until GPG keys for all providers can be populated in the default registry.
+
+  While this offers operational flexibility, it does reduce the level of security assurance for affected packages. Users who prioritize security should set the `OPENTOFU_ENFORCE_GPG_VALIDATION` environment variable to `true` to enforce GPG validation of all providers.
+
+  **Future Removal**: We intend to remove this feature once all GPG keys are populated in the default registry, reverting to a strict GPG validation process for all providers.
+
+### `OPENTOFU_ENFORCE_GPG_EXPIRATION=false`
+
+Many older keys present in the registry have expired and are no longer strictly valid. Historically, Terraform has not cared about the expiration date of keys in the registry and has ignored that field. When switching to a new crypto library, this functionality was
+made available. For legacy reasons, this is currently disabled by default (set to `false`), but may default to `true` in a future release as workflows are built into the registry for keeping keys up to date.
