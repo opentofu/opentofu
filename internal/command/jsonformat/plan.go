@@ -471,7 +471,6 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			// Some extra context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
-		break
 	case plans.NoOp:
 		if len(resource.PreviousAddress) > 0 && resource.PreviousAddress != resource.Address {
 			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] has moved to [bold]%s[reset]", resource.PreviousAddress, dispAddr))
