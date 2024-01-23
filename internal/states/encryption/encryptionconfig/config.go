@@ -144,29 +144,21 @@ func (k Key) UsesRemoteDefaults() bool {
 
 // Validate checks if the key is a valid configuration key.
 func (k Key) Validate() error {
-	switch k {
-	case KeyDefaultRemote:
-		return nil
-	case KeyBackend:
-		return nil
-	case KeyPlanFile:
-		return nil
-	case KeyStateFile:
-		return nil
-	default:
-		if !k.IsRemoteDataSource() {
-			return fmt.Errorf(
-				"invalid encryption configuration key: %s (must be one of %s or contain a dot to specify a remote state data source)",
-				k,
-				strings.Join(
-					[]string{
-						string(KeyDefaultRemote), string(KeyBackend), string(KeyPlanFile), string(KeyStateFile),
-					}, ", ",
-				),
-			)
-		}
+	if k == KeyDefaultRemote || k == KeyBackend || k == KeyPlanFile || k == KeyStateFile {
 		return nil
 	}
+	if !k.IsRemoteDataSource() {
+		return fmt.Errorf(
+			"invalid encryption configuration key: %s (must be one of %s or contain a dot to specify a remote state data source)",
+			k,
+			strings.Join(
+				[]string{
+					string(KeyDefaultRemote), string(KeyBackend), string(KeyPlanFile), string(KeyStateFile),
+				}, ", ",
+			),
+		)
+	}
+	return nil
 }
 
 var remoteDatasourceRe = regexp.MustCompile(`^[a-z0-9_]+\.[a-z0-9_]+(|\[(\d+|[a-z0-9_]+)])$`)
