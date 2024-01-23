@@ -37,7 +37,7 @@ func injectDefaultNamesIfNotSet(config *Config) {
 func mergeConfigs(defaultConfig *Config, configs ...*Config) *Config {
 	var current *Config
 	for _, deepMergeMe := range configs {
-		current = deepMergeConfig(deepMergeMe, current)
+		current = deepMergeConfig(current, deepMergeMe)
 	}
 	if current != nil {
 		return current
@@ -45,7 +45,7 @@ func mergeConfigs(defaultConfig *Config, configs ...*Config) *Config {
 	return defaultConfig
 }
 
-func deepMergeConfig(addon *Config, base *Config) *Config {
+func deepMergeConfig(base *Config, addon *Config) *Config {
 	if base == nil {
 		return addon
 	}
