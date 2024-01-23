@@ -410,7 +410,7 @@ func TestConfigFieldReader_ComputedSet(t *testing.T) {
 			[]string{"strSet"},
 			FieldReadResult{
 				Value: map[string]interface{}{
-					"2356372769": "foo",
+					"1938594527": "foo",
 				},
 				Exists:   true,
 				Computed: false,

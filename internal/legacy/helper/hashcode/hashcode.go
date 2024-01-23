@@ -10,19 +10,26 @@ import (
 )
 
 // String hashes a string to a unique hashcode.
-//
-// crc32 returns a uint32, but for our use we need
-// a non negative integer. Here we cast to an integer
-// and invert it if the result is negative.
+// Returns a non-negative integer representing the hashcode of the string.
 func String(s string) int {
-	v := int(crc32.ChecksumIEEE([]byte(s)))
-	if v >= 0 {
-		return v
+	// crc32 returns an uint32, so we need to massage it into an int.
+	crc := crc32.ChecksumIEEE([]byte(s))
+	// We need to first squash the result to 32 bits, embracing the overflow
+	// to ensure that there is no difference between 32 and 64-bit
+	// platforms.
+	squashed := int32(crc)
+	// convert into a generic int that is sized as per the architecture
+	systemSized := int(squashed)
+
+	// If the integer is negative, we return the absolute value of the
+	// integer. This is because we want to return a non-negative integer
+	if systemSized >= 0 {
+		return systemSized
 	}
-	if -v >= 0 {
-		return -v
+	if -systemSized >= 0 {
+		return -systemSized
 	}
-	// v == MinInt
+	// systemSized == MinInt
 	return 0
 }
 
