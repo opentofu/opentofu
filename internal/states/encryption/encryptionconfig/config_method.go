@@ -13,9 +13,9 @@ type MethodConfig struct {
 	// Name specifies which encryption method to use.
 	Name MethodName `json:"name"`
 
-	// Config configures the key provider.
+	// Config configures the encryption method.
 	//
-	// The available values are key provider dependent.
+	// The available values are method dependent.
 	Config map[string]string `json:"config"`
 }
 
