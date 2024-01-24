@@ -395,9 +395,9 @@ func (p *MockProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 
 func (p *MockProvider) ApplyResourceChange(r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
 	p.Lock()
+	defer p.Unlock()
 	p.ApplyResourceChangeCalled = true
 	p.ApplyResourceChangeRequest = r
-	p.Unlock()
 
 	if !p.ConfigureProviderCalled {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("Configure not called before ApplyResourceChange %q", r.TypeName))
@@ -464,9 +464,13 @@ func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateReques
 	}
 
 	if p.ImportResourceStateResponse != nil {
-		resp = *p.ImportResourceStateResponse
+		// There's no guarantee that the imported resources slice isn't being read somewhere else
+		// As such, any changes we make on it (including through pointers) would lead to data races.
+		// To avoid that, copy and make changes on the copy
+		resp.ImportedResources = make([]providers.ImportedResource, len(p.ImportResourceStateResponse.ImportedResources))
+
 		// fixup the cty value to match the schema
-		for i, res := range resp.ImportedResources {
+		for i, res := range p.ImportResourceStateResponse.ImportedResources {
 			schema, ok := p.getProviderSchema().ResourceTypes[res.TypeName]
 			if !ok {
 				resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no schema found for %q", res.TypeName))
