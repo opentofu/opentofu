@@ -1,6 +1,6 @@
 # Technical Steering Committee (TSC) Summary  
 
-The Technical Steering Committee is a group comprised of people from companies and projects backing OpenTofu. It’s purpose is to have the final decision on any technical matters concerning the OpenTofu project, providing a model of governance that benefits the community as a whole, as opposed to being guided by any single company. The current members of the steering committee are:
+The Technical Steering Committee is a group comprised of people from companies and projects backing OpenTofu. Its purpose is to have the final decision on any technical matters concerning the OpenTofu project, providing a model of governance that benefits the community as a whole, as opposed to being guided by any single company. The current members of the steering committee are:
 
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) representing Scalr Inc.
 - Marcin Wyszynski ([@marcinwyszynski](https://github.com/marcinwyszynski)) representing Spacelift Inc.
