@@ -81,6 +81,17 @@ func ParseRemoveEndpoint(traversal hcl.Traversal) (*RemoveEndpoint, tfdiags.Diag
 		return nil, diags
 	}
 
+	if riAddr.Resource.Mode == DataResourceMode {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Data source address is not allowed",
+			Detail:   "Data sources cannot be destroyed, and therefore, 'removed' blocks are not allowed to target them. To remove data sources from the state, you can remove the data source block from the configuration.",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
+
+		return nil, diags
+	}
+
 	return &RemoveEndpoint{
 		RelSubject:  riAddr,
 		SourceRange: rng,
