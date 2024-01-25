@@ -262,10 +262,10 @@ func realMain() int {
 
 	// Build the CLI so far, we do this so we can query the subcommand.
 	cliRunner := &cli.CLI{
-		Args:       args,
-		Commands:   commands,
-		HelpFunc:   helpFunc,
-		HelpWriter: os.Stdout,
+		Args:           args,
+		Commands:       commands,
+		HelpFunc:       helpFunc,
+		HelpWriter:     os.Stdout,
 		HiddenCommands: hiddenAliasCommands,
 	}
 
@@ -300,12 +300,12 @@ func realMain() int {
 	// Rebuild the CLI with any modified args.
 	log.Printf("[INFO] CLI command args: %#v", args)
 	cliRunner = &cli.CLI{
-		Name:       binName,
-		Args:       args,
-		Commands:   commands,
+		Name:           binName,
+		Args:           args,
+		Commands:       commands,
 		HiddenCommands: hiddenAliasCommands,
-		HelpFunc:   helpFunc,
-		HelpWriter: os.Stdout,
+		HelpFunc:       helpFunc,
+		HelpWriter:     os.Stdout,
 
 		Autocomplete:          true,
 		AutocompleteInstall:   "install-autocomplete",
