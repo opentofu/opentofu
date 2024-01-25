@@ -1,0 +1,39 @@
+---
+sidebar_position: 100
+sidebar_label: Compatibility
+description: |-
+  Compatibility between OpenTofu and Terraform
+---
+
+This page details compatibility between OpenTofu and Terraform. If you see a feature that you'd like to see supported, please check the [OpenTofu issues](https://github.com/opentofu/opentofu/issues).
+
+## Core
+
+| Feature                                 | OpenTofu           | Terraform |
+|-----------------------------------------|--------------------|-----------|
+| [`tofu test`](/docs/cli/commands/test/) | 1.6.0              | 1.6.0     |
+| `removed` block                         | 1.7.0 (unreleased) | 1.7.0     |
+| Use `for_each` to expand `import`       | 1.7.0 (unreleased) | 1.7.0     |
+
+## `tofu test`
+
+| Feature                                                         | OpenTofu                                                  | Terraform                                                    |
+|-----------------------------------------------------------------|-----------------------------------------------------------|--------------------------------------------------------------|
+| Expression support in the `id` field of the `import` block      | 1.6.0                                                     | 1.6.0                                                        |
+| Test `run` blocks can reference previous block's module outputs | [1.6.1](https://github.com/opentofu/opentofu/issues/1045) | 1.6.0                                                        |
+| `mock_provider`                                                 | -                                                         | 1.7.0                                                        |
+| `override_resources`                                            | -                                                         | 1.7.0                                                        |
+| `override_data`                                                 | -                                                         | 1.7.0                                                        |
+| `override_module`                                               | -                                                         | 1.7.0                                                        |
+| Providers can reference variables from their configuration      | -                                                         | [1.7.0](https://github.com/hashicorp/terraform/pull/34069)   |
+| Providers can reference outputs from run blocks                 | -                                                         | [1.7.0](https://github.com/hashicorp/terraform/issues/34118) |
+| Use Terraform functions in variables and provider blocks        | -                                                         | [1.7.0](https://github.com/hashicorp/terraform/issues/34204) |
+
+
+## S3 backend
+
+| Feature                                                                              | OpenTofu | Terraform |
+|--------------------------------------------------------------------------------------|----------|-----------|
+| Add the `skip_requesting_account_id` parameter to support non-AWS S3 implementations | -        | 1.6.1     |
+| Add the `skip_s3_checksum ` parameter                                                | -        | 1.6.2     |
+| Add the `endpoints.sso` parameter                                                    | -        | 1.6.4     |
