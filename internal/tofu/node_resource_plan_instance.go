@@ -50,7 +50,19 @@ type NodePlannableResourceInstance struct {
 
 	// importTarget, if populated, contains the information necessary to plan
 	// an import of this resource.
-	importTarget ImportTarget
+	importTarget EvaluatedConfigImportTarget
+}
+
+// EvaluatedConfigImportTarget is a target that we need to import. It's created when an import target originated from
+// an import block, after everything regarding the configuration has been evaluated.
+// At this point, the import target is of a single resource instance
+type EvaluatedConfigImportTarget struct {
+	// Config is the original import block for this import. This might be null
+	// if the import did not originate in config.
+	Config *configs.Import
+
+	// ID is the string ID of the resource to import. This is resource-instance specific.
+	ID string
 }
 
 var (
@@ -159,18 +171,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		}
 	}
 
-	importing := n.importTarget.ID != nil
-	var importId string
-
-	if importing {
-		var evalDiags tfdiags.Diagnostics
-
-		importId, evalDiags = evaluateImportIdExpression(n.importTarget.ID, ctx)
-		if evalDiags.HasErrors() {
-			diags = diags.Append(evalDiags)
-			return diags
-		}
-	}
+	importing := n.importTarget.ID != ""
 
 	if importing && n.Config == nil && len(n.generateConfigPath) == 0 {
 		// Then the user wrote an import target to a target that didn't exist.
@@ -198,7 +199,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// If the resource is to be imported, we now ask the provider for an Import
 	// and a Refresh, and save the resulting state to instanceRefreshState.
 	if importing {
-		instanceRefreshState, diags = n.importState(ctx, addr, importId, provider, providerSchema)
+		instanceRefreshState, diags = n.importState(ctx, addr, n.importTarget.ID, provider, providerSchema)
 	} else {
 		var readDiags tfdiags.Diagnostics
 		instanceRefreshState, readDiags = n.readResourceInstanceState(ctx, addr)
@@ -308,7 +309,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		}
 
 		if importing {
-			change.Importing = &plans.Importing{ID: importId}
+			change.Importing = &plans.Importing{ID: n.importTarget.ID}
 		}
 
 		// FIXME: here we udpate the change to reflect the reason for
@@ -507,7 +508,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	}))
 
 	if imported[0].TypeName == "" {
-		diags = diags.Append(fmt.Errorf("import of %s didn't set type", n.importTarget.Addr.String()))
+		diags = diags.Append(fmt.Errorf("import of %s didn't set type", n.Addr.String()))
 		return nil, diags
 	}
 
@@ -526,7 +527,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	// refresh
 	riNode := &NodeAbstractResourceInstance{
-		Addr: n.importTarget.Addr,
+		Addr: n.Addr,
 		NodeAbstractResource: NodeAbstractResource{
 			ResolvedProvider: n.ResolvedProvider,
 		},
@@ -550,7 +551,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 					"is correct and that it is associated with the provider's "+
 					"configured region or endpoint, or use \"tofu apply\" to "+
 					"create a new remote object for this resource.",
-				n.importTarget.Addr,
+				n.Addr,
 			),
 		))
 		return instanceRefreshState, diags

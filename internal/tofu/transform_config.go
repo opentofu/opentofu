@@ -4,7 +4,6 @@
 package tofu
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -102,7 +101,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// Only include import targets that are targeting the current module.
 	var importTargets []*ImportTarget
 	for _, target := range t.importTargets {
-		if targetModule := target.Addr.Module.Module(); targetModule.Equal(config.Path) {
+		if targetModule := target.StaticAddr().Module; targetModule.Equal(config.Path) {
 			importTargets = append(importTargets, target)
 		}
 	}
@@ -122,7 +121,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 		var matchedIndices []int
 		for ix, i := range importTargets {
-			if target := i.Addr.ContainingResource().Config(); target.Equal(configAddr) {
+			if target := i.StaticAddr(); target.Equal(configAddr) {
 				// This import target has been claimed by an actual resource,
 				// let's make a note of this to remove it from the targets.
 				matchedIndices = append(matchedIndices, ix)
@@ -173,12 +172,14 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	for _, i := range importTargets {
 		// The case in which an unmatched import block targets an expanded
 		// resource instance can error here. Others can error later.
-		if i.Addr.Resource.Key != addrs.NoKey {
-			return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", i.Addr)
-		}
+		// FIXME - This validation needs to move elsewhere, as we probably cannot tell here whether the
+		//   resource will have a key or not
+		//if i.Addr.Resource.Key != addrs.NoKey {
+		//	return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", i.Addr)
+		//}
 
 		abstract := &NodeAbstractResource{
-			Addr:               i.Addr.ConfigResource(),
+			Addr:               i.StaticAddr(),
 			importTargets:      []*ImportTarget{i},
 			generateConfigPath: generateConfigPath,
 		}
