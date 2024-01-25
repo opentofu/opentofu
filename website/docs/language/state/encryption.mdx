@@ -1,0 +1,180 @@
+---
+sidebar_label: Encryption
+description: >-
+  Encrypt state and plan files to guard sensitive secrets.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+
+# State and Plan File Encryption
+
+State files can contain sensitive information, such as access keys or private keys. Without encryption, this data is
+stored in a plain text file on your computer or on a [remote backend](remote.mdx). Encryption allows you to protect
+state and plan files by specifying an encryption key directly, or by using a key management system such as OpenBao,
+Azure Key Vault, AWS KMS, or the Google Cloud KMS.
+
+:::note
+
+If you are using a cloud provider to run OpenTofu, the provider may need partial or full access to your state or plan
+files. Please consult the documentation of your provider for details on encryption support.
+
+:::
+
+## Setting up encryption
+
+You can specify the encryption settings in your code or as an environment variable. You can also specify a partial
+configuration in your code and provide the missing parts in an environment variable. We recommend specifying sensitive
+details in environment variables and setting the `enforced` option to `true` in your code.
+
+### Encrypting local state and plan files
+
+<Tabs>
+  <TabItem value="code" label="Code" default>
+    <CodeBlock language="hcl">{`terraform{
+  state_encryption {
+    statefile {
+      key_provider {
+        # Key provider settings here, see documentation below.
+      }
+      method {
+        # Encryption method here, see documentation below.
+      }
+      enforced = true|false
+    }
+
+    planfile {
+      key_provider {
+        # Key provider settings here, see documentation below.
+      }
+      method {
+        # Encryption method here, see documentation below.
+      }
+      enforced = true|false
+    }
+  }
+}`}</CodeBlock>
+  </TabItem>
+  <TabItem value="env" label="Environment">
+    TODO: why not provide a generic env override for HCL code?
+    <CodeBlock language="shell">{`$ export TF_STATE_ENCRYPTION="""{
+  // TODO this should be "statefile", just like the HCL code.
+  "local": {
+    "method": {...},
+    "key_provider": {...}
+  },
+  // TODO this should be "planfile", just like the HCL code
+  "plan": {
+    "method": {...},
+    "key_provider": {...}
+  }
+}"""
+$ tofu apply`}</CodeBlock>
+  </TabItem>
+</Tabs>
+
+### Encrypting state for backends
+
+<Tabs>
+    <TabItem value="code" label="Code" default>
+        <CodeBlock language="hcl">{`terraform{
+  state_encryption {
+    backend  {
+      key_provider {
+        # Key provider settings here, see documentation below.
+      }
+      method {
+        # Encryption method here, see documentation below.
+      }
+      enforced = true|false
+    }
+  }
+}`}</CodeBlock>
+    </TabItem>
+    <TabItem value="env" label="Environment">
+        TODO: why not provide a generic env override for HCL code?
+        <CodeBlock language="shell">{`$ export TF_STATE_ENCRYPTION="""{
+  "backend": {
+    "method": {...},
+    "key_provider": {...}
+  },
+}"""
+$ tofu apply`}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+### Reading encrypted state using `terraform_remote_state`
+
+<Tabs>
+    <TabItem value="code" label="Code" default>
+        <CodeBlock language="hcl">{`data "terraform_remote_state" "foo" {
+  # Normal settings for the terraform_remote_state here.
+
+  state_encryption {
+    key_provider {
+      # Key provider settings here, see documentation below.
+    }
+    method {
+      # Encryption method here, see documentation below.
+    }
+    enforced = true|false
+  }
+}`}</CodeBlock>
+    </TabItem>
+    <TabItem value="env" label="Environment">
+        <CodeBlock language="shell">{`$ export TF_STATE_ENCRYPTION="""{
+  "terraform_remote_state.foo": {
+    "method": {...},
+    "key_provider": {...}
+  },
+}"""
+$ tofu apply`}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+## Key providers
+
+All key provider settings have the following options:
+
+
+<Tabs>
+    <TabItem value="code" label="Code" default>
+        <CodeBlock language="hcl">{`key_provider {
+  name = "key-provider-name"
+  config = {
+    # More options here
+  }
+}`}</CodeBlock>
+    </TabItem>
+    <TabItem value="env" label="Environment">
+        <CodeBlock language="shell">{`"key_provider": {
+  "name": "key-provider-name",
+  "config": {
+    // More options here
+  }
+}"""`}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+### Direct
+
+The `direct` key provider allows you to specify a 64-byte hex-encoded encryption key directly.
+
+TODO this makes no sense. What if the encryption method isn't working with a 32-byte encryption key? What if it works
+with an RSA private key?
+
+### Passphrase
+
+The `passphrase` key provider allows you to create a kbkdf2 derivate key from a freely chosen passphrase.
+
+TODO this makes no sense. What if the encryption method isn't working with a 32-byte encryption key? What if it works
+with an RSA private key?
+
+### AWS KMS
+
+
+
+## Methods
+
+## Migrating state encryption, reverting to unencrypted state files

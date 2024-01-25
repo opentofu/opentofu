@@ -1339,6 +1339,7 @@
       { "title": "Locking", "path": "language/state/locking" },
       { "title": "Workspaces", "path": "language/state/workspaces" },
       { "title": "Remote State", "path": "language/state/remote" },
+      { "title": "Encryption", "path": "language/state/encryption" },
       {
         "title": "Sensitive Data",
         "path": "language/state/sensitive-data"
