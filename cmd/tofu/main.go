@@ -266,6 +266,7 @@ func realMain() int {
 		Commands:   commands,
 		HelpFunc:   helpFunc,
 		HelpWriter: os.Stdout,
+		HiddenCommands: hiddenAliasCommands,
 	}
 
 	// Prefix the args with any args from the EnvCLI
@@ -302,6 +303,7 @@ func realMain() int {
 		Name:       binName,
 		Args:       args,
 		Commands:   commands,
+		HiddenCommands: hiddenAliasCommands,
 		HelpFunc:   helpFunc,
 		HelpWriter: os.Stdout,
 

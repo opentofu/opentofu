@@ -49,6 +49,12 @@ var primaryCommands []string
 // hiddenCommands set, because that would be rather silly.
 var hiddenCommands map[string]struct{}
 
+// hiddenAliasCommands are the sub commands that should be hidden when the cli
+// package runs the HelpFunc.  If you have sub commands that you
+// need to keep from cluttering the Subcommand output in the
+// help function, add them here
+var hiddenAliasCommands []string
+
 // Ui is the cli.Ui used for communicating to the outside world.
 var Ui cli.Ui
 
@@ -116,8 +122,7 @@ func initCommands(
 	// some cases, though, we'd like to have mulitiple aliases to a single
 	// command; we could still open-code those, but it'd be a bit cleaner
 	// to define them just once.
-	// The original idea for this fix was from ajf-firstup and is
-	// an elegant solution
+	// The original idea for this fix was from ajf-firstup
 
 	stateListCommandFactory := func() (cli.Command, error) {
 		return &command.StateListCommand{
@@ -394,13 +399,13 @@ func initCommands(
 		},
 
 		"state list": stateListCommandFactory,
-		"state ls":   stateListCommandFactory,
+		"state ls": stateListCommandFactory,
 
 		"state remove": stateRemoveCommandFactory,
-		"state rm":     stateRemoveCommandFactory,
+		"state rm": stateRemoveCommandFactory,
 
 		"state move": stateMoveCommandFactory,
-		"state mv":   stateMoveCommandFactory,
+		"state mv": stateMoveCommandFactory,
 
 		"state pull": func() (cli.Command, error) {
 			return &command.StatePullCommand{
@@ -449,6 +454,12 @@ func initCommands(
 		"env":             {},
 		"internal-plugin": {},
 		"push":            {},
+	}
+
+	hiddenAliasCommands = []string {
+		"state ls",
+		"state rm",
+		"state mv",
 	}
 }
 
