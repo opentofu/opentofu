@@ -33,9 +33,21 @@ permissions:
 
 jobs:
   unit-tests:
-    name: "Unit Tests"
-    runs-on: ubuntu-latest
-
+    name: Unit tests for ${{ matrix.goos }}_${{ matrix.goarch }}
+    runs-on: ${{ matrix.runson }}
+    strategy:
+      matrix:
+        include:
+          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm64" }
+          - { runson: macos-latest, goos: darwin, goarch: "amd64" }
+          # - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          # - { runson: windows-latest, goos: windows, goarch: "386" }
+          # https://github.com/opentofu/opentofu/issues/1201 if fixed
+          #  ^ un-comment the two windows-latest lines
+      fail-fast: false
     steps:
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
