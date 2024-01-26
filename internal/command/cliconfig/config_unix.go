@@ -44,8 +44,8 @@ func configDir() (string, error) {
 	}
 
 	configDir := filepath.Join(dir, ".terraform.d")
-	if !pathExists(configDir) {
-		configDir = filepath.Join(lookupEnv("XDG_CONFIG_HOME", filepath.Join(dir, defaultConfigDir)), "opentofu")
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(configDir) {
+		configDir = filepath.Join(xdgDir, "opentofu")
 	}
 
 	return configDir, nil

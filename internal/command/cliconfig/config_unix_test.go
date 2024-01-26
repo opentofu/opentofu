@@ -61,9 +61,9 @@ func TestConfigFileConfigDir(t *testing.T) {
 			expect:        filepath.Join(homeDir, ".terraformrc"),
 		},
 		{
-			name:     "configDir: use XDG default",
+			name:     "configDir: use .terraform.d default",
 			testFunc: configDir,
-			expect:   filepath.Join(homeDir, defaultConfigDir, "opentofu"),
+			expect:   filepath.Join(homeDir, ".terraform.d"),
 		},
 		{
 			name:          "configDir: prefer .terraform.d",
