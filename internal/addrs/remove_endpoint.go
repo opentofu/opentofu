@@ -28,29 +28,6 @@ type RemoveEndpoint struct {
 	RelSubject ConfigRemovable
 }
 
-func (e *RemoveEndpoint) String() string {
-	// Our internal pseudo-AbsMoveable representing the relative
-	// address (either ModuleInstance or AbsResourceInstance) is
-	// a good enough proxy for the relative move endpoint address
-	// serialization.
-	return e.RelSubject.String()
-}
-
-func (e *RemoveEndpoint) Equal(other *RemoveEndpoint) bool {
-	switch {
-	case (e == nil) != (other == nil):
-		return false
-	case e == nil:
-		return true
-	default:
-		// Since we only use ModuleInstance and AbsResourceInstance in our
-		// string representation, we have no ambiguity between address types
-		// and can safely just compare the string representations to
-		// compare the RelSubject values.
-		return e.String() == other.String() && e.SourceRange == other.SourceRange
-	}
-}
-
 // ParseRemoveEndpoint attempts to interpret the given traversal as a
 // "remove endpoint" address, which is a relative path from the module containing
 // the traversal to a removable object in either the same module or in some
