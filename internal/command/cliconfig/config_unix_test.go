@@ -36,9 +36,9 @@ func TestConfigFileConfigDir(t *testing.T) {
 			expect:   filepath.Join(homeDir, ".terraformrc"),
 		},
 		{
-			name:     "configFile: use default XDG config directory",
+			name:     "configFile: use default fallback",
 			testFunc: configFile,
-			expect:   filepath.Join(homeDir, defaultConfigDir, "opentofu", "tofurc"),
+			expect:   filepath.Join(homeDir, ".tofurc"),
 		},
 		{
 			name:          "configFile: use XDG tofurc",
@@ -108,27 +108,17 @@ func TestDataDirs(t *testing.T) {
 		expect      []string
 	}{
 		{
-			name:        "use custom XDG data dir",
+			name:        "use XDG data dir",
 			xdgDataHome: filepath.Join(homeDir, "xdg"),
 			expect: []string{
 				filepath.Join(homeDir, ".terraform.d"),
-				filepath.Join(homeDir, defaultDataDir, "opentofu"),
 				filepath.Join(homeDir, "xdg", "opentofu"),
 			},
 		},
 		{
-			name:        "XDG data home with default value",
-			xdgDataHome: filepath.Join(homeDir, defaultDataDir),
+			name: "use default",
 			expect: []string{
 				filepath.Join(homeDir, ".terraform.d"),
-				filepath.Join(homeDir, defaultDataDir, "opentofu"),
-			},
-		},
-		{
-			name: "no XDG data home value",
-			expect: []string{
-				filepath.Join(homeDir, ".terraform.d"),
-				filepath.Join(homeDir, defaultDataDir, "opentofu"),
 			},
 		},
 	}
