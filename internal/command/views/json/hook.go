@@ -320,8 +320,6 @@ func startActionVerb(action plans.Action) string {
 		// passes for create and delete
 		return "Replacing"
 	case plans.Forget:
-		// This is not currently possible to reach, as we receive separate
-		// passes for create and delete
 		return "Forgetting"
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
