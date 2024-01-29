@@ -558,10 +558,17 @@ EOF
 # This function installs OpenTofu via the yum command line utility. It returns $TOFU_INSTALL_EXIT_CODE_INSTALL_REQUIREMENTS_NOT_MET
 # if yum is not available.
 install_yum() {
-  if ! command_exists "yum"; then
+  RPM_PACKAGE_MANAGER=""
+  if command_exists "dnf"; then
+    RPM_PACKAGE_MANAGER="dnf"
+  elif command_exists "yum"; then
+    RPM_PACKAGE_MANAGER="yum"
+  else
+    log_error "Neither yum nor dnf found. Unable to install OpenTofu."
     return "${TOFU_INSTALL_EXIT_CODE_INSTALL_REQUIREMENTS_NOT_MET}"
   fi
-  log_info "Installing OpenTofu using yum..."
+  
+  log_info "Installing OpenTofu using ${RPM_PACKAGE_MANAGER}..."
   if [ "${SKIP_VERIFY}" -ne "1" ]; then
     GPGCHECK=1
     GPG_URL="${RPM_GPG_URL}"
@@ -609,8 +616,8 @@ EOF
       return "${TOFU_INSTALL_EXIT_CODE_INSTALL_FAILED}"
     fi
   done
-  if ! as_root yum install -y tofu; then
-    log_error "Failed to install tofu via yum."
+  if ! as_root ${RPM_PACKAGE_MANAGER} install -y tofu; then
+    log_error "Failed to install tofu via ${RPM_PACKAGE_MANAGER}."
     return "${TOFU_INSTALL_EXIT_CODE_INSTALL_FAILED}"
   fi
   if ! tofu --version; then
