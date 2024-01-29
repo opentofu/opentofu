@@ -10,7 +10,9 @@ import (
 
 type Import struct {
 	ID hcl.Expression
-	To addrs.AbsResourceInstance
+	// FIXME Change the type of To
+	To    addrs.AbsResourceInstance
+	ToHCL hcl.Expression // FIXME fill in ToHCL
 
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
@@ -40,6 +42,7 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 			diags = append(diags, toDiags.ToHCL()...)
 			imp.To = to
 		}
+		imp.ToHCL = attr.Expr
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
