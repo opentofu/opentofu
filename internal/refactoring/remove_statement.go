@@ -95,7 +95,7 @@ func validateRemoveStatements(cfg *configs.Config, removeStatements []*RemoveSta
 					Severity: hcl.DiagError,
 					Summary:  "Removed resource block still exists",
 					Detail: fmt.Sprintf(
-						"This statement declares a removal of the resource %s, but it still exists in the configuration. Please remove the resource block.",
+						"This statement declares a removal of the resource %s, but this resource block still exists in the configuration. Please remove the resource block.",
 						fromAddr,
 					),
 					Subject: rs.DeclRange.ToHCL().Ptr(),
@@ -107,7 +107,7 @@ func validateRemoveStatements(cfg *configs.Config, removeStatements []*RemoveSta
 					Severity: hcl.DiagError,
 					Summary:  "Removed module block still exists",
 					Detail: fmt.Sprintf(
-						"This statement declares a removal of the %s, but it still exists in the configuration. Please remove the module block.",
+						"This statement declares a removal of the module %s, but this module block still exists in the configuration. Please remove the module block.",
 						fromAddr,
 					),
 					Subject: rs.DeclRange.ToHCL().Ptr(),
