@@ -2,7 +2,7 @@
 
 Welcome and thank you for wanting to contribute! 
 
-## In a hurry? Here's the short version:
+## Get started
 
 - Have a question? 💬 Post it in [GitHub Discussions](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack](https://opentofu.org/slack/)!
 - Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
@@ -26,160 +26,129 @@ We specifically do not merge PRs **without prior issues** that:
 - Fix linter warnings for tools not currently in the CI pipeline
 - Add new CI tooling
 
-## Long version
+---
 
-This repository contains OpenTofu Core, which includes the command line interface, the main graph engine, and the documentation for them.
+## Writing code for OpenTofu
 
-This document provides guidance on OpenTofu contribution recommended practices. It covers how to submit issues, how to get involved in the discussion, how to work on the code, and how to contribute code changes.
+Eager to get started on coding? Here's the short version:
 
-The easiest way to contribute is by [opening an issue](https://github.com/opentofu/opentofu/issues/new/choose)! Bug reports, broken compatibility reports, feature requests, old issue reposts, and well-prepared RFCs are all very welcome.
-
-All major changes to OpenTofu Core go through the public RFC process, including those proposed by the core team. Thus, if you'd like to propose such a change, please prepare an RFC, so that the community can discuss the change and everybody has a chance to voice their opinion. You're also welcome to voice your own opinion on existing RFCs! You can find them by [going to the issues view and filtering by the rfc label](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Arfc).
-
-Generally, we appreciate external contributions very much and would love to work with you on them. **However, please make sure to read the [Contributing a Code Change](#contributing-a-code-change) section prior to making a contribution.**
+1. Set up a Go development environment with Git.
+2. Pay attention to copyright: write the code yourself, avoid copy/paste. Disable or limit your AI coding assistant.
+3. Run the tests with `go test` in the package you are working on.
+4. Build OpenTofu by running `go build ./cmd/tofu`.
+5. Update [the changelog](CHANGELOG.md).
+6. When you commit, use `git commit -s` to sign off your commits.
 
 ---
 
-## Core Team
+### Setting up your development environment
 
-The Core Team consists of the individuals in the [MAINTAINERS](MAINTAINERS) file. This team exists as stewards of OpenTofu: to triage issues, to implement features, to help with and review community contributions, and to communicate with the Technical Steering Committee.
+You can develop OpenTofu on any platform you like. However, some tests are currently failing on Windows, so we recommend either a Linux (WSL works) or MacOS build environment. You will need to install [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
 
-### Issue Triaging
-
-As issues are filed in the OpenTofu project, they go through a processes driven by the Core Team.  This process is in place to prevent duplicate work and to ensure that a discussion happens before work is contributed to avoid frustration.
-
-Steps:
-* Issue is filed and given the `pending-decision` label and an additional label to identify their type (`bug`, `enhancement`, `rfc`).
-* Issue will first be discussed between the Core Team and the community to iron out any missing details.
-* Once the Issue is well understood, the Core Team may decide to accept it, reject it, or pass the decision along to the [Technical Steering Committee](https://github.com/opentofu/opentofu/blob/main/TSC_SUMMARY.md) (`pending-steering-committee-decision`).
-  - Occasionally, the Core Team may wait to make a decision to gauge the level of community interest and will add the label `needs-community-input`.
-  - To advocate for an issue, give it a reaction and/or add a comment.
-* If Accepted:
-  - It will have the `pending-decision` label removed and the `accepted` label added.
-  - The Core Team may assign one of their members to work on it or may wait for a community member to ask for it to be assigned to them.
-  - It may sometimes be labeled with `help-wanted` or `good-first-issue` when the Core Team hopes that someone in the community will be able to pitch in and help on it.
-* If Rejected:
-  - Not all issues will make it into OpenTofu, but the decision process should be clear and documented.
-  - The issue will be closed.
-
+If you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](.devcontainer.json) instead of installing the tools directly on your machine. In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if you were [building natively](#building-natively) on Linux.
 
 ---
 
-<!-- MarkdownTOC autolink="true" -->
+### Building OpenTofu
 
-- [Contributing a Code Change](#contributing-a-code-change)
-- [Working on the Code](#working-on-the-code)
-- [Adding or updating dependencies](#adding-or-updating-dependencies)
-- [Acceptance Tests: Testing interactions with external services](#acceptance-tests-testing-interactions-with-external-services)
-- [Generated Code](#generated-code)
+There are two ways to build OpenTofu: natively and in a container. Building natively means you are building directly where your code is located without dynamically creating a container. In contrast, building in a container means you are using a build container to run the build process only.
 
-<!-- /MarkdownTOC -->
+#### Building natively
 
-## Contributing a Code Change
-
-In order to contribute a code change, you should fork the repository, make your changes, and then submit a pull request. Crucially, all code changes should be preceded by an issue that you've been assigned to. If an issue for the change you'd like to introduce already exists, please communicate in the issue that you'd like to take ownership of it. If an issue doesn't yet exist, please create one expressing your interest in working on it and discuss it first, prior to working on the code. Code changes without a related issue will generally be rejected.
-
-**⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
-
-In order for a code change to be accepted, you'll also have to accept the Developer Certificate of Origin (DCO). It's very lightweight, and you can find it [here](https://developercertificate.org). Accepting is accomplished by signing off on your commits, you can do this by adding a `Signed-off-by` line to your commit message, like here:
-```
-This is my commit message
-
-Signed-off-by: Random Developer <random@developer.example.org>
-```
-Git has a built-in flag to append this line automatically:
-```
-~> git commit -s -m 'This is my commit message'
-```
-
-You can find more details about the DCO checker in the [DCO app repo](https://github.com/dcoapp/app).
-
-Additionally, please update [the changelog](CHANGELOG.md) if you're making any user-facing changes.
-
-## Working on the Code
-
-If you wish to work on the OpenTofu CLI source code, you'll first need to install the [Git](https://git-scm.com/) version control system. Use Git to clone this repository into a location of your choice. OpenTofu uses [Go Modules](https://blog.golang.org/using-go-modules), and so you should *not* clone it inside your `GOPATH`.
-
-After that, you can either install the [Go](https://golang.org/) compiler locally, or use [Docker](https://www.docker.com/) to build in a container. At this time the OpenTofu development environment targets only Linux and MacOS systems. While OpenTofu itself is compatible with Windows, unfortunately the unit test suite currently contains Unix-specific assumptions around maximum path lengths, path separators, etc. This means that using Docker is the best option if working on Windows.
-
-If using Visual Studio Code or Goland/IntelliJ, a [devcontainer](.devcontainer.json) is included which integrates directly with Docker. In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension, then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if [building natively](#building-natively) on Linux.
-
-If not using the devcontainer (if using an incompatible IDE), you can still still build with Docker (and thus need not install any dependencies locally) by running docker commands directly. See the [Building with Docker](#building-with-docker) section.
-
-### Building Natively
-
-Refer to the file [`.go-version`](.go-version) to see which version of Go OpenTofu is currently built with. Other versions will often work, but if you run into any build or testing problems please try with the specific Go version indicated. You can optionally simplify the installation of multiple specific versions of Go on your system by installing [`goenv`](https://github.com/syndbg/goenv), which reads `.go-version` and automatically selects the correct Go version.
-
-### Build with Go
-
-Switch into the root directory of the cloned repository and build OpenTofu using the Go toolchain in the standard way:
+To build OpenTofu natively, you will need to install Go in the environment you are running in. You can then run the `go build` command from your OpenTofu source directory as follows:
 
 ```sh
-cd opentofu
-go install ./cmd/tofu
+GOOS=linux GOARCH=amd64 go build -o tofu -v -buildvcs=false ./cmd/tofu
 ```
 
-The first time you run the `go install` command, the Go toolchain will download any library dependencies that you don't already have in your Go modules cache. Subsequent builds will be faster because these dependencies will already be available on your local disk.
+This command will produce a `tofu` binary in your current directory, which you can test by running `./tofu --version`.
 
-Once the compilation process succeeds, you can find a `tofu` executable in the Go executable directory. If you haven't overridden it with the `GOBIN` environment variable, the executable directory is the `bin` directory inside the directory returned by the following command:
+> [!TIP]
+> Replace the `GOOS` and `GOARCH` values with your target platform if you wish to cross-compile.
 
+#### Building in a container
+
+If you have Docker or Podman installed, you can run the entire build process in a container too:
+
+```sh
+docker run \
+  --rm \
+  -v "$PWD":/usr/src/opentofu\
+  -w /usr/src/opentofu golang:1.21.3\
+  GOOS=linux GOARCH=amd64 go build -o tofu -v -buildvcs=false ./cmd/tofu
 ```
-go env GOPATH
-```
 
-If you are planning to make changes to the OpenTofu source code, you should run the unit test suite before you start to make sure everything is initially passing:
+This will create the `opentofu` binary in the current working directory, which you can test by running `./tofu --version`.
 
-```
+> [!TIP]
+> Replace the `GOOS` and `GOARCH` values with your target platform if you wish to cross-compile. 
+
+---
+
+### Running tests
+
+Similar to builds, you can use the `go test` command to run tests. To run the entire test suite, please run the following command in your OpenTofu source directory:
+
+```sh
 go test ./...
 ```
 
-As you make your changes, you can re-run the above command to ensure that the tests are *still* passing. If you are working only on a specific Go package, you can speed up your testing cycle by testing only that single package, or packages under a particular package prefix:
+Alternatively, you can also run the `go test` command in the package you are currently working on.
+
+---
+
+### Updating the changelog
+
+We are keeping track of the changes to OpenTofu in the [CHANGELOG.md](CHANGELOG.md) file. Please update it when you add features or fix bugs in OpeTofu.
+
+---
+
+### Signing off your commits
+
+When you contribute code to OpenTofu, we require you to add a [Developer Certificate of Origin](https://developercertificate.org/) sign-off. Please read the DCO carefully before you proceed and only contribute code you have written yourself. Please do not add code that you have not written from scratch yourself without discussing it in the related issue first.
+
+The simplest way to add a sign-off is to use the `-s` command when you commit:
 
 ```
-go test ./internal/command/...
-go test ./internal/addrs
+git commit -s -m "My commit message"
 ```
 
-### Building with Docker
+> [!IMPORTANT]
+> Make sure your `user.name` and `user.email` setting in Git matches your GitHub settings. This will allow the automated DCO check to pass and avoid delays when merging your PR.
 
-The easiest way to get started with Docker on Windows and MacOS is using [Docker Desktop](https://www.docker.com/products/docker-desktop/), though other solutions exist. On Linux, follow the steps to [install Docker Engine](https://docs.docker.com/engine/install/) and run the [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/). Then to build, run:
+> [!TIP]
+> Have you forgotten your sign-off? You can use `git rebase --signoff` to add it after the fact.
 
-```sh
-docker run --rm -v "$PWD":/usr/src/opentofu -w /usr/src/opentofu golang:1.20.7 GOOS=linux GOARCH=amd64 go build -v -buildvcs=false .
-```
+---
 
-Replace the values for `GOOS` snd `GOARCH` with those of your preferred target, e.g. `GOOS=windows` to build a Windows binary.
+### A note on copyright
 
-This will create the `opentofu` binary in the current working directory, which you can run with `./opentofu --version` or [move it to $PATH](https://ubuntuforums.org/showthread.php?t=1056425) for Linux to find it running just `opentofu --version`.
+We take copyright and intellectual property very seriously. A few quick rules should help you:
 
-## Adding or updating dependencies
+1. You should write most, if not all of your code yourself.
+2. Do not copy code from other authors without permission. If you have permission, always add the `Co-authored-by` sign-off to your commits.
+3. When you copy/paste code from within the OpenTofu code, always make it explicit where you copied from.
+4. When you copy from external sources, always make explicit where your copy is coming from and make sure that their license and copyright attribution requirements are met.
+5. Specifically, do not copy from the Terraform repository, or any PRs filed against that repository. Doing so will immediately disqualify your PR from being merged.
 
-If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](.licensei.toml).
+> [!WARNING]
+> Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot are awesome tools to help. However, in the specific case of OpenTofu the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training source, they may emit copyrighted code. Please avoid using LLM-based coding assistants as much as possible. If your PR is found to contain code matching Terraform, your PR will be rejected, and you will not be permitted to work on that feature.
 
-To help verifying this in local development environment and in continuous integration, we use the [licensei](https://github.com/goph/licensei) open source tool.
+---
 
-After modifying `go.mod` or `go.sum` files, you can run it manually with:
+## Advanced topics
 
-```
-export GITHUB_TOKEN=changeme
-make license-check
-```
+### Acceptance Tests: Testing interactions with external services
 
-Note: you need to define the `GITHUB_TOKEN` environment variable to a valid GitHub personal access token, or you will hit rate limiting from the GitHub API which `licensei` uses to discover the licenses of dependencies.
+The test command above only runs the self-contained tests that run without external services. There are, however, some optional tests in the OpenTofu CLI codebase that *do* interact with external services. We collectively refer to them as "acceptance tests".
 
-## Acceptance Tests: Testing interactions with external services
-
-OpenTofu's unit test suite is self-contained, using mocks and local files to help ensure that it can run offline and is unlikely to be broken by changes to outside systems.
-
-However, several OpenTofu components interact with external services.
-
-There are some optional tests in the OpenTofu CLI codebase that *do* interact with external services, which we collectively refer to as "acceptance tests". You can enable these by setting the environment variable `TF_ACC=1` when running the tests. We recommend focusing only on the specific package you are working on when enabling acceptance tests, both because it can help the test run to complete faster and because you are less likely to encounter failures due to drift in systems unrelated to your current goal:
+You can enable these by setting the environment variable `TF_ACC=1` when running the tests. We recommend focusing only on the specific package you are working on when enabling acceptance tests, both because it can help the test run to complete faster and because you are less likely to encounter failures due to drift in systems unrelated to your current goal:
 
 ```
 TF_ACC=1 go test ./internal/initwd
 ```
 
-Because the acceptance tests depend on services outside of the OpenTofu codebase, and because the acceptance tests are usually used only when making changes to the systems they cover, it is common and expected that drift in those external systems will cause test failures. Because of this, prior to working on a system covered by acceptance tests it's important to run the existing tests for that system in an *unchanged* work tree first and respond to any test failures that preexist, to avoid misinterpreting such failures as bugs in your new changes.
+---
 
 ### Integration Tests: Testing interactions with external backends
 
@@ -199,7 +168,9 @@ For example, execute the command to run integration tests with s3 backend:
 make test-s3
 ```
 
-## Generated Code
+---
+
+### Generated Code
 
 Some files in the OpenTofu CLI codebase are generated. In most cases, we update these using `go generate`, which is the standard way to encapsulate code generation steps in a Go codebase.
 
@@ -207,10 +178,123 @@ Some files in the OpenTofu CLI codebase are generated. In most cases, we update 
 go generate ./...
 ```
 
-Use `git diff` afterwards to inspect the changes and ensure that they are what you expected.
+Use `git diff` afterward to inspect the changes and ensure that they are what you expected.
 
 OpenTofu includes generated Go stub code for the OpenTofu provider plugin protocol, which is defined using Protocol Buffers. Because the Protocol Buffers tools are not written in Go and thus cannot be automatically installed using `go get`, we follow a different process for generating these, which requires that you've already installed a suitable version of `protoc`:
 
 ```
 make protobuf
 ```
+
+---
+
+### Adding or updating dependencies
+
+If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](.licensei.toml).
+
+To help verifying this in local development environment and in continuous integration, we use the [licensei](https://github.com/goph/licensei) open source tool.
+
+After modifying `go.mod` or `go.sum` files, you can run it manually with:
+
+```
+export GITHUB_TOKEN=changeme
+make license-check
+```
+
+Note: you need to define the `GITHUB_TOKEN` environment variable to a valid GitHub personal access token, or you will hit rate limiting from the GitHub API which `licensei` uses to discover the licenses of dependencies.
+
+---
+
+### Backporting
+
+All changes to OpenTofu should, by default, go into the `main` branch. When a fix is important enough, it will be backported to a version branch and release when the next minor release rolls around.
+
+Start the backporting process by making sure both the `main` and the target version branch are up-to-date in your working copy. Look up the commit ID of the commit and then switch to your target version branch. Now create a new branch from that version branch:
+
+```sh
+git checkout -b backports/ISSUE_NUMBER
+```
+
+Now you can cherry-pick the commit in question to your backport branch:
+
+```sh
+git cherry-pick -s COMMIT_ID_HERE
+```
+
+Finally, create an additional commit to edit the changelog and send in your PR. 
+
+---
+
+## FAQ
+
+### Who decides if a feature will be implemented and how is that decision made?
+
+When you submit an enhancement request, the [core team](#who-is-the-core-team) looks at your issue first. Given the size of the code, adding a new feature is always a careful balancing act. The core team takes the following points into consideration:
+
+1. **Is it possible to implement this on a technical level?**<br />Sometimes, even if a feature would be extremely useful, the state of the codebase doesn't let us do it. 
+2. **Does the feature cause more technical debt?**<br />A feature request may hide a larger issue under the hood. Sometimes it is more desirable to resolve the underlying issue instead of implementing the feature in isolation.
+3. **Is there someone who would do the work?**<br />The core team doesn't have the capacity to implement everything, so for many issues community contributions are very welcome. Sometimes companies external to OpenTofu decide to sponsor development of a specific larger feature, which can also weigh in on the decision-making process.
+4. **Is there enough capacity on the core team to support a community contributor?**<br />We don't expect contributors to implement the entire feature in isolation, we actively participate with planning, reviews and writing documentation as needed.
+5. Does this feature enable someone to **do something new with OpenTofu** they were not able to do before?<br />We prioritize work based on community input and need. An issue with a large number of reactions is more likely to make it into the accepted phase, but if a viable workaround or tool exists, the feature is less likely to be accepted. If a feature is just the integration of a cool technology, but doesn't solve any problems for a large number of people, it will be rejected.
+
+Depending on the core team's review, a feature request can have the following outcomes:
+
+1. **The feature is accepted for development by the core team.** This means that the core team will schedule it for an upcoming release and develop it.
+2. **The feature is accepted and open for community contributions.** The core team adds a `help wanted` label and waits for community volunteers to develop it.
+3. **More information is needed.** The core team will either add questions in comments, or when there is a deep technical issue to be resolved, call for an RFC to detail a possible implementation.
+4. **More community input is needed.** When an issue is, on its surface, valuable, but there is no track record of a large portion of the community needing it, the core team adds the `needs community input` label. If you are interested in the feature and would like to use it, please add a reaction to the issue and add a description on specifically what problem it would solve for you in a comment.
+5. **The feature is rejected.** If based on the criteria above it is not feasible to implement the feature, the core team closes the issue with an explanation why it is being closed.
+6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the core team adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file.
+
+---
+
+### What do the labels mean?
+
+- `pending decision`: there is no decision if this issue will be implemented yet. You can show your support for this issue by commenting on it and describing what implementing this issue would solve for you.
+- `pending steering committee decision`: the core team has referred this issue to the Technical Steering Committee for a decision.
+- `accepted`: the issue is accepted for development by either the core team or a community contributor. Please check if it's assigned to someone and comment on the issue if you want to work on it.
+- `help wanted`: this issue is open for community contributions. Please check if it's assigned to someone and comment on the issue if you want to work on it.
+- `good first issue`: this issue is relatively simple. If you are looking for a first contribution, this may be for you. Please check if it's assigned to someone and comment on the issue if you want to work on it.
+- `bug`: it's broken and needs to be fixed.
+- `enhancement`: it's a short-form feature request. If the implementation path is unclear, an `rfc` may be needed in addition.
+- `documentation`: something that needs a description on the OpenTofu website.
+- `rfc`: a long-form feature request with a detail on how exactly it should be implemented.
+- `question`: the core team needs more information on the issue to decide.
+- `needs community input`: the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
+- `need rfc`: this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
+
+---
+
+### Can you implement X in the language?
+
+The OpenTofu language is based on the [HCL language](https://github.com/hashicorp/hcl) and the [cty typing system](https://github.com/zclconf/go-cty). Since both are available under an open source license and we prefer to keep compatibility as much as possible, we currently don't maintain a fork of these libraries. Language features may need to be implemented in HCL or cty and if that is the case, we can't implement them.
+
+---
+
+### I don't like HCL, can you replace it?
+
+HCL is baked into every corner of the OpenTofu codebase, so is here to stay. However, you can use the [JSON configuration syntax](https://opentofu.org/docs/language/syntax/json/) to write your code in JSON instead of HCL.
+
+---
+
+### Can you fix a bug in or add a feature to the Hashicorp providers, such as AWS, Azure, etc.?
+
+We currently only maintain a read-only mirror of these providers for the purposes of building binaries for the OpenTofu registry which would otherwise not be available. They are not true downstream versions we can add patches to and OpenTofu users expect them to work the same as the upstream versions. In short: no, we cannot fix bugs or add features to these providers.
+
+---
+
+### Can you fork project X?
+
+Currently, we are at capacity for development and do not have additional capacity to take on additional projects unless necessary for the continued work on OpenTofu. While the final determination lies with the [Technical Steering Committee](#who-is-the-technical-steering-committee), the answer is likely no in almost all cases.
+
+---
+
+### Who is the core team?
+
+Core team members are full time developers sponsored by the participating companies. You can find the list of core developers in the [MAINTAINERS](MAINTAINERS) file. Their role is to triage issues, work on feature development, help plan, review, and document community contributions, support the community, and refer feature requests to the Technical Steering Committee.
+
+---
+
+### Who is the Technical Steering Committee?
+
+The Technical Steering Committee consists of one delegate from each company sponsoring the OpenTofu core team. You can find their names in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file. Their role is to decide on larger commitments of core developer time, as well as long-term strategic issues.
