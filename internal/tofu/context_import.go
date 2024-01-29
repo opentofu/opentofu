@@ -4,6 +4,7 @@
 package tofu
 
 import (
+	"github.com/hashicorp/hcl/v2"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -48,7 +49,7 @@ type ImportTarget struct {
 	*CommandLineImportTarget
 }
 
-// StaticAddr returns the static address of an import target
+// StaticAddr returns the static address part of an import target
 // For an ImportTarget originating from the command line, the address is already known
 // However for an ImportTarget originating from an import block, the full address might not be known initially,
 // and could only be evaluated down the line. Here, we create a static representation for the address.
@@ -62,12 +63,45 @@ func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 	return i.Config.To.ConfigResource()
 }
 
-// ResolvedImports is a struct that maintains a map of all imports as they are being resolved
+// ResolvedAddr returns the resolved address of an import target, if possible. If not possible, returns an HCL diag
+// For an ImportTarget originating from the command line, the address is already known
+// However for an ImportTarget originating from an import block, the full address might not be known initially,
+// and could only be evaluated down the line. Here, we attempt to resolve the address as though it is a static absolute
+// traversal, if that's possible
+func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evaluationDiags hcl.Diagnostics) {
+	if i.CommandLineImportTarget != nil {
+		address = i.CommandLineImportTarget.Addr
+	} else {
+		// TODO change this later, when Config.To is not a static address
+		address = i.Config.To
+
+		//traversal, traversalDiags := hcl.AbsTraversalForExpr(i.Config.ToHCL)
+		//evaluationDiags = append(evaluationDiags, traversalDiags...)
+		//if !traversalDiags.HasErrors() {
+		//	var toDiags tfdiags.Diagnostics
+		//	address, toDiags = addrs.ParseAbsResourceInstance(traversal)
+		//	evaluationDiags = append(evaluationDiags, toDiags.ToHCL()...)
+		//}
+	}
+	return
+}
+
+// ResolvedConfigImportsKey is a key for a map of ImportTargets originating from the configuration
+// It is used as a one-to-one representation of an EvaluatedConfigImportTarget.
+// Used in ResolvedImports to maintain a map of all resolved imports when walking the graph
+type ResolvedConfigImportsKey struct {
+	// An address string is one-to-one with addrs.AbsResourceInstance
+	AddrStr string
+	ID      string
+}
+
+// ResolvedImports is a struct that maintains a map of all imports as they are being resolved.
+// This is specifically for imports originating from configuration.
 // Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
-// the graph. This struct helps keep track of the resolved imports, for tracking
-// (mostly for validation that all imports have been addressed and point to an actual configuration)
+// the graph. This struct helps keep track of the resolved imports, mostly for validation that all imports
+// have been addressed and point to an actual configuration
 type ResolvedImports struct {
-	imports map[ResolvedConfigImportTarget]bool
+	imports map[ResolvedConfigImportsKey]bool
 }
 
 // Import takes already-created external resources and brings them

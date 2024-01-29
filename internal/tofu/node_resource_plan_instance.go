@@ -61,23 +61,6 @@ type EvaluatedConfigImportTarget struct {
 	// if the import did not originate in config.
 	Config *configs.Import
 
-	// Addr is the address for the resource instance that the new object should
-	// be imported into.
-	Addr addrs.AbsResourceInstance // FIXME validate no duplicates?
-
-	// ID is the string ID of the resource to import. This is resource-instance specific.
-	ID string
-}
-
-// FIXME comments
-// ResolvedConfigImportTarget is a target that we need to import. It's created when an import target originated from
-// an import block, after everything regarding the configuration has been evaluated.
-// At this point, the import target is of a single resource instance
-type ResolvedConfigImportTarget struct {
-	// Addr is the address for the resource instance that the new object should
-	// be imported into.
-	AddrStr string // FIXME validate no duplicates?
-
 	// ID is the string ID of the resource to import. This is resource-instance specific.
 	ID string
 }

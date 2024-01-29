@@ -309,7 +309,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	// FIXME - Deal with cases of duplicate addresses
 
 	for _, importTarget := range n.importTargets {
-		// TODO maybe make behaviour with resolved here align with command line imports?
 		if importTarget.CommandLineImportTarget != nil {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
@@ -324,7 +323,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			})
 
 			resolvedImports := ctx.ResolvedImports().imports
-			resolvedImports[ResolvedConfigImportTarget{
+			resolvedImports[ResolvedConfigImportsKey{
 				AddrStr: importTarget.Config.To.String(),
 				ID:      importId,
 			}] = true

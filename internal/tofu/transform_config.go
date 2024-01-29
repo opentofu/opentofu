@@ -5,8 +5,6 @@ package tofu
 
 import (
 	"fmt"
-	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -173,22 +171,9 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// TODO: We could actually catch and process these kind of problems earlier,
 	//   this is something that could be done during the Validate process.
 	for _, i := range importTargets {
-		// FIXME - Encapsulate better the case of CommandLine importTarget vs Config importTarget
-		var address addrs.AbsResourceInstance
-		var evaluationDiags hcl.Diagnostics
-
-		if i.CommandLineImportTarget != nil {
-			address = i.CommandLineImportTarget.Addr
-		} else {
-			traversal, traversalDiags := hcl.AbsTraversalForExpr(i.Config.ToHCL)
-			evaluationDiags = append(evaluationDiags, traversalDiags...)
-			if !traversalDiags.HasErrors() {
-				var toDiags tfdiags.Diagnostics
-				address, toDiags = addrs.ParseAbsResourceInstance(traversal)
-				evaluationDiags = append(evaluationDiags, toDiags.ToHCL()...)
-			}
-		}
-
+		// We should only allow config generation for static addresses
+		// If config generation has been attempted for a non static address - we will fail here
+		address, evaluationDiags := i.ResolvedAddr()
 		if evaluationDiags.HasErrors() {
 			return evaluationDiags
 		}
