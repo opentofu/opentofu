@@ -8,12 +8,12 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// RemoveEndpoint is to ConfigMoveable what Target is to Targetable:
+// RemoveEndpoint is to ConfigRemovable what Target is to Targetable:
 // a wrapping struct that captures the result of decoding an HCL
 // traversal representing a relative path from the current module to
 // a removable object. It is very similar to MoveEndpoint.
 //
-// Its purpose is for the "from" address in a "removed" statement
+// Its purpose is to represent the "from" address in a "removed" block
 // in the configuration.
 //
 // To obtain a full address from a RemoveEndpoint we need to combine it
