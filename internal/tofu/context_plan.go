@@ -526,30 +526,38 @@ func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactor
 // All import target addresses with a key must already exist in config.
 // When we are able to generate config for expanded resources, this rule can be
 // relaxed.
-func (c *Context) postPlanValidateImports(config *configs.Config, importTargets []*ImportTarget, allInst instances.Set) tfdiags.Diagnostics {
-	// FIXME - Fix this post plan validation that imports have all been satisfied by a resource
-	//   From now on import targets can represent multiple response instances, so we'd need a way to figure out what
-	//   those instances were
+func (c *Context) postPlanValidateImports(resolvedImports *ResolvedImports, allInst instances.Set) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	//for _, it := range importTargets {
-	//	// We only care about import target addresses that have a key.
-	//	// If the address does not have a key, we don't need it to be in config
-	//	// because are able to generate config.
-	//	if it.Addr.Resource.Key == nil {
-	//		continue
-	//	}
-	//
-	//	if !allInst.HasResourceInstance(it.Addr) {
-	//		diags = diags.Append(tfdiags.Sourceless(
-	//			tfdiags.Error,
-	//			"Cannot import to non-existent resource address",
-	//			fmt.Sprintf(
-	//				"Importing to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.",
-	//				it.Addr,
-	//			),
-	//		))
-	//	}
-	//}
+	for resolvedImport := range resolvedImports.imports {
+		// We only care about import target addresses that have a key.
+		// If the address does not have a key, we don't need it to be in config
+		// because are able to generate config.
+		address, addrParseDiags := addrs.ParseAbsResourceInstanceStr(resolvedImport.AddrStr)
+		if addrParseDiags.HasErrors() {
+			return addrParseDiags
+		}
+
+		// We only care about import target addresses that have a key.
+		// If the address does not have a key, we don't need it to be in config
+		// because are able to generate config.
+		if address.Resource.Key == nil {
+			continue
+		}
+
+		// TODO - validate behaviour with generateConfig
+
+		// TODO make this error not Sourceless
+		if !allInst.HasResourceInstance(address) {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Cannot import to non-existent resource address",
+				fmt.Sprintf(
+					"Importing to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.",
+					address,
+				),
+			))
+		}
+	}
 	return diags
 }
 
@@ -607,7 +615,7 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 
 	allInsts := walker.InstanceExpander.AllInstances()
 
-	importValidateDiags := c.postPlanValidateImports(config, opts.ImportTargets, allInsts)
+	importValidateDiags := c.postPlanValidateImports(walker.ResolvedImports, allInsts)
 	if importValidateDiags.HasErrors() {
 		return nil, importValidateDiags
 	}

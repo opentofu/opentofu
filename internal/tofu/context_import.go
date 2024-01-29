@@ -62,6 +62,14 @@ func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 	return i.Config.To.ConfigResource()
 }
 
+// ResolvedImports is a struct that maintains a map of all imports as they are being resolved
+// Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
+// the graph. This struct helps keep track of the resolved imports, for tracking
+// (mostly for validation that all imports have been addressed and point to an actual configuration)
+type ResolvedImports struct {
+	imports map[ResolvedConfigImportTarget]bool
+}
+
 // Import takes already-created external resources and brings them
 // under OpenTofu management. Import requires the exact type, name, and ID
 // of the resources to import.

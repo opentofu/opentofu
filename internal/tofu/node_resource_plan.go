@@ -5,12 +5,11 @@ package tofu
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"strings"
 )
 
 // nodeExpandPlannableResource represents an addrs.ConfigResource and implements
@@ -307,8 +306,10 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 	var commandLineImportTargets []CommandLineImportTarget
 	var evaluatedConfigImportTargets []EvaluatedConfigImportTarget
+	// FIXME - Deal with cases of duplicate addresses
 
 	for _, importTarget := range n.importTargets {
+		// TODO maybe make behaviour with resolved here align with command line imports?
 		if importTarget.CommandLineImportTarget != nil {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
@@ -321,6 +322,13 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				Config: importTarget.Config,
 				ID:     importId,
 			})
+
+			resolvedImports := ctx.ResolvedImports().imports
+			resolvedImports[ResolvedConfigImportTarget{
+				AddrStr: importTarget.Config.To.String(),
+				ID:      importId,
+			}] = true
+
 		}
 	}
 
@@ -369,6 +377,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				// If we get here, we're definitely not in legacy import mode,
 				// so go ahead and plan the resource changes including import.
 				m.importTarget = evaluatedConfigImportTarget
+				break
 			}
 		}
 
