@@ -12,6 +12,7 @@ import RpmConvenienceScript from '!!raw-loader!./rpm-convenience.sh'
 import YumRepoScript from '!!raw-loader!./repo-yum.sh'
 import ZypperRepoScript from '!!raw-loader!./repo-zypper.sh'
 import YumInstallScript from '!!raw-loader!./install-yum.sh'
+import DNFInstallScript from '!!raw-loader!./install-dnf.sh'
 import ZypperInstallScript from '!!raw-loader!./install-zypper.sh'
 import Buildkite from "./buildkite";
 
@@ -34,7 +35,7 @@ The following steps explain how to set up the OpenTofu RPM repositories. These i
 ### Adding the OpenTofu repository
 
 <Tabs>
-    <TabItem value="redhat" label="Yum (RHEL/Fedora/etc.)" default>
+    <TabItem value="redhat" label="Yum/DNF (RHEL/Fedora/etc.)" default>
         Create the <code>/etc/yum.repos.d/opentofu.repo</code> file by running the following command:
         <CodeBlock language={"bash"}>{YumRepoScript}</CodeBlock>
     </TabItem>
@@ -49,7 +50,10 @@ The following steps explain how to set up the OpenTofu RPM repositories. These i
 Now you install OpenTofu by running:
 
 <Tabs>
-    <TabItem value="redhat" label="Yum (RHEL/Fedora/etc)" default>
+    <TabItem value="redhat-dnf" label="DNF (RHEL/Fedora/etc)" default>
+        <CodeBlock language={"bash"}>{DNFInstallScript}</CodeBlock>
+    </TabItem>
+    <TabItem value="redhat-yum" label="Yum (RHEL/Fedora/etc)">
         <CodeBlock language={"bash"}>{YumInstallScript}</CodeBlock>
     </TabItem>
     <TabItem value="opensuse-leap" label="Zypper (openSUSE)">
