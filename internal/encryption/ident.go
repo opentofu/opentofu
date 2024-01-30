@@ -1,6 +1,9 @@
 package encryption
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	ConfigKeyProvider = "key_provider"
@@ -16,6 +19,15 @@ func KeyProviderAddr(provider string, name string) string {
 	return fmt.Sprintf("key_provider.%s.%s", provider, name)
 }
 
+func KeyProviderType(ident string) string {
+	// TODO defense
+	return strings.Split(ident, ".")[1]
+}
+
 func MethodAddr(method string, name string) string {
 	return fmt.Sprintf("method.%s.%s", method, name)
+}
+func MethodType(ident string) string {
+	// TODO defense
+	return strings.Split(ident, ".")[1]
 }

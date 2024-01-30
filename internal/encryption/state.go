@@ -7,3 +7,8 @@ type State interface {
 	// Validation is performed that the decrypted []byte is some sort of json object
 	DecryptState([]byte) ([]byte, error)
 }
+
+func NewState(methods []Method) State {
+	// TODO
+	return nil
+}

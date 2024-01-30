@@ -271,7 +271,6 @@ The top level interface is responsible for taking the `encryption` HCL block and
 type EncryptionRegistry interface {
 	RegisterKeyProvider(KeyProvider) error
 	RegisterMethod(Method) error
-
 }
 
 // Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
