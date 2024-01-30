@@ -1066,10 +1066,7 @@ func TestCloud_applyWithAutoApprove(t *testing.T) {
 func TestCloud_applyForceLocal(t *testing.T) {
 	// Set TF_FORCE_LOCAL_BACKEND so the cloud backend will use
 	// the local backend with itself as embedded backend.
-	if err := os.Setenv("TF_FORCE_LOCAL_BACKEND", "1"); err != nil {
-		t.Fatalf("error setting environment variable TF_FORCE_LOCAL_BACKEND: %v", err)
-	}
-	defer os.Unsetenv("TF_FORCE_LOCAL_BACKEND")
+	t.Setenv("TF_FORCE_LOCAL_BACKEND", "1")
 
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
