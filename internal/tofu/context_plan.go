@@ -540,18 +540,8 @@ func (c *Context) postPlanValidateImports(resolvedImports *ResolvedImports, allI
 			return addrParseDiags
 		}
 
-		// TODO - validate behaviour with generateConfig
-
-		// TODO make this error not Sourceless
 		if !allInst.HasResourceInstance(address) {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Cannot import to non-existent resource address", // TODO - align the error message with terraform?
-				fmt.Sprintf(
-					"Importing to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.",
-					address,
-				),
-			))
+			diags = diags.Append(importResourceWithoutConfigDiags(address, nil))
 		}
 	}
 	return diags

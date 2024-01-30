@@ -186,14 +186,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			// You can't generate config for a resource that is inside a
 			// module, so we will present a different error message for
 			// this case.
-			// TODO - This validation might not technically be necessary anymore, as we check for this in transform_config.go
-			// TODO - Align this with terraform
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Import block target does not exist",
-				Detail:   "The target for the given import block does not exist. The specified target is within a module, and must be defined as a resource within that module before anything can be imported.",
-				Subject:  n.importTarget.Config.DeclRange.Ptr(),
-			})
+			diags = diags.Append(importResourceWithoutConfigDiags(n.Addr, n.importTarget.Config))
 		}
 		return diags
 	}

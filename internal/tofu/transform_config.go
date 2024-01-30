@@ -5,6 +5,7 @@ package tofu
 
 import (
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -202,9 +203,24 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 			g.Add(node)
 		} else {
-			return fmt.Errorf("Cannot import to non-existent resource address\n\nImporting to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", address)
+			return importResourceWithoutConfigDiags(address, i.Config)
 		}
 	}
 
 	return nil
+}
+
+// importResourceWithoutConfigDiags creates the common HCL error of an attempted import for a non-existent configuration
+func importResourceWithoutConfigDiags(address addrs.AbsResourceInstance, config *configs.Import) *hcl.Diagnostic {
+	diag := hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Configuration for import target does not exist",
+		Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. All target instances must have an associated configuration to be imported.", address),
+	}
+
+	if config != nil {
+		diag.Subject = config.DeclRange.Ptr()
+	}
+
+	return &diag
 }
