@@ -5028,6 +5028,30 @@ resource "test_object" "a" {
 `,
 			},
 		},
+		{
+			Description: "Existent module key, non-existent resource key",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["existent"].test_object.b
+  id   = "123"
+}
+
+module "mod" {
+  for_each = {
+    existent = "1"
+    existent_two = "2"
+  }
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+		},
 	}
 
 	for _, configuration := range configurations {
@@ -5044,9 +5068,21 @@ resource "test_object" "a" {
 			_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
 				Mode: plans.NormalMode,
 			})
+
 			if !diags.HasErrors() {
 				t.Fatalf("expected error")
 			}
+
+			var errNum int
+			for _, diag := range diags {
+				if diag.Severity() == tfdiags.Error {
+					errNum++
+				}
+			}
+			if errNum > 1 {
+				t.Fatalf("expected a single error, but got %d", errNum)
+			}
+
 			if !strings.Contains(diags.Err().Error(), "Configuration for import target does not exist") {
 				t.Fatalf("expected error to be \"Configuration for import target does not exist\", but it was %s", diags.Err().Error())
 			}
