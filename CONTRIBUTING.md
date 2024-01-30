@@ -132,7 +132,7 @@ We take copyright and intellectual property very seriously. A few quick rules sh
 5. Specifically, do not copy from the Terraform repository, or any PRs filed against that repository. Doing so will immediately disqualify your PR from being merged.
 
 > [!WARNING]
-> Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot are awesome tools to help. However, in the specific case of OpenTofu the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training source, they may emit copyrighted code. Please avoid using LLM-based coding assistants as much as possible. If your PR is found to contain code matching Terraform, your PR will be rejected, and you will not be permitted to work on that feature.
+> Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot, are awesome tools to help. However, in the specific case of OpenTofu the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training source, they may emit copyrighted code. Please avoid using LLM-based coding assistants as much as possible. If your PR is found to contain code matching Terraform, your PR will be rejected, and you will not be permitted to work on that feature.
 
 ---
 
