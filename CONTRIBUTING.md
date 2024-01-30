@@ -267,7 +267,7 @@ Depending on the core team's review, a feature request can have the following ou
 
 ### Can you implement X in the language?
 
-The OpenTofu language is based on the [HCL language](https://github.com/hashicorp/hcl) and the [cty typing system](https://github.com/zclconf/go-cty). Since both are available under an open source license and we prefer to keep compatibility as much as possible, we currently don't maintain a fork of these libraries. Language features may need to be implemented in HCL or cty and if that is the case, we can't implement them.
+The OpenTofu language is based on the [HCL language](https://github.com/hashicorp/hcl) and the [cty typing system](https://github.com/zclconf/go-cty). Since both are available under an open source license, and we prefer to keep compatibility as much as possible, we currently don't maintain a fork of these libraries. Language features may need to be implemented in HCL or cty and if that is the case, we can't implement them.
 
 ---
 
@@ -279,7 +279,7 @@ HCL is baked into every corner of the OpenTofu codebase, so is here to stay. How
 
 ### Can you fix a bug in or add a feature to the Hashicorp providers, such as AWS, Azure, etc.?
 
-We currently only maintain a read-only mirror of these providers for the purposes of building binaries for the OpenTofu registry which would otherwise not be available. They are not true downstream versions we can add patches to and OpenTofu users expect them to work the same as the upstream versions. In short: no, we cannot fix bugs or add features to these providers.
+We currently only maintain a read-only mirror of these providers for the purposes of building binaries for the OpenTofu registry which would otherwise not be available. They are not true downstream versions that we can add patches to and OpenTofu users expect them to work the same as the upstream versions. In short: no, we cannot fix bugs or add features to these providers.
 
 ---
 
