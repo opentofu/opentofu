@@ -78,7 +78,7 @@ docker run \
   GOOS=linux GOARCH=amd64 go build -o tofu -v -buildvcs=false ./cmd/tofu
 ```
 
-This will create the `opentofu` binary in the current working directory, which you can test by running `./tofu --version`.
+This will create the `tofu` binary in the current working directory, which you can test by running `./tofu --version`.
 
 > [!TIP]
 > Replace the `GOOS` and `GOARCH` values with your target platform if you wish to cross-compile. 
