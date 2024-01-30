@@ -28,13 +28,17 @@ type encryption struct {
 	remote        map[string]State
 }
 
-func New(reg Registry, cfg Config) (Encryption, hcl.Diagnostics) {
+func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	enc := &encryption{
 		keyProviders: make(map[string]KeyProvider),
 		methods:      make(map[string]Method),
 	}
+
+	// BUG: gohcl.DecodeExpression thinks method.foo.bar is a variable.  We will need to build and maintain an EvalContext for this
+	// to function properly.  That'll make this code even more fun, but provide for pretty good errors.  Lots of lessons learned from RFC #1042.
+	// For now, just pass them in as strings
 
 	// This is a hairy ugly monster that is duck-taped together
 	// It is here to show the flow of cfg(reg) -> encryption
@@ -53,7 +57,7 @@ func New(reg Registry, cfg Config) (Encryption, hcl.Diagnostics) {
 		// Prevent circular dependencies
 		for _, s := range stack {
 			if s == name {
-				panic("TODO diags")
+				panic("TODO diags: circular dependency")
 			}
 		}
 		stack = append(stack, name)
@@ -61,7 +65,7 @@ func New(reg Registry, cfg Config) (Encryption, hcl.Diagnostics) {
 		// Lookup definition
 		def := reg.KeyProviders[KeyProviderType(name)]
 		if def == nil {
-			panic("TODO diags")
+			panic("TODO diags: missing key provider")
 		}
 
 		// Decode body -> block
@@ -118,7 +122,7 @@ func New(reg Registry, cfg Config) (Encryption, hcl.Diagnostics) {
 		// Lookup definition
 		def := reg.Methods[MethodType(name)]
 		if def == nil {
-			panic("TODO diags")
+			panic("TODO diags: missing method")
 		}
 
 		// Decode body -> block
@@ -140,7 +144,7 @@ func New(reg Registry, cfg Config) (Encryption, hcl.Diagnostics) {
 
 				dep, ok := enc.keyProviders[depName]
 				if !ok {
-					panic("TODO diags")
+					panic("TODO diags: missing key provider for method")
 				}
 				deps[depName] = dep
 			}
@@ -181,10 +185,10 @@ func New(reg Registry, cfg Config) (Encryption, hcl.Diagnostics) {
 				methods = append(methods, method)
 			} else {
 				// Undefined
-				panic("TODO diags")
+				panic("TODO diags: missing method from target")
 			}
 		} else if target.Enforced {
-			panic("TODO diags")
+			panic("TODO diags: enforced")
 		}
 
 		// Fallback methods

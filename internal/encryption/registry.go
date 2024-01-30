@@ -11,6 +11,13 @@ type Registry struct {
 	Methods      map[string]MethodDefinition
 }
 
+func NewRegistry() Registry {
+	return Registry{
+		KeyProviders: make(map[string]KeyProviderDefinition),
+		Methods:      make(map[string]MethodDefinition),
+	}
+}
+
 type DefinitionSchema struct {
 	BodySchema        *hcl.BodySchema
 	KeyProviderFields []string
