@@ -9,10 +9,8 @@ import (
 )
 
 // TODO: THIS IS NOT PRODUCTION CODE AND HAS NOT BEEN AUDITED.
-type AESCipherMethodDef struct{}
-
-func (m AESCipherMethodDef) Schema() DefinitionSchema {
-	return DefinitionSchema{
+func AESCipherMethod() (DefinitionSchema, MethodProvider) {
+	schema := DefinitionSchema{
 		BodySchema: &hcl.BodySchema{
 			Attributes: []hcl.AttributeSchema{
 				{Name: "cipher", Required: true},
@@ -20,25 +18,22 @@ func (m AESCipherMethodDef) Schema() DefinitionSchema {
 		},
 		KeyProviderFields: []string{"cipher"},
 	}
+
+	return schema, func(content *hcl.BodyContent, keys map[string]KeyData) (Method, hcl.Diagnostics) {
+		// Could probably init the cipher and GCM here?
+		return &AESCipherMethodImpl{
+			key: keys["cipher"],
+		}, nil
+	}
 }
 
-func (m AESCipherMethodDef) Configure(content *hcl.BodyContent, keys map[string]KeyProvider) (Method, hcl.Diagnostics) {
-	key, _ := keys["cipher"]()
-
-	// Could probably init the cipher and GCM here?
-
-	return &AESCipherMethod{
-		key: key,
-	}, nil
-}
-
-type AESCipherMethod struct {
+type AESCipherMethodImpl struct {
 	key []byte
 }
 
 // Inspired by https://bruinsslot.jp/post/golang-crypto/
 
-func (m AESCipherMethod) Encrypt(data []byte) ([]byte, error) {
+func (m AESCipherMethodImpl) Encrypt(data []byte) ([]byte, error) {
 	blockCipher, err := aes.NewCipher(m.key)
 	if err != nil {
 		return nil, err
@@ -58,7 +53,7 @@ func (m AESCipherMethod) Encrypt(data []byte) ([]byte, error) {
 
 	return ciphertext, nil
 }
-func (m AESCipherMethod) Decrypt(data []byte) ([]byte, error) {
+func (m AESCipherMethodImpl) Decrypt(data []byte) ([]byte, error) {
 	blockCipher, err := aes.NewCipher(m.key)
 	if err != nil {
 		return nil, err

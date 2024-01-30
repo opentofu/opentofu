@@ -18,7 +18,7 @@ type Encryption interface {
 
 type encryption struct {
 	// These could technically be local to the ctr, but I've got plans to use them later on in RemoteState
-	keyProviders map[string]KeyProvider
+	keyProviders map[string]KeyData
 	methods      map[string]Method
 
 	stateFile     State
@@ -32,7 +32,7 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	enc := &encryption{
-		keyProviders: make(map[string]KeyProvider),
+		keyProviders: make(map[string]KeyData),
 		methods:      make(map[string]Method),
 	}
 
@@ -46,8 +46,8 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 
 	// Process Key Providers
 
-	var loadKeyProvider func(name string, stack []string) (KeyProvider, hcl.Diagnostics)
-	loadKeyProvider = func(name string, stack []string) (KeyProvider, hcl.Diagnostics) {
+	var loadKeyProvider func(name string, stack []string) (KeyData, hcl.Diagnostics)
+	loadKeyProvider = func(name string, stack []string) (KeyData, hcl.Diagnostics) {
 		if found, ok := enc.keyProviders[name]; ok {
 			return found, nil
 		}
@@ -68,16 +68,18 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 			panic("TODO diags: missing key provider")
 		}
 
+		schema, init := def()
+
 		// Decode body -> block
 		body := cfg.KeyProviders[name]
-		contents, diags := body.Content(def.Schema().BodySchema)
+		contents, diags := body.Content(schema.BodySchema)
 		if diags.HasErrors() {
 			return nil, diags
 		}
 
 		// Required Dependencies
-		deps := make(map[string]KeyProvider)
-		for _, depField := range def.Schema().KeyProviderFields {
+		deps := make(map[string]KeyData)
+		for _, depField := range schema.KeyProviderFields {
 			if attr, ok := contents.Attributes[depField]; ok {
 				var depName string
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &depName)
@@ -96,7 +98,7 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 		}
 
 		// Init Key Provider
-		kp, kpDiags := def.Configure(contents, deps)
+		kp, kpDiags := init(contents, deps)
 		diags = append(diags, kpDiags...)
 		if diags.HasErrors() {
 			return nil, diags
@@ -125,15 +127,17 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 			panic("TODO diags: missing method")
 		}
 
+		schema, init := def()
+
 		// Decode body -> block
-		contents, diags := body.Content(def.Schema().BodySchema)
+		contents, diags := body.Content(schema.BodySchema)
 		if diags.HasErrors() {
 			return nil, diags
 		}
 
 		// Required Dependencies
-		deps := make(map[string]KeyProvider)
-		for _, depField := range def.Schema().KeyProviderFields {
+		deps := make(map[string]KeyData)
+		for _, depField := range schema.KeyProviderFields {
 			if attr, ok := contents.Attributes[depField]; ok {
 				var depName string
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &depName)
@@ -155,7 +159,7 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 
 		// Init Method
 
-		method, methodDiags := def.Configure(contents, deps)
+		method, methodDiags := init(contents, deps)
 		diags = append(diags, methodDiags...)
 		if diags.HasErrors() {
 			return nil, diags
