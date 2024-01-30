@@ -679,7 +679,7 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 }
 
 func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
-	endpointsToForget, forgetDiags := refactoring.GetEndpointsToForget(config)
+	endpointsToRemove, forgetDiags := refactoring.GetEndpointsToRemove(config)
 	if forgetDiags.HasErrors() {
 		return nil, walkPlan, forgetDiags
 	}
@@ -699,7 +699,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			ExternalReferences: opts.ExternalReferences,
 			ImportTargets:      opts.ImportTargets,
 			GenerateConfigPath: opts.GenerateConfigPath,
-			EndpointsToForget:  endpointsToForget,
+			EndpointsToRemove:  endpointsToRemove,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:

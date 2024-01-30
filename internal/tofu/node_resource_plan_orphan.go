@@ -27,11 +27,11 @@ type NodePlannableResourceInstanceOrphan struct {
 	// for any instances.
 	skipPlanChanges bool
 
-	// EndpointsToForget are resource instance addresses where the user wants to
-	// remove from the state. This set isn't pre-filtered, so
+	// EndpointsToRemove are resource instance addresses where the user wants to
+	// forget from the state. This set isn't pre-filtered, so
 	// it might contain addresses that have nothing to do with the resource
 	// that this node represents, which the node itself must therefore ignore.
-	EndpointsToForget []addrs.ConfigRemovable
+	EndpointsToRemove []addrs.ConfigRemovable
 }
 
 var (
@@ -145,7 +145,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 
 	shouldForget := false
 
-	for _, etf := range n.EndpointsToForget {
+	for _, etf := range n.EndpointsToRemove {
 		if etf.TargetContains(n.Addr) {
 			shouldForget = true
 		}

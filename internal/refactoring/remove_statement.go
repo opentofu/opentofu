@@ -19,11 +19,11 @@ type RemoveStatement struct {
 	DeclRange tfdiags.SourceRange
 }
 
-// GetEndpointsToForget recurses through the modules of the given configuration
+// GetEndpointsToRemove recurses through the modules of the given configuration
 // and returns an array of all "removed" addresses within, in a
 // deterministic but undefined order.
 // We also validate that the removed modules/resources configuration blocks were removed.
-func GetEndpointsToForget(rootCfg *configs.Config) ([]addrs.ConfigRemovable, tfdiags.Diagnostics) {
+func GetEndpointsToRemove(rootCfg *configs.Config) ([]addrs.ConfigRemovable, tfdiags.Diagnostics) {
 	rm := findRemoveStatements(rootCfg, nil)
 	diags := validateRemoveStatements(rootCfg, rm)
 	removedAddresses := make([]addrs.ConfigRemovable, len(rm))
