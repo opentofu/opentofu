@@ -3,6 +3,8 @@ package encryption
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/opentofu/opentofu/internal/varhcl"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Encryption contains the methods for obtaining a State or Plan correctly configured for a specific
@@ -18,8 +20,7 @@ type Encryption interface {
 
 type encryption struct {
 	// These could technically be local to the ctr, but I've got plans to use them later on in RemoteState
-	keyProviders map[string]KeyData
-	methods      map[string]Method
+	methods map[string]Method
 
 	stateFile     State
 	planFile      Plan
@@ -32,27 +33,34 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	enc := &encryption{
-		keyProviders: make(map[string]KeyData),
-		methods:      make(map[string]Method),
+		methods: make(map[string]Method),
 	}
-
-	// BUG: gohcl.DecodeExpression thinks method.foo.bar is a variable.  We will need to build and maintain an EvalContext for this
-	// to function properly.  That'll make this code even more fun, but provide for pretty good errors.  Lots of lessons learned from RFC #1042.
-	// For now, just pass them in as strings
 
 	// This is a hairy ugly monster that is duck-taped together
 	// It is here to show the flow of cfg(reg) -> encryption
 	// Please rip out and rewrite this function
 
+	ctx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{},
+	}
+
 	// Process Key Providers
 
-	var loadKeyProvider func(name string, stack []string) (KeyData, hcl.Diagnostics)
-	loadKeyProvider = func(name string, stack []string) (KeyData, hcl.Diagnostics) {
-		if found, ok := enc.keyProviders[name]; ok {
-			return found, nil
+	keyProviders := make(map[string]map[string][]byte)
+	for name := range reg.KeyProviders {
+		keyProviders[name] = make(map[string][]byte)
+	}
+
+	var attemptedKeyProviders []string
+	var loadKeyProvider func(name string, stack []string) hcl.Diagnostics
+	loadKeyProvider = func(name string, stack []string) hcl.Diagnostics {
+		// Have we already tried to load this?
+		for _, kpn := range attemptedKeyProviders {
+			if kpn == name {
+				return nil
+			}
 		}
-		// BUG: early returns here combined with loading from dependencies will cause the same key provider load to be attempted if it is failing
-		// Mostly just a diags issue, but should be fixed at some point with better code
+		attemptedKeyProviders = append(attemptedKeyProviders, name)
 
 		// Prevent circular dependencies
 		for _, s := range stack {
@@ -68,49 +76,66 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 			panic("TODO diags: missing key provider")
 		}
 
-		schema, init := def()
-
-		// Decode body -> block
+		kp := def()
 		body := cfg.KeyProviders[name]
-		contents, diags := body.Content(schema.BodySchema)
-		if diags.HasErrors() {
-			return nil, diags
+
+		// Locate Dependencies
+		deps, depDiags := varhcl.VariablesInBody(body, kp)
+		diags = append(diags, depDiags...)
+		if depDiags.HasErrors() {
+			return diags
 		}
 
 		// Required Dependencies
-		deps := make(map[string]KeyData)
-		for _, depField := range schema.KeyProviderFields {
-			if attr, ok := contents.Attributes[depField]; ok {
-				var depName string
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &depName)
-				diags = append(diags, valDiags...)
-				if valDiags.HasErrors() {
-					continue
-				}
+		for _, dep := range deps {
+			// BUG: this is not defensive in the slightest...
+			depType := (dep[1].(hcl.TraverseAttr)).Name
+			depName := (dep[2].(hcl.TraverseAttr)).Name
+			depIdent := KeyProviderAddr(depType, depName)
 
-				dep, depDiags := loadKeyProvider(depName, stack)
-				diags = append(diags, depDiags...)
-				deps[depField] = dep
-			}
+			depDiags := loadKeyProvider(depIdent, stack)
+			diags = append(diags, depDiags...)
 		}
 		if diags.HasErrors() {
-			return nil, diags
+			return diags
 		}
 
 		// Init Key Provider
-		kp, kpDiags := init(contents, deps)
-		diags = append(diags, kpDiags...)
+		decodeDiags := gohcl.DecodeBody(body, ctx, kp)
+		diags = append(diags, decodeDiags...)
 		if diags.HasErrors() {
-			return nil, diags
+			return diags
 		}
 
-		enc.keyProviders[name] = kp
+		data, err := kp.KeyData()
+		if err != nil {
+			panic(err) // TODO diags
+		}
+		keyProviders[KeyProviderType(name)][KeyProviderName(name)] = data
 
-		return kp, diags
+		// Regen ctx
+		kpMap := make(map[string]cty.Value)
+		for name, kps := range keyProviders {
+			subMap := make(map[string]cty.Value)
+			for kpn, bytes := range kps {
+				// This is super weird, but it works
+				bl := make([]cty.Value, len(bytes))
+				for i, b := range bytes {
+					bl[i] = cty.NumberIntVal(int64(b))
+				}
+
+				subMap[kpn] = cty.ListVal(bl)
+			}
+			kpMap[name] = cty.ObjectVal(subMap)
+		}
+
+		ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
+
+		return diags
 	}
 
 	for name, _ := range cfg.KeyProviders {
-		_, kpd := loadKeyProvider(name, nil)
+		kpd := loadKeyProvider(name, nil)
 		diags = append(diags, kpd...)
 	}
 
@@ -127,40 +152,13 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 			panic("TODO diags: missing method")
 		}
 
-		schema, init := def()
+		method := def()
 
-		// Decode body -> block
-		contents, diags := body.Content(schema.BodySchema)
-		if diags.HasErrors() {
-			return nil, diags
-		}
+		// TODO we could use varhcl here to provider better error messages
 
-		// Required Dependencies
-		deps := make(map[string]KeyData)
-		for _, depField := range schema.KeyProviderFields {
-			if attr, ok := contents.Attributes[depField]; ok {
-				var depName string
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &depName)
-				diags = append(diags, valDiags...)
-				if valDiags.HasErrors() {
-					continue
-				}
+		decodeDiags := gohcl.DecodeBody(body, ctx, method)
+		diags = append(diags, decodeDiags...)
 
-				dep, ok := enc.keyProviders[depName]
-				if !ok {
-					panic("TODO diags: missing key provider for method")
-				}
-				deps[depField] = dep
-			}
-		}
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		// Init Method
-
-		method, methodDiags := init(contents, deps)
-		diags = append(diags, methodDiags...)
 		if diags.HasErrors() {
 			return nil, diags
 		}
@@ -173,6 +171,8 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 		diags = append(diags, mDiags...)
 		enc.methods[name] = method
 	}
+
+	// TODO inject methods into ctx for use in loadTarget
 
 	if diags.HasErrors() {
 		return nil, diags

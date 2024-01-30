@@ -4,37 +4,16 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-
-	"github.com/hashicorp/hcl/v2"
 )
 
-// TODO: THIS IS NOT PRODUCTION CODE AND HAS NOT BEEN AUDITED.
-func AESCipherMethod() (DefinitionSchema, MethodProvider) {
-	schema := DefinitionSchema{
-		BodySchema: &hcl.BodySchema{
-			Attributes: []hcl.AttributeSchema{
-				{Name: "cipher", Required: true},
-			},
-		},
-		KeyProviderFields: []string{"cipher"},
-	}
-
-	return schema, func(content *hcl.BodyContent, keys map[string]KeyData) (Method, hcl.Diagnostics) {
-		// Could probably init the cipher and GCM here?
-		return &AESCipherMethodImpl{
-			key: keys["cipher"],
-		}, nil
-	}
-}
-
-type AESCipherMethodImpl struct {
-	key []byte
+type AESCipherMethod struct {
+	Key []byte `hcl:"cipher"`
 }
 
 // Inspired by https://bruinsslot.jp/post/golang-crypto/
 
-func (m AESCipherMethodImpl) Encrypt(data []byte) ([]byte, error) {
-	blockCipher, err := aes.NewCipher(m.key)
+func (m AESCipherMethod) Encrypt(data []byte) ([]byte, error) {
+	blockCipher, err := aes.NewCipher(m.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +32,8 @@ func (m AESCipherMethodImpl) Encrypt(data []byte) ([]byte, error) {
 
 	return ciphertext, nil
 }
-func (m AESCipherMethodImpl) Decrypt(data []byte) ([]byte, error) {
-	blockCipher, err := aes.NewCipher(m.key)
+func (m AESCipherMethod) Decrypt(data []byte) ([]byte, error) {
+	blockCipher, err := aes.NewCipher(m.Key)
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,11 @@ func KeyProviderType(ident string) string {
 	return strings.Split(ident, ".")[1]
 }
 
+func KeyProviderName(ident string) string {
+	// TODO defense
+	return strings.Split(ident, ".")[2]
+}
+
 func MethodAddr(method string, name string) string {
 	return fmt.Sprintf("method.%s.%s", method, name)
 }

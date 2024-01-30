@@ -1,6 +1,9 @@
 package encryption
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func Test(t *testing.T) {
 	reg := NewRegistry()
@@ -19,7 +22,7 @@ key_provider "passphrase" "basic" {
 	passphrase = "fuzzybunnyslippers"
 }
 method "aes_cipher" "example" {
-	cipher = "key_provider.passphrase.basic"
+	cipher = key_provider.passphrase.basic
 }
 backend {
 	method = "method.aes_cipher.example" # See EvalContext comment in encryption.go
@@ -33,5 +36,13 @@ backend {
 
 	enc, diags := New(reg, cfgA)
 
-	println(enc)
+	for _, d := range diags {
+		println(d.Error())
+	}
+
+	if diags.HasErrors() {
+		t.Error(diags.Error())
+	}
+
+	fmt.Printf("%#v\n", enc)
 }
