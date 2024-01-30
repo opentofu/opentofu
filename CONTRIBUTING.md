@@ -43,7 +43,7 @@ Eager to get started on coding? Here's the short version:
 
 ### Setting up your development environment
 
-You can develop OpenTofu on any platform you like. However, some tests are currently failing on Windows, so we recommend either a Linux (WSL works) or MacOS build environment. You will need to install [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
+You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a MacOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
 
 If you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](.devcontainer.json) instead of installing the tools directly on your machine. In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if you were [building natively](#building-natively) on Linux.
 
