@@ -88,7 +88,7 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 
 				dep, depDiags := loadKeyProvider(depName, stack)
 				diags = append(diags, depDiags...)
-				deps[depName] = dep
+				deps[depField] = dep
 			}
 		}
 		if diags.HasErrors() {
@@ -146,7 +146,7 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 				if !ok {
 					panic("TODO diags: missing key provider for method")
 				}
-				deps[depName] = dep
+				deps[depField] = dep
 			}
 		}
 		if diags.HasErrors() {

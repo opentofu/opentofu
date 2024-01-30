@@ -15,8 +15,14 @@ backend {
 	}
 
 	cfgB, diags := LoadConfigFromString("Test Source B", `
+key_provider "passphrase" "basic" {
+	passphrase = "fuzzybunnyslippers"
+}
+method "aes_cipher" "example" {
+	cipher = "key_provider.passphrase.basic"
+}
 backend {
-	method = "method.foo.bar" # See EvalContext comment in encryption.go
+	method = "method.aes_cipher.example" # See EvalContext comment in encryption.go
 }
 `)
 	if diags.HasErrors() {

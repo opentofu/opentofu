@@ -13,8 +13,12 @@ type Registry struct {
 
 func NewRegistry() Registry {
 	return Registry{
-		KeyProviders: make(map[string]KeyProviderDefinition),
-		Methods:      make(map[string]MethodDefinition),
+		KeyProviders: map[string]KeyProviderDefinition{
+			"passphrase": PassphraseKeyProvider{},
+		},
+		Methods: map[string]MethodDefinition{
+			"aes_cipher": AESCipherMethodDef{},
+		},
 	}
 }
 
@@ -28,6 +32,7 @@ type KeyProviderDefinition interface {
 	Configure(*hcl.BodyContent, map[string]KeyProvider) (KeyProvider, hcl.Diagnostics)
 }
 
+// Question, should this just be a []byte and integrate the error handling into Configure() ?
 type KeyProvider func() ([]byte, error)
 
 type MethodDefinition interface {
