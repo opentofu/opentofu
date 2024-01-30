@@ -178,28 +178,37 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 			return evaluationDiags
 		}
 
-		// The case in which an unmatched import block targets an expanded
-		// resource instance can error here. Others can error later.
-		if address.Resource.Key != addrs.NoKey {
-			return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", address)
-		}
+		// In case of config generation - We can error early here in two cases:
+		// 1. When attempting to import a resource with a key (Config generation for count / for_each resources)
+		// 2. When attempting to import a resource inside a module.
+		if len(generateConfigPath) > 0 {
+			if address.Resource.Key != addrs.NoKey {
+				return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", address)
+			}
 
-		if !address.Module.IsRoot() {
-			return fmt.Errorf("Config generation inside modules is not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance points to a configuration inside of a module. Config generation is only supported for resource in the root module.", address)
-		}
+			// TODO check why this
+			if !address.Module.IsRoot() {
+				return fmt.Errorf("Config generation inside modules is not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance points to a configuration inside of a module. Config generation is only supported for resource in the root module.", address)
+			}
 
-		abstract := &NodeAbstractResource{
-			Addr:               address.ConfigResource(),
-			importTargets:      []*ImportTarget{i},
-			generateConfigPath: generateConfigPath,
-		}
+			// Create a node with the exact resource and import target, whether we have config generation enabled or not
+			// If config generation is enabled, then it will be applied during execution
+			// If it is not, an error will be thrown and handled from the node
+			abstract := &NodeAbstractResource{
+				Addr:               address.ConfigResource(),
+				importTargets:      []*ImportTarget{i},
+				generateConfigPath: generateConfigPath,
+			}
 
-		var node dag.Vertex = abstract
-		if f := t.Concrete; f != nil {
-			node = f(abstract)
-		}
+			var node dag.Vertex = abstract
+			if f := t.Concrete; f != nil {
+				node = f(abstract)
+			}
 
-		g.Add(node)
+			g.Add(node)
+		} else {
+			return fmt.Errorf("Cannot import to non-existent resource address\n\nImporting to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", address)
+		}
 	}
 
 	return nil

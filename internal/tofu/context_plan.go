@@ -6,6 +6,7 @@ package tofu
 import (
 	"bytes"
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
 	"log"
 	"sort"
 	"strings"
@@ -304,6 +305,8 @@ func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts 
 	}
 
 	opts.ImportTargets = c.findImportTargets(config, prevRunState)
+	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets)
+	diags = diags.Append(importTargetDiags)
 	plan, walkDiags := c.planWalk(config, prevRunState, opts)
 	diags = diags.Append(walkDiags)
 
@@ -537,13 +540,6 @@ func (c *Context) postPlanValidateImports(resolvedImports *ResolvedImports, allI
 			return addrParseDiags
 		}
 
-		// We only care about import target addresses that have a key.
-		// If the address does not have a key, we don't need it to be in config
-		// because are able to generate config.
-		if address.Resource.Key == nil {
-			continue
-		}
-
 		// TODO - validate behaviour with generateConfig
 
 		// TODO make this error not Sourceless
@@ -573,6 +569,23 @@ func (c *Context) findImportTargets(config *configs.Config, priorState *states.S
 		}
 	}
 	return importTargets
+}
+
+func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget) (diags tfdiags.Diagnostics) {
+	for _, imp := range importTargets {
+		staticAddress := imp.StaticAddr()
+		descendantConfig := config.Descendent(staticAddress.Module)
+		if descendantConfig == nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Cannot import to non-existent resource address",
+				Detail:   fmt.Sprintf("Importing to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", staticAddress),
+				Subject:  imp.Config.DeclRange.Ptr(),
+			})
+			return
+		}
+	}
+	return
 }
 
 func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
