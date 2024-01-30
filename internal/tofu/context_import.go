@@ -75,14 +75,6 @@ func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evalua
 	} else {
 		// TODO change this later, when Config.To is not a static address
 		address = i.Config.To
-
-		//traversal, traversalDiags := hcl.AbsTraversalForExpr(i.Config.ToHCL)
-		//evaluationDiags = append(evaluationDiags, traversalDiags...)
-		//if !traversalDiags.HasErrors() {
-		//	var toDiags tfdiags.Diagnostics
-		//	address, toDiags = addrs.ParseAbsResourceInstance(traversal)
-		//	evaluationDiags = append(evaluationDiags, toDiags.ToHCL()...)
-		//}
 	}
 	return
 }

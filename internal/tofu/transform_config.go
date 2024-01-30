@@ -188,9 +188,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 				return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", address)
 			}
 
-			// Create a node with the exact resource and import target, whether we have config generation enabled or not
-			// If config generation is enabled, then it will be applied during execution
-			// If it is not, an error will be thrown and handled from the node
+			// Create a node with the resource and import target. This node will take care of the config generation
 			abstract := &NodeAbstractResource{
 				Addr:               address.ConfigResource(),
 				importTargets:      []*ImportTarget{i},
