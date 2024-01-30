@@ -88,10 +88,10 @@ func parseModuleInstancePrefix(traversal hcl.Traversal) (ModuleInstance, hcl.Tra
 	var diags tfdiags.Diagnostics
 
 	for len(remain) > 0 {
-		moduleName, isValidModule, moduleNameDiags := getModuleName(remain)
+		moduleName, isModule, moduleNameDiags := getModuleName(remain)
 		diags = diags.Append(moduleNameDiags)
 
-		if !isValidModule || diags.HasErrors() {
+		if !isModule || diags.HasErrors() {
 			break
 		}
 

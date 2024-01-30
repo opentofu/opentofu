@@ -181,10 +181,10 @@ func parseModulePrefix(traversal hcl.Traversal) (Module, hcl.Traversal, tfdiags.
 	var diags tfdiags.Diagnostics
 
 	for len(remain) > 0 {
-		moduleName, isValidModule, moduleNameDiags := getModuleName(remain)
+		moduleName, isModule, moduleNameDiags := getModuleName(remain)
 		diags = diags.Append(moduleNameDiags)
 
-		if !isValidModule || diags.HasErrors() {
+		if !isModule || diags.HasErrors() {
 			break
 		}
 
@@ -226,7 +226,7 @@ func parseModulePrefix(traversal hcl.Traversal) (Module, hcl.Traversal, tfdiags.
 	return module, retRemain, diags
 }
 
-func getModuleName(remain hcl.Traversal) (moduleName string, isValidModule bool, diags tfdiags.Diagnostics) {
+func getModuleName(remain hcl.Traversal) (moduleName string, isModule bool, diags tfdiags.Diagnostics) {
 	var next string
 	switch tt := remain[0].(type) {
 	case hcl.TraverseRoot:
