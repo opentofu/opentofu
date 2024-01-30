@@ -72,7 +72,7 @@ const (
 	ActionReplace ChangeAction = "replace"
 	ActionDelete  ChangeAction = "delete"
 	ActionImport  ChangeAction = "import"
-	ActionForget  ChangeAction = "forget"
+	ActionForget  ChangeAction = "remove"
 )
 
 func changeAction(action plans.Action) ChangeAction {

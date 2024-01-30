@@ -21,12 +21,15 @@ func _() {
 const (
 	_Action_name_0 = "NoOp"
 	_Action_name_1 = "Create"
-	_Action_name_2 = "Delete"
+	_Action_name_2 = "DeleteForget"
 	_Action_name_3 = "Update"
 	_Action_name_4 = "CreateThenDelete"
 	_Action_name_5 = "Read"
 	_Action_name_6 = "DeleteThenCreate"
-	_Action_name_7 = "Forget"
+)
+
+var (
+	_Action_index_2 = [...]uint8{0, 6, 12}
 )
 
 func (i Action) String() string {
@@ -35,10 +38,9 @@ func (i Action) String() string {
 		return _Action_name_0
 	case i == 43:
 		return _Action_name_1
-	case i == 45:
-		return _Action_name_2
-	case i == 46:
-		return _Action_name_7
+	case 45 <= i && i <= 46:
+		i -= 45
+		return _Action_name_2[_Action_index_2[i]:_Action_index_2[i+1]]
 	case i == 126:
 		return _Action_name_3
 	case i == 177:
