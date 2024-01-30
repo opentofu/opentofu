@@ -5,8 +5,9 @@ package tofu
 
 import (
 	"fmt"
-	"github.com/hashicorp/hcl/v2"
 	"log"
+
+	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
