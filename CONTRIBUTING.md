@@ -258,7 +258,7 @@ Depending on the core team's review, a feature request can have the following ou
 - `bug`: it's broken and needs to be fixed.
 - `enhancement`: it's a short-form feature request. If the implementation path is unclear, an `rfc` may be needed in addition.
 - `documentation`: something that needs a description on the OpenTofu website.
-- `rfc`: a long-form feature request with a detail on how exactly it should be implemented.
+- `rfc`: a long-form feature request with details on how exactly it should be implemented.
 - `question`: the core team needs more information on the issue to decide.
 - `needs community input`: the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
 - `need rfc`: this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
