@@ -186,11 +186,6 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 				return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", address)
 			}
 
-			// TODO check why this
-			if !address.Module.IsRoot() {
-				return fmt.Errorf("Config generation inside modules is not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance points to a configuration inside of a module. Config generation is only supported for resource in the root module.", address)
-			}
-
 			// Create a node with the exact resource and import target, whether we have config generation enabled or not
 			// If config generation is enabled, then it will be applied during execution
 			// If it is not, an error will be thrown and handled from the node
