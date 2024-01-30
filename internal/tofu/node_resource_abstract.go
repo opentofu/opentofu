@@ -217,7 +217,7 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 		if importTarget.Config == nil {
 			continue
 		}
-		
+
 		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
 		root = append(root, refs...)
 	}

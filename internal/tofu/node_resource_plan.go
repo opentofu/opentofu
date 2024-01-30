@@ -299,11 +299,6 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
-	// Our graph transformers require access to the full state, so we'll
-	// temporarily lock it while we work on this.
-	state := ctx.State().Lock()
-	defer ctx.State().Unlock()
-
 	var commandLineImportTargets []CommandLineImportTarget
 	var evaluatedConfigImportTargets []EvaluatedConfigImportTarget
 	// FIXME - Deal with cases of duplicate addresses
@@ -330,6 +325,11 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 		}
 	}
+
+	// Our graph transformers require access to the full state, so we'll
+	// temporarily lock it while we work on this.
+	state := ctx.State().Lock()
+	defer ctx.State().Unlock()
 
 	// The concrete resource factory we'll use
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
