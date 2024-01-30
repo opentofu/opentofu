@@ -295,6 +295,12 @@ Core team members are full time developers sponsored by the participating compan
 
 ---
 
+### Can I become a core team member?
+
+Possibly, please look for open positions with the sponsoring companies as they hire core team members. The interview process is the same regardless of which sponsoring company you apply to. To become a core team member, you must be equally good at Go and at communication since much of our work is helping the community. Good luck!
+
+---
+
 ### Who is the Technical Steering Committee?
 
 The Technical Steering Committee consists of one delegate from each company sponsoring the OpenTofu core team. You can find their names in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file. Their role is to decide on larger commitments of core developer time, as well as long-term strategic issues.
