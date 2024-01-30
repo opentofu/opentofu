@@ -68,7 +68,7 @@ This command will produce a `tofu` binary in your current directory, which you c
 
 #### Building in a container
 
-If you have Docker or Podman installed, you can run the entire build process in a container too:
+If you have Docker or a compatible alternative installed, you can run the entire build process in a container too:
 
 ```sh
 docker run \
