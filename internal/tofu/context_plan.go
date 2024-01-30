@@ -724,7 +724,6 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			Targets:            opts.Targets,
 			skipRefresh:        opts.SkipRefresh,
 			Operation:          walkPlanDestroy,
-			EndpointsToForget:  endpointsToForget, //TODO: do we want to forget on destroy? I believe we do
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlanDestroy, diags
 	default:
