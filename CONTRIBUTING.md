@@ -267,7 +267,7 @@ Depending on the core team's review, a feature request can have the following ou
 
 ### Can you implement X in the language?
 
-The OpenTofu language is based on the [HCL language](https://github.com/hashicorp/hcl) and the [cty typing system](https://github.com/zclconf/go-cty). Since both are available under an open source license, and we prefer to keep compatibility as much as possible, we currently don't maintain a fork of these libraries. Language features may need to be implemented in HCL or cty and if that is the case, we can't implement them.
+It depends. The OpenTofu language is based on the [HCL language](https://github.com/hashicorp/hcl) and the [cty typing system](https://github.com/zclconf/go-cty). Since both are available under an open source license, and we prefer to keep compatibility as much as possible, we currently don't maintain a fork of these libraries. Language features may need to be partially or fully implemented in HCL or cty and if that is the case, we can't implement them in OpenTofu without changes to the respective libraries beforehand.
 
 ---
 
