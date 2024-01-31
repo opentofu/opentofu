@@ -1817,12 +1817,7 @@ web_identity_token_file = no-such-file
 
 			tc.config["sts_endpoint"] = ts.URL
 
-			tempdir, err := os.MkdirTemp("", "temp")
-			if err != nil {
-				t.Fatalf("error creating temp dir: %s", err)
-			}
-			defer os.Remove(tempdir)
-			t.Setenv("TMPDIR", tempdir)
+			t.Setenv("TMPDIR", t.TempDir())
 
 			tokenFile, err := os.CreateTemp("", "aws-sdk-go-base-web-identity-token-file")
 			if err != nil {
