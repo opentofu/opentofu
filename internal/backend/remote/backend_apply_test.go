@@ -961,10 +961,7 @@ func TestRemote_applyWithAutoApply(t *testing.T) {
 func TestRemote_applyForceLocal(t *testing.T) {
 	// Set TF_FORCE_LOCAL_BACKEND so the remote backend will use
 	// the local backend with itself as embedded backend.
-	if err := os.Setenv("TF_FORCE_LOCAL_BACKEND", "1"); err != nil {
-		t.Fatalf("error setting environment variable TF_FORCE_LOCAL_BACKEND: %v", err)
-	}
-	defer os.Unsetenv("TF_FORCE_LOCAL_BACKEND")
+	t.Setenv("TF_FORCE_LOCAL_BACKEND", "1")
 
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()

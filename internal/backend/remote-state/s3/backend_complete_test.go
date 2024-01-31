@@ -694,9 +694,9 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				}
 
 				if tc.EnableWebIdentityEnvVars {
-					os.Setenv("AWS_ROLE_ARN", servicemocks.MockStsAssumeRoleWithWebIdentityArn)
-					os.Setenv("AWS_ROLE_SESSION_NAME", servicemocks.MockStsAssumeRoleWithWebIdentitySessionName)
-					os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", file.Name())
+					t.Setenv("AWS_ROLE_ARN", servicemocks.MockStsAssumeRoleWithWebIdentityArn)
+					t.Setenv("AWS_ROLE_SESSION_NAME", servicemocks.MockStsAssumeRoleWithWebIdentitySessionName)
+					t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", file.Name())
 				} /*else if tc.EnableWebIdentityConfig {
 					tc.Config.AssumeRoleWithWebIdentity = &AssumeRoleWithWebIdentity{
 						RoleARN:              servicemocks.MockStsAssumeRoleWithWebIdentityArn,
@@ -726,7 +726,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					t.Fatalf("unexpected error writing shared configuration file: %s", err)
 				}
 
-				setSharedConfigFile(file.Name())
+				setSharedConfigFile(t, file.Name())
 			}
 
 			if tc.SharedCredentialsFile != "" {
@@ -753,7 +753,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			}
 
 			for k, v := range tc.EnvironmentVariables {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			b, diags := configureBackend(t, tc.config)
@@ -1167,7 +1167,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					t.Fatalf("unexpected error writing shared configuration file: %s", err)
 				}
 
-				setSharedConfigFile(file.Name())
+				setSharedConfigFile(t, file.Name())
 			}
 
 			if tc.SharedCredentialsFile != "" {
@@ -1192,7 +1192,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			}
 
 			for k, v := range tc.EnvironmentVariables {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			b, diags := configureBackend(t, tc.config)
@@ -1569,7 +1569,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					t.Fatalf("unexpected error writing shared configuration file: %s", err)
 				}
 
-				setSharedConfigFile(file.Name())
+				setSharedConfigFile(t, file.Name())
 			}
 
 			if tc.SharedCredentialsFile != "" {
@@ -1596,7 +1596,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			}
 
 			for k, v := range tc.EnvironmentVariables {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			b, diags := configureBackend(t, tc.config)
@@ -1809,7 +1809,7 @@ web_identity_token_file = no-such-file
 			}
 
 			for k, v := range tc.EnvironmentVariables {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			ts := servicemocks.MockAwsApiServer("STS", tc.MockStsEndpoints)
@@ -1817,12 +1817,7 @@ web_identity_token_file = no-such-file
 
 			tc.config["sts_endpoint"] = ts.URL
 
-			tempdir, err := os.MkdirTemp("", "temp")
-			if err != nil {
-				t.Fatalf("error creating temp dir: %s", err)
-			}
-			defer os.Remove(tempdir)
-			os.Setenv("TMPDIR", tempdir)
+			t.Setenv("TMPDIR", t.TempDir())
 
 			tokenFile, err := os.CreateTemp("", "aws-sdk-go-base-web-identity-token-file")
 			if err != nil {
@@ -1855,7 +1850,7 @@ web_identity_token_file = no-such-file
 			}
 
 			if tc.SetTokenFileEnvironmentVariable {
-				os.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", tokenFileName)
+				t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", tokenFileName)
 			}
 
 			if tc.SharedConfigurationFile != "" {
@@ -2066,7 +2061,7 @@ region = us-west-2
 			tc.config["key"] = "key"
 
 			for k, v := range tc.EnvironmentVariables {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			if tc.IMDSRegion != "" {
@@ -2101,7 +2096,7 @@ region = us-west-2
 					t.Fatalf("unexpected error writing shared configuration file: %s", err)
 				}
 
-				setSharedConfigFile(file.Name())
+				setSharedConfigFile(t, file.Name())
 			}
 
 			tc.config["skip_credentials_validation"] = true
@@ -2176,7 +2171,7 @@ func TestBackendConfig_RetryMode(t *testing.T) {
 			tc.config["region"] = "us-east-1"
 
 			for k, v := range tc.EnvironmentVariables {
-				os.Setenv(k, v)
+				t.Setenv(k, v)
 			}
 
 			sts := servicemocks.MockAwsApiServer("STS", []*servicemocks.MockEndpoint{
@@ -2199,9 +2194,10 @@ func TestBackendConfig_RetryMode(t *testing.T) {
 	}
 }
 
-func setSharedConfigFile(filename string) {
-	os.Setenv("AWS_SDK_LOAD_CONFIG", "1")
-	os.Setenv("AWS_CONFIG_FILE", filename)
+func setSharedConfigFile(t *testing.T, filename string) {
+	t.Helper()
+	t.Setenv("AWS_SDK_LOAD_CONFIG", "1")
+	t.Setenv("AWS_CONFIG_FILE", filename)
 }
 
 func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Diagnostics) {

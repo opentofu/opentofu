@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -21,30 +20,24 @@ import (
 
 func TestEnvDefaultFunc(t *testing.T) {
 	key := "TF_TEST_ENV_DEFAULT_FUNC"
-	defer os.Unsetenv(key)
 
 	f := EnvDefaultFunc(key, "42")
-	if err := os.Setenv(key, "foo"); err != nil {
-		t.Fatalf("err: %s", err)
-	}
 
 	actual, err := f()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if actual != "foo" {
+	if actual != "42" {
 		t.Fatalf("bad: %#v", actual)
 	}
 
-	if err := os.Unsetenv(key); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	t.Setenv(key, "foo")
 
 	actual, err = f()
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if actual != "42" {
+	if actual != "foo" {
 		t.Fatalf("bad: %#v", actual)
 	}
 }
@@ -54,56 +47,46 @@ func TestMultiEnvDefaultFunc(t *testing.T) {
 		"TF_TEST_MULTI_ENV_DEFAULT_FUNC1",
 		"TF_TEST_MULTI_ENV_DEFAULT_FUNC2",
 	}
-	defer func() {
-		for _, k := range keys {
-			os.Unsetenv(k)
+
+	const dv = "42"
+
+	t.Run("shall return the default value", func(t *testing.T) {
+		f := MultiEnvDefaultFunc(keys, dv)
+
+		actual, err := f()
+		if err != nil {
+			t.Fatalf("err: %s", err)
 		}
-	}()
+		if actual != dv {
+			t.Fatalf("bad: %#v", actual)
+		}
+	})
 
-	// Test that the first key is returned first
-	f := MultiEnvDefaultFunc(keys, "42")
-	if err := os.Setenv(keys[0], "foo"); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	t.Run("shall return the value of the first key", func(t *testing.T) {
+		f := MultiEnvDefaultFunc(keys, dv)
+		t.Setenv(keys[0], "foo")
 
-	actual, err := f()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if actual != "foo" {
-		t.Fatalf("bad: %#v", actual)
-	}
+		actual, err := f()
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		if actual != "foo" {
+			t.Fatalf("bad: %#v", actual)
+		}
+	})
 
-	if err := os.Unsetenv(keys[0]); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	t.Run("shall return the value of the second key", func(t *testing.T) {
+		f := MultiEnvDefaultFunc(keys, dv)
+		t.Setenv(keys[1], "bar")
 
-	// Test that the second key is returned if the first one is empty
-	f = MultiEnvDefaultFunc(keys, "42")
-	if err := os.Setenv(keys[1], "foo"); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	actual, err = f()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if actual != "foo" {
-		t.Fatalf("bad: %#v", actual)
-	}
-
-	if err := os.Unsetenv(keys[1]); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	// Test that the default value is returned when no keys are set
-	actual, err = f()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if actual != "42" {
-		t.Fatalf("bad: %#v", actual)
-	}
+		actual, err := f()
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
+		if actual != "bar" {
+			t.Fatalf("bad: %#v", actual)
+		}
+	})
 }
 
 func TestValueType_Zero(t *testing.T) {

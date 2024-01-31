@@ -210,7 +210,7 @@ func setupBackend(t *testing.T, bucket, prefix, key string, encrypt bool) backen
 	}
 
 	if os.Getenv(PROVIDER_REGION) == "" {
-		os.Setenv(PROVIDER_REGION, "ap-guangzhou")
+		t.Setenv(PROVIDER_REGION, "ap-guangzhou")
 	}
 
 	appId := os.Getenv("TF_COS_APPID")

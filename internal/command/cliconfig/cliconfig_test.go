@@ -36,8 +36,7 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestLoadConfig_envSubst(t *testing.T) {
-	defer os.Unsetenv("TFTEST")
-	os.Setenv("TFTEST", "hello")
+	t.Setenv("TFTEST", "hello")
 
 	c, err := loadConfigFile(filepath.Join(fixtureDir, "config-env"))
 	if err != nil {
@@ -63,8 +62,7 @@ func TestLoadConfig_non_existing_file(t *testing.T) {
 	tmpDir := os.TempDir()
 	cliTmpFile := filepath.Join(tmpDir, "dev.tfrc")
 
-	os.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
-	defer os.Unsetenv("TF_CLI_CONFIG_FILE")
+	t.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
 
 	c, errs := LoadConfig()
 	if errs.HasErrors() || c.Validate().HasErrors() {
