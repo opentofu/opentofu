@@ -1,6 +1,8 @@
 package encryption
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 )
@@ -16,7 +18,12 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
 	for i, kp := range cfg.KeyProviders {
 		for j, okp := range cfg.KeyProviders {
 			if i != j && kp.Type == okp.Type && kp.Name == okp.Name {
-				panic("TODO diags")
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate key_provider",
+					Detail:   fmt.Sprintf("Found multiple instances of key_provider.%s.%s", kp.Type, kp.Name),
+					Subject:  rng.Ptr(),
+				})
 				break
 			}
 		}
@@ -25,7 +32,12 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
 	for i, m := range cfg.Methods {
 		for j, om := range cfg.Methods {
 			if i != j && m.Type == om.Type && m.Name == om.Name {
-				panic("TODO diags")
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate method",
+					Detail:   fmt.Sprintf("Found multiple instances of method.%s.%s", m.Type, m.Name),
+					Subject:  rng.Ptr(),
+				})
 				break
 			}
 		}
@@ -35,11 +47,20 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
 		for i, t := range cfg.Remote.Targets {
 			for j, ot := range cfg.Remote.Targets {
 				if i != j && t.Name == ot.Name {
-					panic("TODO diags")
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Duplicate remote_data_source",
+						Detail:   fmt.Sprintf("Found multiple instances of remote_data_source.%s", t.Name),
+						Subject:  rng.Ptr(),
+					})
 					break
 				}
 			}
 		}
+	}
+
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
 	return cfg, diags
