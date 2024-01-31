@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 tofu version 2>/dev/null >/dev/null
 if [ $? -ne 0 ]; then

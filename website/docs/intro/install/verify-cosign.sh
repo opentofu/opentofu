@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 OPENTOFU_VERSION_MAJORMINOR="Add your OpenTofu major and minor version here"
 IDENTITY="https://github.com/opentofu/opentofu/.github/workflows/release.yml@refs/heads/v${OPENTOFU_VERSION_MAJORMINOR}"
 # For alpha and beta builds use /main

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 module.exports = {
     "extends": ["plugin:mdx/recommended"],
     // optional, if you want to lint code blocks at the same time

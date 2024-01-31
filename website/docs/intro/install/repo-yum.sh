@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 cat >/etc/yum.repos.d/opentofu.repo <<EOF
 [opentofu]
 name=opentofu

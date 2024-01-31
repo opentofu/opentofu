@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 # This script tests the installation instructions on all relevant Linux operating systems listed in docker-compose.yaml.
 

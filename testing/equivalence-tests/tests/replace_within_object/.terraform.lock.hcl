@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # This file is maintained automatically by "opentf init".
 # Manual edits may be lost in future updates.
 

@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # This is the default "docker" provider for this file:
 provider "docker" {
   host = "tcp://0.0.0.0:2376"
