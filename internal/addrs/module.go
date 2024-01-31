@@ -201,6 +201,8 @@ func parseModulePrefix(traversal hcl.Traversal) (Module, hcl.Traversal, tfdiags.
 					Detail:   "Module address cannot be a module instance (e.g. \"module.a[0]\"), it must be a module instead (e.g. \"module.a\").",
 					Subject:  remain[0].SourceRange().Ptr(),
 				})
+
+				return module, remain, diags
 			}
 		}
 
