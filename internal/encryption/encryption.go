@@ -15,12 +15,21 @@ type Encryption interface {
 	StateFile() State
 	PlanFile() Plan
 	Backend() State
-	// RemoteState returns a State suitable for a remote state data source. Note: this function panics
-	// if the path of the remote state data source is invalid, but does not panic if it is incorrect.
 	RemoteState(string) State
 }
 
 type encryption struct {
+	// Inputs
+	cfg *Config
+	reg Registry
+
+	// Used to evaluate hcl expressions
+	ctx *hcl.EvalContext
+	// Used to build EvalContext (and related mappings)
+	keyValues    map[string]map[string]cty.Value
+	methodValues map[string]map[string]cty.Value
+	methods      map[string]Method
+
 	stateFile     State
 	planFile      Plan
 	backend       State
@@ -31,237 +40,287 @@ type encryption struct {
 func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	enc := &encryption{}
+	enc := &encryption{
+		cfg: cfg,
+		reg: reg,
 
-	// This is a hairy ugly monster that is duck-taped together
-	// It is here to show the flow of cfg(reg) -> encryption
-	// Please rip out and rewrite this function
+		ctx: &hcl.EvalContext{
+			Variables: map[string]cty.Value{},
+		},
+		keyValues:    make(map[string]map[string]cty.Value),
+		methodValues: make(map[string]map[string]cty.Value),
+		methods:      make(map[string]Method),
 
-	ctx := &hcl.EvalContext{
-		Variables: map[string]cty.Value{},
+		remote: make(map[string]State),
 	}
 
-	// Process Key Providers
+	// TODO handle cfg == nil
 
-	keyProviders := make(map[string]map[string][]byte)
-	for name := range reg.KeyProviders {
-		keyProviders[name] = make(map[string][]byte)
+	diags = append(diags, enc.setupKeyProviders()...)
+	if diags.HasErrors() {
+		return nil, diags
 	}
-
-	var attemptedKeyProviders []KeyProviderConfig
-	var loadKeyProvider func(kcfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics
-	loadKeyProvider = func(kcfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
-		// Have we already tried to load this?
-		for _, kpc := range attemptedKeyProviders {
-			if kpc == kcfg {
-				return nil
-			}
-		}
-		attemptedKeyProviders = append(attemptedKeyProviders, kcfg)
-
-		// Prevent circular dependencies
-		for _, s := range stack {
-			if s == kcfg {
-				panic("TODO diags: circular dependency")
-			}
-		}
-		stack = append(stack, kcfg)
-
-		// Lookup definition
-		def := reg.KeyProviders[kcfg.Type]
-		if def == nil {
-			panic("TODO diags: missing key provider")
-		}
-
-		kp := def()
-
-		// Locate Dependencies
-		deps, depDiags := varhcl.VariablesInBody(kcfg.Body, kp)
-		diags = append(diags, depDiags...)
-		if depDiags.HasErrors() {
-			return diags
-		}
-
-		// Required Dependencies
-		for _, dep := range deps {
-			// BUG: this is not defensive in the slightest...
-			depType := (dep[1].(hcl.TraverseAttr)).Name
-			depName := (dep[2].(hcl.TraverseAttr)).Name
-
-			for _, kpc := range cfg.KeyProviders {
-				if kpc.Type == depType && kpc.Name == depName {
-					depDiags := loadKeyProvider(kpc, stack)
-					diags = append(diags, depDiags...)
-					break
-				}
-			}
-		}
-		if diags.HasErrors() {
-			return diags
-		}
-
-		// Init Key Provider
-		decodeDiags := gohcl.DecodeBody(kcfg.Body, ctx, kp)
-		diags = append(diags, decodeDiags...)
-		if diags.HasErrors() {
-			return diags
-		}
-
-		data, err := kp.KeyData()
-		if err != nil {
-			panic(err) // TODO diags
-		}
-		keyProviders[kcfg.Type][kcfg.Name] = data
-
-		// Regen ctx
-		kpMap := make(map[string]cty.Value)
-		for name, kps := range keyProviders {
-			subMap := make(map[string]cty.Value)
-			for kpn, bytes := range kps {
-				// This is super weird, but it works
-				bl := make([]cty.Value, len(bytes))
-				for i, b := range bytes {
-					bl[i] = cty.NumberIntVal(int64(b))
-				}
-
-				subMap[kpn] = cty.ListVal(bl)
-			}
-			kpMap[name] = cty.ObjectVal(subMap)
-		}
-
-		ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
-
-		return diags
+	diags = append(diags, enc.setupMethods()...)
+	if diags.HasErrors() {
+		return nil, diags
 	}
-
-	for _, kpc := range cfg.KeyProviders {
-		diags = append(diags, loadKeyProvider(kpc, nil)...)
-	}
-
+	diags = append(diags, enc.setupTargets()...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	// Process Methods
+	return enc, diags
+}
 
-	methods := make(map[string]Method)
-	methodVars := make(map[string]map[string]cty.Value)
-	for name := range reg.Methods {
-		methodVars[name] = make(map[string]cty.Value)
+func (enc encryption) setupKeyProviders() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	for _, kpc := range enc.cfg.KeyProviders {
+		diags = append(diags, enc.setupKeyProvider(kpc, nil)...)
+	}
+	return diags
+}
+
+func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
+	// Ensure cfg.Type is in keyValues
+	if _, ok := enc.keyValues[cfg.Type]; !ok {
+		enc.keyValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
-	loadMethod := func(mcfg MethodConfig) hcl.Diagnostics {
-		// Lookup definition
-		def := reg.Methods[mcfg.Type]
-		if def == nil {
-			panic("TODO diags: missing method")
+	// Check if we have already setup this KeyProvider (due to dependency loading)
+	if _, ok := enc.keyValues[cfg.Type][cfg.Name]; ok {
+		return nil
+	}
+
+	// Check for circular references
+	for _, s := range stack {
+		if s == cfg {
+			return hcl.Diagnostics{&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Circular reference detected",
+				// TODO add the stack trace to the detail message
+				Detail: fmt.Sprintf("Can not load key_provider %q %q due to circular reference", cfg.Type, cfg.Name),
+			}}
 		}
+	}
+	stack = append(stack, cfg)
 
-		method := def()
+	// Lookup definition
+	def := enc.reg.KeyProviders[cfg.Type]
+	if def == nil {
+		return hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unknown key_provider type",
+			Detail:   fmt.Sprintf("Can not find key_provider type %q for %q in the encryption registry", cfg.Type, cfg.Name),
+		}}
+	}
 
-		// TODO we could use varhcl here to provider better error messages
+	kp := def()
 
-		decodeDiags := gohcl.DecodeBody(mcfg.Body, ctx, method)
-		diags = append(diags, decodeDiags...)
-
-		if diags.HasErrors() {
-			return diags
-		}
-
-		// Map from EvalContext vars -> Method
-		mIdent := fmt.Sprintf("method.%s.%s", mcfg.Type, mcfg.Name)
-		methodVars[mcfg.Type][mcfg.Name] = cty.StringVal(mIdent)
-		methods[mIdent] = method
-
+	// Locate Dependencies
+	deps, diags := varhcl.VariablesInBody(cfg.Body, kp)
+	if diags.HasErrors() {
 		return diags
 	}
 
-	for _, m := range cfg.Methods {
-		diags = append(diags, loadMethod(m)...)
+	// Required Dependencies
+	for _, dep := range deps {
+		if len(dep) != 3 {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid key_provider reference",
+				Detail:   "Expected reference in form key_provider.type.name",
+				Subject:  dep.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		// TODO this should be more defensive
+		depRoot := (dep[0].(hcl.TraverseRoot)).Name
+		depType := (dep[1].(hcl.TraverseAttr)).Name
+		depName := (dep[2].(hcl.TraverseAttr)).Name
+
+		if depRoot != "key_provider" {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid key_provider reference",
+				Detail:   "Expected reference in form key_provider.type.name",
+				Subject:  dep.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		for _, kpc := range enc.cfg.KeyProviders {
+			if kpc.Type == depType && kpc.Name == depName {
+				depDiags := enc.setupKeyProvider(kpc, stack)
+				diags = append(diags, depDiags...)
+				break
+			}
+		}
+	}
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// Init Key Provider
+	decodeDiags := gohcl.DecodeBody(cfg.Body, enc.ctx, kp)
+	diags = append(diags, decodeDiags...)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// Execute Key Provider
+	data, err := kp.KeyData()
+	if err != nil {
+		enc.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
+		return append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unable to fetch key data",
+			Detail:   fmt.Sprintf("key_provider.%s.%s failed with error: %s", cfg.Type, cfg.Name, err.Error()),
+		})
+	}
+
+	// Convert data into cty equvalent
+	ctyData := make([]cty.Value, len(data))
+	for i, b := range data {
+		ctyData[i] = cty.NumberIntVal(int64(b))
+	}
+	enc.keyValues[cfg.Type][cfg.Name] = cty.ListVal(ctyData)
+
+	// Regen ctx
+	kpMap := make(map[string]cty.Value)
+	for name, kps := range enc.keyValues {
+		kpMap[name] = cty.ObjectVal(kps)
+	}
+	enc.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
+
+	return diags
+}
+
+func (enc encryption) setupMethods() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	for _, m := range enc.cfg.Methods {
+		diags = append(diags, enc.setupMethod(m)...)
 	}
 
 	// Regen ctx
 	mMap := make(map[string]cty.Value)
-	for name, ms := range methodVars {
+	for name, ms := range enc.methodValues {
 		mMap[name] = cty.ObjectVal(ms)
 	}
+	enc.ctx.Variables["method"] = cty.ObjectVal(mMap)
 
-	ctx.Variables["method"] = cty.ObjectVal(mMap)
+	return diags
+}
 
+func (enc encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
+	// Ensure cfg.Type is in methodValues
+	if _, ok := enc.methodValues[cfg.Type]; !ok {
+		enc.methodValues[cfg.Type] = make(map[string]cty.Value)
+	}
+
+	// Lookup definition
+	def := enc.reg.Methods[cfg.Type]
+	if def == nil {
+		return hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unknown method type",
+			Detail:   fmt.Sprintf("Can not find method type %q for %q in the encryption registry", cfg.Type, cfg.Name),
+		}}
+	}
+
+	method := def()
+
+	// TODO we could use varhcl here to provider better error messages
+	diags := gohcl.DecodeBody(cfg.Body, enc.ctx, method)
 	if diags.HasErrors() {
-		return nil, diags
+		return diags
 	}
 
-	// Load Targets
+	// Map from EvalContext vars -> Method
+	mIdent := fmt.Sprintf("method.%s.%s", cfg.Type, cfg.Name)
+	enc.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
+	enc.methods[mIdent] = method
 
-	var loadTarget func(target *TargetConfig) ([]Method, hcl.Diagnostics)
-	loadTarget = func(target *TargetConfig) ([]Method, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-		result := make([]Method, 0)
+	return diags
 
-		// Method referenced by this target
-		if target.Method != nil {
-			var methodIdent string
-			decodeDiags := gohcl.DecodeExpression(target.Method, ctx, &methodIdent)
-			diags = append(diags, decodeDiags...)
-			if diags.HasErrors() {
-				panic(diags.Error())
-			}
+}
 
-			if method, ok := methods[methodIdent]; ok {
-				result = append(result, method)
-			} else {
-				// Undefined
-				panic("TODO diags: missing method from target")
-			}
-		} else if target.Enforced {
-			panic("TODO diags: enforced")
-		}
+func (enc encryption) setupTargets() hcl.Diagnostics {
+	var diags hcl.Diagnostics
 
-		// Fallback methods
-		if target.Fallback != nil {
-			fallback, fallbackDiags := loadTarget(target.Fallback)
-			diags = append(diags, fallbackDiags...)
-			result = append(result, fallback...)
-		}
-
-		return result, nil
-	}
-
-	if cfg.StateFile != nil {
-		m, mDiags := loadTarget(cfg.StateFile)
+	if enc.cfg.StateFile != nil {
+		m, mDiags := enc.setupTarget(enc.cfg.StateFile, "statefile")
 		diags = append(diags, mDiags...)
 		enc.stateFile = NewState(m)
 	}
-	if cfg.PlanFile != nil {
-		m, mDiags := loadTarget(cfg.PlanFile)
+	if enc.cfg.PlanFile != nil {
+		m, mDiags := enc.setupTarget(enc.cfg.PlanFile, "planfile")
 		diags = append(diags, mDiags...)
 		enc.planFile = NewPlan(m)
 	}
-	if cfg.Backend != nil {
-		m, mDiags := loadTarget(cfg.Backend)
+	if enc.cfg.Backend != nil {
+		m, mDiags := enc.setupTarget(enc.cfg.Backend, "backend")
 		diags = append(diags, mDiags...)
 		enc.backend = NewState(m)
 	}
 
-	if cfg.Remote != nil {
-		if cfg.Remote.Default != nil {
-			m, mDiags := loadTarget(cfg.Remote.Default)
+	if enc.cfg.Remote != nil {
+		if enc.cfg.Remote.Default != nil {
+			m, mDiags := enc.setupTarget(enc.cfg.Remote.Default, "remote.default")
 			diags = append(diags, mDiags...)
 			enc.remoteDefault = NewState(m)
 		}
-		for _, target := range cfg.Remote.Targets {
-			m, mDiags := loadTarget(&TargetConfig{
+		for _, target := range enc.cfg.Remote.Targets {
+			m, mDiags := enc.setupTarget(&TargetConfig{
 				Enforced: target.Enforced,
 				Method:   target.Method,
 				Fallback: target.Fallback,
-			})
+			}, "remote."+target.Name)
 			diags = append(diags, mDiags...)
 			enc.remote[target.Name] = NewState(m)
 		}
 	}
 
-	return enc, diags
+	return diags
+}
+
+func (enc encryption) setupTarget(cfg *TargetConfig, name string) ([]Method, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	target := make([]Method, 0)
+
+	// Method referenced by this target
+	if cfg.Method != nil {
+		var methodIdent string
+		decodeDiags := gohcl.DecodeExpression(cfg.Method, enc.ctx, &methodIdent)
+		diags = append(diags, decodeDiags...)
+		if !diags.HasErrors() {
+			if method, ok := enc.methods[methodIdent]; ok {
+				target = append(target, method)
+			} else {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Undefined encryption method",
+					Detail:   fmt.Sprintf("Can not find %q for %q", methodIdent, name),
+					Subject:  cfg.Method.Range().Ptr(),
+				})
+			}
+		}
+	} else if cfg.Enforced {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Encryption method required",
+			Detail:   fmt.Sprintf("%q is enforced, and therefore requires a method to be provided", name),
+		})
+	}
+
+	// Fallback methods
+	if cfg.Fallback != nil {
+		fallback, fallbackDiags := enc.setupTarget(cfg.Fallback, name+".fallback")
+		diags = append(diags, fallbackDiags...)
+		target = append(target, fallback...)
+	}
+
+	return target, nil
 }
 
 func (e *encryption) StateFile() State {
