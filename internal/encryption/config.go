@@ -5,23 +5,42 @@ import (
 )
 
 type Config struct {
-	KeyProviders map[string]hcl.Body
-	Methods      map[string]hcl.Body
+	KeyProviders []KeyProviderConfig `hcl:"key_provider,block"`
+	Methods      []MethodConfig      `hcl:"method,block"`
 
-	Targets       map[string]*TargetConfig
-	RemoteTargets *RemoteTargetsConfig
+	Backend   *TargetConfig `hcl:"backend,block"`
+	StateFile *TargetConfig `hcl:"statefile,block"`
+	PlanFile  *TargetConfig `hcl:"planfile,block"`
+	Remote    *RemoteConfig `hcl:"remote,block"`
+}
 
-	// Used to identify conflicting blocks in the same module
-	DeclRange hcl.Range
+type KeyProviderConfig struct {
+	Type string   `hcl:"type,label"`
+	Name string   `hcl:"name,label"`
+	Body hcl.Body `hcl:",remain"`
+}
+
+type MethodConfig struct {
+	Type string   `hcl:"type,label"`
+	Name string   `hcl:"name,label"`
+	Body hcl.Body `hcl:",remain"`
 }
 
 type TargetConfig struct {
-	Enforced bool
-	Method   string
-	Fallback *TargetConfig
+	Enforced bool          `hcl:"enforced,optional"`
+	Method   string        `hcl:"method,optional"`
+	Fallback *TargetConfig `hcl:"fallback,block"`
 }
 
-type RemoteTargetsConfig struct {
-	Default *TargetConfig
-	Targets map[string]*TargetConfig
+type RemoteTargetConfig struct {
+	Name string `hcl:"name,label"`
+	// gohcl does not support struct embedding
+	Enforced bool          `hcl:"enforced,optional"`
+	Method   string        `hcl:"method,optional"`
+	Fallback *TargetConfig `hcl:"fallback,block"`
+}
+
+type RemoteConfig struct {
+	Default *TargetConfig        `hcl:"default,block"`
+	Targets []RemoteTargetConfig `hcl:"remote_data_source,block"`
 }

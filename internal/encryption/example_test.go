@@ -32,9 +32,9 @@ backend {
 		t.Error(diags.Error())
 	}
 
-	cfgA.ApplyOverrides(cfgB)
+	cfg := MergeConfigs(cfgA, cfgB)
 
-	enc, diags := New(reg, cfgA)
+	enc, diags := New(reg, cfg)
 
 	for _, d := range diags {
 		println(d.Error())
