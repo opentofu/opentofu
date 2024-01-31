@@ -81,29 +81,6 @@ func MergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig
 	return merged
 }
 
-// gohcl does not support struct embedding
-func MergeRemoteTargetConfigs(cfg RemoteTargetConfig, override RemoteTargetConfig) RemoteTargetConfig {
-	merged := RemoteTargetConfig{
-		Name: cfg.Name,
-	}
-
-	merged.Enforced = cfg.Enforced || override.Enforced
-
-	if len(override.Method) != 0 {
-		merged.Method = override.Method
-	} else {
-		merged.Method = cfg.Method
-	}
-
-	if override.Fallback != nil {
-		merged.Fallback = override.Fallback
-	} else {
-		merged.Fallback = cfg.Fallback
-	}
-
-	return merged
-}
-
 func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig {
 	if cfg == nil {
 		return override
@@ -123,7 +100,14 @@ func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 		for i, t := range merged.Targets {
 			found = t.Name == ot.Name
 			if found {
-				merged.Targets[i] = MergeRemoteTargetConfigs(t, ot)
+				// gohcl does not support struct embedding
+				mt := MergeTargetConfigs(t.AsTargetConfig(), ot.AsTargetConfig())
+				merged.Targets[i] = RemoteTargetConfig{
+					Name:     t.Name,
+					Enforced: mt.Enforced,
+					Method:   mt.Method,
+					Fallback: mt.Fallback,
+				}
 				break
 			}
 		}

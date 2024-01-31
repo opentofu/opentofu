@@ -32,6 +32,11 @@ type TargetConfig struct {
 	Fallback *TargetConfig `hcl:"fallback,block"`
 }
 
+type RemoteConfig struct {
+	Default *TargetConfig        `hcl:"default,block"`
+	Targets []RemoteTargetConfig `hcl:"remote_data_source,block"`
+}
+
 type RemoteTargetConfig struct {
 	Name string `hcl:"name,label"`
 	// gohcl does not support struct embedding
@@ -40,7 +45,10 @@ type RemoteTargetConfig struct {
 	Fallback *TargetConfig `hcl:"fallback,block"`
 }
 
-type RemoteConfig struct {
-	Default *TargetConfig        `hcl:"default,block"`
-	Targets []RemoteTargetConfig `hcl:"remote_data_source,block"`
+func (r RemoteTargetConfig) AsTargetConfig() *TargetConfig {
+	return &TargetConfig{
+		Enforced: r.Enforced,
+		Method:   r.Method,
+		Fallback: r.Fallback,
+	}
 }
