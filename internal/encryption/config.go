@@ -27,9 +27,9 @@ type MethodConfig struct {
 }
 
 type TargetConfig struct {
-	Enforced bool          `hcl:"enforced,optional"`
-	Method   string        `hcl:"method,optional"`
-	Fallback *TargetConfig `hcl:"fallback,block"`
+	Enforced bool           `hcl:"enforced,optional"`
+	Method   hcl.Expression `hcl:"method,optional"`
+	Fallback *TargetConfig  `hcl:"fallback,block"`
 }
 
 type RemoteConfig struct {
@@ -40,9 +40,9 @@ type RemoteConfig struct {
 type RemoteTargetConfig struct {
 	Name string `hcl:"name,label"`
 	// gohcl does not support struct embedding
-	Enforced bool          `hcl:"enforced,optional"`
-	Method   string        `hcl:"method,optional"`
-	Fallback *TargetConfig `hcl:"fallback,block"`
+	Enforced bool           `hcl:"enforced,optional"`
+	Method   hcl.Expression `hcl:"method,optional"`
+	Fallback *TargetConfig  `hcl:"fallback,block"`
 }
 
 func (r RemoteTargetConfig) AsTargetConfig() *TargetConfig {

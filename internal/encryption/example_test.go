@@ -25,7 +25,7 @@ method "aes_cipher" "example" {
 	cipher = key_provider.passphrase.basic
 }
 backend {
-	method = "method.aes_cipher.example" # See EvalContext comment in encryption.go
+	method = method.aes_cipher.example
 }
 `)
 	if diags.HasErrors() {

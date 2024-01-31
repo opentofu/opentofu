@@ -66,7 +66,7 @@ func MergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig
 
 	merged.Enforced = cfg.Enforced || override.Enforced
 
-	if len(override.Method) != 0 {
+	if override.Method != nil {
 		merged.Method = override.Method
 	} else {
 		merged.Method = cfg.Method

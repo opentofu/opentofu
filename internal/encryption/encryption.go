@@ -1,6 +1,8 @@
 package encryption
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/varhcl"
@@ -19,9 +21,6 @@ type Encryption interface {
 }
 
 type encryption struct {
-	// These could technically be local to the ctr, but I've got plans to use them later on in RemoteState
-	methods map[string]Method
-
 	stateFile     State
 	planFile      Plan
 	backend       State
@@ -32,9 +31,7 @@ type encryption struct {
 func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	enc := &encryption{
-		methods: make(map[string]Method),
-	}
+	enc := &encryption{}
 
 	// This is a hairy ugly monster that is duck-taped together
 	// It is here to show the flow of cfg(reg) -> encryption
@@ -138,8 +135,7 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	}
 
 	for _, kpc := range cfg.KeyProviders {
-		kpd := loadKeyProvider(kpc, nil)
-		diags = append(diags, kpd...)
+		diags = append(diags, loadKeyProvider(kpc, nil)...)
 	}
 
 	if diags.HasErrors() {
@@ -148,7 +144,13 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 
 	// Process Methods
 
-	loadMethod := func(mcfg MethodConfig) (Method, hcl.Diagnostics) {
+	methods := make(map[string]Method)
+	methodVars := make(map[string]map[string]cty.Value)
+	for name := range reg.Methods {
+		methodVars[name] = make(map[string]cty.Value)
+	}
+
+	loadMethod := func(mcfg MethodConfig) hcl.Diagnostics {
 		// Lookup definition
 		def := reg.Methods[mcfg.Type]
 		if def == nil {
@@ -163,33 +165,51 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 		diags = append(diags, decodeDiags...)
 
 		if diags.HasErrors() {
-			return nil, diags
+			return diags
 		}
 
-		return method, diags
+		// Map from EvalContext vars -> Method
+		mIdent := fmt.Sprintf("method.%s.%s", mcfg.Type, mcfg.Name)
+		methodVars[mcfg.Type][mcfg.Name] = cty.StringVal(mIdent)
+		methods[mIdent] = method
+
+		return diags
 	}
 
 	for _, m := range cfg.Methods {
-		method, mDiags := loadMethod(m)
-		diags = append(diags, mDiags...)
-		enc.methods[MethodAddr(m.Type, m.Name)] = method
+		diags = append(diags, loadMethod(m)...)
 	}
 
-	// TODO inject methods into ctx for use in loadTarget
+	// Regen ctx
+	mMap := make(map[string]cty.Value)
+	for name, ms := range methodVars {
+		mMap[name] = cty.ObjectVal(ms)
+	}
+
+	ctx.Variables["method"] = cty.ObjectVal(mMap)
 
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
+	// Load Targets
+
 	var loadTarget func(target *TargetConfig) ([]Method, hcl.Diagnostics)
 	loadTarget = func(target *TargetConfig) ([]Method, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
-		methods := make([]Method, 0)
+		result := make([]Method, 0)
 
 		// Method referenced by this target
-		if len(target.Method) != 0 {
-			if method, ok := enc.methods[target.Method]; ok {
-				methods = append(methods, method)
+		if target.Method != nil {
+			var methodIdent string
+			decodeDiags := gohcl.DecodeExpression(target.Method, ctx, &methodIdent)
+			diags = append(diags, decodeDiags...)
+			if diags.HasErrors() {
+				panic(diags.Error())
+			}
+
+			if method, ok := methods[methodIdent]; ok {
+				result = append(result, method)
 			} else {
 				// Undefined
 				panic("TODO diags: missing method from target")
@@ -202,10 +222,10 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 		if target.Fallback != nil {
 			fallback, fallbackDiags := loadTarget(target.Fallback)
 			diags = append(diags, fallbackDiags...)
-			methods = append(methods, fallback...)
+			result = append(result, fallback...)
 		}
 
-		return methods, nil
+		return result, nil
 	}
 
 	if cfg.StateFile != nil {
