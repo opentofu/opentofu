@@ -82,7 +82,6 @@ func TestJSONHook_create(t *testing.T) {
 	after <- now
 	nowMu.Unlock()
 	time.Sleep(1 * time.Millisecond)
-
 	action, err = hook.PostApply(addr, states.CurrentGen, plannedNewState, nil)
 	testHookReturnValues(t, action, err)
 
