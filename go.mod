@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.25.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.46.0
 	github.com/bgentry/speakeasy v0.1.0
-	github.com/bmatcuk/doublestar v1.1.5
+	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/chzyer/readline v1.5.1
 	github.com/cli/browser v1.3.0
 	github.com/davecgh/go-spew v1.1.1
@@ -86,7 +86,7 @@ require (
 	go.opentelemetry.io/otel v1.21.0
 	go.opentelemetry.io/otel/sdk v1.21.0
 	go.opentelemetry.io/otel/trace v1.21.0
-	golang.org/x/crypto v0.16.0
+	golang.org/x/crypto v0.17.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/mod v0.12.0
 	golang.org/x/net v0.19.0
@@ -154,13 +154,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.25.6 // indirect
 	github.com/aws/smithy-go v1.17.0 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
-	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cli/go-gh v1.0.0 // indirect
 	github.com/cli/safeexec v1.0.0 // indirect
 	github.com/cli/shurcooL-graphql v0.0.2 // indirect
-	github.com/cloudflare/circl v1.3.3 // indirect
+	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/dylanmei/iso8601 v0.1.0 // indirect
