@@ -8,17 +8,17 @@ This document mentions `HCL` as a short-form for OpenTofu code. Unless otherwise
 
 ## Goals
 
-The goal of this feature is to allow OpenTofu users to fully encrypt state files when they are stored on the local disk, transferred to a remote backend. The feature should also allow reading from an encrypted remote backend using the `terraform_remote_state` data source. The encrypted version should still be a valid JSON file, but not necessarily a valid state file.
+The goal of this feature is to allow OpenTofu users to fully encrypt state files when they are stored on the local disk or transferred to a remote backend. The feature should also allow reading from an encrypted remote backend using the `terraform_remote_state` data source. The encrypted version should still be a valid JSON file, but not necessarily a valid state file.
 
 Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, so there is no expectation of the resulting plan file being JSON either. **TODO: do we want to specify that we use ZIP encryption semantics?**
 
-For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state file with one (older) key and then re-encrypt data with a newer key. As plan files are not long-lived, this only applies to state files.
+For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state file with one (older) key and then re-encrypt data with a newer key.
 
 To enable use cases where multiple teams need to collaborate, the user should be able to specify separate encryption methods and keys for individual uses, especially for the `terraform_remote_state` data source. However, to simplify configuration, the user should be able to specify single configuration for all remote state data sources.
 
 It is the goal of this feature to let users specify their encryption configuration both in HCL and in environment variables. The latter is necessary to allow users the reuse of HCL code for encrypted and unencrypted state storage.
 
-Finally, it is the goal of the encryption feature to make available a library that third party tooling can use to encrypt and decrypt state. **CAM: Should this be in Future for the first iteration?**
+Finally, it is the goal of the encryption feature to make available a library that third party tooling can use to encrypt and decrypt state. This may be implemented as a package within the opentofu repository, or as a standalone repository.
 
 ## Future goals
 
@@ -38,8 +38,7 @@ It is also not a goal of this feature to protect the state file against the oper
 
 Unless the user explicitly specifies encryption options, no encryption will take place. Other functionality, such as state management CLI functions, JSON output, etc. remain unaffected. Only state and plan files will be affected by the encryption.
 
-Users will be able to specify their encryption configuration both in HCL and via environment variables. The environment variables must contain the JSON-equivalent of the HCL code, see the specific description below. Both configurations are equivalent and will be merged at execution time. For more details, see the [environment configuration](#environment-configuration) section below.
-**CAM: The env var can be either HCL or JSON, it uses the same code path as reading a .hcl or .hcl.json file off disk.**
+Users will be able to specify their encryption configuration both in HCL and via environment variables. Both configurations are equivalent and will be merged at execution time. For more details, see the [environment configuration](#environment-configuration) section below.
 
 When a user wants to enable encryption, they must specify the following block:
 
@@ -105,22 +104,7 @@ terraform {
 }
 ```
 
-(JH: I don't like this functionality really. Maybe we can drop it? I can't find a nice reason to do it this way apart from avoiding polluting the encryption block in the terraform block)
-Additionally, `terraform_remote_state` data source blocks can also contain an encryption configuration: **TODO: we are treating this data source as a special snowflake compared to other, provider-based data sources. I think this is not consistent and should be removed.**
-**CAM: It's already a special snowflake as it builds a backend configuration on the fly and initializes it.  This is the most convenient way of doing this and I would expect to be able to do this as a user.  The implementation code impact is fairly minimal?**
-** DEFERR TO FUTURE**
-
-```hcl
-data "terraform_remote_state" "foo" {
-  //...
-  encryption {
-    method = method.aes_gcm.bar
-  }
-}
-```
-
-To facilitate key and method rollover, the user can specify a fallback configuration for state-related decryption, which applies to the `statefile`, `backend` and `remote_data_sources` blocks. The `planfile` block does not allow for a fallback configuration as plans are generally short-lived. When the user specifies a `fallback` block, `tofu` will first attempt to decrypt any state it reads with the primary method and then fall back to the `fallback` method. When `tofu` writes state, it does not use the `fallback` method and always writes with the primary method.
-**CAM: Is there any harm in supporting fallback for plan?  I'm pretty sure the code would be simpler to keep it?**
+To facilitate key and method rollover, the user can specify a fallback configuration for state-related decryption. When the user specifies a `fallback` block, `tofu` will first attempt to decrypt any state it reads with the primary method and then fall back to the `fallback` method. When `tofu` writes state, it does not use the `fallback` method and always writes with the primary method.
 
 ```hcl
 terraform {
@@ -161,11 +145,9 @@ terraform {
 
 ### Environment configuration
 
-As mentioned above, users can configure encryption in environment variables. The environment variables in this section contain a JSON configuration fragment in the [JSON configuration syntax](https://opentofu.org/docs/language/syntax/json/). With this format, the user can transform the following encryption block:
+As mentioned above, users can configure encryption in environment variables, either as HCL or JSON.
 
 ```hcl2
-terraform {
-  encryption {
     key_provider "static" "my_key" {
       key = "this is my encryption key"
     }
@@ -175,41 +157,31 @@ terraform {
     statefile {
       method = method.aes_gcm.foo
     }
-  }
-}
 ```
-**CAM: We probably don't want to wrap it in the `terraform -> encryption` block**
-
-The resulting JSON will be:
 
 ```json
 {
-  "terraform": {
-    "encryption": {
-      "key_provider" : {
-        "static": {
-          "my_key": {
-            "key": "this is my encryption key"
-          }
-        }
-      },
-      "method": {
-        "aes_gcm": {
-          "foo": {
-            "key_provider": "${key_provider.static.my_key}"
-          }
-        }
-      },
-      "statefile": {
-        "method": "${method.aes_gcm.foo}"
+  "key_provider" : {
+    "static": {
+      "my_key": {
+        "key": "this is my encryption key"
       }
     }
+  },
+  "method": {
+    "aes_gcm": {
+      "foo": {
+        "key_provider": "${key_provider.static.my_key}"
+      }
+    }
+  },
+  "statefile": {
+    "method": "${method.aes_gcm.foo}"
   }
 }
 ```
-**CAM: Same as above**
 
-A user can now take the `terraform` → `encryption` part of this JSON and load it into the `TF_ENCRYPTION` environment variable:
+This data can then be provided to tofu by setting the `TF_ENCRYPTION` environment variable:
 
 ```bash
 export TF_ENCRYPTION='{"key_provider":{...},"method":{...},"statefile":{...}}'
@@ -253,236 +225,79 @@ A plan file in OpenTofu is a ZIP file. However, there are no guarantees that the
 
 ## Implementation aspect
 
-When implementing the encryption tooling, the implementation should be split in two parts: the library and the OpenTofu implementation. The library should rely on the cty types as a means to specify schema, but should not be otherwise tied to the OpenTofu codebase. This is necessary to enable encryption capabilities for third party tooling that may need to work with state and plan files.
+When implementing the encryption tooling, the implementation should be split in two parts: the library and the OpenTofu implementation. The library should rely on the cty types and hcl as a means to specify schema, but should not be otherwise tied to the OpenTofu codebase. This is necessary to enable encryption capabilities for third party tooling that may need to work with state and plan files.
 
 ### Library implementation
 
-**TODO what API should the library provide?**
-
-The encryption library should create an interface that other projects and OpenTofu itself can use to encrypt and decrypt state. The library should express its schema needs (e.g. for key provider config) using [cty](https://github.com/zclconf/go-cty), but be otherwise independent of the OpenTofu codebase.
-
-#### Top level interface
-
-The top level interface is responsible for taking the `encryption` HCL block and setting up the key providers. Library users (both OpenTofu and third party tooling) should use these interfaces to access the encryption layer. Libraries wishing to implement a key provider or an encryption method should use the corresponding interfaces below.
-
-```go
-// EncryptionRegistry is a holder of KeyProvider and Method implementations. Key providers and methods can register
-// themselves with this registry. You can call the Configure function to parse an HCL block as configuration.
-type EncryptionRegistry interface {
-	RegisterKeyProvider(KeyProvider) error
-	RegisterMethod(Method) error
-}
-
-// Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
-// purpose. If no encryption configuration is present, it returns a passthru method that doesn't do anything.
-type Encryption interface {
-	StateFile() StateEncryption
-	PlanFile() PlanEncryption
-	Backend() StateEncryption
-	// RemoteString returns a StateEncryption suitable for a remote state data source. Note: this function panics
-	// if the path of the remote state data source is invalid, but does not panic if it is incorrect.
-	RemoteState(string) StateEncryption
-}
-
-type StateEncryption interface {
-    EncryptState([]byte) ([]byte, error)
-    DecryptState([]byte) ([]byte, error)
-}
-type PlanEncryption interface {
-    EncryptPlan([]byte) ([]byte, error)
-    DecryptState([]byte) ([]byte, error)
-}
-```
-
-```go
-JANOS IS ALSO MESSING AROUND - HE HATES THIS
-
-type EncryptionConfiguration struct {
-    KeyProviders map[string]KeyProviderConfig
-}
-
-type KeyProviderConfig map[string]any
-
-MORE JAMES MESSING AROUND WITH KEY PROVIDER CONFIG
-
-type KeyProviderInterfaceWhatever interface {
-	New(config any) KeyProvideKeyProviderInterfaceWhatever
-	GetKey()
-}
-
-type StaticKeyProviderInterfaceWhatever struct {
-	KeyValue string
-}
-
-func (s *StaticKeyProviderInterfaceWhatever) GetKey() any? {
-	// read from the (already merged?) config here and return
-}
-
-JAMES MESSING AROUND BLOCK
-
-var DefaultEncryptionRegistry EncryptionRegistry
-
-// EncryptionRegistry is a holder of KeyProvider and Method implementations. Key providers and methods can register
-// themselves with this registry. You can call the Configure function to parse an HCL block as configuration.
-type EncryptionRegistry interface {
-	RegisterKeyProvider(KeyProvider) error
-	RegisterMethod(Method) error
-}
-
-// Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
-// purpose. If no encryption configuration is present, it returns a passthru method that doesn't do anything.
-type Encryption interface {
-	StateFile() StateEncryption
-	PlanFile() PlanEncryption
-	Backend() StateEncryption
-	// RemoteString returns a StateEncryption suitable for a remote state data source. Note: this function panics
-	// if the path of the remote state data source is invalid, but does not panic if it is incorrect.
-	RemoteState(string) StateEncryption
-}
-
-func New(reg EncryptionRegistry, config enccfg.ConfigMap) *Encryption {
-	return
-}
-
-type StateEncryption interface {
-    EncryptState([]byte) ([]byte, error)
-    DecryptState([]byte) ([]byte, error)
-}
-type PlanEncryption interface {
-    EncryptPlan([]byte) ([]byte, error)
-    DecryptState([]byte) ([]byte, error)
-}
-
-func init() {
-	DefaultEncryptionRegistry := EncryptionRegistry{}
-	DefaultEncryptionRegistry.RegisterKeyProvider(staticKeyProvider.New())
-	DefaultEncryptionRegistry.RegisterMethod(.....)
-}
-```
-
-
+The encryption library should create an iinterface that other projects and OpenTofu itself can use to encrypt and decrypt state. The library should express its schema needs (e.g. for key provider config) using [cty](https://github.com/zclconf/go-cty) and hcl, but be otherwise independent of the OpenTofu codebase.
 
 Additionally, the OpenTofu codebase may define a global singleton to register key providers, but that should not be part
 of the library.
 
-#### KeyProvider
+### Implementation Caveats
 
-The key provider is responsible for providing the key.
+The heavy use of gohcl simplifys the code significantly, but does add some complexity around providing source ranges in diagnostic errors. Changes can be made to the design to mitigate this where nessesary.
 
-```
-config = "${key_provider.a.foo}${key_provider.a.bar}"
-```
+Additionaly, gohcl does not support identifiying Variables (hcl.Tranversals) contained in a hcl.Body's expression. A package has been temporarily added in `internal/varhcl` to provide this functionality. It will be upstreamed when time allows.
 
-```go
-type Schema struct {
-	BodySchema hcl.BodySchema
-	ReferenceFields []string
-}
+Overall `gohcl` is a very useful package, that will need some additional functionality if we decide to adopt it in additional locations in the tofu codebase.
 
-type KeyProvider interface {
-	Schema() Schema
+#### Encryption Interface
 
-	Configure(cty.Block) (KeyProviderInstance, error)
-}
+The Encryption interface contains the methods for obtaining a State or a Plan encryptor/decryptor interface. It should be constructed with a parsed encryption.Config containing merged file/env data and encryption.Registry containing all required key_providers and methods.
 
-// cty.Body + hcl.BodySchema -> cty.Block with Attributes / Sub Blocks
+#### Configuration
 
-type KeyProviderInstance interface {
-	Provide() ([]byte, error)
-}
-```
+The Config struct and it's child structs contain all of the fields required by the above reference document, with accompanying `hcl` tags for use with gohcl. Aspects of the Config may not be known during the initial parse and will be stored as `hcl.Body`s until the key_provider or method can be identified via the registry.
 
-```go
+It will also contain the ability to merge multiple Config structs together, overriding fields via a well documented and standard methodology (similar to how tofu currently works).
 
-// Meta_something.go
+#### Registry
 
-encryptionpkg.RegisterProvider()
+The Registry is a struct that contains mappings of KeyProviderSources and MethodSources. These sources are functions to construct instances
+of KeyProviders and Methods respectively. After construction, the caller will need to configure them using `gohcl` before use.
 
-var config EncryptionConfig
-// All of your key providers and methods
-// Gather configs from env / root module
+##### KeyProvider
 
-// Either:
-diags := encryptionpkg.SetupInstance(config)
-// OR
-metainst.encr, diags = encryptionpkg.Instance(config)
+The KeyProvider is an interface responsible for providing the raw `KeyData()` as an `[]byte` and an `error`.
 
-// At this point the config is wholy known (*)
-// All key_providers / methods will be initialized
+KeyProviders will not deal with the details of decoding a `key_provider` configuration block, other than being annotated with being annotated with `hcl` tags.
 
-// Now you can either use
-encryptionpkg.Instance().Stuff(...)
-// OR
-metainst.ecry.Stuff(...)
-```
+##### Method
 
+The Method is an interface responsible for providing Encrypt/Decrypt functions that transform `[]byte` -> `[]byte`, error.
 
-```go
-// Lives inside the encryptor (impl Encryption interface)
-
-// param block
-
-providerSetup := encr.GetKeyProvider(block.label)
-schema := providerSetup.GetSchema()
-block, diags := schema.Decode(block.body)
-provider := providerSetup.Init(block)
-idents := provider.Dependencies()
-
-```
-
-
-```go
-type KeyProviderInit func(cty.Body, cty.Range) (*KeyProvider, tfdiags)
-
-type KeyProvider struct {
-    func Provide() ([]byte, error)
-	func Dependencies ([]string)
-}
-
-type EncryptionRegistry interface {
-    func RegisterKeyProvider(name string, KeyProviderInit)
-    func GetKeyProvider(name string, args cty.Value) (*KeyProvider, tfdiags)
-
-
-type ERI struct {
-    keyProviders map[string]KeyProviderInit
-}
-```
-
-#### Method
-
-```go
-type Method interface {
-	Schema() cty.???
-
-	Configure(cty.???) (MethodInstance, error)
-}
-
-type MethodInstance interface {
-    Encrypt(value []byte) ([]byte, error)
-}
-```
+Methods will not deal with the details of decoding a `method` configuration block, other than being annotated with being annotated with `hcl` tags.
 
 ### OpenTofu integration
 
-**TODO document the constraints of the OpenTofu integration. Where should we hook this into?**
+Integrating this library into OpenTofu's flow will be difficult, regardless of the approach taken. At the moment, there are two general approaches: singleton vs passed instance
 
+#### Singleton
 
+A singleton would be created in a internal package within the opentofu codebase. This singleton would be initialized once the encryption configuration can be loaded from the root module.
 
+Pros:
+* Simpler access to the singleton from calling code
+* Less refactoring as the singleton is either available or not.
 
+Cons:
+* Harder to trace when/where the configuration is initialized.
+* Easy to introduce new code paths that access the singleton before it is available.
 
-/*
+#### Passed Instance
 
-map1 := loadStateEncryptionFile("main.tf")
-map2 := loadStateEncryptionFile("variables.tf")
-map3 := loadStateEncryptionEnv()
+The opentofu codebase could be refactored to pass the required state encryption target through to different objects that may requre it. This includes, but is not limited to backends, plans, state manipulation commands, remote_data_source graph nodes.
 
-merged := mergeOverrides(map1, map2, map3)
+Pros:
+* Easy to trace where a given encryption instance comes from
+* Hard to introduce new code paths without passing the correct encryption interface.
 
-// Do it here for init errors
+Cons:
+* More in-depth refactoring is required / more of the codebase edited in this work
 
-m.ecr = encpkg.Setup(merged)
-encpkg.Singleton(merged)
+A example of what this may look like can be found in [this git comparison](https://github.com/cam72cam/opentofu/compare/state_encryption_config_sketch...cam72cam:opentofu:state_encryption_direct_passing). This branch is an incomplete sketch that is based off of an older understanding of what the state encryption feature would look like, however it does show many of the places that will need to be modified.
 
-*/
-<!--  -->
+#### Hurdles
+
+Regardless of which method we choose to initially implemnent, the trickiest integration will likely be with the command package. This package has four or five partial refactors applied to it and is an absolute mess. Making sure the encryption is initialized at the correct time, with the correct values will be a challenge.

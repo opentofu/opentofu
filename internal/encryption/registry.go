@@ -1,7 +1,7 @@
 package encryption
 
 // Registry is a holder of KeyProvider and Method implementations. Key providers and methods can register
-// themselves with this registry. You can call the Configure function to parse an HCL block as configuration.
+// themselves with this registry.
 type Registry struct {
 	KeyProviders map[string]KeyProviderSource
 	Methods      map[string]MethodSource

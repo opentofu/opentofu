@@ -266,7 +266,7 @@ func (enc encryption) setupTargets() hcl.Diagnostics {
 
 	if enc.cfg.Remote != nil {
 		if enc.cfg.Remote.Default != nil {
-			m, mDiags := enc.setupTarget(enc.cfg.Remote.Default, "remote.default")
+			m, mDiags := enc.setupTarget(enc.cfg.Remote.Default, "remote_data_source.default")
 			diags = append(diags, mDiags...)
 			enc.remoteDefault = NewState(m)
 		}
@@ -275,7 +275,7 @@ func (enc encryption) setupTargets() hcl.Diagnostics {
 				Enforced: target.Enforced,
 				Method:   target.Method,
 				Fallback: target.Fallback,
-			}, "remote."+target.Name)
+			}, "remote_data_source."+target.Name)
 			diags = append(diags, mDiags...)
 			enc.remote[target.Name] = NewState(m)
 		}

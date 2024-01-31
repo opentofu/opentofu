@@ -11,7 +11,7 @@ type Config struct {
 	Backend   *TargetConfig `hcl:"backend,block"`
 	StateFile *TargetConfig `hcl:"statefile,block"`
 	PlanFile  *TargetConfig `hcl:"planfile,block"`
-	Remote    *RemoteConfig `hcl:"remote,block"`
+	Remote    *RemoteConfig `hcl:"remote_data_source,block"`
 }
 
 type KeyProviderConfig struct {
