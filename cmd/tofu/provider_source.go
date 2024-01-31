@@ -96,7 +96,8 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	//   way to include them in bundles uploaded to Terraform Cloud, where
 	//   there has historically otherwise been no way to use custom providers.
 	// - The "plugins" subdirectory of the CLI config search directory.
-	//   (thats ~/.terraform.d/plugins on Unix systems, equivalents elsewhere)
+	//   (thats ~/.terraform.d/plugins or $XDG_DATA_HOME/opentofu/plugins
+	//   on Unix systems, equivalents elsewhere)
 	// - The "plugins" subdirectory of any platform-specific search paths,
 	//   following e.g. the XDG base directory specification on Unix systems,
 	//   Apple's guidelines on OS X, and "known folders" on Windows.
@@ -144,9 +145,11 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	}
 
 	addLocalDir("terraform.d/plugins") // our "vendor" directory
-	cliConfigDir, err := cliconfig.ConfigDir()
+	cliDataDirs, err := cliconfig.DataDirs()
 	if err == nil {
-		addLocalDir(filepath.Join(cliConfigDir, "plugins"))
+		for _, cliDataDir := range cliDataDirs {
+			addLocalDir(filepath.Join(cliDataDir, "plugins"))
+		}
 	}
 
 	// This "userdirs" library implements an appropriate user-specific and
