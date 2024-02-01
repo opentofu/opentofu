@@ -5503,8 +5503,8 @@ func TestContext2Plan_removedModuleBasic(t *testing.T) {
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
-		// The prior state tracks module.mod.test_object.a, which we should be
-		// removed from the state by the module "removed" block in the root module config.
+		// The prior state tracks module.mod.test_object.a, which should be
+		// removed from the state by the module's "removed" block in the root module config.
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
@@ -5584,8 +5584,9 @@ func TestContext2Plan_removedModuleForgetsAllInstances(t *testing.T) {
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
-		// The prior state tracks test_object.a, which we should be
-		// removed from the state by the "removed" block in the config.
+		// The prior state tracks module.mod[0].test_object.a and
+		// module.mod[1].test_object.a, which we should be removed
+		// from the state by the "removed" block in the config.
 		s.SetResourceInstanceCurrent(addrFirst, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
@@ -5649,8 +5650,9 @@ func TestContext2Plan_removedResourceForgetsAllInstances(t *testing.T) {
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
-		// The prior state tracks test_object.a, which we should be
-		// removed from the state by the "removed" block in the config.
+		// The prior state tracks test_object.a[0] and
+		// test_object.a[1], which we should be removed from
+		// the state by the "removed" block in the config.
 		s.SetResourceInstanceCurrent(addrFirst, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
@@ -5763,6 +5765,68 @@ func TestContext2Plan_removedResourceInChildModuleFromParentModule(t *testing.T)
 	})
 }
 
+func TestContext2Plan_removedResourceInChildModuleFromChildModule(t *testing.T) {
+	addr := mustResourceInstanceAddr("module.mod.test_object.a")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			module "mod" {
+				  source = "./mod"
+			}
+		`,
+		"mod/main.tf": `
+			removed {
+				from = test_object.a
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		// The prior state tracks module.mod.test_object.a.a, which we should be
+		// removed from the state by the "removed" block in the child mofule config.
+		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			addr,
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+
+	t.Run(addr.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(addr)
+		if instPlan == nil {
+			t.Fatalf("no plan for %s at all", addr)
+		}
+
+		if got, want := instPlan.Addr, addr; !got.Equal(want) {
+			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
+			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.Action, plans.Forget; got != want {
+			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
+			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+}
+
 func TestContext2Plan_removedResourceInGrandchildModuleFromRootModule(t *testing.T) {
 	addr := mustResourceInstanceAddr("module.child.module.grandchild.test_object.a")
 	m := testModuleInline(t, map[string]string{
@@ -5779,8 +5843,9 @@ func TestContext2Plan_removedResourceInGrandchildModuleFromRootModule(t *testing
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
-		// The prior state tracks module.mod.test_object.a.a, which we should be
-		// removed from the state by the "removed" block in the root config.
+		// The prior state tracks module.child.module.grandchild.test_object.a,
+		// which we should be removed from the state by the "removed" block in
+		// the root config.
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
@@ -5841,8 +5906,9 @@ func TestContext2Plan_removedChildModuleForgetsResourceInGrandchildModule(t *tes
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
-		// The prior state tracks module.mod.test_object.a.a, which we should be
-		// removed from the state by the "removed" block in the root config.
+		// The prior state tracks module.child.module.grandchild.test_object.a,
+		// which we should be removed from the state by the "removed" block
+		// in the root config.
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
@@ -5971,6 +6037,55 @@ func TestContext2Plan_removedResourceButResourceBlockStillExists(t *testing.T) {
 
 			removed {
 				from = test_object.a
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			addr,
+		},
+	})
+
+	if !diags.HasErrors() {
+		t.Fatal("succeeded; want errors")
+	}
+
+	if got, want := diags.Err().Error(), "Removed resource block still exists"; !strings.Contains(got, want) {
+		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+	}
+}
+
+func TestContext2Plan_removedResourceButResourceBlockStillExistsInChildModule(t *testing.T) {
+	addr := mustResourceInstanceAddr("module.mod.test_object.a")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			module "mod" {
+				source = "./mod"
+			}
+			
+			removed {
+				from = module.mod.test_object.a
+			}
+		`,
+		"mod/main.tf": `
+			resource "test_object" "a" {
+				test_string = "foo"
 			}
 		`,
 	})
