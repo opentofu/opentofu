@@ -336,7 +336,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		var m *NodePlannableResourceInstance
 
-		// If we're in legacy import mode (the import CLI command), we only need
+		// If we're in the `tofu import` CLI command, we only need
 		// to return the import node, not a plannable resource node.
 		for _, c := range commandLineImportTargets {
 			if c.Addr.Equal(a.Addr) {
