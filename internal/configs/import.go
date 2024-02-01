@@ -12,7 +12,7 @@ import (
 
 type Import struct {
 	ID hcl.Expression
-	To addrs.AbsResourceInstance
+	To hcl.Expression
 
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
@@ -35,15 +35,18 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["to"]; exists {
-		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
-		diags = append(diags, traversalDiags...)
-		if !traversalDiags.HasErrors() {
-			to, toDiags := addrs.ParseAbsResourceInstance(traversal)
-			diags = append(diags, toDiags.ToHCL()...)
-			imp.To = to
-		}
+		//traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
+		//diags = append(diags, traversalDiags...)
+		//if !traversalDiags.HasErrors() {
+		//	to, toDiags := addrs.ParseAbsResourceInstance(traversal)
+		//	diags = append(diags, toDiags.ToHCL()...)
+		//	imp.To = to
+		//}
+
+		imp.To = attr.Expr
 	}
 
+	// TODO - figure out the static address here, and use it to get the module for the provider validation here
 	if attr, exists := content.Attributes["provider"]; exists {
 		if len(imp.To.Module) > 0 {
 			diags = append(diags, &hcl.Diagnostic{

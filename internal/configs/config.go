@@ -432,6 +432,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 		reqs[fqn] = nil
 	}
 	for _, i := range c.Module.Import {
+		// TODO - figure out the static address here, and use it to get the module for the provider here
 		implied, err := addrs.ParseProviderPart(i.To.Resource.Resource.ImpliedProvider())
 		if err == nil {
 			provider := c.Module.ImpliedProviderForUnqualifiedType(implied)
@@ -454,6 +455,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 	// this will be because the user has written explicit provider arguments
 	// that don't agree and we'll get them to fix it.
 	for _, i := range c.Module.Import {
+		// TODO - figure out the static address here, and use it to get the module for the provider validation here
 		if len(i.To.Module) > 0 {
 			// All provider information for imports into modules should come
 			// from the module block, so we don't need to load anything for

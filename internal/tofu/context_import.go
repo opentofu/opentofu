@@ -82,13 +82,21 @@ func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 // For an ImportTarget originating from the command line, the address is already known
 // However for an ImportTarget originating from an import block, the full address might not be known initially,
 // and could only be evaluated down the line. Here, we attempt to resolve the address as though it is a static absolute
-// traversal, if that's possible
+// traversal, if that's possible. This would only be possible if the `import` block's "to" field does not rely on any
+// data that is dynamic
 func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evaluationDiags hcl.Diagnostics) {
 	if i.CommandLineImportTarget != nil {
 		address = i.CommandLineImportTarget.Addr
 	} else {
-		// TODO change this later, when Config.To is not a static address
-		address = i.Config.To
+		traversal, traversalDiags := hcl.AbsTraversalForExpr(i.Config.To)
+		evaluationDiags = append(evaluationDiags, traversalDiags...)
+		if evaluationDiags.HasErrors() {
+			return
+		}
+
+		to, toDiags := addrs.ParseAbsResourceInstance(traversal)
+		evaluationDiags = append(evaluationDiags, toDiags.ToHCL()...)
+		address = to
 	}
 	return
 }

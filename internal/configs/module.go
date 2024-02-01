@@ -424,6 +424,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 
 	for _, i := range file.Import {
 		for _, mi := range m.Import {
+			// TODO - We might want to keep this early validation for duplicate import block addresses, only if address can be fully evaluated
+			//  We might want/need this validation anyway elsewhere, in case multiple different import blocks' to field resolve to the same actual address
 			if i.To.Equal(mi.To) {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -455,6 +457,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			// Comparing string serialisations is good enough here, because we
 			// only care about equality in the case that both addresses are
 			// AbsResourceInstances.
+			// TODO - Check what happens here if validation is removed. The address might be resolved later to be a target of a `moved` block, so it probably means we will import "over" it
 			if mb.From.String() == i.To.String() {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,

@@ -304,7 +304,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 	var commandLineImportTargets []CommandLineImportTarget
 	var evaluatedConfigImportTargets []EvaluatedConfigImportTarget
-	// FIXME - Deal with cases of duplicate addresses
 
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportCommandLine() {
@@ -320,6 +319,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				ID:     importId,
 			})
 
+			// TODO - Evaluate the address here
+			// FIXME - Deal with cases of duplicate addresses?
 			resolvedImports := ctx.ResolvedImports().imports
 			resolvedImports[ResolvedConfigImportsKey{
 				AddrStr: importTarget.Config.To.String(),
