@@ -370,6 +370,14 @@ func initCommands(
 			}, nil
 		},
 
+		"state ls": func() (cli.Command, error) {
+			return &command.AliasCommand{
+				Command: &command.StateListCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+
 		"state rm": func() (cli.Command, error) {
 			return &command.StateRmCommand{
 				StateMeta: command.StateMeta{
@@ -378,10 +386,30 @@ func initCommands(
 			}, nil
 		},
 
+		"state remove": func() (cli.Command, error) {
+			return &command.AliasCommand{
+				Command: &command.StateRmCommand{
+					StateMeta: command.StateMeta{
+						Meta: meta,
+					},
+				},
+			}, nil
+		},
+
 		"state mv": func() (cli.Command, error) {
 			return &command.StateMvCommand{
 				StateMeta: command.StateMeta{
 					Meta: meta,
+				},
+			}, nil
+		},
+
+		"state move": func() (cli.Command, error) {
+			return &command.AliasCommand{
+				Command: &command.StateMvCommand{
+					StateMeta: command.StateMeta{
+						Meta: meta,
+					},
 				},
 			}, nil
 		},
@@ -457,4 +485,16 @@ func makeShutdownCh() <-chan struct{} {
 func credentialsSource(config *cliconfig.Config) (auth.CredentialsSource, error) {
 	helperPlugins := pluginDiscovery.FindPlugins("credentials", globalPluginDirs())
 	return config.CredentialsSource(helperPlugins)
+}
+
+func getAliasCommandKeys() []string {
+	keys := []string{}
+	for key, cmdFact := range commands {
+		cmd, _ := cmdFact()
+		_, ok := cmd.(*command.AliasCommand)
+		if ok {
+			keys = append(keys, key)
+		}
+	}
+	return keys
 }
