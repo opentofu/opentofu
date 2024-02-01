@@ -214,7 +214,7 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 
 	for _, importTarget := range n.importTargets {
 		// References are only possible in import targets originating from an import block
-		if importTarget.IsFromImportBlock() {
+		if !importTarget.IsFromImportBlock() {
 			continue
 		}
 
