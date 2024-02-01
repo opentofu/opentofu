@@ -5613,45 +5613,27 @@ func TestContext2Plan_removedModuleForgetsAllInstances(t *testing.T) {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
 
-	t.Run(addrFirst.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrFirst)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrFirst)
-		}
+	for _, resourceInstance := range []addrs.AbsResourceInstance{addrFirst, addrSecond} {
+		t.Run(resourceInstance.String(), func(t *testing.T) {
+			instPlan := plan.Changes.ResourceInstance(resourceInstance)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", resourceInstance)
+			}
 
-		if got, want := instPlan.Addr, addrFirst; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrFirst; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Forget; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(addrSecond.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrSecond)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrSecond)
-		}
-
-		if got, want := instPlan.Addr, addrSecond; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrSecond; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Forget; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
+			if got, want := instPlan.Addr, resourceInstance; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, resourceInstance; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, plans.Forget; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+		})
+	}
 }
 
 func TestContext2Plan_removedResourceForgetsAllInstances(t *testing.T) {
@@ -5696,45 +5678,27 @@ func TestContext2Plan_removedResourceForgetsAllInstances(t *testing.T) {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
 
-	t.Run(addrFirst.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrFirst)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrFirst)
-		}
+	for _, resourceInstance := range []addrs.AbsResourceInstance{addrFirst, addrSecond} {
+		t.Run(resourceInstance.String(), func(t *testing.T) {
+			instPlan := plan.Changes.ResourceInstance(resourceInstance)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", resourceInstance)
+			}
 
-		if got, want := instPlan.Addr, addrFirst; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrFirst; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Forget; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(addrSecond.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrSecond)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrSecond)
-		}
-
-		if got, want := instPlan.Addr, addrSecond; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrSecond; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Forget; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
+			if got, want := instPlan.Addr, resourceInstance; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, resourceInstance; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, plans.Forget; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoResourceConfig; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+		})
+	}
 }
 
 func TestContext2Plan_removedResourceInChildModuleFromParentModule(t *testing.T) {
