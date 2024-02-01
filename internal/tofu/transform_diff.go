@@ -111,9 +111,9 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			update = true
 		}
 
-		// A deposed instance may only have a change of Delete or NoOp. A NoOp
-		// can happen if the provider shows it no longer exists during the most
-		// recent ReadResource operation.
+		// A deposed instance may only have a change of Delete, Forget or NoOp.
+		// A NoOp can happen if the provider shows it no longer exists during
+		// the most recent ReadResource operation.
 		if dk != states.NotDeposed && !(rc.Action == plans.Delete || rc.Action == plans.NoOp || rc.Action == plans.Forget) {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -221,17 +221,15 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 					NodeAbstractResourceInstance: abstract,
 					DeposedKey:                   dk,
 				}
+				log.Printf("[TRACE] DiffTransformer: %s will be represented for removal from the state by %s", addr, dag.VertexName(node))
 			} else {
 				node = &NodeForgetDeposedResourceInstanceObject{
 					NodeAbstractResourceInstance: abstract,
 					DeposedKey:                   dk,
 				}
-			}
-			if dk == states.NotDeposed {
-				log.Printf("[TRACE] DiffTransformer: %s will be represented for removal from the state by %s", addr, dag.VertexName(node))
-			} else {
 				log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for for removal from the state by %s", addr, dk, dag.VertexName(node))
 			}
+
 			g.Add(node)
 		}
 
