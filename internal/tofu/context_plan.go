@@ -570,7 +570,7 @@ func (c *Context) validateImportTargets(config *configs.Config, importTargets []
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Cannot import to non-existent resource address",
-				Detail:   fmt.Sprintf("Importing to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", staticAddress),
+				Detail:   fmt.Sprintf("Importing to resource address '%s' is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", staticAddress),
 				Subject:  imp.Config.DeclRange.Ptr(),
 			})
 			return
