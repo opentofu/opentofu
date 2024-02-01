@@ -305,7 +305,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	// FIXME - Deal with cases of duplicate addresses
 
 	for _, importTarget := range n.importTargets {
-		if importTarget.CommandLineImportTarget != nil {
+		if importTarget.IsFromImportCommandLine() {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
 			importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)

@@ -50,6 +50,18 @@ type ImportTarget struct {
 	*CommandLineImportTarget
 }
 
+// IsFromImportBlock checks whether the import target originates from an `import` block
+// Currently, it should yield the opposite result of IsFromImportCommandLine, as those two are mutually-exclusive
+func (i *ImportTarget) IsFromImportBlock() bool {
+	return i.Config != nil
+}
+
+// IsFromImportCommandLine checks whether the import target originates from a `tofu import` command
+// Currently, it should yield the opposite result of IsFromImportBlock, as those two are mutually-exclusive
+func (i *ImportTarget) IsFromImportCommandLine() bool {
+	return i.CommandLineImportTarget != nil
+}
+
 // StaticAddr returns the static address part of an import target
 // For an ImportTarget originating from the command line, the address is already known
 // However for an ImportTarget originating from an import block, the full address might not be known initially,
