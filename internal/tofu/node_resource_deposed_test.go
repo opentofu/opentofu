@@ -90,6 +90,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 		deposedKey := states.NewDeposedKey()
 		absResource := mustResourceInstanceAddr(test.nodeAddress)
 
+		ctx, p := initMockEvalContext(test.nodeAddress, deposedKey)
+
 		node := NodePlanDeposedResourceInstanceObject{
 			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 				Addr: absResource,
@@ -100,52 +102,6 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			DeposedKey:        deposedKey,
 			EndpointsToRemove: test.nodeEndpointsToRemove,
 		}
-
-		state := states.NewState()
-
-		if !absResource.Module.Module().Equal(addrs.RootModule) {
-			state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
-		}
-		state.Module(absResource.Module).SetResourceInstanceDeposed(
-			absResource.Resource,
-			deposedKey,
-			&states.ResourceInstanceObjectSrc{
-				Status:    states.ObjectTainted,
-				AttrsJSON: []byte(`{"id":"bar"}`),
-			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		)
-
-		p := testProvider("test")
-		p.ConfigureProvider(providers.ConfigureProviderRequest{})
-		p.UpgradeResourceStateResponse = &providers.UpgradeResourceStateResponse{
-			UpgradedState: cty.ObjectVal(map[string]cty.Value{
-				"id": cty.StringVal("bar"),
-			}),
-		}
-
-		ctx :=
-			&MockEvalContext{
-				StateState:        state.SyncWrapper(),
-				PrevRunStateState: state.DeepCopy().SyncWrapper(),
-				RefreshStateState: state.DeepCopy().SyncWrapper(),
-				ProviderProvider:  p,
-				ProviderSchemaSchema: providers.ProviderSchema{
-					ResourceTypes: map[string]providers.Schema{
-						"test_instance": {
-							Block: &configschema.Block{
-								Attributes: map[string]*configschema.Attribute{
-									"id": {
-										Type:     cty.String,
-										Computed: true,
-									},
-								},
-							},
-						},
-					},
-				},
-				ChangesChanges: plans.NewChanges().SyncWrapper(),
-			}
 
 		err := node.Execute(ctx, walkPlan)
 		if err != nil {
@@ -169,48 +125,10 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
-	absResource := mustResourceInstanceAddr("test_instance.foo")
-	state.Module(addrs.RootModuleInstance).SetResourceInstanceDeposed(
-		absResource.Resource,
-		deposedKey,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectTainted,
-			AttrsJSON: []byte(`{"id":"bar"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-	)
+	absResourceAddr := "test_instance.foo"
+	ctx, _ := initMockEvalContext(absResourceAddr, deposedKey)
 
-	schema := providers.ProviderSchema{
-		ResourceTypes: map[string]providers.Schema{
-			"test_instance": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"id": {
-							Type:     cty.String,
-							Computed: true,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	p := testProvider("test")
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
-	p.GetProviderSchemaResponse = &schema
-
-	p.UpgradeResourceStateResponse = &providers.UpgradeResourceStateResponse{
-		UpgradedState: cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal("bar"),
-		}),
-	}
-	ctx := &MockEvalContext{
-		StateState:           state.SyncWrapper(),
-		ProviderProvider:     p,
-		ProviderSchemaSchema: schema,
-		ChangesChanges:       plans.NewChanges().SyncWrapper(),
-	}
-
+	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: absResource,
@@ -303,8 +221,39 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
-	absResource := mustResourceInstanceAddr("test_instance.foo")
-	state.Module(addrs.RootModuleInstance).SetResourceInstanceDeposed(
+	absResourceAddr := "test_instance.foo"
+	ctx, _ := initMockEvalContext(absResourceAddr, deposedKey)
+
+	absResource := mustResourceInstanceAddr(absResourceAddr)
+	node := NodeForgetDeposedResourceInstanceObject{
+		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
+			Addr: absResource,
+			NodeAbstractResource: NodeAbstractResource{
+				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			},
+		},
+		DeposedKey: deposedKey,
+	}
+	err := node.Execute(ctx, walkApply)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if !state.Empty() {
+		t.Fatalf("resources left in state after forget")
+	}
+}
+
+func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*MockEvalContext, *MockProvider) {
+	state := states.NewState()
+	absResource := mustResourceInstanceAddr(resourceAddrs)
+
+	if !absResource.Module.Module().Equal(addrs.RootModule) {
+		state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
+	}
+
+	state.Module(absResource.Module).SetResourceInstanceDeposed(
 		absResource.Resource,
 		deposedKey,
 		&states.ResourceInstanceObjectSrc{
@@ -338,29 +287,12 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 			"id": cty.StringVal("bar"),
 		}),
 	}
-	ctx := &MockEvalContext{
+	return &MockEvalContext{
+		PrevRunStateState:    state.DeepCopy().SyncWrapper(),
+		RefreshStateState:    state.DeepCopy().SyncWrapper(),
 		StateState:           state.SyncWrapper(),
 		ProviderProvider:     p,
 		ProviderSchemaSchema: schema,
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
-	}
-
-	node := NodeForgetDeposedResourceInstanceObject{
-		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			Addr: absResource,
-			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-			},
-		},
-		DeposedKey: deposedKey,
-	}
-	err := node.Execute(ctx, walkApply)
-
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	if !state.Empty() {
-		t.Fatalf("resources left in state after forget")
-	}
+	}, p
 }
