@@ -96,7 +96,7 @@ func (c *StateListCommand) Run(args []string) int {
 
 func (c *StateListCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] state list [options] [address...]
+Usage: tofu [global options] state (list|ls) [options] [address...]
 
   List resources in the OpenTofu state.
 
