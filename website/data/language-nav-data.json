@@ -1100,6 +1100,11 @@
         "hidden": true
       },
       {
+        "title": "templatestring",
+        "path": "language/functions/templatestring",
+        "hidden": true
+      },
+      {
         "title": "textdecodebase64",
         "path": "language/functions/textdecodebase64",
         "hidden": true

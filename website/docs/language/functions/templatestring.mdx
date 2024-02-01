@@ -1,0 +1,38 @@
+---
+sidebar_label: templatestring
+description: |-
+  The `templatestring` function takes a string and renders it as a template using a supplied set of template variables.
+---
+
+# `templatestring` Function
+
+The `templatestring` function takes a string and renders it as a template using a supplied set of template variables.
+
+```hcl
+templatestring(str, vars)
+```
+
+## Examples
+
+### Simple Interpolation
+
+```
+> templatestring("Hello, Jodie!", {})
+
+Hello, Jodie!
+```
+
+```
+> templatestring("Hello, ${name}!", { name = "Alice" })
+
+Hello, Alice!
+```
+### Lists
+
+Given a template string having list as template variable will have the following usage:
+
+```
+> templatestring("Items: ${join(", ", items)}", { items = ["apple", "banana", "orange"] })
+
+Items: apple, banana, orange
+```
