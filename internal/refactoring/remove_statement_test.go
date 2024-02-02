@@ -6,8 +6,9 @@
 package refactoring
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
