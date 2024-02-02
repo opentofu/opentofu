@@ -51,7 +51,7 @@ type Plan struct {
 	// the planning operation failed. An errored plan cannot be applied,
 	// but can be cautiously inspected for debugging purposes.
 	Errored bool
-
+	
 	// Checks captures a snapshot of the (probably-incomplete) check results
 	// at the end of the planning process.
 	//
