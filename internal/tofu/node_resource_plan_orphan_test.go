@@ -6,8 +6,9 @@
 package tofu
 
 import (
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
