@@ -5,7 +5,9 @@ package jsonplan
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -302,13 +304,48 @@ func TestEncodePaths(t *testing.T) {
 			json.RawMessage(`[["triggers"]]`),
 		},
 		"multiple paths of different types": {
+			// The order of the path sets is not guaranteed, so we sort the
+			// result by the number of elements in the path to make the test deterministic.
 			cty.NewPathSet(
-				cty.GetAttrPath("alpha").GetAttr("beta").GetAttr("gamma"),
-				cty.GetAttrPath("triggers").IndexString("name"),
-				cty.IndexIntPath(0).IndexInt(1).IndexInt(2).IndexInt(3),
+				cty.GetAttrPath("alpha").GetAttr("beta"),                            // 2 elements
+				cty.GetAttrPath("triggers").IndexString("name").IndexString("test"), // 3 elements
+				cty.IndexIntPath(0).IndexInt(1).IndexInt(2).IndexInt(3),             // 4 elements
 			),
-			json.RawMessage(`[["alpha","beta","gamma"],["triggers","name"],[0,1,2,3]]`),
+			json.RawMessage(`[[0,1,2,3],["alpha","beta"],["triggers","name","test"]]`),
 		},
+	}
+
+	// comp is a custom comparator for comparing JSON arrays. It sorts the
+	// arrays based on the number of elements in each path before comparing them.
+	// this allows our test cases to be more flexible about the order of the
+	// paths in the result. and deterministic on both 32 and 64 bit architectures.
+	comp := func(a, b json.RawMessage) (bool, error) {
+		if a == nil && b == nil {
+			return true, nil // Both are nil, they are equal
+		}
+		if a == nil || b == nil {
+			return false, nil // One is nil and the other is not, they are not equal
+		}
+
+		var pathsA, pathsB [][]interface{}
+		err := json.Unmarshal(a, &pathsA)
+		if err != nil {
+			return false, fmt.Errorf("error unmarshalling first argument: %w", err)
+		}
+		err = json.Unmarshal(b, &pathsB)
+		if err != nil {
+			return false, fmt.Errorf("error unmarshalling second argument: %w", err)
+		}
+
+		// Sort the slices based on the number of elements in each path
+		sort.Slice(pathsA, func(i, j int) bool {
+			return len(pathsA[i]) < len(pathsA[j])
+		})
+		sort.Slice(pathsB, func(i, j int) bool {
+			return len(pathsB[i]) < len(pathsB[j])
+		})
+
+		return cmp.Equal(pathsA, pathsB), nil
 	}
 
 	for name, test := range tests {
@@ -317,8 +354,13 @@ func TestEncodePaths(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			if !cmp.Equal(got, test.Want) {
-				t.Errorf("wrong result:\n %v\n", cmp.Diff(got, test.Want))
+
+			equal, err := comp(got, test.Want)
+			if err != nil {
+				t.Fatalf("error comparing JSON slices: %s", err)
+			}
+			if !equal {
+				t.Errorf("paths do not match:\n%s", cmp.Diff(got, test.Want))
 			}
 		})
 	}
