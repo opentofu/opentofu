@@ -10,13 +10,13 @@ This document mentions `HCL` as a short-form for OpenTofu code. Unless otherwise
 
 The goal of this feature is to allow OpenTofu users to fully encrypt state files when they are stored on the local disk or transferred to a remote backend. The feature should also allow reading from an encrypted remote backend using the `terraform_remote_state` data source. The encrypted version should still be a valid JSON file, but not necessarily a valid state file.
 
-Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, they are ZIP files. If feasible, this feature should a correct ZIP encryption format to encrypt the data contained within the ZIP file.
+Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, they are ZIP files. If feasible, this feature should produce a structurally correct encrypted ZIP file.
 
-For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state file with one (older) key and then re-encrypt data with a newer key.
+For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state or plan file with one (older) key and then re-encrypt data with a newer key. Multiple fallbacks should be avoided in the implementation as they may cause a performance hit.
 
 To enable use cases where multiple teams need to collaborate, the user should be able to specify separate encryption methods and keys for individual uses, especially for the `terraform_remote_state` data source. However, to simplify configuration, the user should be able to specify single configuration for all remote state data sources.
 
-It is the goal of this feature to let users specify their encryption configuration both in HCL and in environment variables. The latter is necessary to allow users the reuse of HCL code for encrypted and unencrypted state storage.
+It is the goal of this feature to let users specify their encryption configuration both in (HCL) code and in environment variables. The latter is necessary to allow users the reuse of code for both encrypted and unencrypted state storage.
 
 Finally, it is the goal of the encryption feature to make available a library that third party tooling can use to encrypt and decrypt state. This may be implemented as a package within the OpenTofu repository, or as a standalone repository.
 
@@ -24,7 +24,7 @@ Finally, it is the goal of the encryption feature to make available a library th
 
 This section describes possible future goals. However, these goals are merely aspirations, and we may or may not implement them, or implement them differently based on community feedback. We describe these aspirations here to make clear which features we intentionally left out of scope for the current implementation.
 
-Users who use CI/CD systems or security scanners may want to do so by passing or storing a state or plan file to untrusted systems, but still keeping the state file structure. In the future, the user should be able to specify partial encryption. This encryption type would only encrypt sensitive values instead of the whole state file. The same is true for plan files. As plan files are in ZIP format, it should be feasible to partially encrypt these files as well.
+Users who use CI/CD systems or security scanners that need to read the state or plan files, but users may not fully trust these systems. In the future, the user should be able to specify partial encryption. This encryption type would only encrypt sensitive values instead of the whole state or plan file. (As plan files are in ZIP format, it should be feasible to partially encrypt these files as well.)
 
 At this time, due to the limitations on passing providers through to modules, encryption configuration is global. However, in the future, the user should be able to create a module that carries along their own encryption method and how it relates to the `terraform_remote_state` data sources. This is important so individual teams can ship ready-to-use modules to other teams that access their state. However, due to the constraints on passing resources to modules this is currently out of scope for this proposal.
 
@@ -40,9 +40,9 @@ It is also not a goal of this feature to protect the state file against the oper
 
 ## User-facing effects
 
-Unless the user explicitly specifies encryption options, no encryption will take place and OpenTofu will continue to function as before. No forced encryption will take place. Furthermore, regardless of the encryption status, other functionality, such as state management CLI functions, JSON output, etc. remain unaffected and will be readable in plain text if they were readable before. Only state and plan files will be affected by the encryption.
+Unless the user explicitly specifies encryption options, no encryption will take place and OpenTofu will continue to function as before. No forced encryption will take place. Furthermore, regardless of the encryption status, other functionality, such as state management CLI functions, JSON output, etc. remain unaffected and will be readable in plain text if they were readable as plain text before. Only state and plan files will be affected by the encryption.
 
-Users will be able to specify their encryption configuration both in HCL and via environment variables. Both configurations are equivalent and will be merged at execution time. For more details, see the [environment configuration](#environment-configuration) section below.
+Users will be able to specify their encryption configuration both in code and via environment variables. Both configurations are equivalent and will be merged at execution time. For more details, see the [environment configuration](#environment-configuration) section below.
 
 When a user wants to enable encryption, they must specify the following block:
 
@@ -54,11 +54,9 @@ terraform {
 }
 ```
 
-However, the presence of the `encryption` block alone does not enable encryption because the user must explicitly specify what key and method to use. The implementation should warn the user if the encryption block is present but has no configuration.
+The mere presence of the `encryption` block alone should not enable encryption because the user should explicitly specify what key and method to use. The implementation should warn the user if the encryption block is present but has no configuration.
 
-The encryption relies on an encryption key, or a composite encryption key, which the user can provide directly or via a key management system. Generally, the user is responsible for keeping this key safe and follow disaster recovery best practices. OpenTofu is a read-only consumer for the key the user provided and will not perform tasks like key rotation.
-
-Therefore, the user must fill out this block with the settings described below. As a first step, the user must specify one or more key providers. These key providers serve the purpose of creating or providing the encryption key. For example, the user could hard-code a static key named foo:
+The encryption relies on an encryption key, or a composite encryption key, which the user can provide directly or via a key management system. The user must provide at least one `key_provider` block with the settings described below. These key providers serve the purpose of creating or providing the encryption key. For example, the user could hard-code a static key named foo:
 
 ```hcl2
 terraform {
@@ -70,7 +68,9 @@ terraform {
 }
 ```
 
-The user then has to specify at least one encryption method referencing the key provider. This encryption method determines how the encryption takes place. It is the user's responsibility to make sure that they provided a key that is suitable for the encryption method.
+**Note:** the user is responsible for keeping this key safe and follow disaster recovery best practices. OpenTofu is a read-only consumer for the key the user provided and will not perform tasks on the key management system like key rotation.
+
+The user also has to specify at least one encryption method referencing the key provider. This encryption method determines how the encryption takes place. It is the user's responsibility to make sure that they provided a key that is suitable for the encryption method.
 
 ```hcl2
 terraform {
@@ -128,9 +128,11 @@ terraform {
 
 **Note:** The `fallback` is a block because the future goals may require adding additional options.
 
+**Note:** Multiple `fallback` blocks should not be supported because they would be detrimental to performance and encourage keeping old encryption keys in the configuration.
+
 ### Composite keys
 
-When a user desires to create a composite key, such as for creating a passphrase-based derivative key or a shared custody key. For these use cases, the user is able to chain those key providers:
+When a user desires to create a composite key, such as for creating a passphrase-based derivative key or a shared custody key, they may avail themselves of a key provider that supports multiple inputs. The user can chain key providers together:
 
 ```hcl2
 terraform {
