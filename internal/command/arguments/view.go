@@ -14,7 +14,7 @@ type View struct {
 	// for a configuration.
 	CompactWarnings bool
 
-	// Concise is used to reduce the level of noise in the output and display 
+	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
 	Concise bool
 }

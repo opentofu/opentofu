@@ -27,7 +27,7 @@ type View struct {
 	// the messages that users are most likely to see.
 	runningInAutomation bool
 
-	// Concise is used to reduce the level of noise in the output and display 
+	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
 	concise bool
 
