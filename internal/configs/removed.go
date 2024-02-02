@@ -10,6 +10,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
+// Removed represents a removed block in the configuration.
 type Removed struct {
 	From *addrs.RemoveEndpoint
 
