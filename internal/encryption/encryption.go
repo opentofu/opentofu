@@ -2,6 +2,9 @@ package encryption
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/opentofu/opentofu/internal/encryption/registry"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -9,35 +12,38 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Encryption contains the methods for obtaining a State or Plan correctly configured for a specific
+// Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
 // purpose. If no encryption configuration is present, it returns a passthru method that doesn't do anything.
 type Encryption interface {
-	StateFile() State
-	PlanFile() Plan
-	Backend() State
-	RemoteState(string) State
+	// TODO either the Encryption interface, or the New func and encryption struct should be moved to a different
+	// to avoid nasty circular dependency issues.
+
+	StateFile() StateEncryption
+	PlanFile() PlanEncryption
+	Backend() StateEncryption
+	RemoteState(string) StateEncryption
 }
 
 type encryption struct {
 	// Inputs
 	cfg *Config
-	reg Registry
+	reg registry.Registry
 
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
 	// Used to build EvalContext (and related mappings)
 	keyValues    map[string]map[string]cty.Value
 	methodValues map[string]map[string]cty.Value
-	methods      map[string]Method
+	methods      map[string]method.Method
 
-	stateFile     State
-	planFile      Plan
-	backend       State
-	remoteDefault State
-	remote        map[string]State
+	stateFile     StateEncryption
+	planFile      PlanEncryption
+	backend       StateEncryption
+	remoteDefault StateEncryption
+	remote        map[string]StateEncryption
 }
 
-func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
+func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	enc := &encryption{
@@ -49,9 +55,9 @@ func New(reg Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 		},
 		keyValues:    make(map[string]map[string]cty.Value),
 		methodValues: make(map[string]map[string]cty.Value),
-		methods:      make(map[string]Method),
+		methods:      make(map[string]method.Method),
 
-		remote: make(map[string]State),
+		remote: make(map[string]StateEncryption),
 	}
 
 	// TODO handle cfg == nil
@@ -86,7 +92,7 @@ func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvide
 		enc.keyValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
-	// Check if we have already setup this KeyProvider (due to dependency loading)
+	// Check if we have already setup this Factory (due to dependency loading)
 	if _, ok := enc.keyValues[cfg.Type][cfg.Name]; ok {
 		return nil
 	}
@@ -105,19 +111,19 @@ func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvide
 	stack = append(stack, cfg)
 
 	// Lookup definition
-	def := enc.reg.KeyProviders[cfg.Type]
-	if def == nil {
+	keyProviderFactory, err := enc.reg.GetKeyProvider(keyprovider.ID(cfg.Type))
+	if err != nil {
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unknown key_provider type",
-			Detail:   fmt.Sprintf("Can not find key_provider type %q for %q in the encryption registry", cfg.Type, cfg.Name),
+			Detail:   err.Error(),
 		}}
 	}
 
-	kp := def()
+	kpcfg := keyProviderFactory.ConfigStruct()
 
 	// Locate Dependencies
-	deps, diags := varhcl.VariablesInBody(cfg.Body, kp)
+	deps, diags := varhcl.VariablesInBody(cfg.Body, kpcfg)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -162,14 +168,22 @@ func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvide
 	}
 
 	// Init Key Provider
-	decodeDiags := gohcl.DecodeBody(cfg.Body, enc.ctx, kp)
+	decodeDiags := gohcl.DecodeBody(cfg.Body, enc.ctx, kpcfg)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
 		return diags
 	}
 
 	// Execute Key Provider
-	data, err := kp.KeyData()
+	keyProvider, err := kpcfg.Build()
+	if err != nil {
+		return append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unable to fetch key data",
+			Detail:   fmt.Sprintf("key_provider.%s.%s failed with error: %s", cfg.Type, cfg.Name, err.Error()),
+		})
+	}
+	data, err := keyProvider.Provide()
 	if err != nil {
 		enc.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
 		return append(diags, &hcl.Diagnostic{
@@ -179,7 +193,7 @@ func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvide
 		})
 	}
 
-	// Convert data into cty equvalent
+	// Convert data into cty equivalent
 	ctyData := make([]cty.Value, len(data))
 	for i, b := range data {
 		ctyData[i] = cty.NumberIntVal(int64(b))
@@ -219,27 +233,35 @@ func (enc encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	}
 
 	// Lookup definition
-	def := enc.reg.Methods[cfg.Type]
-	if def == nil {
+	encryptionMethod, err := enc.reg.GetMethod(method.ID(cfg.Type))
+	if err != nil {
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unknown method type",
-			Detail:   fmt.Sprintf("Can not find method type %q for %q in the encryption registry", cfg.Type, cfg.Name),
+			Detail:   err.Error(),
 		}}
 	}
 
-	method := def()
+	methodcfg := encryptionMethod.ConfigStruct()
 
 	// TODO we could use varhcl here to provider better error messages
-	diags := gohcl.DecodeBody(cfg.Body, enc.ctx, method)
+	diags := gohcl.DecodeBody(cfg.Body, enc.ctx, &methodcfg)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	// Map from EvalContext vars -> Method
+	// Map from EvalContext vars -> Factory
 	mIdent := fmt.Sprintf("method.%s.%s", cfg.Type, cfg.Name)
 	enc.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
-	enc.methods[mIdent] = method
+	enc.methods[mIdent], err = methodcfg.Build()
+	if err != nil {
+		// TODO this error handling could use some work
+		return hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Method configuration failed",
+			Detail:   err.Error(),
+		}}
+	}
 
 	return diags
 
@@ -284,11 +306,11 @@ func (enc encryption) setupTargets() hcl.Diagnostics {
 	return diags
 }
 
-func (enc encryption) setupTarget(cfg *TargetConfig, name string) ([]Method, hcl.Diagnostics) {
+func (enc encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-	target := make([]Method, 0)
+	target := make([]method.Method, 0)
 
-	// Method referenced by this target
+	// Factory referenced by this target
 	if cfg.Method != nil {
 		var methodIdent string
 		decodeDiags := gohcl.DecodeExpression(cfg.Method, enc.ctx, &methodIdent)
@@ -323,17 +345,17 @@ func (enc encryption) setupTarget(cfg *TargetConfig, name string) ([]Method, hcl
 	return target, nil
 }
 
-func (e *encryption) StateFile() State {
+func (e *encryption) StateFile() StateEncryption {
 	return e.stateFile
 }
-func (e *encryption) PlanFile() Plan {
+func (e *encryption) PlanFile() PlanEncryption {
 	return e.planFile
 
 }
-func (e *encryption) Backend() State {
+func (e *encryption) Backend() StateEncryption {
 	return e.backend
 }
-func (e *encryption) RemoteState(name string) State {
+func (e *encryption) RemoteState(name string) StateEncryption {
 	if state, ok := e.remote[name]; ok {
 		return state
 	}

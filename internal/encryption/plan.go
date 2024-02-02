@@ -1,11 +1,13 @@
 package encryption
 
-type Plan interface {
+import "github.com/opentofu/opentofu/internal/encryption/method"
+
+type PlanEncryption interface {
 	EncryptPlan([]byte) ([]byte, error)
-	DecryptState([]byte) ([]byte, error)
+	DecryptPlan([]byte) ([]byte, error)
 }
 
-func NewPlan(methods []Method) Plan {
+func NewPlan(methods []method.Method) PlanEncryption {
 	// TODO
 	return nil
 }

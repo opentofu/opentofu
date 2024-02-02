@@ -1,4 +1,4 @@
-package encryption
+package aesgcm
 
 import (
 	"crypto/aes"
@@ -6,14 +6,15 @@ import (
 	"crypto/rand"
 )
 
-type AESCipherMethod struct {
-	Key []byte `hcl:"cipher"`
+type aesgcm struct {
+	key []byte
 }
 
 // Inspired by https://bruinsslot.jp/post/golang-crypto/
 
-func (m AESCipherMethod) Encrypt(data []byte) ([]byte, error) {
-	blockCipher, err := aes.NewCipher(m.Key)
+func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
+	// TODO change this to the implementation in Stephan's PR.
+	blockCipher, err := aes.NewCipher(a.key)
 	if err != nil {
 		return nil, err
 	}
@@ -32,8 +33,9 @@ func (m AESCipherMethod) Encrypt(data []byte) ([]byte, error) {
 
 	return ciphertext, nil
 }
-func (m AESCipherMethod) Decrypt(data []byte) ([]byte, error) {
-	blockCipher, err := aes.NewCipher(m.Key)
+
+func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
+	blockCipher, err := aes.NewCipher(a.key)
 	if err != nil {
 		return nil, err
 	}
