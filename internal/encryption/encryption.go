@@ -2,6 +2,7 @@ package encryption
 
 import (
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
@@ -78,7 +79,7 @@ func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	return enc, diags
 }
 
-func (enc encryption) setupKeyProviders() hcl.Diagnostics {
+func (enc *encryption) setupKeyProviders() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	for _, kpc := range enc.cfg.KeyProviders {
 		diags = append(diags, enc.setupKeyProvider(kpc, nil)...)
@@ -86,7 +87,7 @@ func (enc encryption) setupKeyProviders() hcl.Diagnostics {
 	return diags
 }
 
-func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
+func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in keyValues
 	if _, ok := enc.keyValues[cfg.Type]; !ok {
 		enc.keyValues[cfg.Type] = make(map[string]cty.Value)
@@ -210,7 +211,7 @@ func (enc encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvide
 	return diags
 }
 
-func (enc encryption) setupMethods() hcl.Diagnostics {
+func (enc *encryption) setupMethods() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	for _, m := range enc.cfg.Methods {
 		diags = append(diags, enc.setupMethod(m)...)
@@ -226,7 +227,7 @@ func (enc encryption) setupMethods() hcl.Diagnostics {
 	return diags
 }
 
-func (enc encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
+func (enc *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in methodValues
 	if _, ok := enc.methodValues[cfg.Type]; !ok {
 		enc.methodValues[cfg.Type] = make(map[string]cty.Value)
@@ -245,7 +246,7 @@ func (enc encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	methodcfg := encryptionMethod.ConfigStruct()
 
 	// TODO we could use varhcl here to provider better error messages
-	diags := gohcl.DecodeBody(cfg.Body, enc.ctx, &methodcfg)
+	diags := gohcl.DecodeBody(cfg.Body, enc.ctx, methodcfg)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -267,7 +268,7 @@ func (enc encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 
 }
 
-func (enc encryption) setupTargets() hcl.Diagnostics {
+func (enc *encryption) setupTargets() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if enc.cfg.StateFile != nil {
@@ -306,7 +307,7 @@ func (enc encryption) setupTargets() hcl.Diagnostics {
 	return diags
 }
 
-func (enc encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Method, hcl.Diagnostics) {
+func (enc *encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	target := make([]method.Method, 0)
 

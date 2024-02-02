@@ -1,8 +1,9 @@
 package static_test
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 )
 
 func TestEmpty(t *testing.T) {
@@ -24,7 +25,7 @@ func TestEmpty(t *testing.T) {
 // TestInvalidInput tests if an error is throw with an invalid input.
 func TestInvalidInput(t *testing.T) {
 	factory := static.New()
-	config := factory.ConfigStruct().(static.Config)
+	config := factory.ConfigStruct().(*static.Config)
 	config.Key = "G"
 	_, err := config.Build()
 	if err == nil {
@@ -34,7 +35,7 @@ func TestInvalidInput(t *testing.T) {
 
 func TestSuccess(t *testing.T) {
 	factory := static.New()
-	config := factory.ConfigStruct().(static.Config)
+	config := factory.ConfigStruct().(*static.Config)
 	config.Key = "48656c6c6f20776f726c6421"
 	keyProvider, err := config.Build()
 	if err != nil {

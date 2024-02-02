@@ -3,6 +3,7 @@ package static_test
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
@@ -15,8 +16,12 @@ func Example() {
 }
 
 method "aes_gcm" "foo" {
-  key = key_provider.static.foo
-}`
+  cipher = key_provider.static.foo
+}
+planfile {
+	method = method.aes_gcm.foo
+}
+`
 
 	// Set up the registry with the correct key provider and method:
 	registry := lockingencryptionregistry.New()
@@ -41,6 +46,7 @@ method "aes_gcm" "foo" {
 
 	// Encrypt:
 	planFileEncryption := enc.PlanFile()
+
 	// TODO this is not a valid ZIP file.
 	sourceData := []byte("Hello world!")
 	encryptedPlan, err := planFileEncryption.EncryptPlan(sourceData)
