@@ -933,7 +933,7 @@ func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 	assumeRole := awsbase.AssumeRole{}
 
 	assumeRole.RoleARN = stringAttr(obj, "role_arn")
-	assumeRole.Duration = time.Duration(intAttr(obj, "assume_role_duration_seconds") * int(time.Second))
+	assumeRole.Duration = time.Duration(int64(intAttr(obj, "assume_role_duration_seconds")) * int64(time.Second))
 	assumeRole.ExternalID = stringAttr(obj, "external_id")
 	assumeRole.Policy = stringAttr(obj, "assume_role_policy")
 	assumeRole.SessionName = stringAttr(obj, "session_name")
