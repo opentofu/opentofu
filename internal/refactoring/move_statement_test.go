@@ -124,7 +124,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("formerly_count").Instance(addrs.NoKey), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/move-statement-implied.tf",
+				Filename: "testdata/move-statement-implied/main.tf",
 				Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 180},
 				End:      tfdiags.SourcePos{Line: 5, Column: 32, Byte: 211},
 			},
@@ -136,7 +136,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(nestedResourceAddr("child", "formerly_count").Instance(addrs.NoKey), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/child/move-statement-implied.tf",
+				Filename: "testdata/move-statement-implied/child/main.tf",
 				Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 180},
 				End:      tfdiags.SourcePos{Line: 5, Column: 32, Byte: 211},
 			},
@@ -147,7 +147,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("now_count").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/move-statement-implied.tf",
+				Filename: "testdata/move-statement-implied/main.tf",
 				Start:    tfdiags.SourcePos{Line: 10, Column: 11, Byte: 282},
 				End:      tfdiags.SourcePos{Line: 10, Column: 12, Byte: 283},
 			},
@@ -159,7 +159,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(nestedResourceAddr("child", "now_count").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/child/move-statement-implied.tf",
+				Filename: "testdata/move-statement-implied/child/main.tf",
 				Start:    tfdiags.SourcePos{Line: 10, Column: 11, Byte: 282},
 				End:      tfdiags.SourcePos{Line: 10, Column: 12, Byte: 283},
 			},
@@ -175,7 +175,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("ambiguous").Instance(addrs.NoKey), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/move-statement-implied.tf",
+				Filename: "testdata/move-statement-implied/main.tf",
 				Start:    tfdiags.SourcePos{Line: 46, Column: 1, Byte: 806},
 				End:      tfdiags.SourcePos{Line: 46, Column: 27, Byte: 832},
 			},
