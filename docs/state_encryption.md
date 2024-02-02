@@ -12,19 +12,19 @@ The goal of this feature is to allow OpenTofu users to fully encrypt state files
 
 Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, they are ZIP files. If feasible, this feature should produce a structurally correct encrypted ZIP file.
 
-For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state or plan file with one (older) key and then re-encrypt data with a newer key. Multiple fallbacks should be avoided in the implementation as they may cause a performance hit.
+For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state or plan file with one (older) key and then re-encrypt data with a newer key. Multiple fallbacks should be avoided in the implementation.
 
-To enable use cases where multiple teams need to collaborate, the user should be able to specify separate encryption methods and keys for individual uses, especially for the `terraform_remote_state` data source. However, to simplify configuration, the user should be able to specify single configuration for all remote state data sources.
+To enable use cases where multiple teams need to collaborate, the user should be able to specify separate encryption methods and keys for individual uses, especially for the `terraform_remote_state` data source. However, to simplify configuration, the user should be able to specify a default configuration for all remote state data sources.
 
 It is the goal of this feature to let users specify their encryption configuration both in (HCL) code and in environment variables. The latter is necessary to allow users the reuse of code for both encrypted and unencrypted state storage.
 
 Finally, it is the goal of the encryption feature to make available a library that third party tooling can use to encrypt and decrypt state. This may be implemented as a package within the OpenTofu repository, or as a standalone repository.
 
-## Future goals
+## Possible future goals
 
 This section describes possible future goals. However, these goals are merely aspirations, and we may or may not implement them, or implement them differently based on community feedback. We describe these aspirations here to make clear which features we intentionally left out of scope for the current implementation.
 
-Users who use CI/CD systems or security scanners that need to read the state or plan files, but users may not fully trust these systems. In the future, the user should be able to specify partial encryption. This encryption type would only encrypt sensitive values instead of the whole state or plan file. (As plan files are in ZIP format, it should be feasible to partially encrypt these files as well.)
+Users use CI/CD systems or security scanners that need to read the state or plan files, but may not fully trust these systems. In the future, the user should be able to specify partial encryption. This encryption type would only encrypt sensitive values instead of the whole state or plan file. (As plan files are in ZIP format, it should be feasible to partially encrypt these files as well.)
 
 At this time, due to the limitations on passing providers through to modules, encryption configuration is global. However, in the future, the user should be able to create a module that carries along their own encryption method and how it relates to the `terraform_remote_state` data sources. This is important so individual teams can ship ready-to-use modules to other teams that access their state. However, due to the constraints on passing resources to modules this is currently out of scope for this proposal.
 
@@ -34,7 +34,7 @@ Finally, it is a future goal to enable providers to provide their own key provid
 
 In this section we describe the features that are out of scope for state and plan encryption. We do not aspire to solve these problems with the same implementation, and they must be addressed separately if the community chooses to support these endeavours. 
 
-The primary goal of this feature is to protect state and plan files at rest. It is not the goal of this feature to protect other channels secrets may be accessed through, such as the JSON output. As such, it is not a goal of this feature to encrypt any output on the standard output, or file output that is not a state or plan file.
+The primary goal of this feature is to protect state and plan files **at rest**. It is not the goal of this feature to protect other channels secrets may be accessed through, such as the JSON output. As such, it is not a goal of this feature to encrypt any output on the standard output, or file output that is not a state or plan file.
 
 It is also not a goal of this feature to protect the state file against the operator of the device running `tofu`. The operator already has access to the encryption key and can decrypt the data without the `tofu` binary being present if they so chose.
 
@@ -90,27 +90,27 @@ terraform {
   encryption {
     //...
     statefile {
-      method = method.aes_gcm.bar
+      method = method.aes_gcm.abc
     }
     planfile {
-      method = method.aes_gcm.bar
+      method = method.aes_gcm.cde
     }
     backend {
-      method = method.aes_gcm.bar
+      method = method.pbkdf2.efg
     }
     remote_data_sources {
       default {
-        method = method.aes_gcm.bar
+        method = method.aes_gcm.ghi
       }
       remote_data_source "some_module.remote_data_source.foo" {
-        method = method.aes_gcm.bar
+        method = method.aes_gcm.ijk
       }
     }
   }
 }
 ```
 
-To facilitate key and method rollover, the user can specify a fallback configuration for state-related decryption. When the user specifies a `fallback` block, `tofu` will first attempt to decrypt any state it reads with the primary method and then fall back to the `fallback` method. When `tofu` writes state, it does not use the `fallback` method and always writes with the primary method.
+To facilitate key and method rollover, the user can specify a fallback configuration for state and plan decryption. When the user specifies a `fallback` block, `tofu` will first attempt to decrypt any state or plan it reads with the primary method and then fall back to the `fallback` method. When `tofu` writes a state or plan, it will not use the `fallback` method and always writes with the primary method.
 
 ```hcl2
 terraform {
@@ -199,7 +199,7 @@ export TF_ENCRYPTION='{"key_provider":{...},"method":{...},"statefile":{...}}'
 
 When the user specifies both an environment and a code configuration, `tofu` merges the two configurations. If two values conflict, the environment configuration takes precedence.
 
-To ensure that the encryption cannot be accidentally forgotten or disabled and the state stored unencrypted, the user can specify the `enforced` option in the HCL configuration:
+To ensure that the encryption cannot be accidentally forgotten or disabled and the data stored unencrypted, the user can specify the `enforced` option in the HCL configuration:
 
 ```hcl2
 terraform {
@@ -238,7 +238,7 @@ When `tofu` encrypts a state file, the encrypted state is still a JSON file. Any
 
 ## Encrypted plan format
 
-A plan file in OpenTofu is a ZIP file. This specification makes no rules for how that format should look like and all non-encryption routines should treat the value as opaque. For ease of use and recovery, however, the implementation may want to consider using a standard ZIP header to encode the details.
+A unencrypted plan file in OpenTofu is a ZIP file. This specification makes no rules for how the encrypted format should look like and all non-encryption routines should treat the value as opaque. For ease of use and recovery, however, the implementation may want to consider using a standard ZIP header to encode the details.
 
 ## Implementation
 
@@ -304,7 +304,7 @@ type Config struct {
 
 Currently, the OpenTofu code is in large parts procedural and has globally scoped state. Launching a second instance of OpenTofu is impossible. As it is a much-requested feature to embed OpenTofu as a library, this will need to change in the future. Therefore, the integration of the library should do its best to not introduce more global variables if possible.
 
-The implementation may avail itself of either a singleton, or choose to pass the Encryption interface along several function calls. Both have benefits and drawbacks. However, singletons make parallelized testing very difficult and may, therefore should be avoided in tests as much as possible.
+The implementation may avail itself of either a singleton, or choose to pass the Encryption interface along several function calls. Both have benefits and drawbacks. However, singletons make parallelized testing very difficult and should therefore be avoided in tests as much as possible.
 
 #### Singleton
 
