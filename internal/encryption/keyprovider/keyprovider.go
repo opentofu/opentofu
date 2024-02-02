@@ -4,7 +4,7 @@ type Config interface {
 	Build() (KeyProvider, error)
 }
 
-type Factory interface {
+type Descriptor interface {
 	// ID returns the unique identifier used when parsing HCL or JSON configs.
 	ID() ID
 	// ConfigStruct creates a new configuration struct pointer annotated with hcl tags. The Build() receiver on

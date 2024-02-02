@@ -11,18 +11,18 @@ import (
 func New() registry.Registry {
 	return &lockingRegistry{
 		lock:      &sync.RWMutex{},
-		providers: map[keyprovider.ID]keyprovider.Factory{},
-		methods:   map[method.ID]method.Factory{},
+		providers: map[keyprovider.ID]keyprovider.Descriptor{},
+		methods:   map[method.ID]method.Descriptor{},
 	}
 }
 
 type lockingRegistry struct {
 	lock      *sync.RWMutex
-	providers map[keyprovider.ID]keyprovider.Factory
-	methods   map[method.ID]method.Factory
+	providers map[keyprovider.ID]keyprovider.Descriptor
+	methods   map[method.ID]method.Descriptor
 }
 
-func (l *lockingRegistry) RegisterKeyProvider(keyProvider keyprovider.Factory) error {
+func (l *lockingRegistry) RegisterKeyProvider(keyProvider keyprovider.Descriptor) error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
@@ -37,7 +37,7 @@ func (l *lockingRegistry) RegisterKeyProvider(keyProvider keyprovider.Factory) e
 	return nil
 }
 
-func (l *lockingRegistry) RegisterMethod(method method.Factory) error {
+func (l *lockingRegistry) RegisterMethod(method method.Descriptor) error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
@@ -52,7 +52,7 @@ func (l *lockingRegistry) RegisterMethod(method method.Factory) error {
 	return nil
 }
 
-func (l *lockingRegistry) GetKeyProvider(id keyprovider.ID) (keyprovider.Factory, error) {
+func (l *lockingRegistry) GetKeyProvider(id keyprovider.ID) (keyprovider.Descriptor, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	provider, ok := l.providers[id]
@@ -62,7 +62,7 @@ func (l *lockingRegistry) GetKeyProvider(id keyprovider.ID) (keyprovider.Factory
 	return provider, nil
 }
 
-func (l *lockingRegistry) GetMethod(id method.ID) (method.Factory, error) {
+func (l *lockingRegistry) GetMethod(id method.ID) (method.Descriptor, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	foundMethod, ok := l.methods[id]

@@ -6,10 +6,10 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// InvalidKeyProvider indicates that the supplied keyprovider.Factory is invalid/misbehaving. Check the error
+// InvalidKeyProvider indicates that the supplied keyprovider.Descriptor is invalid/misbehaving. Check the error
 // message for details.
 type InvalidKeyProvider struct {
-	KeyProvider keyprovider.Factory
+	KeyProvider keyprovider.Descriptor
 	Cause       error
 }
 
@@ -31,8 +31,8 @@ func (k KeyProviderNotFound) Error() string {
 
 type KeyProviderAlreadyRegistered struct {
 	ID               keyprovider.ID
-	CurrentProvider  keyprovider.Factory
-	PreviousProvider keyprovider.Factory
+	CurrentProvider  keyprovider.Descriptor
+	PreviousProvider keyprovider.Descriptor
 }
 
 func (k KeyProviderAlreadyRegistered) Error() string {
@@ -42,10 +42,10 @@ func (k KeyProviderAlreadyRegistered) Error() string {
 	)
 }
 
-// InvalidMethod indicates that the supplied method.Factory is invalid/misbehaving. Check the error message for
+// InvalidMethod indicates that the supplied method.Descriptor is invalid/misbehaving. Check the error message for
 // details.
 type InvalidMethod struct {
-	Method method.Factory
+	Method method.Descriptor
 	Cause  error
 }
 
@@ -67,8 +67,8 @@ func (m MethodNotFound) Error() string {
 
 type MethodAlreadyRegistered struct {
 	ID             method.ID
-	CurrentMethod  method.Factory
-	PreviousMethod method.Factory
+	CurrentMethod  method.Descriptor
+	PreviousMethod method.Descriptor
 }
 
 func (m MethodAlreadyRegistered) Error() string {

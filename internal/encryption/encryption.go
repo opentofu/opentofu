@@ -93,7 +93,7 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 		enc.keyValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
-	// Check if we have already setup this Factory (due to dependency loading)
+	// Check if we have already setup this Descriptor (due to dependency loading)
 	if _, ok := enc.keyValues[cfg.Type][cfg.Name]; ok {
 		return nil
 	}
@@ -112,7 +112,7 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 	stack = append(stack, cfg)
 
 	// Lookup definition
-	keyProviderFactory, err := enc.reg.GetKeyProvider(keyprovider.ID(cfg.Type))
+	keyProviderDescriptor, err := enc.reg.GetKeyProvider(keyprovider.ID(cfg.Type))
 	if err != nil {
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -121,7 +121,7 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 		}}
 	}
 
-	kpcfg := keyProviderFactory.ConfigStruct()
+	kpcfg := keyProviderDescriptor.ConfigStruct()
 
 	// Locate Dependencies
 	deps, diags := varhcl.VariablesInBody(cfg.Body, kpcfg)
@@ -251,7 +251,7 @@ func (enc *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 		return diags
 	}
 
-	// Map from EvalContext vars -> Factory
+	// Map from EvalContext vars -> Descriptor
 	mIdent := fmt.Sprintf("method.%s.%s", cfg.Type, cfg.Name)
 	enc.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
 	enc.methods[mIdent], err = methodcfg.Build()
@@ -311,7 +311,7 @@ func (enc *encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Met
 	var diags hcl.Diagnostics
 	target := make([]method.Method, 0)
 
-	// Factory referenced by this target
+	// Descriptor referenced by this target
 	if cfg.Method != nil {
 		var methodIdent string
 		decodeDiags := gohcl.DecodeExpression(cfg.Method, enc.ctx, &methodIdent)

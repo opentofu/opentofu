@@ -7,8 +7,8 @@ import (
 )
 
 func TestEmpty(t *testing.T) {
-	factory := static.New()
-	config := factory.ConfigStruct()
+	descriptor := static.New()
+	config := descriptor.ConfigStruct()
 	keyProvider, err := config.Build()
 	if err != nil {
 		panic(err)
@@ -24,8 +24,8 @@ func TestEmpty(t *testing.T) {
 
 // TestInvalidInput tests if an error is throw with an invalid input.
 func TestInvalidInput(t *testing.T) {
-	factory := static.New()
-	config := factory.ConfigStruct().(*static.Config)
+	descriptor := static.New()
+	config := descriptor.ConfigStruct().(*static.Config)
 	config.Key = "G"
 	_, err := config.Build()
 	if err == nil {
@@ -34,8 +34,8 @@ func TestInvalidInput(t *testing.T) {
 }
 
 func TestSuccess(t *testing.T) {
-	factory := static.New()
-	config := factory.ConfigStruct().(*static.Config)
+	descriptor := static.New()
+	config := descriptor.ConfigStruct().(*static.Config)
 	config.Key = "48656c6c6f20776f726c6421"
 	keyProvider, err := config.Build()
 	if err != nil {

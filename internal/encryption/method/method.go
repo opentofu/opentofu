@@ -5,7 +5,7 @@ type Config interface {
 	Build() (Method, error)
 }
 
-type Factory interface {
+type Descriptor interface {
 	// ID returns the unique identifier used when parsing HCL or JSON configs.
 	ID() ID
 
