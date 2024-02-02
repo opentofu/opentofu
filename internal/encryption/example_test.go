@@ -33,10 +33,8 @@ backend {
 `
 )
 
-// ExampleEncryption demonstrates how to use the encryption package to encrypt and decrypt data.
-// This example uses the static key provider and the AES-GCM method.
-// It also shows how to merge multiple configurations.
-func ExampleEncryption() {
+// This example demonstrates how to use the encryption package to encrypt and decrypt data.
+func Example() {
 	// Construct a new registry
 	// the registry is where we store the key providers and methods
 	reg := lockingencryptionregistry.New()

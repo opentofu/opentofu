@@ -1,17 +1,14 @@
 package static_test
 
 import (
-	"bytes"
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
-	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
-	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 )
 
-func Example() {
-	config := `key_provider "static" "foo" {
+var config = `key_provider "static" "foo" {
   key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
 }
 
@@ -23,14 +20,13 @@ planfile {
 }
 `
 
-	// Set up the registry with the correct key provider and method:
-	registry := lockingencryptionregistry.New()
-	if err := registry.RegisterKeyProvider(static.New()); err != nil {
-		panic(err)
-	}
-	if err := registry.RegisterMethod(aesgcm.New()); err != nil {
-		panic(err)
-	}
+// This example is a bare-bones configuration for a static key provider.
+// It is mainly intended to demonstrate how you can use parse configuration
+// and construct a static key provider from in.
+// And is not intended to be used as a real-world example.
+func Example() {
+	// TODO: Rename from ConfigStruct
+	staticConfig := static.New().ConfigStruct()
 
 	// Parse the config:
 	parsedConfig, diags := encryption.LoadConfigFromString("config.hcl", config)
@@ -38,30 +34,34 @@ planfile {
 		panic(diags)
 	}
 
-	// Set up the encryption:
-	enc, diags := encryption.New(registry, parsedConfig)
-	if diags.HasErrors() {
-		panic(diags)
+	// TODO: Rename KeyProviders to KeyProviderConfigs
+	if len(parsedConfig.KeyProviders) != 1 {
+		panic("Expected 1 key provider")
+	}
+	// Grab the KeyProvider from the parsed config:
+	keyProvider := parsedConfig.KeyProviders[0]
+
+	// assert the Type is "static" and the Name is "foo"
+	if keyProvider.Type != "static" {
+		panic("Expected key provider type to be 'static'")
+	}
+	if keyProvider.Name != "foo" {
+		panic("Expected key provider name to be 'foo'")
 	}
 
-	// Encrypt:
-	planFileEncryption := enc.PlanFile()
-
-	// TODO this is not a valid ZIP file.
-	sourceData := []byte("Hello world!")
-	encryptedPlan, err := planFileEncryption.EncryptPlan(sourceData)
-	if err != nil {
+	// Use gohcl to parse the hcl block from parsedConfig into the static configuration struct
+	// This is not the intended path and it should be handled by the implementation of the Encryption
+	// interface
+	// This is just an example of how to use the static configuration struct, and this is how testing
+	// may be carried out.
+	if err := gohcl.DecodeBody(parsedConfig.KeyProviders[0].Body, nil, staticConfig); err != nil {
 		panic(err)
 	}
-	if bytes.Equal(encryptedPlan, sourceData) {
-		panic("The data has not been encrypted!")
-	}
 
-	// Decrypt:
-	decryptedPlan, err := planFileEncryption.DecryptPlan(encryptedPlan)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("%s", decryptedPlan)
-	// Output: Hello world!
+	// Cast the static configuration struct to a static.Config so that we can assert against the key
+	// value
+	s := staticConfig.(*static.Config)
+
+	fmt.Printf("%s\n", s.Key)
+	// Output: 6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169
 }
