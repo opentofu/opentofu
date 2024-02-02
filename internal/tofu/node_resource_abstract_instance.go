@@ -353,28 +353,6 @@ func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState 
 	var diags tfdiags.Diagnostics
 	var plan *plans.ResourceInstanceChange
 
-	// TODO: remove - this is an unreachable code, the state of this resource cannot be null
-	// If there is no state or our attributes object is null then the resource
-	// was already forgotten.
-	//if currentState == nil || currentState.Value.IsNull() {
-	//	// We still need to generate a NoOp change, because that allows
-	//	// outside consumers of the plan to distinguish between us affirming
-	//	// that we checked something and concluded no changes were needed
-	//	// vs. that something being entirely excluded e.g. due to -target.
-	//	noop := &plans.ResourceInstanceChange{
-	//		Addr:        absAddr,
-	//		PrevRunAddr: n.prevRunAddr(ctx),
-	//		DeposedKey:  deposedKey,
-	//		Change: plans.Change{
-	//			Action: plans.NoOp,
-	//			Before: cty.NullVal(cty.DynamicPseudoType),
-	//			After:  cty.NullVal(cty.DynamicPseudoType),
-	//		},
-	//		ProviderAddr: n.ResolvedProvider,
-	//	}
-	//	return noop, nil
-	//}
-
 	unmarkedPriorVal, _ := currentState.Value.UnmarkDeep()
 
 	// The config and new value are null to signify that this is a forget
