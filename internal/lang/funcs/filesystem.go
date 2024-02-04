@@ -56,8 +56,9 @@ func MakeFileFunc(baseDir string, encBase64 bool) function.Function {
 	})
 }
 
-// MakeTemplateFunc constructs a function that can render a template
-// from either a file path or a string, using HCL template syntax.
+// MakeTemplateFileFunc constructs a function that takes a file path and
+// an arbitrary object of named values and attempts to render the referenced
+// file as a template using HCL template syntax.
 //
 // The template itself may recursively call other functions so a callback
 // must be provided to get access to those functions. The template cannot,
@@ -68,7 +69,7 @@ func MakeFileFunc(baseDir string, encBase64 bool) function.Function {
 // As a special exception, a referenced template file may not recursively call
 // the templatefile function, since that would risk the same file being
 // included into itself indefinitely.
-func MakeTemplateFunc(baseDir string, funcsCb func() map[string]function.Function, fileInput bool) function.Function {
+func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Function) function.Function {
 
 	params := []function.Parameter{
 		{
@@ -85,15 +86,9 @@ func MakeTemplateFunc(baseDir string, funcsCb func() map[string]function.Functio
 	loadTmpl := func(fn string, marks cty.ValueMarks) (hcl.Expression, error) {
 		// We re-use File here to ensure the same filename interpretation
 		// as it does, along with its other safety checks.
-		var tmplVal cty.Value
-		if fileInput {
-			var err error
-			tmplVal, err = File(baseDir, cty.StringVal(fn).WithMarks(marks))
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			tmplVal = cty.StringVal(fn)
+		tmplVal, err := File(baseDir, cty.StringVal(fn).WithMarks(marks))
+		if err != nil {
+			return nil, err
 		}
 
 		expr, diags := hclsyntax.ParseTemplate([]byte(tmplVal.AsString()), fn, hcl.Pos{Line: 1, Column: 1})
@@ -146,15 +141,6 @@ func MakeTemplateFunc(baseDir string, funcsCb func() map[string]function.Functio
 					Params: params,
 					Type: func(args []cty.Value) (cty.Type, error) {
 						return cty.NilType, fmt.Errorf("cannot recursively call templatefile from inside templatefile call")
-					},
-				})
-				continue
-			} else if name == "templatestring" {
-				// We stub this one out to prevent recursive calls.
-				funcs[name] = function.New(&function.Spec{
-					Params: params,
-					Type: func(args []cty.Value) (cty.Type, error) {
-						return cty.NilType, fmt.Errorf("cannot recursively call templatestring from inside templatestring call")
 					},
 				})
 				continue

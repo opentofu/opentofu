@@ -154,17 +154,17 @@ func (s *Scope) Functions() map[string]function.Function {
 			"zipmap":           stdlib.ZipmapFunc,
 		}
 
-		s.funcs["templatefile"] = funcs.MakeTemplateFunc(s.BaseDir, func() map[string]function.Function {
+		s.funcs["templatefile"] = funcs.MakeTemplateFileFunc(s.BaseDir, func() map[string]function.Function {
 			// The templatefile function prevents recursive calls to itself
 			// by copying this map and overwriting the "templatefile" entry.
 			return s.funcs
-		}, true)
+		})
 
-		s.funcs["templatestring"] = funcs.MakeTemplateFunc(s.BaseDir, func() map[string]function.Function {
+		s.funcs["templatestring"] = funcs.MakeTemplateStringFunc(s.BaseDir, func() map[string]function.Function {
 			// The templatestring function prevents recursive calls to itself
 			// by copying this map and overwriting the "templatestring" entry.
 			return s.funcs
-		}, false)
+		})
 
 		if s.ConsoleMode {
 			// The type function is only available in OpenTofu console.

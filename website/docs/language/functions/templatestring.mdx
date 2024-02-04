@@ -14,25 +14,78 @@ templatestring(str, vars)
 
 ## Examples
 
-### Simple Interpolation
+### Simple String Template
 
-```
-> templatestring("Hello, Jodie!", {})
+A basic example showcasing the use of templatestring for a static string.
 
-Hello, Jodie!
+```hcl
+output "result" {
+  value = templatestring("Hello, Jodie!", {})
+}
 ```
+```
+result = Hello, Jodie!
+```
+### String interpolation with variable
 
-```
-> templatestring("Hello, ${name}!", { name = "Alice" })
+This example illustrates string interpolation by inserting a variable value into the template.
 
-Hello, Alice!
+```hcl
+output "result" {
+  value = templatestring("Hello, ${name}!", { name = "Alice" })
+}
 ```
+```
+result = Hello, Alice!
+```
+## Advanced Usage
+
+Although in principle `templatestring` can be used with an inline template string, we don't recommend this approach because it requires awkward escaping. Instead, iconsider exploring alternative options such as you can use the local block to create a local variable and then pass that variable to the templatestring function or utilizing the file function. For a clearer understanding, refer to the example below.
+
 ### Lists
 
-Given a template string having list as template variable will have the following usage:
+This example shows the usage of the templatestring function with a list variable, joined and formatted in the resulting string.
+
+```hcl
+locals {
+  list = ["value1", "value2", "value3"]
+  formatted_items = join(", ", local.list)
+}
+
+output "result" {
+  value = templatestring("List Items : ${local.formatted_items}", {})
+}
+```
+```
+result = "List Items : value1, value2, value3"
+```
+
+### Maps
+
+Given a template file `map.tftpl` with the following content:
 
 ```
-> templatestring("Items: ${join(", ", items)}", { items = ["apple", "banana", "orange"] })
+%{ for key, value in items ~} 
+${key}:${value} 
+%{ endfor ~}
 
-Items: apple, banana, orange
 ```
+The templatestring function renders the template:
+
+```hcl
+output "result" {
+  value = templatestring(file("map.tftpl"), { items = {key1 = "value1", key2 = "value2", key3 = "value3" }})
+}
+```
+```
+result = <<-EOT
+    key1:value1
+    key2:value2 
+    key3:value3
+EOT
+```
+
+## Related Functions
+
+* [`file`](/docs/language/functions/file) reads a file from disk and returns its literal contents
+  without any template interpretation.

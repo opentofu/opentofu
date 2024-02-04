@@ -181,12 +181,12 @@ func TestTemplateFile(t *testing.T) {
 		},
 	}
 
-	templateFileFn := MakeTemplateFunc(".", func() map[string]function.Function {
+	templateFileFn := MakeTemplateFileFunc(".", func() map[string]function.Function {
 		return map[string]function.Function{
 			"join":         stdlib.JoinFunc,
 			"templatefile": MakeFileFunc(".", false), // just a placeholder, since templatefile itself overrides this
 		}
-	}, true)
+	})
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TemplateFile(%#v, %#v)", test.Path, test.Vars), func(t *testing.T) {
@@ -198,77 +198,20 @@ func TestTemplateFile(t *testing.T) {
 				}
 			}
 
-			if test.Err != "" {
-				if err == nil {
-					t.Fatal("succeeded; want error")
+			if err != nil {
+				if test.Err == "" {
+					t.Fatalf("unexpected error: %s", err)
+				} else {
+					if got, want := err.Error(), test.Err; got != want {
+						t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
+					}
 				}
-				if got, want := err.Error(), test.Err; got != want {
-					t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
+			} else if test.Err != "" {
+				t.Fatal("succeeded; want error")
+			} else {
+				if !got.RawEquals(test.Want) {
+					t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
 				}
-				return
-			} else if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
-
-			if !got.RawEquals(test.Want) {
-				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
-			}
-		})
-	}
-}
-
-func TestTemplateString(t *testing.T) {
-	tests := []struct {
-		Data  cty.Value
-		Vars  cty.Value
-		Want  cty.Value
-		Err   string
-	}{
-		{
-			cty.StringVal("Hello, Jodie!"),
-			cty.EmptyObjectVal,
-			cty.StringVal("Hello, Jodie!"),
-			``,
-		},
-		{
-			cty.StringVal("Hello, ${name}!"),
-			cty.MapVal(map[string]cty.Value{
-				"name": cty.StringVal("Jodie"),
-			}),
-			cty.StringVal("Hello, Jodie!"),
-			``,
-		},
-		// Add more test cases for templatestring here
-	}
-
-	templateStringFn := MakeTemplateFunc(".", func() map[string]function.Function {
-		return map[string]function.Function{}
-	}, false)
-
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("TemplateString(%#v, %#v)", test.Data, test.Vars), func(t *testing.T) {
-			got, err := templateStringFn.Call([]cty.Value{test.Data, test.Vars})
-
-			if argErr, ok := err.(function.ArgError); ok {
-				if argErr.Index < 0 || argErr.Index > 1 {
-					t.Errorf("ArgError index %d is out of range for templatestring (must be 0 or 1)", argErr.Index)
-				}
-			}
-
-			if test.Err != "" {
-				if err == nil {
-					t.Fatal("succeeded; want error")
-				}
-				if got, want := err.Error(), test.Err; got != want {
-					t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
-				}
-				return
-			} else if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
-
-			if !got.RawEquals(test.Want) {
-				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
 			}
 		})
 	}
