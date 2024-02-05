@@ -6,7 +6,6 @@ on:
       tag:
         description: "Git tag (leave empty for dry run)"
         required: false
-    inputs:
       prerelease:
         description: "Is this a pre-release?"
         required: true
