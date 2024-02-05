@@ -256,22 +256,19 @@ func TestStartsWith(t *testing.T) {
 }
 
 func TestTemplateString(t *testing.T) {
-	tests := []struct {
-		TestName string
+	tests := map[string]struct {
 		Content  cty.Value
 		Vars     cty.Value
 		Want     cty.Value
 		Err      string
 	}{
-		{
-			"Simple string template",
+		"Simple string template": {
 			cty.StringVal("Hello, Jodie!"),
 			cty.EmptyObjectVal,
 			cty.StringVal("Hello, Jodie!"),
 			``,
 		},
-		{
-			"String interpolation with variable",
+		"String interpolation with variable": {
 			cty.StringVal("Hello, ${name}!"),
 			cty.MapVal(map[string]cty.Value{
 				"name": cty.StringVal("Jodie"),
@@ -279,8 +276,7 @@ func TestTemplateString(t *testing.T) {
 			cty.StringVal("Hello, Jodie!"),
 			``,
 		},
-		{
-			"Looping through list",
+		"Looping through list": {
 			cty.StringVal("Items: %{ for x in list ~} ${x} %{ endfor ~}"),
 			cty.ObjectVal(map[string]cty.Value{
 				"list": cty.ListVal([]cty.Value{
@@ -292,8 +288,7 @@ func TestTemplateString(t *testing.T) {
 			cty.StringVal("Items: a b c "),
 			``,
 		},
-		{
-			"Looping through map",
+		"Looping through map": {
 			cty.StringVal("%{ for key, value in list ~} ${key}:${value} %{ endfor ~}"),
 			cty.ObjectVal(map[string]cty.Value{
 				"list": cty.ObjectVal(map[string]cty.Value{
@@ -305,8 +300,7 @@ func TestTemplateString(t *testing.T) {
 			cty.StringVal("item1:a item2:b item3:c "),
 			``,
 		},
-		{
-			"Invalid template variable name",
+		"Invalid template variable name": {
 			cty.StringVal("Hello, ${1}!"),
 			cty.MapVal(map[string]cty.Value{
 				"1": cty.StringVal("Jodie"),
@@ -314,15 +308,13 @@ func TestTemplateString(t *testing.T) {
 			cty.NilVal,
 			`invalid template variable name "1": must start with a letter, followed by zero or more letters, digits, and underscores`,
 		},
-		{
-			"Variable not present in vars map",
+		"Variable not present in vars map": {
 			cty.StringVal("Hello, ${name}!"),
 			cty.EmptyObjectVal,
 			cty.NilVal,
 			`vars map does not contain key "name"`,
 		},
-		{
-			"Interpolation of a boolean value",
+		"Interpolation of a boolean value": {
 			cty.StringVal("${val}"),
 			cty.ObjectVal(map[string]cty.Value{
 				"val": cty.True,
