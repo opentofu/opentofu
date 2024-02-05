@@ -8,8 +8,6 @@ package tofu
 import (
 	"log"
 
-	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -70,12 +68,11 @@ func (i *ImportTarget) IsFromImportCommandLine() bool {
 // and could only be evaluated down the line. Here, we create a static representation for the address.
 // This is useful so that we could have information on the ImportTarget early on, such as the Module and Resource of it
 func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
-	if i.CommandLineImportTarget != nil {
+	if i.IsFromImportCommandLine() {
 		return i.CommandLineImportTarget.Addr.ConfigResource()
 	}
 
-	// TODO change this later, once we change Config.To to not be a static address
-	return i.Config.To.ConfigResource()
+	return i.Config.StaticTo
 }
 
 // ResolvedAddr returns the resolved address of an import target, if possible. If not possible, returns an HCL diag
@@ -84,21 +81,13 @@ func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 // and could only be evaluated down the line. Here, we attempt to resolve the address as though it is a static absolute
 // traversal, if that's possible. This would only be possible if the `import` block's "to" field does not rely on any
 // data that is dynamic
-func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evaluationDiags hcl.Diagnostics) {
-	if i.CommandLineImportTarget != nil {
-		address = i.CommandLineImportTarget.Addr
+// TODO - Update comment (once I decide if this is the approach I want for ResolvedAddr)
+func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
+	if i.IsFromImportCommandLine() {
+		return &i.CommandLineImportTarget.Addr
 	} else {
-		traversal, traversalDiags := hcl.AbsTraversalForExpr(i.Config.To)
-		evaluationDiags = append(evaluationDiags, traversalDiags...)
-		if evaluationDiags.HasErrors() {
-			return
-		}
-
-		to, toDiags := addrs.ParseAbsResourceInstance(traversal)
-		evaluationDiags = append(evaluationDiags, toDiags.ToHCL()...)
-		address = to
+		return i.Config.ResolvedTo
 	}
-	return
 }
 
 // ResolvedConfigImportsKey is a key for a map of ImportTargets originating from the configuration

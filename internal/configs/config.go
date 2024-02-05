@@ -432,8 +432,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 		reqs[fqn] = nil
 	}
 	for _, i := range c.Module.Import {
-		// TODO - figure out the static address here, and use it to get the module for the provider here
-		implied, err := addrs.ParseProviderPart(i.To.Resource.Resource.ImpliedProvider())
+		implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
 		if err == nil {
 			provider := c.Module.ImpliedProviderForUnqualifiedType(implied)
 			if _, exists := reqs[provider]; exists {
@@ -455,15 +454,15 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 	// this will be because the user has written explicit provider arguments
 	// that don't agree and we'll get them to fix it.
 	for _, i := range c.Module.Import {
-		// TODO - figure out the static address here, and use it to get the module for the provider validation here
-		if len(i.To.Module) > 0 {
+		if len(i.StaticTo.Module) > 0 {
 			// All provider information for imports into modules should come
 			// from the module block, so we don't need to load anything for
 			// import targets within modules.
 			continue
 		}
 
-		if target, exists := c.Module.ManagedResources[i.To.String()]; exists {
+		// TODO - Check out if this code still works when StaticTo is now not a specific instance, but a ConfigResource
+		if target, exists := c.Module.ManagedResources[i.StaticTo.String()]; exists {
 			// This means the information about the provider for this import
 			// should come from the resource block itself and not the import
 			// block.

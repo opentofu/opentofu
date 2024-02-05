@@ -177,9 +177,10 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	for _, i := range importTargets {
 		// We should only allow config generation for static addresses
 		// If config generation has been attempted for a non static address - we will fail here
-		address, evaluationDiags := i.ResolvedAddr()
-		if evaluationDiags.HasErrors() {
-			return evaluationDiags
+		// TODO - make sure these errors look OK
+		address := i.ResolvedAddr()
+		if address == nil {
+			return fmt.Errorf("config generation is only allowed for `import` blocks with a static address")
 		}
 
 		// In case of config generation - We can error early here in two cases:
@@ -204,7 +205,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 			g.Add(node)
 		} else {
-			return importResourceWithoutConfigDiags(address, i.Config)
+			return importResourceWithoutConfigDiags(*address, i.Config)
 		}
 	}
 

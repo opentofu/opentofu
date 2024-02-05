@@ -556,11 +556,11 @@ func (c *Context) findImportTargets(config *configs.Config, priorState *states.S
 	var importTargets []*ImportTarget
 	for _, ic := range config.Module.Import {
 		// TODO - do we still need to validate whether or not the import is in state already? This validation might need to be moved elsewhere
-		if priorState.ResourceInstance(ic.To) == nil {
-			importTargets = append(importTargets, &ImportTarget{
-				Config: ic,
-			})
-		}
+		//if priorState.ResourceInstance(ic.To) == nil {
+		importTargets = append(importTargets, &ImportTarget{
+			Config: ic,
+		})
+		//}
 	}
 	return importTargets
 }
