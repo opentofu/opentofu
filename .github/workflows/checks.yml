@@ -35,12 +35,12 @@ jobs:
   unit-tests:
     name: "Unit Tests"
     runs-on: ubuntu-latest
-      # run 10 times in parallel to try to reproduce the failure
-      strategy:
-        fail-fast: false
-        matrix:
-          custom1: [ 1, 2, 3, 4, 5 ]
-          custom2: [ 1, 2 ]
+    # run 10 times in parallel to try to reproduce the failure
+    strategy:
+      fail-fast: false
+      matrix:
+        custom1: [ 1, 2, 3, 4, 5 ]
+        custom2: [ 1, 2 ]
 
     steps:
       - name: "Fetch source code"
