@@ -469,6 +469,7 @@ func TestPreRefresh_concise(t *testing.T) {
 		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
 	}
 }
+
 // Test that PreRefresh still works if no ID key and value can be determined
 // from state.
 func TestPreRefresh_noID(t *testing.T) {
