@@ -85,6 +85,7 @@ func TestJSONHook_create(t *testing.T) {
 	action, err = hook.PostApply(addr, states.CurrentGen, plannedNewState, nil)
 	testHookReturnValues(t, action, err)
 
+
 	// Shut down the progress goroutine if still active
 	hook.applyingLock.Lock()
 	for key, progress := range hook.applying {
