@@ -182,11 +182,8 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 		},
 	}
 	loadTmpl := func(content string, marks cty.ValueMarks) (hcl.Expression, error) {
-		// We re-use File here to ensure the same filename interpretation
-		// as it does, along with its other safety checks.
-		tmplVal := cty.StringVal(content)
 
-		expr, diags := hclsyntax.ParseTemplate([]byte(tmplVal.AsString()), content, hcl.Pos{Line: 1, Column: 1})
+		expr, diags := hclsyntax.ParseTemplate([]byte(content), "NoFileNeeded", hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
 			return nil, diags
 		}
