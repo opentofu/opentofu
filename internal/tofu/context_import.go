@@ -104,8 +104,9 @@ type ResolvedConfigImportsKey struct {
 // Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
 // the graph. This struct helps keep track of the resolved imports, mostly for validation that all imports
 // have been addressed and point to an actual configuration
+// TODO update comment
 type ResolvedImports struct {
-	imports map[ResolvedConfigImportsKey]bool
+	imports map[ResolvedConfigImportsKey]EvaluatedConfigImportTarget
 }
 
 // Import takes already-created external resources and brings them

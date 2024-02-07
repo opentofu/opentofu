@@ -63,6 +63,10 @@ type EvaluatedConfigImportTarget struct {
 	// if the import did not originate in config.
 	Config *configs.Import
 
+	// Addr is the actual address of the resource instance that we should import into. At this point, the address
+	// should be fully evaluated
+	Addr addrs.AbsResourceInstance
+
 	// ID is the string ID of the resource to import. This is resource-instance specific.
 	ID string
 }

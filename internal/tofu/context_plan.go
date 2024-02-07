@@ -534,17 +534,9 @@ func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactor
 // relaxed.
 func (c *Context) postPlanValidateImports(resolvedImports *ResolvedImports, allInst instances.Set) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for resolvedImport := range resolvedImports.imports {
-		// We only care about import target addresses that have a key.
-		// If the address does not have a key, we don't need it to be in config
-		// because are able to generate config.
-		address, addrParseDiags := addrs.ParseAbsResourceInstanceStr(resolvedImport.AddrStr)
-		if addrParseDiags.HasErrors() {
-			return addrParseDiags
-		}
-
-		if !allInst.HasResourceInstance(address) {
-			diags = diags.Append(importResourceWithoutConfigDiags(address, nil))
+	for _, importTarget := range resolvedImports.imports {
+		if !allInst.HasResourceInstance(importTarget.Addr) {
+			diags = diags.Append(importResourceWithoutConfigDiags(importTarget.Addr, nil))
 		}
 	}
 	return diags

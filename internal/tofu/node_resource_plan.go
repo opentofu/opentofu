@@ -309,23 +309,35 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		if importTarget.IsFromImportCommandLine() {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
+			// TODO - need to find a better solution than failing here. Failing might mean failure elsewhere earlier on (maybe it's just in the import validation, and this can be fixed?)
 			importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
 			if evalDiags.HasErrors() {
 				return nil, evalDiags.Err()
 			}
 
+			importAddress, addressDiags := ctx.WithPath(addrs.RootModuleInstance).EvaluateImportAddress(importTarget.Config.To)
+			if addressDiags.HasErrors() {
+				return nil, addressDiags.Err()
+			}
+
+			// TODO merge with resolved imports?
 			evaluatedConfigImportTargets = append(evaluatedConfigImportTargets, EvaluatedConfigImportTarget{
 				Config: importTarget.Config,
 				ID:     importId,
 			})
 
+			// TODO better name for resolved imports? Maybe it should mention that it's only for config?
 			// TODO - Evaluate the address here
-			// FIXME - Deal with cases of duplicate addresses?
+			// FIXME - Deal with cases of duplicate addresses? Probably ResolvedImports could take care of that?
 			resolvedImports := ctx.ResolvedImports().imports
 			resolvedImports[ResolvedConfigImportsKey{
-				AddrStr: importTarget.Config.To.String(),
+				AddrStr: importAddress.String(),
 				ID:      importId,
-			}] = true
+			}] = EvaluatedConfigImportTarget{
+				Config: importTarget.Config,
+				Addr:   importAddress,
+				ID:     importId,
+			}
 
 		}
 	}
@@ -374,12 +386,11 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		for _, evaluatedConfigImportTarget := range evaluatedConfigImportTargets {
-			// TODO - Change this code once Config.To is not a static address, to actually evaluate it
-			if evaluatedConfigImportTarget.Config.To.Equal(a.Addr) {
+		for _, importTarget := range ctx.ResolvedImports().imports {
+			if importTarget.Addr.Equal(a.Addr) {
 				// If we get here, we're definitely not in legacy import mode,
 				// so go ahead and plan the resource changes including import.
-				m.importTarget = evaluatedConfigImportTarget
+				m.importTarget = importTarget
 				break
 			}
 		}

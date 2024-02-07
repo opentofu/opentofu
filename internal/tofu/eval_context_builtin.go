@@ -8,6 +8,8 @@ package tofu
 import (
 	"context"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"log"
 	"sync"
 
@@ -404,6 +406,105 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	replace := !attrBefore.RawEquals(attrAfter)
 
 	return ref, replace, diags
+}
+
+// Implementation is going to be similar to config.AbsTraversalForImportToExpr
+func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	traversal, diags := ctx.traversalForImportExpr(expr)
+	if diags.HasErrors() {
+		return addrs.AbsResourceInstance{}, diags
+	}
+
+	return addrs.ParseAbsResourceInstance(traversal)
+}
+
+func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
+	physExpr := hcl.UnwrapExpressionUntil(expr, func(expr hcl.Expression) bool {
+		switch expr.(type) {
+		case *hclsyntax.IndexExpr, *hclsyntax.ScopeTraversalExpr, *hclsyntax.RelativeTraversalExpr:
+			return true
+		default:
+			return false
+		}
+	})
+
+	switch e := physExpr.(type) {
+	case *hclsyntax.IndexExpr:
+		t, d := ctx.traversalForImportExpr(e.Collection)
+		diags = diags.Append(d)
+		traversal = append(traversal, t...)
+
+		tIndex, dIndex := ctx.parseImportIndexKeyExpr(e.Key)
+		diags.Append(dIndex)
+		traversal = append(traversal, tIndex)
+	case *hclsyntax.RelativeTraversalExpr:
+		t, d := ctx.traversalForImportExpr(e.Source)
+		diags = diags.Append(d)
+		traversal = append(traversal, t...)
+		traversal = append(traversal, e.Traversal...)
+	case *hclsyntax.ScopeTraversalExpr:
+		traversal = append(traversal, e.Traversal...)
+	default:
+		// TODO - This should not happen, as it should have failed validation earlier, in config.AbsTraversalForImportToExpr
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import address expression",
+			Detail:   "A single static variable reference is required: only attribute access and indexing with constant keys. No calculations, function calls, template expressions, etc are allowed here.",
+			Subject:  expr.Range().Ptr(),
+		}) // TODO indexing with constant keys are supported? Check out how
+	}
+	return
+}
+
+func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl.TraverseIndex, tfdiags.Diagnostics) {
+	idx := hcl.TraverseIndex{
+		SrcRange: expr.Range(),
+	}
+
+	val, diags := ctx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
+	spew.Dump("Got index val", val, diags)
+	if diags.HasErrors() {
+		return idx, diags
+	}
+
+	// TODO - Is there some similar logic elsewhere?
+	// TODO - Do I want/need to make sure that the index is not marked?
+	if !val.IsKnown() {
+		spew.Dump("Got index unknown", val, diags)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains invalid key",
+			Detail:   "Import block contained a resource address using an index which is not yet known. Please (better error here)", // TODO better phrasing for the error here
+			Subject:  expr.Range().Ptr(),
+		})
+		return idx, diags
+	}
+
+	if val.IsNull() {
+		spew.Dump("Got index null", val, diags)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains invalid key",
+			Detail:   "Import block contained a resource address using an index which is null. Please (better error here)", // TODO better phrasing for the error here
+			Subject:  expr.Range().Ptr(),
+		})
+		return idx, diags
+	}
+
+	if val.Type() != cty.String && val.Type() != cty.Number {
+		spew.Dump("Got index not actual key", val, diags)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains invalid key",
+			Detail:   "Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please (better error here)", // TODO better phrasing for the error here
+			Subject:  expr.Range().Ptr(),
+		})
+		return idx, diags
+	}
+
+	spew.Dump("returning good index val")
+	idx.Key = val
+	return idx, diags
 }
 
 func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
