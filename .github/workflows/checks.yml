@@ -40,7 +40,7 @@ jobs:
       fail-fast: false
       matrix:
         custom1: [ 1, 2, 3, 4, 5 ]
-        custom2: [ 1, 2 ]
+        custom2: [ 1, 2, 3 ]
 
     steps:
       - name: "Fetch source code"
