@@ -66,7 +66,7 @@ func TestJSONHook_create(t *testing.T) {
 	now = now.Add(10 * time.Second)
 	after <- now
 	nowMu.Unlock()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	// Travel 10s into the future, notify the progress goroutine, and sleep
 	// briefly to allow it to execute
