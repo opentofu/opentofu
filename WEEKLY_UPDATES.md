@@ -4,14 +4,14 @@
 
 The last two weeks we've been focusing on working towards the 1.7.0 release, and on going through our issue backlog.
 
-This weekend some of us have been to FOSDEM and had a stand there - it was amazing to hear in person how many people have already migrated to OpenTofu! We've also distributed
+This weekend some of us have been to FOSDEM and had a stand there - it was amazing to hear in person how many people have already migrated to OpenTofu! We've also distributed a lot of OpenTofu t-shirts and stickers! 
 
 Additionally, most of the core team is off on winter holidays this week, so it's fairly quiet.
 
 - Current Status and Up Next
   - We've been iterating on the skeleton of the client-side state encryption project, in order to get that right. [A PR for this has been opened recently and is pending reviews](https://github.com/opentofu/opentofu/pull/1227).
   - The removed block project also [has a PR up](https://github.com/opentofu/opentofu/pull/1158), and is pending reviews.
-  - As part of adding for_each to import blocks, we've refactored the import code to be unified across the block implementation and the cli command implementation. [This is posted as a PR](https://github.com/opentofu/opentofu/pull/1207), reviewed, and will be merged soon.
+  - As part of adding for_each to import blocks, we've refactored the import code to better handle the differences between the block implementation and the cli command implementation. [This is posted as a PR](https://github.com/opentofu/opentofu/pull/1207), reviewed, and will be merged soon.
   - We're refactoring our release workflow, so it properly handles future pre-release versions, with a stable release now in place. [A PR is open for this](https://github.com/opentofu/opentofu/pull/1235) and still being worked on.
   - We've managed to go through the whole issue backlog and have responded and/or handled most of them.
 - How can I help?
