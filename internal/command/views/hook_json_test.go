@@ -74,7 +74,7 @@ func TestJSONHook_create(t *testing.T) {
 	now = now.Add(10 * time.Second)
 	after <- now
 	nowMu.Unlock()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(1 * time.Nanosecond)
 
 	// Travel 2s into the future. We have arrived!
 	nowMu.Lock()
