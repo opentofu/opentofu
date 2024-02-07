@@ -1,3 +1,8 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # This docker-compose file tests the installation instructions with all operating systems. See #
 # test-install-instructions.sh for details.
 version: '3.2'
