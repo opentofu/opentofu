@@ -17,6 +17,5 @@ project {
     "**/*.pb.go",
     "**/*_string.go",
     "**/mock*.go",
-    "**/*.proto",
   ]
 }
