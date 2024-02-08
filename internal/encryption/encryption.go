@@ -1,6 +1,7 @@
 package encryption
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -227,26 +228,38 @@ func (e *encryption) setupMethods() hcl.Diagnostics {
 	return diags
 }
 
+// setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
 func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in methodValues
 	if _, ok := e.methodValues[cfg.Type]; !ok {
 		e.methodValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
-	// Lookup definition
+	// Lookup the definition of the encryption method from the registry
 	encryptionMethod, err := e.reg.GetMethod(method.ID(cfg.Type))
 	if err != nil {
+
+		// Handle if the method was not found
+		var notFoundError *registry.MethodNotFound
+		if errors.Is(err, notFoundError) {
+			return hcl.Diagnostics{&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unknown encryption method type",
+				Detail:   fmt.Sprintf("Can not find %q", cfg.Type),
+			}}
+		}
+
+		// Or, we don't know the error type, so we'll just return it as a generic error
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Unknown method type",
+			Summary:  fmt.Sprintf("Error fetching encryption method %q", cfg.Type),
 			Detail:   err.Error(),
 		}}
 	}
 
-	methodcfg := encryptionMethod.ConfigStruct()
-
-	// TODO we could use varhcl here to provider better error messages
-	diags := gohcl.DecodeBody(cfg.Body, e.ctx, methodcfg)
+	// TODO: we could use varhcl here to provider better error messages
+	methodConfig := encryptionMethod.ConfigStruct()
+	diags := gohcl.DecodeBody(cfg.Body, e.ctx, methodConfig)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -254,7 +267,7 @@ func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	// Map from EvalContext vars -> Descriptor
 	mIdent := MethodAddr(cfg.Type, cfg.Name)
 	e.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
-	e.methods[mIdent], err = methodcfg.Build()
+	m, err := methodConfig.Build()
 	if err != nil {
 		// TODO this error handling could use some work
 		return hcl.Diagnostics{&hcl.Diagnostic{
@@ -263,9 +276,8 @@ func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 			Detail:   err.Error(),
 		}}
 	}
-
-	return diags
-
+	e.methods[mIdent] = m
+	return nil
 }
 
 // setupTargets sets up the targets for encryption. It returns a list of diagnostics if any of the targets are invalid.

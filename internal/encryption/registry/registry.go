@@ -19,6 +19,7 @@ type Registry interface {
 	// GetKeyProvider returns the key provider with the specified ID. If the key provider is not registered,
 	// it will return a *KeyProviderNotFound error.
 	GetKeyProvider(id keyprovider.ID) (keyprovider.Descriptor, error)
+
 	// GetMethod returns the method with the specified ID. If the method is not registered, it will return a
 	// *MethodNotFound error.
 	GetMethod(id method.ID) (method.Descriptor, error)
