@@ -22,12 +22,12 @@ func (k InvalidKeyProviderError) Unwrap() error {
 	return k.Cause
 }
 
-// KeyProviderNotFound indicates that the requested key provider was not found in the registry.
-type KeyProviderNotFound struct {
+// KeyProviderNotFoundError indicates that the requested key provider was not found in the registry.
+type KeyProviderNotFoundError struct {
 	ID keyprovider.ID
 }
 
-func (k KeyProviderNotFound) Error() string {
+func (k KeyProviderNotFoundError) Error() string {
 	return fmt.Sprintf("key provider with ID %s not found", k.ID)
 }
 

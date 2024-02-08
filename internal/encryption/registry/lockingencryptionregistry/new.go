@@ -53,12 +53,12 @@ func (l *lockingRegistry) RegisterMethod(method method.Descriptor) error {
 	return nil
 }
 
-func (l *lockingRegistry) GetKeyProvider(id keyprovider.ID) (keyprovider.Descriptor, error) {
+func (l *lockingRegistry) GetKeyProviderDescriptor(id keyprovider.ID) (keyprovider.Descriptor, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	provider, ok := l.providers[id]
 	if !ok {
-		return nil, &registry.KeyProviderNotFound{ID: id}
+		return nil, &registry.KeyProviderNotFoundError{ID: id}
 	}
 	return provider, nil
 }
