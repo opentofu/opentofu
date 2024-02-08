@@ -79,22 +79,22 @@ func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	return enc, diags
 }
 
-func (enc *encryption) setupKeyProviders() hcl.Diagnostics {
+func (e *encryption) setupKeyProviders() hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	for _, kpc := range enc.cfg.KeyProviders {
-		diags = append(diags, enc.setupKeyProvider(kpc, nil)...)
+	for _, kpc := range e.cfg.KeyProviders {
+		diags = append(diags, e.setupKeyProvider(kpc, nil)...)
 	}
 	return diags
 }
 
-func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
+func (e *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in keyValues
-	if _, ok := enc.keyValues[cfg.Type]; !ok {
-		enc.keyValues[cfg.Type] = make(map[string]cty.Value)
+	if _, ok := e.keyValues[cfg.Type]; !ok {
+		e.keyValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
 	// Check if we have already setup this Descriptor (due to dependency loading)
-	if _, ok := enc.keyValues[cfg.Type][cfg.Name]; ok {
+	if _, ok := e.keyValues[cfg.Type][cfg.Name]; ok {
 		return nil
 	}
 
@@ -112,7 +112,7 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 	stack = append(stack, cfg)
 
 	// Lookup definition
-	keyProviderDescriptor, err := enc.reg.GetKeyProvider(keyprovider.ID(cfg.Type))
+	keyProviderDescriptor, err := e.reg.GetKeyProvider(keyprovider.ID(cfg.Type))
 	if err != nil {
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -156,9 +156,9 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 			continue
 		}
 
-		for _, kpc := range enc.cfg.KeyProviders {
+		for _, kpc := range e.cfg.KeyProviders {
 			if kpc.Type == depType && kpc.Name == depName {
-				depDiags := enc.setupKeyProvider(kpc, stack)
+				depDiags := e.setupKeyProvider(kpc, stack)
 				diags = append(diags, depDiags...)
 				break
 			}
@@ -169,7 +169,7 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 	}
 
 	// Init Key Provider
-	decodeDiags := gohcl.DecodeBody(cfg.Body, enc.ctx, kpcfg)
+	decodeDiags := gohcl.DecodeBody(cfg.Body, e.ctx, kpcfg)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
 		return diags
@@ -186,7 +186,7 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 	}
 	data, err := keyProvider.Provide()
 	if err != nil {
-		enc.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
+		e.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to fetch key data",
@@ -199,42 +199,42 @@ func (enc *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvid
 	for i, b := range data {
 		ctyData[i] = cty.NumberIntVal(int64(b))
 	}
-	enc.keyValues[cfg.Type][cfg.Name] = cty.ListVal(ctyData)
+	e.keyValues[cfg.Type][cfg.Name] = cty.ListVal(ctyData)
 
 	// Regen ctx
 	kpMap := make(map[string]cty.Value)
-	for name, kps := range enc.keyValues {
+	for name, kps := range e.keyValues {
 		kpMap[name] = cty.ObjectVal(kps)
 	}
-	enc.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
+	e.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
 
 	return diags
 }
 
-func (enc *encryption) setupMethods() hcl.Diagnostics {
+func (e *encryption) setupMethods() hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	for _, m := range enc.cfg.Methods {
-		diags = append(diags, enc.setupMethod(m)...)
+	for _, m := range e.cfg.Methods {
+		diags = append(diags, e.setupMethod(m)...)
 	}
 
 	// Regen ctx
 	mMap := make(map[string]cty.Value)
-	for name, ms := range enc.methodValues {
+	for name, ms := range e.methodValues {
 		mMap[name] = cty.ObjectVal(ms)
 	}
-	enc.ctx.Variables["method"] = cty.ObjectVal(mMap)
+	e.ctx.Variables["method"] = cty.ObjectVal(mMap)
 
 	return diags
 }
 
-func (enc *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
+func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in methodValues
-	if _, ok := enc.methodValues[cfg.Type]; !ok {
-		enc.methodValues[cfg.Type] = make(map[string]cty.Value)
+	if _, ok := e.methodValues[cfg.Type]; !ok {
+		e.methodValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
 	// Lookup definition
-	encryptionMethod, err := enc.reg.GetMethod(method.ID(cfg.Type))
+	encryptionMethod, err := e.reg.GetMethod(method.ID(cfg.Type))
 	if err != nil {
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -246,15 +246,15 @@ func (enc *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	methodcfg := encryptionMethod.ConfigStruct()
 
 	// TODO we could use varhcl here to provider better error messages
-	diags := gohcl.DecodeBody(cfg.Body, enc.ctx, methodcfg)
+	diags := gohcl.DecodeBody(cfg.Body, e.ctx, methodcfg)
 	if diags.HasErrors() {
 		return diags
 	}
 
 	// Map from EvalContext vars -> Descriptor
-	mIdent := fmt.Sprintf("method.%s.%s", cfg.Type, cfg.Name)
-	enc.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
-	enc.methods[mIdent], err = methodcfg.Build()
+	mIdent := MethodAddr(cfg.Type, cfg.Name)
+	e.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
+	e.methods[mIdent], err = methodcfg.Build()
 	if err != nil {
 		// TODO this error handling could use some work
 		return hcl.Diagnostics{&hcl.Diagnostic{
@@ -268,56 +268,56 @@ func (enc *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 
 }
 
-func (enc *encryption) setupTargets() hcl.Diagnostics {
+func (e *encryption) setupTargets() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	if enc.cfg.StateFile != nil {
-		m, mDiags := enc.setupTarget(enc.cfg.StateFile, "statefile")
+	if e.cfg.StateFile != nil {
+		m, mDiags := e.setupTarget(e.cfg.StateFile, "statefile")
 		diags = append(diags, mDiags...)
-		enc.stateFile = NewState(m)
+		e.stateFile = NewState(m)
 	}
-	if enc.cfg.PlanFile != nil {
-		m, mDiags := enc.setupTarget(enc.cfg.PlanFile, "planfile")
+	if e.cfg.PlanFile != nil {
+		m, mDiags := e.setupTarget(e.cfg.PlanFile, "planfile")
 		diags = append(diags, mDiags...)
-		enc.planFile = NewPlan(m)
+		e.planFile = NewPlan(m)
 	}
-	if enc.cfg.Backend != nil {
-		m, mDiags := enc.setupTarget(enc.cfg.Backend, "backend")
+	if e.cfg.Backend != nil {
+		m, mDiags := e.setupTarget(e.cfg.Backend, "backend")
 		diags = append(diags, mDiags...)
-		enc.backend = NewState(m)
+		e.backend = NewState(m)
 	}
 
-	if enc.cfg.Remote != nil {
-		if enc.cfg.Remote.Default != nil {
-			m, mDiags := enc.setupTarget(enc.cfg.Remote.Default, "remote_data_source.default")
+	if e.cfg.Remote != nil {
+		if e.cfg.Remote.Default != nil {
+			m, mDiags := e.setupTarget(e.cfg.Remote.Default, "remote_data_source.default")
 			diags = append(diags, mDiags...)
-			enc.remoteDefault = NewState(m)
+			e.remoteDefault = NewState(m)
 		}
-		for _, target := range enc.cfg.Remote.Targets {
-			m, mDiags := enc.setupTarget(&TargetConfig{
+		for _, target := range e.cfg.Remote.Targets {
+			m, mDiags := e.setupTarget(&TargetConfig{
 				Enforced: target.Enforced,
 				Method:   target.Method,
 				Fallback: target.Fallback,
 			}, "remote_data_source."+target.Name)
 			diags = append(diags, mDiags...)
-			enc.remote[target.Name] = NewState(m)
+			e.remote[target.Name] = NewState(m)
 		}
 	}
 
 	return diags
 }
 
-func (enc *encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Method, hcl.Diagnostics) {
+func (e *encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	target := make([]method.Method, 0)
 
 	// Descriptor referenced by this target
 	if cfg.Method != nil {
 		var methodIdent string
-		decodeDiags := gohcl.DecodeExpression(cfg.Method, enc.ctx, &methodIdent)
+		decodeDiags := gohcl.DecodeExpression(cfg.Method, e.ctx, &methodIdent)
 		diags = append(diags, decodeDiags...)
 		if !diags.HasErrors() {
-			if method, ok := enc.methods[methodIdent]; ok {
+			if method, ok := e.methods[methodIdent]; ok {
 				target = append(target, method)
 			} else {
 				diags = append(diags, &hcl.Diagnostic{
@@ -338,7 +338,7 @@ func (enc *encryption) setupTarget(cfg *TargetConfig, name string) ([]method.Met
 
 	// Fallback methods
 	if cfg.Fallback != nil {
-		fallback, fallbackDiags := enc.setupTarget(cfg.Fallback, name+".fallback")
+		fallback, fallbackDiags := e.setupTarget(cfg.Fallback, name+".fallback")
 		diags = append(diags, fallbackDiags...)
 		target = append(target, fallback...)
 	}
