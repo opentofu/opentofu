@@ -7,8 +7,8 @@ import (
 
 // Registry collects all encryption methods and key providers
 type Registry interface {
-	// RegisterKeyProvider registers a key provider. Use the keyprovider.Any() function to convert your key provider
-	// into a suitable format. This function returns a *KeyProviderAlreadyRegistered error if a key provider with the
+	// RegisterKeyProvider registers a key provider. Use the keyprovider.Any().
+	// This function returns a *KeyProviderAlreadyRegistered error if a key provider with the
 	// same ID is already registered.
 	RegisterKeyProvider(keyProvider keyprovider.Descriptor) error
 	// RegisterMethod registers an encryption method. Use the method.Any() function to convert your method into a
