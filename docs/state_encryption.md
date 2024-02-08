@@ -54,7 +54,7 @@ terraform {
 }
 ```
 
-The mere presence of the `encryption` block alone should not enable encryption because the user should explicitly specify what key and method to use. The implementation should warn the user if the encryption block is present but has no configuration.
+The mere presence of the `encryption` block alone should not enable encryption because the user should explicitly specify what key and method to use. The implementation should error and alert the user if the encryption block is present but has no configuration.
 
 The encryption relies on an encryption key, or a composite encryption key, which the user can provide directly or via a key management system. The user must provide at least one `key_provider` block with the settings described below. These key providers serve the purpose of creating or providing the encryption key. For example, the user could hard-code a static key named foo:
 
