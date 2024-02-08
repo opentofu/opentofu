@@ -31,7 +31,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
-        if: startsWith(inputs.ref, 'v') || env.ALLOW_MAIN_PRERELEASE
+        if: startsWith(inputs.ref, 'v') || env.TRIGGER_PRERELEASE_FLOW
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -80,7 +80,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Import GPG key
-        if: startsWith(inputs.ref, 'v') || env.ALLOW_MAIN_PRERELEASE
+        if: startsWith(inputs.ref, 'v') || env.TRIGGER_PRERELEASE_FLOW
         run: |
           GPG_KEY_FILE=/tmp/signing-key.gpg
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > "${GPG_KEY_FILE}"
@@ -104,7 +104,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
           SNAPCRAFT_CHANNEL: ${{ inputs.prerelease &&  'edge' || 'stable' }}
-          STABLE_RELEASE: ${{ !inputs.prerelease }}
 
       - name: Remove GPG key
         if: always()

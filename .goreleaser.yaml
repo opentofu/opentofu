@@ -189,7 +189,7 @@ nfpms:
 
 snapcrafts:
   - name: opentofu
-    publish: "{{ .Env.STABLE_RELEASE }}"
+    publish: true
     summary: OpenTofu lets you declaratively manage your cloud infrastructure.
     description: |
       OpenTofu is an OSS tool for building, changing, and versioning infrastructure
