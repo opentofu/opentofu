@@ -229,9 +229,14 @@ terraform {
 
 When `tofu` encrypts a state file, the encrypted state is still a JSON file. Any implementations can distinguish encrypted files by the `encryption` key being present in the JSON structure. However, there may be other keys in the state file depending on the encryption method and type.
 
+For example (not final):
+
 ```json
 {
-  "encryption": "some data here"
+  "encryption": {
+    "method": "aes_gcm",
+    "key_provider": "static.my_key"
+  },
   // ... Additional keys here
 }
 ```
