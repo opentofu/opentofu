@@ -130,6 +130,8 @@ terraform {
 
 **Note:** Multiple `fallback` blocks should not be supported because they would be detrimental to performance and encourage keeping old encryption keys in the configuration.
 
+In the situation where `enforce` is not set to true, and no `method` or `fallback_method` is specified, no encryption will take place. This is to allow the user to disable encryption without removing the encryption configuration from the code.
+
 ### Composite keys
 
 When a user desires to create a composite key, such as for creating a passphrase-based derivative key or a shared custody key, they may avail themselves of a key provider that supports multiple inputs. The user can chain key providers together:
