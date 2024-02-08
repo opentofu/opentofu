@@ -48,7 +48,8 @@ func (diags Diagnostics) ConsolidateWarnings(threshold int) Diagnostics {
 			continue
 		}
 
-		if DoNotConsolidateDiagnostic(diag) {
+		// A threshold of -1 is unlimited
+		if DoNotConsolidateDiagnostic(diag) || threshold == -1 {
 			// Then do not consolidate this diagnostic.
 			newDiags = newDiags.Append(diag)
 			continue
