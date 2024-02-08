@@ -8,17 +8,20 @@ type PlanEncryption interface {
 }
 
 type planEncryption struct {
-	methods []method.Method
+	method   method.Method
+	fallback method.Method
 }
 
-func NewPlan(methods []method.Method) PlanEncryption {
-	return &planEncryption{methods}
+func NewPlan(method method.Method, fallback method.Method) PlanEncryption {
+	return &planEncryption{method, fallback}
 }
 
 func (p planEncryption) EncryptPlan(input []byte) ([]byte, error) {
-	return p.methods[0].Encrypt(input)
+	// TODO: Implement fallback logic
+	return p.method.Encrypt(input)
 }
 
 func (p planEncryption) DecryptPlan(input []byte) ([]byte, error) {
-	return p.methods[0].Decrypt(input)
+	// TODO: Implement fallback logic
+	return p.method.Decrypt(input)
 }

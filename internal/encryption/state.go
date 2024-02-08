@@ -10,7 +10,7 @@ type StateEncryption interface {
 	DecryptState([]byte) ([]byte, error)
 }
 
-func NewState(methods []method.Method) StateEncryption {
+func NewState(method method.Method, fallback method.Method) StateEncryption {
 	// TODO
 	return nil
 }
