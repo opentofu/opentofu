@@ -4557,49 +4557,6 @@ import {
 	}
 }
 
-func TestContext2Plan_importTargetWithKeyDoesNotExist(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-resource "test_object" "a" {
-  count = 1
-  test_string = "bar"
-}
-
-import {
-  to   = test_object.a[42]
-  id   = "123"
-}
-`,
-	})
-
-	p := simpleMockProvider()
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
-	})
-	p.ReadResourceResponse = &providers.ReadResourceResponse{
-		NewState: cty.ObjectVal(map[string]cty.Value{
-			"test_string": cty.StringVal("foo"),
-		}),
-	}
-	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
-		ImportedResources: []providers.ImportedResource{
-			{
-				TypeName: "test_object",
-				State: cty.ObjectVal(map[string]cty.Value{
-					"test_string": cty.StringVal("foo"),
-				}),
-			},
-		},
-	}
-
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
-	if !diags.HasErrors() {
-		t.Fatalf("expected error but got none")
-	}
-}
-
 func TestContext2Plan_importIdVariable(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-id-variable")
@@ -4948,6 +4905,193 @@ resource "test_object" "a" {
 	}
 }
 
+func TestContext2Plan_importIntoNonExistentModule(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+import {
+  to = module.mod.test_object.a
+  id = "456"
+}
+
+`,
+	})
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+	if !diags.HasErrors() {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(diags.Err().Error(), "Cannot import to non-existent resource address") {
+		t.Fatalf("expected error to be \"Cannot import to non-existent resource address\", but it was %s", diags.Err().Error())
+	}
+}
+
+func TestContext2Plan_importIntoNonExistentConfiguration(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "Basic missing configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = test_object.a
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description: "Wrong module key",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["non-existent"].test_object.a
+  id   = "123"
+}
+
+module "mod" {
+  for_each = {
+    existent = "1"
+  }
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+		},
+		{
+			Description: "Module key without for_each",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["non-existent"].test_object.a
+  id   = "123"
+}
+
+module "mod" {
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+		},
+		{
+			Description: "Non-existent resource key - in module",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod.test_object.a["non-existent"]
+  id   = "123"
+}
+
+module "mod" {
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  for_each = {
+    existent = "1"
+  }
+  test_string = "bar"
+}
+`,
+			},
+		},
+		{
+			Description: "Non-existent resource key - in root",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = test_object.a[42]
+  id   = "123"
+}
+
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+		},
+		{
+			Description: "Existent module key, non-existent resource key",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["existent"].test_object.b
+  id   = "123"
+}
+
+module "mod" {
+  for_each = {
+    existent = "1"
+    existent_two = "2"
+  }
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			p := simpleMockProvider()
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+				Mode: plans.NormalMode,
+			})
+
+			if !diags.HasErrors() {
+				t.Fatalf("expected error")
+			}
+
+			var errNum int
+			for _, diag := range diags {
+				if diag.Severity() == tfdiags.Error {
+					errNum++
+				}
+			}
+			if errNum > 1 {
+				t.Fatalf("expected a single error, but got %d", errNum)
+			}
+
+			if !strings.Contains(diags.Err().Error(), "Configuration for import target does not exist") {
+				t.Fatalf("expected error to be \"Configuration for import target does not exist\", but it was %s", diags.Err().Error())
+			}
+		})
+	}
+}
+
 func TestContext2Plan_importResourceConfigGen(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	m := testModuleInline(t, map[string]string{
@@ -5146,6 +5290,9 @@ import {
 	})
 	if !diags.HasErrors() {
 		t.Fatalf("expected plan to error, but it did not")
+	}
+	if !strings.Contains(diags.Err().Error(), "Config generation for count and for_each resources not supported") {
+		t.Fatalf("expected error to be \"Config generation for count and for_each resources not supported\", but it is %s", diags.Err().Error())
 	}
 }
 

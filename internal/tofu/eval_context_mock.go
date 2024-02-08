@@ -151,6 +151,9 @@ type MockEvalContext struct {
 	MoveResultsCalled  bool
 	MoveResultsResults refactoring.MoveResults
 
+	ResolvedImportsCalled  bool
+	ResolvedImportsResults *ResolvedImports
+
 	InstanceExpanderCalled   bool
 	InstanceExpanderExpander *instances.Expander
 }
@@ -398,6 +401,11 @@ func (c *MockEvalContext) PrevRunState() *states.SyncState {
 func (c *MockEvalContext) MoveResults() refactoring.MoveResults {
 	c.MoveResultsCalled = true
 	return c.MoveResultsResults
+}
+
+func (c *MockEvalContext) ResolvedImports() *ResolvedImports {
+	c.ResolvedImportsCalled = true
+	return c.ResolvedImportsResults
 }
 
 func (c *MockEvalContext) InstanceExpander() *instances.Expander {

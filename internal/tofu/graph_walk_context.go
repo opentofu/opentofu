@@ -32,13 +32,13 @@ type ContextGraphWalker struct {
 
 	// Configurable values
 	Context            *Context
-	State              *states.SyncState   // Used for safe concurrent access to state
-	RefreshState       *states.SyncState   // Used for safe concurrent access to state
-	PrevRunState       *states.SyncState   // Used for safe concurrent access to state
-	Changes            *plans.ChangesSync  // Used for safe concurrent writes to changes
-	Checks             *checks.State       // Used for safe concurrent writes of checkable objects and their check results
-	InstanceExpander   *instances.Expander // Tracks our gradual expansion of module and resource instances
-	Imports            []configs.Import
+	State              *states.SyncState       // Used for safe concurrent access to state
+	RefreshState       *states.SyncState       // Used for safe concurrent access to state
+	PrevRunState       *states.SyncState       // Used for safe concurrent access to state
+	Changes            *plans.ChangesSync      // Used for safe concurrent writes to changes
+	Checks             *checks.State           // Used for safe concurrent writes of checkable objects and their check results
+	InstanceExpander   *instances.Expander     // Tracks our gradual expansion of module and resource instances
+	ResolvedImports    *ResolvedImports        // Tracks import targets as they are being resolved
 	MoveResults        refactoring.MoveResults // Read-only record of earlier processing of move statements
 	Operation          walkOperation
 	StopContext        context.Context
@@ -103,6 +103,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		InstanceExpanderValue: w.InstanceExpander,
 		Plugins:               w.Context.plugins,
 		MoveResultsValue:      w.MoveResults,
+		ResolvedImportsValue:  w.ResolvedImports,
 		ProviderCache:         w.providerCache,
 		ProviderInputConfig:   w.Context.providerInputConfig,
 		ProviderLock:          &w.providerLock,

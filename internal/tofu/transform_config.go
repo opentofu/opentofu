@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -104,7 +106,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// Only include import targets that are targeting the current module.
 	var importTargets []*ImportTarget
 	for _, target := range t.importTargets {
-		if targetModule := target.Addr.Module.Module(); targetModule.Equal(config.Path) {
+		if targetModule := target.StaticAddr().Module; targetModule.Equal(config.Path) {
 			importTargets = append(importTargets, target)
 		}
 	}
@@ -124,7 +126,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 		var matchedIndices []int
 		for ix, i := range importTargets {
-			if target := i.Addr.ContainingResource().Config(); target.Equal(configAddr) {
+			if target := i.StaticAddr(); target.Equal(configAddr) {
 				// This import target has been claimed by an actual resource,
 				// let's make a note of this to remove it from the targets.
 				matchedIndices = append(matchedIndices, ix)
@@ -173,25 +175,53 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// TODO: We could actually catch and process these kind of problems earlier,
 	//   this is something that could be done during the Validate process.
 	for _, i := range importTargets {
-		// The case in which an unmatched import block targets an expanded
-		// resource instance can error here. Others can error later.
-		if i.Addr.Resource.Key != addrs.NoKey {
-			return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", i.Addr)
+		// We should only allow config generation for static addresses
+		// If config generation has been attempted for a non static address - we will fail here
+		address, evaluationDiags := i.ResolvedAddr()
+		if evaluationDiags.HasErrors() {
+			return evaluationDiags
 		}
 
-		abstract := &NodeAbstractResource{
-			Addr:               i.Addr.ConfigResource(),
-			importTargets:      []*ImportTarget{i},
-			generateConfigPath: generateConfigPath,
-		}
+		// In case of config generation - We can error early here in two cases:
+		// 1. When attempting to import a resource with a key (Config generation for count / for_each resources)
+		// 2. When attempting to import a resource inside a module.
+		if len(generateConfigPath) > 0 {
+			if address.Resource.Key != addrs.NoKey {
+				return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", address)
+			}
 
-		var node dag.Vertex = abstract
-		if f := t.Concrete; f != nil {
-			node = f(abstract)
-		}
+			// Create a node with the resource and import target. This node will take care of the config generation
+			abstract := &NodeAbstractResource{
+				Addr:               address.ConfigResource(),
+				importTargets:      []*ImportTarget{i},
+				generateConfigPath: generateConfigPath,
+			}
 
-		g.Add(node)
+			var node dag.Vertex = abstract
+			if f := t.Concrete; f != nil {
+				node = f(abstract)
+			}
+
+			g.Add(node)
+		} else {
+			return importResourceWithoutConfigDiags(address, i.Config)
+		}
 	}
 
 	return nil
+}
+
+// importResourceWithoutConfigDiags creates the common HCL error of an attempted import for a non-existent configuration
+func importResourceWithoutConfigDiags(address addrs.AbsResourceInstance, config *configs.Import) *hcl.Diagnostic {
+	diag := hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Configuration for import target does not exist",
+		Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. All target instances must have an associated configuration to be imported.", address),
+	}
+
+	if config != nil {
+		diag.Subject = config.DeclRange.Ptr()
+	}
+
+	return &diag
 }
