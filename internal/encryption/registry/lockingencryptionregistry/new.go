@@ -1,10 +1,11 @@
 package lockingencryptionregistry
 
 import (
+	"sync"
+
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
-	"sync"
 )
 
 // New returns a new encryption registry that locks for parallel access.
@@ -28,10 +29,10 @@ func (l *lockingRegistry) RegisterKeyProvider(keyProvider keyprovider.Descriptor
 
 	id := keyProvider.ID()
 	if err := id.Validate(); err != nil {
-		return &registry.InvalidKeyProvider{KeyProvider: keyProvider, Cause: err}
+		return &registry.InvalidKeyProviderError{KeyProvider: keyProvider, Cause: err}
 	}
 	if _, ok := l.providers[id]; ok {
-		return &registry.KeyProviderAlreadyRegistered{ID: id}
+		return &registry.KeyProviderAlreadyRegisteredError{ID: id}
 	}
 	l.providers[id] = keyProvider
 	return nil
@@ -43,10 +44,10 @@ func (l *lockingRegistry) RegisterMethod(method method.Descriptor) error {
 
 	id := method.ID()
 	if err := id.Validate(); err != nil {
-		return &registry.InvalidMethod{Method: method, Cause: err}
+		return &registry.InvalidMethodError{Method: method, Cause: err}
 	}
 	if previousMethod, ok := l.methods[id]; ok {
-		return &registry.MethodAlreadyRegistered{ID: id, CurrentMethod: method, PreviousMethod: previousMethod}
+		return &registry.MethodAlreadyRegisteredError{ID: id, CurrentMethod: method, PreviousMethod: previousMethod}
 	}
 	l.methods[id] = method
 	return nil
@@ -67,7 +68,7 @@ func (l *lockingRegistry) GetMethod(id method.ID) (method.Descriptor, error) {
 	defer l.lock.RUnlock()
 	foundMethod, ok := l.methods[id]
 	if !ok {
-		return nil, &registry.MethodNotFound{ID: id}
+		return nil, &registry.MethodNotFoundError{ID: id}
 	}
 	return foundMethod, nil
 }

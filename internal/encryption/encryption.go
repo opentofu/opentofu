@@ -240,7 +240,7 @@ func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	if err != nil {
 
 		// Handle if the method was not found
-		var notFoundError *registry.MethodNotFound
+		var notFoundError *registry.MethodNotFoundError
 		if errors.Is(err, notFoundError) {
 			return hcl.Diagnostics{&hcl.Diagnostic{
 				Severity: hcl.DiagError,

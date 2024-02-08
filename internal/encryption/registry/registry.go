@@ -8,11 +8,11 @@ import (
 // Registry collects all encryption methods and key providers
 type Registry interface {
 	// RegisterKeyProvider registers a key provider. Use the keyprovider.Any().
-	// This function returns a *KeyProviderAlreadyRegistered error if a key provider with the
+	// This function returns a *KeyProviderAlreadyRegisteredError error if a key provider with the
 	// same ID is already registered.
 	RegisterKeyProvider(keyProvider keyprovider.Descriptor) error
 	// RegisterMethod registers an encryption method. Use the method.Any() function to convert your method into a
-	// suitable format. This function returns a *MethodAlreadyRegistered error if a key provider with the same ID is
+	// suitable format. This function returns a *MethodAlreadyRegisteredError error if a key provider with the same ID is
 	// already registered.
 	RegisterMethod(method method.Descriptor) error
 
@@ -20,7 +20,7 @@ type Registry interface {
 	// it will return a *KeyProviderNotFound error.
 	GetKeyProvider(id keyprovider.ID) (keyprovider.Descriptor, error)
 
-	// GetMethod returns the method with the specified ID. If the method is not registered, it will return a
-	// *MethodNotFound error.
+	// GetMethod returns the method with the specified ID.
+	// If the method is not registered, it will return a *MethodNotFoundError.
 	GetMethod(id method.ID) (method.Descriptor, error)
 }

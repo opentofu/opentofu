@@ -2,25 +2,27 @@ package registry
 
 import (
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// InvalidKeyProvider indicates that the supplied keyprovider.Descriptor is invalid/misbehaving. Check the error
+// InvalidKeyProviderError indicates that the supplied keyprovider.Descriptor is invalid/misbehaving. Check the error
 // message for details.
-type InvalidKeyProvider struct {
+type InvalidKeyProviderError struct {
 	KeyProvider keyprovider.Descriptor
 	Cause       error
 }
 
-func (k InvalidKeyProvider) Error() string {
+func (k InvalidKeyProviderError) Error() string {
 	return fmt.Sprintf("the supplied key provider %T is invalid (%v)", k.KeyProvider, k.Cause)
 }
 
-func (k InvalidKeyProvider) Unwrap() error {
+func (k InvalidKeyProviderError) Unwrap() error {
 	return k.Cause
 }
 
+// KeyProviderNotFound indicates that the requested key provider was not found in the registry.
 type KeyProviderNotFound struct {
 	ID keyprovider.ID
 }
@@ -29,49 +31,52 @@ func (k KeyProviderNotFound) Error() string {
 	return fmt.Sprintf("key provider with ID %s not found", k.ID)
 }
 
-type KeyProviderAlreadyRegistered struct {
+// KeyProviderAlreadyRegisteredError indicates that the requested key provider was already registered in the registry.
+type KeyProviderAlreadyRegisteredError struct {
 	ID               keyprovider.ID
 	CurrentProvider  keyprovider.Descriptor
 	PreviousProvider keyprovider.Descriptor
 }
 
-func (k KeyProviderAlreadyRegistered) Error() string {
+func (k KeyProviderAlreadyRegisteredError) Error() string {
 	return fmt.Sprintf(
 		"error while registering key provider ID %s to %T, this ID is already registered by %T",
 		k.ID, k.CurrentProvider, k.PreviousProvider,
 	)
 }
 
-// InvalidMethod indicates that the supplied method.Descriptor is invalid/misbehaving. Check the error message for
+// InvalidMethodError indicates that the supplied method.Descriptor is invalid/misbehaving. Check the error message for
 // details.
-type InvalidMethod struct {
+type InvalidMethodError struct {
 	Method method.Descriptor
 	Cause  error
 }
 
-func (k InvalidMethod) Error() string {
+func (k InvalidMethodError) Error() string {
 	return fmt.Sprintf("the supplied encryption method %T is invalid (%v)", k.Method, k.Cause)
 }
 
-func (k InvalidMethod) Unwrap() error {
+func (k InvalidMethodError) Unwrap() error {
 	return k.Cause
 }
 
-type MethodNotFound struct {
+// MethodNotFoundError indicates that the requested encryption method was not found in the registry.
+type MethodNotFoundError struct {
 	ID method.ID
 }
 
-func (m MethodNotFound) Error() string {
+func (m MethodNotFoundError) Error() string {
 	return fmt.Sprintf("encryption method with ID %s not found", m.ID)
 }
 
-type MethodAlreadyRegistered struct {
+// MethodAlreadyRegisteredError indicates that the requested encryption method was already registered in the registry.
+type MethodAlreadyRegisteredError struct {
 	ID             method.ID
 	CurrentMethod  method.Descriptor
 	PreviousMethod method.Descriptor
 }
 
-func (m MethodAlreadyRegistered) Error() string {
+func (m MethodAlreadyRegisteredError) Error() string {
 	return fmt.Sprintf(
 		"error while registering encryption method ID %s to %T, this ID is already registered by %T",
 		m.ID, m.CurrentMethod, m.PreviousMethod,
