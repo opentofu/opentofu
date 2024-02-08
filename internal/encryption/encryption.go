@@ -33,6 +33,7 @@ type encryption struct {
 
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
+
 	// Used to build EvalContext (and related mappings)
 	keyValues    map[string]map[string]cty.Value
 	methodValues map[string]map[string]cty.Value
@@ -45,6 +46,8 @@ type encryption struct {
 	remote        map[string]StateEncryption
 }
 
+// New creates a new Encryption instance from the given configuration and registry. It returns a list of diagnostics if
+// the configuration is invalid.
 func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
@@ -62,7 +65,14 @@ func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 		remote: make(map[string]StateEncryption),
 	}
 
-	// TODO handle cfg == nil
+	if cfg == nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid encryption configuration",
+			Detail:   "No configuration provided",
+		})
+		return nil, diags
+	}
 
 	diags = append(diags, enc.setupKeyProviders()...)
 	if diags.HasErrors() {
@@ -272,7 +282,7 @@ func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 		// TODO this error handling could use some work
 		return hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Method configuration failed",
+			Summary:  "Encryption method configuration failed",
 			Detail:   err.Error(),
 		}}
 	}
