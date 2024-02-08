@@ -1,11 +1,15 @@
 package encryption
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
+)
 
+// MergeConfigs merges two Configs together, with the override taking precedence.
 func MergeConfigs(cfg *Config, override *Config) *Config {
 	merged := &Config{
-		KeyProviders: make([]KeyProviderConfig, len(cfg.KeyProviders)),
-		Methods:      make([]MethodConfig, len(cfg.Methods)),
+		KeyProviderConfigs: MergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
+		MethodConfigs:      MergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
 
 		StateFile: MergeTargetConfigs(cfg.StateFile, override.StateFile),
 		PlanFile:  MergeTargetConfigs(cfg.PlanFile, override.PlanFile),
@@ -13,44 +17,58 @@ func MergeConfigs(cfg *Config, override *Config) *Config {
 		Remote:    MergeRemoteConfigs(cfg.Remote, override.Remote),
 	}
 
-	copy(merged.KeyProviders, cfg.KeyProviders)
-	for _, okp := range override.KeyProviders {
-		found := false
-		for i, kp := range merged.KeyProviders {
-			found = kp.Type == okp.Type && kp.Name == okp.Name
-			if found {
-				merged.KeyProviders[i] = KeyProviderConfig{
-					Type: kp.Type,
-					Name: kp.Name,
-					Body: mergeBody(kp.Body, okp.Body),
-				}
+	return merged
+}
+
+func MergeMethodConfigs(configs []MethodConfig, overrides []MethodConfig) []MethodConfig {
+	// Initialize a copy of configs to preserve the original entries.
+	merged := make([]MethodConfig, len(configs))
+	copy(merged, configs)
+
+	for _, override := range overrides {
+		wasOverridden := false
+
+		// Attempt to find a match based on type/name
+		for i, method := range merged {
+			if method.Type == override.Type && method.Name == override.Name {
+				// Override the existing method.
+				merged[i].Body = mergeBody(method.Body, override.Body)
+				wasOverridden = true
 				break
 			}
 		}
-		if !found {
-			merged.KeyProviders = append(merged.KeyProviders, okp)
+
+		// If no existing method was overridden, append the new override.
+		if !wasOverridden {
+			merged = append(merged, override)
 		}
 	}
+	return merged
+}
 
-	copy(merged.Methods, cfg.Methods)
-	for _, om := range override.Methods {
-		found := false
-		for i, m := range merged.Methods {
-			found = m.Type == om.Type && m.Name == om.Name
-			if found {
-				merged.Methods[i] = MethodConfig{
-					Type: m.Type,
-					Name: m.Name,
-					Body: mergeBody(m.Body, om.Body),
-				}
+func MergeKeyProviderConfigs(configs []KeyProviderConfig, overrides []KeyProviderConfig) []KeyProviderConfig {
+	// Initialize a copy of configs to preserve the original entries.
+	merged := make([]KeyProviderConfig, len(configs))
+	copy(merged, configs)
+
+	for _, override := range overrides {
+		wasOverridden := false
+
+		// Attempt to find a match based on type/name
+		for i, keyProvider := range merged {
+			if keyProvider.Type == override.Type && keyProvider.Name == override.Name {
+				// Override the existing key provider.
+				merged[i].Body = mergeBody(keyProvider.Body, override.Body)
+				wasOverridden = true
 				break
 			}
 		}
-		if !found {
-			merged.Methods = append(merged.Methods, om)
+
+		// If no existing key provider was overridden, append the new override.
+		if !wasOverridden {
+			merged = append(merged, override)
 		}
 	}
-
 	return merged
 }
 
@@ -95,24 +113,24 @@ func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 	}
 
 	copy(merged.Targets, cfg.Targets)
-	for _, ot := range override.Targets {
+	for _, overrideTarget := range override.Targets {
 		found := false
 		for i, t := range merged.Targets {
-			found = t.Name == ot.Name
+			found = t.Name == overrideTarget.Name
 			if found {
 				// gohcl does not support struct embedding
-				mt := MergeTargetConfigs(t.AsTargetConfig(), ot.AsTargetConfig())
+				mergeTarget := MergeTargetConfigs(t.AsTargetConfig(), overrideTarget.AsTargetConfig())
 				merged.Targets[i] = RemoteTargetConfig{
 					Name:     t.Name,
-					Enforced: mt.Enforced,
-					Method:   mt.Method,
-					Fallback: mt.Fallback,
+					Enforced: mergeTarget.Enforced,
+					Method:   mergeTarget.Method,
+					Fallback: mergeTarget.Fallback,
 				}
 				break
 			}
 		}
 		if !found {
-			merged.Targets = append(merged.Targets, ot)
+			merged.Targets = append(merged.Targets, overrideTarget)
 		}
 	}
 
@@ -124,5 +142,9 @@ func mergeBody(base hcl.Body, override hcl.Body) hcl.Body {
 		return override
 	}
 
-	panic("TODO - see internal/configs/module_merge.go:MergeBodies()")
+	if override == nil {
+		return base
+	}
+
+	return configs.MergeBodies(base, override)
 }

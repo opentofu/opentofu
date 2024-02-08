@@ -15,8 +15,8 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
 		return nil, diags
 	}
 
-	for i, kp := range cfg.KeyProviders {
-		for j, okp := range cfg.KeyProviders {
+	for i, kp := range cfg.KeyProviderConfigs {
+		for j, okp := range cfg.KeyProviderConfigs {
 			if i != j && kp.Type == okp.Type && kp.Name == okp.Name {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -29,8 +29,8 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
 		}
 	}
 
-	for i, m := range cfg.Methods {
-		for j, om := range cfg.Methods {
+	for i, m := range cfg.MethodConfigs {
+		for j, om := range cfg.MethodConfigs {
 			if i != j && m.Type == om.Type && m.Name == om.Name {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,

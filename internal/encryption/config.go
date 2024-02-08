@@ -5,8 +5,8 @@ import (
 )
 
 type Config struct {
-	KeyProviders []KeyProviderConfig `hcl:"key_provider,block"`
-	Methods      []MethodConfig      `hcl:"method,block"`
+	KeyProviderConfigs []KeyProviderConfig `hcl:"key_provider,block"`
+	MethodConfigs      []MethodConfig      `hcl:"method,block"`
 
 	Backend   *TargetConfig `hcl:"backend,block"`
 	StateFile *TargetConfig `hcl:"statefile,block"`

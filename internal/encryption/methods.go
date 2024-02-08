@@ -13,7 +13,7 @@ import (
 
 func (e *encryption) setupMethods() hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	for _, m := range e.cfg.Methods {
+	for _, m := range e.cfg.MethodConfigs {
 		diags = append(diags, e.setupMethod(m)...)
 	}
 

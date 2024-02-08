@@ -16,7 +16,7 @@ import (
 // are invalid.
 func (e *encryption) setupKeyProviders() hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	for _, keyProviderConfig := range e.cfg.KeyProviders {
+	for _, keyProviderConfig := range e.cfg.KeyProviderConfigs {
 		diags = append(diags, e.setupKeyProvider(keyProviderConfig, nil)...)
 	}
 
@@ -115,7 +115,7 @@ func (e *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvider
 			continue
 		}
 
-		for _, kpc := range e.cfg.KeyProviders {
+		for _, kpc := range e.cfg.KeyProviderConfigs {
 			// Find the key provider in the config
 			if kpc.Type == depType && kpc.Name == depName {
 				depDiags := e.setupKeyProvider(kpc, stack)

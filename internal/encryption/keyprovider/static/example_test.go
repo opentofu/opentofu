@@ -34,12 +34,12 @@ func Example() {
 		panic(diags)
 	}
 
-	// TODO: Rename KeyProviders to KeyProviderConfigs
-	if len(parsedConfig.KeyProviders) != 1 {
+	// TODO: Rename KeyProviderConfigs to KeyProviderConfigs
+	if len(parsedConfig.KeyProviderConfigs) != 1 {
 		panic("Expected 1 key provider")
 	}
 	// Grab the KeyProvider from the parsed config:
-	keyProvider := parsedConfig.KeyProviders[0]
+	keyProvider := parsedConfig.KeyProviderConfigs[0]
 
 	// assert the Type is "static" and the Name is "foo"
 	if keyProvider.Type != "static" {
@@ -54,7 +54,7 @@ func Example() {
 	// interface
 	// This is just an example of how to use the static configuration struct, and this is how testing
 	// may be carried out.
-	if err := gohcl.DecodeBody(parsedConfig.KeyProviders[0].Body, nil, staticConfig); err != nil {
+	if err := gohcl.DecodeBody(parsedConfig.KeyProviderConfigs[0].Body, nil, staticConfig); err != nil {
 		panic(err)
 	}
 

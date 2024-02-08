@@ -8,6 +8,10 @@ import (
 	"github.com/hashicorp/hcl/v2/json"
 )
 
+// LoadConfigFromString loads a configuration from a string. The sourceName is used to identify the source of the
+// configuration in error messages.
+// However! this method should only be used in tests, as we should be using gohcl to parse the configuration.
+// TODO: Discuss if we can remove this now.
 func LoadConfigFromString(sourceName string, rawInput string) (*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	var file *hcl.File
