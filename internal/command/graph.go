@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -9,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -22,51 +25,49 @@ type GraphCommand struct {
 	Meta
 }
 
-func (c *GraphCommand) Run(args []string) int {
-	var drawCycles bool
-	var graphTypeStr string
-	var moduleDepth int
-	var verbose bool
-	var planPath string
+func (c *GraphCommand) Run(rawArgs []string) int {
+	// Parse and apply global view arguments
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("graph")
-	cmdFlags.BoolVar(&drawCycles, "draw-cycles", false, "draw-cycles")
-	cmdFlags.StringVar(&graphTypeStr, "type", "", "type")
-	cmdFlags.IntVar(&moduleDepth, "module-depth", -1, "module-depth")
-	cmdFlags.BoolVar(&verbose, "verbose", false, "verbose")
-	cmdFlags.StringVar(&planPath, "plan", "", "plan")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+	// Propagate -no-color for legacy use of Ui.  The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
 
-	configPath, err := modulePath(cmdFlags.Args())
-	if err != nil {
-		c.Ui.Error(err.Error())
+	args, diags := arguments.ParseGraph(rawArgs)
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewGraph(args.ViewType, c.View)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		view.HelpPrompt()
 		return 1
 	}
 
 	// Check for user-supplied plugin path
+	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error loading plugin path: %s", err))
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Try to load plan if path is specified
 	var planFile *planfile.WrappedPlanFile
-	if planPath != "" {
-		planFile, err = c.PlanFile(planPath)
+	if args.PlanPath != "" {
+		planFile, err = c.PlanFile(args.PlanPath)
 		if err != nil {
-			c.Ui.Error(err.Error())
+			diags = diags.Append(err)
+			view.Diagnostics(diags)
 			return 1
 		}
 	}
 
-	var diags tfdiags.Diagnostics
-
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(".")
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -95,8 +96,8 @@ func (c *GraphCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman)
-	opReq.ConfigDir = configPath
+	opReq := c.Operation(b, args.ViewType)
+	opReq.ConfigDir = "."
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile
 	opReq.AllowUnsetVariables = true
@@ -114,18 +115,18 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
-	if graphTypeStr == "" {
+	if args.GraphTypeStr == "" {
 		switch {
 		case lr.Plan != nil:
-			graphTypeStr = "apply"
+			args.GraphTypeStr = "apply"
 		default:
-			graphTypeStr = "plan"
+			args.GraphTypeStr = "plan"
 		}
 	}
 
 	var g *tofu.Graph
 	var graphDiags tfdiags.Diagnostics
-	switch graphTypeStr {
+	switch args.GraphTypeStr {
 	case "plan":
 		g, graphDiags = lr.Core.PlanGraphForUI(lr.Config, lr.InputState, plans.NormalMode)
 	case "plan-refresh-only":
@@ -156,7 +157,7 @@ func (c *GraphCommand) Run(args []string) int {
 		graphDiags = graphDiags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Graph type no longer available",
-			fmt.Sprintf("The graph type %q is no longer available. Use -type=plan instead to get a similar result.", graphTypeStr),
+			fmt.Sprintf("The graph type %q is no longer available. Use -type=plan instead to get a similar result.", args.GraphTypeStr),
 		))
 	default:
 		graphDiags = graphDiags.Append(tfdiags.Sourceless(
@@ -172,12 +173,13 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	graphStr, err := tofu.GraphDot(g, &dag.DotOpts{
-		DrawCycles: drawCycles,
-		MaxDepth:   moduleDepth,
-		Verbose:    verbose,
+		DrawCycles: args.DrawCycles,
+		MaxDepth:   args.ModuleDepth,
+		Verbose:    args.Verbose,
 	})
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting graph: %s", err))
+		diags = diags.Append(err)
+		c.showDiagnostics(diags)
 		return 1
 	}
 
@@ -189,7 +191,7 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(graphStr)
+	view.Output(graphStr)
 
 	return 0
 }
