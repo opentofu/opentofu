@@ -303,6 +303,12 @@ func TestMergeTargetConfigs(t *testing.T) {
 			override: makeTargetConfig(false, expressionOne, nil),
 			expected: makeTargetConfig(false, expressionOne, nil),
 		},
+		{
+			name:     "override enforced, method and fallback",
+			input:    makeTargetConfig(false, expressionOne, makeTargetConfig(true, expressionOne, nil)),
+			override: makeTargetConfig(true, expressionTwo, makeTargetConfig(true, expressionTwo, nil)),
+			expected: makeTargetConfig(true, expressionTwo, makeTargetConfig(true, expressionTwo, nil)),
+		},
 	}
 
 	for _, test := range tests {
