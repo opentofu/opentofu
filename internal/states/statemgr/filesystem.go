@@ -92,6 +92,16 @@ func NewFilesystemBetweenPaths(readPath, writePath string) *Filesystem {
 	}
 }
 
+// SaveErroredTestStateFile saves the state present in memory as a stateFile in disk
+// and is invoked when "tofu test" fails to destroy resources.
+func SaveErroredTestStateFile(stateFilePath string, state *states.State) error {
+	log.Printf("Writing state to file: errored_test.tfstate")
+	fs := NewFilesystem(stateFilePath)
+	schema := &tofu.Schemas{}
+	err := WriteAndPersist(fs, state, schema)
+	return err
+}
+
 // SetBackupPath configures the receiever so that it will create a local
 // backup file of the next state snapshot it reads (in State) if a different
 // snapshot is subsequently written (in WriteState). Only one backup is

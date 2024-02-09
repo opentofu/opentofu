@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -220,7 +221,6 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	if diags.HasErrors() {
 		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("OpenTofu encountered an error destroying resources created while executing %s.\n", identifier), t.view.errorColumns()))
 	}
-	t.Diagnostics(run, file, diags)
 
 	if state.HasManagedResourceInstanceObjects() {
 		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, and they need to be cleaned up manually:\n", identifier), t.view.errorColumns()))
@@ -231,7 +231,16 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 			}
 			t.view.streams.Eprintf("  - %s\n", resource.Instance)
 		}
+		writeError := statemgr.SaveErroredTestStateFile("errored_test.tfstate", state)
+		if writeError != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to create local state file for the resources left over while running tofu test",
+				fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeError),
+			))
+		}
 	}
+	t.Diagnostics(run, file, diags)
 }
 
 func (t *TestHuman) Diagnostics(_ *moduletest.Run, _ *moduletest.File, diags tfdiags.Diagnostics) {
@@ -472,7 +481,14 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name)
 		}
-
+		writeError := statemgr.SaveErroredTestStateFile("errored_test.tfstate", state)
+		if writeError != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to create local state file for the resources left over while running tofu test",
+				fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeError),
+			))
+		}
 	}
 
 	t.Diagnostics(run, file, diags)
