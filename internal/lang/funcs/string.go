@@ -179,9 +179,16 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 		{
 			Name: "vars",
 			Type: cty.DynamicPseudoType,
+			AllowMarked: true,
 		},
 	}
 	loadTmpl := func(content string, marks cty.ValueMarks) (hcl.Expression, error) {
+
+		// This condition checks if the provided string to be rendered as a template is marked as sensitive.
+		// If the string is marked as sensitive, it returns an error indicating that sensitive strings cannot be used as template strings.
+		if strings.Contains(marks.GoString(), "Sensitive") {
+			return nil, function.NewArgErrorf(0, "Sensitive strings cannot be used as template strings. Please ensure that any sensitive information is removed from your template before using them")
+		}
 
 		expr, diags := hclsyntax.ParseTemplate([]byte(content), "NoFileNeeded", hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
@@ -194,6 +201,18 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 	renderTmpl := func(expr hcl.Expression, varsVal cty.Value) (cty.Value, error) {
 		if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
 			return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
+		}
+
+		// This loop iterates over each template variable's value and checks if any sensitive values are present.
+		// If a sensitive value is found, it returns an error indicating that sensitive template variables cannot be used.
+		for _, vars := range varsVal.AsValueMap(){
+			_, varsMark := vars.Unmark()
+			
+			// Check if the variable is marked as sensitive.
+    		// If it is marked as sensitive, return an error.
+			if strings.Contains(varsMark.GoString(), "Sensitive"){
+				return cty.DynamicVal, function.NewArgErrorf(1, "Sensitive template variables cannot be used in the template. Please ensure that any sensitive information is removed from your template variables before using them")
+			}
 		}
 
 		ctx := &hcl.EvalContext{

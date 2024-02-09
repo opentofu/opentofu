@@ -6,7 +6,7 @@ description: |-
 
 # `templatestring` Function
 
-The templatestring function enables string rendering as template by substituting placeholders with values from a provided set of template variables. 
+The templatestring function enables string rendering as template by substituting placeholders with values from a provided set of template variables.
 
 ```hcl
 templatestring(str, vars)
@@ -14,9 +14,13 @@ templatestring(str, vars)
 
 The template syntax follows the rules for [string templates](/docs/language/expressions/strings#string-templates) in the main OpenTofu language, employing interpolation sequences delimited with ${ ... }. This function offers the flexibility to factor out longer template sequences into a separate string for enhanced readability and manageability.
 
+When using the `templatestring` function, it's important to keep in mind the usage of escape sequences to prevent premature interpolation. To ensure that placeholders are treated as literals until they are converted to template variables, use the escape sequences `$${...}` and `%%{...}` to represent `${...}` and `%{...}` literals, respectively. This approach prevents the template from interpreting the placeholders as interpolation or template directive sequences before they are processed. By following this convention, you can accurately represent template strings without encountering unexpected syntax errors. Remember to apply these escape sequences when defining your template strings to ensure proper handling by the `templatestring` function.
+
 The "vars" argument must be an object. Within the template string, each key in the map serves as a variable for interpolation. Additionally, the template can utilize any other function available in the OpenTofu language. Variable names must adhere to OpenTofu naming conventions, starting with a letter followed by zero or more letters, digits, or underscores.
 
 Since strings in OpenTofu represent sequences of Unicode characters, templatestring interprets the template string as UTF-8 encoded text, ensuring proper handling of Unicode characters. Any invalid UTF-8 sequences within the template string will result in an error.
+
+Also, note that the `templatestring` function does not support sensitive strings or sensitive template variables. Ensure proper management of sensitive information in your template inputs to maintain security and prevent unintended exposures.
 
 ## Examples
 
@@ -32,34 +36,27 @@ output "result" {
 ```
 result = Hello, Jodie!
 ```
+
 ### String interpolation with variable
 
 This example illustrates string interpolation by inserting a variable value into the template.
 
 ```hcl
 output "result" {
-  value = templatestring("Hello, ${name}!", { name = "Alice" })
+  value = templatestring("Hello, $${name}!", { name = "Alice" })
 }
 ```
 ```
 result = Hello, Alice!
 ```
-## Advanced Usage
-
-Although in principle templatestring can be used with an inline template string, but we don't recommend this approach because it may lead to potential syntax issues. Instead, consider exploring alternative options such as using the local block to create a local variable and then pass that variable to the templatestring function. This approach provides better readability and avoids potential syntax errors. For a clearer understanding, refer to the example below."
 
 ### Lists
 
-This example demonstrates the usage of the templatestring function with a list variable, joined and formatted in the resulting string.
+This example demonstrates the usage of the templatestring function with a list variable.
 
 ```hcl
-locals {
-  list = ["value1", "value2", "value3"]
-  formatted_items = join(", ", local.list)
-}
-
 output "result" {
-  value = templatestring("List Items : ${local.formatted_items}", {})
+  value = templatestring("List Items: $${join(\", \", list)}", { list=["value1","value2","value3"] })
 }
 ```
 ```
@@ -68,20 +65,15 @@ result = "List Items : value1, value2, value3"
 
 ### Maps
 
-This example demonstrates the usage of the templatestring function with a map variable. It iterates over the key-value pairs in the map and formats them into a string. 
+This example demonstrates the usage of the templatestring function with a map variable. It iterates over the key-value pairs in the map.
 
 ```hcl
-locals {
-  items_map = { key1 = "val1", key2 = "val2"}
-  formatted_items = "%{ for key, value in local.items_map ~}${key}:${value} %{ endfor ~}"
-}
-
 output "result" {
-  value = templatestring("${local.formatted_items}",{})
+  value = templatestring("%%{ for key, value in list ~}  $${key}:$${value} %%{ endfor ~}", { list={key1="value1", key2="value2", key3="value3"} })
 }
 ```
 ```
-result = "key1:val1 key2:val2 "
+result = "key1:value1 key2:value2 key3:value3 "
 ```
 
 ### Generating JSON or YAML

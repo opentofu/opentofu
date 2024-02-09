@@ -198,20 +198,20 @@ func TestTemplateFile(t *testing.T) {
 				}
 			}
 
-			if err != nil {
-				if test.Err == "" {
-					t.Fatalf("unexpected error: %s", err)
-				} else {
-					if got, want := err.Error(), test.Err; got != want {
-						t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
-					}
+			if test.Err != "" {
+				if err == nil {
+					t.Fatal("succeeded; want error")
 				}
-			} else if test.Err != "" {
-				t.Fatal("succeeded; want error")
-			} else {
-				if !got.RawEquals(test.Want) {
-					t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+				if got, want := err.Error(), test.Err; got != want {
+					t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
 				}
+				return
+			} else if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if !got.RawEquals(test.Want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
 			}
 		})
 	}

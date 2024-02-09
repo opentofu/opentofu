@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -321,6 +322,20 @@ func TestTemplateString(t *testing.T) {
 			}),
 			cty.True, 
 			``,
+		},
+		"Sensitive string template": {
+			cty.StringVal("My password is 1234").Mark(marks.Sensitive),
+			cty.EmptyObjectVal,
+			cty.NilVal,
+			`Sensitive strings cannot be used as template strings. Please ensure that any sensitive information is removed from your template before using them`,
+		},
+		"Sensitive template variable": {
+			cty.StringVal("My password is ${pass}"),
+			cty.ObjectVal(map[string]cty.Value{
+				"pass": cty.StringVal("secret").Mark(marks.Sensitive),
+			}),
+			cty.NilVal,
+			`Sensitive template variables cannot be used in the template. Please ensure that any sensitive information is removed from your template variables before using them`,
 		},
 	}
 
