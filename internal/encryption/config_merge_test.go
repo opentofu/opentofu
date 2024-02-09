@@ -6,6 +6,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -225,6 +226,91 @@ func TestMergeKeyProviderConfigs(t *testing.T) {
 				if !found {
 					t.Errorf("expected key provider %v not found in output", spew.Sdump(expectedKeyProvider))
 				}
+			}
+		})
+	}
+}
+
+func TestMergeTargetConfigs(t *testing.T) {
+	makeTargetConfig := func(enforced bool, method hcl.Expression, fallback *TargetConfig) *TargetConfig {
+		return &TargetConfig{
+			Enforced: enforced,
+			Method:   method,
+			Fallback: fallback,
+		}
+	}
+
+	expressionOne := hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String)))
+	expressionTwo := hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Bool)))
+
+	tests := []struct {
+		name     string
+		input    *TargetConfig
+		override *TargetConfig
+		expected *TargetConfig
+	}{
+		{
+			name:     "both nil",
+			input:    nil,
+			override: nil,
+			expected: nil,
+		},
+		{
+			name:     "input is nil",
+			input:    nil,
+			override: makeTargetConfig(true, expressionOne, nil),
+			expected: makeTargetConfig(true, expressionOne, nil),
+		},
+		{
+			name:     "override is nil",
+			input:    makeTargetConfig(true, expressionOne, nil),
+			override: nil,
+			expected: makeTargetConfig(true, expressionOne, nil),
+		},
+		{
+			name:     "override target config method",
+			input:    makeTargetConfig(true, expressionOne, nil),
+			override: makeTargetConfig(true, expressionTwo, nil),
+			expected: makeTargetConfig(true, expressionTwo, nil),
+		},
+		{
+			name:     "override target config fallback",
+			input:    makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionOne, nil)),
+			override: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+			expected: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+		},
+		{
+			name:     "override target config fallback",
+			input:    makeTargetConfig(true, expressionOne, nil),
+			override: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+			expected: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+		},
+		{
+			name:     "override target config enforced - should be true if any are true",
+			input:    makeTargetConfig(true, expressionOne, nil),
+			override: makeTargetConfig(false, expressionOne, nil),
+			expected: makeTargetConfig(true, expressionOne, nil),
+		},
+		{
+			name:     "override target config enforced - should be true if any are true",
+			input:    makeTargetConfig(false, expressionOne, nil),
+			override: makeTargetConfig(true, expressionOne, nil),
+			expected: makeTargetConfig(true, expressionOne, nil),
+		},
+		{
+			name:     "override target config enforced - should be false if both are false",
+			input:    makeTargetConfig(false, expressionOne, nil),
+			override: makeTargetConfig(false, expressionOne, nil),
+			expected: makeTargetConfig(false, expressionOne, nil),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			output := MergeTargetConfigs(test.input, test.override)
+
+			if !reflect.DeepEqual(output, test.expected) {
+				t.Errorf("expected %v, got %v", spew.Sdump(test.expected), spew.Sdump(output))
 			}
 		})
 	}
