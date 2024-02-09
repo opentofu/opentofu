@@ -61,6 +61,7 @@ type applyProgress struct {
 	// goroutine to finish
 	heartbeatDone chan struct{}
 
+	// elapsed is used to allow tests to safely check for heartbeat executions
 	elapsed chan time.Duration
 }
 
