@@ -179,8 +179,8 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			AllowMarked: true,
 		},
 		{
-			Name: "vars",
-			Type: cty.DynamicPseudoType,
+			Name:        "vars",
+			Type:        cty.DynamicPseudoType,
 			AllowMarked: true,
 		},
 	}
@@ -207,12 +207,12 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 
 		// This loop iterates over each template variable's value and checks if any sensitive values are present.
 		// If a sensitive value is found, it returns an error indicating that sensitive template variables cannot be used.
-		for _, vars := range varsVal.AsValueMap(){
+		for _, vars := range varsVal.AsValueMap() {
 			_, varsMark := vars.Unmark()
-			
+
 			// Check if the variable is marked as sensitive.
-    		// If it is marked as sensitive, return an error.
-			if strings.Contains(varsMark.GoString(), "Sensitive"){
+			// If it is marked as sensitive, return an error.
+			if strings.Contains(varsMark.GoString(), "Sensitive") {
 				return cty.DynamicVal, function.NewArgErrorf(1, "Sensitive template variables cannot be used in the template. Please ensure that any sensitive information is removed from your template variables before using them")
 			}
 		}

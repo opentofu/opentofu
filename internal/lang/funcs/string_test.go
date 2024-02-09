@@ -260,10 +260,10 @@ func TestStartsWith(t *testing.T) {
 
 func TestTemplateString(t *testing.T) {
 	tests := map[string]struct {
-		Content  cty.Value
-		Vars     cty.Value
-		Want     cty.Value
-		Err      string
+		Content cty.Value
+		Vars    cty.Value
+		Want    cty.Value
+		Err     string
 	}{
 		"Simple string template": {
 			cty.StringVal("Hello, Jodie!"),
@@ -322,7 +322,7 @@ func TestTemplateString(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"val": cty.True,
 			}),
-			cty.True, 
+			cty.True,
 			``,
 		},
 		"Sensitive string template": {

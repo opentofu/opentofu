@@ -33,6 +33,7 @@ output "result" {
   value = templatestring("Hello, Jodie!", {})
 }
 ```
+
 ```
 result = Hello, Jodie!
 ```
@@ -46,6 +47,7 @@ output "result" {
   value = templatestring("Hello, $${name}!", { name = "Alice" })
 }
 ```
+
 ```
 result = Hello, Alice!
 ```
@@ -59,6 +61,7 @@ output "result" {
   value = templatestring("List Items: $${join(\", \", list)}", { list=["value1","value2","value3"] })
 }
 ```
+
 ```
 result = "List Items : value1, value2, value3"
 ```
@@ -72,6 +75,7 @@ output "result" {
   value = templatestring("%%{ for key, value in list ~}  $${key}:$${value} %%{ endfor ~}", { list={key1="value1", key2="value2", key3="value3"} })
 }
 ```
+
 ```
 result = "key1:value1 key2:value2 key3:value3 "
 ```
@@ -91,6 +95,7 @@ output "result" {
   value = templatestring(yamlencode(local.formatted_list), {})
 }
 ```
+
 ```
 result = <<-EOT
     "Value1 Value2 Value3 "
