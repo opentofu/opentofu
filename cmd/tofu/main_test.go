@@ -323,6 +323,8 @@ func TestMkConfigDir_new(t *testing.T) {
 
 	mode := int(info.Mode().Perm())
 	expectedMode := 0755
+	// Unix permissions bits are not applicable on Windows. Perm() returns
+	// 0777 regardless of whether readonly or hidden flags are set.
 	if runtime.GOOS == "windows" {
 		expectedMode = 0777
 	}
