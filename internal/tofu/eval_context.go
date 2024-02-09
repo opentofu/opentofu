@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -200,6 +202,14 @@ type EvalContext interface {
 	// thereafter, so callers must not modify the returned map or any other
 	// objects accessible through it.
 	MoveResults() refactoring.MoveResults
+
+	// ResolvedImports returns a map describing the resolved imports
+	// after evaluating the dynamic address of the import targets
+	//
+	// This data is created during the graph walk, as import target addresses are being resolved
+	// Its primary use is for validation at the end of a plan - To make sure all imports have been satisfied
+	// and have a configuration
+	ResolvedImports() *ResolvedImports
 
 	// WithPath returns a copy of the context with the internal path set to the
 	// path argument.

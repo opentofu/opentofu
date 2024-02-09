@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -213,7 +215,12 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 	var root []*addrs.Reference
 
 	for _, importTarget := range n.importTargets {
-		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, importTarget.ID)
+		// References are only possible in import targets originating from an import block
+		if !importTarget.IsFromImportBlock() {
+			continue
+		}
+
+		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
 		root = append(root, refs...)
 	}
 
