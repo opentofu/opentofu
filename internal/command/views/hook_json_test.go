@@ -86,6 +86,7 @@ func TestJSONHook_create(t *testing.T) {
 	nowMu.Lock()
 	now = now.Add(2 * time.Second)
 	nowMu.Unlock()
+
 	action, err = hook.PostApply(addr, states.CurrentGen, plannedNewState, nil)
 	testHookReturnValues(t, action, err)
 
