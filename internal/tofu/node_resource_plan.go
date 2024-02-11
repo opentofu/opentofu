@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -310,11 +311,13 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
 			// TODO - need to find a better solution than failing here. Failing might mean failure elsewhere earlier on (maybe it's just in the import validation, and this can be fixed?)
+			// TODO - Commonize ctx.WithPath(addrs.RootModuleInstance) between the two functions here
 			importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
 			if evalDiags.HasErrors() {
 				return nil, evalDiags.Err()
 			}
 
+			spew.Dump("Resolving import address", importTarget.Config.To)
 			importAddress, addressDiags := ctx.WithPath(addrs.RootModuleInstance).EvaluateImportAddress(importTarget.Config.To)
 			if addressDiags.HasErrors() {
 				return nil, addressDiags.Err()

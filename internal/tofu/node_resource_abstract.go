@@ -7,8 +7,8 @@ package tofu
 
 import (
 	"fmt"
-	"log"
-
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"log"
 )
 
 // ConcreteResourceNodeFunc is a callback type used to convert an
@@ -211,6 +212,46 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 	return result
 }
 
+// TODO what do with diags
+func referencesInImportAddress(expr hcl.Expression) (refs []*addrs.Reference, diags tfdiags.Diagnostics) {
+	physExpr := hcl.UnwrapExpressionUntil(expr, func(expr hcl.Expression) bool {
+		switch expr.(type) {
+		case *hclsyntax.IndexExpr, *hclsyntax.ScopeTraversalExpr, *hclsyntax.RelativeTraversalExpr:
+			return true
+		default:
+			return false
+		}
+	})
+
+	switch e := physExpr.(type) {
+	case *hclsyntax.IndexExpr:
+		r, d := referencesInImportAddress(e.Collection)
+		diags = diags.Append(d)
+		refs = append(refs, r...)
+
+		r, _ = lang.ReferencesInExpr(addrs.ParseRef, e.Key)
+		refs = append(refs, r...)
+	case *hclsyntax.RelativeTraversalExpr:
+		r, d := referencesInImportAddress(e.Source)
+		refs = append(refs, r...)
+		diags = diags.Append(d)
+
+		// We don't care about the traversal part of the relative expression
+		// as it should not contain any references in the index keys
+	case *hclsyntax.ScopeTraversalExpr:
+		// Static traversals should not contain any references in the index keys
+	default:
+		// TODO - This should not happen, as it should have failed validation earlier, in config.AbsTraversalForImportToExpr
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import address expression",
+			Detail:   "A single static variable reference is required: only attribute access and indexing with constant keys. No calculations, function calls, template expressions, etc are allowed here.",
+			Subject:  expr.Range().Ptr(),
+		}) // TODO indexing with constant keys are supported? Check out how
+	}
+	return
+}
+
 func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 	var root []*addrs.Reference
 
@@ -220,7 +261,13 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 			continue
 		}
 
-		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
+		refs, _ := referencesInImportAddress(importTarget.Config.To)
+		// TODO - find a way to only use references that are not of this module and resource?
+
+		// TODO - do we want this for for_each later on as well?
+		root = append(root, refs...)
+
+		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
 		root = append(root, refs...)
 	}
 

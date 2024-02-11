@@ -8,7 +8,6 @@ package tofu
 import (
 	"context"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"log"
 	"sync"
@@ -435,7 +434,7 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (trav
 		traversal = append(traversal, t...)
 
 		tIndex, dIndex := ctx.parseImportIndexKeyExpr(e.Key)
-		diags.Append(dIndex)
+		diags = diags.Append(dIndex)
 		traversal = append(traversal, tIndex)
 	case *hclsyntax.RelativeTraversalExpr:
 		t, d := ctx.traversalForImportExpr(e.Source)
@@ -462,7 +461,6 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	}
 
 	val, diags := ctx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
-	spew.Dump("Got index val", val, diags)
 	if diags.HasErrors() {
 		return idx, diags
 	}
@@ -470,7 +468,6 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	// TODO - Is there some similar logic elsewhere?
 	// TODO - Do I want/need to make sure that the index is not marked?
 	if !val.IsKnown() {
-		spew.Dump("Got index unknown", val, diags)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains invalid key",
@@ -481,7 +478,6 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	}
 
 	if val.IsNull() {
-		spew.Dump("Got index null", val, diags)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains invalid key",
@@ -492,7 +488,6 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	}
 
 	if val.Type() != cty.String && val.Type() != cty.Number {
-		spew.Dump("Got index not actual key", val, diags)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains invalid key",
@@ -502,7 +497,6 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 		return idx, diags
 	}
 
-	spew.Dump("returning good index val")
 	idx.Key = val
 	return idx, diags
 }
