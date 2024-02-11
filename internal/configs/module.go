@@ -764,17 +764,3 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 
 	return diags
 }
-
-func (m *Module) HasImportAddress(i *Import) bool {
-	if i.ResolvedTo == nil {
-		return false
-	}
-
-	for _, mi := range m.Import {
-		if mi.ResolvedTo != nil && (*i.ResolvedTo).Equal(*mi.ResolvedTo) {
-			return true
-		}
-	}
-
-	return false
-}

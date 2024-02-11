@@ -444,11 +444,11 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (trav
 	case *hclsyntax.ScopeTraversalExpr:
 		traversal = append(traversal, e.Traversal...)
 	default:
-		// TODO - This should not happen, as it should have failed validation earlier, in config.AbsTraversalForImportToExpr
+		// This should not happen, as it should have failed validation earlier, in config.AbsTraversalForImportToExpr
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid import address expression",
-			Detail:   "A single static variable reference is required: only attribute access and indexing with constant keys. No calculations, function calls, template expressions, etc are allowed here.",
+			Detail:   "Import address must be a reference to a resource's address, and only allows for indexing with dynamic keys. For example: module.my_module[expression1].aws_s3_bucket.my_buckets[expression2] for resources inside of modules, or simply aws_s3_bucket.my_bucket for a resource in the root module",
 			Subject:  expr.Range().Ptr(),
 		}) // TODO indexing with constant keys are supported? Check out how
 	}
