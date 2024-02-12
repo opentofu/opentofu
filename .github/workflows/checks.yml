@@ -49,6 +49,9 @@ jobs:
           # https://github.com/opentofu/opentofu/issues/1201 if fixed
           #  ^ un-comment the two windows-latest lines
       fail-fast: false
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
     steps:
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
