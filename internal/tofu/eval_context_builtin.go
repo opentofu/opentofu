@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"log"
 	"sync"
 
@@ -450,7 +451,7 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (trav
 			Summary:  "Invalid import address expression",
 			Detail:   "Import address must be a reference to a resource's address, and only allows for indexing with dynamic keys. For example: module.my_module[expression1].aws_s3_bucket.my_buckets[expression2] for resources inside of modules, or simply aws_s3_bucket.my_bucket for a resource in the root module",
 			Subject:  expr.Range().Ptr(),
-		}) // TODO indexing with constant keys are supported? Check out how
+		})
 	}
 	return
 }
@@ -465,13 +466,11 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 		return idx, diags
 	}
 
-	// TODO - Is there some similar logic elsewhere?
-	// TODO - Do I want/need to make sure that the index is not marked?
 	if !val.IsKnown() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains invalid key",
-			Detail:   "Import block contained a resource address using an index which is not yet known. Please (better error here)", // TODO better phrasing for the error here
+			Detail:   "Import block contained a resource address using an index will only be known after apply. Please make sure to use expressions that are known at plan time for the index of an import target address",
 			Subject:  expr.Range().Ptr(),
 		})
 		return idx, diags
@@ -481,7 +480,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains invalid key",
-			Detail:   "Import block contained a resource address using an index which is null. Please (better error here)", // TODO better phrasing for the error here
+			Detail:   "Import block contained a resource address using an index which is null. Please make sure the expression for the index is not null",
 			Subject:  expr.Range().Ptr(),
 		})
 		return idx, diags
@@ -491,13 +490,23 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains invalid key",
-			Detail:   "Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please (better error here)", // TODO better phrasing for the error here
+			Detail:   "Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please make sure the expression for the index is correct, and returns either a string or a number",
 			Subject:  expr.Range().Ptr(),
 		})
 		return idx, diags
 	}
 
-	idx.Key = val
+	unmarkedVal, valMarks := val.Unmark()
+	if _, sensitive := valMarks[marks.Sensitive]; sensitive {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains invalid key",
+			Detail:   "Import block contained a resource address using an index which is sensitive. Please make sure indexes used in the resource address of an import target are not sensitive",
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	idx.Key = unmarkedVal
 	return idx, diags
 }
 

@@ -175,8 +175,9 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// TODO: We could actually catch and process these kind of problems earlier,
 	//   this is something that could be done during the Validate process.
 	for _, i := range importTargets {
-		// We should only allow config generation for static addresses
-		// If config generation has been attempted for a non static address - we will fail here
+		// We should only allow config generation for static addresses (addresses that are fully resolvable when
+		// decoding the import block). If config generation has been attempted for a non static address - we will
+		// fail here
 		// TODO - make sure these errors look OK
 		address := i.ResolvedAddr()
 		if address == nil {

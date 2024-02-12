@@ -75,13 +75,11 @@ func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 	return i.Config.StaticTo
 }
 
-// ResolvedAddr returns the resolved address of an import target, if possible. If not possible, returns an HCL diag
+// ResolvedAddr returns a reference to the resolved address of an import target, if possible. If not possible, it
+// returns nil.
 // For an ImportTarget originating from the command line, the address is already known
 // However for an ImportTarget originating from an import block, the full address might not be known initially,
-// and could only be evaluated down the line. Here, we attempt to resolve the address as though it is a static absolute
-// traversal, if that's possible. This would only be possible if the `import` block's "to" field does not rely on any
-// data that is dynamic
-// TODO - Update comment (once I decide if this is the approach I want for ResolvedAddr)
+// and could only be evaluated down the line.
 func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
 	if i.IsFromImportCommandLine() {
 		return &i.CommandLineImportTarget.Addr
