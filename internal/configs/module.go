@@ -459,6 +459,11 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			//   For now I will keep this validation, but I'll check what happens when the import's dynamic address is the same as a moved's from
 			//   We might also want this validation with the removed block
 			// TODO - Check if this validation still works now that the address is not an instance, but a ConfigResource
+
+			// We should skip the moved-import validation if the moved `from` was not successfully decoded
+			if mb.From == nil {
+				continue
+			}
 			if mb.From.String() == i.StaticTo.String() {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
