@@ -15,6 +15,7 @@ Welcome and thank you for wanting to contribute!
   3. Wait for a maintainer to assign it to you,
   4. Then [submit your code here ➡️](https://github.com/opentofu/opentofu/compare)
 - Want to fix a bug? [Submit a PR here ➡️](https://github.com/opentofu/opentofu/compare)
+- Want to know what's going on? Read the [weekly updates ➡️](WEEKLY_UPDATES.md), the [TSC summary ➡️](TSC_SUMMARY.md) or join the [community meeting ➡️](https://meet.google.com/xfm-cgms-has) on Wednesdays at 14:30 CET / 8:30 AM Eastern / 5:30 AM Western / 19:00 India time on this link: https://meet.google.com/xfm-cgms-has
 
 **⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
@@ -43,7 +44,7 @@ Eager to get started on coding? Here's the short version:
 
 ### Setting up your development environment
 
-You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a MacOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
+You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a macOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
 
 Alternatively, if you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](.devcontainer.json). In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if you were [building natively](#building-natively) on Linux.
 
@@ -58,13 +59,16 @@ There are two ways to build OpenTofu: natively and in a container. Building nati
 To build OpenTofu natively, you will need to install Go in the environment you are running in. You can then run the `go build` command from your OpenTofu source directory as follows:
 
 ```sh
-GOOS=linux GOARCH=amd64 go build -o tofu -v -buildvcs=false ./cmd/tofu
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o tofu -v -buildvcs=false ./cmd/tofu
 ```
 
 This command will produce a `tofu` binary in your current directory, which you can test by running `./tofu --version`.
 
 > [!TIP]
 > Replace the `GOOS` and `GOARCH` values with your target platform if you wish to cross-compile. You can find more information in the [Go documentation](https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program).
+
+> [!NOTE]
+> On almost all platforms we build with the `CGO_ENABLED=0` environment variable. The only exception is macOS/Darwin to avoid DNS resolution issues.
 
 #### Building in a container
 
@@ -75,7 +79,7 @@ docker run \
   --rm \
   -v "$PWD":/usr/src/opentofu\
   -w /usr/src/opentofu golang:1.21.3\
-  GOOS=linux GOARCH=amd64 go build -o tofu -v -buildvcs=false ./cmd/tofu
+  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o tofu -v -buildvcs=false ./cmd/tofu
 ```
 
 This will create the `tofu` binary in the current working directory, which you can test by running `./tofu --version`.
@@ -90,10 +94,100 @@ Similar to builds, you can use the `go test` command to run tests. To run the en
 go test ./...
 ```
 
-Alternatively, you can also run the `go test` command in the package you are currently working on.
+Alternatively, you can also run the `go test` command in the package you are currently working on:
+
+```
+go test ./internal/command/...
+go test ./internal/addrs
+```
 
 > [!TIP]
 > You can find more information on testing in the [Go documentation](https://pkg.go.dev/cmd/go#hdr-Test_packages).
+
+---
+
+### Debugging OpenTofu
+
+We recommend using an interactive debugger for finding issues quickly. Most IDE's have a built-in option for this, but you can also set up [dlv](https://github.com/go-delve/delve) on a remote machine for debugging. You can use the [`debug-opentofu`](scripts/debug-opentofu) script to run OpenTofu in debug mode. You can then connect the remote machine on port 2345 for debugging.
+
+For VSCode, add the following setting to `.vscode/launch.json` for easy debugging:
+
+```json5
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "tofu init",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/tofu",
+            // You can update the environment variables here
+            // For more information, visit: https://opentofu.org/docs/cli/config/environment-variables/
+            "env": {
+                "TF_LOG": "trace"
+            },
+            // You can update your arguments for init command here
+            // Comment out the following line and update your workdir to target
+            // "args": ["-chdir=<WORKDIR>", "init"]
+            "args": ["init"]
+        },
+        {
+            "name": "tofu plan",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/tofu",
+            "env": {
+                "TF_LOG": "trace"
+            },
+            // You can update your arguments for plan command here
+            // Comment out the following line and update your workdir to target
+            // "args": ["-chdir=<WORKDIR>", "plan"]
+            "args": ["plan"]
+        }
+    ]
+}
+```
+
+Similarly, you can add the following configurations to you `.idea/runConfigurations` folder if you use Goland/IntelliJ:
+
+```xml
+<!-- .idea/runConfigurations/tofu_init.xml -->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="tofu init" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="opentofu" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="init" />
+    <kind value="DIRECTORY" />
+    <package value="github.com/opentofu/opentofu/cmd/tofu" />
+    <directory value="$PROJECT_DIR$/cmd/tofu" />
+    <filePath value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>
+```
+
+```xml
+<!-- .idea/runConfigurations/tofu_plan.xml -->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="tofu plan" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="opentofu" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="plan" />
+    <kind value="DIRECTORY" />
+    <package value="github.com/opentofu/opentofu/cmd/tofu" />
+    <directory value="$PROJECT_DIR$/cmd/tofu" />
+    <filePath value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>
+```
+
+In addition to interactive debugging, you can also use [go-spew](https://github.com/davecgh/go-spew) to print complex data structures while running the code.
 
 ---
 
@@ -235,7 +329,7 @@ When you submit an enhancement request, the [core team](#who-is-the-core-team) l
 1. **Is it possible to implement this on a technical level?**<br />Sometimes, even if a feature would be extremely useful, the state of the codebase doesn't let us do it. 
 2. **Does the feature cause more technical debt?**<br />A feature request may hide a larger issue under the hood. Sometimes it is more desirable to resolve the underlying issue instead of implementing the feature in isolation.
 3. **Is there someone who would do the work?**<br />The core team doesn't have the capacity to implement everything, so for many issues community contributions are very welcome. Sometimes companies external to OpenTofu decide to dedicate developers for the development of a specific larger feature, which can also weigh in on the decision-making process.
-4. **Is there enough capacity on the core team to support a community contributor?**<br />We don't expect contributors to implement the entire feature in isolation, we actively participate with planning, reviews and writing documentation as needed.
+4. **Is there enough capacity on the core team to support a community contributor?**<br />Core engineers dedicate time to review PRs and help community members with questions as we don't expect contributors to implement the entire feature in isolation. We actively participate with planning, reviews and writing documentation as needed, some more than others, which flows into the decision of accepting or rejecting an issue. 
 5. **Does this feature enable someone to do something new with OpenTofu they were not able to do before?**<br />We prioritize work based on community input and need. An issue with a large number of reactions is more likely to make it into the accepted phase, but if a viable workaround or tool exists, the feature is less likely to be accepted. If a feature is just the integration of a cool technology, but doesn't solve any problems for a large number of people, it will be rejected.
 
 Depending on the core team's review, a feature request can have the following outcomes:
@@ -249,20 +343,58 @@ Depending on the core team's review, a feature request can have the following ou
 
 ---
 
+### I've been assigned an issue, now what?
+
+First of all, thank you for volunteering! Before you begin coding, please take a minute to answer the following questions:
+
+1. **Is the issue clear enough? Do you know what the expected outcome is?** Sometimes, issues are not as clear as they should be. If the issue is unclear, please let us know in the `#dev-general` channel on the [OpenTofu Slack](https://opentofu.org/slack/) so a core team member can clarify it.
+2. **What's your timeline for implementing the issue?** Please communicate how much time you estimate you'll need. We ask for this to avoid issues staying assigned to an inactive community member and blocking other contributors. However, if you find out you'll need more time, please feel free to comment on the issue and we'll leave the issue assigned to you.
+3. **Do you have questions about parts of the OpenTofu codebase?** Please post in `#dev-general` on the [OpenTofu Slack](https://opentofu.org/slack/) for a quick answer. (Please avoid DMs as the person you are DM'ing may not be available or know the answer.)
+4. **Do you have experience writing tests?** All of our code-related PR's need adequate tests. Please [familiarize yourself with testing in Go](https://go.dev/doc/tutorial/add-a-test).
+5. **Have you read this document?** If not, please give it a quick skim, especially the sections about copyright and signoffs. 
+
+---
+
 ### What do the labels mean?
 
-- `pending decision`: there is no decision if this issue will be implemented yet. You can show your support for this issue by commenting on it and describing what implementing this issue would solve for you.
-- `pending steering committee decision`: the core team has referred this issue to the Technical Steering Committee for a decision.
-- `accepted`: the issue is accepted for development by either the core team or a community contributor. Please check if it's assigned to someone and comment on the issue if you want to work on it.
-- `help wanted`: this issue is open for community contributions. Please check if it's assigned to someone and comment on the issue if you want to work on it.
-- `good first issue`: this issue is relatively simple. If you are looking for a first contribution, this may be for you. Please check if it's assigned to someone and comment on the issue if you want to work on it.
-- `bug`: it's broken and needs to be fixed.
-- `enhancement`: it's a short-form feature request. If the implementation path is unclear, an `rfc` may be needed in addition.
-- `documentation`: something that needs a description on the OpenTofu website.
-- `rfc`: a long-form feature request with details on how exactly it should be implemented.
-- `question`: the core team needs more information on the issue to decide.
-- `needs community input`: the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
-- `need rfc`: this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
+- [`pending decision`](https://github.com/opentofu/opentofu/labels/pending-decision): there is no decision if this issue will be implemented yet. You can show your support for this issue by commenting on it and describing what implementing this issue would solve for you.
+- [`pending steering committee decision`](https://github.com/opentofu/opentofu/labels/pending-steering-committee-decision): the core team has referred this issue to the Technical Steering Committee for a decision.
+- [`accepted`](https://github.com/opentofu/opentofu/labels/accepted): the issue is accepted for development by either the core team or a community contributor. Please check if it's assigned to someone and comment on the issue if you want to work on it.
+- [`help wanted`](https://github.com/opentofu/opentofu/labels/help%20wanted): this issue is open for community contributions. Please check if it's assigned to someone and comment on the issue if you want to work on it.
+- [`good first issue`](https://github.com/opentofu/opentofu/labels/good%20first%20issue): this issue is relatively simple. If you are looking for a first contribution, this may be for you. Please check if it's assigned to someone and comment on the issue if you want to work on it.
+- [`bug`](https://github.com/opentofu/opentofu/labels/bug): it's broken and needs to be fixed.
+- [`enhancement`](https://github.com/opentofu/opentofu/labels/enhancement): it's a short-form feature request. If the implementation path is unclear, an `rfc` may be needed in addition.
+- [`documentation`](https://github.com/opentofu/opentofu/labels/documentation): something that needs a description on the OpenTofu website.
+- [`rfc`](https://github.com/opentofu/opentofu/labels/rfc): a long-form feature request with details on how exactly it should be implemented.
+- [`question`](https://github.com/opentofu/opentofu/labels/question): the core team needs more information on the issue to decide.
+- [`needs community input`](https://github.com/opentofu/opentofu/labels/needs-community-input): the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
+- [`need rfc`](https://github.com/opentofu/opentofu/labels/needs-rfc): this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
+
+---
+
+### My issue / PR / comment is not getting any responses!
+
+Please accept our apologies, sometimes issues and comments fall through the cracks. Please post in `#dev-general` on the [OpenTofu Slack](https://opentofu.org/slack/) to alert the core team members to the lack of an answer.
+
+---
+
+### When I run `tofu version`, it contains a `-dev` suffix. How do I get rid of it?
+
+You can get rid of this suffix by changing the `version.dev` ldflag:
+
+```
+go build -ldflags "-w -s -X 'github.com/opentofu/opentofu/version.dev=no'" -o tofu ./cmd/tofu
+```
+
+---
+
+### How do I enable experimental features?
+
+You can build `tofu` with the experimental features enabled using the `main.experimentsAllowed` ldflag set to `yes`:
+
+```
+go build -ldflags "-w -s -X 'main.experimentsAllowed=yes'" -o tofu ./cmd/tofu
+```
 
 ---
 
@@ -298,7 +430,7 @@ Core team members are full time developers sponsored by the participating compan
 
 ### Can I become a core team member?
 
-Possibly, please look for open positions with the sponsoring companies as they hire core team members. The interview process is the same regardless of which sponsoring company you apply to. To become a core team member, you must be equally good at Go and at communication since much of our work is helping the community. Good luck!
+Possibly. Please look for open positions with the sponsoring companies as they hire core team members. The interview process is the same regardless of which sponsoring company you apply to. To become a core team member, you must be equally good at Go and at communication since much of our work is helping the community. Good luck!
 
 ---
 
