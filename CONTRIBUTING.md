@@ -4,7 +4,7 @@ Welcome and thank you for wanting to contribute!
 
 ## Get started
 
-- Have a question? 💬 Post it in [GitHub Discussions](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack](https://opentofu.org/slack/)!
+- Have a question? Post it in [GitHub Discussions](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack](https://opentofu.org/slack/)!
 - Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
 - Have a feature idea? [Submit it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=enhancement%2Cpending-decision&projects=&template=feature_request.yml)
 - Want to provide detailed documentation on a feature idea? [Write an RFC here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=rfc%2Cpending-decision&projects=&template=rfc.yml)
@@ -15,7 +15,9 @@ Welcome and thank you for wanting to contribute!
   3. Wait for a maintainer to assign it to you,
   4. Then [submit your code here ➡️](https://github.com/opentofu/opentofu/compare)
 - Want to fix a bug? [Submit a PR here ➡️](https://github.com/opentofu/opentofu/compare)
-- Want to know what's going on? Read the [weekly updates ➡️](WEEKLY_UPDATES.md), the [TSC summary ➡️](TSC_SUMMARY.md) or join the [community meeting ➡️](https://meet.google.com/xfm-cgms-has) on Wednesdays at 14:30 CET / 8:30 AM Eastern / 5:30 AM Western / 19:00 India time on this link: https://meet.google.com/xfm-cgms-has
+- Want to know what's going on? Read the [weekly updates ➡️](WEEKLY_UPDATES.md), the [TSC summary ➡️](TSC_SUMMARY.md) or join the [community meetings ➡️](https://meet.google.com/xfm-cgms-has) on Wednesdays at 14:30 CET / 8:30 AM Eastern / 5:30 AM Western / 19:00 India time on this link: https://meet.google.com/xfm-cgms-has
+
+> [!TIP] For more OpenTofu events, subscribe to the [OpenTofu Events Calendar](https://calendar.google.com/calendar/embed?src=c_3f2dd3c1fe0ef4e93ef3fc456ca2dd219a2e8fd85f6b40750af16c3df370bf93%40group.calendar.google.com)!
 
 **⚠️ Important:** Please avoid working on features or refactor without [an `accepted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge non-bug pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
