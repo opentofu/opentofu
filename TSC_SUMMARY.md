@@ -76,7 +76,7 @@ The Technical Steering Committee is a group comprised of people from companies a
       1. **Code audit.** Perform an external code / security audit on the codebase.
       1. **Security scanning tools.** Install a variety of security scanning tools on the codebase: e.g., Snyk, DependaBot, Go Report Card, etc.
       1. **Security disclosure process.** Ensure we have a clear, well-defined, written process for (a) community members to disclose vulnerabilities to us, (b) us to escalate those and resolve them quickly, and (c) us to notify the rest of the community and roll out the patches.
-   1. **Vote**: unanimous vote fot security scanning tools and security disclosure process. Vote by Yevgeniy Brikman for code audit.
+   1. **Vote**: unanimous vote for security scanning tools and security disclosure process. Vote by Yevgeniy Brikman for code audit.
    1. **Follow-up**: Spacelift's Head of Security investigated certification and code audit, we will have him present his findings to the TSC at one of the following meetings.
 
 
