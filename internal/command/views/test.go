@@ -223,7 +223,7 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	}
 
 	if state.HasManagedResourceInstanceObjects() {
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, and they need to be cleaned up manually:\n", identifier), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can done manually:\n", identifier), t.view.errorColumns()))
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
 			if resource.DeposedKey != states.NotDeposed {
 				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey)
@@ -231,7 +231,8 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 			}
 			t.view.streams.Eprintf("  - %s\n", resource.Instance)
 		}
-		writeError := statemgr.SaveErroredTestStateFile("errored_test.tfstate", state)
+		t.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", t.view.errorColumns()))
+		writeError := statemgr.SaveErroredTestStateFile(state)
 		if writeError != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -469,19 +470,20 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 
 		if run != nil {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s/%s, they need to be cleaned up manually.", file.Name, run.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s/%s, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can done manually.", file.Name, run.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name,
 				"@testrun", run.Name)
 		} else {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s, they need to be cleaned up manually.", file.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can done manually.", file.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name)
 		}
-		writeError := statemgr.SaveErroredTestStateFile("errored_test.tfstate", state)
+		t.view.log.Info("Writing state to file: errored_test.tfstate")
+		writeError := statemgr.SaveErroredTestStateFile(state)
 		if writeError != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
