@@ -23,15 +23,16 @@ on the S3 bucket to allow for state recovery in the case of accidental deletions
 ```hcl
 terraform {
   backend "s3" {
-    bucket = "mybucket"
-    key    = "path/to/my/key"
-    region = "us-east-1"
+    bucket               = "mybucket"
+    workspace_key_prefix = "path/to"
+    key                  = "my/key" # default.tfstate
+    region               = "us-east-1"
   }
 }
 ```
 
 This assumes we have a bucket created called `mybucket`. The
-OpenTofu state is written to the key `path/to/my/key`.
+OpenTofu state is written to the key `path/to/WORKSPACE/my/key`.
 
 Note that for the access credentials we recommend using a
 [partial configuration](/docs/language/settings/backends/configuration#partial-configuration).
