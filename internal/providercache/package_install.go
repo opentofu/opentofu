@@ -71,7 +71,7 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.HTTPClient = httpclient.New()
-	retryableClient.RetryMax = 10
+	retryableClient.RetryMax = 2
 	retryableClient.RequestLogHook = requestLogHook
 	retryableClient.ErrorHandler = maxRetryErrorHandler
 
