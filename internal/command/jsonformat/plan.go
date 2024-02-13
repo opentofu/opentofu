@@ -181,7 +181,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		renderer.Streams.Println()
 	}
 
-	if willPrintResourceChanges && !checkOpts(plans.Concise) {
+	if willPrintResourceChanges {
 		renderer.Streams.Println(format.WordWrap(
 			"\nOpenTofu used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:",
 			renderer.Streams.Stdout.Columns()))

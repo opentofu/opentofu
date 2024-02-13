@@ -96,9 +96,7 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 		if plan.Errored {
 			opts = append(opts, plans.Errored)
 		}
-		if v.view.concise {
-			opts = append(opts, plans.Concise)
-		}
+
 		renderer.RenderHumanPlan(jplan, plan.UIMode, opts...)
 	} else {
 		if stateFile == nil {
