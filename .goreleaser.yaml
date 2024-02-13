@@ -63,11 +63,11 @@ builds:
 
 archives:
   - format: tar.gz
-    id: tar.gz format 
+    id: targz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{- .Os }}_{{- .Arch }}"
   
   - format: zip
-    id: zip format
+    id: zip 
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{- .Os }}_{{- .Arch }}"
 
 dockers:
