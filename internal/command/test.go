@@ -662,7 +662,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 
 	var diags tfdiags.Diagnostics
 
-	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables)
+	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, runner.States)
 	diags = diags.Append(variableDiags)
 
 	if diags.HasErrors() {
@@ -724,7 +724,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	references, referenceDiags := run.GetReferences()
 	diags = diags.Append(referenceDiags)
 
-	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables)
+	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, runner.States)
 	diags = diags.Append(variableDiags)
 
 	if diags.HasErrors() {
@@ -988,7 +988,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 // Crucially, it differs from prepareInputVariablesForAssertions in that it only
 // includes variables that are reference by the config and not everything that
 // is defined within the test run block and test file.
-func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, tfdiags.Diagnostics) {
+func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue, states map[string]*TestFileState) (tofu.InputValues, tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
 	for name := range config.Module.Variables {
 		if run != nil {
@@ -997,6 +997,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 				variables[name] = unparsedVariableValueExpression{
 					expr:       expr,
 					sourceType: tofu.ValueFromConfig,
+					ctx:        getEvalContextFromStates(states),
 				}
 				continue
 			}
@@ -1026,6 +1027,34 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 	}
 
 	return backend.ParseVariableValues(variables, config.Module.Variables)
+}
+
+// getEvalContextFromStates constructs an hcl.EvalContext based on the provided map
+// of TestFileState instances. It extracts the relevant information from the
+// states to create a context suitable for HCL evaluation, including the output
+// values of modules.
+//
+// Parameters:
+//   - states: A map of TestFileState instances containing the state information.
+//
+// Returns:
+//   - *hcl.EvalContext: The constructed HCL evaluation context.
+func getEvalContextFromStates(states map[string]*TestFileState) *hcl.EvalContext {
+	runCtx := make(map[string]cty.Value)
+	for _, state := range states {
+		if state.Run == nil {
+			continue
+		}
+		outputs := make(map[string]cty.Value)
+		mod := state.State.Modules[""] // Empty string is what is used by the module in the test runner
+		for outName, out := range mod.OutputValues {
+			outputs[outName] = out.Value
+		}
+		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
+	}
+	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
+
+	return ctx
 }
 
 type testVariableValueExpression struct {
