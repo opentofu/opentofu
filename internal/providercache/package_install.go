@@ -29,8 +29,8 @@ import (
 var unzip = getter.ZipDecompressor{}
 
 const (
-	// httpClientRetryCountEnvName is the name of the environment variable that
-	// can be configured to customize the http retry count for module.
+	// httpClientRetryCountEnvName is the environment variable name used to customize
+	// the HTTP retry count for module downloads.
 	httpClientRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
 )
 
