@@ -71,7 +71,7 @@ This command will produce a `tofu` binary in your current directory, which you c
 > Replace the `GOOS` and `GOARCH` values with your target platform if you wish to cross-compile. You can find more information in the [Go documentation](https://pkg.go.dev/cmd/go#hdr-Compile_and_run_Go_program).
 
 > [!NOTE]
-> On almost all platforms we build with the `CGO_ENABLED=0` environment variable. The only exception is macOS/Darwin to avoid DNS resolution issues.
+> We build with the `CGO_ENABLED=0` environment variable on almost all platforms. The only exception is macOS/Darwin to avoid DNS resolution issues.
 
 #### Building in a container
 
