@@ -1,3 +1,8 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 $version = [version]"YOUR_OPENTOFU_VERSION"
 $identity = "https://github.com/opentofu/opentofu/.github/workflows/release.yml@refs/heads/v${version.Major}.${version.Minor}"
 # For alpha and beta builds use /main

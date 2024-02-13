@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -147,6 +149,7 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		Checks:           checkState,
 		InstanceExpander: instances.NewExpander(),
 		MoveResults:      opts.MoveResults,
+		ResolvedImports:  &ResolvedImports{imports: make(map[ResolvedConfigImportsKey]bool)},
 		Operation:        operation,
 		StopContext:      c.runContext,
 		PlanTimestamp:    opts.PlanTimeTimestamp,
