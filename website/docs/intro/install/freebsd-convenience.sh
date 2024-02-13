@@ -13,7 +13,7 @@ chmod +x install-opentofu.sh
 # Please inspect the downloaded script
 
 # Run the installer:
-./install-opentofu.sh --install-method apk
+./install-opentofu.sh --install-method pkg
 
 # Remove the installer:
 rm install-opentofu.sh
