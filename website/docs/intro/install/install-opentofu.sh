@@ -76,6 +76,8 @@ DEFAULT_APK_REPO_URL="@testing https://dl-cdn.alpinelinux.org/alpine/edge/testin
 APK_REPO_URL=${DEFAULT_APK_REPO_URL}
 DEFAULT_APK_PACKAGE="opentofu@testing"
 APK_PACKAGE="${DEFAULT_APK_PACKAGE}"
+DEFAULT_PKG_REPO_URL="https://pkgs.alpinelinux.org/packages"
+DEFAULT_PKG_PACKAGE="opentofu"
 DEFAULT_COSIGN_PATH=cosign
 COSIGN_PATH=${DEFAULT_COSIGN_PATH}
 DEFAULT_COSIGN_IDENTITY=autodetect
@@ -637,6 +639,16 @@ install_rpm() {
   fi
 }
 
+# Function to install OpenTofu on FreeBSD using pkg
+install_freebsd() {
+  echo "Installing OpenTofu on FreeBSD using pkg..."
+  
+  # Perform the FreeBSD installation using pkg
+  pkg install opentofu
+
+  echo "OpenTofu installed successfully on FreeBSD!"
+}
+
 # This function installs OpenTofu via an APK (Alpine Linux) package. It returns
 # $TOFU_INSTALL_EXIT_CODE_INSTALL_REQUIREMENTS_NOT_MET if this is not an Alpine Linux system.
 install_apk() {
@@ -899,6 +911,7 @@ ${bold}${blue}OPTIONS for all installation methods:${normal}
                                     ${magenta}snap${normal}        Snapcraft installation
                                     ${magenta}brew${normal}        Homebrew installation
                                     ${magenta}standalone${normal}  Standalone installation
+                                    ${magenta}pkg${normal}  FreeBSD installation
   ${bold}--skip-verify${normal}                 Skip GPG or cosign integrity verification.
                                 (${bold}${red}not recommended${normal}).
   ${bold}--debug${normal}                       Enable debug logging.
@@ -1160,6 +1173,10 @@ main() {
             ;;
         esac
         ;;
+      --freebsd-pkg)
+        FREEBSD_PKG=true
+        shift
+        ;;
       --cosign-path)
         shift
         case $1 in
@@ -1219,6 +1236,10 @@ main() {
     install_rpm
     return $?
     ;;
+  pkg)
+    install_freebsd
+    return $?
+    ;;
   apk)
     install_apk
     return $?
@@ -1232,6 +1253,10 @@ main() {
     return $?
     ;;
   standalone)
+    install_standalone
+    return $?
+    ;;
+  pkg)
     install_standalone
     return $?
     ;;
