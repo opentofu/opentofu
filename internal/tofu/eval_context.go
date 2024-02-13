@@ -213,6 +213,9 @@ type EvalContext interface {
 	// This data is created during the graph walk, as import target addresses are being resolved
 	// Its primary use is for validation at the end of a plan - To make sure all imports have been satisfied
 	// and have a configuration
+	//
+	// ResolvedImports is specific to import targets originating from an `import` block, as these import targets' IDs
+	// and addresses might not be known when decoding the block, and can only be evaluated down the line
 	ResolvedImports() *ResolvedImports
 
 	// WithPath returns a copy of the context with the internal path set to the

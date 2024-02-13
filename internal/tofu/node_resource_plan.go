@@ -7,7 +7,6 @@ package tofu
 
 import (
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -304,33 +303,27 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	var diags tfdiags.Diagnostics
 
 	var commandLineImportTargets []CommandLineImportTarget
-	var evaluatedConfigImportTargets []EvaluatedConfigImportTarget
 
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportCommandLine() {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
-			// TODO - need to find a better solution than failing here. Failing might mean failure elsewhere earlier on (maybe it's just in the import validation, and this can be fixed?)
-			// TODO - Commonize ctx.WithPath(addrs.RootModuleInstance) between the two functions here
-			importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
+			// The import block expressions are declared within the root module.
+			// We need to explicitly use the context with the path of the root module, so that all references will be
+			// relative to the root module
+			rootCtx := ctx.WithPath(addrs.RootModuleInstance)
+
+			// TODO - need to find a better solution than failing here. Failing might mean failure elsewhere later on (maybe it's just in the import validation, and this can be fixed?)
+			importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx)
 			if evalDiags.HasErrors() {
 				return nil, evalDiags.Err()
 			}
 
-			spew.Dump("Resolving import address", importTarget.Config.To)
-			importAddress, addressDiags := ctx.WithPath(addrs.RootModuleInstance).EvaluateImportAddress(importTarget.Config.To)
+			importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To)
 			if addressDiags.HasErrors() {
 				return nil, addressDiags.Err()
 			}
 
-			// TODO merge with resolved imports?
-			evaluatedConfigImportTargets = append(evaluatedConfigImportTargets, EvaluatedConfigImportTarget{
-				Config: importTarget.Config,
-				ID:     importId,
-			})
-
-			// TODO better name for resolved imports? Maybe it should mention that it's only for config?
-			// TODO - Evaluate the address here
 			// FIXME - Deal with cases of duplicate addresses? Probably ResolvedImports could take care of that?
 			resolvedImports := ctx.ResolvedImports().imports
 			resolvedImports[ResolvedConfigImportsKey{

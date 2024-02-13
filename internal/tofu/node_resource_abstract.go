@@ -212,7 +212,6 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 	return result
 }
 
-// TODO what do with diags
 func referencesInImportAddress(expr hcl.Expression) (refs []*addrs.Reference, diags tfdiags.Diagnostics) {
 	physExpr := hcl.UnwrapExpressionUntil(expr, func(expr hcl.Expression) bool {
 		switch expr.(type) {
@@ -262,9 +261,8 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 		}
 
 		refs, _ := referencesInImportAddress(importTarget.Config.To)
-		// TODO - find a way to only use references that are not of this module and resource?
 
-		// TODO - do we want this for for_each later on as well?
+		// TODO - Add RootReferences of ForEach here later one, once for_each is added
 		root = append(root, refs...)
 
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
