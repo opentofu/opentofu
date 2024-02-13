@@ -150,6 +150,16 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		}
 	}
 
+	// Resolve addresses and IDs of all import targets that originate from import blocks
+	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
+	var diags tfdiags.Diagnostics
+	for _, importTarget := range n.importTargets {
+		if importTarget.IsFromImportBlock() {
+			err := resolveImportTarget(ctx, importTarget)
+			diags = diags.Append(err)
+		}
+	}
+
 	// The above dealt with the expansion of the containing module, so now
 	// we need to deal with the expansion of the resource itself across all
 	// instances of the module.
@@ -157,7 +167,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	// We'll gather up all of the leaf instances we learn about along the way
 	// so that we can inform the checks subsystem of which instances it should
 	// be expecting check results for, below.
-	var diags tfdiags.Diagnostics
 	instAddrs := addrs.MakeSet[addrs.Checkable]()
 	for _, module := range moduleInstances {
 		resAddr := n.Addr.Resource.Absolute(module)
@@ -307,13 +316,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportCommandLine() {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
-		} else {
-			err := resolveImportTarget(ctx, importTarget)
-
-			// TODO - need to find a better solution than failing here. Failing might mean failure elsewhere later on (maybe it's just in the import validation, and this can be fixed?)
-			if err != nil {
-				return nil, err
-			}
 		}
 	}
 
@@ -434,6 +436,9 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 // This function mutates the EvalContext's ResolvedImports, adding the resolved import target
 // The function errors if we failed to evaluate the ID or the address, or if the address has already been resolved once
 // and exists in the ResolvedImports, as this means there will be multiple import attempts to a single resource instance
+//
+// Note: This method assumes that it is called once per each resource. So, if we find the import already
+// as a resolved import, this means that the ImportTarget is duplicate
 func resolveImportTarget(ctx EvalContext, importTarget *ImportTarget) error {
 	// The import block expressions are declared within the root module.
 	// We need to explicitly use the context with the path of the root module, so that all references will be
@@ -456,14 +461,19 @@ func resolveImportTarget(ctx EvalContext, importTarget *ImportTarget) error {
 		ID:      importId,
 	}
 
+	// Since we assume the function is called only once per resource, if an import target has already been resolved,
+	// this means that there's a duplicate configuration of import targets
+	// TODO - For ForEach, adapt validation here to also consider import targets of the same block resulting in the
+	//   same address twice due to the for_each as a duplicate declaration
 	if existingImportTarget, exists := resolvedImports[resolvedImportKey]; exists {
-		return fmt.Errorf("duplicate import configuration. An import block for the resource %s was declared at %s, and also at %s. A resource can have only one import block", resolvedImportKey.AddrStr, existingImportTarget.Config.DeclRange, importTarget.Config.DeclRange)
+		return fmt.Errorf("Duplicate import configuration. An import block for the resource %s was declared at %s, and also at %s. A resource can have only one import block", resolvedImportKey.AddrStr, existingImportTarget.Config.DeclRange, importTarget.Config.DeclRange)
+	} else {
+		resolvedImports[resolvedImportKey] = EvaluatedConfigImportTarget{
+			Config: importTarget.Config,
+			Addr:   importAddress,
+			ID:     importId,
+		}
 	}
 
-	resolvedImports[resolvedImportKey] = EvaluatedConfigImportTarget{
-		Config: importTarget.Config,
-		Addr:   importAddress,
-		ID:     importId,
-	}
 	return nil
 }
