@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	getter "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-retryablehttp"
@@ -26,6 +27,12 @@ import (
 // providers _always_ come from provider registries, which have a very
 // specific protocol and set of expectations.)
 var unzip = getter.ZipDecompressor{}
+
+const (
+	// httpClientRetryCountEnvName is the name of the environment variable that
+	// can be configured to customize the http retry count for module.
+	httpClientRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
+)
 
 func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
 	if i > 0 {
@@ -69,9 +76,18 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	// through X-Terraform-Get header, attempting partial fetches for
 	// files that already exist, etc.)
 
+	// Set up retry configuration
+	maxRetryCount := 2
+	if len(os.Getenv(httpClientRetryCountEnvName)) > 0 {
+		var err error
+		maxRetryCount, err = strconv.Atoi(os.Getenv(httpClientRetryCountEnvName))
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve the retry count from the environment variable %s: %w", httpClientRetryCountEnvName, err)
+		}
+	}
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.HTTPClient = httpclient.New()
-	retryableClient.RetryMax = 2
+	retryableClient.RetryMax = maxRetryCount
 	retryableClient.RequestLogHook = requestLogHook
 	retryableClient.ErrorHandler = maxRetryErrorHandler
 
