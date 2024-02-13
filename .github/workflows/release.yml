@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: gpg
     env:
-      TRIGGER_PRERELEASE_FLOW: ${{ inputs.ref == 'main' && inputs.prerelease }}
+      TRIGGER_PRERELEASE_FLOW: ${{ inputs.ref == 'main' || inputs.prerelease }}
     permissions:
       contents: write
       id-token: write
