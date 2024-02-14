@@ -32,7 +32,30 @@ const (
 	// httpClientRetryCountEnvName is the environment variable name used to customize
 	// the HTTP retry count for module downloads.
 	httpClientRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
+
+	defaultRetry = 2
 )
+
+var (
+	maxRetryCount int
+)
+
+func init() {
+	configureDiscoveryRetry()
+}
+
+// configureDiscoveryRetry configures the number of retries the provider client
+// will attempt for requests with retryable errors, like 502 status codes
+func configureDiscoveryRetry() {
+	maxRetryCount = defaultRetry
+
+	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
+		retry, err := strconv.Atoi(v)
+		if err == nil && retry > 0 {
+			maxRetryCount = retry
+		}
+	}
+}
 
 func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
 	if i > 0 {
@@ -76,15 +99,6 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	// through X-Terraform-Get header, attempting partial fetches for
 	// files that already exist, etc.)
 
-	// Set up retry configuration
-	maxRetryCount := 2
-	if len(os.Getenv(httpClientRetryCountEnvName)) > 0 {
-		var err error
-		maxRetryCount, err = strconv.Atoi(os.Getenv(httpClientRetryCountEnvName))
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve the retry count from the environment variable %s: %w", httpClientRetryCountEnvName, err)
-		}
-	}
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.HTTPClient = httpclient.New()
 	retryableClient.RetryMax = maxRetryCount
