@@ -229,17 +229,11 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 type unparsedVariableValueExpression struct {
 	expr       hcl.Expression
 	sourceType tofu.ValueSourceType
-	ctx        *hcl.EvalContext
 }
 
 func (v unparsedVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var ctx *hcl.EvalContext // By default, the hcl.EvalContext will be nil.
-	if v.ctx != nil {
-		ctx = v.ctx
-	}
-
-	val, hclDiags := v.expr.Value(ctx)
+	val, hclDiags := v.expr.Value(nil)
 	diags = diags.Append(hclDiags)
 
 	rng := tfdiags.SourceRangeFromHCL(v.expr.Range())
