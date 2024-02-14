@@ -990,14 +990,15 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 // is defined within the test run block and test file.
 func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue, states map[string]*TestFileState) (tofu.InputValues, tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
+	evalCtx := getEvalContextFromStates(states)
 	for name := range config.Module.Variables {
 		if run != nil {
 			if expr, exists := run.Config.Variables[name]; exists {
 				// Local variables take precedence.
-				variables[name] = unparsedVariableValueExpression{
+				variables[name] = testVariableValueExpression{
 					expr:       expr,
 					sourceType: tofu.ValueFromConfig,
-					ctx:        getEvalContextFromStates(states),
+					ctx:        evalCtx,
 				}
 				continue
 			}
@@ -1094,19 +1095,7 @@ func (v testVariableValueExpression) ParseVariableValue(mode configs.VariablePar
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
 func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, func(), tfdiags.Diagnostics) {
-	runCtx := make(map[string]cty.Value)
-	for _, state := range runner.States {
-		if state.Run == nil {
-			continue
-		}
-		outputs := make(map[string]cty.Value)
-		mod := state.State.Modules[""] // Empty string is what is used by the module in the test runner
-		for outName, out := range mod.OutputValues {
-			outputs[outName] = out.Value
-		}
-		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
-	}
-	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
+	ctx := getEvalContextFromStates(runner.States)
 
 	variables := make(map[string]backend.UnparsedVariableValue)
 
