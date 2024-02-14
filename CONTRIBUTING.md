@@ -360,8 +360,8 @@ First of all, thank you for volunteering! Before you begin coding, please take a
 
 ### What do the labels mean?
 
-- [`pending decision`](https://github.com/opentofu/opentofu/labels/pending-decision): there is no decision if this issue will be implemented yet. You can show your support for this issue by commenting on it and describing what implementing this issue would solve for you.
-- [`pending steering committee decision`](https://github.com/opentofu/opentofu/labels/pending-steering-committee-decision): the core team has referred this issue to the Technical Steering Committee for a decision.
+- [`pending-decision`](https://github.com/opentofu/opentofu/labels/pending-decision): there is no decision if this issue will be implemented yet. You can show your support for this issue by commenting on it and describing what implementing this issue would solve for you.
+- [`pending-steering-committee-decision`](https://github.com/opentofu/opentofu/labels/pending-steering-committee-decision): the core team has referred this issue to the Technical Steering Committee for a decision.
 - [`accepted`](https://github.com/opentofu/opentofu/labels/accepted): the issue is accepted for development by either the core team or a community contributor. Please check if it's assigned to someone and comment on the issue if you want to work on it.
 - [`help wanted`](https://github.com/opentofu/opentofu/labels/help%20wanted): this issue is open for community contributions. Please check if it's assigned to someone and comment on the issue if you want to work on it.
 - [`good first issue`](https://github.com/opentofu/opentofu/labels/good%20first%20issue): this issue is relatively simple. If you are looking for a first contribution, this may be for you. Please check if it's assigned to someone and comment on the issue if you want to work on it.
@@ -370,7 +370,7 @@ First of all, thank you for volunteering! Before you begin coding, please take a
 - [`documentation`](https://github.com/opentofu/opentofu/labels/documentation): something that needs a description on the OpenTofu website.
 - [`rfc`](https://github.com/opentofu/opentofu/labels/rfc): a long-form feature request with details on how exactly it should be implemented.
 - [`question`](https://github.com/opentofu/opentofu/labels/question): the core team needs more information on the issue to decide.
-- [`needs community input`](https://github.com/opentofu/opentofu/labels/needs-community-input): the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
+- [`needs-community-input`](https://github.com/opentofu/opentofu/labels/needs-community-input): the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
 - [`needs-rfc`](https://github.com/opentofu/opentofu/labels/needs-rfc): this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
 
 ---
