@@ -94,12 +94,13 @@ func NewFilesystemBetweenPaths(readPath, writePath string) *Filesystem {
 
 // SaveErroredTestStateFile saves the state present in memory as a stateFile in disk
 // and is invoked when "tofu test" fails to destroy resources.
-func SaveErroredTestStateFile(state *states.State) error {
-	fs := NewFilesystem("errored_test.tfstate")
-	schema := &tofu.Schemas{}
-	err := WriteAndPersist(fs, state, schema)
-	return err
-}
+// func SaveErroredTestStateFile(state *states.State) error {
+// 	localFileSystem := NewFilesystem("errored_test.tfstate")
+// 	stateFile := NewStateFile()
+// 	stateFile.State = state
+// 	writeErr := localFileSystem.WriteStateForMigration(stateFile, true)
+// 	return writeErr
+// }
 
 // SetBackupPath configures the receiever so that it will create a local
 // backup file of the next state snapshot it reads (in State) if a different

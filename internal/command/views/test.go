@@ -231,15 +231,34 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 			}
 			t.view.streams.Eprintf("  - %s\n", resource.Instance)
 		}
+
 		t.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", t.view.errorColumns()))
-		writeError := statemgr.SaveErroredTestStateFile(state)
-		if writeError != nil {
+		// writeError := statemgr.SaveErroredTestStateFile(state)
+		localFileSystem := statemgr.NewFilesystem("errored_test.tfstate")
+		stateFile := statemgr.NewStateFile()
+		stateFile.State = state
+		writeErr := localFileSystem.WriteStateForMigration(stateFile, true)
+		if writeErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to create local state file for the resources left over while running tofu test",
-				fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeError),
+				fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeErr),
 			))
 		}
+		//creating a new operation
+		op := NewOperation('H', false, t.view)
+		if dumpErr := op.EmergencyDumpState(stateFile); dumpErr != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to serialize state",
+				fmt.Sprintf(stateWriteFatalErrorFmt, dumpErr),
+			))
+		}
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to persist state to backend",
+			stateWriteConsoleFallbackError,
+		))
 	}
 	t.Diagnostics(run, file, diags)
 }
@@ -483,14 +502,14 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 				"@testfile", file.Name)
 		}
 		t.view.log.Info("Writing state to file: errored_test.tfstate")
-		writeError := statemgr.SaveErroredTestStateFile(state)
-		if writeError != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Failed to create local state file for the resources left over while running tofu test",
-				fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeError),
-			))
-		}
+		// writeError := statemgr.SaveErroredTestStateFile(state)
+		// if writeError != nil {
+		// 	diags = diags.Append(tfdiags.Sourceless(
+		// 		tfdiags.Error,
+		// 		"Failed to create local state file for the resources left over while running tofu test",
+		// 		fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeError),
+		// 	))
+		// }
 	}
 
 	t.Diagnostics(run, file, diags)
@@ -588,3 +607,21 @@ func testStatus(status moduletest.Status) string {
 		panic("unrecognized status: " + status.String())
 	}
 }
+
+const stateWriteFatalErrorFmt = `Failed to save state after apply.
+
+Error serializing state: %s
+
+A catastrophic error has prevented OpenTofu from persisting the state file or creating a backup. Unfortunately this means that the record of any resources created during this apply has been lost, and such resources may exist outside of OpenTofu's management.
+
+For resources that support import, it is possible to recover by manually importing each resource using its id from the target system.
+
+This is a serious bug in OpenTofu and should be reported.
+`
+
+const stateWriteConsoleFallbackError = `The errors shown above prevented OpenTofu from writing the updated state to
+the configured backend and from creating a local backup file. As a fallback,
+the raw state data is printed above as a JSON object.
+
+To retry writing this state, copy the state data (from the first { to the last } inclusive) and save it into a local file called errored_test.tfstate, and then run tofu commands on this state file.
+`
