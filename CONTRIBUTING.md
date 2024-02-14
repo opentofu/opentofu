@@ -371,7 +371,7 @@ First of all, thank you for volunteering! Before you begin coding, please take a
 - [`rfc`](https://github.com/opentofu/opentofu/labels/rfc): a long-form feature request with details on how exactly it should be implemented.
 - [`question`](https://github.com/opentofu/opentofu/labels/question): the core team needs more information on the issue to decide.
 - [`needs community input`](https://github.com/opentofu/opentofu/labels/needs-community-input): the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
-- [`need rfc`](https://github.com/opentofu/opentofu/labels/needs-rfc): this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
+- [`needs-rfc`](https://github.com/opentofu/opentofu/labels/needs-rfc): this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
 
 ---
 
