@@ -19,37 +19,57 @@ func TestParseView(t *testing.T) {
 	}{
 		"nil": {
 			nil,
-			&View{NoColor: false, CompactWarnings: false},
+			&View{NoColor: false, CompactWarnings: false, Concise: false},
 			nil,
 		},
 		"empty": {
 			[]string{},
-			&View{NoColor: false, CompactWarnings: false},
+			&View{NoColor: false, CompactWarnings: false, Concise: false},
 			[]string{},
 		},
 		"none matching": {
 			[]string{"-foo", "bar", "-baz"},
-			&View{NoColor: false, CompactWarnings: false},
+			&View{NoColor: false, CompactWarnings: false, Concise: false},
 			[]string{"-foo", "bar", "-baz"},
 		},
 		"no-color": {
 			[]string{"-foo", "-no-color", "-baz"},
-			&View{NoColor: true, CompactWarnings: false},
+			&View{NoColor: true, CompactWarnings: false, Concise: false},
 			[]string{"-foo", "-baz"},
 		},
 		"compact-warnings": {
 			[]string{"-foo", "-compact-warnings", "-baz"},
-			&View{NoColor: false, CompactWarnings: true},
+			&View{NoColor: false, CompactWarnings: true, Concise: false},
 			[]string{"-foo", "-baz"},
 		},
-		"both": {
+		"concise": {
+			[]string{"-foo", "-concise", "-baz"},
+			&View{NoColor: false, CompactWarnings: false, Concise: true},
+			[]string{"-foo", "-baz"},
+		},
+		"no-color and compact-warnings": {
 			[]string{"-foo", "-no-color", "-compact-warnings", "-baz"},
-			&View{NoColor: true, CompactWarnings: true},
+			&View{NoColor: true, CompactWarnings: true, Concise: false},
 			[]string{"-foo", "-baz"},
 		},
-		"both, resulting in empty args": {
-			[]string{"-no-color", "-compact-warnings"},
-			&View{NoColor: true, CompactWarnings: true},
+		"no-color and concise": {
+			[]string{"-foo", "-no-color", "-concise", "-baz"},
+			&View{NoColor: true, CompactWarnings: false, Concise: true},
+			[]string{"-foo", "-baz"},
+		},
+		"concise and compact-warnings": {
+			[]string{"-foo", "-concise", "-compact-warnings", "-baz"},
+			&View{NoColor: false, CompactWarnings: true, Concise: true},
+			[]string{"-foo", "-baz"},
+		},
+		"all three": {
+			[]string{"-foo", "-no-color", "-compact-warnings", "-concise", "-baz"},
+			&View{NoColor: true, CompactWarnings: true, Concise: true},
+			[]string{"-foo", "-baz"},
+		},
+		"all three, resulting in empty args": {
+			[]string{"-no-color", "-compact-warnings", "-concise"},
+			&View{NoColor: true, CompactWarnings: true, Concise: true},
 			[]string{},
 		},
 	}
