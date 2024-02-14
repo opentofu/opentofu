@@ -8,6 +8,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
+/*
 // setupTargets sets up the targets for encryption. It returns a list of diagnostics if any of the targets are invalid.
 // It will set up the encryption targets for the state file, plan file, backend and remote state.
 func (e *encryption) setupTargets() hcl.Diagnostics {
@@ -49,7 +50,7 @@ func (e *encryption) setupTargets() hcl.Diagnostics {
 	}
 
 	return diags
-}
+}*/
 
 // setupTarget sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
 // as a list of diagnostics if the target is invalid.

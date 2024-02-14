@@ -15,57 +15,61 @@ type Encryption interface {
 	// to avoid nasty circular dependency issues.
 
 	StateFile() StateEncryption
-	PlanFile() PlanEncryption
+	/*PlanFile() PlanEncryption
 	Backend() StateEncryption
-	RemoteState(string) StateEncryption
+	RemoteState(string) StateEncryption*/
+}
+type factory struct {
+	// Inputs
+	cfg *Config
+	reg registry.Registry
 }
 
 type encryption struct {
-	// Inputs
 	cfg *Config
 	reg registry.Registry
 
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
 
+	metadata map[string][]byte
+
 	// Used to build EvalContext (and related mappings)
 	keyValues    map[string]map[string]cty.Value
 	methodValues map[string]map[string]cty.Value
 	methods      map[string]method.Method
-
-	stateFile     StateEncryption
-	planFile      PlanEncryption
-	backend       StateEncryption
-	remoteDefault StateEncryption
-	remote        map[string]StateEncryption
 }
 
 // New creates a new Encryption instance from the given configuration and registry. It returns a list of diagnostics if
 // the configuration is invalid.
-func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
+func New(reg registry.Registry, cfg *Config) Encryption {
+	if cfg == nil {
+		return nil //TODO
+	}
+
+	return &factory{
+		cfg: cfg,
+		reg: reg,
+	}
+}
+func (e *factory) inst(meta map[string][]byte) (*encryption, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	enc := &encryption{
-		cfg: cfg,
-		reg: reg,
+		cfg: e.cfg,
+		reg: e.reg,
 
 		ctx: &hcl.EvalContext{
 			Variables: map[string]cty.Value{},
 		},
+
+		metadata: meta,
+
 		keyValues:    make(map[string]map[string]cty.Value),
 		methodValues: make(map[string]map[string]cty.Value),
 		methods:      make(map[string]method.Method),
 
 		remote: make(map[string]StateEncryption),
-	}
-
-	if cfg == nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid encryption configuration",
-			Detail:   "No configuration provided",
-		})
-		return nil, diags
 	}
 
 	diags = append(diags, enc.setupKeyProviders()...)
@@ -76,18 +80,15 @@ func New(reg registry.Registry, cfg *Config) (Encryption, hcl.Diagnostics) {
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	diags = append(diags, enc.setupTargets()...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
 
 	return enc, diags
 }
 
-func (e *encryption) StateFile() StateEncryption {
-	return e.stateFile
+func (e *factory) StateFile() StateEncryption {
+	return NewState(e, e.cfg.StateFile, "statefile")
 }
 
+/*
 func (e *encryption) PlanFile() PlanEncryption {
 	return e.planFile
 }
@@ -101,4 +102,4 @@ func (e *encryption) RemoteState(name string) StateEncryption {
 		return state
 	}
 	return e.remoteDefault
-}
+}*/

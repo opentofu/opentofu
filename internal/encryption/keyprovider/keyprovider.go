@@ -18,5 +18,5 @@ type Descriptor interface {
 
 type KeyProvider interface {
 	// Provide provides an encryption key. If the process fails, it returns an error.
-	Provide() ([]byte, error)
+	Provide(metadata []byte) ([]byte, []byte, error)
 }

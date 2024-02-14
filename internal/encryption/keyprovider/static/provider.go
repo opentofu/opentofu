@@ -5,6 +5,10 @@ type staticKeyProvider struct {
 	key []byte
 }
 
-func (p staticKeyProvider) Provide() ([]byte, error) {
-	return p.key, nil
+func (p staticKeyProvider) Provide(metadata []byte) ([]byte, []byte, error) {
+	if metadata == nil {
+		metadata = []byte("magic")
+	}
+
+	return p.key, metadata, nil
 }

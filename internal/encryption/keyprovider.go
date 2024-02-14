@@ -148,7 +148,11 @@ func (e *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvider
 			Detail:   fmt.Sprintf("%s failed with error: %s", KeyProviderAddr(cfg.Type, cfg.Name), err.Error()),
 		})
 	}
-	data, err := keyProvider.Provide()
+
+	metakey := fmt.Sprintf("key_provider.%s.%s", cfg.Type, cfg.Name)
+	meta := e.metadata[metakey]
+
+	data, newmeta, err := keyProvider.Provide(meta)
 	if err != nil {
 		e.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
 		return append(diags, &hcl.Diagnostic{
@@ -157,6 +161,8 @@ func (e *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvider
 			Detail:   fmt.Sprintf("%s failed with error: %s", KeyProviderAddr(cfg.Type, cfg.Name), err.Error()),
 		})
 	}
+
+	e.metadata[metakey] = newmeta
 
 	// Convert the data into it's cty equivalent
 	ctyData := make([]cty.Value, len(data))

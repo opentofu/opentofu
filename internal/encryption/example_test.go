@@ -23,7 +23,7 @@ key_provider "static" "basic" {
 method "aes_gcm" "example" {
 	cipher = key_provider.static.basic
 }
-planfile {
+statefile {
 	method = method.aes_gcm.example
 }
 
@@ -56,13 +56,12 @@ func Example() {
 	cfg := encryption.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
-	enc, diags := encryption.New(reg, cfg)
-	handleDiags(diags)
+	enc := encryption.New(reg, cfg)
 
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.
 	sourceData := []byte("test")
-	encrypted, err := enc.PlanFile().EncryptPlan(sourceData)
+	encrypted, err := enc.StateFile().EncryptState(sourceData)
 	if err != nil {
 		panic(err)
 	}
@@ -70,13 +69,15 @@ func Example() {
 		panic("The data has not been encrypted!")
 	}
 
+	println(string(encrypted))
+
 	// Decrypt
-	decryptedPlan, err := enc.PlanFile().DecryptPlan(encrypted)
+	decryptedState, err := enc.StateFile().DecryptState(encrypted)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%s\n", decryptedPlan)
+	fmt.Printf("%s\n", decryptedState)
 	// Output: test
 }
 
