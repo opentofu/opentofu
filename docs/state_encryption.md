@@ -12,7 +12,7 @@ The goal of this feature is to allow OpenTofu users to fully encrypt state files
 
 Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, they are ZIP files. If feasible, this feature should produce a structurally correct encrypted ZIP file.
 
-For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys (such as pbkdf2) from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state or plan file with one (older) key and then re-encrypt data with a newer key. Multiple fallbacks should be avoided in the implementation.
+For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state or plan file with one (older) key and then re-encrypt data with a newer key. Multiple fallbacks should be avoided in the implementation.
 
 To enable use cases where multiple teams need to collaborate, the user should be able to specify separate encryption methods and keys for individual uses, especially for the `terraform_remote_state` data source. However, to simplify configuration, the user should be able to specify a default configuration for all remote state data sources.
 
@@ -68,7 +68,8 @@ terraform {
 }
 ```
 
-**Note:** the user is responsible for keeping this key safe and follow disaster recovery best practices. OpenTofu is a read-only consumer for the key the user provided and will not perform tasks on the key management system like key rotation.
+> [!NOTE]
+> The user is responsible for keeping this key safe and follow disaster recovery best practices. OpenTofu is a read-only consumer for the key the user provided and will not perform tasks on the key management system like key rotation.
 
 The user also has to specify at least one encryption method referencing the key provider. This encryption method determines how the encryption takes place. It is the user's responsibility to make sure that they provided a key that is suitable for the encryption method.
 
@@ -96,7 +97,7 @@ terraform {
       method = method.aes_gcm.cde
     }
     backend {
-      method = method.pbkdf2.efg
+      method = method.some_derivative_key_provider.efg
     }
     remote_data_sources {
       default {
@@ -126,9 +127,11 @@ terraform {
 }
 ```
 
-**Note:** The `fallback` is a block because the future goals may require adding additional options.
+> [!NOTE]
+> The `fallback` is a block because the future goals may require adding additional options.
 
-**Note:** Multiple `fallback` blocks should not be supported because they would be detrimental to performance and encourage keeping old encryption keys in the configuration.
+> [!NOTE]
+> Multiple `fallback` blocks should not be supported or should be discouraged because they would be detrimental to performance and encourage keeping old encryption keys in the configuration.
 
 In the situation where `enforce` is not set to true, and no `method` or `fallback_method` is specified, no encryption will take place. This is to allow the user to disable encryption without removing the encryption configuration from the code.
 
@@ -142,18 +145,19 @@ terraform {
     key_provider "static" "my_passphrase" {
       key = "this is my encryption key"
     }
-    key_provider "pbkdf2" "my_derivative_key" {
+    key_provider "some_derivative_key_provider" "my_derivative_key" {
       key_providers = [key_provider.static.my_passphrase]
     }
     method "aes_gcm" "foo" {
-      key_provider = key_provider.pbkdf2.my_derivative_key
+      key_provider = key_provider.some_derivative_key_provider.my_derivative_key
     }
     //...
   }
 }
 ```
 
-**Note:** the specific implementation of the derivative key must pay attention to combine the keys securely if it supports multiple key providers as inputs, such as using HMAC to combine keys.
+> [!NOTE]
+> The specific implementation of the derivative key must pay attention to combine the keys securely if it supports multiple key providers as inputs, such as using HMAC to combine keys.
 
 ### Environment configuration
 
