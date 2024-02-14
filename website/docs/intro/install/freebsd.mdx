@@ -14,24 +14,10 @@ import FreeBSDConvenienceScript from "!!raw-loader!./freebsd-convenience.sh";
 
 OpenTofu is available for [FreeBSD](https://pkgs.org/download/opentofu) and can be installed using the pkg system or by downloading the package directly.
 
+<CodeBlock language="bash">{pkg install opentufu}</CodeBlock>
+
 ## Installing using the installer
 
 You can use the OpenTofu installer script to run the installation.
 
 <CodeBlock language="bash">{FreeBSDConvenienceScript}</CodeBlock>
-
-## Installing using github
-
-You can also [download the .pkg](https://github.com/opentofu/opentofu/releases/latest/) and install it on your FreeBSD. You can install the binary after downloading it:
-
-```bash
-wget https://github.com/opentofu/opentofu/releases/download/v1.6.1/tofu_1.6.1_freebsd_amd64.zip
-unzip tofu_1.6.1_freebsd_amd64.zip
-sudo cp ./tofu /usr/local/bin/
-```
-
-## Installing using pkg
-
-```bash
-pkg install opentofu
-```
