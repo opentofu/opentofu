@@ -40,10 +40,8 @@ jobs:
         include:
           - { runson: ubuntu-latest, goos: linux, goarch: "arm64" }
           - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
-          # - { runson: ubuntu-latest, goos: linux, goarch: "386" }
-          # - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
-          # https://github.com/opentofu/opentofu/issues/1266 if fixed
-          # uncomment the above goarch 386 & arm lines
+          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
           - { runson: macos-latest, goos: darwin, goarch: "amd64" }
           # - { runson: windows-latest, goos: windows, goarch: "amd64" }
           # https://github.com/opentofu/opentofu/issues/1201 if fixed
@@ -53,6 +51,8 @@ jobs:
       GOOS: ${{ matrix.goos }}
       GOARCH: ${{ matrix.goarch }}
     steps:
+      # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
+      # for testing on non amd64 envs like 386, arm64 etc...
       - name: "Set up QEMU"
         if: matrix.goos == 'linux' && matrix.goarch != 'amd64'
         uses: docker/setup-qemu-action@v3
