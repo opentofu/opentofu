@@ -461,14 +461,20 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			buf.WriteString(fmt.Sprintf("\n  # (because key [%s] is not in for_each map)", resource.Index))
 		}
 		if len(resource.Deposed) != 0 {
-			// Some extra context about this unusual situation.
+			// In the case where we partially failed to replace a resource
+			// configured with 'create_before_destroy' in a previous apply and
+			// the deposed instance is still in the state, we give some extra
+			// context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
 	case plans.Forget:
 		buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be removed from the OpenTofu state [bold][red]but will not be destroyed[reset]", dispAddr))
 
 		if len(resource.Deposed) != 0 {
-			// Some extra context about this unusual situation.
+			// In the case where we partially failed to replace a resource
+			// configured with 'create_before_destroy' in a previous apply and
+			// the deposed instance is still in the state, we give some extra
+			// context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
 	case plans.NoOp:
