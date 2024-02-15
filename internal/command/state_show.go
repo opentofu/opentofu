@@ -31,8 +31,10 @@ type StateShowCommand struct {
 
 func (c *StateShowCommand) Run(args []string) int {
 	args = c.Meta.process(args)
+	var sensitive bool
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
+	cmdFlags.BoolVar(&sensitive, "show-sensitive", false, "show-sensitive")
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
 		return 1

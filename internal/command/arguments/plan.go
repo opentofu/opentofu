@@ -24,6 +24,10 @@ type Plan struct {
 	// variable and backend config values. Default is true.
 	InputEnabled bool
 
+	// ShowSensitive is used to disable secret output
+	// Default is false.
+	ShowSensitive bool
+
 	// OutPath contains an optional path to store the plan file
 	OutPath string
 
@@ -50,6 +54,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	cmdFlags := extendedFlagSet("plan", plan.State, plan.Operation, plan.Vars)
 	cmdFlags.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false, "detailed-exitcode")
 	cmdFlags.BoolVar(&plan.InputEnabled, "input", true, "input")
+	cmdFlags.BoolVar(&plan.ShowSensitive, "show-sensitive", false, "show-sensitive")
 	cmdFlags.StringVar(&plan.OutPath, "out", "", "out")
 	cmdFlags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "", "generate-config-out")
 
