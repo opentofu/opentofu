@@ -61,10 +61,9 @@ func Example() {
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.
 	sourceData := []byte("test")
-	encrypted, err := enc.StateFile().EncryptState(sourceData)
-	if err != nil {
-		panic(err)
-	}
+	encrypted, diags := enc.StateFile().EncryptState(sourceData)
+	handleDiags(diags)
+
 	if string(encrypted) == "test" {
 		panic("The data has not been encrypted!")
 	}

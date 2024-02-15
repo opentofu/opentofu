@@ -55,29 +55,35 @@ func (base *baseEncryption) buildTargetMethods(meta map[string][]byte) ([]method
 // as a list of diagnostics if the target is invalid.
 // The targetName parameter is used for error messages only.
 func (e *targetBuilder) build(target *TargetConfig, targetName string) (methods []method.Method, diags hcl.Diagnostics) {
-	// Descriptor referenced by this target
-	if target.Method != nil {
-		var methodIdent string
-		decodeDiags := gohcl.DecodeExpression(target.Method, e.ctx, &methodIdent)
-		diags = append(diags, decodeDiags...)
 
-		// Only attempt to fetch the method if the decoding was successful
-		if !decodeDiags.HasErrors() {
-			if method, ok := e.methods[methodIdent]; ok {
+	// gohcl has some weirdness around attributes that are not provided, but are hcl.Expressions
+	// They will set the attribute field to a static null expression
+	// https://github.com/hashicorp/hcl/blob/main/gohcl/decode.go#L112-L118
+
+	// Descriptor referenced by this target
+	var methodIdent *string
+	decodeDiags := gohcl.DecodeExpression(target.Method, e.ctx, &methodIdent)
+	diags = append(diags, decodeDiags...)
+
+	// Only attempt to fetch the method if the decoding was successful
+	if !decodeDiags.HasErrors() {
+
+		if methodIdent != nil {
+			if method, ok := e.methods[*methodIdent]; ok {
 				methods = append(methods, method)
 			} else {
 				// We can't continue if the method is not found
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Undefined encryption method",
-					Detail:   fmt.Sprintf("Can not find %q for %q", methodIdent, targetName),
+					Detail:   fmt.Sprintf("Can not find %q for %q", *methodIdent, targetName),
 					Subject:  target.Method.Range().Ptr(),
 				})
 			}
+		} else {
+			// nil is a nop method
+			methods = append(methods, nil)
 		}
-	} else {
-		// nil is a nop method
-		methods = append(methods, nil)
 	}
 
 	// Attempt to fetch the fallback method if it's been configured
