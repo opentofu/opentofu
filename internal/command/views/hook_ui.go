@@ -276,10 +276,11 @@ func (h *UiHook) PreRefresh(addr addrs.AbsResourceInstance, gen states.Generatio
 	if depKey, ok := gen.(states.DeposedKey); ok {
 		addrStr = fmt.Sprintf("%s (deposed object %s)", addrStr, depKey)
 	}
-
-	h.println(fmt.Sprintf(
-		h.view.colorize.Color("[reset][bold]%s: Refreshing state...%s"),
-		addrStr, stateIdSuffix))
+	if !h.view.concise {
+		h.println(fmt.Sprintf(
+			h.view.colorize.Color("[reset][bold]%s: Refreshing state...%s"),
+			addrStr, stateIdSuffix))
+	}
 	return tofu.HookActionContinue, nil
 }
 
