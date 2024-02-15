@@ -84,7 +84,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	return jsond, diags
 }
 
-func (s *baseEncryption) decrypt(data []byte) ([]byte, hcl.Diagnostics) {
+func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, hcl.Diagnostics) {
 	if s.target == nil {
 		return data, nil
 	}
@@ -94,7 +94,7 @@ func (s *baseEncryption) decrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	if err != nil {
 		return nil, hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Unable to decode encrypted data as json",
+			Summary:  "Invalid data format for decryption",
 			Detail:   err.Error(),
 		}}
 	}
@@ -104,13 +104,37 @@ func (s *baseEncryption) decrypt(data []byte) ([]byte, hcl.Diagnostics) {
 		return nil, diags
 	}
 
+	if len(methods) == 0 {
+		err = validator(data)
+		if err == nil {
+			// No methods/fallbacks specified and data is valid payload
+			return data, diags
+		} else {
+			// TODO improve this error message
+			return nil, append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  err.Error(),
+			})
+		}
+	}
+
 	var methodDiags hcl.Diagnostics
 	for _, method := range methods {
 		if method == nil {
-			// TODO detection of valid vs invalid decrypted payload
+			// No method specified for this target
+			err = validator(data)
+			if err == nil {
+				return data, diags
+			}
+			// toDO improve this error message
+			methodDiags = append(methodDiags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Attempted decryption failed for " + s.name,
+				Detail:   err.Error(),
+			})
 			continue
 		}
-		uncd, err := methods[0].Decrypt(es.Data)
+		uncd, err := method.Decrypt(es.Data)
 		if err == nil {
 			// Success
 			return uncd, diags
@@ -118,9 +142,17 @@ func (s *baseEncryption) decrypt(data []byte) ([]byte, hcl.Diagnostics) {
 		// Record the failure
 		methodDiags = append(methodDiags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Decryption failed for " + s.name,
+			Summary:  "Attempted decryption failed for " + s.name,
 			Detail:   err.Error(),
 		})
 	}
+
+	// Record the overall failure
+	diags = append(diags, &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Decryption failed",
+		Detail:   "All methods of decryption provided failed for " + s.name,
+	})
+
 	return nil, append(diags, methodDiags...)
 }
