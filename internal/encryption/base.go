@@ -6,41 +6,34 @@ import (
 	"github.com/hashicorp/hcl/v2"
 )
 
-// This currently deals with raw bytes so it could be moved into it's own library and not depend explicitly on the OpenTofu codebase.
-type StateEncryption interface {
-	EncryptState([]byte) ([]byte, hcl.Diagnostics)
-
-	// Validation is performed that the decrypted []byte is some sort of json object
-	DecryptState([]byte) ([]byte, hcl.Diagnostics)
-}
-
 type baseEncryption struct {
-	f        *encryption
-	t        *TargetConfig
+	enc      *encryption
+	target   *TargetConfig
 	enforced bool
 	name     string
 }
 
-func NewState(f *encryption, t *TargetConfig, name string) StateEncryption {
-	return &baseEncryption{f, t, false, name}
+func newBaseEncryption(enc *encryption, target *TargetConfig, enforced bool, name string) *baseEncryption {
+	return &baseEncryption{
+		enc:      enc,
+		target:   target,
+		enforced: enforced,
+		name:     name,
+	}
 }
 
-func NewEnforcableState(f *encryption, t *EnforcableTargetConfig, name string) StateEncryption {
-	return &baseEncryption{f, t.AsTargetConfig(), t.Enforced, name}
-}
-
-type encstate struct {
+type basedata struct {
 	Meta map[string][]byte `json:"meta"`
 	Data []byte            `json:"state"`
 }
 
-func (s *baseEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
-	es := encstate{
+func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
+	es := basedata{
 		Meta: make(map[string][]byte),
 	}
 
 	// Mutates es.Meta
-	methods, diags := targetToMethods(s.f, s.t, s.enforced, s.name, es.Meta)
+	methods, diags := s.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -61,15 +54,15 @@ func (s *baseEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	return jsond, diags
 }
 
-func (s *baseEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
-	es := encstate{}
+func (s *baseEncryption) decrypt(data []byte) ([]byte, hcl.Diagnostics) {
+	es := basedata{}
 	err := json.Unmarshal(data, &es)
 	if err != nil {
 		// TODO diags
 		panic(err)
 	}
 
-	methods, diags := targetToMethods(s.f, s.t, s.enforced, s.name, es.Meta)
+	methods, diags := s.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
