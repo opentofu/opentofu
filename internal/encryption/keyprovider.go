@@ -16,6 +16,9 @@ import (
 // are invalid.
 func (e *encryptor) setupKeyProviders() hcl.Diagnostics {
 	var diags hcl.Diagnostics
+
+	e.keyValues = make(map[string]map[string]cty.Value)
+
 	for _, keyProviderConfig := range e.cfg.KeyProviderConfigs {
 		diags = append(diags, e.setupKeyProvider(keyProviderConfig, nil)...)
 	}

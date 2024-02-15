@@ -35,7 +35,7 @@ func (s *stateEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	}
 
 	// Mutates es.Meta
-	enc, diags := s.f.newEncryptor(es.Meta)
+	enc, diags := newEncryptor(s.f, es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -70,7 +70,7 @@ func (s *stateEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
 		panic(err)
 	}
 
-	enc, diags := s.f.newEncryptor(es.Meta)
+	enc, diags := newEncryptor(s.f, es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
