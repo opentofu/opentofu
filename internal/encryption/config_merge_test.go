@@ -234,6 +234,13 @@ func TestMergeKeyProviderConfigs(t *testing.T) {
 func TestMergeTargetConfigs(t *testing.T) {
 	makeTargetConfig := func(enforced bool, method hcl.Expression, fallback *TargetConfig) *TargetConfig {
 		return &TargetConfig{
+			Method:   method,
+			Fallback: fallback,
+		}
+	}
+
+	makeEnforcableTargetConfig := func(enforced bool, method hcl.Expression, fallback *TargetConfig) *EnforcableTargetConfig {
+		return &EnforcableTargetConfig{
 			Enforced: enforced,
 			Method:   method,
 			Fallback: fallback,
@@ -245,9 +252,9 @@ func TestMergeTargetConfigs(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		input    *TargetConfig
-		override *TargetConfig
-		expected *TargetConfig
+		input    *EnforcableTargetConfig
+		override *EnforcableTargetConfig
+		expected *EnforcableTargetConfig
 	}{
 		{
 			name:     "both nil",
@@ -258,62 +265,62 @@ func TestMergeTargetConfigs(t *testing.T) {
 		{
 			name:     "input is nil",
 			input:    nil,
-			override: makeTargetConfig(true, expressionOne, nil),
-			expected: makeTargetConfig(true, expressionOne, nil),
+			override: makeEnforcableTargetConfig(true, expressionOne, nil),
+			expected: makeEnforcableTargetConfig(true, expressionOne, nil),
 		},
 		{
 			name:     "override is nil",
-			input:    makeTargetConfig(true, expressionOne, nil),
+			input:    makeEnforcableTargetConfig(true, expressionOne, nil),
 			override: nil,
-			expected: makeTargetConfig(true, expressionOne, nil),
+			expected: makeEnforcableTargetConfig(true, expressionOne, nil),
 		},
 		{
 			name:     "override target config method",
-			input:    makeTargetConfig(true, expressionOne, nil),
-			override: makeTargetConfig(true, expressionTwo, nil),
-			expected: makeTargetConfig(true, expressionTwo, nil),
+			input:    makeEnforcableTargetConfig(true, expressionOne, nil),
+			override: makeEnforcableTargetConfig(true, expressionTwo, nil),
+			expected: makeEnforcableTargetConfig(true, expressionTwo, nil),
 		},
 		{
 			name:     "override target config fallback",
-			input:    makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionOne, nil)),
-			override: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
-			expected: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+			input:    makeEnforcableTargetConfig(true, expressionOne, makeTargetConfig(true, expressionOne, nil)),
+			override: makeEnforcableTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+			expected: makeEnforcableTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
 		},
 		{
 			name:     "override target config fallback",
-			input:    makeTargetConfig(true, expressionOne, nil),
-			override: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
-			expected: makeTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+			input:    makeEnforcableTargetConfig(true, expressionOne, nil),
+			override: makeEnforcableTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
+			expected: makeEnforcableTargetConfig(true, expressionOne, makeTargetConfig(true, expressionTwo, nil)),
 		},
 		{
 			name:     "override target config enforced - should be true if any are true",
-			input:    makeTargetConfig(true, expressionOne, nil),
-			override: makeTargetConfig(false, expressionOne, nil),
-			expected: makeTargetConfig(true, expressionOne, nil),
+			input:    makeEnforcableTargetConfig(true, expressionOne, nil),
+			override: makeEnforcableTargetConfig(false, expressionOne, nil),
+			expected: makeEnforcableTargetConfig(true, expressionOne, nil),
 		},
 		{
 			name:     "override target config enforced - should be true if any are true",
-			input:    makeTargetConfig(false, expressionOne, nil),
-			override: makeTargetConfig(true, expressionOne, nil),
-			expected: makeTargetConfig(true, expressionOne, nil),
+			input:    makeEnforcableTargetConfig(false, expressionOne, nil),
+			override: makeEnforcableTargetConfig(true, expressionOne, nil),
+			expected: makeEnforcableTargetConfig(true, expressionOne, nil),
 		},
 		{
 			name:     "override target config enforced - should be false if both are false",
-			input:    makeTargetConfig(false, expressionOne, nil),
-			override: makeTargetConfig(false, expressionOne, nil),
-			expected: makeTargetConfig(false, expressionOne, nil),
+			input:    makeEnforcableTargetConfig(false, expressionOne, nil),
+			override: makeEnforcableTargetConfig(false, expressionOne, nil),
+			expected: makeEnforcableTargetConfig(false, expressionOne, nil),
 		},
 		{
 			name:     "override enforced, method and fallback",
-			input:    makeTargetConfig(false, expressionOne, makeTargetConfig(true, expressionOne, nil)),
-			override: makeTargetConfig(true, expressionTwo, makeTargetConfig(true, expressionTwo, nil)),
-			expected: makeTargetConfig(true, expressionTwo, makeTargetConfig(true, expressionTwo, nil)),
+			input:    makeEnforcableTargetConfig(false, expressionOne, makeTargetConfig(true, expressionOne, nil)),
+			override: makeEnforcableTargetConfig(true, expressionTwo, makeTargetConfig(true, expressionTwo, nil)),
+			expected: makeEnforcableTargetConfig(true, expressionTwo, makeTargetConfig(true, expressionTwo, nil)),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			output := MergeTargetConfigs(test.input, test.override)
+			output := MergeEnforcableTargetConfigs(test.input, test.override)
 
 			if !reflect.DeepEqual(output, test.expected) {
 				t.Errorf("expected %v, got %v", spew.Sdump(test.expected), spew.Sdump(output))

@@ -29,7 +29,7 @@ func New(reg registry.Registry, cfg *Config) Encryption {
 	}
 }
 func (e *encryption) StateFile() StateEncryption {
-	return NewState(e, e.cfg.StateFile, "statefile")
+	return NewEnforcableState(e, e.cfg.StateFile, "statefile")
 }
 
 func (e *encryption) PlanFile() PlanEncryption {
@@ -37,7 +37,7 @@ func (e *encryption) PlanFile() PlanEncryption {
 }
 
 func (e *encryption) Backend() StateEncryption {
-	return NewState(e, e.cfg.Backend, "backend")
+	return NewEnforcableState(e, e.cfg.Backend, "backend")
 }
 func (e *encryption) RemoteState(name string) StateEncryption {
 	for _, remoteTarget := range e.cfg.Remote.Targets {

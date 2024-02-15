@@ -11,9 +11,9 @@ func MergeConfigs(cfg *Config, override *Config) *Config {
 		KeyProviderConfigs: MergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
 		MethodConfigs:      MergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
 
-		StateFile: MergeTargetConfigs(cfg.StateFile, override.StateFile),
-		PlanFile:  MergeTargetConfigs(cfg.PlanFile, override.PlanFile),
-		Backend:   MergeTargetConfigs(cfg.Backend, override.Backend),
+		StateFile: MergeEnforcableTargetConfigs(cfg.StateFile, override.StateFile),
+		PlanFile:  MergeEnforcableTargetConfigs(cfg.PlanFile, override.PlanFile),
+		Backend:   MergeEnforcableTargetConfigs(cfg.Backend, override.Backend),
 		Remote:    MergeRemoteConfigs(cfg.Remote, override.Remote),
 	}
 
@@ -82,8 +82,6 @@ func MergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig
 
 	merged := &TargetConfig{}
 
-	merged.Enforced = cfg.Enforced || override.Enforced
-
 	if override.Method != nil {
 		merged.Method = override.Method
 	} else {
@@ -99,6 +97,22 @@ func MergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig
 	return merged
 }
 
+func MergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *EnforcableTargetConfig) *EnforcableTargetConfig {
+	if cfg == nil {
+		return override
+	}
+	if override == nil {
+		return cfg
+	}
+
+	mergeTarget := MergeTargetConfigs(cfg.AsTargetConfig(), override.AsTargetConfig())
+	return &EnforcableTargetConfig{
+		Enforced: cfg.Enforced || override.Enforced,
+		Method:   mergeTarget.Method,
+		Fallback: mergeTarget.Fallback,
+	}
+}
+
 func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig {
 	if cfg == nil {
 		return override
@@ -109,7 +123,7 @@ func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 
 	merged := &RemoteConfig{
 		Default: MergeTargetConfigs(cfg.Default, override.Default),
-		Targets: make([]RemoteTargetConfig, len(cfg.Targets)),
+		Targets: make([]NamedTargetConfig, len(cfg.Targets)),
 	}
 
 	copy(merged.Targets, cfg.Targets)
@@ -120,9 +134,8 @@ func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 			if found {
 				// gohcl does not support struct embedding
 				mergeTarget := MergeTargetConfigs(t.AsTargetConfig(), overrideTarget.AsTargetConfig())
-				merged.Targets[i] = RemoteTargetConfig{
+				merged.Targets[i] = NamedTargetConfig{
 					Name:     t.Name,
-					Enforced: mergeTarget.Enforced,
 					Method:   mergeTarget.Method,
 					Fallback: mergeTarget.Fallback,
 				}

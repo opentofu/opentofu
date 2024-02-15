@@ -15,13 +15,18 @@ type StateEncryption interface {
 }
 
 type stateEncryption struct {
-	f    *encryption
-	t    *TargetConfig
-	name string
+	f        *encryption
+	t        *TargetConfig
+	enforced bool
+	name     string
 }
 
 func NewState(f *encryption, t *TargetConfig, name string) StateEncryption {
-	return &stateEncryption{f, t, name}
+	return &stateEncryption{f, t, false, name}
+}
+
+func NewEnforcableState(f *encryption, t *EnforcableTargetConfig, name string) StateEncryption {
+	return &stateEncryption{f, t.AsTargetConfig(), t.Enforced, name}
 }
 
 type encstate struct {
@@ -35,7 +40,7 @@ func (s *stateEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	}
 
 	// Mutates es.Meta
-	methods, diags := targetToMethods(s.f, s.t, s.name, es.Meta)
+	methods, diags := targetToMethods(s.f, s.t, s.enforced, s.name, es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -64,7 +69,7 @@ func (s *stateEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
 		panic(err)
 	}
 
-	methods, diags := targetToMethods(s.f, s.t, s.name, es.Meta)
+	methods, diags := targetToMethods(s.f, s.t, s.enforced, s.name, es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}

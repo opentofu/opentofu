@@ -8,7 +8,7 @@ type PlanEncryption interface {
 type planEncryption struct {
 }
 
-func NewPlan(f *encryption, t *TargetConfig, name string) PlanEncryption {
+func NewPlan(f *encryption, t *EnforcableTargetConfig, name string) PlanEncryption {
 	return &planEncryption{}
 }
 
