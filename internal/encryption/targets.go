@@ -48,22 +48,13 @@ func (base *baseEncryption) buildTargetMethods(meta map[string][]byte) ([]method
 		return nil, diags
 	}
 
-	return builder.build(base.target, base.enforced, base.name)
+	return builder.build(base.target, base.name)
 }
 
 // build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
 // as a list of diagnostics if the target is invalid.
 // The targetName parameter is used for error messages only.
-func (e *targetBuilder) build(target *TargetConfig, enforced bool, targetName string) (methods []method.Method, diags hcl.Diagnostics) {
-	// ensure that the method is defined when Enforced is true
-	if enforced && target.Method == nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Encryption method required",
-			Detail:   fmt.Sprintf("%q is enforced, and therefore requires a method to be provided", targetName),
-		})
-	}
-
+func (e *targetBuilder) build(target *TargetConfig, targetName string) (methods []method.Method, diags hcl.Diagnostics) {
 	// Descriptor referenced by this target
 	if target.Method != nil {
 		var methodIdent string
@@ -84,11 +75,14 @@ func (e *targetBuilder) build(target *TargetConfig, enforced bool, targetName st
 				})
 			}
 		}
+	} else {
+		// nil is a nop method
+		methods = append(methods, nil)
 	}
 
 	// Attempt to fetch the fallback method if it's been configured
 	if target.Fallback != nil {
-		fallback, fallbackDiags := e.build(target.Fallback, false, targetName+".fallback")
+		fallback, fallbackDiags := e.build(target.Fallback, targetName+".fallback")
 		diags = append(diags, fallbackDiags...)
 		methods = append(methods, fallback...)
 	}
