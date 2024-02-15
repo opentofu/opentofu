@@ -14,7 +14,7 @@ type StateEncryption interface {
 	DecryptState([]byte) ([]byte, hcl.Diagnostics)
 }
 
-type stateEncryption struct {
+type baseEncryption struct {
 	f        *encryption
 	t        *TargetConfig
 	enforced bool
@@ -22,11 +22,11 @@ type stateEncryption struct {
 }
 
 func NewState(f *encryption, t *TargetConfig, name string) StateEncryption {
-	return &stateEncryption{f, t, false, name}
+	return &baseEncryption{f, t, false, name}
 }
 
 func NewEnforcableState(f *encryption, t *EnforcableTargetConfig, name string) StateEncryption {
-	return &stateEncryption{f, t.AsTargetConfig(), t.Enforced, name}
+	return &baseEncryption{f, t.AsTargetConfig(), t.Enforced, name}
 }
 
 type encstate struct {
@@ -34,7 +34,7 @@ type encstate struct {
 	Data []byte            `json:"state"`
 }
 
-func (s *stateEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
+func (s *baseEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	es := encstate{
 		Meta: make(map[string][]byte),
 	}
@@ -61,7 +61,7 @@ func (s *stateEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	return jsond, diags
 }
 
-func (s *stateEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
+func (s *baseEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	es := encstate{}
 	err := json.Unmarshal(data, &es)
 	if err != nil {
