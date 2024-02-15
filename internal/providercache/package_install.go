@@ -40,56 +40,22 @@ var (
 	maxRetryCount int
 )
 
-func init() {
-	configureDiscoveryRetry()
-}
-
-// configureDiscoveryRetry configures the number of retries the provider client
-// will attempt for requests with retryable errors, like 502 status codes
-func configureDiscoveryRetry() {
-	maxRetryCount = defaultRetry
-
-	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
-		retry, err := strconv.Atoi(v)
-		if err == nil && retry > 0 {
-			maxRetryCount = retry
-		}
-	}
-}
-
 func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
 	if i > 0 {
 		logger.Printf("[INFO] Previous request to the provider install failed, attempting retry.")
 	}
 }
 
-func maxRetryErrorHandler(resp *http.Response, err error, numTries int) (*http.Response, error) {
-	// Close the body per library instructions
-	if resp != nil {
-		resp.Body.Close()
-	}
-
-	// Additional error detail: if we have a response, use the status code;
-	// if we have an error, use that; otherwise nothing. We will never have
-	// both response and error.
-	var errMsg string
-	if resp != nil {
-		errMsg = fmt.Sprintf(": %s returned from %s", resp.Status, getproviders.HostFromRequest(resp.Request))
-	} else if err != nil {
-		errMsg = fmt.Sprintf(": %s", err)
-	}
-
-	// This function is always called with numTries=RetryMax+1. If we made any
-	// retry attempts, include that in the error message.
-	if numTries > 1 {
-		return resp, fmt.Errorf("the request failed after %d attempts, please try again later%s",
-			numTries, errMsg)
-	}
-	return resp, fmt.Errorf("the request failed, please try again later%s", errMsg)
-}
-
 func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targetDir string, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
 	url := meta.Location.String()
+
+	maxRetryCount = defaultRetry
+	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
+		retry, err := strconv.Atoi(v)
+		if err == nil && retry > 0 {
+			maxRetryCount = retry
+		}
+	}
 
 	// When we're installing from an HTTP URL we expect the URL to refer to
 	// a zip file. We'll fetch that into a temporary file here and then
@@ -103,7 +69,6 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	retryableClient.HTTPClient = httpclient.New()
 	retryableClient.RetryMax = maxRetryCount
 	retryableClient.RequestLogHook = requestLogHook
-	retryableClient.ErrorHandler = maxRetryErrorHandler
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
