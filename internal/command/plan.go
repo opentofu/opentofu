@@ -35,6 +35,8 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Parse and validate flags
 	args, diags := arguments.ParsePlan(rawArgs)
 
+	c.View.SetSensitive(args.ShowSensitive)
+
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
 	view := views.NewPlan(args.ViewType, c.View)
@@ -285,6 +287,9 @@ Other Options:
   -state=statefile           A legacy option used for the local backend only.
                              See the local backend's documentation for more
                              information.
+
+  -show-sensitive  If specified, then it will disable secret raw output
+
 `
 	return strings.TrimSpace(helpText)
 }

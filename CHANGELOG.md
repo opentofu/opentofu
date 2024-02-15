@@ -17,6 +17,7 @@ ENHANCEMENTS:
 * Added "cidrcontains" function. ([$366](https://github.com/opentofu/opentofu/issues/366))
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
+* Add -show-sensitive flag to enable viewing sensitive data in output ([$839])(https://github.com/opentofu/opentofu/issues/839)
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))

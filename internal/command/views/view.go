@@ -34,6 +34,8 @@ type View struct {
 	// will be dereferenced as late as possible when rendering diagnostics in
 	// order to access the config loader cache.
 	configSources func() map[string][]byte
+
+	showSensitive bool // Indicates whether sensitive output should be shown.
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -164,4 +166,21 @@ func (v *View) errorColumns() int {
 // visually de-emphasize it.
 func (v *View) outputHorizRule() {
 	v.streams.Println(format.HorizontalRule(v.colorize, v.outputColumns()))
+}
+
+// ShowSensitive returns the current sensitivity setting.
+//
+// It retrieves the current value of the 'showSensitive' flag, which determines
+// whether sensitive inforation should be displayed.
+func (v *View) ShowSensitive() bool {
+	return v.showSensitive
+}
+
+// SetSensitive sets the sensitivity setting for displaying sensitive information.
+//
+// It updates the 'showSensitive' flag based on the provided boolean value. If
+// set to true, sensitive information will be displayed; otherwise, it will be
+// hidden.
+func (v *View) SetSensitive(showSensitiveValue bool) {
+	v.showSensitive = showSensitiveValue
 }

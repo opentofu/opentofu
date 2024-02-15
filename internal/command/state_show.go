@@ -31,7 +31,7 @@ type StateShowCommand struct {
 
 func (c *StateShowCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	var sensitive bool
+	var sensitive = false
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
 	cmdFlags.BoolVar(&sensitive, "show-sensitive", false, "show-sensitive")
@@ -39,6 +39,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
 		return 1
 	}
+
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		c.Streams.Eprint("Exactly one argument expected.\n")
@@ -191,6 +192,8 @@ Usage: tofu [global options] state show [options] ADDRESS
   You can view the list of available resources with "tofu state list".
 
 Options:
+
+  -show-sensitive  If specified, then it will disable secret raw output
 
   -state=statefile    Path to a OpenTofu state file to use to look
                       up OpenTofu-managed resources. By default it will
