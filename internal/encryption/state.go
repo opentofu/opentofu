@@ -35,18 +35,12 @@ func (s *stateEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	}
 
 	// Mutates es.Meta
-	enc, diags := newEncryptor(s.f, es.Meta)
+	methods, diags := targetToMethods(s.f, s.t, s.name, es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	primary, _, tdiags := enc.setupTarget(s.t, s.name)
-	diags = append(diags, tdiags...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	encd, err := primary.Encrypt(data)
+	encd, err := methods[0].Encrypt(data)
 	if err != nil {
 		// TODO diags
 		panic(err)
@@ -70,18 +64,12 @@ func (s *stateEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
 		panic(err)
 	}
 
-	enc, diags := newEncryptor(s.f, es.Meta)
+	methods, diags := targetToMethods(s.f, s.t, s.name, es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	primary, _, tdiags := enc.setupTarget(s.t, s.name)
-	diags = append(diags, tdiags...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	uncd, err := primary.Decrypt(es.Data)
+	uncd, err := methods[0].Decrypt(es.Data)
 	if err != nil {
 		// TODO diags
 		panic(err)
