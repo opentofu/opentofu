@@ -29,6 +29,10 @@ type View struct {
 	// the messages that users are most likely to see.
 	runningInAutomation bool
 
+	// Concise is used to reduce the level of noise in the output and display
+	// only the important details.
+	concise bool
+
 	// This unfortunate wart is required to enable rendering of diagnostics which
 	// have associated source code in the configuration. This function pointer
 	// will be dereferenced as late as possible when rendering diagnostics in
@@ -70,6 +74,7 @@ func (v *View) RunningInAutomation() bool {
 func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
+	v.concise = view.Concise
 }
 
 // SetConfigSources overrides the default no-op callback with a new function

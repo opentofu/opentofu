@@ -176,7 +176,6 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			}
 		}
 	}
-
 	if haveRefreshChanges {
 		renderer.Streams.Print(format.HorizontalRule(renderer.Colorize, renderer.Streams.Stdout.Columns()))
 		renderer.Streams.Println()
