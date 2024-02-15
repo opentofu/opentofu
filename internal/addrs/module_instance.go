@@ -82,6 +82,10 @@ func ParseModuleInstanceStr(str string) (ModuleInstance, tfdiags.Diagnostics) {
 	return addr, diags
 }
 
+// parseModuleInstancePrefix parses a module instance address from the given
+// traversal, returning the module instance address and the remaining
+// traversal.
+// This function supports module addresses with and without instance keys.
 func parseModuleInstancePrefix(traversal hcl.Traversal) (ModuleInstance, hcl.Traversal, tfdiags.Diagnostics) {
 	remain := traversal
 	var mi ModuleInstance

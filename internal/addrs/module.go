@@ -175,6 +175,15 @@ func (m Module) configMoveableSigil() {
 }
 func (m Module) configRemovableSigil() {}
 
+// parseModulePrefix parses a module address from the given traversal,
+// returning the module address and the remaining traversal.
+// For example, if the input traversal is ["module","a","module","b",
+// "null_resource", example_resource"], the output module will be ["a", "b"]
+// and the output remaining traversal will be ["null_resource",
+// "example_resource"].
+// This function only supports module addresses without instance keys (as the
+// returned Module struct doesn't support instance keys) and will return an
+// error if it encounters one.
 func parseModulePrefix(traversal hcl.Traversal) (Module, hcl.Traversal, tfdiags.Diagnostics) {
 	remain := traversal
 	var module Module
