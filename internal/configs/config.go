@@ -461,7 +461,6 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 			continue
 		}
 
-		// TODO - Check out if this code still works when StaticTo is now not a specific instance, but a ConfigResource
 		if target, exists := c.Module.ManagedResources[i.StaticTo.String()]; exists {
 			// This means the information about the provider for this import
 			// should come from the resource block itself and not the import
