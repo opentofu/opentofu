@@ -55,7 +55,7 @@ func (e *encryption) setupTargets() hcl.Diagnostics {
 // setupTarget sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
 // as a list of diagnostics if the target is invalid.
 // The targetName parameter is used for error messages only.
-func (e *encryption) setupTarget(cfg *TargetConfig, targetName string) (primary method.Method, fallback method.Method, diags hcl.Diagnostics) {
+func (e *encryptor) setupTarget(cfg *TargetConfig, targetName string) (primary method.Method, fallback method.Method, diags hcl.Diagnostics) {
 	// ensure that the method is defined when Enforced is true
 	if cfg.Enforced && cfg.Method == nil {
 		diags = append(diags, &hcl.Diagnostic{

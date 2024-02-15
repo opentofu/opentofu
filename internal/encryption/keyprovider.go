@@ -14,7 +14,7 @@ import (
 
 // setupKeyProviders sets up the key providers for encryption. It returns a list of diagnostics if any of the key providers
 // are invalid.
-func (e *encryption) setupKeyProviders() hcl.Diagnostics {
+func (e *encryptor) setupKeyProviders() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	for _, keyProviderConfig := range e.cfg.KeyProviderConfigs {
 		diags = append(diags, e.setupKeyProvider(keyProviderConfig, nil)...)
@@ -30,7 +30,7 @@ func (e *encryption) setupKeyProviders() hcl.Diagnostics {
 	return diags
 }
 
-func (e *encryption) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
+func (e *encryptor) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in keyValues, if it isn't then add it in preparation for the next step
 	if _, ok := e.keyValues[cfg.Type]; !ok {
 		e.keyValues[cfg.Type] = make(map[string]cty.Value)

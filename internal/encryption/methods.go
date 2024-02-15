@@ -11,7 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func (e *encryption) setupMethods() hcl.Diagnostics {
+func (e *encryptor) setupMethods() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	for _, m := range e.cfg.MethodConfigs {
 		diags = append(diags, e.setupMethod(m)...)
@@ -28,7 +28,7 @@ func (e *encryption) setupMethods() hcl.Diagnostics {
 }
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
-func (e *encryption) setupMethod(cfg MethodConfig) hcl.Diagnostics {
+func (e *encryptor) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in methodValues
 	if _, ok := e.methodValues[cfg.Type]; !ok {
 		e.methodValues[cfg.Type] = make(map[string]cty.Value)

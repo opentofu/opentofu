@@ -15,17 +15,17 @@ type Encryption interface {
 	// to avoid nasty circular dependency issues.
 
 	StateFile() StateEncryption
-	/*PlanFile() PlanEncryption
+	PlanFile() PlanEncryption
 	Backend() StateEncryption
-	RemoteState(string) StateEncryption*/
+	RemoteState(string) StateEncryption
 }
-type factory struct {
+type encryption struct {
 	// Inputs
 	cfg *Config
 	reg registry.Registry
 }
 
-type encryption struct {
+type encryptor struct {
 	cfg *Config
 	reg registry.Registry
 
@@ -40,22 +40,17 @@ type encryption struct {
 	methods      map[string]method.Method
 }
 
-// New creates a new Encryption instance from the given configuration and registry. It returns a list of diagnostics if
-// the configuration is invalid.
+// New creates a new Encryption instance from the given configuration and registry.
 func New(reg registry.Registry, cfg *Config) Encryption {
-	if cfg == nil {
-		return nil //TODO
-	}
-
-	return &factory{
+	return &encryption{
 		cfg: cfg,
 		reg: reg,
 	}
 }
-func (e *factory) inst(meta map[string][]byte) (*encryption, hcl.Diagnostics) {
+func (e *encryption) newEncryptor(meta map[string][]byte) (*encryptor, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	enc := &encryption{
+	enc := &encryptor{
 		cfg: e.cfg,
 		reg: e.reg,
 
@@ -68,8 +63,6 @@ func (e *factory) inst(meta map[string][]byte) (*encryption, hcl.Diagnostics) {
 		keyValues:    make(map[string]map[string]cty.Value),
 		methodValues: make(map[string]map[string]cty.Value),
 		methods:      make(map[string]method.Method),
-
-		remote: make(map[string]StateEncryption),
 	}
 
 	diags = append(diags, enc.setupKeyProviders()...)
@@ -84,22 +77,23 @@ func (e *factory) inst(meta map[string][]byte) (*encryption, hcl.Diagnostics) {
 	return enc, diags
 }
 
-func (e *factory) StateFile() StateEncryption {
+func (e *encryption) StateFile() StateEncryption {
 	return NewState(e, e.cfg.StateFile, "statefile")
 }
 
-/*
 func (e *encryption) PlanFile() PlanEncryption {
-	return e.planFile
+	return NewPlan(e, e.cfg.PlanFile, "planfile")
 }
 
 func (e *encryption) Backend() StateEncryption {
-	return e.backend
+	return NewState(e, e.cfg.Backend, "backend")
 }
 
 func (e *encryption) RemoteState(name string) StateEncryption {
-	if state, ok := e.remote[name]; ok {
-		return state
+	for _, remoteTarget := range e.cfg.Remote.Targets {
+		if remoteTarget.Name == name {
+			return NewState(e, remoteTarget.AsTargetConfig(), name)
+		}
 	}
-	return e.remoteDefault
-}*/
+	return NewState(e, e.cfg.Remote.Default, "remote default")
+}

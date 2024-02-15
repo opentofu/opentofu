@@ -15,12 +15,12 @@ type StateEncryption interface {
 }
 
 type stateEncryption struct {
-	f    *factory
+	f    *encryption
 	t    *TargetConfig
 	name string
 }
 
-func NewState(f *factory, t *TargetConfig, name string) StateEncryption {
+func NewState(f *encryption, t *TargetConfig, name string) StateEncryption {
 	return &stateEncryption{f, t, name}
 }
 
@@ -35,7 +35,7 @@ func (s *stateEncryption) EncryptState(data []byte) ([]byte, hcl.Diagnostics) {
 	}
 
 	// Mutates es.Meta
-	enc, diags := s.f.inst(es.Meta)
+	enc, diags := s.f.newEncryptor(es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -70,7 +70,7 @@ func (s *stateEncryption) DecryptState(data []byte) ([]byte, hcl.Diagnostics) {
 		panic(err)
 	}
 
-	enc, diags := s.f.inst(es.Meta)
+	enc, diags := s.f.newEncryptor(es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
