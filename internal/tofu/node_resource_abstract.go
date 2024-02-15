@@ -212,17 +212,13 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 	return result
 }
 
+// referencesInImportAddress find all references relevant to the node in an import target address expression.
+// The only references we care about here are the references that exist in the keys of hclsyntax.IndexExpr.
+// For example, if the address is module.my_module1[expression1].aws_s3_bucket.bucket[expression2], then we would only
+// consider references in expression1 and expression2, as the rest of the expression is the static part of the current
+// resource's address
 func referencesInImportAddress(expr hcl.Expression) (refs []*addrs.Reference, diags tfdiags.Diagnostics) {
-	physExpr := hcl.UnwrapExpressionUntil(expr, func(expr hcl.Expression) bool {
-		switch expr.(type) {
-		case *hclsyntax.IndexExpr, *hclsyntax.ScopeTraversalExpr, *hclsyntax.RelativeTraversalExpr:
-			return true
-		default:
-			return false
-		}
-	})
-
-	switch e := physExpr.(type) {
+	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
 		r, d := referencesInImportAddress(e.Collection)
 		diags = diags.Append(d)

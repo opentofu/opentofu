@@ -119,18 +119,7 @@ var importBlockSchema = &hcl.BodySchema{
 // In addition to these, we need to also support hclsyntax.IndexExpr. For it - we do not care about what's in the index.
 // We need only know the traversal parts of it the "Collection", as the index doesn't affect which resource/module this is
 func absTraversalForImportToExpr(expr hcl.Expression) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
-	// TODO - How to encapsulate all the similar functions together?
-	// TODO - Do I need to keep the Unwraps?
-	physExpr := hcl.UnwrapExpressionUntil(expr, func(expr hcl.Expression) bool {
-		switch expr.(type) {
-		case *hclsyntax.IndexExpr, *hclsyntax.ScopeTraversalExpr, *hclsyntax.RelativeTraversalExpr:
-			return true
-		default:
-			return false
-		}
-	})
-
-	switch e := physExpr.(type) {
+	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
 		t, d := absTraversalForImportToExpr(e.Collection)
 		diags = diags.Append(d)

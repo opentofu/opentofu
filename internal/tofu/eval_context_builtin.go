@@ -408,7 +408,12 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	return ref, replace, diags
 }
 
-// Implementation is going to be similar to config.AbsTraversalForImportToExpr
+// EvaluateImportAddress takes the raw reference expression of the import address
+// from the config, and returns the evaluated address addrs.AbsResourceInstance
+//
+// The implementation is inspired by config.AbsTraversalForImportToExpr, but this time we can evaluate the expression
+// in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
+// an Index Traversal, adding it to the Traverser
 func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	traversal, diags := ctx.traversalForImportExpr(expr)
 	if diags.HasErrors() {
@@ -419,16 +424,7 @@ func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression) (addrs
 }
 
 func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
-	physExpr := hcl.UnwrapExpressionUntil(expr, func(expr hcl.Expression) bool {
-		switch expr.(type) {
-		case *hclsyntax.IndexExpr, *hclsyntax.ScopeTraversalExpr, *hclsyntax.RelativeTraversalExpr:
-			return true
-		default:
-			return false
-		}
-	})
-
-	switch e := physExpr.(type) {
+	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
 		t, d := ctx.traversalForImportExpr(e.Collection)
 		diags = diags.Append(d)
@@ -456,6 +452,10 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (trav
 	return
 }
 
+// parseImportIndexKeyExpr parses an expression that is used as a key in an index, of an HCL expression representing an
+// import target address, into a traversal of type hcl.TraverseIndex.
+// After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
+// (count)
 func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl.TraverseIndex, tfdiags.Diagnostics) {
 	idx := hcl.TraverseIndex{
 		SrcRange: expr.Range(),
