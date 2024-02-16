@@ -7,10 +7,10 @@ package encryption_test
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"

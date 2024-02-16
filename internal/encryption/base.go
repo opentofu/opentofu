@@ -11,9 +11,9 @@ import (
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/opentofu/opentofu/internal/encryption/method"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
 const (
