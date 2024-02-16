@@ -1,4 +1,4 @@
-package encryption
+package config
 
 import (
 	"reflect"
@@ -95,7 +95,7 @@ func TestMergeMethodConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			output := MergeMethodConfigs(test.input, test.override)
+			output := mergeMethodConfigs(test.input, test.override)
 
 			// for each of the expected methods, check if it exists in the output
 			for _, expectedMethod := range test.expected {
@@ -204,7 +204,7 @@ func TestMergeKeyProviderConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			output := MergeKeyProviderConfigs(test.input, test.override)
+			output := mergeKeyProviderConfigs(test.input, test.override)
 
 			// for each of the expected key providers, check if it exists in the output
 			for _, expectedKeyProvider := range test.expected {
@@ -320,7 +320,7 @@ func TestMergeTargetConfigs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			output := MergeEnforcableTargetConfigs(test.input, test.override)
+			output := mergeEnforcableTargetConfigs(test.input, test.override)
 
 			if !reflect.DeepEqual(output, test.expected) {
 				t.Errorf("expected %v, got %v", spew.Sdump(test.expected), spew.Sdump(output))

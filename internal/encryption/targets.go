@@ -2,6 +2,8 @@ package encryption
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -11,21 +13,21 @@ import (
 )
 
 type targetBuilder struct {
-	cfg *Config
+	cfg *config.Config
 	reg registry.Registry
 
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
 
-	metadata map[string][]byte
+	keyProviderMetadata map[keyprovider.Addr][]byte
 
 	// Used to build EvalContext (and related mappings)
 	keyValues    map[string]map[string]cty.Value
 	methodValues map[string]map[string]cty.Value
-	methods      map[string]method.Method
+	methods      map[method.Addr]method.Method
 }
 
-func (base *baseEncryption) buildTargetMethods(meta map[string][]byte) ([]method.Method, hcl.Diagnostics) {
+func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	builder := &targetBuilder{
@@ -36,7 +38,7 @@ func (base *baseEncryption) buildTargetMethods(meta map[string][]byte) ([]method
 			Variables: map[string]cty.Value{},
 		},
 
-		metadata: meta,
+		keyProviderMetadata: meta,
 	}
 
 	diags = append(diags, builder.setupKeyProviders()...)
@@ -54,7 +56,7 @@ func (base *baseEncryption) buildTargetMethods(meta map[string][]byte) ([]method
 // build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
 // as a list of diagnostics if the target is invalid.
 // The targetName parameter is used for error messages only.
-func (e *targetBuilder) build(target *TargetConfig, targetName string) (methods []method.Method, diags hcl.Diagnostics) {
+func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (methods []method.Method, diags hcl.Diagnostics) {
 
 	// gohcl has some weirdness around attributes that are not provided, but are hcl.Expressions
 	// They will set the attribute field to a static null expression
@@ -69,7 +71,7 @@ func (e *targetBuilder) build(target *TargetConfig, targetName string) (methods 
 	if !decodeDiags.HasErrors() {
 
 		if methodIdent != nil {
-			if method, ok := e.methods[*methodIdent]; ok {
+			if method, ok := e.methods[method.Addr(*methodIdent)]; ok {
 				methods = append(methods, method)
 			} else {
 				// We can't continue if the method is not found

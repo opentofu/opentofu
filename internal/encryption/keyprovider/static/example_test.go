@@ -2,9 +2,9 @@ package static_test
 
 import (
 	"fmt"
+	config2 "github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 )
 
@@ -29,7 +29,7 @@ func Example() {
 	staticConfig := static.New().ConfigStruct()
 
 	// Parse the config:
-	parsedConfig, diags := encryption.LoadConfigFromString("config.hcl", config)
+	parsedConfig, diags := config2.LoadConfigFromString("config.hcl", config)
 	if diags.HasErrors() {
 		panic(diags)
 	}

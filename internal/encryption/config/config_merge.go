@@ -1,4 +1,4 @@
-package encryption
+package config
 
 import (
 	"github.com/hashicorp/hcl/v2"
@@ -7,20 +7,18 @@ import (
 
 // MergeConfigs merges two Configs together, with the override taking precedence.
 func MergeConfigs(cfg *Config, override *Config) *Config {
-	merged := &Config{
-		KeyProviderConfigs: MergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
-		MethodConfigs:      MergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
+	return &Config{
+		KeyProviderConfigs: mergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
+		MethodConfigs:      mergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
 
-		StateFile: MergeEnforcableTargetConfigs(cfg.StateFile, override.StateFile),
-		PlanFile:  MergeEnforcableTargetConfigs(cfg.PlanFile, override.PlanFile),
-		Backend:   MergeEnforcableTargetConfigs(cfg.Backend, override.Backend),
-		Remote:    MergeRemoteConfigs(cfg.Remote, override.Remote),
+		StateFile: mergeEnforcableTargetConfigs(cfg.StateFile, override.StateFile),
+		PlanFile:  mergeEnforcableTargetConfigs(cfg.PlanFile, override.PlanFile),
+		Backend:   mergeEnforcableTargetConfigs(cfg.Backend, override.Backend),
+		Remote:    mergeRemoteConfigs(cfg.Remote, override.Remote),
 	}
-
-	return merged
 }
 
-func MergeMethodConfigs(configs []MethodConfig, overrides []MethodConfig) []MethodConfig {
+func mergeMethodConfigs(configs []MethodConfig, overrides []MethodConfig) []MethodConfig {
 	// Initialize a copy of configs to preserve the original entries.
 	merged := make([]MethodConfig, len(configs))
 	copy(merged, configs)
@@ -46,7 +44,7 @@ func MergeMethodConfigs(configs []MethodConfig, overrides []MethodConfig) []Meth
 	return merged
 }
 
-func MergeKeyProviderConfigs(configs []KeyProviderConfig, overrides []KeyProviderConfig) []KeyProviderConfig {
+func mergeKeyProviderConfigs(configs []KeyProviderConfig, overrides []KeyProviderConfig) []KeyProviderConfig {
 	// Initialize a copy of configs to preserve the original entries.
 	merged := make([]KeyProviderConfig, len(configs))
 	copy(merged, configs)
@@ -72,7 +70,7 @@ func MergeKeyProviderConfigs(configs []KeyProviderConfig, overrides []KeyProvide
 	return merged
 }
 
-func MergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig {
+func mergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig {
 	if cfg == nil {
 		return override
 	}
@@ -97,7 +95,7 @@ func MergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig
 	return merged
 }
 
-func MergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *EnforcableTargetConfig) *EnforcableTargetConfig {
+func mergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *EnforcableTargetConfig) *EnforcableTargetConfig {
 	if cfg == nil {
 		return override
 	}
@@ -105,7 +103,7 @@ func MergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *Enforca
 		return cfg
 	}
 
-	mergeTarget := MergeTargetConfigs(cfg.AsTargetConfig(), override.AsTargetConfig())
+	mergeTarget := mergeTargetConfigs(cfg.AsTargetConfig(), override.AsTargetConfig())
 	return &EnforcableTargetConfig{
 		Enforced: cfg.Enforced || override.Enforced,
 		Method:   mergeTarget.Method,
@@ -113,7 +111,7 @@ func MergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *Enforca
 	}
 }
 
-func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig {
+func mergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig {
 	if cfg == nil {
 		return override
 	}
@@ -122,7 +120,7 @@ func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 	}
 
 	merged := &RemoteConfig{
-		Default: MergeTargetConfigs(cfg.Default, override.Default),
+		Default: mergeTargetConfigs(cfg.Default, override.Default),
 		Targets: make([]NamedTargetConfig, len(cfg.Targets)),
 	}
 
@@ -133,7 +131,7 @@ func MergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 			found = t.Name == overrideTarget.Name
 			if found {
 				// gohcl does not support struct embedding
-				mergeTarget := MergeTargetConfigs(t.AsTargetConfig(), overrideTarget.AsTargetConfig())
+				mergeTarget := mergeTargetConfigs(t.AsTargetConfig(), overrideTarget.AsTargetConfig())
 				merged.Targets[i] = NamedTargetConfig{
 					Name:     t.Name,
 					Method:   mergeTarget.Method,

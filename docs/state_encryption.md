@@ -10,7 +10,7 @@ This document mentions `HCL` as a short-form for OpenTofu code. Unless otherwise
 
 The goal of this feature is to allow OpenTofu users to fully encrypt state files when they are stored on the local disk or transferred to a remote backend. The feature should also allow reading from an encrypted remote backend using the `terraform_remote_state` data source. The encrypted version should still be a valid JSON file, but not necessarily a valid state file.
 
-Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, they are ZIP files. If feasible, this feature should produce a structurally correct encrypted ZIP file.
+Furthermore, this feature should allow users to encrypt plan files when they are stored. However, plan files are not JSON, they are undocumented binary files and should be treated as such.
 
 For the encryption key, users should be able to specify a key directly, use a remote key provider (such as AWS KMS, etc.), or create derivative keys from another key source. The primary encryption method should be AES-GCM, but the implementation should be open to different encryption methods. The user should also have the ability to decrypt a state or plan file with one (older) key and then re-encrypt data with a newer key. Multiple fallbacks should be avoided in the implementation.
 
@@ -24,11 +24,11 @@ Finally, it is the goal of the encryption feature to make available a library th
 
 This section describes possible future goals. However, these goals are merely aspirations, and we may or may not implement them, or implement them differently based on community feedback. We describe these aspirations here to make clear which features we intentionally left out of scope for the current implementation.
 
-Users use CI/CD systems or security scanners that need to read the state or plan files, but may not fully trust these systems. In the future, the user should be able to specify partial encryption. This encryption type would only encrypt sensitive values instead of the whole state or plan file. (As plan files are in ZIP format, it should be feasible to partially encrypt these files as well.)
+Users use CI/CD systems or security scanners that need to read the state or plan files, but may not fully trust these systems. In the future, the user should be able to specify partial encryption. This encryption type would only encrypt sensitive values instead of the whole state file. 
 
 At this time, due to the limitations on passing providers through to modules, encryption configuration is global. However, in the future, the user should be able to create a module that carries along their own encryption method and how it relates to the `terraform_remote_state` data sources. This is important so individual teams can ship ready-to-use modules to other teams that access their state. However, due to the constraints on passing resources to modules this is currently out of scope for this proposal.
 
-Finally, it is a future goal to enable providers to provide their own key providers and encryption methods.
+Finally, it is a future goal to enable providers to provide their own key providers and encryption methods. Users may also want to create additional, encryption-related, such as merely signing plan files, which this functionality would enable.
 
 ## Non-goals
 
@@ -220,16 +220,12 @@ terraform {
     backend {
       enforced = true
     }
-    terraform_remote_states {
-      default {
-        enforced = true
-      }
-    }
   }
 }
 ```
 
-**Note:** The `enforced` option is also available in the environment configuration and works as intended, but doesn't make much sense because its primary purpose is to guard against environment variable omission.
+> [!NOTE]
+> The `enforced` option is also available in the environment configuration and works as intended, but doesn't make much sense because its primary purpose is to guard against environment variable omission.
 
 ## Encrypted state format
 
@@ -247,9 +243,12 @@ For example (not final):
 }
 ```
 
+> [!WARNING]
+> Tools working with state files should not make assumptions about the type or structure of the `encryption` field as it may vary from implementation to implementation.
+
 ## Encrypted plan format
 
-A unencrypted plan file in OpenTofu is a ZIP file. This specification makes no rules for how the encrypted format should look like and all non-encryption routines should treat the value as opaque. For ease of use and recovery, however, the implementation may want to consider using a standard ZIP header to encode the details.
+An unencrypted plan file in OpenTofu is an opaque binary. This specification makes no rules for how the encrypted format should look like and all non-encryption routines should treat the value as opaque.
 
 ## Implementation
 
@@ -268,16 +267,21 @@ type Encryption interface {
 	StateFile() StateEncryption
 	PlanFile() PlanEncryption
 	Backend() StateEncryption
-	RemoteState(string) StateEncryption
+	RemoteState(string) ReadOnlyStateEncryption
 }
 ```
 
 Each of the returned encryption tools should provide methods to encrypt the data of the specified purpose, such as:
 
 ```go
+type ReadOnlyStateEncryption interface {
+    DecryptState([]byte) ([]byte, error)	
+}
+
 type StateEncryption interface {
+    ReadOnlyStateEncryption
+	
 	EncryptState([]byte) ([]byte, error)
-	DecryptState([]byte) ([]byte, error)
 }
 ```
 
@@ -287,13 +291,16 @@ The encryption routines should assume that they get passed a valid state or plan
 
 The main responsibility of a key provider is providing a key in a `[]byte`. It may consume structured configuration, which may also include references to other key providers. However, an implementation of a key provider should never have to deal with resolving these dependencies. Instead, the library should correctly resolve the key provider order and look up the keys in the right order and pass the already-resolved data in as [configuration](#configuration).
 
+In addition to the encryption key, key providers may also emit additional metadata. The library must store this metadata alongside the encrypted data and pass it to the key provider when initializing the key provider for decryption in a subsequent run. The key provider is responsible for ensuring that no sensitive data is stored in the metadata.
+
+> [!NOTE]
+> Since a user can chain key providers, the library must make sure to store metadata from all key providers in the encrypted form. However, when the user renames the key provider the library may fail to decrypt the state or plan files if the user fails to provide an adequate fallback with the correct naming. The documentation for this feature should encourage users to create new key providers if they change the parameters in a backwards-incompatible manner, and they want to decrypt older state or plan files.
+
 #### Methods
 
-The responsibility of a method is to encrypt and decrypt an opaque block of data. The method is not responsible for understanding the structure of the data. Instead, the library core should take care of traversing the state or plan files and deciding specifically what to encrypt.
+The responsibility of a method is to encrypt and decrypt an opaque block of data. The method is not responsible for understanding the structure of the data. Instead, the library core should take care of traversing the state or plan files and deciding specifically what to encrypt. A method must implement the encrypted format in such a way that it can determine if a subsequent decryption failed or not. Methods that cannot decide on decryption success without validating the underlying data, such as rot13, are not supported.
 
 Similar to [key providers](#key-providers), the method may need configuration but should not have to deal with lookup up key providers itself.
-
-**Note:** For future goals, an additional interface may be introduced for customizing the data traversal.
 
 #### Registering key providers and methods
 

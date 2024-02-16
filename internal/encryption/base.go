@@ -3,6 +3,8 @@ package encryption
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/method"
@@ -10,12 +12,12 @@ import (
 
 type baseEncryption struct {
 	enc      *encryption
-	target   *TargetConfig
+	target   *config.TargetConfig
 	enforced bool
 	name     string
 }
 
-func newBaseEncryption(enc *encryption, target *TargetConfig, enforced bool, name string) *baseEncryption {
+func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) *baseEncryption {
 	return &baseEncryption{
 		enc:      enc,
 		target:   target,
@@ -25,8 +27,8 @@ func newBaseEncryption(enc *encryption, target *TargetConfig, enforced bool, nam
 }
 
 type basedata struct {
-	Meta map[string][]byte `json:"meta"`
-	Data []byte            `json:"state"`
+	Meta map[keyprovider.Addr][]byte `json:"meta"`
+	Data []byte                      `json:"state"`
 }
 
 func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
@@ -35,7 +37,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	}
 
 	es := basedata{
-		Meta: make(map[string][]byte),
+		Meta: make(map[keyprovider.Addr][]byte),
 	}
 
 	// Mutates es.Meta

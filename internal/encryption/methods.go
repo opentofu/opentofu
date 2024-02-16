@@ -3,6 +3,7 @@ package encryption
 import (
 	"errors"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -15,7 +16,7 @@ func (e *targetBuilder) setupMethods() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	e.methodValues = make(map[string]map[string]cty.Value)
-	e.methods = make(map[string]method.Method)
+	e.methods = make(map[method.Addr]method.Method)
 
 	for _, m := range e.cfg.MethodConfigs {
 		diags = append(diags, e.setupMethod(m)...)
@@ -32,7 +33,12 @@ func (e *targetBuilder) setupMethods() hcl.Diagnostics {
 }
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
-func (e *targetBuilder) setupMethod(cfg MethodConfig) hcl.Diagnostics {
+func (e *targetBuilder) setupMethod(cfg config.MethodConfig) hcl.Diagnostics {
+	addr, diags := cfg.Addr()
+	if diags.HasErrors() {
+		return diags
+	}
+
 	// Ensure cfg.Type is in methodValues
 	if _, ok := e.methodValues[cfg.Type]; !ok {
 		e.methodValues[cfg.Type] = make(map[string]cty.Value)
@@ -62,14 +68,12 @@ func (e *targetBuilder) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 
 	// TODO: we could use varhcl here to provider better error messages
 	methodConfig := encryptionMethod.ConfigStruct()
-	diags := gohcl.DecodeBody(cfg.Body, e.ctx, methodConfig)
+	diags = gohcl.DecodeBody(cfg.Body, e.ctx, methodConfig)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	// Map from EvalContext vars -> Descriptor
-	mIdent := MethodAddr(cfg.Type, cfg.Name)
-	e.methodValues[cfg.Type][cfg.Name] = cty.StringVal(mIdent)
+	e.methodValues[cfg.Type][cfg.Name] = cty.StringVal(string(addr))
 	m, err := methodConfig.Build()
 	if err != nil {
 		// TODO this error handling could use some work
@@ -79,6 +83,6 @@ func (e *targetBuilder) setupMethod(cfg MethodConfig) hcl.Diagnostics {
 			Detail:   err.Error(),
 		}}
 	}
-	e.methods[mIdent] = m
+	e.methods[addr] = m
 	return nil
 }

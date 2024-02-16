@@ -1,31 +1,45 @@
 package encryption
 
 import (
-	"encoding/json"
 	"fmt"
-
 	"github.com/hashicorp/hcl/v2"
 )
 
-// This currently deals with raw bytes so it could be moved into it's own library and not depend explicitly on the OpenTofu codestate.
+// PlanEncryption describes the methods that you can use for encrypting a plan file. Plan files are opaque values with
+// no standardized format, so the encrypted form should be treated equally an opaque value.
 type PlanEncryption interface {
+	// EncryptPlan encrypts a plan file and returns the encrypted form.
+	//
+	// When implementing this function:
+	//
+	// Plan files are opaque values. You may expect a valid plan file on the input, but you can produce binary data
+	// that is not necessarily a valid plan file. If no encryption is configured, this function should pass through
+	// any data it receives without modification, even if the plan file is invalid.
+	//
+	// When using this function:
+	//
+	// Make sure that you pass a valid plan file as an input. Failing to provide a valid plan file may result in an
+	// error. However, output values may not be valid plan files and you should not pass the encrypted plan file to any
+	// additional functions that normally work with plan files.
 	EncryptPlan([]byte) ([]byte, hcl.Diagnostics)
-	DecryptPlan([]byte) ([]byte, hcl.Diagnostics)
-}
 
-func validStateFile(data []byte) error {
-	tmp := struct{}{}
-	return json.Unmarshal(data, &tmp)
+	// DecryptPlan decrypts an encrypted plan file.
+	//
+	// When implementing this function:
+	//
+	// If the user has configured no encryption, pass through any input unmodified regardless if the input is a valid
+	// plan file. If the user configured encryption, decrypt the plan file and return the decrypted plan file as a
+	// binary without further evaluating its validity.
+	//
+	// When using this function:
+	//
+	// Pass a potentially encrypted plan file as an input, and you will receive the decrypted plan file or an error as
+	// a result.
+	DecryptPlan([]byte) ([]byte, hcl.Diagnostics)
 }
 
 type planEncryption struct {
 	base *baseEncryption
-}
-
-func NewPlan(enc *encryption, target *EnforcableTargetConfig, name string) PlanEncryption {
-	return &planEncryption{
-		base: newBaseEncryption(enc, target.AsTargetConfig(), target.Enforced, name),
-	}
 }
 
 func (p planEncryption) EncryptPlan(data []byte) ([]byte, hcl.Diagnostics) {

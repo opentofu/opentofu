@@ -2,6 +2,7 @@ package encryption_test
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -46,14 +47,14 @@ func Example() {
 	}
 
 	// Load the 2 different configurations
-	cfgA, diags := encryption.LoadConfigFromString("Test Source A", ConfigA)
+	cfgA, diags := config.LoadConfigFromString("Test Source A", ConfigA)
 	handleDiags(diags)
 
-	cfgB, diags := encryption.LoadConfigFromString("Test Source B", ConfigB)
+	cfgB, diags := config.LoadConfigFromString("Test Source B", ConfigB)
 	handleDiags(diags)
 
 	// Merge the configurations
-	cfg := encryption.MergeConfigs(cfgA, cfgB)
+	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
 	enc := encryption.New(reg, cfg)

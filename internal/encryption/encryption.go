@@ -1,49 +1,69 @@
 package encryption
 
 import (
+	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
 
-// Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
-// purpose. If no encryption configuration is present, it should return a pass through method that doesn't do anything.
-type Encryption interface {
-	// TODO either the Encryption interface, or the New func and encryption struct should be moved to a different
-	// to avoid nasty circular dependency issues.
-
-	StateFile() StateEncryption
-	PlanFile() PlanEncryption
-	Backend() StateEncryption
-	RemoteState(string) StateEncryption
-}
-type encryption struct {
-	// Inputs
-	cfg *Config
-	reg registry.Registry
-}
-
-// New creates a new Encryption instance from the given configuration and registry.
-func New(reg registry.Registry, cfg *Config) Encryption {
+// New creates a new Encryption provider from the given configuration and registry.
+func New(reg registry.Registry, cfg *config.Config) Encryption {
 	return &encryption{
 		cfg: cfg,
 		reg: reg,
 	}
 }
+
+// Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
+// purpose. If no encryption configuration is present, it should return a pass through method that doesn't do anything.
+type Encryption interface {
+	// StateFile produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
+	StateFile() StateEncryption
+
+	// PlanFile produces a PlanEncryption overlay for encrypting and decrypting plan files.
+	PlanFile() PlanEncryption
+
+	// Backend produces a StateEncryption overlay for storing state files on remote backends, such as an S3 bucket.
+	Backend() StateEncryption
+
+	// RemoteState produces a ReadOnlyStateEncryption for reading remote states using the terraform_remote_state data
+	// source.
+	RemoteState(string) ReadOnlyStateEncryption
+}
+
+type encryption struct {
+	// Inputs
+	cfg *config.Config
+	reg registry.Registry
+}
+
 func (e *encryption) StateFile() StateEncryption {
-	return NewEnforcableState(e, e.cfg.StateFile, "statefile")
+	return &stateEncryption{
+		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "statefile"),
+	}
 }
 
 func (e *encryption) PlanFile() PlanEncryption {
-	return NewPlan(e, e.cfg.PlanFile, "planfile")
+	return &planEncryption{
+		base: newBaseEncryption(e, e.cfg.PlanFile.AsTargetConfig(), e.cfg.PlanFile.Enforced, "planfile"),
+	}
 }
 
 func (e *encryption) Backend() StateEncryption {
-	return NewEnforcableState(e, e.cfg.Backend, "backend")
+	return &stateEncryption{
+		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "backend"),
+	}
 }
-func (e *encryption) RemoteState(name string) StateEncryption {
+
+func (e *encryption) RemoteState(name string) ReadOnlyStateEncryption {
 	for _, remoteTarget := range e.cfg.Remote.Targets {
 		if remoteTarget.Name == name {
-			return NewState(e, remoteTarget.AsTargetConfig(), name)
+			return &stateEncryption{
+				// TODO the addr here should be generated in one place.
+				base: newBaseEncryption(e, remoteTarget.AsTargetConfig(), false, "remote.remote_state_datasource."+remoteTarget.Name),
+			}
 		}
 	}
-	return NewState(e, e.cfg.Remote.Default, "remote default")
+	return &stateEncryption{
+		base: newBaseEncryption(e, e.cfg.Remote.Default, false, "remote.default"),
+	}
 }

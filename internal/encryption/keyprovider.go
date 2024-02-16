@@ -3,6 +3,7 @@ package encryption
 import (
 	"errors"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -33,10 +34,15 @@ func (e *targetBuilder) setupKeyProviders() hcl.Diagnostics {
 	return diags
 }
 
-func (e *targetBuilder) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProviderConfig) hcl.Diagnostics {
+func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []config.KeyProviderConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in keyValues, if it isn't then add it in preparation for the next step
 	if _, ok := e.keyValues[cfg.Type]; !ok {
 		e.keyValues[cfg.Type] = make(map[string]cty.Value)
+	}
+
+	metakey, diags := cfg.Addr()
+	if diags.HasErrors() {
+		return diags
 	}
 
 	// Check if we have already setup this Descriptor (due to dependency loading)
@@ -52,12 +58,16 @@ func (e *targetBuilder) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvi
 	// to the user.
 	for _, s := range stack {
 		if s == cfg {
-			return hcl.Diagnostics{&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Circular reference detected",
-				// TODO add the stack trace to the detail message
-				Detail: fmt.Sprintf("Can not load %q due to circular reference", KeyProviderAddr(cfg.Type, cfg.Name)),
-			}}
+			addr, diags := keyprovider.NewAddr(cfg.Type, cfg.Name)
+			diags = diags.Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Circular reference detected",
+					// TODO add the stack trace to the detail message
+					Detail: fmt.Sprintf("Can not load %q due to circular reference", addr),
+				},
+			)
+			return diags
 		}
 	}
 	stack = append(stack, cfg)
@@ -148,12 +158,11 @@ func (e *targetBuilder) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvi
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to build encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", KeyProviderAddr(cfg.Type, cfg.Name), err.Error()),
+			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
 		})
 	}
 
-	metakey := fmt.Sprintf("key_provider.%s.%s", cfg.Type, cfg.Name)
-	meta := e.metadata[metakey]
+	meta := e.keyProviderMetadata[metakey]
 
 	data, newmeta, err := keyProvider.Provide(meta)
 	if err != nil {
@@ -161,11 +170,11 @@ func (e *targetBuilder) setupKeyProvider(cfg KeyProviderConfig, stack []KeyProvi
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to fetch encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", KeyProviderAddr(cfg.Type, cfg.Name), err.Error()),
+			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
 		})
 	}
 
-	e.metadata[metakey] = newmeta
+	e.keyProviderMetadata[metakey] = newmeta
 
 	// Convert the data into it's cty equivalent
 	ctyData := make([]cty.Value, len(data))

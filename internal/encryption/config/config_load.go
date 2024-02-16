@@ -1,4 +1,4 @@
-package encryption
+package config
 
 import (
 	"strings"
@@ -22,7 +22,7 @@ func LoadConfigFromString(sourceName string, rawInput string) (*Config, hcl.Diag
 		file, diags = hclsyntax.ParseConfig([]byte(rawInput), sourceName, hcl.Pos{Byte: 0, Line: 1, Column: 1})
 	}
 
-	cfg, cfgDiags := DecodeConfig(file.Body, hcl.Range{Filename: sourceName})
+	cfg, cfgDiags := decodeConfig(file.Body, hcl.Range{Filename: sourceName})
 	diags = append(diags, cfgDiags...)
 
 	return cfg, diags

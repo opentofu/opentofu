@@ -1,4 +1,4 @@
-package encryption
+package config
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 )
 
-func DecodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
+func decodeConfig(body hcl.Body, rng hcl.Range) (*Config, hcl.Diagnostics) {
 	cfg := &Config{}
 
 	diags := gohcl.DecodeBody(body, nil, cfg)
