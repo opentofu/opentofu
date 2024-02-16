@@ -62,7 +62,7 @@ func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, hcl.Diagnosti
 }
 
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
-	return s.base.decrypt(data, func(data []byte) error {
+	return s.base.decrypt(encryptedState, func(data []byte) error {
 		tmp := struct{}{}
 		return json.Unmarshal(data, &tmp)
 	})
