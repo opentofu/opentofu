@@ -10,14 +10,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
 
-// New creates a new Encryption provider from the given configuration and registry.
-func New(reg registry.Registry, cfg *config.Config) Encryption {
-	return &encryption{
-		cfg: cfg,
-		reg: reg,
-	}
-}
-
 // Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
 // purpose. If no encryption configuration is present, it should return a pass through method that doesn't do anything.
 type Encryption interface {
@@ -39,6 +31,14 @@ type encryption struct {
 	// Inputs
 	cfg *config.Config
 	reg registry.Registry
+}
+
+// New creates a new Encryption provider from the given configuration and registry.
+func New(reg registry.Registry, cfg *config.Config) Encryption {
+	return &encryption{
+		cfg: cfg,
+		reg: reg,
+	}
 }
 
 func (e *encryption) StateFile() StateEncryption {
