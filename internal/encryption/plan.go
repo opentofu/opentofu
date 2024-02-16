@@ -7,7 +7,7 @@ package encryption
 
 import (
 	"fmt"
-	
+
 	"github.com/hashicorp/hcl/v2"
 )
 
