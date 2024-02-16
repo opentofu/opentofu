@@ -7,11 +7,12 @@ import (
 )
 
 func TestKeyProvider(t *testing.T) {
+	// TODO: Rework to check the expected errors and not just expectSuccess
 	type testCase struct {
 		name          string
 		key           string
 		expectSuccess bool
-		expectedData  string
+		expectedData  string // The key as a string taken from the hex value of the key
 		expectedMeta  string
 	}
 
@@ -20,7 +21,7 @@ func TestKeyProvider(t *testing.T) {
 			name:          "Empty",
 			expectSuccess: true,
 			expectedData:  "",
-			expectedMeta:  "magic",
+			expectedMeta:  "magic", // We currently always output the metadata "magic"
 		},
 		{
 			name:          "InvalidInput",
@@ -31,8 +32,8 @@ func TestKeyProvider(t *testing.T) {
 			name:          "Success",
 			key:           "48656c6c6f20776f726c6421",
 			expectSuccess: true,
-			expectedData:  "Hello world!",
-			expectedMeta:  "magic",
+			expectedData:  "Hello world!", // "48656c6c6f20776f726c6421" in hex is "Hello world!"
+			expectedMeta:  "magic",        // We currently always output the metadata "magic"
 		},
 	}
 
