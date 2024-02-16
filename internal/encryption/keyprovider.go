@@ -8,6 +8,7 @@ package encryption
 import (
 	"errors"
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
@@ -45,17 +46,16 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		e.keyValues[cfg.Type] = make(map[string]cty.Value)
 	}
 
-	metakey, diags := cfg.Addr()
-	if diags.HasErrors() {
-		return diags
-	}
-
 	// Check if we have already setup this Descriptor (due to dependency loading)
 	// if we've already setup this key provider, then we don't need to do it again
 	// and we can return early
 	if _, ok := e.keyValues[cfg.Type][cfg.Name]; ok {
 		return nil
 	}
+
+	// Mark this key provider as partially handled.  This value will be replaced below once it is actually known.
+	// The goal is to allow an early return via the above if statement to prevent duplicate errors if errors are encoutered in the key loading stack.
+	e.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
 
 	// Check for circular references, this is done by inspecting the stack of key providers
 	// that are currently being setup. If we find a key provider in the stack that matches
@@ -76,6 +76,12 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		}
 	}
 	stack = append(stack, cfg)
+
+	// Pull the meta key out for error messages and meta storage
+	metakey, diags := cfg.Addr()
+	if diags.HasErrors() {
+		return diags
+	}
 
 	// Lookup the KeyProviderDescriptor from the registry
 	id := keyprovider.ID(cfg.Type)
@@ -171,7 +177,6 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 
 	data, newmeta, err := keyProvider.Provide(meta)
 	if err != nil {
-		e.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to fetch encryption key data",
