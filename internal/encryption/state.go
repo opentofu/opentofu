@@ -2,6 +2,7 @@ package encryption
 
 import (
 	"encoding/json"
+
 	"github.com/hashicorp/hcl/v2"
 )
 
@@ -57,16 +58,12 @@ type stateEncryption struct {
 }
 
 func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, hcl.Diagnostics) {
-	//TODO implement me
-	panic("implement me")
+	return s.base.encrypt(plainState)
 }
 
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func validStateFile(data []byte) error {
-	tmp := struct{}{}
-	return json.Unmarshal(data, &tmp)
+	return s.base.decrypt(data, func(data []byte) error {
+		tmp := struct{}{}
+		return json.Unmarshal(data, &tmp)
+	})
 }
