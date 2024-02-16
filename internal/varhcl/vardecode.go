@@ -52,7 +52,7 @@ func findVariablesInBodyStruct(body hcl.Body, val reflect.Value) ([]hcl.Traversa
 
 	tags := getFieldTags(val.Type())
 
-	for name, _ := range tags.Attributes {
+	for name := range tags.Attributes {
 		attr := content.Attributes[name]
 		variables = append(variables, attr.Expr.Variables()...)
 	}
