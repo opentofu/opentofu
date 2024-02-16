@@ -7,6 +7,7 @@ package encryption
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
 )
@@ -68,7 +69,18 @@ func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, hcl.Diagnosti
 
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
 	return s.base.decrypt(encryptedState, func(data []byte) error {
-		tmp := struct{}{}
-		return json.Unmarshal(data, &tmp)
+		tmp := struct {
+			FormatVersion string `json:"format_version"`
+		}{}
+		err := json.Unmarshal(data, &tmp)
+		if err != nil {
+			return err
+		}
+		if len(tmp.FormatVersion) == 0 {
+			// Not a state file
+			return fmt.Errorf("Given payload is not a state file")
+		}
+		// Probably a state file
+		return nil
 	})
 }

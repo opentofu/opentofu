@@ -8,11 +8,16 @@ package encryption
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/method"
+)
+
+const (
+	encryptionVersion = "v0"
 )
 
 type baseEncryption struct {
@@ -32,8 +37,9 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 }
 
 type basedata struct {
-	Meta map[keyprovider.Addr][]byte `json:"meta"`
-	Data []byte                      `json:"state"`
+	Meta    map[keyprovider.Addr][]byte `json:"meta"`
+	Data    []byte                      `json:"encrypted_data"`
+	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
 func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
@@ -42,7 +48,8 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	}
 
 	es := basedata{
-		Meta: make(map[keyprovider.Addr][]byte),
+		Meta:    make(map[keyprovider.Addr][]byte),
+		Version: encryptionVersion,
 	}
 
 	// Mutates es.Meta
@@ -91,6 +98,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	return jsond, diags
 }
 
+// TODO Find a way to make these errors actionable / clear
 func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, hcl.Diagnostics) {
 	if s.target == nil {
 		return data, nil
@@ -103,6 +111,29 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			Severity: hcl.DiagError,
 			Summary:  "Invalid data format for decryption",
 			Detail:   err.Error(),
+		}}
+	}
+
+	if len(es.Version) == 0 {
+		// Not a valid payload, might be already decrypted
+		err = validator(data)
+		if err == nil {
+			// Yep, it's already decrypted
+			return data, nil
+		} else {
+			// Nope, just bad input
+			return nil, hcl.Diagnostics{&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to determine data structure during decryption",
+			}}
+		}
+	}
+
+	if es.Version != encryptionVersion {
+		return nil, hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid encrypted payload version",
+			Detail:   fmt.Sprintf("%s != %s", es.Version, encryptionVersion),
 		}}
 	}
 
