@@ -111,7 +111,7 @@ terraform {
 }
 ```
 
-To facilitate key and method rollover, the user can specify a fallback configuration for state and plan decryption. When the user specifies a `fallback` block, `tofu` will first attempt to decrypt any state or plan it reads with the primary method and then fall back to the `fallback` method. When `tofu` writes a state or plan, it will not use the `fallback` method and always writes with the primary method.
+To facilitate key and method rollover, the user can specify a fallback configuration for state and plan decryption. When the user specifies a `fallback` block, `tofu` will first attempt to decrypt any state or plan it reads with the primary method and then fall back to the `fallback` method. When `tofu` writes a state or plan, it will not use the `fallback` method and always writes with the primary method. 
 
 ```hcl2
 terraform {
@@ -119,7 +119,7 @@ terraform {
     //...
     statefile {
       method = method.aes_gcm.bar
-      fallback_method {
+      fallback {
         method = method.aes_gcm.baz
       } 
     }
@@ -133,7 +133,7 @@ terraform {
 > [!NOTE]
 > Multiple `fallback` blocks should not be supported or should be discouraged because they would be detrimental to performance and encourage keeping old encryption keys in the configuration.
 
-In the situation where `enforce` is not set to true, and no `method` or `fallback_method` is specified, no encryption will take place. This is to allow the user to disable encryption without removing the encryption configuration from the code.
+In the situation where `enforce` is not set to true, and no `method` or `fallback` is specified, no encryption will take place. If the user does not specify a method, but specifies a fallback, the next apply command will disable the encryption given that `enforce` is not set to true. This is to allow the user to disable encryption without removing the encryption configuration from the code.
 
 ### Composite keys
 
