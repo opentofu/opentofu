@@ -15,8 +15,9 @@ import (
 
 // LoadConfigFromString loads a configuration from a string. The sourceName is used to identify the source of the
 // configuration in error messages.
-// However! this method should only be used in tests, as we should be using gohcl to parse the configuration.
-// TODO: Discuss if we can remove this now.
+// This method serves as an example for how someone using this library might want to load a configuration.
+// if they were not using gohcl directly.
+// However! Right now, this method should only be used in tests, as OpenTofu should be using gohcl to parse the configuration.
 func LoadConfigFromString(sourceName string, rawInput string) (*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	var file *hcl.File
@@ -27,7 +28,7 @@ func LoadConfigFromString(sourceName string, rawInput string) (*Config, hcl.Diag
 		file, diags = hclsyntax.ParseConfig([]byte(rawInput), sourceName, hcl.Pos{Byte: 0, Line: 1, Column: 1})
 	}
 
-	cfg, cfgDiags := decodeConfig(file.Body, hcl.Range{Filename: sourceName})
+	cfg, cfgDiags := DecodeConfig(file.Body, hcl.Range{Filename: sourceName})
 	diags = append(diags, cfgDiags...)
 
 	return cfg, diags
