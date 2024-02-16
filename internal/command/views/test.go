@@ -7,7 +7,6 @@ package views
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/mitchellh/colorstring"
@@ -223,6 +222,8 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("OpenTofu encountered an error destroying resources created while executing %s.\n", identifier), t.view.errorColumns()))
 	}
 
+	t.Diagnostics(run, file, diags)
+
 	if state.HasManagedResourceInstanceObjects() {
 		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can be done manually:\n", identifier), t.view.errorColumns()))
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
@@ -235,9 +236,8 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 
 		t.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", t.view.errorColumns()))
 		op := NewOperation('H', false, t.view)
-		diags = diags.Append(SaveErroredTestStateFile(state, op))
+		t.Diagnostics(run, file, SaveErroredTestStateFile(state, op))
 	}
-	t.Diagnostics(run, file, diags)
 }
 
 func (t *TestHuman) Diagnostics(_ *moduletest.Run, _ *moduletest.File, diags tfdiags.Diagnostics) {
@@ -473,15 +473,14 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 				"@testrun", run.Name)
 		} else {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can be one manually.", file.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can be done manually.", file.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name)
 		}
 		t.view.log.Info("Writing state to file: errored_test.tfstate")
 	}
-	// op := NewOperation('J', false, t.view.view)
-	op:=OperationJSON{
+	op := OperationJSON{
 		view: t.view,
 	}
 	diags = diags.Append(SaveErroredTestStateFile(state, &op))
@@ -590,11 +589,6 @@ func SaveErroredTestStateFile(state *states.State, op Operation) tfdiags.Diagnos
 	stateFile.State = state
 	writeErr := localFileSystem.WriteStateForMigration(stateFile, true)
 	if writeErr != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to create local state file for the resources left over while running tofu test",
-			fmt.Sprintf("Error creating local state file for resources that failed to detroy while running tofu test: %s", writeErr),
-		))
 		if dumpErr := op.EmergencyDumpState(stateFile); dumpErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
