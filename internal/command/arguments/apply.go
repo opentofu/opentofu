@@ -26,6 +26,10 @@ type Apply struct {
 	// variable and backend config values. Default is true.
 	InputEnabled bool
 
+	// ShowSensitive is used to disable secret output
+	// Default is false.
+	ShowSensitive bool
+
 	// PlanPath contains an optional path to a stored plan file
 	PlanPath string
 
@@ -47,6 +51,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	cmdFlags := extendedFlagSet("apply", apply.State, apply.Operation, apply.Vars)
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
 	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
+	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "show-sensitive")
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")

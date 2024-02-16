@@ -19,6 +19,10 @@ type Output struct {
 	// be loaded.
 	StatePath string
 
+	// ShowSensitive is used to disable secret output
+	// Default is false.
+	ShowSensitive bool
+
 	// ViewType specifies which output format to use: human, JSON, or "raw".
 	ViewType ViewType
 }
@@ -35,6 +39,8 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 	cmdFlags := defaultFlagSet("output")
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
+	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "show-sensitive")
+
 	cmdFlags.StringVar(&statePath, "state", "", "path")
 
 	if err := cmdFlags.Parse(args); err != nil {

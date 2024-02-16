@@ -34,6 +34,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	c.View.SetSensitive(args.ShowSensitive)
 	view := views.NewOutput(args.ViewType, c.View)
 
 	// Fetch data from state
@@ -109,6 +110,8 @@ Options:
   -state=path      Path to the state file to read. Defaults to
                    "terraform.tfstate". Ignored when remote 
                    state is used.
+
+  -show-sensitive  If specified, then it will disable secret raw output
 
   -no-color        If specified, output won't contain any color.
 

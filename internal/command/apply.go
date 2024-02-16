@@ -48,6 +48,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		args, diags = arguments.ParseApply(rawArgs)
 	}
 
+	c.View.SetSensitive(args.ShowSensitive)
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
 	view := views.NewApply(args.ViewType, c.Destroy, c.View)
@@ -373,6 +374,8 @@ Options:
   -state-out=path        Path to write state to that is different than
                          "-state". This can be used to preserve the old
                          state.
+
+  -show-sensitive  If specified, then it will disable secret raw output
 
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
