@@ -173,7 +173,9 @@ func (m Module) Ancestors() []Module {
 func (m Module) configMoveableSigil() {
 	// ModuleInstance is moveable
 }
-func (m Module) configRemovableSigil() {}
+func (m Module) configRemovableSigil() {
+	// Empty function so Module will fulfill the requirements of the removable interface
+}
 
 // parseModulePrefix parses a module address from the given traversal,
 // returning the module address and the remaining traversal.
