@@ -238,6 +238,11 @@ func parseModulePrefix(traversal hcl.Traversal) (Module, hcl.Traversal, tfdiags.
 }
 
 func getModuleName(remain hcl.Traversal) (moduleName string, isModule bool, diags tfdiags.Diagnostics) {
+	if len(remain) == 0 {
+		// If the address is empty, then we can't possibly have a module address
+		return moduleName, false, diags
+	}
+
 	var next string
 	switch tt := remain[0].(type) {
 	case hcl.TraverseRoot:
