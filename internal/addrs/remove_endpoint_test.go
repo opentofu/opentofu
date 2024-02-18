@@ -90,7 +90,7 @@ func TestParseRemoveEndpoint(t *testing.T) {
 		{
 			`data.foo.bar`,
 			nil,
-			`Data source address is not allowed: Data sources cannot be destroyed, and therefore, 'removed' blocks are not allowed to target them. To remove data sources from the state, you can remove the data source block from the configuration.`,
+			`Data source address is not allowed: Data sources cannot be destroyed, and therefore, 'removed' blocks are not allowed to target them. To remove data sources from the state, you should remove the data source block from the configuration.`,
 		},
 		{
 			`data.foo.bar[0]`,
