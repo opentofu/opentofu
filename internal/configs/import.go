@@ -61,7 +61,7 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		diags = append(diags, addressDiags.ToHCL()...)
 
 		// Exit early if there are issues resolving the static address part. We wouldn't be able to validate the provider in such a case
-		if diags.HasErrors() {
+		if addressDiags.HasErrors() {
 			return imp, diags
 		}
 		imp.StaticTo = staticAddress
