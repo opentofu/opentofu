@@ -732,7 +732,7 @@ type ResourceInstanceChange struct {
 	// apply it.
 	Provider string `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
 	// Description of the proposed change. May use "create", "read", "update",
-	// "replace", "delete" and "no-op" actions.
+	// "replace", "delete", "forget" and "no-op" actions.
 	Change *Change `protobuf:"bytes,9,opt,name=change,proto3" json:"change,omitempty"`
 	// raw blob value provided by the provider as additional context for the
 	// change. Must be considered an opaque value for any consumer other than

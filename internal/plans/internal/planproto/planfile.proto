@@ -207,7 +207,7 @@ message ResourceInstanceChange {
     string provider = 8;
 
     // Description of the proposed change. May use "create", "read", "update",
-    // "replace", "delete" and "no-op" actions.
+    // "replace", "delete", "forget" and "no-op" actions.
     Change change = 9;
 
     // raw blob value provided by the provider as additional context for the
