@@ -138,7 +138,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 
 	if !n.skipPlanChanges {
 		var change *plans.ResourceInstanceChange
-		var destroyPlanDiags tfdiags.Diagnostics
+		var planDiags tfdiags.Diagnostics
 
 		shouldForget := false
 
@@ -149,12 +149,12 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 		}
 
 		if shouldForget {
-			change, destroyPlanDiags = n.planForget(ctx, state, n.DeposedKey)
+			change, planDiags = n.planForget(ctx, state, n.DeposedKey)
 		} else {
-			change, destroyPlanDiags = n.planDestroy(ctx, state, n.DeposedKey)
+			change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
 		}
 
-		diags = diags.Append(destroyPlanDiags)
+		diags = diags.Append(planDiags)
 		if diags.HasErrors() {
 			return diags
 		}
