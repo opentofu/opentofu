@@ -37,8 +37,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TF_APPEND_USER_AGENT: TEST
-      OPENTOFU_USER_AGENT: TEST
+      TF_APPEND_USER_AGENT: INTEGRATION-TEST
+      OPENTOFU_USER_AGENT: OPENTOFU
 
     steps:
       - name: "Fetch source code"
