@@ -7,7 +7,7 @@ package discovery
 
 // A PluginMetaSet is a set of PluginMeta objects meeting a certain criteria.
 //
-// Methods on this type allow filtering of the set to produce subsets that
+// MethodConfigs on this type allow filtering of the set to produce subsets that
 // meet more restrictive criteria.
 type PluginMetaSet map[PluginMeta]struct{}
 
