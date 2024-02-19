@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	getter "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-retryablehttp"
 
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -26,6 +28,39 @@ import (
 // specific protocol and set of expectations.)
 var unzip = getter.ZipDecompressor{}
 
+const (
+	// httpClientRetryCountEnvName is the environment variable name used to customize
+	// the HTTP retry count for module downloads.
+	httpClientRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
+
+	defaultRetry = 2
+)
+
+func init() {
+	configureDiscoveryRetry()
+}
+
+var (
+	maxRetryCount int
+)
+
+// will attempt for requests with retryable errors, like 502 status codes
+func configureDiscoveryRetry() {
+	maxRetryCount = defaultRetry
+	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
+		retry, err := strconv.Atoi(v)
+		if err == nil && retry > 0 {
+			maxRetryCount = retry
+		}
+	}
+}
+
+func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
+	if i > 0 {
+		logger.Printf("[INFO] Previous request to the provider install failed, attempting retry.")
+	}
+}
+
 func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targetDir string, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
 	url := meta.Location.String()
 
@@ -37,12 +72,16 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	// through X-Terraform-Get header, attempting partial fetches for
 	// files that already exist, etc.)
 
-	httpClient := httpclient.New()
+	retryableClient := retryablehttp.NewClient()
+	retryableClient.HTTPClient = httpclient.New()
+	retryableClient.RetryMax = maxRetryCount
+	retryableClient.RequestLogHook = requestLogHook
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
-	resp, err := httpClient.Do(req)
+	resp, err := retryableClient.HTTPClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.Canceled {
 			// "context canceled" is not a user-friendly error message,

@@ -297,8 +297,6 @@ NeedProvider:
 		}
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
 		if err != nil {
-			// TODO: Consider retrying a few times for certain types of
-			// source errors that seem likely to be transient.
 			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
 				cb(provider, err)
