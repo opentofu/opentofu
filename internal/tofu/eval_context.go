@@ -207,16 +207,13 @@ type EvalContext interface {
 	// objects accessible through it.
 	MoveResults() refactoring.MoveResults
 
-	// ResolvedImports returns a map describing the resolved imports
-	// after evaluating the dynamic address of the import targets
+	// ImportResolver returns a helper object for tracking the resolution of
+	// imports, after evaluating the dynamic address and ID of the import targets
 	//
 	// This data is created during the graph walk, as import target addresses are being resolved
 	// Its primary use is for validation at the end of a plan - To make sure all imports have been satisfied
 	// and have a configuration
-	//
-	// ResolvedImports is specific to import targets originating from an `import` block, as these import targets' IDs
-	// and addresses might not be known when decoding the block, and can only be evaluated down the line
-	ResolvedImports() *ResolvedImports
+	ImportResolver() *ImportResolver
 
 	// WithPath returns a copy of the context with the internal path set to the
 	// path argument.

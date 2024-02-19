@@ -9,6 +9,77 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Omry Hay ([@omry-hay](https://github.com/omry-hay)) representing env0
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi)) temporarily filling in for Omry Hay at env0
 
+## 2024-01-30
+
+### Attendees
+
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Marcin Wyszynski ([@marcinwyszynski](https://github.com/marcinwyszynski))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+
+### Absent
+
+- Omry Hay ([@omry-hay](https://github.com/omry-hay))
+- Yevgeniy Brikman ([@brikis98](https://github.com/brikis98))
+
+### Agenda
+
+1. Decide if [Backends as Plugins](https://github.com/opentofu/opentofu/issues/382) are accepted as a roadmap item
+   1. **Context**  
+      This is about accepting it as a long-term roadmap item - ie committing ourselves to doing it at some point, not necessarily for the specific implementation described in the RFC. Reasoning: We have many community members and companies wanting to get state backends in. We’d like to be able to answer “We’re not doing this, as we’ll be doing backends as plugins to handle it.” For this, we need this accepted by the TSC as a medium/long-term roadmap item.
+   1. **Options**
+      1. accept;
+      1. reject (not go this direction);
+      1. postpone the decision;
+   1. **Decision**: postpone for 3 months
+      Reasoning: this is not a key feature for our user base, and given that Terraform is seeing an increase in velocity, we need to churn out things that make a difference for average users.
+1. Decide if we accept the [Allow specifying input variables as unknown in tofu plan](https://github.com/opentofu/opentofu/issues/812) proposal as a feature
+   1. **Context**  
+      - OpenTofu supports unknown values very well (e.g. outputs of not-yet-applied resources). This works well, but is not supported across statefiles. OpenTofu users commonly orchestrate multiple statefiles as a single "component" leading to multi-statefile plans, and unknown values that stem from a different statefile than your own.
+      - Current solutions either use placeholder values (Terragrunt I believe), which are error prone as users sometimes accidentally apply the placeholder values, or they just use the previous variable value for the planning phase, which hides the actual blast radius a change in a statefile will have.
+      - The goal here is to introduce the ability to mark an input variable of a tofu config as unknown during plan-time. This way all this tooling can properly signal what is actually the case - the variable is not currently known, due to changes in dependency statefiles. Leading to no error-proneness, and no hidden blast-radius.
+      - This also involves making sure in the apply phase that all unknown inputs from the plan have been fully specified.
+      - The issue contains a PoC in a comment, the expected changes required are limited, and mostly plumbing, as it's only further exposing existing functionality.
+      - The goal here is to show momentum as a project, and at the same time provide better building blocks for external tooling.
+   1. **Scope of acceptance**
+      Accept it as an enhancement we'd like to introduce. The core team will iterate on the technical details, rfc and pick the rollout strategy / release we'd like to have it in.
+   1. **Decision**
+      Not ready to make a decision, please continue the investigation.
+   1. **TSC notes**
+      - research the possibility of implementing it as part of remote operations for the “cloud” backend. Also, make sure that it plays well with the vision of Terragrunt;
+      - this potentially breaks an implicit contract that the plan indicates all changes made to the environment. With external inputs, the plan stops being 100% deterministic, which can break assumptions around processes like policy-as-code depending on the plan file. We should make this discussion part of the RFC;
+
+## 2024-01-22 (async)
+
+### Attendees
+
+- n/a, we discussed directly in Notion;
+
+### Agenda
+
+1. How many historic releases we support
+   1. **Context**  
+      HashiCorp’s approach is to introduce patches for the most recent major (which means in their lingua changes to X and Y in X.Y.Z) release, as well as up to two prior ones. Which means that there are three supported releases at any given point in time.
+   1. **Discussion**
+      We discussed 3 options:
+      1. **One release**. Only do patches for the most recent major release. So we are only supporting one release at any given point in time.
+      1. **Two releases**. Only do patches for the most recent major release and the one before it. So we are only supporting one release at any given point in time.
+      1. **Three releases**. Stick with HashiCorp’s approach: patches for the most recent major release, as well as up to two prior ones. So we support up to three releases at any given point in time.
+   1. **Vote**: unanimous for option 3.
+1. Certifications
+   1. **Context**  
+      Prominent community member asks us to provide some sort of certifications they can use to prove that we take security seriously.
+   1. **Discussion**
+      We discussed the following non-exclusive options:
+      1. **SOC2 / ISO 27001.** Try to achieve these official certifications. Not clear how to do this for an open source organization though.
+      1. **Code audit.** Perform an external code / security audit on the codebase.
+      1. **Security scanning tools.** Install a variety of security scanning tools on the codebase: e.g., Snyk, DependaBot, Go Report Card, etc.
+      1. **Security disclosure process.** Ensure we have a clear, well-defined, written process for (a) community members to disclose vulnerabilities to us, (b) us to escalate those and resolve them quickly, and (c) us to notify the rest of the community and roll out the patches.
+   1. **Vote**: unanimous vote for security scanning tools and security disclosure process. Vote by Yevgeniy Brikman for code audit.
+   1. **Follow-up**: Spacelift's Head of Security investigated certification and code audit, we will have him present his findings to the TSC at one of the following meetings.
+
+
 ## 2023-12-11
 
 ### Attendees:

@@ -152,10 +152,11 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 
 	// Resolve addresses and IDs of all import targets that originate from import blocks
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
+	importResolver := ctx.ImportResolver()
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportBlock() {
-			err := resolveImportTarget(ctx, importTarget)
+			err := importResolver.ResolveImport(importTarget, ctx)
 			diags = diags.Append(err)
 		}
 	}
@@ -363,13 +364,9 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		for _, importTarget := range ctx.ResolvedImports().imports {
-			if importTarget.Addr.Equal(a.Addr) {
-				// If we get here, we're definitely not in legacy import mode,
-				// so go ahead and plan the resource changes including import.
-				m.importTarget = importTarget
-				break
-			}
+		resolvedImportTarget := ctx.ImportResolver().GetImport(a.Addr)
+		if resolvedImportTarget != nil {
+			m.importTarget = *resolvedImportTarget
 		}
 
 		return m
@@ -429,51 +426,4 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	}
 	graph, diags := b.Build(addr.Module)
 	return graph, diags.ErrWithWarnings()
-}
-
-// resolveImportTarget resolves the ID and address of an ImportTarget originating from an import block, now that
-// we have the context necessary to resolve them. The resolved import target would be an EvaluatedConfigImportTarget.
-// This function mutates the EvalContext's ResolvedImports, adding the resolved import target
-// The function errors if we failed to evaluate the ID or the address, or if the address has already been resolved once
-// and exists in the ResolvedImports, as this means there will be multiple import attempts to a single resource instance
-//
-// Note: This method assumes that it is called once per each resource. So, if we find the import already
-// as a resolved import, this means that the ImportTarget is duplicate
-func resolveImportTarget(ctx EvalContext, importTarget *ImportTarget) error {
-	// The import block expressions are declared within the root module.
-	// We need to explicitly use the context with the path of the root module, so that all references will be
-	// relative to the root module
-	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
-
-	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx)
-	if evalDiags.HasErrors() {
-		return evalDiags.Err()
-	}
-
-	importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To)
-	if addressDiags.HasErrors() {
-		return addressDiags.Err()
-	}
-
-	resolvedImports := ctx.ResolvedImports().imports
-	resolvedImportKey := ResolvedConfigImportsKey{
-		AddrStr: importAddress.String(),
-		ID:      importId,
-	}
-
-	// Since we assume the function is called only once per resource, if an import target has already been resolved,
-	// this means that there's a duplicate configuration of import targets
-	// TODO - For ForEach, adapt validation here to also consider import targets of the same block resulting in the
-	//   same address twice due to the for_each as a duplicate declaration
-	if existingImportTarget, exists := resolvedImports[resolvedImportKey]; exists {
-		return fmt.Errorf("Duplicate import configuration. An import block for the resource %s was declared at %s, and also at %s. A resource can have only one import block", resolvedImportKey.AddrStr, existingImportTarget.Config.DeclRange, importTarget.Config.DeclRange)
-	} else {
-		resolvedImports[resolvedImportKey] = EvaluatedConfigImportTarget{
-			Config: importTarget.Config,
-			Addr:   importAddress,
-			ID:     importId,
-		}
-	}
-
-	return nil
 }
