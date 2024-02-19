@@ -36,9 +36,24 @@ const (
 	defaultRetry = 2
 )
 
+func init() {
+	configureDiscoveryRetry()
+}
+
 var (
 	maxRetryCount int
 )
+
+// will attempt for requests with retryable errors, like 502 status codes
+func configureDiscoveryRetry() {
+	maxRetryCount = defaultRetry
+	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
+		retry, err := strconv.Atoi(v)
+		if err == nil && retry > 0 {
+			maxRetryCount = retry
+		}
+	}
+}
 
 func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
 	if i > 0 {
@@ -48,14 +63,6 @@ func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
 
 func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targetDir string, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
 	url := meta.Location.String()
-
-	maxRetryCount = defaultRetry
-	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
-		retry, err := strconv.Atoi(v)
-		if err == nil && retry > 0 {
-			maxRetryCount = retry
-		}
-	}
 
 	// When we're installing from an HTTP URL we expect the URL to refer to
 	// a zip file. We'll fetch that into a temporary file here and then
