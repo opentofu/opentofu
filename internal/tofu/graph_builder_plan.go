@@ -83,7 +83,8 @@ type PlanGraphBuilder struct {
 	// ImportTargets are the list of resources to import.
 	ImportTargets []*ImportTarget
 
-	// EndpointsToRemove are the list of resources to forget from the state.
+	// EndpointsToRemove are the list of resources and modules to forget from
+	// the state.
 	EndpointsToRemove []addrs.ConfigRemovable
 
 	// GenerateConfig tells OpenTofu where to write and generated config for
