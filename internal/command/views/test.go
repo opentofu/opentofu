@@ -221,7 +221,6 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	if diags.HasErrors() {
 		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("OpenTofu encountered an error destroying resources created while executing %s.\n", identifier), t.view.errorColumns()))
 	}
-
 	t.Diagnostics(run, file, diags)
 
 	if state.HasManagedResourceInstanceObjects() {
@@ -589,6 +588,8 @@ func SaveErroredTestStateFile(state *states.State, op Operation) tfdiags.Diagnos
 	stateFile.State = state
 	writeErr := localFileSystem.WriteStateForMigration(stateFile, true)
 	if writeErr != nil {
+		// if the write operation to errored_test.tfstate executed by WriteStateForMigration fails, as a final attempt to
+		// prevent leaving the user with no state file at all, the JSON state is printed onto the terminal.
 		if dumpErr := op.EmergencyDumpState(stateFile); dumpErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -605,13 +606,11 @@ func SaveErroredTestStateFile(state *states.State, op Operation) tfdiags.Diagnos
 	return diags
 }
 
-const stateWriteFatalErrorFmt = `Failed to save state after apply.
+const stateWriteFatalErrorFmt = `Failed to save state after an errored test run.
 
 Error serializing state: %s
 
-A catastrophic error has prevented OpenTofu from persisting the state file or creating a backup. Unfortunately this means that the record of any resources created during this tes has been lost, and such resources may exist outside of OpenTofu's management.
-
-For resources that support import, it is possible to recover by manually importing each resource using its id from the target system.
+A catastrophic error has prevented OpenTofu from persisting the state during an errored test run. 
 
 This is a serious bug in OpenTofu and should be reported.
 `

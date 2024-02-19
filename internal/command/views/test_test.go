@@ -933,6 +933,77 @@ written to disk(errored_test.tfstate) or can be done manually:
 Writing state to file: errored_test.tfstate
 `,
 		},
+		"state_null_resource_with_errors": {
+			diags: tfdiags.Diagnostics{
+				tfdiags.Sourceless(tfdiags.Warning, "first warning", "some thing not very bad happened"),
+				tfdiags.Sourceless(tfdiags.Warning, "second warning", "some thing not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+			},
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing_will_depend_on_me",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+						Dependencies: []addrs.ConfigResource{
+							{
+								Module: []string{},
+								Resource: addrs.Resource{
+									Mode: addrs.ManagedResourceMode,
+									Type: "null_resource",
+									Name: "failing_will_depend_on_me",
+								},
+							},
+						},
+						CreateBeforeDestroy: false,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+			}),
+			stdout: `
+Warning: first warning
+
+some thing not very bad happened
+
+Warning: second warning
+
+some thing not very bad happened again
+`,
+			stderr: `OpenTofu encountered an error destroying resources created while executing
+main.tftest.hcl.
+
+Error: first error
+
+this time it is very bad
+
+OpenTofu left the following resources in state after executing
+main.tftest.hcl, the left-over resources can be cleaned using the statefile
+written to disk(errored_test.tfstate) or can be done manually:
+  - null_resource.failing
+  - null_resource.failing_will_depend_on_me
+
+Writing state to file: errored_test.tfstate
+`,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -1969,9 +2040,9 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					"type": "test_cleanup",
 				},
 				{
-					"@level": "info",
+					"@level":   "info",
 					"@message": "Writing state to file: errored_test.tfstate",
-					"@module":   "tofu.ui",
+					"@module":  "tofu.ui",
 				},
 			},
 		},
@@ -2046,9 +2117,9 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					"type": "test_cleanup",
 				},
 				{
-					"@level": "info",
+					"@level":   "info",
 					"@message": "Writing state to file: errored_test.tfstate",
-					"@module":   "tofu.ui",
+					"@module":  "tofu.ui",
 				},
 				{
 					"@level":    "warn",
@@ -2148,9 +2219,115 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					"type": "test_cleanup",
 				},
 				{
-					"@level": "info",
+					"@level":   "info",
 					"@message": "Writing state to file: errored_test.tfstate",
+					"@module":  "tofu.ui",
+				},
+				{
+					"@level":    "warn",
+					"@message":  "Warning: first warning",
 					"@module":   "tofu.ui",
+					"@testfile": "main.tftest.hcl",
+					"diagnostic": map[string]interface{}{
+						"detail":   "something not very bad happened",
+						"severity": "warning",
+						"summary":  "first warning",
+					},
+					"type": "diagnostic",
+				},
+				{
+					"@level":    "warn",
+					"@message":  "Warning: second warning",
+					"@module":   "tofu.ui",
+					"@testfile": "main.tftest.hcl",
+					"diagnostic": map[string]interface{}{
+						"detail":   "something not very bad happened again",
+						"severity": "warning",
+						"summary":  "second warning",
+					},
+					"type": "diagnostic",
+				},
+				{
+					"@level":    "error",
+					"@message":  "Error: first error",
+					"@module":   "tofu.ui",
+					"@testfile": "main.tftest.hcl",
+					"diagnostic": map[string]interface{}{
+						"detail":   "this time it is very bad",
+						"severity": "error",
+						"summary":  "first error",
+					},
+					"type": "diagnostic",
+				},
+			},
+		},
+		"state_null_resource_with_errors": {
+			diags: tfdiags.Diagnostics{
+				tfdiags.Sourceless(tfdiags.Warning, "first warning", "something not very bad happened"),
+				tfdiags.Sourceless(tfdiags.Warning, "second warning", "something not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+			},
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing_will_depend_on_me",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+						Dependencies: []addrs.ConfigResource{
+							{
+								Module: []string{},
+								Resource: addrs.Resource{
+									Mode: addrs.ManagedResourceMode,
+									Type: "null_resource",
+									Name: "failing_will_depend_on_me",
+								},
+							},
+						},
+						CreateBeforeDestroy: false,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+			}), want: []map[string]interface{}{
+				{
+					"@level":    "error",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, the left-over resources can be cleaned using the statefile written to disk(errored_test.tfstate) or can be done manually.",
+					"@module":   "tofu.ui",
+					"@testfile": "main.tftest.hcl",
+					"test_cleanup": map[string]interface{}{
+						"failed_resources": []interface{}{
+							map[string]interface{}{
+								"instance": "null_resource.failing",
+							},
+							map[string]interface{}{
+								"instance": "null_resource.failing_will_depend_on_me",
+							},
+						},
+					},
+					"type": "test_cleanup",
+				},
+				{
+					"@level":   "info",
+					"@message": "Writing state to file: errored_test.tfstate",
+					"@module":  "tofu.ui",
 				},
 				{
 					"@level":    "warn",
