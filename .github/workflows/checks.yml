@@ -36,6 +36,10 @@ jobs:
     name: "Unit Tests"
     runs-on: ubuntu-latest
 
+    env:
+      TF_APPEND_USER_AGENT: TEST
+      OPENTOFU_USER_AGENT: TEST
+
     steps:
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
