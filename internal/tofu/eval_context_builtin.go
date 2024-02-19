@@ -75,7 +75,7 @@ type BuiltinEvalContext struct {
 	PrevRunStateValue     *states.SyncState
 	InstanceExpanderValue *instances.Expander
 	MoveResultsValue      refactoring.MoveResults
-	ResolvedImportsValue  *ResolvedImports
+	ImportResolverValue   *ImportResolver
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -512,6 +512,6 @@ func (ctx *BuiltinEvalContext) MoveResults() refactoring.MoveResults {
 	return ctx.MoveResultsValue
 }
 
-func (ctx *BuiltinEvalContext) ResolvedImports() *ResolvedImports {
-	return ctx.ResolvedImportsValue
+func (ctx *BuiltinEvalContext) ImportResolver() *ImportResolver {
+	return ctx.ImportResolverValue
 }

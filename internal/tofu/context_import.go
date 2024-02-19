@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"log"
+	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 
@@ -95,20 +96,67 @@ func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evalua
 
 // ResolvedConfigImportsKey is a key for a map of ImportTargets originating from the configuration
 // It is used as a one-to-one representation of an EvaluatedConfigImportTarget.
-// Used in ResolvedImports to maintain a map of all resolved imports when walking the graph
+// Used in ImportResolver to maintain a map of all resolved imports when walking the graph
 type ResolvedConfigImportsKey struct {
 	// An address string is one-to-one with addrs.AbsResourceInstance
 	AddrStr string
 	ID      string
 }
 
-// ResolvedImports is a struct that maintains a map of all imports as they are being resolved.
+// ImportResolver is a struct that maintains a map of all imports as they are being resolved.
 // This is specifically for imports originating from configuration.
 // Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
 // the graph. This struct helps keep track of the resolved imports, mostly for validation that all imports
 // have been addressed and point to an actual configuration
-type ResolvedImports struct {
-	imports map[ResolvedConfigImportsKey]bool
+type ImportResolver struct {
+	mu      sync.RWMutex
+	imports map[ResolvedConfigImportsKey]EvaluatedConfigImportTarget
+}
+
+func NewImportResolver() *ImportResolver {
+	return &ImportResolver{imports: make(map[ResolvedConfigImportsKey]EvaluatedConfigImportTarget)}
+}
+
+// ResolveImport resolves the ID and address (soon, when it will be necessary) of an ImportTarget originating
+// from an import block, when we have the context necessary to resolve them. The resolved import target would be an
+// EvaluatedConfigImportTarget.
+// This function mutates the EvalContext's ImportResolver, adding the resolved import target
+// The function errors if we failed to evaluate the ID or the address (soon)
+func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalContext) error {
+	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
+	if evalDiags.HasErrors() {
+		return evalDiags.Err()
+	}
+
+	// TODO - Change once an import target's address is more dynamic
+	importAddress := importTarget.Config.To
+
+	ri.mu.Lock()
+	defer ri.mu.Unlock()
+
+	resolvedImportKey := ResolvedConfigImportsKey{
+		AddrStr: importAddress.String(),
+		ID:      importId,
+	}
+
+	ri.imports[resolvedImportKey] = EvaluatedConfigImportTarget{
+		Config: importTarget.Config,
+		ID:     importId,
+	}
+
+	return nil
+}
+
+// GetAllImports returns all resolved imports
+func (ri *ImportResolver) GetAllImports() []EvaluatedConfigImportTarget {
+	ri.mu.RLock()
+	defer ri.mu.RUnlock()
+
+	var allImports []EvaluatedConfigImportTarget
+	for _, importTarget := range ri.imports {
+		allImports = append(allImports, importTarget)
+	}
+	return allImports
 }
 
 // Import takes already-created external resources and brings them
