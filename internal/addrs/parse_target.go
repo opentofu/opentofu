@@ -123,6 +123,15 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 	}
 }
 
+// parseResourceUnderModule is a helper function that parses a traversal, which
+// is an address (or a part of an address) that describes a resource (e.g.
+// ["null_resource," "boop"] or ["data", "null_data_source," "bip"]), under a
+// module. It returns the ConfigResource that represents the resource address.
+// It does not support addresses of resources with instance keys, and will
+// return an error if it encounters one (unlike
+// parseResourceInstanceUnderModule).
+// This function does not expect to encounter a module prefix in the traversal,
+// as it should be processed by parseModulePrefix first.
 func parseResourceUnderModule(moduleAddr Module, remain hcl.Traversal) (ConfigResource, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -160,6 +169,11 @@ func parseResourceUnderModule(moduleAddr Module, remain hcl.Traversal) (ConfigRe
 	}
 }
 
+// parseResourceTypeAndName is a helper function that parses a traversal, which
+// is an address (or a part of an address) that describes a resource (e.g.
+// ["null_resource," "boop"]) and returns its type and name.
+// It is used in parseResourceUnderModule and parseResourceInstanceUnderModule,
+// and does not expect to encounter a module prefix in the traversal.
 func parseResourceTypeAndName(remain hcl.Traversal, mode ResourceMode) (typeName, name string, diags tfdiags.Diagnostics) {
 	if len(remain) < 2 {
 		diags = diags.Append(&hcl.Diagnostic{
