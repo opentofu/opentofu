@@ -227,7 +227,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 					NodeAbstractResourceInstance: abstract,
 					DeposedKey:                   dk,
 				}
-				log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for for removal from the state by %s", addr, dk, dag.VertexName(node))
+				log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for removal from the state by %s", addr, dk, dag.VertexName(node))
 			}
 
 			g.Add(node)
