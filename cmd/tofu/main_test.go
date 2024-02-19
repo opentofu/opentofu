@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/mitchellh/cli"
@@ -324,6 +325,11 @@ func TestMkConfigDir_new(t *testing.T) {
 
 	mode := int(info.Mode().Perm())
 	expectedMode := 0755
+	// Unix permissions bits are not applicable on Windows. Perm() returns
+	// 0777 regardless of whether readonly or hidden flags are set.
+	if runtime.GOOS == "windows" {
+		expectedMode = 0777
+	}
 	if mode != expectedMode {
 		t.Fatalf("Expected mode: %04o, but got: %04o", expectedMode, mode)
 	}
@@ -355,6 +361,9 @@ func TestMkConfigDir_noparent(t *testing.T) {
 	// We wouldn't dare creating the home dir. If the parent of our config dir
 	// is missing, it's likely an issue with the system.
 	expectedError := fmt.Sprintf("mkdir %s: no such file or directory", tmpConfigDir)
+	if runtime.GOOS == "windows" {
+		expectedError = fmt.Sprintf("mkdir %s: The system cannot find the path specified.", tmpConfigDir)
+	}
 	if err.Error() != expectedError {
 		t.Fatalf("Expected error: %s, but got: %v", expectedError, err)
 	}
