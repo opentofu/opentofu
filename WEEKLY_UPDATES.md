@@ -1,6 +1,26 @@
 # Weekly Updates
 
-## 2023-02-07
+## 2024-02-15
+
+Hey there! Last week was quiet due to most of the core team is off on winter holidays, but this week we're all back!
+
+- Current Status and Up Next
+  - We've finalized most of our discussions about the initial state encryption design. [The PR will be merged soon](https://github.com/opentofu/opentofu/pull/1227).
+  - The removed block project still [has a PR up](https://github.com/opentofu/opentofu/pull/1158), and is pending reviews. We're expecting to merge it soon.
+  - Work on adding for_each to import blocks is being continued, no PR up right now, though the refactor mentioned last week has been merged.
+  - We're refactoring our release workflow, so it properly handles future pre-release versions, with a stable release now in place. [A PR is open for this](https://github.com/opentofu/opentofu/pull/1235) and still being worked on.
+  - We're working on a bug fix to passing outputs of one test case to another as variables. [See the PR here](https://github.com/opentofu/opentofu/pull/1254).
+  - We're having a (positively!) surprisingly large amount of external contributors, so we're spending a nontrivial amount of time reviewing and helping contributors get their changes in. Thanks everybody!
+  - We've updated our [contribution guide](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md) to better guide contributors and also clarify how we make decisions on feature requests.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
+## 2024-02-07
 
 The last two weeks we've been focusing on working towards the 1.7.0 release, and on going through our issue backlog.
 
