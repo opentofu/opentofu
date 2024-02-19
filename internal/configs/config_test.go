@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -323,7 +324,7 @@ func TestConfigProviderRequirementsByModule(t *testing.T) {
 			"kinder": {
 				Name:       "kinder",
 				SourceAddr: addrs.ModuleSourceLocal("./child"),
-				SourceDir:  "testdata/provider-reqs/child",
+				SourceDir:  filepath.FromSlash("testdata/provider-reqs/child"),
 				Requirements: getproviders.Requirements{
 					nullProvider:       getproviders.MustParseVersionConstraints("= 2.0.1"),
 					happycloudProvider: nil,
@@ -332,7 +333,7 @@ func TestConfigProviderRequirementsByModule(t *testing.T) {
 					"nested": {
 						Name:       "nested",
 						SourceAddr: addrs.ModuleSourceLocal("./grandchild"),
-						SourceDir:  "testdata/provider-reqs/child/grandchild",
+						SourceDir:  filepath.FromSlash("testdata/provider-reqs/child/grandchild"),
 						Requirements: getproviders.Requirements{
 							grandchildProvider: nil,
 						},
@@ -393,7 +394,7 @@ func TestConfigProviderRequirementsByModuleInclTests(t *testing.T) {
 					"setup": {
 						Name:       "setup",
 						SourceAddr: addrs.ModuleSourceLocal("./setup"),
-						SourceDir:  "testdata/provider-reqs-with-tests/setup",
+						SourceDir:  filepath.FromSlash("testdata/provider-reqs-with-tests/setup"),
 						Requirements: getproviders.Requirements{
 							nullProvider:   getproviders.MustParseVersionConstraints("~> 2.0.0"),
 							randomProvider: getproviders.MustParseVersionConstraints("~> 1.2.0"),
