@@ -186,12 +186,6 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 	}
 	loadTmpl := func(content string, marks cty.ValueMarks) (hcl.Expression, error) {
 
-		// This condition checks if the provided string to be rendered as a template is marked as sensitive.
-		// If the string is marked as sensitive, it returns an error indicating that sensitive strings cannot be used as template strings.
-		if strings.Contains(marks.GoString(), "Sensitive") {
-			return nil, function.NewArgErrorf(0, "Sensitive strings cannot be used as template strings. Please ensure that any sensitive information is removed from your template before using them")
-		}
-
 		expr, diags := hclsyntax.ParseTemplate([]byte(content), "NoFileNeeded", hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
 			return nil, diags
@@ -203,18 +197,6 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 	renderTmpl := func(expr hcl.Expression, varsVal cty.Value) (cty.Value, error) {
 		if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
 			return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
-		}
-
-		// This loop iterates over each template variable's value and checks if any sensitive values are present.
-		// If a sensitive value is found, it returns an error indicating that sensitive template variables cannot be used.
-		for _, vars := range varsVal.AsValueMap() {
-			_, varsMark := vars.Unmark()
-
-			// Check if the variable is marked as sensitive.
-			// If it is marked as sensitive, return an error.
-			if strings.Contains(varsMark.GoString(), "Sensitive") {
-				return cty.DynamicVal, function.NewArgErrorf(1, "Sensitive template variables cannot be used in the template. Please ensure that any sensitive information is removed from your template variables before using them")
-			}
 		}
 
 		ctx := &hcl.EvalContext{
@@ -269,9 +251,8 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			// We'll render our template now to see what result type it produces.
 			// A template consisting only of a single interpolation an potentially
 			// return any type.
-
-			pathArg, pathMarks := args[0].Unmark()
-			expr, err := loadTmpl(pathArg.AsString(), pathMarks)
+			dataArg, dataMarks := args[0].Unmark()
+			expr, err := loadTmpl(dataArg.AsString(), dataMarks)
 			if err != nil {
 				return cty.DynamicPseudoType, err
 			}
@@ -282,13 +263,13 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			return val.Type(), err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-			pathArg, pathMarks := args[0].Unmark()
-			expr, err := loadTmpl(pathArg.AsString(), pathMarks)
+			dataArg, dataMarks := args[0].Unmark()
+			expr, err := loadTmpl(dataArg.AsString(), dataMarks)
 			if err != nil {
 				return cty.DynamicVal, err
 			}
 			result, err := renderTmpl(expr, args[1])
-			return result.WithMarks(pathMarks), err
+			return result.WithMarks(dataMarks), err
 		},
 	})
 }
