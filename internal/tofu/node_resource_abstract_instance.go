@@ -349,8 +349,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 }
 
 // planForget returns a removed from state diff.
-func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) (*plans.ResourceInstanceChange, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
+func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) *plans.ResourceInstanceChange {
 	var plan *plans.ResourceInstanceChange
 
 	unmarkedPriorVal, _ := currentState.Value.UnmarkDeep()
@@ -371,7 +370,7 @@ func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState 
 		ProviderAddr: n.ResolvedProvider,
 	}
 
-	return plan, diags
+	return plan
 }
 
 // planDestroy returns a plain destroy diff.

@@ -149,7 +149,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 		}
 
 		if shouldForget {
-			change, planDiags = n.planForget(ctx, state, n.DeposedKey)
+			change = n.planForget(ctx, state, n.DeposedKey)
 		} else {
 			change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
 		}

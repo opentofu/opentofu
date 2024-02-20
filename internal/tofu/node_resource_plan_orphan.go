@@ -152,7 +152,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 	}
 
 	if shouldForget {
-		change, planDiags = n.planForget(ctx, oldState, "")
+		change = n.planForget(ctx, oldState, "")
 	} else {
 		change, planDiags = n.planDestroy(ctx, oldState, "")
 	}
