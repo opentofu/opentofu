@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -160,7 +161,7 @@ func (r *Reader) ReadStateFile() (*statefile.File, error) {
 			if err != nil {
 				return nil, errUnusable(fmt.Errorf("failed to extract state from plan file: %w", err))
 			}
-			return statefile.Read(r)
+			return statefile.Read(r, encryption.StateEncryptionDisabled())
 		}
 	}
 	return nil, errUnusable(statefile.ErrNoState)
@@ -178,7 +179,7 @@ func (r *Reader) ReadPrevStateFile() (*statefile.File, error) {
 			if err != nil {
 				return nil, errUnusable(fmt.Errorf("failed to extract previous state from plan file: %w", err))
 			}
-			return statefile.Read(r)
+			return statefile.Read(r, encryption.StateEncryptionDisabled())
 		}
 	}
 	return nil, errUnusable(statefile.ErrNoState)

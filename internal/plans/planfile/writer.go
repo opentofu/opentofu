@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 )
@@ -89,7 +90,7 @@ func Create(filename string, args CreateArgs) error {
 		if err != nil {
 			return fmt.Errorf("failed to create embedded tfstate file: %w", err)
 		}
-		err = statefile.Write(args.StateFile, w)
+		err = statefile.Write(args.StateFile, w, encryption.StateEncryptionDisabled())
 		if err != nil {
 			return fmt.Errorf("failed to write state snapshot: %w", err)
 		}
@@ -105,7 +106,7 @@ func Create(filename string, args CreateArgs) error {
 		if err != nil {
 			return fmt.Errorf("failed to create embedded tfstate-prev file: %w", err)
 		}
-		err = statefile.Write(args.PreviousRunStateFile, w)
+		err = statefile.Write(args.PreviousRunStateFile, w, encryption.StateEncryptionDisabled())
 		if err != nil {
 			return fmt.Errorf("failed to write previous state snapshot: %w", err)
 		}

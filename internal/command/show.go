@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -338,7 +339,7 @@ func getStateFromPath(path string) (*statefile.File, error) {
 	defer file.Close()
 
 	var stateFile *statefile.File
-	stateFile, err = statefile.Read(file)
+	stateFile, err = statefile.Read(file, encryption.StateEncryptionDisabled()) // TODO Should we use encryption > statefile config here?
 	if err != nil {
 		return nil, fmt.Errorf("Error reading %s as a statefile: %w", path, err)
 	}

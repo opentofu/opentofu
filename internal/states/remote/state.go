@@ -14,6 +14,7 @@ import (
 	uuid "github.com/hashicorp/go-uuid"
 
 	"github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -48,6 +49,8 @@ type State struct {
 	// progress. Otherwise (by default) it will accept persistent snapshots
 	// using the default rules defined in the local backend.
 	DisableIntermediateSnapshots bool
+
+	Encryption encryption.StateEncryption
 }
 
 var _ statemgr.Full = (*State)(nil)
@@ -150,7 +153,7 @@ func (s *State) refreshState() error {
 		return nil
 	}
 
-	stateFile, err := statefile.Read(bytes.NewReader(payload.Data))
+	stateFile, err := statefile.Read(bytes.NewReader(payload.Data), s.Encryption)
 	if err != nil {
 		return err
 	}
@@ -207,7 +210,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 	f := statefile.New(s.state, s.lineage, s.serial)
 
 	var buf bytes.Buffer
-	err := statefile.Write(f, &buf)
+	err := statefile.Write(f, &buf, s.Encryption)
 	if err != nil {
 		return err
 	}

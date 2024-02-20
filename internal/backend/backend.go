@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
@@ -54,7 +55,7 @@ var (
 )
 
 // InitFn is used to initialize a new backend.
-type InitFn func() Backend
+type InitFn func(encryption.StateEncryption) Backend
 
 // Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {

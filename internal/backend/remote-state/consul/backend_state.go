@@ -83,6 +83,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 			GZip:      gzip,
 			lockState: b.lock,
 		},
+		Encryption: b.encryption,
 	}
 
 	if !b.lock {

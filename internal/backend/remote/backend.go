@@ -25,6 +25,7 @@ import (
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -95,6 +96,8 @@ type Remote struct {
 	// version. This will also cause VerifyWorkspaceTerraformVersion to return
 	// a warning diagnostic instead of an error.
 	ignoreVersionConflict bool
+
+	encryption encryption.StateEncryption
 }
 
 var _ backend.Backend = (*Remote)(nil)
@@ -102,9 +105,10 @@ var _ backend.Enhanced = (*Remote)(nil)
 var _ backend.Local = (*Remote)(nil)
 
 // New creates a new initialized remote backend.
-func New(services *disco.Disco) *Remote {
+func New(services *disco.Disco, enc encryption.StateEncryption) *Remote {
 	return &Remote{
-		services: services,
+		services:   services,
+		encryption: enc,
 	}
 }
 
@@ -715,6 +719,8 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		// in contexts where there's a "TFE Run ID" and so are not affected
 		// by this special case.
 		DisableIntermediateSnapshots: client.runID != "",
+
+		Encryption: b.encryption,
 	}, nil
 }
 

@@ -31,6 +31,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -426,7 +427,7 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 			fakeState := states.NewState()
 			fakeStateFile := statefile.New(fakeState, "boop", 1)
 			var buf bytes.Buffer
-			statefile.Write(fakeStateFile, &buf)
+			statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())
 			respBody := buf.Bytes()
 			w.Header().Set("content-type", "application/json")
 			w.Header().Set("content-length", strconv.FormatInt(int64(len(respBody)), 10))

@@ -62,6 +62,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 			Name:       name,
 			SchemaName: b.schemaName,
 		},
+		Encryption: b.encryption,
 	}
 
 	// Check to see if this state already exists.
