@@ -27,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
@@ -1262,7 +1263,7 @@ func TestInit_inputFalse(t *testing.T) {
 			false, // not sensitive
 		)
 	})
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("foo"), fooState, nil); err != nil {
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("foo", encryption.StateEncryptionDisabled()), fooState, nil); err != nil {
 		t.Fatal(err)
 	}
 	barState := states.BuildState(func(s *states.SyncState) {
@@ -1272,7 +1273,7 @@ func TestInit_inputFalse(t *testing.T) {
 			false, // not sensitive
 		)
 	})
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("bar"), barState, nil); err != nil {
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("bar", encryption.StateEncryptionDisabled()), barState, nil); err != nil {
 		t.Fatal(err)
 	}
 

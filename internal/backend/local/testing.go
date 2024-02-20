@@ -116,7 +116,7 @@ type TestLocalSingleState struct {
 
 // TestNewLocalSingle is a factory for creating a TestLocalSingleState.
 // This function matches the signature required for backend/init.
-func TestNewLocalSingle() backend.Backend {
+func TestNewLocalSingle(enc encryption.StateEncryption) backend.Backend {
 	return &TestLocalSingleState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
@@ -146,7 +146,7 @@ type TestLocalNoDefaultState struct {
 
 // TestNewLocalNoDefault is a factory for creating a TestLocalNoDefaultState.
 // This function matches the signature required for backend/init.
-func TestNewLocalNoDefault() backend.Backend {
+func TestNewLocalNoDefault(enc encryption.StateEncryption) backend.Backend {
 	return &TestLocalNoDefaultState{Local: New(encryption.StateEncryptionDisabled())}
 }
 

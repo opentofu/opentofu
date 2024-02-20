@@ -182,7 +182,7 @@ func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics
 	}
 
 	// Build the local backend
-	local := backendLocal.NewWithBackend(b)
+	local := backendLocal.NewWithBackend(b, encryption.StateEncryptionDisabled())
 	if err := local.CLIInit(cliOpts); err != nil {
 		// Local backend isn't allowed to fail. It would be a bug.
 		panic(err)
@@ -372,7 +372,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 		return nil, diags
 	}
 	cliOpts.Validation = false // don't validate here in case config contains file(...) calls where the file doesn't exist
-	local := backendLocal.NewWithBackend(b)
+	local := backendLocal.NewWithBackend(b, encryption.StateEncryptionDisabled())
 	if err := local.CLIInit(cliOpts); err != nil {
 		// Local backend should never fail, so this is always a bug.
 		panic(err)

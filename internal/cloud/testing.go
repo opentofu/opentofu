@@ -370,7 +370,7 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 func testLocalBackend(t *testing.T, cloud *Cloud) backend.Enhanced {
 	skipIfTFENotEnabled(t)
 
-	b := backendLocal.NewWithBackend(cloud)
+	b := backendLocal.NewWithBackend(cloud, nil)
 
 	// Add a test provider to the local backend.
 	p := backendLocal.TestLocalProvider(t, b, "null", providers.ProviderSchema{

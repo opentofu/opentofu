@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -135,7 +136,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error creating state file %s: %s", b.StatePath, err)
 	}
-	if err := statefile.Write(statefile.New(states.NewState(), "boop", 3), sf); err != nil {
+	if err := statefile.Write(statefile.New(states.NewState(), "boop", 3), sf, encryption.StateEncryptionDisabled()); err != nil {
 		t.Fatalf("unexpected error writing state file: %s", err)
 	}
 

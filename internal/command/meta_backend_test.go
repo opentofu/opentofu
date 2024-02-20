@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/copy"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -281,7 +282,7 @@ func TestMetaBackend_configureNew(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -355,7 +356,7 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -404,7 +405,7 @@ func TestMetaBackend_configureNewWithoutCopy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	actual, err := statefile.Read(f)
+	actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -521,7 +522,7 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -592,7 +593,7 @@ func TestMetaBackend_configureNewWithStateExistingNoMigrate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -711,7 +712,7 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -773,7 +774,7 @@ func TestMetaBackend_reconfigureChange(t *testing.T) {
 	}
 
 	// verify that the old state is still there
-	s = statemgr.NewFilesystem("local-state.tfstate")
+	s = statemgr.NewFilesystem("local-state.tfstate", encryption.StateEncryptionDisabled())
 	if err := s.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
@@ -1601,7 +1602,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -1643,7 +1644,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	statePath := "foo.tfstate"
 
 	// put an initial state there that needs to be backed up
-	err = statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath), original, nil)
+	err = statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled()), original, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1702,7 +1703,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
@@ -1789,7 +1790,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		actual, err := statefile.Read(f)
+		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)

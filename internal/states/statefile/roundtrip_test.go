@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 func TestRoundtrip(t *testing.T) {
@@ -53,13 +54,13 @@ func TestRoundtrip(t *testing.T) {
 			}
 			defer ir.Close()
 
-			f, err := Read(ir)
+			f, err := Read(ir, encryption.StateEncryptionDisabled())
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
 			var buf bytes.Buffer
-			err = Write(f, &buf)
+			err = Write(f, &buf, encryption.StateEncryptionDisabled())
 			if err != nil {
 				t.Fatal(err)
 			}
