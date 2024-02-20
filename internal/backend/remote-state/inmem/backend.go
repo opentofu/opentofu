@@ -126,12 +126,12 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 
 	s := states.m[name]
 	if s == nil {
-		s = &remote.State{
-			Client: &RemoteClient{
+		s = remote.NewState(
+			&RemoteClient{
 				Name: name,
 			},
-			Encryption: b.encryption,
-		}
+			b.encryption,
+		)
 		states.m[name] = s
 
 		// to most closely replicate other implementations, we are going to

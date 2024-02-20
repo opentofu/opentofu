@@ -252,7 +252,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
 
-	return &remote.State{Client: b.client, Encryption: b.encryption}, nil
+	return remote.NewState(b.client, b.encryption), nil
 }
 
 func (b *Backend) Workspaces() ([]string, error) {
