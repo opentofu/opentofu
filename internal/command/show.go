@@ -339,7 +339,7 @@ func getStateFromPath(path string) (*statefile.File, error) {
 	defer file.Close()
 
 	var stateFile *statefile.File
-	stateFile, err = statefile.Read(file, encryption.StateEncryptionDisabled()) // TODO Should we use encryption > statefile config here?
+	stateFile, err = statefile.Read(file, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
 	if err != nil {
 		return nil, fmt.Errorf("Error reading %s as a statefile: %w", path, err)
 	}

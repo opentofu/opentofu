@@ -65,7 +65,7 @@ func (c *StatePullCommand) Run(args []string) int {
 
 	if stateFile != nil { // we produce no output if the statefile is nil
 		var buf bytes.Buffer
-		err = statefile.Write(stateFile, &buf, encryption.StateEncryptionDisabled())
+		err = statefile.Write(stateFile, &buf, encryption.StateEncryptionTODO())
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to write state: %s", err))
 			return 1

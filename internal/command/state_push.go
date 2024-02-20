@@ -69,7 +69,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Read the state
-	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionDisabled()) // TODO Should we use encryption > statefile config here?
+	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
 	if c, ok := r.(io.Closer); ok {
 		// Close the reader if possible right now since we're done with it.
 		c.Close()

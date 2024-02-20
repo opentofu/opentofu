@@ -103,3 +103,8 @@ func (s *stateDisabled) EncryptState(plainState []byte) ([]byte, hcl.Diagnostics
 func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
 	return encryptedState, nil
 }
+
+// TODO REMOVEME once state encryption is fully integrated into the codebase
+func StateEncryptionTODO() StateEncryption {
+	return &stateDisabled{}
+}

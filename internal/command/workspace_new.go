@@ -151,7 +151,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
-	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled()) // TODO Should we use encryption > statefile config here?
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

@@ -212,7 +212,7 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 		))
 		return nil, cty.NilVal, diags
 	}
-	b := f(encryption.StateEncryptionDisabled()) // TODO use the configured value!
+	b := f(encryption.StateEncryptionTODO())
 
 	config := cfg.GetAttr("config")
 	if config.IsNull() {

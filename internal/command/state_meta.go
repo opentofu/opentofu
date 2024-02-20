@@ -35,7 +35,7 @@ func (c *StateMeta) State() (statemgr.Full, error) {
 
 	// use the specified state
 	if c.statePath != "" {
-		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionDisabled())
+		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionTODO())
 	} else {
 		// Load the backend
 		b, backendDiags := c.Backend(nil)

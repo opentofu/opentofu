@@ -96,6 +96,7 @@ func (r *remoteClient) Put(state []byte) error {
 	ctx := context.Background()
 
 	// Read the raw state into a OpenTofu state.
+	// State Encryption is not supported for the remote backend
 	stateFile, err := statefile.Read(bytes.NewReader(state), encryption.StateEncryptionDisabled())
 	if err != nil {
 		return fmt.Errorf("error reading state: %w", err)
