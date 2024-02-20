@@ -18,6 +18,7 @@ ENHANCEMENTS:
 * Added "cidrcontains" function. ([$366](https://github.com/opentofu/opentofu/issues/366))
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
+* Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
@@ -28,7 +29,7 @@ BUG FIXES:
 * Fix Global Schema Cache not working in provider acceptance tests ([#1054](https://github.com/opentofu/opentofu/pull/1054))
 * Fix `tofu show` and `tofu state show` not working with state files referencing Terraform registry providers in some instances ([#1141](https://github.com/opentofu/opentofu/pull/1141))
 * Improved stability on 32-bit architectures ([#1154](https://github.com/opentofu/opentofu/pull/1154))
-* Added aliases for `state list`, `state mv`, and `state rm` ([#1220](https://github.com/opentofu/opentofu/pull/1220))
+* Added aliases for `state list` (`state ls`), `state mv` (`state move`), and `state rm` (`state remove`) ([#1220](https://github.com/opentofu/opentofu/pull/1220))
 
 ## Previous Releases
 

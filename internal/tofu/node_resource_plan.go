@@ -303,29 +303,17 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	var diags tfdiags.Diagnostics
 
 	var commandLineImportTargets []CommandLineImportTarget
-	var evaluatedConfigImportTargets []EvaluatedConfigImportTarget
+	importResolver := ctx.ImportResolver()
 	// FIXME - Deal with cases of duplicate addresses
 
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportCommandLine() {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
 		} else {
-			importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
-			if evalDiags.HasErrors() {
-				return nil, evalDiags.Err()
+			err := importResolver.ResolveImport(importTarget, ctx)
+			if err != nil {
+				return nil, err
 			}
-
-			evaluatedConfigImportTargets = append(evaluatedConfigImportTargets, EvaluatedConfigImportTarget{
-				Config: importTarget.Config,
-				ID:     importId,
-			})
-
-			resolvedImports := ctx.ResolvedImports().imports
-			resolvedImports[ResolvedConfigImportsKey{
-				AddrStr: importTarget.Config.To.String(),
-				ID:      importId,
-			}] = true
-
 		}
 	}
 
@@ -373,7 +361,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		for _, evaluatedConfigImportTarget := range evaluatedConfigImportTargets {
+		for _, evaluatedConfigImportTarget := range ctx.ImportResolver().GetAllImports() {
 			// TODO - Change this code once Config.To is not a static address, to actually evaluate it
 			if evaluatedConfigImportTarget.Config.To.Equal(a.Addr) {
 				// If we get here, we're definitely not in legacy import mode,
