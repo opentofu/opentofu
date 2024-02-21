@@ -7,9 +7,9 @@ package aesgcm
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/golang"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/opentofu/opentofu/internal/golang"
 )
 
 // The following settings follow the NIST SP 800-38D recommendation.
@@ -43,25 +43,25 @@ var validTagSizes = golang.Set[int]{
 type Config struct {
 	// Key is the encryption key for the AES-GCM encryption. It has to be 16, 24, or 32 bytes long for AES-128, 192, or
 	// 256, respectively.
-	Key []byte `hcl:"cipher"`
+	Key []byte `hcl:"key"`
 
 	// AAD is the Additional Authenticated Data that is authenticated, but not encrypted. In the Go implementation, this
 	// data serves as a canary value against replay attacks. The AAD value on decryption must match this setting,
 	// otherwise the decryption will fail. (Note: this is Go-specific and differs from the NIST SP 800-38D description
 	// of the AAD.)
-	AAD []byte `hcl:"aad"`
+	AAD []byte `hcl:"aad,optional"`
 
 	// NonceSize describes the length of the nonce. The default (and minimum) value is 12 bytes as per the NIST
 	// SP 800-38D recommendation. Do not change this value unless you know what you are doing. This setting is included
 	// to give future users the ability to upgrade/downgrade in case new research into AES-GCM emerges and rollovers
 	// need to be handled.
-	NonceSize int `hcl:"nonce_size"`
+	NonceSize int `hcl:"nonce_size,optional"`
 
 	// TagSize describes the length of the message authentication tag. The default and maximum value is 16 bytes, the
 	// minimum is 12 bytes as per the NIST SP 800-38D recommendation. Do not change, and especially do not lower this,
 	// unless you know what you are doing. This setting is included to give future users the ability to
 	// upgrade/downgrade in case new research into AES-GCM emerges and rollovers need to be handled.
-	TagSize int `hcl:"tag_size"`
+	TagSize int `hcl:"tag_size,optional"`
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
