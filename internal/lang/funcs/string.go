@@ -249,7 +249,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			}
 
 			// We'll render our template now to see what result type it produces.
-			// A template consisting only of a single interpolation an potentially
+			// A template consisting only of a single interpolation can potentially
 			// return any type.
 			dataArg, dataMarks := args[0].Unmark()
 			expr, err := loadTmpl(dataArg.AsString(), dataMarks)
