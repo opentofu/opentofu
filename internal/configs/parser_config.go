@@ -7,6 +7,7 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
 // LoadConfigFile reads the file at the given path and parses it as a config
@@ -109,6 +110,13 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 					diags = append(diags, cfgDiags...)
 					if providerCfg != nil {
 						file.ProviderMetas = append(file.ProviderMetas, providerCfg)
+					}
+
+				case "encryption":
+					encryptionCfg, cfgDiags := config.DecodeConfig(innerBlock.Body, innerBlock.DefRange)
+					diags = append(diags, cfgDiags...)
+					if encryptionCfg != nil {
+						file.Encryptions = append(file.Encryptions, encryptionCfg)
 					}
 
 				default:

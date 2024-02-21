@@ -30,12 +30,12 @@ type Encryption interface {
 
 type encryption struct {
 	// Inputs
-	cfg *config.Config
+	cfg *config.EncryptionConfig
 	reg registry.Registry
 }
 
 // New creates a new Encryption provider from the given configuration and registry.
-func New(reg registry.Registry, cfg *config.Config) Encryption {
+func New(reg registry.Registry, cfg *config.EncryptionConfig) Encryption {
 	return &encryption{
 		cfg: cfg,
 		reg: reg,

@@ -11,9 +11,9 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// Config describes the terraform.encryption HCL block you can use to configure the state and plan encryption.
+// EncryptionConfig describes the terraform.encryption HCL block you can use to configure the state and plan encryption.
 // The individual fields of this struct match the HCL structure directly.
-type Config struct {
+type EncryptionConfig struct {
 	KeyProviderConfigs []KeyProviderConfig `hcl:"key_provider,block"`
 	MethodConfigs      []MethodConfig      `hcl:"method,block"`
 
@@ -21,11 +21,14 @@ type Config struct {
 	StateFile *EnforcableTargetConfig `hcl:"statefile,block"`
 	PlanFile  *EnforcableTargetConfig `hcl:"planfile,block"`
 	Remote    *RemoteConfig           `hcl:"remote_data_source,block"`
+
+	// Not preserved through merge operations
+	DeclRange hcl.Range
 }
 
 // Merge returns a merged configuration with  the current config and the specified override combined, the override
 // taking precedence.
-func (c *Config) Merge(override *Config) *Config {
+func (c *EncryptionConfig) Merge(override *EncryptionConfig) *EncryptionConfig {
 	return MergeConfigs(c, override)
 }
 
