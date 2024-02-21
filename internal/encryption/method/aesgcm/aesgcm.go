@@ -10,10 +10,9 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+	"github.com/opentofu/opentofu/internal/errorhandling"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
-	"github.com/opentofu/opentofu/internal/golang"
-
 	// This unsafe is required for go:linkname
 	_ "unsafe"
 )
@@ -39,7 +38,7 @@ func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
 	//
 	// The GCM implementation in Golang uses panics for invalid inputs. This block makes sure that users get an
 	// intelligible error message and that calling functions can rely on this function being panic-free.
-	return golang.Safe2w(
+	return errorhandling.Safe2(
 		func() ([]byte, error) {
 			gcm, err := a.getGCM()
 			if err != nil {
@@ -71,7 +70,7 @@ func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
 	//
 	// The GCM implementation in Golang uses panics for invalid inputs. This block makes sure that users get an
 	// intelligible error message and that calling functions can rely on this function being panic-free.
-	return golang.Safe2w(
+	return errorhandling.Safe2(
 		func() ([]byte, error) {
 			if len(data) == 0 {
 				return nil, &method.ErrDecryptionFailed{

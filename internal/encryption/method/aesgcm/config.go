@@ -7,9 +7,9 @@ package aesgcm
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/collections"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
-	"github.com/opentofu/opentofu/internal/golang"
 )
 
 // The following settings follow the NIST SP 800-38D recommendation.
@@ -20,14 +20,14 @@ const (
 )
 
 // validKeyLengths holds the valid key lengths supported by this method.
-var validKeyLengths = golang.Set[int]{
+var validKeyLengths = collections.Set[int]{
 	16: {},
 	24: {},
 	32: {},
 }
 
 // validTagSizes contains the valid tag sizes according to NIST SP 800-38D 5.2.1.2
-var validTagSizes = golang.Set[int]{
+var validTagSizes = collections.Set[int]{
 	// These values are not supported by Go, see gcmMinimumTagSize in aes_gcm.go. They should also not be used for
 	// general-purpose applications.
 	// 4:  {},
