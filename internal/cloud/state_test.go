@@ -43,7 +43,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 
 	state := &State{tfeClient: b.client, organization: b.organization, workspace: &tfe.Workspace{
 		ID: "ws-abcd",
-	}}
+	}, encryption: encryption.StateEncryptionDisabled()}
 	outputs, err := state.GetRootOutputValues()
 
 	if err != nil {

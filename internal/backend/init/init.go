@@ -72,7 +72,7 @@ func Init(services *disco.Disco) {
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
-		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services) }, // TODO Should this panic if enc != nil ?
+		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
 	}
 
 	RemovedBackends = map[string]string{

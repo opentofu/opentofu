@@ -243,7 +243,7 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	} else {
 		s = testServer(t)
 	}
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	// Configure the backend so the client is created.
 	newObj, valDiags := b.PrepareConfig(obj)
@@ -320,7 +320,7 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 	skipIfTFENotEnabled(t)
 
 	s := testServer(t)
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	// Normally, the client is created during configuration, but the configuration uses the
 	// client to read entitlements.
