@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
 // PlanEncryption describes the methods that you can use for encrypting a plan file. Plan files are opaque values with
@@ -27,7 +28,7 @@ type PlanEncryption interface {
 	// Make sure that you pass a valid plan file as an input. Failing to provide a valid plan file may result in an
 	// error. However, output values may not be valid plan files and you should not pass the encrypted plan file to any
 	// additional functions that normally work with plan files.
-	EncryptPlan([]byte) ([]byte, hcl.Diagnostics)
+	EncryptPlan([]byte) ([]byte, error)
 
 	// DecryptPlan decrypts an encrypted plan file.
 	//
@@ -41,18 +42,23 @@ type PlanEncryption interface {
 	//
 	// Pass a potentially encrypted plan file as an input, and you will receive the decrypted plan file or an error as
 	// a result.
-	DecryptPlan([]byte) ([]byte, hcl.Diagnostics)
+	DecryptPlan([]byte) ([]byte, error)
 }
 
 type planEncryption struct {
 	base *baseEncryption
 }
 
-func (p planEncryption) EncryptPlan(data []byte) ([]byte, hcl.Diagnostics) {
+func newPlanEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (PlanEncryption, hcl.Diagnostics) {
+	base, diags := newBaseEncryption(enc, target, enforced, name)
+	return &planEncryption{base}, diags
+}
+
+func (p planEncryption) EncryptPlan(data []byte) ([]byte, error) {
 	return p.base.encrypt(data)
 }
 
-func (p planEncryption) DecryptPlan(data []byte) ([]byte, hcl.Diagnostics) {
+func (p planEncryption) DecryptPlan(data []byte) ([]byte, error) {
 	return p.base.decrypt(data, func(data []byte) error {
 		// Check magic bytes
 		if len(data) < 4 || string(data[:4]) != "PK" {

@@ -27,13 +27,17 @@ type baseEncryption struct {
 	name     string
 }
 
-func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) *baseEncryption {
-	return &baseEncryption{
+func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (*baseEncryption, hcl.Diagnostics) {
+	base := &baseEncryption{
 		enc:      enc,
 		target:   target,
 		enforced: enforced,
 		name:     name,
 	}
+	// This performs a e2e validation run of the config -> methods flow.  It serves as a validation step and allows us to
+	// return detailed diagnostics here and simple errors below
+	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+	return base, diags
 }
 
 type basedata struct {
@@ -42,7 +46,8 @@ type basedata struct {
 	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
-func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
+func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
+	// No configuration provided, don't do anything
 	if s.target == nil {
 		return data, nil
 	}
@@ -55,6 +60,8 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	// Mutates es.Meta
 	methods, diags := s.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
+		// This cast to error here is safe as we know that at least one error exists
+		// This is also quite unlikely to happen as the constructor already has checked this code path
 		return nil, diags
 	}
 
@@ -66,40 +73,27 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	if encryptor == nil {
 		// ensure that the method is defined when Enforced is true
 		if s.enforced {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Encryption method required",
-				Detail:   fmt.Sprintf("%q is enforced, and therefore requires a method to be provided", s.name),
-			})
-			return nil, diags
+			return nil, fmt.Errorf("encryption of %q is enforced, and therefore requires a method to be provided", s.name)
 		}
 		return data, nil
 	}
 
 	encd, err := encryptor.Encrypt(data)
 	if err != nil {
-		return nil, append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Encryption failed for " + s.name,
-			Detail:   err.Error(),
-		})
+		return nil, fmt.Errorf("encryption failed for %s: %w", s.name, err)
 	}
 
 	es.Data = encd
 	jsond, err := json.Marshal(es)
 	if err != nil {
-		return nil, append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unable to encode encrypted data as json",
-			Detail:   err.Error(),
-		})
+		return nil, fmt.Errorf("unable to encode encrypted data as json: %w", err)
 	}
 
-	return jsond, diags
+	return jsond, nil
 }
 
 // TODO Find a way to make these errors actionable / clear
-func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, hcl.Diagnostics) {
+func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
 	if s.target == nil {
 		return data, nil
 	}
@@ -107,90 +101,68 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 	es := basedata{}
 	err := json.Unmarshal(data, &es)
 	if err != nil {
-		return nil, hcl.Diagnostics{&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid data format for decryption",
-			Detail:   err.Error(),
-		}}
+		return nil, fmt.Errorf("invalid data format for decryption: %w", err)
 	}
 
 	if len(es.Version) == 0 {
 		// Not a valid payload, might be already decrypted
 		err = validator(data)
-		if err == nil {
-			// Yep, it's already decrypted
-			return data, nil
-		} else {
+		if err != nil {
 			// Nope, just bad input
-			return nil, hcl.Diagnostics{&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unable to determine data structure during decryption",
-			}}
+			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", err)
 		}
+		// Yep, it's already decrypted
+		return data, nil
 	}
 
 	if es.Version != encryptionVersion {
-		return nil, hcl.Diagnostics{&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid encrypted payload version",
-			Detail:   fmt.Sprintf("%s != %s", es.Version, encryptionVersion),
-		}}
+		return nil, fmt.Errorf("invalid encrypted payload version: %s != %s", es.Version, encryptionVersion)
 	}
 
 	methods, diags := s.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
+		// This cast to error here is safe as we know that at least one error exists
+		// This is also quite unlikely to happen as the constructor already has checked this code path
 		return nil, diags
 	}
 
 	if len(methods) == 0 {
 		err = validator(data)
-		if err == nil {
-			// No methods/fallbacks specified and data is valid payload
-			return data, diags
-		} else {
+		if err != nil {
 			// TODO improve this error message
-			return nil, append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  err.Error(),
-			})
+			return nil, err
 		}
+		// No methods/fallbacks specified and data is valid payload
+		return data, nil
 	}
 
-	var methodDiags hcl.Diagnostics
+	errs := make([]error, 0)
 	for _, method := range methods {
 		if method == nil {
 			// No method specified for this target
 			err = validator(data)
 			if err == nil {
-				return data, diags
+				return data, nil
 			}
-			// toDO improve this error message
-			methodDiags = append(methodDiags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Attempted decryption failed for " + s.name,
-				Detail:   err.Error(),
-			})
+			// TODO improve this error message
+			errs = append(errs, fmt.Errorf("payload is not already decrypted: %w", err))
 			continue
 		}
 		uncd, err := method.Decrypt(es.Data)
 		if err == nil {
 			// Success
-			return uncd, diags
+			return uncd, nil
 		}
 		// Record the failure
-		methodDiags = append(methodDiags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Attempted decryption failed for " + s.name,
-			Detail:   err.Error(),
-		})
+		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", s.name, err))
 	}
 
-	// Record the overall failure
-	diags = append(diags, &hcl.Diagnostic{
-		Severity: hcl.DiagError,
-		Summary:  "Decryption failed",
-		Detail:   "All methods of decryption provided failed for " + s.name,
-	})
-
-	return nil, append(diags, methodDiags...)
+	// This is good enough for now until we have better/distinct errors
+	errMessage := "decryption failed for all provided methods: "
+	sep := ""
+	for _, err := range errs {
+		errMessage += err.Error() + sep
+		sep = "\n"
+	}
+	return nil, fmt.Errorf(errMessage)
 }

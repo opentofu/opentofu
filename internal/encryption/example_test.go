@@ -64,11 +64,16 @@ func Example() {
 	// Construct the encryption object
 	enc := encryption.New(reg, cfg)
 
+	sfe, diags := enc.StateFile()
+	handleDiags(diags)
+
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.
 	sourceData := []byte("test")
-	encrypted, diags := enc.StateFile().EncryptState(sourceData)
-	handleDiags(diags)
+	encrypted, err := sfe.EncryptState(sourceData)
+	if err != nil {
+		panic(err)
+	}
 
 	if string(encrypted) == "test" {
 		panic("The data has not been encrypted!")
@@ -77,7 +82,7 @@ func Example() {
 	println(string(encrypted))
 
 	// Decrypt
-	decryptedState, err := enc.StateFile().DecryptState(encrypted)
+	decryptedState, err := sfe.DecryptState(encrypted)
 	if err != nil {
 		panic(err)
 	}
