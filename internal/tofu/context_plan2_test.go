@@ -4905,33 +4905,6 @@ resource "test_object" "a" {
 	}
 }
 
-func TestContext2Plan_importIntoNonExistentModule(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-import {
-  to = module.mod.test_object.a
-  id = "456"
-}
-
-`,
-	})
-	p := simpleMockProvider()
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
-	})
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
-		Mode: plans.NormalMode,
-	})
-	if !diags.HasErrors() {
-		t.Fatalf("expected error")
-	}
-	if !strings.Contains(diags.Err().Error(), "Cannot import to non-existent resource address") {
-		t.Fatalf("expected error to be \"Cannot import to non-existent resource address\", but it was %s", diags.Err().Error())
-	}
-}
-
 func TestContext2Plan_importIntoNonExistentConfiguration(t *testing.T) {
 	type TestConfiguration struct {
 		Description         string
@@ -4945,6 +4918,17 @@ func TestContext2Plan_importIntoNonExistentConfiguration(t *testing.T) {
 import {
   to   = test_object.a
   id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description: "Non-existent module",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod.test_object.a
+  id   = "456"
 }
 `,
 			},
@@ -5252,6 +5236,249 @@ import {
 	})
 }
 
+func TestContext2Plan_importResourceConfigGenValidation(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+		expectedError       string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "Resource with index",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = test_object.a[0]
+  id   = "123"
+}
+`,
+			},
+			expectedError: "Configuration generation for count and for_each resources not supported",
+		},
+		{
+			Description: "Resource with dynamic index",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  loc = "something"
+}
+
+import {
+  to   = test_object.a[local.loc]
+  id   = "123"
+}
+`,
+			},
+			expectedError: "Configuration generation for count and for_each resources not supported",
+		},
+		{
+			Description: "Resource in module",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod.test_object.b
+  id   = "456"
+}
+
+module "mod" {
+  source = "./mod"
+}
+
+
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Cannot generate configuration for resource inside sub-module",
+		},
+		{
+			Description: "Resource in non-existent module",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod.test_object.a
+  id   = "456"
+}
+`,
+			},
+			expectedError: "Cannot generate configuration for resource inside sub-module",
+		},
+		{
+			Description: "Wrong module key",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["non-existent"].test_object.a
+  id   = "123"
+}
+
+module "mod" {
+  for_each = {
+    existent = "1"
+  }
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Configuration for import target does not exist",
+		},
+		{
+			Description: "In module with module key",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["existent"].test_object.b
+  id   = "123"
+}
+
+module "mod" {
+  for_each = {
+    existent = "1"
+  }
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Cannot generate configuration for resource inside sub-module",
+		},
+		{
+			Description: "Module key without for_each",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["non-existent"].test_object.a
+  id   = "123"
+}
+
+module "mod" {
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Configuration for import target does not exist",
+		},
+		{
+			Description: "Non-existent resource key - in module",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod.test_object.a["non-existent"]
+  id   = "123"
+}
+
+module "mod" {
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  for_each = {
+    existent = "1"
+  }
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Configuration for import target does not exist",
+		},
+		{
+			Description: "Non-existent resource key - in root",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = test_object.a[42]
+  id   = "123"
+}
+
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Configuration for import target does not exist",
+		},
+		{
+			Description: "Existent module key, non-existent resource key",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+import {
+  to   = module.mod["existent"].test_object.b
+  id   = "123"
+}
+
+module "mod" {
+  for_each = {
+    existent = "1"
+    existent_two = "2"
+  }
+  source = "./mod"
+}
+`,
+				"./mod/main.tf": `
+resource "test_object" "a" {
+  test_string = "bar"
+}
+`,
+			},
+			expectedError: "Cannot generate configuration for resource inside sub-module",
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			p := simpleMockProvider()
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+				Mode:               plans.NormalMode,
+				GenerateConfigPath: "generated.tf",
+			})
+
+			if !diags.HasErrors() {
+				t.Fatalf("expected error")
+			}
+
+			var errNum int
+			for _, diag := range diags {
+				if diag.Severity() == tfdiags.Error {
+					errNum++
+				}
+			}
+			if errNum > 1 {
+				t.Fatalf("expected a single error, but got %d", errNum)
+			}
+
+			if !strings.Contains(diags.Err().Error(), configuration.expectedError) {
+				t.Fatalf("expected error to be %s, but it was %s", configuration.expectedError, diags.Err().Error())
+			}
+		})
+	}
+}
+
 func TestContext2Plan_importResourceConfigGenExpandedResource(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -5291,7 +5518,7 @@ import {
 	if !diags.HasErrors() {
 		t.Fatalf("expected plan to error, but it did not")
 	}
-	if !strings.Contains(diags.Err().Error(), "Config generation for count and for_each resources not supported") {
+	if !strings.Contains(diags.Err().Error(), "Configuration generation for count and for_each resources not supported") {
 		t.Fatalf("expected error to be \"Config generation for count and for_each resources not supported\", but it is %s", diags.Err().Error())
 	}
 }

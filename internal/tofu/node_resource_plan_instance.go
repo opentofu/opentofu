@@ -192,7 +192,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			// You can't generate config for a resource that is inside a
 			// module, so we will present a different error message for
 			// this case.
-			diags = diags.Append(importResourceWithoutConfigDiags(n.Addr, n.importTarget.Config))
+			diags = diags.Append(importResourceWithoutConfigDiags(n.Addr.String(), n.importTarget.Config))
 		}
 		return diags
 	}
