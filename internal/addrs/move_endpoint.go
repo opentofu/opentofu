@@ -7,7 +7,6 @@ package addrs
 
 import (
 	"fmt"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )

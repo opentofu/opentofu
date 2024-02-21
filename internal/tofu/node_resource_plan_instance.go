@@ -63,6 +63,10 @@ type EvaluatedConfigImportTarget struct {
 	// if the import did not originate in config.
 	Config *configs.Import
 
+	// Addr is the actual address of the resource instance that we should import into. At this point, the address
+	// should be fully evaluated
+	Addr addrs.AbsResourceInstance
+
 	// ID is the string ID of the resource to import. This is resource-instance specific.
 	ID string
 }
@@ -173,7 +177,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		}
 	}
 
-	importing := n.importTarget.ID != ""
+	importing := n.shouldImport(ctx)
 
 	if importing && n.Config == nil && len(n.generateConfigPath) == 0 {
 		// Then the user wrote an import target to a target that didn't exist.
@@ -196,6 +200,13 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// If the resource is to be imported, we now ask the provider for an Import
 	// and a Refresh, and save the resulting state to instanceRefreshState.
 	if importing {
+		state := ctx.State()
+		existing := state.ResourceInstance(addr)
+		if existing != nil {
+			// Import target is already in the state, so simply ignore and exit early
+			return diags
+		}
+
 		instanceRefreshState, diags = n.importState(ctx, addr, n.importTarget.ID, provider, providerSchema)
 	} else {
 		var readDiags tfdiags.Diagnostics
@@ -605,6 +616,17 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	diags = diags.Append(riNode.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
 	return instanceRefreshState, diags
+}
+
+func (n *NodePlannableResourceInstance) shouldImport(ctx EvalContext) bool {
+	if n.importTarget.ID == "" {
+		return false
+	}
+
+	// If the import target already has a state - we should not attempt to import it, but instead run a normal plan
+	// for it
+	state := ctx.State()
+	return state.ResourceInstance(n.ResourceInstanceAddr()) == nil
 }
 
 // generateHCLStringAttributes produces a string in HCL format for the given

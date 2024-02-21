@@ -9,8 +9,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -71,27 +69,24 @@ func (i *ImportTarget) IsFromImportCommandLine() bool {
 // and could only be evaluated down the line. Here, we create a static representation for the address.
 // This is useful so that we could have information on the ImportTarget early on, such as the Module and Resource of it
 func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
-	if i.CommandLineImportTarget != nil {
+	if i.IsFromImportCommandLine() {
 		return i.CommandLineImportTarget.Addr.ConfigResource()
 	}
 
-	// TODO change this later, once we change Config.To to not be a static address
-	return i.Config.To.ConfigResource()
+	return i.Config.StaticTo
 }
 
-// ResolvedAddr returns the resolved address of an import target, if possible. If not possible, returns an HCL diag
+// ResolvedAddr returns a reference to the resolved address of an import target, if possible. If not possible, it
+// returns nil.
 // For an ImportTarget originating from the command line, the address is already known
 // However for an ImportTarget originating from an import block, the full address might not be known initially,
-// and could only be evaluated down the line. Here, we attempt to resolve the address as though it is a static absolute
-// traversal, if that's possible
-func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evaluationDiags hcl.Diagnostics) {
-	if i.CommandLineImportTarget != nil {
-		address = i.CommandLineImportTarget.Addr
+// and could only be evaluated down the line.
+func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
+	if i.IsFromImportCommandLine() {
+		return &i.CommandLineImportTarget.Addr
 	} else {
-		// TODO change this later, when Config.To is not a static address
-		address = i.Config.To
+		return i.Config.ResolvedTo
 	}
-	return
 }
 
 // ResolvedConfigImportsKey is a key for a map of ImportTargets originating from the configuration
@@ -123,13 +118,20 @@ func NewImportResolver() *ImportResolver {
 // This function mutates the EvalContext's ImportResolver, adding the resolved import target
 // The function errors if we failed to evaluate the ID or the address (soon)
 func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalContext) error {
-	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
+	// The import block expressions are declared within the root module.
+	// We need to explicitly use the context with the path of the root module, so that all references will be
+	// relative to the root module
+	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
+
+	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx)
 	if evalDiags.HasErrors() {
 		return evalDiags.Err()
 	}
 
-	// TODO - Change once an import target's address is more dynamic
-	importAddress := importTarget.Config.To
+	importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To)
+	if addressDiags.HasErrors() {
+		return addressDiags.Err()
+	}
 
 	ri.mu.Lock()
 	defer ri.mu.Unlock()
@@ -141,6 +143,7 @@ func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalCont
 
 	ri.imports[resolvedImportKey] = EvaluatedConfigImportTarget{
 		Config: importTarget.Config,
+		Addr:   importAddress,
 		ID:     importId,
 	}
 
@@ -157,6 +160,18 @@ func (ri *ImportResolver) GetAllImports() []EvaluatedConfigImportTarget {
 		allImports = append(allImports, importTarget)
 	}
 	return allImports
+}
+
+func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *EvaluatedConfigImportTarget {
+	ri.mu.RLock()
+	defer ri.mu.RUnlock()
+
+	for _, importTarget := range ri.imports {
+		if importTarget.Addr.Equal(address) {
+			return &importTarget
+		}
+	}
+	return nil
 }
 
 // Import takes already-created external resources and brings them

@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -27,10 +26,6 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 			Subject:  nil,
 		})
 	}
-
-	// The import expression is declared within the root module
-	// We need to explicitly use that context
-	ctx = ctx.WithPath(addrs.RootModuleInstance)
 
 	importIdVal, evalDiags := ctx.EvaluateExpr(expr, cty.String, nil)
 	diags = diags.Append(evalDiags)

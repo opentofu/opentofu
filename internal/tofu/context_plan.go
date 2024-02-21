@@ -547,17 +547,9 @@ func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactor
 // relaxed.
 func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allInst instances.Set) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for resolvedImport := range importResolver.imports {
-		// We only care about import target addresses that have a key.
-		// If the address does not have a key, we don't need it to be in config
-		// because are able to generate config.
-		address, addrParseDiags := addrs.ParseAbsResourceInstanceStr(resolvedImport.AddrStr)
-		if addrParseDiags.HasErrors() {
-			return addrParseDiags
-		}
-
-		if !allInst.HasResourceInstance(address) {
-			diags = diags.Append(importResourceWithoutConfigDiags(address, nil))
+	for _, importTarget := range importResolver.GetAllImports() {
+		if !allInst.HasResourceInstance(importTarget.Addr) {
+			diags = diags.Append(importResourceWithoutConfigDiags(importTarget.Addr, nil))
 		}
 	}
 	return diags
@@ -568,11 +560,9 @@ func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allIns
 func (c *Context) findImportTargets(config *configs.Config, priorState *states.State) []*ImportTarget {
 	var importTargets []*ImportTarget
 	for _, ic := range config.Module.Import {
-		if priorState.ResourceInstance(ic.To) == nil {
-			importTargets = append(importTargets, &ImportTarget{
-				Config: ic,
-			})
-		}
+		importTargets = append(importTargets, &ImportTarget{
+			Config: ic,
+		})
 	}
 	return importTargets
 }

@@ -426,11 +426,11 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 
 	for _, i := range file.Import {
 		for _, mi := range m.Import {
-			if i.To.Equal(mi.To) {
+			if i.ResolvedTo != nil && mi.ResolvedTo != nil && (*i.ResolvedTo).Equal(*mi.ResolvedTo) {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Duplicate import configuration for %q", i.To),
-					Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", i.To, mi.DeclRange),
+					Summary:  fmt.Sprintf("Duplicate import configuration for %q", *i.ResolvedTo),
+					Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", *i.ResolvedTo, mi.DeclRange),
 					Subject:  &i.DeclRange,
 				})
 				continue
@@ -443,7 +443,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 				Alias:     i.ProviderConfigRef.Alias,
 			})
 		} else {
-			implied, err := addrs.ParseProviderPart(i.To.Resource.Resource.ImpliedProvider())
+			implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
 			if err == nil {
 				i.Provider = m.ImpliedProviderForUnqualifiedType(implied)
 			}
@@ -457,11 +457,20 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			// Comparing string serialisations is good enough here, because we
 			// only care about equality in the case that both addresses are
 			// AbsResourceInstances.
-			if mb.From.String() == i.To.String() {
+			// TODO - Check what happens here if validation is removed. The address might be resolved later to be a target of a `moved` block, so it probably means we will import "over" it
+			//   For now I will keep this validation, but I'll check what happens when the import's dynamic address is the same as a moved's from
+			//   We might also want this validation with the removed block
+			// TODO - Check if this validation still works now that the address is not an instance, but a ConfigResource
+
+			// We should skip the moved-import validation if the moved `from` was not successfully decoded
+			if mb.From == nil {
+				continue
+			}
+			if mb.From.String() == i.StaticTo.String() {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Cannot import to a move source",
-					Detail:   fmt.Sprintf("An import block for ID %q targets resource address %s, but this address appears in the \"from\" argument of a moved block, which is invalid. Please change the import target to a different address, such as the move target.", i.ID, i.To),
+					Detail:   fmt.Sprintf("An import block for ID %q targets resource address %s, but this address appears in the \"from\" argument of a moved block, which is invalid. Please change the import target to a different address, such as the move target.", i.ID, i.StaticTo),
 					Subject:  &i.DeclRange,
 				})
 			}
