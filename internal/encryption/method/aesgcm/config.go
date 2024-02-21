@@ -55,13 +55,13 @@ type Config struct {
 	// SP 800-38D recommendation. Do not change this value unless you know what you are doing. This setting is included
 	// to give future users the ability to upgrade/downgrade in case new research into AES-GCM emerges and rollovers
 	// need to be handled.
-	NonceSize int `hcl:"nonceSize"`
+	NonceSize int `hcl:"nonce_size"`
 
 	// TagSize describes the length of the message authentication tag. The default and maximum value is 16 bytes, the
 	// minimum is 12 bytes as per the NIST SP 800-38D recommendation. Do not change, and especially do not lower this,
 	// unless you know what you are doing. This setting is included to give future users the ability to
 	// upgrade/downgrade in case new research into AES-GCM emerges and rollovers need to be handled.
-	TagSize int `hcl:"tagSize"`
+	TagSize int `hcl:"tag_size"`
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
@@ -77,30 +77,22 @@ func (c Config) Build() (method.Method, error) {
 		}
 	}
 
-	tagSize := c.TagSize
-	if tagSize == 0 {
-		tagSize = defaultTagSize
-	}
-	if !validTagSizes.Has(tagSize) {
+	if !validTagSizes.Has(c.TagSize) {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: fmt.Errorf(
 				"AES-GCM requires one of the following tag lengths: %s, but %d was given",
 				validKeyLengths.String(),
-				tagSize,
+				c.TagSize,
 			),
 		}
 	}
 
-	nonceSize := c.NonceSize
-	if nonceSize == 0 {
-		nonceSize = defaultNonceSize
-	}
-	if nonceSize < minimumNonceSize {
+	if c.NonceSize < minimumNonceSize {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: fmt.Errorf(
 				"the minimum nonce size for AES-GCM is %d, but only %d bytes were configured",
 				minimumNonceSize,
-				nonceSize,
+				c.NonceSize,
 			),
 		}
 	}
@@ -108,7 +100,7 @@ func (c Config) Build() (method.Method, error) {
 	return &aesgcm{
 		c.Key,
 		c.AAD,
-		nonceSize,
-		tagSize,
+		c.NonceSize,
+		c.TagSize,
 	}, nil
 }

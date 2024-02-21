@@ -20,5 +20,10 @@ func (f *descriptor) ID() method.ID {
 }
 
 func (f *descriptor) ConfigStruct() method.Config {
-	return &Config{}
+	return &Config{
+		Key:       nil,
+		AAD:       nil,
+		NonceSize: defaultNonceSize,
+		TagSize:   defaultTagSize,
+	}
 }
