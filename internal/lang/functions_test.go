@@ -1125,6 +1125,12 @@ func TestFunctions(t *testing.T) {
 				cty.StringVal("foo%3Abar%40localhost%3Ffoo%3Dbar%26bar%3Dbaz"),
 			},
 		},
+		"urldecode": {
+			{
+				`urldecode("foo%3Abar%40localhost%3Ffoo%3Dbar%26bar%3Dbaz")`,
+				cty.StringVal("foo:bar@localhost?foo=bar&bar=baz"),
+			},
+		},
 
 		"uuidv5": {
 			{
