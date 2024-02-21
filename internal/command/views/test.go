@@ -224,7 +224,7 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	t.Diagnostics(run, file, diags)
 
 	if state.HasManagedResourceInstanceObjects() {
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually:\n", identifier), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).\n", identifier), t.view.errorColumns()))
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
 			if resource.DeposedKey != states.NotDeposed {
 				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey)
@@ -465,14 +465,14 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 
 		if run != nil {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s/%s, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually.", file.Name, run.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s/%s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).", file.Name, run.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name,
 				"@testrun", run.Name)
 		} else {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually.", file.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).", file.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name)

@@ -849,8 +849,8 @@ some thing not very bad happened again
 `,
 			stderr: `
 OpenTofu left the following resources in state after executing
-main.tftest.hcl, the left-over resources can be managed using the statefile
-written to disk(errored_test.tfstate) or can be done manually:
+main.tftest.hcl, these left-over resources can be viewed by reading the
+statefile written to disk(errored_test.tfstate).
   - test.bar
   - test.bar (0fcb640a)
   - test.foo
@@ -924,8 +924,8 @@ Error: first error
 this time it is very bad
 
 OpenTofu left the following resources in state after executing
-main.tftest.hcl, the left-over resources can be managed using the statefile
-written to disk(errored_test.tfstate) or can be done manually:
+main.tftest.hcl, these left-over resources can be viewed by reading the
+statefile written to disk(errored_test.tfstate).
   - test.bar
   - test.bar (0fcb640a)
   - test.foo
@@ -996,8 +996,8 @@ Error: first error
 this time it is very bad
 
 OpenTofu left the following resources in state after executing
-main.tftest.hcl, the left-over resources can be managed using the statefile
-written to disk(errored_test.tfstate) or can be done manually:
+main.tftest.hcl, these left-over resources can be viewed by reading the
+statefile written to disk(errored_test.tfstate).
   - null_resource.failing
   - null_resource.failing_will_depend_on_me
 
@@ -2026,7 +2026,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl/run_block, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually.",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl/run_block, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"@testrun":  "run_block",
@@ -2097,7 +2097,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually.",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"test_cleanup": map[string]interface{}{
@@ -2199,7 +2199,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually.",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"test_cleanup": map[string]interface{}{
@@ -2309,7 +2309,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			}), want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, the left-over resources can be managed using the statefile written to disk(errored_test.tfstate) or can be done manually.",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"test_cleanup": map[string]interface{}{
