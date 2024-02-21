@@ -3,8 +3,8 @@ name: release
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: "Git tag or branch (leave empty for dry run)"
+      tag:
+        description: "Git tag (leave empty for dry run)"
         required: false
       prerelease:
         description: "Is this a pre-release?"
@@ -16,8 +16,6 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     environment: gpg
-    env:
-      TRIGGER_PRERELEASE_FLOW: ${{ inputs.ref == 'main' || inputs.prerelease }}
     permissions:
       contents: write
       id-token: write
@@ -31,7 +29,7 @@ jobs:
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
-        if: startsWith(inputs.ref, 'v') || env.TRIGGER_PRERELEASE_FLOW
+        if: startsWith(inputs.tag, 'v')
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -41,16 +39,30 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.tag }}
 
       - name: Fetch tags
         run: git fetch --force --tags
 
       - name: Compare versions
-        if: startsWith(inputs.ref, 'v')
+        if: startsWith(inputs.tag, 'v')
         run: ./.github/scripts/compare-release-version.sh
         env:
-          TARGET_VERSION: ${{inputs.ref}}
+          TARGET_VERSION: ${{inputs.tag}}
+
+      - name: Check if tag is on main branch
+        id: validate_tag
+        run: |
+          IS_TAG_ON_MAIN=$(git branch --contains ${{inputs.tag}} | grep -q "main" && echo true || echo false)
+          echo "IS_TAG_ON_MAIN=${IS_TAG_ON_MAIN}" >> $GITHUB_OUTPUT
+
+      - name: Check if release is allowed or not
+        id: validate_release
+        run: |
+          if [[ !inputs.prerelease && steps.validate_tag.outputs.IS_TAG_ON_MAIN == true ]]; then
+            echo "ERROR: Creating stable release from a tag on main is not allowed."
+            exit 1
+          fi
 
       - name: Determine Go version
         id: go
@@ -80,7 +92,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
 
       - name: Import GPG key
-        if: startsWith(inputs.ref, 'v') || env.TRIGGER_PRERELEASE_FLOW
+        if: startsWith(inputs.tag, 'v')
         run: |
           GPG_KEY_FILE=/tmp/signing-key.gpg
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > "${GPG_KEY_FILE}"
@@ -97,7 +109,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v4
         with:
           version: v1.21.2
-          args: release --clean --timeout=60m --snapshot=${{ !startsWith(inputs.ref, 'v') }}
+          args: release --clean --timeout=60m --snapshot=${{ !startsWith(inputs.tag, 'v') }}
         env:
           # Note: the GPG_FINGERPRINT and GPG_KEY_FILE are defined in the task above. If they are not set,
           # goreleaser won't sign the packages.
@@ -120,7 +132,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.ref, 'v') && !inputs.prerelease
+        if: startsWith(inputs.tag, 'v') && !inputs.prerelease
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -129,7 +141,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.ref, 'v') && !inputs.prerelease
+        if: startsWith(inputs.tag, 'v') && !inputs.prerelease
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
