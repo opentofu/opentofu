@@ -43,6 +43,12 @@ type NodePlanDeposedResourceInstanceObject struct {
 	// skipPlanChanges indicates we should skip trying to plan change actions
 	// for any instances.
 	skipPlanChanges bool
+
+	// EndpointsToRemove are resource instance addresses where the user wants to
+	// forget from the state. This set isn't pre-filtered, so
+	// it might contain addresses that have nothing to do with the resource
+	// that this node represents, which the node itself must therefore ignore.
+	EndpointsToRemove []addrs.ConfigRemovable
 }
 
 var (
@@ -132,8 +138,23 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 
 	if !n.skipPlanChanges {
 		var change *plans.ResourceInstanceChange
-		change, destroyPlanDiags := n.planDestroy(ctx, state, n.DeposedKey)
-		diags = diags.Append(destroyPlanDiags)
+		var planDiags tfdiags.Diagnostics
+
+		shouldForget := false
+
+		for _, etf := range n.EndpointsToRemove {
+			if etf.TargetContains(n.Addr) {
+				shouldForget = true
+			}
+		}
+
+		if shouldForget {
+			change = n.planForget(ctx, state, n.DeposedKey)
+		} else {
+			change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
+		}
+
+		diags = diags.Append(planDiags)
 		if diags.HasErrors() {
 			return diags
 		}
@@ -332,4 +353,64 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 	log.Printf("[TRACE] writeResourceInstanceStateDeposed: writing state object for %s deposed %s", absAddr, key)
 	state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider)
 	return nil
+}
+
+// NodeForgetDeposedResourceInstanceObject represents deposed resource
+// instance objects during apply. Nodes of this type are inserted by
+// DiffTransformer when the planned changeset contains "forget" changes for
+// deposed instance objects, and its only supported operation is to forget
+// the associated object from the state.
+type NodeForgetDeposedResourceInstanceObject struct {
+	*NodeAbstractResourceInstance
+	DeposedKey states.DeposedKey
+}
+
+var (
+	_ GraphNodeDeposedResourceInstanceObject = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeConfigResource                = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeResourceInstance              = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeReferenceable                 = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeReferencer                    = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeExecutable                    = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeProviderConsumer              = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeProvisionerConsumer           = (*NodeForgetDeposedResourceInstanceObject)(nil)
+)
+
+func (n *NodeForgetDeposedResourceInstanceObject) Name() string {
+	return fmt.Sprintf("%s (forget deposed %s)", n.ResourceInstanceAddr(), n.DeposedKey)
+}
+
+func (n *NodeForgetDeposedResourceInstanceObject) DeposedInstanceObjectKey() states.DeposedKey {
+	return n.DeposedKey
+}
+
+// GraphNodeReferenceable implementation, overriding the one from NodeAbstractResourceInstance
+func (n *NodeForgetDeposedResourceInstanceObject) ReferenceableAddrs() []addrs.Referenceable {
+	// Deposed objects don't participate in references.
+	return nil
+}
+
+// GraphNodeReferencer implementation, overriding the one from NodeAbstractResourceInstance
+func (n *NodeForgetDeposedResourceInstanceObject) References() []*addrs.Reference {
+	// We don't evaluate configuration for deposed objects, so they effectively
+	// make no references.
+	return nil
+}
+
+// GraphNodeExecutable impl.
+func (n *NodeForgetDeposedResourceInstanceObject) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	// Read the state for the deposed resource instance
+	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey)
+	if err != nil {
+		return diags.Append(err)
+	}
+
+	if state == nil {
+		log.Printf("[WARN] NodeForgetDeposedResourceInstanceObject for %s (%s) with no state", n.Addr, n.DeposedKey)
+	}
+
+	contextState := ctx.State()
+	contextState.ForgetResourceInstanceDeposed(n.Addr, n.DeposedKey)
+
+	return diags.Append(updateStateHook(ctx))
 }
