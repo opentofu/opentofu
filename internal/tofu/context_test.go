@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -716,12 +717,12 @@ func contextOptsForPlanViaFile(t *testing.T, configSnap *configload.Snapshot, pl
 		PreviousRunStateFile: prevStateFile,
 		StateFile:            stateFile,
 		Plan:                 plan,
-	})
+	}, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	pr, err := planfile.Open(filename)
+	pr, err := planfile.Open(filename, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -40,6 +40,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/initwd"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
@@ -228,7 +229,7 @@ func testPlanFileMatchState(t *testing.T, configSnap *configload.Snapshot, state
 		StateFile:            stateFile,
 		Plan:                 plan,
 		DependencyLocks:      depsfile.NewLocks(),
-	})
+	}, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to create temporary plan file: %s", err)
 	}
@@ -276,11 +277,10 @@ func testFileEquals(t *testing.T, got, want string) {
 func testReadPlan(t *testing.T, path string) *plans.Plan {
 	t.Helper()
 
-	f, err := planfile.Open(path)
+	f, err := planfile.Open(path, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("error opening plan file %q: %s", path, err)
 	}
-	defer f.Close()
 
 	p, err := f.ReadPlan()
 	if err != nil {

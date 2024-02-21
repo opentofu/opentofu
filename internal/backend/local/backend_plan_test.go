@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -841,11 +842,10 @@ func testPlanState_tainted() *states.State {
 func testReadPlan(t *testing.T, path string) *plans.Plan {
 	t.Helper()
 
-	p, err := planfile.Open(path)
+	p, err := planfile.Open(path, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer p.Close()
 
 	plan, err := p.ReadPlan()
 	if err != nil {

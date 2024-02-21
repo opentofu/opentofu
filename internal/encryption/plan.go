@@ -67,3 +67,21 @@ func (p planEncryption) DecryptPlan(data []byte) ([]byte, error) {
 		return nil
 	})
 }
+
+func PlanEncryptionDisabled() PlanEncryption {
+	return &planDisabled{}
+}
+
+type planDisabled struct{}
+
+func (s *planDisabled) EncryptPlan(plainPlan []byte) ([]byte, error) {
+	return plainPlan, nil
+}
+func (s *planDisabled) DecryptPlan(encryptedPlan []byte) ([]byte, error) {
+	return encryptedPlan, nil
+}
+
+// TODO REMOVEME once plan encryption is fully integrated into the codebase
+func PlanEncryptionTODO() PlanEncryption {
+	return &planDisabled{}
+}

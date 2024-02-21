@@ -7,12 +7,14 @@ package planfile
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 )
@@ -53,15 +55,9 @@ type CreateArgs struct {
 // state file in addition to the plan itself, so that OpenTofu can detect
 // if the world has changed since the plan was created and thus refuse to
 // apply it.
-func Create(filename string, args CreateArgs) error {
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	zw := zip.NewWriter(f)
-	defer zw.Close()
+func Create(filename string, args CreateArgs, enc encryption.PlanEncryption) error {
+	buff := bytes.NewBuffer(make([]byte, 0))
+	zw := zip.NewWriter(buff)
 
 	// tfplan file
 	{
@@ -140,5 +136,12 @@ func Create(filename string, args CreateArgs) error {
 		}
 	}
 
-	return nil
+	// Finish zip file
+	zw.Close()
+	// Encrypt payload
+	encrypted, err := enc.EncryptPlan(buff.Bytes())
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, encrypted, 0644)
 }

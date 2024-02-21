@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
@@ -202,11 +203,10 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 // Plan is a helper for easily reading a plan file from the working directory.
 func (b *binary) Plan(path string) (*plans.Plan, error) {
 	path = b.Path(path)
-	pr, err := planfile.Open(path)
+	pr, err := planfile.Open(path, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
 	plan, err := pr.ReadPlan()
 	if err != nil {
 		return nil, err
