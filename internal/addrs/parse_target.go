@@ -80,54 +80,8 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 		remain = remain[1:]
 	}
 
-	if len(remain) < 2 {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid address",
-			Detail:   "Resource specification must include a resource type and name.",
-			Subject:  remain.SourceRange().Ptr(),
-		})
-		return AbsResourceInstance{}, diags
-	}
-
-	var typeName, name string
-	switch tt := remain[0].(type) {
-	case hcl.TraverseRoot:
-		typeName = tt.Name
-	case hcl.TraverseAttr:
-		typeName = tt.Name
-	default:
-		switch mode {
-		case ManagedResourceMode:
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid address",
-				Detail:   "A resource type name is required.",
-				Subject:  remain[0].SourceRange().Ptr(),
-			})
-		case DataResourceMode:
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid address",
-				Detail:   "A data source name is required.",
-				Subject:  remain[0].SourceRange().Ptr(),
-			})
-		default:
-			panic("unknown mode")
-		}
-		return AbsResourceInstance{}, diags
-	}
-
-	switch tt := remain[1].(type) {
-	case hcl.TraverseAttr:
-		name = tt.Name
-	default:
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid address",
-			Detail:   "A resource name is required.",
-			Subject:  remain[1].SourceRange().Ptr(),
-		})
+	typeName, name, diags := parseResourceTypeAndName(remain, mode)
+	if diags.HasErrors() {
 		return AbsResourceInstance{}, diags
 	}
 
@@ -167,6 +121,111 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 		})
 		return AbsResourceInstance{}, diags
 	}
+}
+
+// parseResourceUnderModule is a helper function that parses a traversal, which
+// is an address (or a part of an address) that describes a resource (e.g.
+// ["null_resource," "boop"] or ["data", "null_data_source," "bip"]), under a
+// module. It returns the ConfigResource that represents the resource address.
+// It does not support addresses of resources with instance keys, and will
+// return an error if it encounters one (unlike
+// parseResourceInstanceUnderModule).
+// This function does not expect to encounter a module prefix in the traversal,
+// as it should be processed by parseModulePrefix first.
+func parseResourceUnderModule(moduleAddr Module, remain hcl.Traversal) (ConfigResource, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	mode := ManagedResourceMode
+	if remain.RootName() == "data" {
+		mode = DataResourceMode
+		remain = remain[1:]
+	}
+
+	typeName, name, diags := parseResourceTypeAndName(remain, mode)
+	if diags.HasErrors() {
+		return ConfigResource{}, diags
+	}
+
+	remain = remain[2:]
+	switch len(remain) {
+	case 0:
+		return moduleAddr.Resource(mode, typeName, name), diags
+	case 1:
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Resource instance address with keys is not allowed",
+			Detail:   "Resource address cannot be a resource instance (e.g. \"null_resource.a[0]\"), it must be a resource instead (e.g. \"null_resource.a\").",
+			Subject:  remain[0].SourceRange().Ptr(),
+		})
+		return ConfigResource{}, diags
+	default:
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid address",
+			Detail:   "Unexpected extra operators after address.",
+			Subject:  remain[1].SourceRange().Ptr(),
+		})
+		return ConfigResource{}, diags
+	}
+}
+
+// parseResourceTypeAndName is a helper function that parses a traversal, which
+// is an address (or a part of an address) that describes a resource (e.g.
+// ["null_resource," "boop"]) and returns its type and name.
+// It is used in parseResourceUnderModule and parseResourceInstanceUnderModule,
+// and does not expect to encounter a module prefix in the traversal.
+func parseResourceTypeAndName(remain hcl.Traversal, mode ResourceMode) (typeName, name string, diags tfdiags.Diagnostics) {
+	if len(remain) < 2 {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid address",
+			Detail:   "Resource specification must include a resource type and name.",
+			Subject:  remain.SourceRange().Ptr(),
+		})
+		return typeName, name, diags
+	}
+
+	switch tt := remain[0].(type) {
+	case hcl.TraverseRoot:
+		typeName = tt.Name
+	case hcl.TraverseAttr:
+		typeName = tt.Name
+	default:
+		switch mode {
+		case ManagedResourceMode:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid address",
+				Detail:   "A resource type name is required.",
+				Subject:  remain[0].SourceRange().Ptr(),
+			})
+		case DataResourceMode:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid address",
+				Detail:   "A data source name is required.",
+				Subject:  remain[0].SourceRange().Ptr(),
+			})
+		default:
+			panic("unknown mode")
+		}
+		return typeName, name, diags
+	}
+
+	switch tt := remain[1].(type) {
+	case hcl.TraverseAttr:
+		name = tt.Name
+	default:
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid address",
+			Detail:   "A resource name is required.",
+			Subject:  remain[1].SourceRange().Ptr(),
+		})
+		return typeName, name, diags
+	}
+
+	return typeName, name, diags
 }
 
 // ParseTargetStr is a helper wrapper around ParseTarget that takes a string
