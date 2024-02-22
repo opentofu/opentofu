@@ -1,6 +1,9 @@
 # AES-GCM encryption method
 
-This folder contains the state encryption implementation of the AES-GCM encryption method ([NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final)).
+This folder contains the state encryption implementation of the AES-GCM encryption method.
+
+This is implemented following the guidance of the following document: ([NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final)).
+
 
 ## Configuration
 
