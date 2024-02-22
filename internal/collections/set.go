@@ -16,7 +16,7 @@ import (
 //	}
 type Set[T comparable] map[T]struct{}
 
-// Has returns true
+// Has returns true if the item exists in the Set
 func (s Set[T]) Has(value T) bool {
 	_, ok := s[value]
 	return ok
