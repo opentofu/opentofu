@@ -35,7 +35,8 @@ AES-GCM keys have a limited lifetime of `2^32` blocks, equaling roughly 64 GB of
 
 ## Encryption vs. Authentication
 
-The current AES-GCM implementation protects data at rest from being accessed. It does not, however, protect against malicious actors reusing old data (replay attacks) to compromise the integrity of the system. Users with the need for payload authentication should rotate their key and/or AAD frequently to ensure that old data cannot be used in this manner.
+The AES-GCM implementation protects data at rest from being accessed. It does not, however, protect against malicious actors reusing old data (replay attacks) to compromise the integrity of the system. Users with the need for payload authentication should rotate their key and/or AAD frequently to ensure that old data cannot be used in this manner.
+
 
 ## Implementation notes
 
