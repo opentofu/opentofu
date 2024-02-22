@@ -46,4 +46,4 @@ The current nonce and tag size recommendations may change in the future, but use
 
 ### Panics
 
-The current Go implementation of AES-GCM uses `panic()` to handle some input errors. To work around that, the `golang.Safe` function is used to capture the panic and turn it into an error.
+The current Go implementation of AES-GCM uses `panic()` to handle some input errors. To work around that, the `errorhandling.Safe` function is used to capture the panic and turn it into an error.
