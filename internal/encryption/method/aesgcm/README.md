@@ -40,7 +40,8 @@ The AES-GCM implementation protects data at rest from being accessed. It does no
 
 ## Implementation notes
 
-### AAD
+### Additional Authenticated Data (AAD)
+
 
 The AAD in AES-GCM is a general-purpose authenticated, but not encrypted field in the encrypted payload. The Go implementation only supports using this field as a canary value, rejecting decryption if the value mismatches. AES-GCM would support using this field as a means to store data. Since Go does not support it, neither do we.
 
