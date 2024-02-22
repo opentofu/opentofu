@@ -47,7 +47,7 @@ The AAD in AES-GCM is a general-purpose authenticated, but not encrypted field i
 
 ### Future compatibility
 
-The current nonce and tag size recommendations may change in the future, but users should still be able to decrypt their old state files. This is why these fields exist.
+The current nonce and tag size recommendations may change in the future. The configuration fields here are allowed to permit users to to decrypt their old state files.
 
 ### Panics
 
