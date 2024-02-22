@@ -32,12 +32,12 @@ type targetBuilder struct {
 	methods      map[method.Addr]method.Method
 }
 
-func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
+func (b *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	builder := &targetBuilder{
-		cfg: base.enc.cfg,
-		reg: base.enc.reg,
+		cfg: b.enc.cfg,
+		reg: b.enc.reg,
 
 		ctx: &hcl.EvalContext{
 			Variables: map[string]cty.Value{},
@@ -55,7 +55,7 @@ func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte)
 		return nil, diags
 	}
 
-	return builder.build(base.target, base.name)
+	return builder.build(b.target, b.name)
 }
 
 // build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well

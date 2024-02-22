@@ -36,24 +36,24 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	}
 }
 
-type basedata struct {
+type baseData struct {
 	Meta    map[keyprovider.Addr][]byte `json:"meta"`
 	Data    []byte                      `json:"encrypted_data"`
 	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
-func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
-	if s.target == nil {
+func (b *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
+	if b.target == nil {
 		return data, nil
 	}
 
-	es := basedata{
+	es := baseData{
 		Meta:    make(map[keyprovider.Addr][]byte),
 		Version: encryptionVersion,
 	}
 
 	// Mutates es.Meta
-	methods, diags := s.buildTargetMethods(es.Meta)
+	methods, diags := b.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -65,11 +65,11 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 
 	if encryptor == nil {
 		// ensure that the method is defined when Enforced is true
-		if s.enforced {
+		if b.enforced {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Encryption method required",
-				Detail:   fmt.Sprintf("%q is enforced, and therefore requires a method to be provided", s.name),
+				Detail:   fmt.Sprintf("%q is enforced, and therefore requires a method to be provided", b.name),
 			})
 			return nil, diags
 		}
@@ -80,7 +80,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 	if err != nil {
 		return nil, append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Encryption failed for " + s.name,
+			Summary:  "Encryption failed for " + b.name,
 			Detail:   err.Error(),
 		})
 	}
@@ -99,12 +99,12 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, hcl.Diagnostics) {
 }
 
 // TODO Find a way to make these errors actionable / clear
-func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, hcl.Diagnostics) {
-	if s.target == nil {
+func (b *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, hcl.Diagnostics) {
+	if b.target == nil {
 		return data, nil
 	}
 
-	es := basedata{}
+	es := baseData{}
 	err := json.Unmarshal(data, &es)
 	if err != nil {
 		return nil, hcl.Diagnostics{&hcl.Diagnostic{
@@ -118,7 +118,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		// Not a valid payload, might be already decrypted
 		err = validator(data)
 		if err == nil {
-			// Yep, it's already decrypted
+			// Yep, it'b already decrypted
 			return data, nil
 		} else {
 			// Nope, just bad input
@@ -133,11 +133,11 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		return nil, hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid encrypted payload version",
-			Detail:   fmt.Sprintf("%s != %s", es.Version, encryptionVersion),
+			Detail:   fmt.Sprintf("%b != %b", es.Version, encryptionVersion),
 		}}
 	}
 
-	methods, diags := s.buildTargetMethods(es.Meta)
+	methods, diags := b.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -167,7 +167,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			// toDO improve this error message
 			methodDiags = append(methodDiags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Attempted decryption failed for " + s.name,
+				Summary:  "Attempted decryption failed for " + b.name,
 				Detail:   err.Error(),
 			})
 			continue
@@ -180,7 +180,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		// Record the failure
 		methodDiags = append(methodDiags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Attempted decryption failed for " + s.name,
+			Summary:  "Attempted decryption failed for " + b.name,
 			Detail:   err.Error(),
 		})
 	}
@@ -189,7 +189,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 	diags = append(diags, &hcl.Diagnostic{
 		Severity: hcl.DiagError,
 		Summary:  "Decryption failed",
-		Detail:   "All methods of decryption provided failed for " + s.name,
+		Detail:   "All methods of decryption provided failed for " + b.name,
 	})
 
 	return nil, append(diags, methodDiags...)
