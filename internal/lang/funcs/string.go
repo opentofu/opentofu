@@ -167,6 +167,10 @@ func StrContains(str, substr cty.Value) (cty.Value, error) {
 	return StrContainsFunc.Call([]cty.Value{str, substr})
 }
 
+const (
+	TemplateStringFilename = "NoFileNeeded" //need comment
+)
+
 // MakeTemplateStringFunc constructs a function that takes a string and
 // an arbitrary object of named values and attempts to render that string
 // as a template using HCL template syntax.
@@ -186,59 +190,12 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 	}
 	loadTmpl := func(content string, marks cty.ValueMarks) (hcl.Expression, error) {
 
-		expr, diags := hclsyntax.ParseTemplate([]byte(content), "NoFileNeeded", hcl.Pos{Line: 1, Column: 1})
+		expr, diags := hclsyntax.ParseTemplate([]byte(content), TemplateStringFilename, hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
 			return nil, diags
 		}
 
 		return expr, nil
-	}
-
-	renderTmpl := func(expr hcl.Expression, varsVal cty.Value) (cty.Value, error) {
-		if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
-			return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
-		}
-
-		ctx := &hcl.EvalContext{
-			Variables: varsVal.AsValueMap(),
-		}
-
-		// We require all of the variables to be valid HCL identifiers, because
-		// otherwise there would be no way to refer to them in the template
-		// anyway. Rejecting this here gives better feedback to the user
-		// than a syntax error somewhere in the template itself.
-		for n := range ctx.Variables {
-			if !hclsyntax.ValidIdentifier(n) {
-				// This error message intentionally doesn't describe _all_ of
-				// the different permutations that are technically valid as an
-				// HCL identifier, but rather focuses on what we might
-				// consider to be an "idiomatic" variable name.
-				return cty.DynamicVal, function.NewArgErrorf(1, "invalid template variable name %q: must start with a letter, followed by zero or more letters, digits, and underscores", n)
-			}
-		}
-
-		// We'll pre-check references in the template here so we can give a
-		// more specialized error message than HCL would by default, so it's
-		// clearer that this problem is coming from a templatestring call.
-		for _, traversal := range expr.Variables() {
-			root := traversal.RootName()
-			if _, ok := ctx.Variables[root]; !ok {
-				return cty.DynamicVal, function.NewArgErrorf(1, "vars map does not contain key %q", root)
-			}
-		}
-
-		givenFuncs := funcsCb() // this callback indirection is to avoid chicken/egg problems
-		funcs := make(map[string]function.Function, len(givenFuncs))
-		for name, fn := range givenFuncs {
-			funcs[name] = fn
-		}
-		ctx.Functions = funcs
-
-		val, diags := expr.Value(ctx)
-		if diags.HasErrors() {
-			return cty.DynamicVal, diags
-		}
-		return val, nil
 	}
 
 	return function.New(&function.Spec{
@@ -259,7 +216,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 
 			// This is safe even if args[1] contains unknowns because the HCL
 			// template renderer itself knows how to short-circuit those.
-			val, err := renderTmpl(expr, args[1])
+			val, err := RenderTemplate(expr, args[1], funcsCb)
 			return val.Type(), err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
@@ -268,7 +225,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			if err != nil {
 				return cty.DynamicVal, err
 			}
-			result, err := renderTmpl(expr, args[1])
+			result, err := RenderTemplate(expr, args[1], funcsCb)
 			return result.WithMarks(dataMarks), err
 		},
 	})
