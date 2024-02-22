@@ -7,6 +7,7 @@ import (
 )
 
 // These were all moved to the hcl2shim package, but still have uses referenced from this package
+// TODO Call sites through opentofu to these functions should be migrated to hcl2shim eventually and this file removed
 func MergeBodies(base, override hcl.Body) hcl.Body {
 	return hcl2shim.MergeBodies(base, override)
 }
