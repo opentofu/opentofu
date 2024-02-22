@@ -151,7 +151,7 @@ func TestTemplateFile(t *testing.T) {
 			cty.StringVal("testdata/recursive.tmpl"),
 			cty.MapValEmpty(cty.String),
 			cty.NilVal,
-			`testdata/recursive.tmpl:1,3-16: Error in function call; Call to function "templatefile" failed: cannot recursively call templatefile from inside templatefile call.`,
+			`testdata/recursive.tmpl:1,3-16: Error in function call; Call to function "templatefile" failed: cannot recursively call templatefile from inside templatefile or templatestring.`,
 		},
 		{
 			cty.StringVal("testdata/list.tmpl"),
