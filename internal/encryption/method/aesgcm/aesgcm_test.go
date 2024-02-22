@@ -2,10 +2,11 @@ package aesgcm_test
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/errorhandling"
-	"testing"
 )
 
 func TestDecryptEmptyData(t *testing.T) {

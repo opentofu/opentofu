@@ -2,6 +2,7 @@ package errorhandling
 
 import (
 	"errors"
+
 	"github.com/hashicorp/hcl/v2"
 )
 

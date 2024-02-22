@@ -7,6 +7,7 @@ package aesgcm
 
 import (
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/collections"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"

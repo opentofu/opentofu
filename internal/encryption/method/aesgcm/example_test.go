@@ -3,6 +3,7 @@ package aesgcm_test
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/errorhandling"
 )

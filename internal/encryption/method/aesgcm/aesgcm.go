@@ -10,6 +10,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+
 	"github.com/opentofu/opentofu/internal/errorhandling"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
