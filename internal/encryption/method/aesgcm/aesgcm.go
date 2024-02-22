@@ -47,7 +47,10 @@ func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
 
 			nonce := make([]byte, gcm.NonceSize())
 			if _, err := rand.Read(nonce); err != nil {
-				return nil, &method.ErrEncryptionFailed{Cause: &method.ErrCryptoFailure{Message: "could not generate nonce", Cause: err}}
+				return nil, &method.ErrEncryptionFailed{Cause: &method.ErrCryptoFailure{
+					Message: "could not generate nonce",
+					Cause:   err,
+				}}
 			}
 
 			encrypted := gcm.Seal(nil, nonce, data, a.aad)

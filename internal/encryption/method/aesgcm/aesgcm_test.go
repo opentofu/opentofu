@@ -1,68 +1,69 @@
-package aesgcm
+package aesgcm_test
 
-import "testing"
+import (
+	"errors"
+	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
+	"github.com/opentofu/opentofu/internal/errorhandling"
+	"testing"
+)
 
-type testCase struct {
-	aes   *aesgcm
-	error bool
+func TestDecryptEmptyData(t *testing.T) {
+	m := errorhandling.Must2(aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build())
+
+	_, err := m.Decrypt(nil)
+	if err == nil {
+		t.Fatalf("Expected error, none returned.")
+	}
+
+	var e *method.ErrDecryptionFailed
+	if !errors.As(err, &e) {
+		t.Fatalf("Incorrect error type returned: %T (%v)", err, err)
+	}
 }
 
-func TestInternalErrorHandling(t *testing.T) {
-	testCases := map[string]testCase{
-		"ok": {
-			&aesgcm{
-				key:       []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
-				tagSize:   defaultTagSize,
-				nonceSize: defaultNonceSize,
-			},
-			false,
-		},
-		"no-key": {
-			&aesgcm{},
-			true,
-		},
-		"empty-nonce": {
-			&aesgcm{
-				key:       []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
-				tagSize:   defaultTagSize,
-				nonceSize: 0,
-			},
-			true,
-		},
-		"too-short-tag": {
-			&aesgcm{
-				key:       []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
-				tagSize:   11,
-				nonceSize: defaultNonceSize,
-			},
-			true,
-		},
-		"too-long-tag": {
-			&aesgcm{
-				key:       []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
-				tagSize:   17,
-				nonceSize: defaultNonceSize,
-			},
-			true,
-		},
+func TestDecryptShortData(t *testing.T) {
+	m := errorhandling.Must2(aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build())
+
+	// Passing a non-empty, but shorted-than-nonce data
+	_, err := m.Decrypt([]byte("1"))
+	if err == nil {
+		t.Fatalf("Expected error, none returned.")
 	}
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			encrypted, err := tc.aes.Encrypt([]byte("Hello world!"))
-			if tc.error && err == nil {
-				t.Fatalf("Expected error, none returned.")
-			} else if !tc.error && err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-			if !tc.error {
-				decrypted, err := tc.aes.Decrypt(encrypted)
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err)
-				}
-				if string(decrypted) != "Hello world!" {
-					t.Fatalf("Incorrect decrypted string: %s", decrypted)
-				}
-			}
-		})
+
+	var e *method.ErrDecryptionFailed
+	if !errors.As(err, &e) {
+		t.Fatalf("Incorrect error type returned: %T (%v)", err, err)
+	}
+}
+
+func TestDecryptInvalidData(t *testing.T) {
+	m := errorhandling.Must2(aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build())
+
+	// Passing a non-empty, but shorted-than-nonce data
+	_, err := m.Decrypt([]byte("abcdefghijklmnopqrstuvwxyz"))
+	if err == nil {
+		t.Fatalf("Expected error, none returned.")
+	}
+
+	var e *method.ErrDecryptionFailed
+	if !errors.As(err, &e) {
+		t.Fatalf("Incorrect error type returned: %T (%v)", err, err)
+	}
+}
+
+func TestDecryptCorruptData(t *testing.T) {
+	m := errorhandling.Must2(aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build())
+
+	encrypted := errorhandling.Must2(m.Encrypt([]byte("Hello world!")))
+
+	encrypted = encrypted[:len(encrypted)-1]
+	decrypted, err := m.Decrypt(encrypted)
+	if err == nil {
+		t.Fatalf("Expected error, got: %v", decrypted)
+	}
+	var e *method.ErrDecryptionFailed
+	if !errors.As(err, &e) {
+		t.Fatalf("Incorrect error type returned: %T (%v)", err, err)
 	}
 }
