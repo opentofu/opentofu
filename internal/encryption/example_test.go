@@ -64,8 +64,7 @@ func Example() {
 	// Construct the encryption object
 	enc := encryption.New(reg, cfg)
 
-	sfe, diags := enc.StateFile()
-	handleDiags(diags)
+	sfe := enc.StateFile()
 
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.

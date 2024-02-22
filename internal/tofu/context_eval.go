@@ -78,6 +78,7 @@ func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr a
 	walkOpts := &graphWalkOpts{
 		InputState: state,
 		Config:     config,
+		Encryption: nil, // Should not be using encryption here
 	}
 
 	walker, moreDiags = c.walk(graph, walkEval, walkOpts)

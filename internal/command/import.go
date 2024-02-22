@@ -110,6 +110,14 @@ func (c *ImportCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption(configPath)
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	// Verify that the given address points to something that exists in config.
 	// This is to reduce the risk that a typo in the resource address will
 	// import something that OpenTofu will want to immediately destroy on
@@ -167,7 +175,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: config.Module.Backend,
-	})
+	}, enc.Backend())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -247,7 +255,7 @@ func (c *ImportCommand) Run(args []string) int {
 		// the input variables end up represented as plan options even though
 		// this particular operation isn't really a plan.
 		SetVariables: lr.PlanOpts.SetVariables,
-	})
+	}, enc)
 	diags = diags.Append(importDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)

@@ -80,8 +80,3 @@ func (s *planDisabled) EncryptPlan(plainPlan []byte) ([]byte, error) {
 func (s *planDisabled) DecryptPlan(encryptedPlan []byte) ([]byte, error) {
 	return encryptedPlan, nil
 }
-
-// TODO REMOVEME once plan encryption is fully integrated into the codebase
-func PlanEncryptionTODO() PlanEncryption {
-	return &planDisabled{}
-}

@@ -1478,6 +1478,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 		TypeName:     n.Addr.ContainingResource().Resource.Type,
 		Config:       configVal,
 		ProviderMeta: metaConfigVal,
+		Encryption:   ctx.GetRemoteStateEncryption(n.Addr),
 	})
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {

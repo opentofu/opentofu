@@ -52,6 +52,14 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption(configPath)
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
@@ -62,7 +70,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: backendConfig,
-	})
+	}, enc.Backend())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

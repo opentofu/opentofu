@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
@@ -29,6 +30,7 @@ type graphWalkOpts struct {
 	InputState *states.State
 	Changes    *plans.Changes
 	Config     *configs.Config
+	Encryption encryption.Encryption
 
 	// PlanTimeCheckResults should be populated during the apply phase with
 	// the snapshot of check results that was generated during the plan step.
@@ -153,5 +155,6 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		Operation:        operation,
 		StopContext:      c.runContext,
 		PlanTimestamp:    opts.PlanTimeTimestamp,
+		Encryption:       opts.Encryption,
 	}
 }

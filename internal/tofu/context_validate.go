@@ -73,7 +73,8 @@ func (c *Context) Validate(config *configs.Config) tfdiags.Diagnostics {
 	}
 
 	walker, walkDiags := c.walk(graph, walkValidate, &graphWalkOpts{
-		Config: config,
+		Config:     config,
+		Encryption: nil, // Should not be using encryption here
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)

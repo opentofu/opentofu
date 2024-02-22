@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -68,8 +69,16 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption(".") // TODO is this path correct?
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(args.State, args.ViewType)
+	be, beDiags := c.PrepareBackend(args.State, args.ViewType, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -77,7 +86,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation)
+	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -112,7 +121,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *RefreshCommand) PrepareBackend(args *arguments.State, viewType arguments.ViewType) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *RefreshCommand) PrepareBackend(args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
@@ -128,7 +137,7 @@ func (c *RefreshCommand) PrepareBackend(args *arguments.State, viewType argument
 	be, beDiags := c.Backend(&BackendOpts{
 		Config:   backendConfig,
 		ViewType: viewType,
-	})
+	}, enc.Backend())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {
 		return nil, diags
@@ -137,7 +146,7 @@ func (c *RefreshCommand) PrepareBackend(args *arguments.State, viewType argument
 	return be, diags
 }
 
-func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refresh, viewType arguments.ViewType, args *arguments.Operation,
+func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refresh, viewType arguments.ViewType, args *arguments.Operation, enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -147,6 +156,7 @@ func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refres
 	opReq.Hooks = view.Hooks()
 	opReq.Targets = args.Targets
 	opReq.Type = backend.OperationTypeRefresh
+	opReq.Encryption = enc
 	opReq.View = view.Operation()
 
 	var err error

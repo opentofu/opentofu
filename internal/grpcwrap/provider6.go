@@ -373,6 +373,7 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 		TypeName:     req.TypeName,
 		Config:       configVal,
 		ProviderMeta: metaVal,
+		Encryption:   nil,
 	})
 	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, readResp.Diagnostics)
 	if readResp.Diagnostics.HasErrors() {

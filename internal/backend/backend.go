@@ -236,7 +236,8 @@ type LocalRun struct {
 // would with HashiCorp-provided Terraform Servers.
 type Operation struct {
 	// Type is the operation to perform.
-	Type OperationType
+	Type       OperationType
+	Encryption encryption.Encryption
 
 	// PlanId is an opaque value that backends can use to execute a specific
 	// plan for an apply operation.

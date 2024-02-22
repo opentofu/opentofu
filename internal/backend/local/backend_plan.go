@@ -12,7 +12,6 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -108,7 +107,7 @@ func (b *Local) opPlan(
 		defer logging.PanicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: plan calling Plan")
-		plan, planDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
+		plan, planDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts, op.Encryption)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {
@@ -173,7 +172,7 @@ func (b *Local) opPlan(
 			StateFile:            plannedStateFile,
 			Plan:                 plan,
 			DependencyLocks:      op.DependencyLocks,
-		}, encryption.PlanEncryptionTODO())
+		}, op.Encryption.PlanFile())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
