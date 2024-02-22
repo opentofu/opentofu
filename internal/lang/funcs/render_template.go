@@ -45,14 +45,12 @@ func RenderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[s
 	// clearer that this problem is coming from a templatefile/templatestring call.
 	for _, traversal := range expr.Variables() {
 		root := traversal.RootName()
-		referencedPos := func() string {
-			if currFilename == TemplateStringFilename {
-				return ""
-			}
-			return fmt.Sprintf(", referenced at %s", traversal[0].SourceRange())
-		}()
+		referencedPos := fmt.Sprintf("%q", root)
+		if currFilename != TemplateStringFilename {
+			referencedPos = fmt.Sprintf("%q, referenced at %s", root, traversal[0].SourceRange())
+		}
 		if _, ok := ctx.Variables[root]; !ok {
-			return cty.DynamicVal, function.NewArgErrorf(1, "vars map does not contain key %q%s", root, referencedPos)
+			return cty.DynamicVal, function.NewArgErrorf(1, "vars map does not contain key %s", referencedPos)
 		}
 	}
 
@@ -74,7 +72,7 @@ func RenderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[s
 					},
 				},
 				Type: func(args []cty.Value) (cty.Type, error) {
-					return cty.NilType, fmt.Errorf("cannot recursively call templatefile from inside templatefile call")
+					return cty.NilType, fmt.Errorf("cannot recursively call templatefile from inside templatefile or templatestring")
 				},
 			})
 			continue
