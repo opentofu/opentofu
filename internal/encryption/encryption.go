@@ -41,24 +41,28 @@ func New(reg registry.Registry, cfg *config.Config) Encryption {
 	}
 }
 
+// StateFile produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
 func (e *encryption) StateFile() StateEncryption {
 	return &stateEncryption{
 		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "statefile"),
 	}
 }
 
+// PlanFile produces a PlanEncryption overlay for encrypting and decrypting plan files.
 func (e *encryption) PlanFile() PlanEncryption {
 	return &planEncryption{
 		base: newBaseEncryption(e, e.cfg.PlanFile.AsTargetConfig(), e.cfg.PlanFile.Enforced, "planfile"),
 	}
 }
 
+// Backend produces a StateEncryption overlay for storing state files on remote backends.
 func (e *encryption) Backend() StateEncryption {
 	return &stateEncryption{
 		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "backend"),
 	}
 }
 
+// RemoteState produces a ReadOnlyStateEncryption for reading remote states using the terraform_remote_state data source.
 func (e *encryption) RemoteState(name string) ReadOnlyStateEncryption {
 	for _, remoteTarget := range e.cfg.Remote.Targets {
 		if remoteTarget.Name == name {
