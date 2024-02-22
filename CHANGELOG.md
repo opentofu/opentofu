@@ -1,4 +1,10 @@
-## 1.6.2 (Unreleased)
+## 1.6.3 (Unreleased)
+
+ENHANCEMENTS:
+
+BUG FIXES:
+
+## 1.6.2
 
 ENHANCEMENTS:
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1293](https://github.com/opentofu/opentofu/pull/1293))
