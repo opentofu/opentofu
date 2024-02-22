@@ -43,29 +43,53 @@ var validTagSizes = collections.Set[int]{
 type Config struct {
 	// Key is the encryption key for the AES-GCM encryption. It has to be 16, 24, or 32 bytes long for AES-128, 192, or
 	// 256, respectively.
-	Key []byte `hcl:"key"`
+	Key []byte `hcl:"key" json:"key" yaml:"key"`
 
 	// AAD is the Additional Authenticated Data that is authenticated, but not encrypted. In the Go implementation, this
 	// data serves as a canary value against replay attacks. The AAD value on decryption must match this setting,
 	// otherwise the decryption will fail. (Note: this is Go-specific and differs from the NIST SP 800-38D description
 	// of the AAD.)
-	AAD []byte `hcl:"aad,optional"`
+	AAD []byte `hcl:"aad,optional" json:"aad,omitempty" yaml:"aad,omitempty"`
 
 	// NonceSize describes the length of the nonce. The default (and minimum) value is 12 bytes as per the NIST
 	// SP 800-38D recommendation. Do not change this value unless you know what you are doing. This setting is included
 	// to give future users the ability to upgrade/downgrade in case new research into AES-GCM emerges and rollovers
 	// need to be handled.
-	NonceSize int `hcl:"nonce_size,optional"`
+	NonceSize int `hcl:"nonce_size,optional" json:"nonce_size,omitempty" yaml:"nonce_size,omitempty"`
 
 	// TagSize describes the length of the message authentication tag. The default and maximum value is 16 bytes, the
 	// minimum is 12 bytes as per the NIST SP 800-38D recommendation. Do not change, and especially do not lower this,
 	// unless you know what you are doing. This setting is included to give future users the ability to
 	// upgrade/downgrade in case new research into AES-GCM emerges and rollovers need to be handled.
-	TagSize int `hcl:"tag_size,optional"`
+	TagSize int `hcl:"tag_size,optional" json:"tag_size,omitempty" yaml:"tag_size,omitempty"`
+}
+
+// WithKey adds a key to the configuration and returns the configuration.
+func (c *Config) WithKey(key []byte) *Config {
+	c.Key = key
+	return c
+}
+
+// WithAAD adds an Additional AuthenticatedData to the configuration and returns the configuration.
+func (c *Config) WithAAD(aad []byte) *Config {
+	c.AAD = aad
+	return c
+}
+
+// WithNonceSize sets the nonce size to a specific value and returns the configuration.
+func (c *Config) WithNonceSize(nonceSize int) *Config {
+	c.NonceSize = nonceSize
+	return c
+}
+
+// WithTagSize sets the tag size to a specific value and returns the configuration.
+func (c *Config) WithTagSize(tagSize int) *Config {
+	c.TagSize = tagSize
+	return c
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
-func (c Config) Build() (method.Method, error) {
+func (c *Config) Build() (method.Method, error) {
 	keyLength := len(c.Key)
 	if !validKeyLengths.Has(keyLength) {
 		return nil, &method.ErrInvalidConfiguration{

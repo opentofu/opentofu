@@ -27,10 +27,10 @@ func safe2[TValue any](f func() (TValue, error)) (result TValue, err error) {
 //
 // Note: this is equivalent to a try-catch and you should probably not use it. Only use if you need to handle
 // panics from third party libraries or from Golang itself.
-func Safe2[TValue any](f func() (TValue, error), wrap func(err error) error) (result TValue, err error) {
+func Safe2[TValue any](f func() (TValue, error), wrapError func(err error) error) (result TValue, err error) {
 	value, err := safe2(f)
 	if err != nil {
-		return value, wrap(err)
+		return value, wrapError(err)
 	}
 	return value, nil
 }

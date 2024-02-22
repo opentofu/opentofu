@@ -1,23 +1,28 @@
 package aesgcm_test
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/errorhandling"
+	"testing"
 )
 
 func Example_config() {
 	// First, get the descriptor to make sure we always have the default values.
 	descriptor := aesgcm.New()
 
-	// The ConfigStruct returns an interface, you must type-assert it to aescgm.Config in order to fill it manually.
-	// In the real use-case this will be filled based on the HCL tags.
-	//
-	// Note: do not create the Config struct yourself as it will not have its default values pre-filled.
-	config := descriptor.ConfigStruct().(aesgcm.Config)
+	// Obtain a modifiable, buildable config. Alternatively, you can also use ConfigStruct() method to obtain a
+	// struct you can fill with HCL or JSON tags.
+	config := descriptor.TypedConfig()
 
 	// Set up an encryption key:
-	config.Key = []byte("AiphoogheuwohShal8Aefohy7ooLeeyu")
+	config.WithKey([]byte("AiphoogheuwohShal8Aefohy7ooLeeyu"))
 
 	// Now you can build a method:
 	method := errorhandling.Must2(config.Build())
@@ -30,4 +35,124 @@ func Example_config() {
 
 	fmt.Printf("%s", decrypted)
 	// Output: Hello world!
+}
+
+func Example_config_json() {
+	// First, get the descriptor to make sure we always have the default values.
+	descriptor := aesgcm.New()
+
+	// Get an untyped config struct you can use for JSON unmarshalling:
+	config := descriptor.ConfigStruct()
+
+	// Unmarshal JSON into the config struct:
+	errorhandling.Must(json.Unmarshal(
+		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
+		[]byte(`{
+    "key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
+}`), &config))
+
+	// Now you can build a method:
+	method := errorhandling.Must2(config.Build())
+
+	// Encrypt something:
+	encrypted := errorhandling.Must2(method.Encrypt([]byte("Hello world!")))
+
+	// Decrypt it:
+	decrypted := errorhandling.Must2(method.Decrypt(encrypted))
+
+	fmt.Printf("%s", decrypted)
+	// Output: Hello world!
+}
+
+func Example_config_hcl() {
+	// First, get the descriptor to make sure we always have the default values.
+	descriptor := aesgcm.New()
+
+	// Get an untyped config struct you can use for HCL unmarshalling:
+	config := descriptor.ConfigStruct()
+
+	// Unmarshal HCL code into the config struct. The input must be a list of bytes, so in a real world scenario
+	// you may want to put in a hex-decoding function:
+	rawHCLInput := `key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]`
+	file := errorhandling.Must2(hclsyntax.ParseConfig(
+		[]byte(rawHCLInput),
+		"example.hcl",
+		hcl.Pos{Byte: 0, Line: 1, Column: 1},
+	))
+	errorhandling.Must(gohcl.DecodeBody(file.Body, nil, config))
+
+	// Now you can build a method:
+	method := errorhandling.Must2(config.Build())
+
+	// Encrypt something:
+	encrypted := errorhandling.Must2(method.Encrypt([]byte("Hello world!")))
+
+	// Decrypt it:
+	decrypted := errorhandling.Must2(method.Decrypt(encrypted))
+
+	fmt.Printf("%s", decrypted)
+	// Output: Hello world!
+}
+
+type testCase struct {
+	config    *aesgcm.Config
+	errorType any
+}
+
+func TestConfigValidation(t *testing.T) {
+	descriptor := aesgcm.New()
+	var testCases = map[string]testCase{
+		"key-32-bytes": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")),
+			errorType: nil,
+		},
+		"key-24-bytes": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1")),
+			errorType: nil,
+		},
+		"key-16-bytes": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5o")),
+			errorType: nil,
+		},
+		"no-key": {
+			config:    descriptor.TypedConfig(),
+			errorType: &method.ErrInvalidConfiguration{},
+		},
+		"key-15-bytes": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5")),
+			errorType: &method.ErrInvalidConfiguration{},
+		},
+		"aad": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithAAD([]byte("foobar")),
+			errorType: nil,
+		},
+		"invalid-nonce-size": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithNonceSize(0),
+			errorType: &method.ErrInvalidConfiguration{},
+		},
+		"tag-size-too-small": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithTagSize(11),
+			errorType: &method.ErrInvalidConfiguration{},
+		},
+		"tag-size-too-large": {
+			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithTagSize(17),
+			errorType: &method.ErrInvalidConfiguration{},
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			_, err := tc.config.Build()
+			if tc.errorType == nil && err != nil {
+				t.Fatalf("Unexpected error returned: %v", err)
+			} else if tc.errorType != nil {
+				if err == nil {
+					t.Fatalf("Expected error, none received")
+				}
+				if !errors.As(err, &tc.errorType) {
+					t.Fatalf("Incorrect error type received: %T", err)
+				}
+				t.Logf("Correct error of type %T received: %v", err, err)
+			}
+		})
+	}
 }
