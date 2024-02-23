@@ -170,7 +170,7 @@ func StrContains(str, substr cty.Value) (cty.Value, error) {
 // This constant provides a placeholder value for filename indicating
 // that no file is needed for templatestring.
 const (
-	TemplateStringFilename = "NoFileNeeded"
+	templateStringFilename = "NoFileNeeded"
 )
 
 // MakeTemplateStringFunc constructs a function that takes a string and
@@ -192,7 +192,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 	}
 	loadTmpl := func(content string, marks cty.ValueMarks) (hcl.Expression, error) {
 
-		expr, diags := hclsyntax.ParseTemplate([]byte(content), TemplateStringFilename, hcl.Pos{Line: 1, Column: 1})
+		expr, diags := hclsyntax.ParseTemplate([]byte(content), templateStringFilename, hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
 			return nil, diags
 		}
@@ -218,7 +218,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 
 			// This is safe even if args[1] contains unknowns because the HCL
 			// template renderer itself knows how to short-circuit those.
-			val, err := RenderTemplate(expr, args[1], funcsCb)
+			val, err := renderTemplate(expr, args[1], funcsCb)
 			return val.Type(), err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
@@ -227,7 +227,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 			if err != nil {
 				return cty.DynamicVal, err
 			}
-			result, err := RenderTemplate(expr, args[1], funcsCb)
+			result, err := renderTemplate(expr, args[1], funcsCb)
 			return result.WithMarks(dataMarks), err
 		},
 	})

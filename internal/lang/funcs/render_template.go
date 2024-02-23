@@ -14,7 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func RenderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[string]function.Function) (cty.Value, error) {
+func renderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[string]function.Function) (cty.Value, error) {
 	if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
 		return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
 	}
@@ -46,7 +46,7 @@ func RenderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[s
 	for _, traversal := range expr.Variables() {
 		root := traversal.RootName()
 		referencedPos := fmt.Sprintf("%q", root)
-		if currFilename != TemplateStringFilename {
+		if currFilename != templateStringFilename {
 			referencedPos = fmt.Sprintf("%q, referenced at %s", root, traversal[0].SourceRange())
 		}
 		if _, ok := ctx.Variables[root]; !ok {

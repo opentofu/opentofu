@@ -120,7 +120,7 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 
 			// This is safe even if args[1] contains unknowns because the HCL
 			// template renderer itself knows how to short-circuit those.
-			val, err := RenderTemplate(expr, args[1], funcsCb)
+			val, err := renderTemplate(expr, args[1], funcsCb)
 			return val.Type(), err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
@@ -129,7 +129,7 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 			if err != nil {
 				return cty.DynamicVal, err
 			}
-			result, err := RenderTemplate(expr, args[1], funcsCb)
+			result, err := renderTemplate(expr, args[1], funcsCb)
 			return result.WithMarks(pathMarks), err
 		},
 	})
