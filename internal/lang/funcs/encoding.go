@@ -227,7 +227,7 @@ var URLEncodeFunc = function.New(&function.Spec{
 	},
 })
 
-// URLDecodeFunc constructs a function that applies URL decoding to a given string.
+// URLDecodeFunc constructs a function that applies URL decoding to a given encoded string.
 var URLDecodeFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
@@ -301,7 +301,7 @@ func URLEncode(str cty.Value) (cty.Value, error) {
 	return URLEncodeFunc.Call([]cty.Value{str})
 }
 
-// URLDecode decodes a URL-encoded string.
+// URLDecode decodes a URL encoded string.
 //
 // This function decodes the given string that has been encoded.
 //

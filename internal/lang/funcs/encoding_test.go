@@ -265,8 +265,8 @@ func TestURLDecode(t *testing.T) {
 			false,
 		},
 		{
-			cty.StringVal("foo/bar"),
 			cty.StringVal("foo%2Fbar"),
+			cty.StringVal("foo/bar"),
 			false,
 		},
 		{
@@ -286,7 +286,7 @@ func TestURLDecode(t *testing.T) {
 		},
 		{
 			cty.StringVal("foo%00, bar!"),
-			cty.StringVal("foo, bar!"),
+			cty.StringVal("foo\x00, bar!"),
 			false,
 		},
 		{
@@ -348,23 +348,8 @@ func TestURLEncodeDecode(t *testing.T) {
 			false,
 		},
 		{
-			cty.StringVal("foo% bar"),
-			cty.UnknownVal(cty.String),
-			true,
-		},
-		{
-			cty.StringVal("foo%2 bar"),
-			cty.UnknownVal(cty.String),
-			true,
-		},
-		{
-			cty.StringVal("%GGfoo%2bar"),
-			cty.UnknownVal(cty.String),
-			true,
-		},
-		{
 			cty.StringVal("foo%00, bar!"),
-			cty.StringVal("foo, bar!"),
+			cty.StringVal("foo%00, bar!"),
 			false,
 		},
 	}
@@ -373,8 +358,7 @@ func TestURLEncodeDecode(t *testing.T) {
 		t.Run(fmt.Sprintf("url encode decode(%#v)", test.String), func(t *testing.T) {
 			encoded, err := URLEncode(test.String)
 			if err != nil {
-				t.Errorf("encode() error = %v, wantErr = false", err)
-				return
+				t.Fatalf("unexpected error: %s", err)
 			}
 			got, err := URLDecode(encoded)
 
