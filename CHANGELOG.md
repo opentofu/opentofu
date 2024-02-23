@@ -7,6 +7,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 ENHANCEMENTS:
+* Added `templatestring` function that takes a string and renders it as a template using a supplied set of template variables. ([#1223](https://github.com/opentofu/opentofu/pull/1223))
 * Added `-concise` flag to omit the refreshing state logs when tofu plan is run. ([#1225](https://github.com/opentofu/opentofu/pull/1225))
 * `nonsensitive` function no longer returns error when applied to values that are not sensitive ([#369](https://github.com/opentofu/opentofu/pull/369))
 * Managing large local terraform.tfstate files is now much faster. ([#579](https://github.com/opentofu/opentofu/pull/579))
