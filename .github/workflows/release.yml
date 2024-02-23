@@ -50,19 +50,33 @@ jobs:
         env:
           TARGET_VERSION: ${{inputs.tag}}
 
-      - name: Check if tag is on main branch
+      - name: Check if tag is on main branch or version branch
         id: validate_tag
         run: |
-          IS_TAG_ON_MAIN=$(git branch --contains ${{inputs.tag}} | grep -q "main" && echo true || echo false)
+          IS_TAG_ON_MAIN=$(git branch -a --contains ${{inputs.tag}} | grep -q "main" && echo true || echo false)
+          IS_TAG_ON_VERSION=$(git branch -a --contains ${{inputs.tag}} | grep -E "^v[0-9]+\.[0-9]+" && echo true || echo false)
           echo "IS_TAG_ON_MAIN=${IS_TAG_ON_MAIN}" >> $GITHUB_OUTPUT
+          echo "IS_TAG_ON_VERSION=${IS_TAG_ON_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Check if release is allowed or not
         id: validate_release
         run: |
-          if [[ !inputs.prerelease && steps.validate_tag.outputs.IS_TAG_ON_MAIN == true ]]; then
+          if [[ "${{ inputs.prerelease }}" == "false" && "${{ steps.validate_tag.outputs.IS_TAG_ON_MAIN }}" == "true" ]]; then
             echo "ERROR: Creating stable release from a tag on main is not allowed."
             exit 1
           fi
+
+      - name: Check eligibility for archive push
+        id: archive
+        run: |
+          PUSH_ARCHIVE=$(
+            [[ 
+              "${{ inputs.prerelease }}" == "true" && 
+              ("${{ steps.validate_tag.outputs.IS_TAG_ON_MAIN }}" == "true" || 
+              "${{ steps.validate_tag.outputs.IS_TAG_ON_VERSION }}" == "true") 
+            ]] && echo false || echo true
+          )
+          echo "PUSH_ARCHIVE=${PUSH_ARCHIVE}" >> $GITHUB_ENV
 
       - name: Determine Go version
         id: go
@@ -132,7 +146,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && !inputs.prerelease
+        if: startsWith(inputs.tag, 'v') && steps.archive.outputs.PUSH_ARCHIVE
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -141,7 +155,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && !inputs.prerelease
+        if: startsWith(inputs.tag, 'v') && steps.archive.outputs.PUSH_ARCHIVE
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
