@@ -167,8 +167,10 @@ func StrContains(str, substr cty.Value) (cty.Value, error) {
 	return StrContainsFunc.Call([]cty.Value{str, substr})
 }
 
+// This constant provides a placeholder value for filename indicating
+// that no file is needed for templatestring.
 const (
-	TemplateStringFilename = "NoFileNeeded" //need comment
+	TemplateStringFilename = "NoFileNeeded"
 )
 
 // MakeTemplateStringFunc constructs a function that takes a string and
