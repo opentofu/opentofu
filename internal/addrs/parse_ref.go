@@ -328,10 +328,18 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 	case "terraform":
 		name, rng, remain, diags := parseSingleAttrRef(traversal)
 		return &Reference{
-			Subject:     TerraformAttr{Name: name},
+			Subject:     NewTerraformAttr(IdentTerraform, name),
 			SourceRange: tfdiags.SourceRangeFromHCL(rng),
 			Remaining:   remain,
 		}, diags
+
+	case "tofu":
+		name, rng, remain, parsedDiags := parseSingleAttrRef(traversal)
+		return &Reference{
+			Subject:     NewTerraformAttr(IdentTofu, name),
+			SourceRange: tfdiags.SourceRangeFromHCL(rng),
+			Remaining:   remain,
+		}, parsedDiags
 
 	case "var":
 		name, rng, remain, diags := parseSingleAttrRef(traversal)
