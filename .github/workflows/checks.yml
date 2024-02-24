@@ -24,6 +24,8 @@ on:
       - checks-workflow-dev/*
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
+    paths-ignore:
+      - 'website/**'
 
 # This workflow runs for not-yet-reviewed external contributions and so it
 # intentionally has no write access and only limited read access to the
