@@ -8,6 +8,7 @@ name: Snapshots
 
 on:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   compare:
@@ -20,7 +21,7 @@ jobs:
 
       - name: Install Go
         uses: actions/setup-go@v2
-        with: { go-version: '1.20' }
+        with: { go-version: "1.20" }
 
       - name: Get the equivalence test binary
         run: |
