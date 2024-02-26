@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
-	"github.com/opentofu/opentofu/internal/errorhandling"
 )
 
 func Example_config() {
@@ -26,13 +25,22 @@ func Example_config() {
 	config.WithKey([]byte("AiphoogheuwohShal8Aefohy7ooLeeyu"))
 
 	// Now you can build a method:
-	method := errorhandling.Must2(config.Build())
+	method, err := config.Build()
+	if err != nil {
+		panic(err)
+	}
 
 	// Encrypt something:
-	encrypted := errorhandling.Must2(method.Encrypt([]byte("Hello world!")))
+	encrypted, err := method.Encrypt([]byte("Hello world!"))
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt it:
-	decrypted := errorhandling.Must2(method.Decrypt(encrypted))
+	decrypted, err := method.Decrypt(encrypted)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("%s", decrypted)
 	// Output: Hello world!
@@ -46,20 +54,31 @@ func Example_config_json() {
 	config := descriptor.ConfigStruct()
 
 	// Unmarshal JSON into the config struct:
-	errorhandling.Must(json.Unmarshal(
+	if err := json.Unmarshal(
 		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
 		[]byte(`{
     "key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
-}`), &config))
+}`), &config); err != nil {
+		panic(err)
+	}
 
 	// Now you can build a method:
-	method := errorhandling.Must2(config.Build())
+	method, err := config.Build()
+	if err != nil {
+		panic(err)
+	}
 
 	// Encrypt something:
-	encrypted := errorhandling.Must2(method.Encrypt([]byte("Hello world!")))
+	encrypted, err := method.Encrypt([]byte("Hello world!"))
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt it:
-	decrypted := errorhandling.Must2(method.Decrypt(encrypted))
+	decrypted, err := method.Decrypt(encrypted)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("%s", decrypted)
 	// Output: Hello world!
@@ -75,21 +94,35 @@ func Example_config_hcl() {
 	// Unmarshal HCL code into the config struct. The input must be a list of bytes, so in a real world scenario
 	// you may want to put in a hex-decoding function:
 	rawHCLInput := `key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]`
-	file := errorhandling.Must2(hclsyntax.ParseConfig(
+	file, diags := hclsyntax.ParseConfig(
 		[]byte(rawHCLInput),
 		"example.hcl",
 		hcl.Pos{Byte: 0, Line: 1, Column: 1},
-	))
-	errorhandling.Must(gohcl.DecodeBody(file.Body, nil, config))
+	)
+	if diags.HasErrors() {
+		panic(diags)
+	}
+	if diags := gohcl.DecodeBody(file.Body, nil, config); diags.HasErrors() {
+		panic(diags)
+	}
 
 	// Now you can build a method:
-	method := errorhandling.Must2(config.Build())
+	method, err := config.Build()
+	if err != nil {
+		panic(err)
+	}
 
 	// Encrypt something:
-	encrypted := errorhandling.Must2(method.Encrypt([]byte("Hello world!")))
+	encrypted, err := method.Encrypt([]byte("Hello world!"))
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt it:
-	decrypted := errorhandling.Must2(method.Decrypt(encrypted))
+	decrypted, err := method.Decrypt(encrypted)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("%s", decrypted)
 	// Output: Hello world!
@@ -126,18 +159,6 @@ func TestConfigValidation(t *testing.T) {
 		"aad": {
 			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithAAD([]byte("foobar")),
 			errorType: nil,
-		},
-		"invalid-nonce-size": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithNonceSize(0),
-			errorType: &method.ErrInvalidConfiguration{},
-		},
-		"tag-size-too-small": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithTagSize(11),
-			errorType: &method.ErrInvalidConfiguration{},
-		},
-		"tag-size-too-large": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithTagSize(17),
-			errorType: &method.ErrInvalidConfiguration{},
 		},
 	}
 	for name, tc := range testCases {

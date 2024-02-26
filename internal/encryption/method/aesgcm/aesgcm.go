@@ -11,35 +11,18 @@ import (
 	"crypto/rand"
 	"errors"
 
-	"github.com/opentofu/opentofu/internal/errorhandling"
-
 	"github.com/opentofu/opentofu/internal/encryption/method"
-	// This unsafe is required for go:linkname
-	_ "unsafe"
 )
-
-// Note: the linking below is a workaround for Go issue #42470. We want to support setting both the nonce and the tag
-// size specifically because if the defaults for any of these parameters change due to new cryptography research,
-// people should still be able to decode their old state files.
-
-//go:linkname newGCMWithNonceAndTagSize crypto/cipher.newGCMWithNonceAndTagSize
-func newGCMWithNonceAndTagSize(cipher cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error)
 
 // aesgcm contains the encryption/decryption methods according to AES-GCM (NIST SP 800-38D).
 type aesgcm struct {
-	key       []byte
-	aad       []byte
-	nonceSize int
-	tagSize   int
+	key []byte
+	aad []byte
 }
 
 // Encrypt encrypts the passed data with AES-GCM. If the data the encryption fails, it returns an error.
 func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
-	// Ew! Ew! Ew! This is a try-catch! Yes, we know.
-	//
-	// The GCM implementation in Golang uses panics for invalid inputs. This block makes sure that users get an
-	// intelligible error message and that calling functions can rely on this function being panic-free.
-	return errorhandling.Safe2(
+	result, err := handlePanic(
 		func() ([]byte, error) {
 			gcm, err := a.getGCM()
 			if err != nil {
@@ -58,23 +41,20 @@ func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
 
 			return append(nonce, encrypted...), nil
 		},
-		func(e error) error {
-			var encryptionFailed *method.ErrEncryptionFailed
-			if errors.As(e, &encryptionFailed) {
-				return e
-			}
-			return &method.ErrEncryptionFailed{Cause: &method.ErrCryptoFailure{Message: "unexpected panic", Cause: e}}
-		},
 	)
+	if err != nil {
+		var encryptionFailed *method.ErrEncryptionFailed
+		if errors.As(err, &encryptionFailed) {
+			return nil, err
+		}
+		return nil, &method.ErrEncryptionFailed{Cause: &method.ErrCryptoFailure{Message: "unexpected error", Cause: err}}
+	}
+	return result, nil
 }
 
 // Decrypt decrypts an AES-GCM-encrypted data set. If the data set fails decryption, it returns an error.
 func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
-	// Ew! Ew! Ew! This is a try-catch! Yes, we know.
-	//
-	// The GCM implementation in Golang uses panics for invalid inputs. This block makes sure that users get an
-	// intelligible error message and that calling functions can rely on this function being panic-free.
-	return errorhandling.Safe2(
+	result, err := handlePanic(
 		func() ([]byte, error) {
 			if len(data) == 0 {
 				return nil, &method.ErrDecryptionFailed{
@@ -84,7 +64,13 @@ func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
 					},
 				}
 			}
-			if len(data) < a.nonceSize {
+
+			gcm, err := a.getGCM()
+			if err != nil {
+				return nil, &method.ErrDecryptionFailed{Cause: err}
+			}
+
+			if len(data) < gcm.NonceSize() {
 				return nil, &method.ErrDecryptionFailed{
 					Cause: method.ErrCryptoFailure{
 						Message: "cannot decrypt data because it is too small (likely data corruption)",
@@ -93,13 +79,8 @@ func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
 				}
 			}
 
-			nonce := data[:a.nonceSize]
-			data = data[a.nonceSize:]
-
-			gcm, err := a.getGCM()
-			if err != nil {
-				return nil, &method.ErrDecryptionFailed{Cause: err}
-			}
+			nonce := data[:gcm.NonceSize()]
+			data = data[gcm.NonceSize():]
 
 			decrypted, err := gcm.Open(nil, nonce, data, a.aad)
 			if err != nil {
@@ -107,14 +88,17 @@ func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
 			}
 			return decrypted, nil
 		},
-		func(e error) error {
-			var decryptionFailed *method.ErrDecryptionFailed
-			if errors.As(e, &decryptionFailed) {
-				return e
-			}
-			return &method.ErrDecryptionFailed{Cause: &method.ErrCryptoFailure{Message: "unexpected panic", Cause: e}}
-		},
 	)
+	if err != nil {
+		var decryptionFailed *method.ErrDecryptionFailed
+		if errors.As(err, &decryptionFailed) {
+			return nil, err
+		}
+		return nil, &method.ErrDecryptionFailed{
+			Cause: &method.ErrCryptoFailure{Message: "unexpected error", Cause: err},
+		}
+	}
+	return result, nil
 }
 
 func (a aesgcm) getGCM() (cipher.AEAD, error) {
@@ -126,7 +110,7 @@ func (a aesgcm) getGCM() (cipher.AEAD, error) {
 		}
 	}
 
-	gcm, err := newGCMWithNonceAndTagSize(cipherBlock, a.nonceSize, a.tagSize)
+	gcm, err := cipher.NewGCM(cipherBlock)
 	if err != nil {
 		return nil, &method.ErrCryptoFailure{
 			Message: "failed to create AES GCM",

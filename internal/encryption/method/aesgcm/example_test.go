@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
-	"github.com/opentofu/opentofu/internal/errorhandling"
 )
 
 func Example() {
@@ -15,19 +14,30 @@ func Example() {
 	// it as JSON.
 	config := descriptor.ConfigStruct()
 
-	errorhandling.Must(json.Unmarshal(
+	if err := json.Unmarshal(
 		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
 		[]byte(`{
     "key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
-}`), &config))
+}`), &config); err != nil {
+		panic(err)
+	}
 
-	method := errorhandling.Must2(config.Build())
+	method, err := config.Build()
+	if err != nil {
+		panic(err)
+	}
 
 	// Encrypt some data:
-	encrypted := errorhandling.Must2(method.Encrypt([]byte("Hello world!")))
+	encrypted, err := method.Encrypt([]byte("Hello world!"))
+	if err != nil {
+		panic(err)
+	}
 
 	// Now decrypt it:
-	decrypted := errorhandling.Must2(method.Decrypt(encrypted))
+	decrypted, err := method.Decrypt(encrypted)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("%s", decrypted)
 	// Output: Hello world!

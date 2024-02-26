@@ -13,31 +13,11 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// The following settings follow the NIST SP 800-38D recommendation.
-const (
-	defaultTagSize   = 16
-	defaultNonceSize = 12
-	minimumNonceSize = 1
-)
-
 // validKeyLengths holds the valid key lengths supported by this method.
 var validKeyLengths = collections.Set[int]{
 	16: {},
 	24: {},
 	32: {},
-}
-
-// validTagSizes contains the valid tag sizes according to NIST SP 800-38D 5.2.1.2
-var validTagSizes = collections.Set[int]{
-	// These values are not supported by Go, see gcmMinimumTagSize in aes_gcm.go. They should also not be used for
-	// general-purpose applications.
-	// 4:  {},
-	// 8:  {},
-	12: {},
-	13: {},
-	14: {},
-	15: {},
-	16: {},
 }
 
 // Config is the configuration for the AES-GCM method.
@@ -51,18 +31,6 @@ type Config struct {
 	// otherwise the decryption will fail. (Note: this is Go-specific and differs from the NIST SP 800-38D description
 	// of the AAD.)
 	AAD []byte `hcl:"aad,optional" json:"aad,omitempty" yaml:"aad,omitempty"`
-
-	// NonceSize describes the length of the nonce. The default (and minimum) value is 12 bytes as per the NIST
-	// SP 800-38D recommendation. Do not change this value unless you know what you are doing. This setting is included
-	// to give future users the ability to upgrade/downgrade in case new research into AES-GCM emerges and rollovers
-	// need to be handled.
-	NonceSize int `hcl:"nonce_size,optional" json:"nonce_size,omitempty" yaml:"nonce_size,omitempty"`
-
-	// TagSize describes the length of the message authentication tag. The default and maximum value is 16 bytes, the
-	// minimum is 12 bytes as per the NIST SP 800-38D recommendation. Do not change, and especially do not lower this,
-	// unless you know what you are doing. This setting is included to give future users the ability to
-	// upgrade/downgrade in case new research into AES-GCM emerges and rollovers need to be handled.
-	TagSize int `hcl:"tag_size,optional" json:"tag_size,omitempty" yaml:"tag_size,omitempty"`
 }
 
 // WithKey adds a key to the configuration and returns the configuration.
@@ -74,18 +42,6 @@ func (c *Config) WithKey(key []byte) *Config {
 // WithAAD adds an Additional AuthenticatedData to the configuration and returns the configuration.
 func (c *Config) WithAAD(aad []byte) *Config {
 	c.AAD = aad
-	return c
-}
-
-// WithNonceSize sets the nonce size to a specific value and returns the configuration.
-func (c *Config) WithNonceSize(nonceSize int) *Config {
-	c.NonceSize = nonceSize
-	return c
-}
-
-// WithTagSize sets the tag size to a specific value and returns the configuration.
-func (c *Config) WithTagSize(tagSize int) *Config {
-	c.TagSize = tagSize
 	return c
 }
 
@@ -102,30 +58,8 @@ func (c *Config) Build() (method.Method, error) {
 		}
 	}
 
-	if !validTagSizes.Has(c.TagSize) {
-		return nil, &method.ErrInvalidConfiguration{
-			Cause: fmt.Errorf(
-				"AES-GCM requires one of the following tag lengths: %s, but %d was given",
-				validKeyLengths.String(),
-				c.TagSize,
-			),
-		}
-	}
-
-	if c.NonceSize < minimumNonceSize {
-		return nil, &method.ErrInvalidConfiguration{
-			Cause: fmt.Errorf(
-				"the minimum nonce size for AES-GCM is %d, but only %d bytes were configured",
-				minimumNonceSize,
-				c.NonceSize,
-			),
-		}
-	}
-
 	return &aesgcm{
 		c.Key,
 		c.AAD,
-		c.NonceSize,
-		c.TagSize,
 	}, nil
 }

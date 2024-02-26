@@ -25,10 +25,8 @@ type descriptor struct {
 
 func (f *descriptor) TypedConfig() *Config {
 	return &Config{
-		Key:       nil,
-		AAD:       nil,
-		NonceSize: defaultNonceSize,
-		TagSize:   defaultTagSize,
+		Key: nil,
+		AAD: nil,
 	}
 }
 
