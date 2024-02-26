@@ -7,7 +7,7 @@ package aesgcm
 
 import "github.com/opentofu/opentofu/internal/encryption/method"
 
-// Descriptor integates the method.Descriptor and provides a TypedConfig for easier configuration.
+// Descriptor integrates the method.Descriptor and provides a TypedConfig for easier configuration.
 type Descriptor interface {
 	method.Descriptor
 
