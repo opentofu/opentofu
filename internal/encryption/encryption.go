@@ -42,6 +42,10 @@ type encryption struct {
 
 // New creates a new Encryption provider from the given configuration and registry.
 func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.Diagnostics) {
+	if cfg == nil {
+		return Disabled(), nil
+	}
+
 	enc := &encryption{
 		cfg: cfg,
 		reg: reg,
