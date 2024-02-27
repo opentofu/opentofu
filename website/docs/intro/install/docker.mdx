@@ -1,0 +1,50 @@
+---
+sidebar_position: 99
+sidebar_label: OCI container image
+description: |-
+  Use official OCI container image available on GitHub Container Registry.
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import DockerPullScript from '!!raw-loader!./docker-pull.sh'
+import DockerRunScript from '!!raw-loader!./docker-run.sh'
+
+# Use OpenTofu as Docker Image
+
+OpenTofu is available as [OCI container images](https://github.com/opentofu/opentofu/pkgs/container/opentofu),
+and distributed via public GitHub Packages registry.
+
+## Versions
+
+Images are hosted as packages in opentofy GitHub organization. See the list
+of available versions [here](https://github.com/opentofu/opentofu/pkgs/container/opentofu/versions?filters%5Bversion_type%5D=tagged).
+
+The multi platform images are available using the following tags:
+
+- `latest`: latest overall version of OpenTofu,
+- `Major`: a specific major version of OpenTofu,
+- `Major`.`Minor`: a specific minor version of OpenTofu,
+- `Major`.`Minor`.`Patch`: a specific patch version of OpenTofu.
+
+To pull platform-specific images (`amd64`, `arm`, `arm64`, `386`) use:
+
+- `<Version>`-`<Platform>`: a platform specific version of OpenTofu.
+
+## Usage
+
+To pull the image from GitHub Packages registry:
+
+<CodeBlock language="bash">{DockerPullScript}</CodeBlock>
+
+To run OpenTofu as a Docker container:
+
+<CodeBlock language="bash">{DockerRunScript}</CodeBlock>
+
+:::tip
+
+If you run into rate limiting issues with GitHub, create a
+[Personal Access Token](https://github.com/settings/tokens) and
+[log in](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
+to the registry.
+
+:::
