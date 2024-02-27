@@ -288,7 +288,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate encryption configuration",
-				Detail:   fmt.Sprintf("A module may have only one encryption configuration. The encryption was previously configured at %s.", m.Encryption.DeclRange),
+				Detail:   fmt.Sprintf("A module may have only one encryption configuration. Encryption was previously configured at %s.", m.Encryption.DeclRange),
 				Subject:  &e.DeclRange,
 			})
 			continue
@@ -578,7 +578,7 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate encryption configuration",
-				Detail:   fmt.Sprintf("Each override file may have only one encryption configuration. A encryption was previously configured at %s.", file.Encryptions[0].DeclRange),
+				Detail:   fmt.Sprintf("Each override file may have only one encryption configuration. Encryption was previously configured at %s.", file.Encryptions[0].DeclRange),
 				Subject:  &file.Encryptions[1].DeclRange,
 			})
 		}
