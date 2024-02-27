@@ -37,6 +37,8 @@ jobs:
     runs-on: ${{ matrix.runson }}  
     env:
       TF_APPEND_USER_AGENT: Integration-Test
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
     strategy:
       matrix:
         include:
@@ -49,10 +51,6 @@ jobs:
           # https://github.com/opentofu/opentofu/issues/1201 if fixed
           #  ^ un-comment the  windows-latest line
       fail-fast: false
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
     steps:
       # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
       # for testing on non amd64 envs like 386, arm64 etc...
