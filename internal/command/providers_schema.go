@@ -85,7 +85,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewJSON)
+	opReq := c.Operation(b, arguments.ViewJSON, nil) // Encryption no needed here
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.AllowUnsetVariables = true

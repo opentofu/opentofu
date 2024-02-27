@@ -13,7 +13,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -170,7 +169,7 @@ func (ri *ImportResolver) GetAllImports() []EvaluatedConfigImportTarget {
 // Further, this operation also gracefully handles partial state. If during
 // an import there is a failure, all previously imported resources remain
 // imported.
-func (c *Context) Import(config *configs.Config, prevRunState *states.State, opts *ImportOpts, enc encryption.Encryption) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Import(config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Hold a lock since we can modify our own state here
@@ -203,7 +202,6 @@ func (c *Context) Import(config *configs.Config, prevRunState *states.State, opt
 	// Walk it
 	walker, walkDiags := c.walk(graph, walkImport, &graphWalkOpts{
 		Config:     config,
-		Encryption: enc,
 		InputState: state,
 	})
 	diags = diags.Append(walkDiags)

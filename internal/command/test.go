@@ -213,6 +213,9 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Don't use encryption during testing
+	opts.Encryption = encryption.Disabled()
+
 	// Print out all the diagnostics we have from the setup. These will just be
 	// warnings, and we want them out of the way before we start the actual
 	// testing.
@@ -690,7 +693,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting destroy plan for %s/%s", file.Name, run.Name)
-		plan, planDiags = tfCtx.Plan(config, state, planOpts, encryption.Disabled())
+		plan, planDiags = tfCtx.Plan(config, state, planOpts)
 		log.Printf("[DEBUG] TestFileRunner: completed destroy plan for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -763,7 +766,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting plan for %s/%s", file.Name, run.Name)
-		plan, planDiags = tfCtx.Plan(config, state, planOpts, encryption.Disabled())
+		plan, planDiags = tfCtx.Plan(config, state, planOpts)
 		log.Printf("[DEBUG] TestFileRunner: completed plan for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -817,7 +820,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 		defer logging.PanicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
-		updated, applyDiags = tfCtx.Apply(plan, config, encryption.Disabled())
+		updated, applyDiags = tfCtx.Apply(plan, config)
 		log.Printf("[DEBUG] TestFileRunner: completed apply for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)

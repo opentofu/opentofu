@@ -58,7 +58,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(".")
+	enc, encDiags := c.EncryptionFromPath(".")
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)

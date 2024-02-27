@@ -49,27 +49,47 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 	enc := &encryption{
 		cfg: cfg,
 		reg: reg,
+
+		remotes: make(map[string]StateEncryption),
 	}
 	var diags hcl.Diagnostics
 	var encDiags hcl.Diagnostics
 
-	enc.statefile, encDiags = newStateEncryption(enc, cfg.StateFile.AsTargetConfig(), cfg.StateFile.Enforced, "statefile")
-	diags = append(diags, encDiags...)
-
-	enc.planfile, encDiags = newPlanEncryption(enc, cfg.PlanFile.AsTargetConfig(), cfg.PlanFile.Enforced, "planfile")
-	diags = append(diags, encDiags...)
-
-	enc.backend, encDiags = newStateEncryption(enc, cfg.Backend.AsTargetConfig(), cfg.Backend.Enforced, "backend")
-	diags = append(diags, encDiags...)
-
-	enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default")
-	diags = append(diags, encDiags...)
-
-	for _, remoteTarget := range cfg.Remote.Targets {
-		// TODO the addr here should be generated in one place.
-		addr := "remote.remote_state_datasource." + remoteTarget.Name
-		enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, addr)
+	if cfg.StateFile != nil {
+		enc.statefile, encDiags = newStateEncryption(enc, cfg.StateFile.AsTargetConfig(), cfg.StateFile.Enforced, "statefile")
 		diags = append(diags, encDiags...)
+	} else {
+		enc.statefile = StateEncryptionDisabled()
+	}
+
+	if cfg.PlanFile != nil {
+		enc.planfile, encDiags = newPlanEncryption(enc, cfg.PlanFile.AsTargetConfig(), cfg.PlanFile.Enforced, "planfile")
+		diags = append(diags, encDiags...)
+	} else {
+		enc.planfile = PlanEncryptionDisabled()
+	}
+
+	if cfg.Backend != nil {
+		enc.backend, encDiags = newStateEncryption(enc, cfg.Backend.AsTargetConfig(), cfg.Backend.Enforced, "backend")
+		diags = append(diags, encDiags...)
+	} else {
+		enc.backend = StateEncryptionDisabled()
+	}
+
+	if cfg.Remote != nil {
+		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default")
+		diags = append(diags, encDiags...)
+	} else {
+		enc.remoteDefault = StateEncryptionDisabled()
+	}
+
+	if cfg.Remote != nil {
+		for _, remoteTarget := range cfg.Remote.Targets {
+			// TODO the addr here should be generated in one place.
+			addr := "remote.remote_state_datasource." + remoteTarget.Name
+			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, addr)
+			diags = append(diags, encDiags...)
+		}
 	}
 	if diags.HasErrors() {
 		return nil, diags

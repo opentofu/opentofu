@@ -62,7 +62,8 @@ func Example() {
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
-	enc := encryption.New(reg, cfg)
+	enc, diags := encryption.New(reg, cfg)
+	handleDiags(diags)
 
 	sfe := enc.StateFile()
 

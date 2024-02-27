@@ -111,7 +111,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(configPath)
+	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -194,7 +194,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman)
+	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
@@ -255,7 +255,7 @@ func (c *ImportCommand) Run(args []string) int {
 		// the input variables end up represented as plan options even though
 		// this particular operation isn't really a plan.
 		SetVariables: lr.PlanOpts.SetVariables,
-	}, enc)
+	})
 	diags = diags.Append(importDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)

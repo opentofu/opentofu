@@ -53,7 +53,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	var diags tfdiags.Diagnostics
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(configPath)
+	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -89,7 +89,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman)
+	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.AllowUnsetVariables = true // we'll just evaluate them as unknown

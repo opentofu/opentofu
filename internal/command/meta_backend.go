@@ -406,7 +406,7 @@ func (m *Meta) backendCLIOpts() (*backend.CLIOpts, error) {
 // This prepares the operation. After calling this, the caller is expected
 // to modify fields of the operation such as Sequence to specify what will
 // be called.
-func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType) *backend.Operation {
+func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType, enc encryption.Encryption) *backend.Operation {
 	schema := b.ConfigSchema()
 	workspace, err := m.Workspace()
 	if err != nil {
@@ -441,6 +441,7 @@ func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType) *backend.Oper
 	}
 
 	return &backend.Operation{
+		Encryption:      enc,
 		PlanOutBackend:  planOutBackend,
 		Targets:         m.targets,
 		UIIn:            m.UIInput(),

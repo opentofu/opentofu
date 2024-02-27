@@ -192,7 +192,7 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(path)
+	enc, encDiags := c.EncryptionFromModule(rootModEarly)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)

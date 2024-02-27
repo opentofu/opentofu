@@ -59,7 +59,7 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(".")
+	enc, encDiags := c.EncryptionFromPath(".")
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -105,7 +105,7 @@ func (c *GraphCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman)
+	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile

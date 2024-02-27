@@ -51,7 +51,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(".")
+	enc, encDiags := c.EncryptionFromPath(".")
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
@@ -89,7 +89,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Build the operation (required to get the schemas)
-	opReq := c.Operation(b, arguments.ViewHuman)
+	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
 

@@ -13,7 +13,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -27,7 +26,7 @@ import (
 //
 // Even if the returned diagnostics contains errors, Apply always returns the
 // resulting state which is likely to have been partially-updated.
-func (c *Context) Apply(plan *plans.Plan, config *configs.Config, enc encryption.Encryption) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
@@ -63,7 +62,6 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config, enc encryption
 	workingState := plan.PriorState.DeepCopy()
 	walker, walkDiags := c.walk(graph, operation, &graphWalkOpts{
 		Config:     config,
-		Encryption: enc,
 		InputState: workingState,
 		Changes:    plan.Changes,
 

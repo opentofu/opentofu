@@ -68,7 +68,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(".") // TODO make sure that this does not have an override we are missing!
+	enc, encDiags := c.EncryptionFromPath(".") // TODO make sure that this does not have an override we are missing!
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -275,7 +275,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(be, viewType)
+	opReq := c.Operation(be, viewType, enc)
 	opReq.AutoApprove = autoApprove
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
@@ -285,7 +285,6 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.Targets = args.Targets
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypeApply
-	opReq.Encryption = enc
 	opReq.View = view.Operation()
 
 	var err error

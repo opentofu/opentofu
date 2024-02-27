@@ -296,7 +296,7 @@ func TestState_basic(t *testing.T) {
 			var got cty.Value
 			if !diags.HasErrors() && config.IsWhollyKnown() {
 				var moreDiags tfdiags.Diagnostics
-				got, moreDiags = dataSourceRemoteStateRead(config)
+				got, moreDiags = dataSourceRemoteStateRead(config, encryption.StateEncryptionDisabled())
 				diags = diags.Append(moreDiags)
 			}
 

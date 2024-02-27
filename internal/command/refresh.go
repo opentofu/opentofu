@@ -70,7 +70,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	c.Meta.parallelism = args.Operation.Parallelism
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(".") // TODO is this path correct?
+	enc, encDiags := c.EncryptionFromPath(".") // TODO is this path correct?
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -151,12 +151,11 @@ func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refres
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(be, viewType)
+	opReq := c.Operation(be, viewType, enc)
 	opReq.ConfigDir = "."
 	opReq.Hooks = view.Hooks()
 	opReq.Targets = args.Targets
 	opReq.Type = backend.OperationTypeRefresh
-	opReq.Encryption = enc
 	opReq.View = view.Operation()
 
 	var err error

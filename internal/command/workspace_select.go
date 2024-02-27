@@ -61,7 +61,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(configPath)
+	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)

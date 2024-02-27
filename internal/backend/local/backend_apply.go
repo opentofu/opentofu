@@ -91,7 +91,7 @@ func (b *Local) opApply(
 	if op.PlanFile == nil {
 		// Perform the plan
 		log.Printf("[INFO] backend/local: apply calling Plan")
-		plan, moreDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts, op.Encryption)
+		plan, moreDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			// If OpenTofu Core generated a partial plan despite the errors
@@ -237,7 +237,7 @@ func (b *Local) opApply(
 		defer logging.PanicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
-		applyState, applyDiags = lr.Core.Apply(plan, lr.Config, op.Encryption)
+		applyState, applyDiags = lr.Core.Apply(plan, lr.Config)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {

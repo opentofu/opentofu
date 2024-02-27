@@ -70,7 +70,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption(".") // TODO make sure that this does not have an override we are missing!
+	enc, encDiags := c.EncryptionFromPath(".") // TODO make sure that this does not have an override we are missing!
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -161,7 +161,7 @@ func (c *PlanCommand) OperationRequest(
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(be, viewType)
+	opReq := c.Operation(be, viewType, enc)
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()
@@ -171,7 +171,6 @@ func (c *PlanCommand) OperationRequest(
 	opReq.Targets = args.Targets
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypePlan
-	opReq.Encryption = enc
 	opReq.View = view.Operation()
 
 	var err error
