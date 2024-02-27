@@ -391,6 +391,9 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 	case planproto.Action_DELETE:
 		ret.Action = plans.Delete
 		beforeIdx = 0
+	case planproto.Action_FORGET:
+		ret.Action = plans.Forget
+		beforeIdx = 0
 	case planproto.Action_CREATE_THEN_DELETE:
 		ret.Action = plans.CreateThenDelete
 		beforeIdx = 0
@@ -794,6 +797,9 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 		ret.Values = []*planproto.DynamicValue{before, after}
 	case plans.Delete:
 		ret.Action = planproto.Action_DELETE
+		ret.Values = []*planproto.DynamicValue{before}
+	case plans.Forget:
+		ret.Action = planproto.Action_FORGET
 		ret.Values = []*planproto.DynamicValue{before}
 	case plans.DeleteThenCreate:
 		ret.Action = planproto.Action_DELETE_THEN_CREATE

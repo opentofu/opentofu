@@ -149,7 +149,7 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		Checks:           checkState,
 		InstanceExpander: instances.NewExpander(),
 		MoveResults:      opts.MoveResults,
-		ResolvedImports:  &ResolvedImports{imports: make(map[ResolvedConfigImportsKey]bool)},
+		ImportResolver:   NewImportResolver(),
 		Operation:        operation,
 		StopContext:      c.runContext,
 		PlanTimestamp:    opts.PlanTimeTimestamp,

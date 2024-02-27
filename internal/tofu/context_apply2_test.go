@@ -2246,3 +2246,64 @@ locals {
 		t.Errorf("expected local value to be \"foo\" but was \"%s\"", module.LocalValues["local_value"].AsString())
 	}
 }
+
+func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
+	desposedKey := states.DeposedKey("deposed")
+	addr := "aws_instance.baz"
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			removed {
+				from = aws_instance.baz
+			}
+		`,
+	})
+	hook := new(MockHook)
+	p := testProvider("aws")
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr(addr).Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"bar"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceDeposed(
+		mustResourceInstanceAddr(addr).Resource,
+		desposedKey,
+		&states.ResourceInstanceObjectSrc{
+			Status:       states.ObjectTainted,
+			AttrsJSON:    []byte(`{"id":"bar"}`),
+			Dependencies: []addrs.ConfigResource{},
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	p.PlanResourceChangeFn = testDiffFn
+
+	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	assertNoErrors(t, diags)
+
+	s, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	if !s.Empty() {
+		t.Fatalf("State should be empty")
+	}
+
+	if p.ApplyResourceChangeCalled {
+		t.Fatalf("When we forget we don't call the provider's ApplyResourceChange unlike in destroy")
+	}
+
+	if hook.PostApplyCalled {
+		t.Fatalf("PostApply hook should not be called as part of forget")
+	}
+}

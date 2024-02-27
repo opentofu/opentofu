@@ -92,6 +92,7 @@ type Change struct {
 	//    ["delete", "create"]
 	//    ["create", "delete"]
 	//    ["delete"]
+	//    ["forget"]
 	// The two "replace" actions are represented in this way to allow callers to
 	// e.g. just scan the list for "delete" to recognize all three situations
 	// where the object will be deleted, allowing for any new deletion
@@ -99,10 +100,11 @@ type Change struct {
 	Actions []string `json:"actions,omitempty"`
 
 	// Before and After are representations of the object value both before and
-	// after the action. For ["create"] and ["delete"] actions, either "before"
-	// or "after" is unset (respectively). For ["no-op"], the before and after
-	// values are identical. The "after" value will be incomplete if there are
-	// values within it that won't be known until after apply.
+	// after the action. For ["delete"] and ["forget"] actions, the "after"
+	// value is unset. For ["create"] the "before" is unset. For ["no-op"], the
+	// before and after values are identical. The "after" value will be
+	// incomplete if there are values within it that won't be known until after
+	// apply.
 	Before json.RawMessage `json:"before,omitempty"`
 	After  json.RawMessage `json:"after,omitempty"`
 
@@ -841,6 +843,8 @@ func actionString(action string) []string {
 		return []string{"read"}
 	case action == "DeleteThenCreate":
 		return []string{"delete", "create"}
+	case action == "Forget":
+		return []string{"forget"}
 	default:
 		return []string{action}
 	}
@@ -870,6 +874,8 @@ func UnmarshalActions(actions []string) plans.Action {
 			return plans.Read
 		case "no-op":
 			return plans.NoOp
+		case "forget":
+			return plans.Forget
 		}
 	}
 

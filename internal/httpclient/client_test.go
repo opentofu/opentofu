@@ -10,12 +10,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/opentofu/opentofu/version"
 )
 
 func TestNew_userAgent(t *testing.T) {
+
+	appendUaVal := os.Getenv(appendUaEnvVar)
+	os.Unsetenv(appendUaEnvVar)
+	defer os.Setenv(appendUaEnvVar, appendUaVal)
+
 	var actualUserAgent string
 	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		actualUserAgent = req.UserAgent()

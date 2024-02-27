@@ -1,5 +1,30 @@
 # Weekly Updates
 
+## 2024-02-22
+
+Hello! Over the last week we've finished up a couple of features, and we're continuing to work our way towards 1.7.0.
+
+We've also [just released 1.6.2](https://github.com/opentofu/opentofu/releases/tag/v1.6.2) with a fix for a bug in `tofu test`.
+
+Additionally, if you're coming to KubeCon and will be there a day early, make sure to come to OpenTofu Day! It's happening on Tuesday, the 19th of March, as a KubeCon + CloudNativeCon Europe CNCF-hosted Co-located Event. You can find more details [here](https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/co-located-events/opentofu-day/#about).
+
+- Current Status and Up Next
+  - State encryption
+    - [First big pull request](https://github.com/opentofu/opentofu/pull/1227) has been merged.
+    - The team is now working with much better parallelism on integrating it with the codebase, as well as implementing the various encryption methods and key providers.
+  - Declarative remove block
+    - The [PR](https://github.com/opentofu/opentofu/pull/1158) has been merged, and the feature is now finished. It will be available as part of 1.7.0.
+    - We'll now work on the documentation for this feature.
+  - [Passing outputs of one test case to another as variables](https://github.com/opentofu/opentofu/pull/1254) is now fixed and is available as part of 1.6.2 today.
+  - Work on adding for_each to import blocks is being continued, [a draft PR is currently up](https://github.com/opentofu/opentofu/pull/1270) further refactoring the code.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2024-02-15
 
 Hey there! Last week was quiet due to most of the core team is off on winter holidays, but this week we're all back!

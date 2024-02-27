@@ -82,66 +82,31 @@ func ParseModuleInstanceStr(str string) (ModuleInstance, tfdiags.Diagnostics) {
 	return addr, diags
 }
 
+// parseModuleInstancePrefix parses a module instance address from the given
+// traversal, returning the module instance address and the remaining
+// traversal.
+// This function supports module addresses with and without instance keys.
 func parseModuleInstancePrefix(traversal hcl.Traversal) (ModuleInstance, hcl.Traversal, tfdiags.Diagnostics) {
 	remain := traversal
 	var mi ModuleInstance
 	var diags tfdiags.Diagnostics
 
-LOOP:
 	for len(remain) > 0 {
-		var next string
-		switch tt := remain[0].(type) {
-		case hcl.TraverseRoot:
-			next = tt.Name
-		case hcl.TraverseAttr:
-			next = tt.Name
-		default:
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid address operator",
-				Detail:   "Module address prefix must be followed by dot and then a name.",
-				Subject:  remain[0].SourceRange().Ptr(),
-			})
-			break LOOP
-		}
+		moduleName, isModule, moduleNameDiags := getModuleName(remain)
+		diags = diags.Append(moduleNameDiags)
 
-		if next != "module" {
+		if !isModule || diags.HasErrors() {
 			break
 		}
 
-		kwRange := remain[0].SourceRange()
-		remain = remain[1:]
-		// If we have the prefix "module" then we should be followed by an
-		// module call name, as an attribute, and then optionally an index step
-		// giving the instance key.
-		if len(remain) == 0 {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid address operator",
-				Detail:   "Prefix \"module.\" must be followed by a module name.",
-				Subject:  &kwRange,
-			})
-			break
-		}
-
-		var moduleName string
-		switch tt := remain[0].(type) {
-		case hcl.TraverseAttr:
-			moduleName = tt.Name
-		default:
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid address operator",
-				Detail:   "Prefix \"module.\" must be followed by a module name.",
-				Subject:  remain[0].SourceRange().Ptr(),
-			})
-			break LOOP
-		}
-		remain = remain[1:]
+		// Because this is a valid module address, we can safely assume that
+		// the first two elements are "module" and the module name
+		remain = remain[2:]
 		step := ModuleInstanceStep{
 			Name: moduleName,
 		}
 
+		// Check for optional module instance key
 		if len(remain) > 0 {
 			if idx, ok := remain[0].(hcl.TraverseIndex); ok {
 				remain = remain[1:]

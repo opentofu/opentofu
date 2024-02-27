@@ -459,6 +459,10 @@ func (v ConfigResource) CheckableKind() CheckableKind {
 	return CheckableResource
 }
 
+func (r ConfigResource) configRemovableSigil() {
+	// Empty function so ConfigResource will fulfill the requirements of the removable interface
+}
+
 type configResourceKey string
 
 func (k configResourceKey) uniqueKeySigil() {}

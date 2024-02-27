@@ -101,7 +101,7 @@ func TestBuildConfigDiags(t *testing.T) {
 		},
 	))
 
-	wantDiag := `testdata/nested-errors/child_c/child_c.tf:5,1-8: ` +
+	wantDiag := filepath.FromSlash(`testdata/nested-errors/child_c/child_c.tf:5,1-8: `) +
 		`Unsupported block type; Blocks of type "invalid" are not expected here.`
 	assertExactDiagnostics(t, diags, []string{wantDiag})
 
@@ -190,6 +190,14 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 				for _, s := range strings.Split(string(data), "\n") {
 					msg := strings.TrimSpace(s)
 					msg = strings.ReplaceAll(msg, `\n`, "\n")
+					// The filepath preset in testdata with unix-style slash.
+					// We should from slash to adapt to Linux, Windows and others OS.
+					msgSplit := strings.SplitN(msg, ":", 2)
+					if len(msgSplit) == 2 {
+						msgSplit[0] = filepath.FromSlash(msgSplit[0])
+						msg = strings.Join(msgSplit, ":")
+					}
+
 					if msg != "" {
 						expected = append(expected, msg)
 					}

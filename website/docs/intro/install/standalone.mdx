@@ -1,6 +1,6 @@
 ---
 sidebar_position: 99
-sidebar_label: Standalone (Linux/MacOS/Windows)
+sidebar_label: Standalone (Linux/MacOS/Windows/BSD)
 description: |-
   Use OpenTofu as a standalone binary without installation.
 ---
@@ -22,7 +22,7 @@ import Admonition from '@theme/Admonition';
 ## Using the installer script
 
 <Tabs>
-    <TabItem value="posix" label="Linux/MacOS/Unix (POSIX)">
+    <TabItem value="posix" label="Linux/MacOS/BSD/Unix (POSIX)">
         <CodeBlock language="bash">{LinuxScript}</CodeBlock>
         <Admonition type="info">The standalone installer verifies the integrity of the downloaded files. You need to install <a href="https://docs.sigstore.dev/system_config/installation/">cosign</a>, <a href="https://gnupg.org/">GnuPG</a>, or disable the integrity verification by using the <code>--skip-verify</code> option.</Admonition>
     </TabItem>
@@ -69,7 +69,7 @@ Please download the `tofu_YOURVERSION_SHA256SUMS` file from the release. This fi
 After you have verified the checksums, you can verify the integrity of the checksum file itself with [Cosign](https://docs.sigstore.dev/system_config/installation/). Please make sure you have installed Cosign and download the `tofu_YOURVERSION_SHA256SUMS.pem` and `tofu_YOURVERSION_SHA256SUMS.sig` files for your release. You can then run the integrity verification:
 
 <Tabs>
-    <TabItem value="posix" label="Linux/MacOS/UNIX (POSIX)">
+    <TabItem value="posix" label="Linux/MacOS/BSD/UNIX (POSIX)">
         <CodeBlock language="bash">{VerifyCosignLinux}</CodeBlock>
     </TabItem>
     <TabItem value="powershell" label="Windows (PowerShell)">

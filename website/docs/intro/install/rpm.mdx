@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
-sidebar_label: .rpm-based Linux (RHEL, openSUSE, Fedora)
+sidebar_label: .rpm-based Linux (RHEL, openSUSE, AlmaLinux)
 description: |-
-  Install OpenTofu on Red Hat Enterprise Linux.
+  Install OpenTofu on Red Hat Enterprise Linux (RHEL), openSUSE, AlmaLinux.
 ---
 
 import Tabs from '@theme/Tabs';
@@ -15,7 +15,7 @@ import YumInstallScript from '!!raw-loader!./install-yum.sh'
 import ZypperInstallScript from '!!raw-loader!./install-zypper.sh'
 import Buildkite from "./buildkite";
 
-# Installing OpenTofu on RHEL, Fedora, openSUSE, and other RPM-based distributions
+# Installing OpenTofu on RHEL, openSUSE, AlmaLinux and other RPM-based distributions
 
 <Buildkite />
 
@@ -34,7 +34,7 @@ The following steps explain how to set up the OpenTofu RPM repositories. These i
 ### Adding the OpenTofu repository
 
 <Tabs>
-    <TabItem value="redhat" label="Yum (RHEL/Fedora/etc.)" default>
+    <TabItem value="redhat" label="Yum (RHEL/AlmaLinux/etc.)" default>
         Create the <code>/etc/yum.repos.d/opentofu.repo</code> file by running the following command:
         <CodeBlock language={"bash"}>{YumRepoScript}</CodeBlock>
     </TabItem>
@@ -49,7 +49,7 @@ The following steps explain how to set up the OpenTofu RPM repositories. These i
 Now you install OpenTofu by running:
 
 <Tabs>
-    <TabItem value="redhat" label="Yum (RHEL/Fedora/etc)" default>
+    <TabItem value="redhat" label="Yum (RHEL/AlmaLinux/etc)" default>
         <CodeBlock language={"bash"}>{YumInstallScript}</CodeBlock>
     </TabItem>
     <TabItem value="opensuse-leap" label="Zypper (openSUSE)">

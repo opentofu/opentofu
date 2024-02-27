@@ -203,6 +203,9 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		if counts[plans.Read] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Read)))
 		}
+		if counts[plans.Forget] > 0 {
+			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Forget)))
+		}
 	}
 
 	if len(changes) > 0 {
@@ -354,6 +357,11 @@ func renderHumanDiff(renderer Renderer, diff diff, cause string) (string, bool) 
 	buf.WriteString(renderer.Colorize.Color(resourceChangeComment(diff.change, action, cause)))
 
 	opts := computed.NewRenderHumanOpts(renderer.Colorize)
+
+	if action == plans.Forget {
+		opts.HideDiffActionSymbols = true
+		opts.OverrideNullSuffix = true
+	}
 	opts.ShowUnchangedChildren = diff.Importing()
 
 	buf.WriteString(fmt.Sprintf("%s %s %s", renderer.Colorize.Color(format.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts)))
@@ -453,7 +461,20 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			buf.WriteString(fmt.Sprintf("\n  # (because key [%s] is not in for_each map)", resource.Index))
 		}
 		if len(resource.Deposed) != 0 {
-			// Some extra context about this unusual situation.
+			// In the case where we partially failed to replace a resource
+			// configured with 'create_before_destroy' in a previous apply and
+			// the deposed instance is still in the state, we give some extra
+			// context about this unusual situation.
+			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
+		}
+	case plans.Forget:
+		buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be removed from the OpenTofu state [bold][red]but will not be destroyed[reset]", dispAddr))
+
+		if len(resource.Deposed) != 0 {
+			// In the case where we partially failed to replace a resource
+			// configured with 'create_before_destroy' in a previous apply and
+			// the deposed instance is still in the state, we give some extra
+			// context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
 	case plans.NoOp:
@@ -524,6 +545,9 @@ func actionDescription(action plans.Action) string {
 		return "[red]-[reset]/[green]+[reset] destroy and then create replacement"
 	case plans.Read:
 		return " [cyan]<=[reset] read (data resources)"
+	case plans.Forget:
+		return "  [red].[reset] forget"
+
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))
 	}

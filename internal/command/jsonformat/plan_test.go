@@ -570,6 +570,44 @@ func TestResourceChange_primitiveTypes(t *testing.T) {
       - id = "i-02ae66f368e8518a9" -> null
     }`,
 		},
+		"forget": {
+			Action: plans.Forget,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("i-02ae66f368e8518a9"),
+			}),
+			After: cty.NullVal(cty.EmptyObject),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Computed: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput: `  # test_instance.example will be removed from the OpenTofu state but will not be destroyed
+  . resource "test_instance" "example" {
+    id = "i-02ae66f368e8518a9"
+}`,
+		},
+		"forget a deposed object": {
+			Action:     plans.Forget,
+			Mode:       addrs.ManagedResourceMode,
+			DeposedKey: states.DeposedKey("byebye"),
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("i-02ae66f368e8518a9"),
+			}),
+			After: cty.NullVal(cty.EmptyObject),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Computed: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput: `  # test_instance.example (deposed object byebye) will be removed from the OpenTofu state but will not be destroyed
+  # (left over from a partially-failed replacement of this instance)
+  . resource "test_instance" "example" {
+    id = "i-02ae66f368e8518a9"
+}`,
+		},
 		"string in-place update": {
 			Action: plans.Update,
 			Mode:   addrs.ManagedResourceMode,
@@ -5888,6 +5926,41 @@ func TestResourceChange_actionReason(t *testing.T) {
 			ExpectedOutput: `  # test_instance.example must be replaced
 +/- resource "test_instance" "example" {}`,
 		},
+		"forget for no particular reason": {
+			Action:          plans.Forget,
+			ActionReason:    plans.ResourceInstanceChangeNoReason,
+			Mode:            addrs.ManagedResourceMode,
+			Before:          emptyVal,
+			After:           nullVal,
+			Schema:          emptySchema,
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput: `  # test_instance.example will be removed from the OpenTofu state but will not be destroyed
+  . resource "test_instance" "example" {}`,
+		},
+		"forget because no resource configuration": {
+			Action:          plans.Forget,
+			ActionReason:    plans.ResourceInstanceDeleteBecauseNoResourceConfig,
+			ModuleInst:      addrs.RootModuleInstance.Child("foo", addrs.NoKey),
+			Mode:            addrs.ManagedResourceMode,
+			Before:          emptyVal,
+			After:           nullVal,
+			Schema:          emptySchema,
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput: `  # module.foo.test_instance.example will be removed from the OpenTofu state but will not be destroyed
+  . resource "test_instance" "example" {}`,
+		},
+		"forget because no module": {
+			Action:          plans.Forget,
+			ActionReason:    plans.ResourceInstanceDeleteBecauseNoModule,
+			ModuleInst:      addrs.RootModuleInstance.Child("foo", addrs.IntKey(1)),
+			Mode:            addrs.ManagedResourceMode,
+			Before:          emptyVal,
+			After:           nullVal,
+			Schema:          emptySchema,
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput: `  # module.foo[1].test_instance.example will be removed from the OpenTofu state but will not be destroyed
+  . resource "test_instance" "example" {}`,
+		},
 	}
 
 	runTestCases(t, testCases)
@@ -6684,6 +6757,105 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
         }
     }`,
 		},
+		"forget": {
+			Action: plans.Forget,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.StringVal("i-02ae66f368e8518a9"),
+				"ami": cty.StringVal("ami-BEFORE"),
+				"list_field": cty.ListVal([]cty.Value{
+					cty.StringVal("hello"),
+					cty.StringVal("friends"),
+				}),
+				"map_key": cty.MapVal(map[string]cty.Value{
+					"breakfast": cty.NumberIntVal(800),
+					"dinner":    cty.NumberIntVal(2000), // sensitive key
+				}),
+				"map_whole": cty.MapVal(map[string]cty.Value{
+					"breakfast": cty.StringVal("pizza"),
+					"dinner":    cty.StringVal("pizza"),
+				}),
+				"nested_block": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"an_attr": cty.StringVal("secret"),
+						"another": cty.StringVal("not secret"),
+					}),
+				}),
+				"nested_block_set": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"an_attr": cty.StringVal("secret"),
+						"another": cty.StringVal("not secret"),
+					}),
+				}),
+			}),
+			After: cty.NullVal(cty.EmptyObject),
+			BeforeValMarks: []cty.PathValueMarks{
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "ami"}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "list_field"}, cty.IndexStep{Key: cty.NumberIntVal(1)}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "map_key"}, cty.IndexStep{Key: cty.StringVal("dinner")}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "map_whole"}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "nested_block"}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+				{
+					Path:  cty.Path{cty.GetAttrStep{Name: "nested_block_set"}},
+					Marks: cty.NewValueMarks(marks.Sensitive),
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id":         {Type: cty.String, Optional: true, Computed: true},
+					"ami":        {Type: cty.String, Optional: true},
+					"list_field": {Type: cty.List(cty.String), Optional: true},
+					"map_key":    {Type: cty.Map(cty.Number), Optional: true},
+					"map_whole":  {Type: cty.Map(cty.String), Optional: true},
+				},
+				BlockTypes: map[string]*configschema.NestedBlock{
+					"nested_block_set": {
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"an_attr": {Type: cty.String, Optional: true},
+								"another": {Type: cty.String, Optional: true},
+							},
+						},
+						Nesting: configschema.NestingSet,
+					},
+				},
+			},
+			ExpectedOutput: `  # test_instance.example will be removed from the OpenTofu state but will not be destroyed
+  . resource "test_instance" "example" {
+    ami        = (sensitive value)
+    id         = "i-02ae66f368e8518a9"
+    list_field = [
+        "hello",
+        (sensitive value),
+    ]
+    map_key    = {
+        "breakfast" = 800
+        "dinner"    = (sensitive value)
+    }
+    map_whole  = (sensitive value)
+
+    nested_block_set {
+      # At least one attribute in this block is (or was) sensitive,
+      # so its contents will not be displayed.
+    }
+}`,
+		},
 		"update with sensitive value forcing replacement": {
 			Action: plans.DeleteThenCreate,
 			Mode:   addrs.ManagedResourceMode,
@@ -6899,6 +7071,32 @@ func TestResourceChange_moved(t *testing.T) {
         id  = "12345"
         # (2 unchanged attributes hidden)
     }`,
+		},
+		"moved and forgotten": {
+			PrevRunAddr: prevRunAddr,
+			Action:      plans.Forget,
+			Mode:        addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.StringVal("12345"),
+				"foo": cty.StringVal("hello"),
+				"bar": cty.StringVal("baz"),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.StringVal("12345"),
+				"foo": cty.StringVal("hello"),
+				"bar": cty.StringVal("boop"),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Computed: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput: `  # test_instance.example will be removed from the OpenTofu state but will not be destroyed
+  # (moved from test_instance.previous)
+  . resource "test_instance" "example" {
+    id = "12345"
+}`,
 		},
 	}
 
