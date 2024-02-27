@@ -6,7 +6,6 @@
 package command
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/posener/complete"
 )
 
@@ -58,7 +57,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 
 		b, diags := m.Backend(&BackendOpts{
 			Config: backendConfig,
-		}, encryption.StateEncryptionDisabled())
+		}, nil) // Don't need state encryption here.
 		if diags.HasErrors() {
 			return nil
 		}

@@ -12,7 +12,6 @@ import (
 
 	"github.com/posener/complete"
 
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -51,7 +50,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: backendConfig,
-	}, encryption.StateEncryptionDisabled())
+	}, nil)
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

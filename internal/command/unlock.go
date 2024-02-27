@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 
 	"github.com/mitchellh/cli"
@@ -65,7 +64,7 @@ func (c *UnlockCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: backendConfig,
-	}, encryption.StateEncryptionDisabled()) // Should not be needed for an unlock
+	}, nil) // Should not be needed for an unlock
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

@@ -73,7 +73,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	// Getting the backend implicitly validates the configuration for it,
 	// but we can only do that if it's all known already.
 	if cfg.GetAttr("config").IsWhollyKnown() && cfg.GetAttr("backend").IsKnown() {
-		_, _, moreDiags := getBackend(cfg, encryption.StateEncryptionDisabled()) // Don't need the encryption for validation here
+		_, _, moreDiags := getBackend(cfg, nil) // Don't need the encryption for validation here
 		diags = diags.Append(moreDiags)
 	} else {
 		// Otherwise we'll just type-check the config object itself.

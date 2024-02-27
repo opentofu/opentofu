@@ -12,7 +12,6 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -59,7 +58,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, encryption.StateEncryptionDisabled()) // TODO is disabled the right option here?
+	b, backendDiags := c.Backend(nil, nil) // Encryption not needed here
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -85,7 +84,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewJSON, nil) // Encryption no needed here
+	opReq := c.Operation(b, arguments.ViewJSON, nil) // Encryption not needed here
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.AllowUnsetVariables = true

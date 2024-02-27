@@ -236,7 +236,9 @@ type LocalRun struct {
 // would with HashiCorp-provided Terraform Servers.
 type Operation struct {
 	// Type is the operation to perform.
-	Type       OperationType
+	Type OperationType
+
+	// Encryption is used by enhanced backends for planning and tofu.Context initialization
 	Encryption encryption.Encryption
 
 	// PlanId is an opaque value that backends can use to execute a specific

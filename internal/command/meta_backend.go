@@ -495,7 +495,7 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 		})
 		return nil, 0, diags
 	}
-	b := bf(encryption.StateEncryptionDisabled()) // Just using this for config/schema, don't need encryption here
+	b := bf(nil) // Just using this for config/schema, don't need encryption here
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
@@ -1356,7 +1356,7 @@ func (m *Meta) backendConfigNeedsMigration(c *configs.Backend, s *legacy.Backend
 		log.Printf("[TRACE] backendConfigNeedsMigration: no backend of type %q, which migration codepath must handle", c.Type)
 		return true // let the migration codepath deal with the missing backend
 	}
-	b := f(encryption.StateEncryptionDisabled()) // We don't need encryption here as it's only used for config/schema
+	b := f(nil) // We don't need encryption here as it's only used for config/schema
 
 	schema := b.ConfigSchema()
 	decSpec := schema.NoneRequired().DecoderSpec()
