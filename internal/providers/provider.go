@@ -414,6 +414,7 @@ type ReadDataSourceRequest struct {
 	// HashiCorp. It is considered experimental and subject to change.
 	ProviderMeta cty.Value
 
+	// Remote encryption configuration to use
 	Encryption encryption.StateEncryption
 }
 

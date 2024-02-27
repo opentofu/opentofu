@@ -8,6 +8,7 @@ package grpcwrap
 import (
 	"context"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfplugin6"
@@ -373,7 +374,7 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 		TypeName:     req.TypeName,
 		Config:       configVal,
 		ProviderMeta: metaVal,
-		Encryption:   nil,
+		Encryption:   encryption.StateEncryptionDisabled(), // Not supported via GRCP
 	})
 	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, readResp.Diagnostics)
 	if readResp.Diagnostics.HasErrors() {
