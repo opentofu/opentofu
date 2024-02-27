@@ -38,7 +38,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	view := views.NewOutput(args.ViewType, c.View)
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(".") // TODO make sure that this does not have an override we are missing!
+	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.View.Diagnostics(diags)

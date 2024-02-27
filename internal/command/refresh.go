@@ -70,7 +70,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	c.Meta.parallelism = args.Operation.Parallelism
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(".") // TODO is this path correct?
+	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)

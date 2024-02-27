@@ -70,7 +70,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(".")
+	enc, encDiags := c.Encryption()
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1

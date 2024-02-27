@@ -70,7 +70,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(".") // TODO make sure that this does not have an override we are missing!
+	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)

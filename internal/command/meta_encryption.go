@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -11,6 +12,15 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+func (m *Meta) Encryption() (encryption.Encryption, tfdiags.Diagnostics) {
+	path, err := os.Getwd()
+	if err != nil {
+		return nil, tfdiags.Diagnostics{}.Append(fmt.Errorf("Error getting pwd: %w", err))
+	}
+
+	return m.EncryptionFromPath(path)
+}
 
 func (m *Meta) EncryptionFromPath(path string) (encryption.Encryption, tfdiags.Diagnostics) {
 	// This is not ideal, but given how fragmented the command package is, loading the root module here is our best option
