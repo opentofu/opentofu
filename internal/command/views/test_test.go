@@ -6,6 +6,7 @@
 package views
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -850,12 +851,11 @@ some thing not very bad happened again
 			stderr: `
 OpenTofu left the following resources in state after executing
 main.tftest.hcl, these left-over resources can be viewed by reading the
-statefile written to disk(errored_test.tfstate).
+statefile written to disk(errored_test.tfstate) and they need to be cleaned
+up manually:
   - test.bar
   - test.bar (0fcb640a)
   - test.foo
-
-Writing state to file: errored_test.tfstate
 `,
 		},
 		"state_with_errors": {
@@ -925,12 +925,11 @@ this time it is very bad
 
 OpenTofu left the following resources in state after executing
 main.tftest.hcl, these left-over resources can be viewed by reading the
-statefile written to disk(errored_test.tfstate).
+statefile written to disk(errored_test.tfstate) and they need to be cleaned
+up manually:
   - test.bar
   - test.bar (0fcb640a)
   - test.foo
-
-Writing state to file: errored_test.tfstate
 `,
 		},
 		"state_null_resource_with_errors": {
@@ -997,11 +996,10 @@ this time it is very bad
 
 OpenTofu left the following resources in state after executing
 main.tftest.hcl, these left-over resources can be viewed by reading the
-statefile written to disk(errored_test.tfstate).
+statefile written to disk(errored_test.tfstate) and they need to be cleaned
+up manually:
   - null_resource.failing
   - null_resource.failing_will_depend_on_me
-
-Writing state to file: errored_test.tfstate
 `,
 		},
 	}
@@ -2026,7 +2024,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl/run_block, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl/run_block, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"@testrun":  "run_block",
@@ -2038,11 +2036,6 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 						},
 					},
 					"type": "test_cleanup",
-				},
-				{
-					"@level":   "info",
-					"@message": "Writing state to file: errored_test.tfstate",
-					"@module":  "tofu.ui",
 				},
 			},
 		},
@@ -2097,7 +2090,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"test_cleanup": map[string]interface{}{
@@ -2115,11 +2108,6 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 						},
 					},
 					"type": "test_cleanup",
-				},
-				{
-					"@level":   "info",
-					"@message": "Writing state to file: errored_test.tfstate",
-					"@module":  "tofu.ui",
 				},
 				{
 					"@level":    "warn",
@@ -2199,7 +2187,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"test_cleanup": map[string]interface{}{
@@ -2217,11 +2205,6 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 						},
 					},
 					"type": "test_cleanup",
-				},
-				{
-					"@level":   "info",
-					"@message": "Writing state to file: errored_test.tfstate",
-					"@module":  "tofu.ui",
 				},
 				{
 					"@level":    "warn",
@@ -2309,7 +2292,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			}), want: []map[string]interface{}{
 				{
 					"@level":    "error",
-					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate).",
+					"@message":  "OpenTofu left some resources in state after executing main.tftest.hcl, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:",
 					"@module":   "tofu.ui",
 					"@testfile": "main.tftest.hcl",
 					"test_cleanup": map[string]interface{}{
@@ -2323,11 +2306,6 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 						},
 					},
 					"type": "test_cleanup",
-				},
-				{
-					"@level":   "info",
-					"@message": "Writing state to file: errored_test.tfstate",
-					"@module":  "tofu.ui",
 				},
 				{
 					"@level":    "warn",
@@ -3272,6 +3250,304 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 
 			view.FatalInterruptSummary(run, file, tc.states, tc.changes)
 			testJSONViewOutputEquals(t, done(t).All(), tc.want)
+		})
+	}
+}
+
+func TestSaveErroredStateFile(t *testing.T) {
+	tcsHuman := map[string]struct {
+		state  *states.State
+		run    *moduletest.Run
+		file   *moduletest.File
+		stderr string
+		want   interface{}
+	}{
+		"state_foo_bar_human": {
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "foo",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "bar",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+				state.SetResourceInstanceDeposed(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "bar",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					"0fcb640a",
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+			}),
+			stderr: `
+Writing state to file: errored_test.tfstate
+`,
+			want: nil,
+		},
+		"state_null_resource_human": {
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing_will_depend_on_me",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+						Dependencies: []addrs.ConfigResource{
+							{
+								Module: []string{},
+								Resource: addrs.Resource{
+									Mode: addrs.ManagedResourceMode,
+									Type: "null_resource",
+									Name: "failing_will_depend_on_me",
+								},
+							},
+						},
+						CreateBeforeDestroy: false,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+			}),
+			stderr: `
+Writing state to file: errored_test.tfstate
+`,
+			want: nil,
+		},
+	}
+
+	tcsJson := map[string]struct {
+		state  *states.State
+		run    *moduletest.Run
+		file   *moduletest.File
+		stderr string
+		want   interface{}
+	}{
+		"state_with_run_json": {
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			run:  &moduletest.Run{Name: "run_block"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "foo",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+			}),
+			stderr: "",
+			want: []map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "Writing state to file: errored_test.tfstate",
+					"@module":  string("tofu.ui"),
+				},
+			},
+		},
+		"state_foo_bar_json": {
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "foo",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "bar",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+				state.SetResourceInstanceDeposed(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test",
+						Name: "bar",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					"0fcb640a",
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("test"),
+					})
+			}),
+			stderr: "",
+			want: []map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "Writing state to file: errored_test.tfstate",
+					"@module":  "tofu.ui",
+				},
+			},
+		},
+		"state_null_resource_with_errors": {
+			file: &moduletest.File{Name: "main.tftest.hcl"},
+			state: states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing_will_depend_on_me",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+				state.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "null_resource",
+						Name: "failing",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status: states.ObjectReady,
+						Dependencies: []addrs.ConfigResource{
+							{
+								Module: []string{},
+								Resource: addrs.Resource{
+									Mode: addrs.ManagedResourceMode,
+									Type: "null_resource",
+									Name: "failing_will_depend_on_me",
+								},
+							},
+						},
+						CreateBeforeDestroy: false,
+					},
+					addrs.AbsProviderConfig{
+						Module:   addrs.RootModule,
+						Provider: addrs.NewDefaultProvider("null"),
+					})
+			}),
+			stderr: "",
+			want: []map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "Writing state to file: errored_test.tfstate",
+					"@module":  "tofu.ui",
+				},
+			},
+		},
+	}
+	// Run tests for Human view
+	runTestSaveErroredStateFile(t, tcsHuman, arguments.ViewHuman)
+
+	// Run tests for JSON view
+	runTestSaveErroredStateFile(t, tcsJson, arguments.ViewJSON)
+}
+func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
+	state  *states.State
+	run    *moduletest.Run
+	file   *moduletest.File
+	stderr string
+	want   interface{}
+}, viewType arguments.ViewType) {
+	for name, data := range tc {
+		t.Run(name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+
+			if viewType == arguments.ViewHuman {
+				view := NewTest(arguments.ViewHuman, NewView(streams))
+				SaveErroredTestStateFile(data.state, data.run, data.file, view)
+				output := done(t)
+
+				actual, expected := output.Stderr(), data.stderr
+				if diff := cmp.Diff(expected, actual); len(diff) > 0 {
+					t.Errorf("expected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
+				}
+			} else if viewType == arguments.ViewJSON {
+				view := NewTest(arguments.ViewJSON, NewView(streams))
+				SaveErroredTestStateFile(data.state, data.run, data.file, view)
+				want, ok := data.want.([]map[string]interface{})
+				if !ok {
+					t.Fatalf("Failed to assert want as []map[string]interface{}")
+				}
+				testJSONViewOutputEquals(t, done(t).All(), want)
+			} else {
+				t.Fatalf("Unsupported view type: %v", viewType)
+			}
+
+			// Check if the state file exists
+			if _, err := os.Stat("errored_test.tfstate"); os.IsNotExist(err) {
+				// File does not exist
+				t.Errorf("Expected state file 'errored_test.tfstate' to exist, but it does not.")
+			}
+
+			// Clean up - Delete the state file
+			defer func() {
+				removeErr := os.Remove("errored_test.tfstate")
+				if removeErr != nil {
+					t.Errorf("Error removing file: %v", removeErr)
+				}
+			}()
 		})
 	}
 }
