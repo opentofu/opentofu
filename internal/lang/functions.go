@@ -162,6 +162,12 @@ func (s *Scope) Functions() map[string]function.Function {
 			return s.funcs
 		})
 
+		// Registers "templatestring" function in function map.
+		s.funcs["templatestring"] = funcs.MakeTemplateStringFunc(s.BaseDir, func() map[string]function.Function {
+			// This anonymous function returns the existing map of functions for initialization.
+			return s.funcs
+		})
+
 		if s.ConsoleMode {
 			// The type function is only available in OpenTofu console.
 			s.funcs["type"] = funcs.TypeFunc

@@ -1,0 +1,104 @@
+---
+sidebar_label: templatestring
+description: |-
+  The `templatestring` function takes a string and renders it as a template using a supplied set of template variables.
+---
+
+# `templatestring` Function
+
+`templatestring` function enables string rendering as template by substituting placeholders with values from a provided set of template variables.
+
+```hcl
+templatestring(str, vars)
+```
+
+The template syntax follows the rules for [string templates](/docs/language/expressions/strings#string-templates) in the main OpenTofu language, employing interpolation sequences delimited with `${ ... }`. This function offers the flexibility to factor out longer template sequences into a separate string for enhanced readability and manageability.
+
+When using the `templatestring` function, it's important to keep in mind the usage of escape sequences to prevent premature interpolation. To ensure that placeholders are treated as literals until they are converted to template variables, use the escape sequences `$${...}` and `%%{...}` to represent `${...}` and `%{...}` literals, respectively. This approach prevents the template from interpreting the placeholders as interpolation or template directive sequences before they are processed. By following this convention, you can accurately represent template strings without encountering unexpected syntax errors. Remember to apply these escape sequences when defining your template strings to ensure proper handling by the `templatestring` function.
+
+The "vars" argument must be an object. Within the template string, each key in the map serves as a variable for interpolation. Additionally, the template can utilize any other function available in the OpenTofu language. Variable names must adhere to OpenTofu naming conventions, starting with a letter followed by zero or more letters, digits, or underscores.
+
+Since strings in OpenTofu represent sequences of Unicode characters, templatestring interprets the template string as UTF-8 encoded text, ensuring proper handling of Unicode characters. Any invalid UTF-8 sequences within the template string will result in an error.
+
+## Examples
+
+### Simple String Template
+
+A basic example showcasing the use of templatestring for a static string.
+
+```hcl
+output "result" {
+  value = templatestring("Hello, Jodie!", {})
+}
+```
+
+```
+result = Hello, Jodie!
+```
+
+### String interpolation with variable
+
+This example illustrates string interpolation by inserting a variable value into the template.
+
+```hcl
+output "result" {
+  value = templatestring("Hello, $${name}!", { name = "Alice" })
+}
+```
+
+```
+result = Hello, Alice!
+```
+
+### Lists
+
+This example demonstrates the usage of the templatestring function with a list variable.
+
+```hcl
+output "result" {
+  value = templatestring("List Items: $${join(\", \", list)}", { list=["value1","value2","value3"] })
+}
+```
+
+```
+result = "List Items : value1, value2, value3"
+```
+
+### Maps
+
+This example demonstrates the usage of the templatestring function with a map variable. It iterates over the key-value pairs in the map.
+
+```hcl
+output "result" {
+  value = templatestring("%%{ for key, value in list ~}  $${key}:$${value} %%{ endfor ~}", { list={key1="value1", key2="value2", key3="value3"} })
+}
+```
+
+```
+result = "key1:value1 key2:value2 key3:value3 "
+```
+
+### Generating JSON or YAML
+
+When generating JSON or YAML syntax strings, writing a template with numerous interpolation sequences and directives can be cumbersome. Instead, simplify the process by using a template consisting of a single interpolated call to either [`jsonencode`](/docs/language/functions/jsonencode) or
+[`yamlencode`](/docs/language/functions/yamlencode), specifying the value to encode using [standard OpenTofu expression syntax](/docs/language/expressions) as in the following examples:
+
+```hcl
+locals {
+  list = ["Value1", "Value2", "Value3"]
+  formatted_list = "%{ for value in local.list ~}${value} %{ endfor ~}"
+}
+
+output "result" {
+  value = templatestring(yamlencode(local.formatted_list), {})
+}
+```
+
+```
+result = <<-EOT
+    "Value1 Value2 Value3 "
+EOT
+```
+
+For more information, see the main documentation for
+[`jsonencode`](/docs/language/functions/jsonencode) and [`yamlencode`](/docs/language/functions/yamlencode).

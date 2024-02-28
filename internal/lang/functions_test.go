@@ -979,6 +979,13 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"templatestring": {
+			{
+				`templatestring("Hello, $${name}!", {name = "Jodie"})`,
+				cty.StringVal("Hello, Jodie!"),
+			},
+		},
+
 		"timeadd": {
 			{
 				`timeadd("2017-11-22T00:00:00Z", "1s")`,
