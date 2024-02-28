@@ -51,8 +51,9 @@ type Module struct {
 	ManagedResources map[string]*Resource
 	DataResources    map[string]*Resource
 
-	Moved  []*Moved
-	Import []*Import
+	Moved   []*Moved
+	Import  []*Import
+	Removed []*Removed
 
 	Checks map[string]*Check
 
@@ -90,8 +91,9 @@ type File struct {
 	ManagedResources []*Resource
 	DataResources    []*Resource
 
-	Moved  []*Moved
-	Import []*Import
+	Moved   []*Moved
+	Import  []*Import
+	Removed []*Removed
 
 	Checks []*Check
 }
@@ -468,6 +470,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		m.Import = append(m.Import, i)
 	}
 
+	m.Removed = append(m.Removed, file.Removed...)
+
 	return diags
 }
 
@@ -654,6 +658,15 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 			Severity: hcl.DiagError,
 			Summary:  "Cannot override 'import' blocks",
 			Detail:   "Import blocks can appear only in normal files, not in override files.",
+			Subject:  m.DeclRange.Ptr(),
+		})
+	}
+
+	for _, m := range file.Removed {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Cannot override 'Removed' blocks",
+			Detail:   "Removed blocks can appear only in normal files, not in override files.",
 			Subject:  m.DeclRange.Ptr(),
 		})
 	}

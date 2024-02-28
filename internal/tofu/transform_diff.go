@@ -91,7 +91,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 		// Depending on the action we'll need some different combinations of
 		// nodes, because destroying uses a special node type separate from
 		// other actions.
-		var update, delete, createBeforeDestroy bool
+		var update, delete, forget, createBeforeDestroy bool
 		switch rc.Action {
 		case plans.NoOp:
 			// For a no-op change we don't take any action but we still
@@ -101,6 +101,8 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			update = t.hasConfigConditions(addr)
 		case plans.Delete:
 			delete = true
+		case plans.Forget:
+			forget = true
 		case plans.DeleteThenCreate, plans.CreateThenDelete:
 			update = true
 			delete = true
@@ -109,14 +111,14 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			update = true
 		}
 
-		// A deposed instance may only have a change of Delete or NoOp. A NoOp
-		// can happen if the provider shows it no longer exists during the most
-		// recent ReadResource operation.
-		if dk != states.NotDeposed && !(rc.Action == plans.Delete || rc.Action == plans.NoOp) {
+		// A deposed instance may only have a change of Delete, Forget or NoOp.
+		// A NoOp can happen if the provider shows it no longer exists during
+		// the most recent ReadResource operation.
+		if dk != states.NotDeposed && !(rc.Action == plans.Delete || rc.Action == plans.NoOp || rc.Action == plans.Forget) {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid planned change for deposed object",
-				fmt.Sprintf("The plan contains a non-delete change for %s deposed object %s. The only valid action for a deposed object is to destroy it, so this is a bug in OpenTofu.", addr, dk),
+				fmt.Sprintf("The plan contains a non-removal change for %s deposed object %s. The only valid actions for a deposed object is to destroy it or forget it, so this is a bug in OpenTofu.", addr, dk),
 			))
 			continue
 		}
@@ -208,6 +210,26 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			} else {
 				log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for destruction by %s", addr, dk, dag.VertexName(node))
 			}
+			g.Add(node)
+		}
+
+		if forget {
+			var node GraphNodeResourceInstance
+			abstract := NewNodeAbstractResourceInstance(addr)
+			if dk == states.NotDeposed {
+				node = &NodeForgetResourceInstance{
+					NodeAbstractResourceInstance: abstract,
+					DeposedKey:                   dk,
+				}
+				log.Printf("[TRACE] DiffTransformer: %s will be represented for removal from the state by %s", addr, dag.VertexName(node))
+			} else {
+				node = &NodeForgetDeposedResourceInstanceObject{
+					NodeAbstractResourceInstance: abstract,
+					DeposedKey:                   dk,
+				}
+				log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for removal from the state by %s", addr, dk, dag.VertexName(node))
+			}
+
 			g.Add(node)
 		}
 
