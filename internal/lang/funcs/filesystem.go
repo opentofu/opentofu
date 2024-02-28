@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -60,7 +61,18 @@ func MakeFileFunc(baseDir string, encBase64 bool) function.Function {
 	})
 }
 
-const TemplateMaxRecursionDepth = 1024
+func templateMaxRecursionDepth() (int, error) {
+	envkey := "TF_TEMPLATE_RECURSION_DEPTH"
+	val := os.Getenv(envkey)
+	if val != "" {
+		i, err := strconv.Atoi(val)
+		if err != nil {
+			return -1, fmt.Errorf("invalid value for %s: %w", envkey, err)
+		}
+		return i, nil
+	}
+	return 1024, nil // Sane Default
+}
 
 type ErrorTemplateRecursionLimit struct {
 	sources []string
@@ -90,7 +102,7 @@ func (err ErrorTemplateRecursionLimit) Error() string {
 
 	log.Printf("[DEBUG] Template Stack (%d): %s", len(err.sources)-1, err.sources[len(err.sources)-1])
 
-	return fmt.Sprintf("maximum recursion depth %d reached in %s ... ", TemplateMaxRecursionDepth, strings.Join(trace, ", "))
+	return fmt.Sprintf("maximum recursion depth %d reached in %s ... ", len(err.sources)-1, strings.Join(trace, ", "))
 }
 
 // MakeTemplateFileFunc constructs a function that takes a file path and
@@ -123,7 +135,11 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 	}
 
 	loadTmpl := func(fn string, marks cty.ValueMarks) (hcl.Expression, error) {
-		if depth > TemplateMaxRecursionDepth {
+		maxDepth, err := templateMaxRecursionDepth()
+		if err != nil {
+			return nil, err
+		}
+		if depth > maxDepth {
 			// Sources will unwind up the stack
 			return nil, ErrorTemplateRecursionLimit{}
 		}

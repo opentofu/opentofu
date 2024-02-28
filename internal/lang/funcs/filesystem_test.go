@@ -219,6 +219,50 @@ func TestTemplateFile(t *testing.T) {
 	}
 }
 
+func Test_templateMaxRecursionDepth(t *testing.T) {
+	tests := []struct {
+		Input string
+		Want  int
+		Err   string
+	}{
+		{
+			"",
+			1024,
+			``,
+		}, {
+			"4096",
+			4096,
+			``,
+		}, {
+			"apple",
+			-1,
+			`invalid value for TF_TEMPLATE_RECURSION_DEPTH: strconv.Atoi: parsing "apple": invalid syntax`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("templateMaxRecursion(%s)", test.Input), func(t *testing.T) {
+			os.Setenv("TF_TEMPLATE_RECURSION_DEPTH", test.Input)
+			got, err := templateMaxRecursionDepth()
+			if test.Err != "" {
+				if err == nil {
+					t.Fatal("succeeded; want error")
+				}
+				if got, want := err.Error(), test.Err; got != want {
+					t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
+				}
+				return
+			} else if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if got != test.Want {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+			}
+		})
+	}
+}
+
 func TestFileExists(t *testing.T) {
 	tests := []struct {
 		Path cty.Value
