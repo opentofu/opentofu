@@ -1,0 +1,34 @@
+---
+description: >-
+  Documentation listing third party projects that implement private registries 
+  and their corresponding guides for setting them up.
+---
+
+# Private Registries
+
+OpenTofu, by default, uses the public registry at [registry.opentofu.org](https://opentofu.org/registry/). 
+However, organizations may have a need for a private registry for modules, providers, or policies that need to be kept private.
+
+There are several project that implement the [terraform registry API](https://developer.hashicorp.com/terraform/registry/api-docs), 
+aimed at providing this functionality of hosting a private registry. They are also
+compatible with OpenTofu.
+
+### List of Private Registries
+
+| Registry Name                     | Documentation                                     |
+| ----------------------------      | ------------------------------------------------------ |
+| Gitlab                            | [Terraform Module Registry](https://docs.gitlab.com/ee/user/packages/terraform_module_registry/)
+| Citizen                           | [outsideris/citizen](https://github.com/outsideris/citizen)                   |
+| Anthology                         | [erikvanbrakel/anthology](https://github.com/erikvanbrakel/anthology)         |
+| Boring Registry                   | [boring-registry/boring-registry](https://github.com/boring-registry/boring-registry) |
+| Terraform Registry by NRK         | [nrkno/terraform-registry](https://github.com/nrkno/terraform-registry)        |
+| Petra                             | [devoteamgcloud/petra](https://github.com/devoteamgcloud/petra)               |
+| Terraform Registry by Philips Labs| [philips-labs/terraform-registry](https://github.com/philips-labs/terraform-registry) |
+| Terraform Simple Registry         | [apparentlymart/terraform-simple-registry](https://github.com/apparentlymart/terraform-simple-registry) |
+| Terustry                          | [veepee-oss/terustry](https://github.com/veepee-oss/terustry)                 |
+| Terrareg                          | [MatthewJohn/terrareg](https://github.com/MatthewJohn/terrareg)                 |
+| Terrac                            | [haoliangyu/terrac](https://github.com/haoliangyu/terrac)                       |
+
+### How to Use
+
+Follow the documentation provided by each registry to integrate it with your OpenTofu projects.
