@@ -5,6 +5,7 @@ UPGRADE NOTES:
 
 
 NEW FEATURES:
+* Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
 
 ENHANCEMENTS:
 * Added `templatestring` function that takes a string and renders it as a template using a supplied set of template variables. ([#1223](https://github.com/opentofu/opentofu/pull/1223))
