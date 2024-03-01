@@ -160,6 +160,14 @@ func (p *Provider) ValidateResourceConfig(req providers.ValidateResourceConfigRe
 	return validateDataStoreResourceConfig(req)
 }
 
+func (p *Provider) GetFunctions() providers.GetFunctionsResponse {
+	return providers.GetFunctionsResponse{}
+}
+
+func (p *Provider) CallFunction(providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("NOT IMPLEMENTED")
+}
+
 // Close is a noop for this provider, since it's run in-process.
 func (p *Provider) Close() error {
 	return nil

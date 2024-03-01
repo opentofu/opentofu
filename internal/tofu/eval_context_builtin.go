@@ -13,9 +13,11 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -69,6 +71,9 @@ type BuiltinEvalContext struct {
 	ProviderLock          *sync.Mutex
 	ProvisionerCache      map[string]provisioners.Interface
 	ProvisionerLock       *sync.Mutex
+	FunctionCache         map[string]map[string]function.Function
+	FunctionProviders     map[string]providers.Interface
+	FunctionLock          *sync.Mutex
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -170,6 +175,7 @@ func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (pro
 		return resp, err
 	}
 
+	// TODO There's already a builtin cache in this function, we can get rid of the above logic!
 	return ctx.Plugins.ProviderSchema(addr.Provider)
 }
 
@@ -408,10 +414,90 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	return ref, replace, diags
 }
 
+func (ctx *BuiltinEvalContext) providerFunctions(c *configs.Config) map[string]function.Function {
+	// This could be a more fine grained lock on ctx.PathValue, but this is probably fine
+	ctx.FunctionLock.Lock()
+	defer ctx.FunctionLock.Unlock()
+
+	if funcs, ok := ctx.FunctionCache[ctx.PathValue.String()]; ok {
+		return funcs
+	}
+
+	funcs := make(map[string]function.Function)
+
+	// Even though we are iterating by alias, we do *not* configure the lazily loaded provider
+	// instance which is supporting these functions. It is technically possible to implement
+	// that at a future date, however it would require significant changes to how providers
+	// are managed in the graph.  Providers without resources are culled and not configured,
+	// that would have to change to use the schema/metadata to determine if configuration
+	// needs to be provided for a provider, either due to resources *or* functions.
+	for name, p := range c.Module.ProviderRequirements.RequiredProviders {
+		addr := addrs.AbsProviderConfig{
+			Provider: p.Type,
+			Module:   c.Path,
+			Alias:    name,
+		}
+
+		// Currently, every provider is started early on and it's schema is fetched/cached
+		// By the time we hit this code, that process has already happened.
+		// In the future, it may be more efficient *not* to fetch the schemas ahead of time
+		// and instead use the GetMetadata call on providers to check if any functions
+		// exist.
+
+		// provider schemas should *always* be populated much earlier up the call chain
+		schema, ok := providers.SchemaCache.Get(addr.Provider)
+		if !ok {
+			panic("unset provider schema for " + addr.String())
+		}
+
+		for funcname, funcspec := range schema.Functions {
+			funcname := funcname // for closure
+
+			// This is a copy of funcspec as it's not a ptr
+			funcspec.Impl = func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+				// This should probably be a distinct FunctionProvidersLock
+				ctx.FunctionLock.Lock()
+				defer ctx.FunctionLock.Unlock() // Might make sense to early release this lock
+
+				// The unaliased instance, as they are not configured aliases of the same type are identical
+				providerKey := addr.Provider.String()
+				provider, ok := ctx.FunctionProviders[providerKey]
+				if !ok {
+					var err error
+					provider, err = ctx.Plugins.NewProviderInstance(addr.Provider)
+					if err != nil {
+						// Impossible!
+						panic(err)
+					}
+					ctx.FunctionProviders[providerKey] = provider
+				}
+
+				resp := provider.CallFunction(providers.CallFunctionRequest{
+					Name:    funcname,
+					Args:    args,
+					RetType: retType,
+				})
+				return resp.Result, resp.Error
+			}
+
+			funcs[fmt.Sprintf("provider::%s::%s", addr.Alias, funcname)] = function.New(&funcspec)
+		}
+	}
+
+	for name := range funcs {
+		log.Printf("[DEBUG] Registered function %s for %s", name, ctx.PathValue)
+	}
+
+	ctx.FunctionCache[ctx.PathValue.String()] = funcs
+
+	return funcs
+}
+
 func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
 	if !ctx.pathSet {
 		panic("context path not set")
 	}
+
 	data := &evaluationStateData{
 		Evaluator:       ctx.Evaluator,
 		ModulePath:      ctx.PathValue,
@@ -424,11 +510,15 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	// expression the caller will be trying to evaluate, so this will
 	// activate only the experiments from that particular module, to
 	// be consistent with how experiment checking in the "configs"
-	// package itself works. The nil check here is for robustness in
-	// incompletely-mocked testing situations; mc should never be nil in
-	// real situations.
+	// package itself works. This is also the point at which we determine
+	// what provider functions should be provided for this module.
+	//
+	// The nil check here is for robustness in incompletely-mocked testing
+	// situations; mc should never be nil in real situations.
 	if mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue); mc != nil {
 		scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+
+		scope.Funcs = ctx.providerFunctions(mc)
 	}
 	return scope
 }

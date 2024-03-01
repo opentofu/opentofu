@@ -324,6 +324,23 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				p.Stop()
 			}
 		}
+
+		{
+			// Call stop on all the functions
+			walker.functionLock.Lock()
+			ps := make([]providers.Interface, 0, len(walker.functionProviders))
+			for _, p := range walker.functionProviders {
+				ps = append(ps, p)
+			}
+			defer walker.functionLock.Unlock()
+
+			for _, p := range ps {
+				// We ignore the error for now since there isn't any reasonable
+				// action to take if there is an error here, since the stop is still
+				// advisory: OpenTofu will exit once the graph node completes.
+				p.Stop()
+			}
+		}
 	}()
 
 	return stop, wait

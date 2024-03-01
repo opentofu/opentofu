@@ -195,6 +195,11 @@ func (s *Scope) Functions() map[string]function.Function {
 		// function is introduced.
 		for name, f := range s.funcs {
 			s.funcs[name] = funcs.WithDescription(name, f)
+			s.funcs["core::"+name] = s.funcs[name]
+		}
+
+		for name, f := range s.Funcs {
+			s.funcs[name] = f
 		}
 	}
 	s.funcsLock.Unlock()

@@ -7,6 +7,7 @@ package providers
 
 import (
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/states"
@@ -72,6 +73,10 @@ type Interface interface {
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
 
+	GetFunctions() GetFunctionsResponse
+
+	CallFunction(CallFunctionRequest) CallFunctionResponse
+
 	// Close shuts down the plugin process if applicable.
 	Close() error
 }
@@ -99,6 +104,8 @@ type GetProviderSchemaResponse struct {
 
 	// ServerCapabilities lists optional features supported by the provider.
 	ServerCapabilities ServerCapabilities
+
+	Functions map[string]function.Spec
 }
 
 // Schema pairs a provider or resource schema with that schema's version.
@@ -420,4 +427,23 @@ type ReadDataSourceResponse struct {
 
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
+}
+
+type GetFunctionsResponse struct {
+	// All functions that can be called via this provider.
+	Functions map[string]function.Spec
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type CallFunctionRequest struct {
+	Name    string
+	Args    []cty.Value
+	RetType cty.Type // This could be done by looking at the metadata instead
+}
+
+type CallFunctionResponse struct {
+	Result cty.Value
+	Error  error
 }

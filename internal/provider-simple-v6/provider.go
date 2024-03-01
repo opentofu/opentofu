@@ -147,6 +147,14 @@ func (s simple) ReadDataSource(req providers.ReadDataSourceRequest) (resp provid
 	return resp
 }
 
+func (s simple) GetFunctions() providers.GetFunctionsResponse {
+	return providers.GetFunctionsResponse{}
+}
+
+func (s simple) CallFunction(providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("NOT IMPLEMENTED")
+}
+
 func (s simple) Close() error {
 	return nil
 }

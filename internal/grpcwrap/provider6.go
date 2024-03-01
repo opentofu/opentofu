@@ -27,8 +27,15 @@ func Provider6(p providers.Interface) tfplugin6.ProviderServer {
 }
 
 type provider6 struct {
+	tfplugin6.UnimplementedProviderServer
+
 	provider providers.Interface
 	schema   providers.GetProviderSchemaResponse
+}
+
+func (p *provider6) GetMetadata(context.Context, *tfplugin6.GetMetadata_Request) (*tfplugin6.GetMetadata_Response, error) {
+	// TODO
+	return nil, nil
 }
 
 func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProviderSchema_Request) (*tfplugin6.GetProviderSchema_Response, error) {
@@ -64,7 +71,7 @@ func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProvi
 		}
 	}
 
-	resp.ServerCapabilities = &tfplugin6.GetProviderSchema_ServerCapabilities{
+	resp.ServerCapabilities = &tfplugin6.ServerCapabilities{
 		PlanDestroy: p.schema.ServerCapabilities.PlanDestroy,
 	}
 
@@ -352,6 +359,10 @@ func (p *provider6) ImportResourceState(_ context.Context, req *tfplugin6.Import
 	return resp, nil
 }
 
+func (p *provider6) MoveResourceState(context.Context, *tfplugin6.MoveResourceState_Request) (*tfplugin6.MoveResourceState_Response, error) {
+	return nil, nil
+}
+
 func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSource_Request) (*tfplugin6.ReadDataSource_Response, error) {
 	resp := &tfplugin6.ReadDataSource_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
@@ -386,6 +397,15 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 	}
 
 	return resp, nil
+}
+
+func (p *provider6) GetFunctions(context.Context, *tfplugin6.GetFunctions_Request) (*tfplugin6.GetFunctions_Response, error) {
+	// TODO
+	return nil, nil
+}
+func (p *provider6) CallFunction(context.Context, *tfplugin6.CallFunction_Request) (*tfplugin6.CallFunction_Response, error) {
+	// TODO
+	return nil, nil
 }
 
 func (p *provider6) StopProvider(context.Context, *tfplugin6.StopProvider_Request) (*tfplugin6.StopProvider_Response, error) {

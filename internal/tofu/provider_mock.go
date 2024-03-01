@@ -516,6 +516,14 @@ func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
+func (p *MockProvider) GetFunctions() providers.GetFunctionsResponse {
+	panic("NOT IMPLEMENTED")
+}
+
+func (p *MockProvider) CallFunction(providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("NOT IMPLEMENTED")
+}
+
 func (p *MockProvider) Close() error {
 	p.Lock()
 	defer p.Unlock()

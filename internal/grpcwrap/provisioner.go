@@ -29,6 +29,8 @@ func Provisioner(p provisioners.Interface) tfplugin5.ProvisionerServer {
 }
 
 type provisioner struct {
+	tfplugin5.UnimplementedProvisionerServer
+
 	provisioner provisioners.Interface
 	schema      *configschema.Block
 }

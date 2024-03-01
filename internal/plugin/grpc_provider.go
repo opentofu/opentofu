@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/zclconf/go-cty/cty/function"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
 	"google.golang.org/grpc"
@@ -102,6 +103,7 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
+	resp.Functions = make(map[string]function.Spec)
 
 	// Some providers may generate quite large schemas, and the internal default
 	// grpc response size limit is 4MB. 64MB should cover most any use case, and
@@ -142,6 +144,9 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	for name, data := range protoResp.DataSourceSchemas {
 		resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+	}
+	for name, fn := range protoResp.Functions {
+		resp.Functions[name] = convert.ProtoToFunctionSpec(*fn)
 	}
 
 	if protoResp.ServerCapabilities != nil {
@@ -684,6 +689,67 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	resp.State = state
 
 	return resp
+}
+
+func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
+	logger.Trace("GRPCProvider: GetFunctions")
+
+	protoReq := &proto.GetFunctions_Request{}
+	protoResp, err := p.client.GetFunctions(p.ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	resp.Functions = make(map[string]function.Spec)
+	for name, fn := range protoResp.Functions {
+		name := name
+		resp.Functions[name] = convert.ProtoToFunctionSpec(*fn)
+	}
+
+	return resp
+}
+
+func (p *GRPCProvider) CallFunction(req providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	logger.Trace("GRPCProvider: CallFunction")
+
+	// Set the unknown value which will be overridden in success
+	resp.Result = cty.UnknownVal(req.RetType)
+
+	callReq := &proto.CallFunction_Request{
+		Name:      req.Name,
+		Arguments: make([]*proto.DynamicValue, len(req.Args)),
+	}
+	// Translate the arguments
+	for i, arg := range req.Args {
+		encodedArg, err := msgpack.Marshal(arg, arg.Type()) // TODO do we need to check function schema type?
+		if err != nil {
+			resp.Error = err
+			return
+		}
+
+		callReq.Arguments[i] = &proto.DynamicValue{
+			Msgpack: encodedArg,
+		}
+	}
+
+	callResp, err := p.client.CallFunction(p.ctx, callReq)
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	if callResp.Error != nil {
+		if callResp.Error.FunctionArgument != nil {
+			resp.Error = function.NewArgErrorf(int(*callResp.Error.FunctionArgument), callResp.Error.Text)
+		} else {
+			resp.Error = errors.New(callResp.Error.Text)
+		}
+		return
+	}
+
+	resp.Result, resp.Error = decodeDynamicValue(callResp.Result, req.RetType)
+	return
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.
