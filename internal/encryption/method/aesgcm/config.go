@@ -7,6 +7,7 @@ package aesgcm
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/opentofu/opentofu/internal/collections"
 
@@ -24,7 +25,7 @@ var validKeyLengths = collections.Set[int]{
 type Config struct {
 	// Key is the encryption key for the AES-GCM encryption. It has to be 16, 24, or 32 bytes long for AES-128, 192, or
 	// 256, respectively.
-	Key []byte `hcl:"key" json:"key" yaml:"key"`
+	Keys keyprovider.Output `hcl:"keys" json:"keys" yaml:"keys"`
 
 	// AAD is the Additional Authenticated Data that is authenticated, but not encrypted. In the Go implementation, this
 	// data serves as a canary value against replay attacks. The AAD value on decryption must match this setting,
@@ -33,9 +34,9 @@ type Config struct {
 	AAD []byte `hcl:"aad,optional" json:"aad,omitempty" yaml:"aad,omitempty"`
 }
 
-// WithKey adds a key to the configuration and returns the configuration.
-func (c *Config) WithKey(key []byte) *Config {
-	c.Key = key
+// WithKeys adds keys to the configuration and returns the configuration.
+func (c *Config) WithKeys(keys keyprovider.Output) *Config {
+	c.Keys = keys
 	return c
 }
 
@@ -47,19 +48,37 @@ func (c *Config) WithAAD(aad []byte) *Config {
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
 func (c *Config) Build() (method.Method, error) {
-	keyLength := len(c.Key)
-	if !validKeyLengths.Has(keyLength) {
+	encryptionKeyLength := len(c.Keys.EncryptionKey)
+	if !validKeyLengths.Has(encryptionKeyLength) {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: fmt.Errorf(
-				"AES-GCM requires the key length to be one of: %s, received %d bytes",
+				"AES-GCM requires the key length to be one of: %s, received %d bytes in the encryption key",
 				validKeyLengths.String(),
-				keyLength,
+				encryptionKeyLength,
 			),
+		}
+	}
+	encryptionKey := c.Keys.EncryptionKey
+
+	decryptionKeyLength := len(c.Keys.DecryptionKey)
+	decryptionKey := c.Keys.DecryptionKey
+	if decryptionKeyLength == 0 {
+		decryptionKey = encryptionKey
+	} else {
+		if !validKeyLengths.Has(encryptionKeyLength) {
+			return nil, &method.ErrInvalidConfiguration{
+				Cause: fmt.Errorf(
+					"AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
+					validKeyLengths.String(),
+					encryptionKeyLength,
+				),
+			}
 		}
 	}
 
 	return &aesgcm{
-		c.Key,
+		encryptionKey,
+		decryptionKey,
 		c.AAD,
 	}, nil
 }

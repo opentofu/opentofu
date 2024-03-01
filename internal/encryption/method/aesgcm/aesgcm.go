@@ -16,15 +16,16 @@ import (
 
 // aesgcm contains the encryption/decryption methods according to AES-GCM (NIST SP 800-38D).
 type aesgcm struct {
-	key []byte
-	aad []byte
+	encryptionKey []byte
+	decryptionKey []byte
+	aad           []byte
 }
 
 // Encrypt encrypts the passed data with AES-GCM. If the data the encryption fails, it returns an error.
 func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
 	result, err := handlePanic(
 		func() ([]byte, error) {
-			gcm, err := a.getGCM()
+			gcm, err := a.getGCM(a.encryptionKey)
 			if err != nil {
 				return nil, &method.ErrEncryptionFailed{Cause: err}
 			}
@@ -65,7 +66,7 @@ func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
 				}
 			}
 
-			gcm, err := a.getGCM()
+			gcm, err := a.getGCM(a.decryptionKey)
 			if err != nil {
 				return nil, &method.ErrDecryptionFailed{Cause: err}
 			}
@@ -101,8 +102,8 @@ func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
 	return result, nil
 }
 
-func (a aesgcm) getGCM() (cipher.AEAD, error) {
-	cipherBlock, err := aes.NewCipher(a.key)
+func (a aesgcm) getGCM(key []byte) (cipher.AEAD, error) {
+	cipherBlock, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, &method.ErrCryptoFailure{
 			Message: "failed to create AES cypher block",
