@@ -71,7 +71,7 @@ func TestJSONHook_create(t *testing.T) {
 	after <- now
 	nowMu.Unlock()
 	elapsed := <-elapsedChan
-	testDurationEqual(t, 10 * time.Second, elapsed)
+	testDurationEqual(t, 10*time.Second, elapsed)
 
 	// Travel 10s into the future, notify the progress goroutine, and wait
 	// for execution via 'elapsed' progress
@@ -80,7 +80,7 @@ func TestJSONHook_create(t *testing.T) {
 	after <- now
 	nowMu.Unlock()
 	elapsed = <-elapsedChan
-	testDurationEqual(t, 20 * time.Second, elapsed)
+	testDurationEqual(t, 20*time.Second, elapsed)
 
 	// Travel 2s into the future. We have arrived!
 	nowMu.Lock()
