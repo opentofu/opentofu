@@ -40,6 +40,7 @@ func (e *targetBuilder) setupKeyProviders() hcl.Diagnostics {
 	return diags
 }
 
+// TODO: Break this method up into smaller methods
 func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []config.KeyProviderConfig) hcl.Diagnostics {
 	// Ensure cfg.Type is in keyValues, if it isn't then add it in preparation for the next step
 	if _, ok := e.keyValues[cfg.Type]; !ok {
@@ -78,7 +79,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	stack = append(stack, cfg)
 
 	// Pull the meta key out for error messages and meta storage
-	metakey, diags := cfg.Addr()
+	metaKey, diags := cfg.Addr()
 	if diags.HasErrors() {
 		return diags
 	}
@@ -111,49 +112,9 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 
-	// Required Dependencies
-	for _, dep := range deps {
-		// Key Provider references should be in the form key_provider.type.name
-		if len(dep) != 3 {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid key_provider reference",
-				Detail:   "Expected reference in form key_provider.type.name",
-				Subject:  dep.SourceRange().Ptr(),
-			})
-			continue
-		}
-
-		// TODO this should be more defensive
-		depRoot := (dep[0].(hcl.TraverseRoot)).Name
-		depType := (dep[1].(hcl.TraverseAttr)).Name
-		depName := (dep[2].(hcl.TraverseAttr)).Name
-
-		if depRoot != "key_provider" {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid key_provider reference",
-				Detail:   "Expected reference in form key_provider.type.name",
-				Subject:  dep.SourceRange().Ptr(),
-			})
-			continue
-		}
-
-		for _, kpc := range e.cfg.KeyProviderConfigs {
-			// Find the key provider in the config
-			if kpc.Type == depType && kpc.Name == depName {
-				depDiags := e.setupKeyProvider(kpc, stack)
-				diags = append(diags, depDiags...)
-				break
-			}
-		}
-	}
+	depDiags := e.validateAndSetupKeyProviders(deps, stack)
 	if diags.HasErrors() {
-		// We should not continue now if we have any diagnostics that are errors
-		// as we may end up in an inconsistent state.
-		// The reason we collate the diags here and then show them instead of showing them as they arise
-		// is to ensure that the end user does not have to play whack-a-mole with the errors one at a time.
-		return diags
+		return append(diags, depDiags...)
 	}
 
 	// Initialize the Key Provider
@@ -169,22 +130,22 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to build encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
+			Detail:   fmt.Sprintf("%s failed with error: %s", metaKey, err.Error()),
 		})
 	}
 
-	meta := e.keyProviderMetadata[metakey]
+	meta := e.keyProviderMetadata[metaKey]
 
-	data, newmeta, err := keyProvider.Provide(meta)
+	data, newMeta, err := keyProvider.Provide(meta)
 	if err != nil {
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to fetch encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
+			Detail:   fmt.Sprintf("%s failed with error: %s", metaKey, err.Error()),
 		})
 	}
 
-	e.keyProviderMetadata[metakey] = newmeta
+	e.keyProviderMetadata[metaKey] = newMeta
 
 	// Convert the data into it's cty equivalent
 	ctyData := make([]cty.Value, len(data))
@@ -194,4 +155,62 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	e.keyValues[cfg.Type][cfg.Name] = cty.ListVal(ctyData)
 
 	return nil
+}
+
+// TODO: Maybe think of a better name?
+func (e *targetBuilder) validateAndSetupKeyProviders(deps []hcl.Traversal, stack []config.KeyProviderConfig) hcl.Diagnostics {
+	diags := hcl.Diagnostics{}
+
+	newError := func(sourceRange *hcl.Range) *hcl.Diagnostic {
+		return &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid key_provider reference",
+			Detail:   "Expected a reference in the form of key_provider.type.name",
+			Subject:  sourceRange.Ptr(),
+		}
+	}
+
+	for _, dep := range deps {
+		// Key Provider references should be in the form key_provider.type.name
+		if len(dep) != 3 {
+			diags = append(diags, newError(dep.SourceRange().Ptr()))
+			continue
+		}
+
+		depRoot, ok := dep[0].(hcl.TraverseRoot)
+		if !ok {
+			diags = append(diags, newError(dep.SourceRange().Ptr()))
+			continue
+		}
+
+		if depRoot.Name != "key_provider" {
+			diags = append(diags, newError(dep.SourceRange().Ptr()))
+			continue
+		}
+
+		depTypeAttr, ok := dep[1].(hcl.TraverseAttr)
+		if !ok {
+			diags = append(diags, newError(dep.SourceRange().Ptr()))
+			continue
+		}
+		depType := depTypeAttr.Name
+
+		depNameAttr, ok := dep[2].(hcl.TraverseAttr)
+		if !ok {
+			diags = append(diags, newError(dep.SourceRange().Ptr()))
+			continue
+		}
+		depName := depNameAttr.Name
+
+		for _, kpc := range e.cfg.KeyProviderConfigs {
+			// Find the key provider in the config
+			if kpc.Type == depType && kpc.Name == depName {
+				depDiags := e.setupKeyProvider(kpc, stack)
+				diags = append(diags, depDiags...)
+				break
+			}
+		}
+	}
+
+	return diags
 }
