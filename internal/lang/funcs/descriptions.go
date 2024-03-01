@@ -522,6 +522,10 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`urlencode` applies URL encoding to a given string.",
 		ParamDescription: []string{""},
 	},
+	"urldecode": {
+		Description:      "`urldecode` applies URL decoding to a given encoded string.",
+		ParamDescription: []string{""},
+	},
 	"uuid": {
 		Description:      "`uuid` generates a unique identifier string.",
 		ParamDescription: []string{},

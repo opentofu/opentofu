@@ -148,6 +148,7 @@ func (s *Scope) Functions() map[string]function.Function {
 			"try":              tryfunc.TryFunc,
 			"upper":            stdlib.UpperFunc,
 			"urlencode":        funcs.URLEncodeFunc,
+			"urldecode":        funcs.URLDecodeFunc,
 			"uuid":             funcs.UUIDFunc,
 			"uuidv5":           funcs.UUIDV5Func,
 			"values":           stdlib.ValuesFunc,

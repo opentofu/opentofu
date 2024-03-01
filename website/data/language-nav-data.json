@@ -542,6 +542,10 @@
             "path": "language/functions/urlencode"
           },
           {
+            "title": "<code>urldecode</code>",
+            "path": "language/functions/urldecode"
+          },
+          {
             "title": "<code>yamldecode</code>",
             "path": "language/functions/yamldecode"
           },
@@ -1179,6 +1183,11 @@
       {
         "title": "urlencode",
         "path": "language/functions/urlencode",
+        "hidden": true
+      },      
+      {
+        "title": "urldecode",
+        "path": "language/functions/urldecode",
         "hidden": true
       },
       { "title": "uuid", "path": "language/functions/uuid", "hidden": true },
