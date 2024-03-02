@@ -80,7 +80,8 @@ jobs:
           description: "OpenTofu enables you to safely and predictably create, change, and improve infrastructure. It is an open source tool that codifies APIs into declarative configuration files that can be shared amongst team members, treated as code, edited, reviewed, and versioned."
           arch: ${{ inputs.goarch }}
           version: ${{ inputs.product-version }}
-          maintainer: "HashiCorp"
+          maintainer: "OpenTofu"
+          vendor: "OpenTofu"
           homepage: "https://opentofu.org/"
           license: "MPL-2.0"
           binary: "dist/tofu"
