@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package configs
+package hcl2shim
 
 import (
 	"github.com/hashicorp/hcl/v2"
@@ -17,7 +17,7 @@ import (
 // decoding would've expected a keyword or reference in quotes but our new
 // decoding expects the keyword or reference to be provided directly as
 // an identifier-based expression.
-func exprIsNativeQuotedString(expr hcl.Expression) bool {
+func ExprIsNativeQuotedString(expr hcl.Expression) bool {
 	_, ok := expr.(*hclsyntax.TemplateExpr)
 	return ok
 }
@@ -35,7 +35,7 @@ func exprIsNativeQuotedString(expr hcl.Expression) bool {
 // Overrides are rarely used, so it's recommended to just create the override
 // schema on the fly only when it's needed, rather than storing it in a global
 // variable as we tend to do for a primary schema.
-func schemaForOverrides(schema *hcl.BodySchema) *hcl.BodySchema {
+func SchemaForOverrides(schema *hcl.BodySchema) *hcl.BodySchema {
 	ret := &hcl.BodySchema{
 		Attributes: make([]hcl.AttributeSchema, len(schema.Attributes)),
 		Blocks:     schema.Blocks,

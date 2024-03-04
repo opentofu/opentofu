@@ -12,7 +12,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
-	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -21,7 +21,7 @@ func TestMergeMethodConfigs(t *testing.T) {
 		return MethodConfig{
 			Type: typeName,
 			Name: name,
-			Body: configs.SynthBody("method", map[string]cty.Value{
+			Body: hcl2shim.SynthBody("method", map[string]cty.Value{
 				key: cty.StringVal(value),
 			}),
 		}
@@ -132,7 +132,7 @@ func TestMergeKeyProviderConfigs(t *testing.T) {
 		return KeyProviderConfig{
 			Type: typeName,
 			Name: name,
-			Body: configs.SynthBody("key_provider", map[string]cty.Value{
+			Body: hcl2shim.SynthBody("key_provider", map[string]cty.Value{
 				key: cty.StringVal(value),
 			}),
 		}

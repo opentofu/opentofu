@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package configs
+package hcl2shim
 
 import (
 	"github.com/hashicorp/hcl/v2"
@@ -46,7 +46,7 @@ var _ hcl.Body = mergeBody{}
 func (b mergeBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	baseSchema := schemaWithDynamic(schema)
-	overrideSchema := schemaWithDynamic(schemaForOverrides(schema))
+	overrideSchema := schemaWithDynamic(SchemaForOverrides(schema))
 
 	baseContent, _, cDiags := b.Base.PartialContent(baseSchema)
 	diags = append(diags, cDiags...)
@@ -61,7 +61,7 @@ func (b mergeBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagno
 func (b mergeBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Body, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	baseSchema := schemaWithDynamic(schema)
-	overrideSchema := schemaWithDynamic(schemaForOverrides(schema))
+	overrideSchema := schemaWithDynamic(SchemaForOverrides(schema))
 
 	baseContent, baseRemain, cDiags := b.Base.PartialContent(baseSchema)
 	diags = append(diags, cDiags...)
