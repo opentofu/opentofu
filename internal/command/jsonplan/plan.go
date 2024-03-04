@@ -435,7 +435,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			if schema.ContainsSensitive() {
 				marks = append(marks, schema.ValueMarks(changeV.Before, nil)...)
 			}
-			bs := jsonstate.SensitiveAsBool(changeV.Before.MarkWithPaths(marks))
+			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, marks)
 			beforeSensitive, err = ctyjson.Marshal(bs, bs.Type())
 			if err != nil {
 				return nil, err
@@ -464,7 +464,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			if schema.ContainsSensitive() {
 				marks = append(marks, schema.ValueMarks(changeV.After, nil)...)
 			}
-			as := jsonstate.SensitiveAsBool(changeV.After.MarkWithPaths(marks))
+			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, marks)
 			afterSensitive, err = ctyjson.Marshal(as, as.Type())
 			if err != nil {
 				return nil, err

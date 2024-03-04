@@ -32,6 +32,7 @@ BUG FIXES:
 * Fix `tofu show` and `tofu state show` not working with state files referencing Terraform registry providers in some instances ([#1141](https://github.com/opentofu/opentofu/pull/1141))
 * Improved stability on 32-bit architectures ([#1154](https://github.com/opentofu/opentofu/pull/1154))
 * Added aliases for `state list` (`state ls`), `state mv` (`state move`), and `state rm` (`state remove`) ([#1220](https://github.com/opentofu/opentofu/pull/1220))
+* Only hide sensitive attributes in plan detail when plan a set of resources ([#1313](https://github.com/opentofu/opentofu/pull/1313))
 
 ## Previous Releases
 

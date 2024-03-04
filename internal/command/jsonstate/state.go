@@ -417,7 +417,7 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				if schema.ContainsSensitive() {
 					marks = append(marks, schema.ValueMarks(value, nil)...)
 				}
-				s := SensitiveAsBool(value.MarkWithPaths(marks))
+				s := SensitiveAsBoolWithPathValueMarks(value, marks)
 				v, err := ctyjson.Marshal(s, s.Type())
 				if err != nil {
 					return nil, err
@@ -496,14 +496,28 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 }
 
 func SensitiveAsBool(val cty.Value) cty.Value {
+	return SensitiveAsBoolWithPathValueMarks(val, nil)
+}
+
+func SensitiveAsBoolWithPathValueMarks(val cty.Value, marks []cty.PathValueMarks) cty.Value {
+	var path cty.Path
+	return sensitiveAsBoolWithPathValueMarks(val, path, marks)
+}
+
+func sensitiveAsBoolWithPathValueMarks(val cty.Value, path cty.Path, pvms []cty.PathValueMarks) cty.Value {
 	if val.HasMark(marks.Sensitive) {
 		return cty.True
 	}
-
+	for _, pvm := range pvms {
+		if path.Equals(pvm.Path) {
+			return cty.True
+		}
+	}
 	ty := val.Type()
 	switch {
 	case val.IsNull(), ty.IsPrimitiveType(), ty.Equals(cty.DynamicPseudoType):
 		return cty.False
+
 	case ty.IsListType() || ty.IsTupleType() || ty.IsSetType():
 		if !val.IsKnown() {
 			// If the collection is unknown we can't say anything about the
@@ -518,8 +532,11 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 		vals := make([]cty.Value, 0, length)
 		it := val.ElementIterator()
 		for it.Next() {
-			_, v := it.Element()
-			vals = append(vals, SensitiveAsBool(v))
+			kv, ev := it.Element()
+			path := append(path, cty.IndexStep{
+				Key: kv,
+			})
+			vals = append(vals, sensitiveAsBoolWithPathValueMarks(ev, path, pvms))
 		}
 		// The above transform may have changed the types of some of the
 		// elements, so we'll always use a tuple here in case we've now made
@@ -527,7 +544,7 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 		// marshal to JSON anyway, and all of these sequence types are
 		// indistinguishable in JSON.
 		return cty.TupleVal(vals)
-	case ty.IsMapType() || ty.IsObjectType():
+	case ty.IsMapType():
 		if !val.IsKnown() {
 			// If the map/object is unknown we can't say anything about the
 			// sensitivity of its attributes
@@ -547,12 +564,15 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 		vals := make(map[string]cty.Value)
 		it := val.ElementIterator()
 		for it.Next() {
-			k, v := it.Element()
-			s := SensitiveAsBool(v)
+			kv, ev := it.Element()
+			path := append(path, cty.IndexStep{
+				Key: kv,
+			})
+			s := sensitiveAsBoolWithPathValueMarks(ev, path, pvms)
 			// Omit all of the "false"s for non-sensitive values for more
 			// compact serialization
 			if !s.RawEquals(cty.False) {
-				vals[k.AsString()] = s
+				vals[kv.AsString()] = s
 			}
 		}
 		// The above transform may have changed the types of some of the
@@ -561,8 +581,27 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 		// marshal to JSON anyway, and all of these mapping types are
 		// indistinguishable in JSON.
 		return cty.ObjectVal(vals)
+	case ty.IsObjectType():
+		if !val.IsKnown() || ty.Equals(cty.EmptyObject) {
+			// If the map/object is unknown we can't say anything about the
+			// sensitivity of its attributes
+			return cty.EmptyObjectVal
+		}
+		vals := make(map[string]cty.Value)
+
+		for name := range ty.AttributeTypes() {
+			av := val.GetAttr(name)
+			path := append(path, cty.GetAttrStep{
+				Name: name,
+			})
+			s := sensitiveAsBoolWithPathValueMarks(av, path, pvms)
+			if !s.RawEquals(cty.False) {
+				vals[name] = s
+			}
+		}
+		return cty.ObjectVal(vals)
 	default:
 		// Should never happen, since the above should cover all types
-		panic(fmt.Sprintf("sensitiveAsBool cannot handle %#v", val))
+		panic(fmt.Sprintf("sensitiveAsBoolWithPathValueMarks cannot handle %#v", val))
 	}
 }
