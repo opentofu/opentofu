@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
@@ -14,17 +15,17 @@ import (
 // purpose. If no encryption configuration is present, it should return a pass through method that doesn't do anything.
 type Encryption interface {
 	// StateFile produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
-	StateFile() StateEncryption
+	StateFile() (StateEncryption, hcl.Diagnostics)
 
 	// PlanFile produces a PlanEncryption overlay for encrypting and decrypting plan files.
-	PlanFile() PlanEncryption
+	PlanFile() (PlanEncryption, hcl.Diagnostics)
 
 	// Backend produces a StateEncryption overlay for storing state files on remote backends, such as an S3 bucket.
-	Backend() StateEncryption
+	Backend() (StateEncryption, hcl.Diagnostics)
 
 	// RemoteState produces a ReadOnlyStateEncryption for reading remote states using the terraform_remote_state data
 	// source.
-	RemoteState(string) ReadOnlyStateEncryption
+	RemoteState(string) (ReadOnlyStateEncryption, hcl.Diagnostics)
 }
 
 type encryption struct {
@@ -41,34 +42,27 @@ func New(reg registry.Registry, cfg *config.Config) Encryption {
 	}
 }
 
-func (e *encryption) StateFile() StateEncryption {
-	return &stateEncryption{
-		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "statefile"),
-	}
+func (e *encryption) StateFile() (StateEncryption, hcl.Diagnostics) {
+	return newStateEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "statefile")
 }
 
-func (e *encryption) PlanFile() PlanEncryption {
-	return &planEncryption{
-		base: newBaseEncryption(e, e.cfg.PlanFile.AsTargetConfig(), e.cfg.PlanFile.Enforced, "planfile"),
-	}
+func (e *encryption) PlanFile() (PlanEncryption, hcl.Diagnostics) {
+	return newPlanEncryption(e, e.cfg.PlanFile.AsTargetConfig(), e.cfg.PlanFile.Enforced, "planfile")
 }
 
-func (e *encryption) Backend() StateEncryption {
-	return &stateEncryption{
-		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "backend"),
-	}
+func (e *encryption) Backend() (StateEncryption, hcl.Diagnostics) {
+	return newStateEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "backend")
 }
 
-func (e *encryption) RemoteState(name string) ReadOnlyStateEncryption {
+func (e *encryption) RemoteState(name string) (ReadOnlyStateEncryption, hcl.Diagnostics) {
 	for _, remoteTarget := range e.cfg.Remote.Targets {
 		if remoteTarget.Name == name {
-			return &stateEncryption{
-				// TODO the addr here should be generated in one place.
-				base: newBaseEncryption(e, remoteTarget.AsTargetConfig(), false, "remote.remote_state_datasource."+remoteTarget.Name),
-			}
+			// TODO the addr here should be generated in one place.
+			addr := "remote.remote_state_datasource." + remoteTarget.Name
+			return newStateEncryption(
+				e, remoteTarget.AsTargetConfig(), false, addr,
+			)
 		}
 	}
-	return &stateEncryption{
-		base: newBaseEncryption(e, e.cfg.Remote.Default, false, "remote.default"),
-	}
+	return newStateEncryption(e, e.cfg.Remote.Default, false, "remote.default")
 }

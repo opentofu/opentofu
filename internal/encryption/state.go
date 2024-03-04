@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
 const StateEncryptionMarkerField = "encryption"
@@ -32,7 +33,7 @@ type ReadOnlyStateEncryption interface {
 	// function. Do not attempt to determine if the state file is encrypted as this function will take care of any
 	// and all encryption-related matters. After the function returns, use the returned byte array as a normal state
 	// file.
-	DecryptState([]byte) ([]byte, hcl.Diagnostics)
+	DecryptState([]byte) ([]byte, error)
 }
 
 // StateEncryption describes the interface for encrypting state files.
@@ -56,18 +57,23 @@ type StateEncryption interface {
 	// Pass in a valid JSON-serialized state file as an input and store the output. Note that you should not pass the
 	// output to any additional functions that require a valid state file as it may not contain the fields typically
 	// present in a state file.
-	EncryptState([]byte) ([]byte, hcl.Diagnostics)
+	EncryptState([]byte) ([]byte, error)
 }
 
 type stateEncryption struct {
 	base *baseEncryption
 }
 
-func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, hcl.Diagnostics) {
+func newStateEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (StateEncryption, hcl.Diagnostics) {
+	base, diags := newBaseEncryption(enc, target, enforced, name)
+	return &stateEncryption{base}, diags
+}
+
+func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
 	return s.base.encrypt(plainState)
 }
 
-func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
+func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 	return s.base.decrypt(encryptedState, func(data []byte) error {
 		tmp := struct {
 			FormatVersion string `json:"format_version"`
