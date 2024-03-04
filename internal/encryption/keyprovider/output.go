@@ -3,8 +3,8 @@ package keyprovider
 import "github.com/zclconf/go-cty/cty"
 
 type Output struct {
-	EncryptionKey []byte `hcl:"encryption_key"`
-	DecryptionKey []byte `hcl:"decryption_key"`
+	EncryptionKey []byte `hcl:"encryption_key" cty:"encryption_key"`
+	DecryptionKey []byte `hcl:"decryption_key" cty:"decryption_key"`
 	Metadata      any
 }
 

@@ -2,6 +2,7 @@ package aesgcm_test
 
 import (
 	"errors"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
@@ -9,7 +10,11 @@ import (
 )
 
 func TestDecryptEmptyData(t *testing.T) {
-	m, err := aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build()
+	m, err := aesgcm.New().TypedConfig().WithKeys(keyprovider.Output{
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		nil,
+	}).Build()
 	if err != nil {
 		t.Fatalf("unexpected error (%v)", err)
 	}
@@ -26,7 +31,11 @@ func TestDecryptEmptyData(t *testing.T) {
 }
 
 func TestDecryptShortData(t *testing.T) {
-	m, err := aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build()
+	m, err := aesgcm.New().TypedConfig().WithKeys(keyprovider.Output{
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		nil,
+	}).Build()
 	if err != nil {
 		t.Fatalf("unexpected error (%v)", err)
 	}
@@ -44,7 +53,11 @@ func TestDecryptShortData(t *testing.T) {
 }
 
 func TestDecryptInvalidData(t *testing.T) {
-	m, err := aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build()
+	m, err := aesgcm.New().TypedConfig().WithKeys(keyprovider.Output{
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		nil,
+	}).Build()
 	if err != nil {
 		t.Fatalf("unexpected error (%v)", err)
 	}
@@ -62,7 +75,11 @@ func TestDecryptInvalidData(t *testing.T) {
 }
 
 func TestDecryptCorruptData(t *testing.T) {
-	m, err := aesgcm.New().TypedConfig().WithKey([]byte("aeshi1quahb2Rua0ooquaiwahbonedoh")).Build()
+	m, err := aesgcm.New().TypedConfig().WithKeys(keyprovider.Output{
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		[]byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+		nil,
+	}).Build()
 	if err != nil {
 		t.Fatalf("unexpected error (%v)", err)
 	}

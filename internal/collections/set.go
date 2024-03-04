@@ -28,6 +28,7 @@ func (s Set[T]) String() string {
 	i := 0
 	for v := range s {
 		parts[i] = fmt.Sprintf("%v", v)
+		i++
 	}
 	return strings.Join(parts, ", ")
 }

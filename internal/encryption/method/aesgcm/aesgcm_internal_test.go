@@ -13,7 +13,8 @@ func TestInternalErrorHandling(t *testing.T) {
 	testCases := map[string]testCase{
 		"ok": {
 			&aesgcm{
-				key: []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+				encryptionKey: []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
+				decryptionKey: []byte("aeshi1quahb2Rua0ooquaiwahbonedoh"),
 			},
 			false,
 		},
@@ -22,7 +23,10 @@ func TestInternalErrorHandling(t *testing.T) {
 			true,
 		},
 		"bad-key-length": {
-			&aesgcm{key: []byte("Hello world!")},
+			&aesgcm{
+				encryptionKey: []byte("Hello world!"),
+				decryptionKey: []byte("Hello world!"),
+			},
 			true,
 		},
 	}

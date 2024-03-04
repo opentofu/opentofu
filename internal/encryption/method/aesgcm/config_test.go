@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -22,7 +23,11 @@ func Example_config() {
 	config := descriptor.TypedConfig()
 
 	// Set up an encryption key:
-	config.WithKey([]byte("AiphoogheuwohShal8Aefohy7ooLeeyu"))
+	config.WithKeys(keyprovider.Output{
+		[]byte("AiphoogheuwohShal8Aefohy7ooLeeyu"),
+		[]byte("AiphoogheuwohShal8Aefohy7ooLeeyu"),
+		nil,
+	})
 
 	// Now you can build a method:
 	method, err := config.Build()
@@ -57,7 +62,10 @@ func Example_config_json() {
 	if err := json.Unmarshal(
 		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
 		[]byte(`{
-    "key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
+    "keys": {
+		"encryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ=",
+		"decryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
+	}
 }`), &config); err != nil {
 		panic(err)
 	}
@@ -137,15 +145,27 @@ func TestConfigValidation(t *testing.T) {
 	descriptor := aesgcm.New()
 	var testCases = map[string]testCase{
 		"key-32-bytes": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")),
+			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
+				[]byte("bohwu9zoo7Zool5olaileef1eibeathi"),
+				[]byte("bohwu9zoo7Zool5olaileef1eibeathi"),
+				nil,
+			}),
 			errorType: nil,
 		},
 		"key-24-bytes": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1")),
+			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
+				[]byte("bohwu9zoo7Zool5olaileef1"),
+				[]byte("bohwu9zoo7Zool5olaileef1"),
+				nil,
+			}),
 			errorType: nil,
 		},
 		"key-16-bytes": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5o")),
+			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
+				[]byte("bohwu9zoo7Zool5o"),
+				[]byte("bohwu9zoo7Zool5o"),
+				nil,
+			}),
 			errorType: nil,
 		},
 		"no-key": {
@@ -153,11 +173,19 @@ func TestConfigValidation(t *testing.T) {
 			errorType: &method.ErrInvalidConfiguration{},
 		},
 		"key-15-bytes": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5")),
+			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
+				[]byte("bohwu9zoo7Zool5"),
+				[]byte("bohwu9zoo7Zool5"),
+				nil,
+			}),
 			errorType: &method.ErrInvalidConfiguration{},
 		},
 		"aad": {
-			config:    descriptor.TypedConfig().WithKey([]byte("bohwu9zoo7Zool5olaileef1eibeathi")).WithAAD([]byte("foobar")),
+			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
+				[]byte("bohwu9zoo7Zool5olaileef1eibeathi"),
+				[]byte("bohwu9zoo7Zool5olaileef1eibeathi"),
+				nil,
+			}).WithAAD([]byte("foobar")),
 			errorType: nil,
 		},
 	}
