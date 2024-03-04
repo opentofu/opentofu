@@ -6,6 +6,7 @@
 package addrs
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -13,6 +14,10 @@ import (
 )
 
 func TestParseModuleSource(t *testing.T) {
+
+	absolutePath, absolutePathModulePackage := testDataAbsolutePath()
+	absolutePathSubdir, absolutePathSubdirModulePackage := testDataAbsolutePathSubdir()
+
 	tests := map[string]struct {
 		input   string
 		want    ModuleSource
@@ -270,15 +275,14 @@ func TestParseModuleSource(t *testing.T) {
 				Package: ModulePackage("https://example.com/module?archive=tar&checksum=blah"),
 			},
 		},
-
 		"absolute filesystem path": {
 			// Although a local directory isn't really "remote", we do
 			// treat it as such because we still need to do all of the same
 			// high-level steps to work with these, even though "downloading"
 			// is replaced by a deep filesystem copy instead.
-			input: "/tmp/foo/example",
+			input: absolutePath,
 			want: ModuleSourceRemote{
-				Package: ModulePackage("file:///tmp/foo/example"),
+				Package: ModulePackage(absolutePathModulePackage),
 			},
 		},
 		"absolute filesystem path, subdir": {
@@ -287,9 +291,9 @@ func TestParseModuleSource(t *testing.T) {
 			// multiple modules, but the entry point is not at the root
 			// of that subtree, and so they can use the usual subdir
 			// syntax to move the package root higher in the real filesystem.
-			input: "/tmp/foo//example",
+			input: absolutePathSubdir,
 			want: ModuleSourceRemote{
-				Package: ModulePackage("file:///tmp/foo"),
+				Package: ModulePackage(absolutePathSubdirModulePackage),
 				Subdir:  "example",
 			},
 		},
@@ -632,4 +636,24 @@ func TestParseModuleSourceRegistry(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testDataAbsolutePath() (absolutePath string, modulePackage string) {
+	absolutePath = "/tmp/foo/example"
+	modulePackage = "file:///tmp/foo/example"
+	if runtime.GOOS == "windows" {
+		absolutePath = "C:\\tmp\\foo\\example"
+		modulePackage = "C:\\tmp\\foo\\example"
+	}
+	return
+}
+
+func testDataAbsolutePathSubdir() (absolutePath string, modulePackage string) {
+	absolutePath = "/tmp/foo//example"
+	modulePackage = "file:///tmp/foo"
+	if runtime.GOOS == "windows" {
+		absolutePath = "C:\\tmp\\foo//example"
+		modulePackage = "C:\\tmp\\foo"
+	}
+	return
 }
