@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -50,15 +51,25 @@ func (e *ErrUnusableLocalPlan) Unwrap() error {
 // be used to access the individual portions of the file for further
 // processing.
 type Reader struct {
-	zip *zip.ReadCloser
+	zip *zip.Reader
 }
 
 // Open creates a Reader for the file at the given filename, or returns an error
 // if the file doesn't seem to be a planfile. NOTE: Most commands that accept a
 // plan file should use OpenWrapped instead, so they can support both local and
 // cloud plan files.
-func Open(filename string) (*Reader, error) {
-	r, err := zip.OpenReader(filename)
+func Open(filename string, enc encryption.PlanEncryption) (*Reader, error) {
+	raw, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	decrypted, diags := enc.DecryptPlan(raw)
+	if diags != nil {
+		return nil, diags
+	}
+
+	r, err := zip.NewReader(bytes.NewReader(decrypted), int64(len(decrypted)))
 	if err != nil {
 		// To give a better error message, we'll sniff to see if this looks
 		// like our old plan format from versions prior to 0.12.
@@ -115,7 +126,6 @@ func (r *Reader) ReadPlan() (*plans.Plan, error) {
 	if err != nil {
 		return nil, errUnusable(fmt.Errorf("failed to retrieve plan from plan file: %w", err))
 	}
-	defer pr.Close()
 
 	// There's a slight mismatch in how plans.Plan is modeled vs. how
 	// the underlying plan file format works, because the "tfplan" embedded
@@ -190,7 +200,7 @@ func (r *Reader) ReadPrevStateFile() (*statefile.File, error) {
 // This is a lower-level alternative to ReadConfig that just extracts the
 // source files, without attempting to parse them.
 func (r *Reader) ReadConfigSnapshot() (*configload.Snapshot, error) {
-	return readConfigSnapshot(&r.zip.Reader)
+	return readConfigSnapshot(r.zip)
 }
 
 // ReadConfig reads the configuration embedded in the plan file.
@@ -261,9 +271,4 @@ func (r *Reader) ReadDependencyLocks() (*depsfile.Locks, tfdiags.Diagnostics) {
 		"The specified saved plan file does not include any dependency lock information. This is a bug in the previous run of OpenTofu that created this file.",
 	))
 	return nil, diags
-}
-
-// Close closes the file, after which no other operations may be performed.
-func (r *Reader) Close() error {
-	return r.zip.Close()
 }

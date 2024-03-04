@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -272,7 +273,7 @@ func (c *ShowCommand) getPlanFromPath(path string) (*plans.Plan, *cloudplan.Remo
 	var stateFile *statefile.File
 	var config *configs.Config
 
-	pf, err := planfile.OpenWrapped(path)
+	pf, err := planfile.OpenWrapped(path, encryption.PlanEncryptionTODO())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
