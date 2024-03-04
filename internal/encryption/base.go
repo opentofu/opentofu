@@ -46,6 +46,17 @@ type basedata struct {
 	Version string                   `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
+func IsEncryptionPayload(data []byte) (bool, error) {
+	es := basedata{}
+	err := json.Unmarshal(data, &es)
+	if err != nil {
+		return false, err
+	}
+
+	// This could be extended with full version checking later on
+	return es.Version != "", nil
+}
+
 func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	// No configuration provided, don't do anything
 	if s.target == nil {

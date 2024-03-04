@@ -69,7 +69,7 @@ func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 	return s.base.decrypt(encryptedState, func(data []byte) error {
 		tmp := struct {
-			FormatVersion string `json:"format_version"`
+			FormatVersion string `json:"terraform_version"`
 		}{}
 		err := json.Unmarshal(data, &tmp)
 		if err != nil {
