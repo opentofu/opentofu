@@ -30,6 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -107,6 +108,8 @@ type Cloud struct {
 	// input stores the value of the -input flag, since it will be used
 	// to determine whether or not to ask the user for approval of a run.
 	input bool
+
+	encryption encryption.StateEncryption
 }
 
 var _ backend.Backend = (*Cloud)(nil)
@@ -114,9 +117,10 @@ var _ backend.Enhanced = (*Cloud)(nil)
 var _ backend.Local = (*Cloud)(nil)
 
 // New creates a new initialized cloud backend.
-func New(services *disco.Disco) *Cloud {
+func New(services *disco.Disco, enc encryption.StateEncryption) *Cloud {
 	return &Cloud{
-		services: services,
+		services:   services,
+		encryption: enc,
 	}
 }
 
@@ -409,7 +413,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	// Configure a local backend for when we need to run operations locally.
-	b.local = backendLocal.NewWithBackend(b)
+	b.local = backendLocal.NewWithBackend(b, nil)
 	b.forceLocal = b.forceLocal || !entitlements.Operations
 
 	// Enable retries for server errors as the backend is now fully configured.
@@ -641,7 +645,7 @@ func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 	}
 
 	// Configure the remote workspace name.
-	State := &State{tfeClient: b.client, organization: b.organization, workspace: workspace, enableIntermediateSnapshots: false}
+	State := &State{tfeClient: b.client, organization: b.organization, workspace: workspace, enableIntermediateSnapshots: false, encryption: b.encryption}
 	return State.Delete(force)
 }
 
@@ -776,7 +780,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		}
 	}
 
-	return &State{tfeClient: b.client, organization: b.organization, workspace: workspace, enableIntermediateSnapshots: false}, nil
+	return &State{tfeClient: b.client, organization: b.organization, workspace: workspace, enableIntermediateSnapshots: false, encryption: b.encryption}, nil
 }
 
 // Operation implements backend.Enhanced.

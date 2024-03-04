@@ -136,7 +136,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error creating state file %s: %s", b.StatePath, err)
 	}
-	if err := statefile.Write(statefile.New(states.NewState(), "boop", 3), sf); err != nil {
+	if err := statefile.Write(statefile.New(states.NewState(), "boop", 3), sf, encryption.StateEncryptionDisabled()); err != nil {
 		t.Fatalf("unexpected error writing state file: %s", err)
 	}
 

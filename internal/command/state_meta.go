@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -34,7 +35,7 @@ func (c *StateMeta) State() (statemgr.Full, error) {
 
 	// use the specified state
 	if c.statePath != "" {
-		realState = statemgr.NewFilesystem(c.statePath)
+		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionTODO())
 	} else {
 		// Load the backend
 		b, backendDiags := c.Backend(nil)

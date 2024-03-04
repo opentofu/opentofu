@@ -8,6 +8,8 @@ package init
 import (
 	"reflect"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 func TestInit_backend(t *testing.T) {
@@ -36,7 +38,7 @@ func TestInit_backend(t *testing.T) {
 			if f == nil {
 				t.Fatalf("backend %q is not present; should be", b.Name)
 			}
-			bType := reflect.TypeOf(f()).String()
+			bType := reflect.TypeOf(f(encryption.StateEncryptionDisabled())).String()
 			if bType != b.Type {
 				t.Fatalf("expected backend %q to be %q, got: %q", b.Name, b.Type, bType)
 			}

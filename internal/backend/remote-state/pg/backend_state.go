@@ -56,13 +56,14 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 
 func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// Build the state client
-	var stateMgr statemgr.Full = &remote.State{
-		Client: &RemoteClient{
+	var stateMgr statemgr.Full = remote.NewState(
+		&RemoteClient{
 			Client:     b.db,
 			Name:       name,
 			SchemaName: b.schemaName,
 		},
-	}
+		b.encryption,
+	)
 
 	// Check to see if this state already exists.
 	// If the state doesn't exist, we have to assume this

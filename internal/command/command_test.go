@@ -327,7 +327,7 @@ func writeStateForTesting(state *states.State, w io.Writer) error {
 		Lineage: "fake-for-testing",
 		State:   state,
 	}
-	return statefile.Write(sf, w)
+	return statefile.Write(sf, w, encryption.StateEncryptionDisabled())
 }
 
 // testStateMgrCurrentLineage returns the current lineage for the given state
@@ -482,7 +482,7 @@ func testStateRead(t *testing.T, path string) *states.State {
 	}
 	defer f.Close()
 
-	sf, err := statefile.Read(f)
+	sf, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -760,7 +760,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 
 	// If a state was given, make sure we calculate the proper b64md5
 	if s != nil {
-		err := statefile.Write(&statefile.File{State: s}, buf)
+		err := statefile.Write(&statefile.File{State: s}, buf, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -774,7 +774,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		Type:   "http",
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
 	}
-	b := backendInit.Backend("http")()
+	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()
 	hash := backendConfig.Hash(configSchema)
 
@@ -833,7 +833,7 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	retState.Backend = b
 
 	if s != nil {
-		err := statefile.Write(&statefile.File{State: s}, buf)
+		err := statefile.Write(&statefile.File{State: s}, buf, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatalf("failed to write initial state: %v", err)
 		}

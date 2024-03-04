@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -52,7 +53,7 @@ func TestRemoteClient_Put_withRunID(t *testing.T) {
 	// Create a new empty state.
 	sf := statefile.New(states.NewState(), "", 0)
 	var buf bytes.Buffer
-	statefile.Write(sf, &buf)
+	statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
 
 	// Store the new state to verify (this will be done
 	// by the mock that is used) that the run ID is set.

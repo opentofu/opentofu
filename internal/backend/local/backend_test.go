@@ -14,19 +14,20 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 func TestLocal_impl(t *testing.T) {
-	var _ backend.Enhanced = New()
-	var _ backend.Local = New()
-	var _ backend.CLI = New()
+	var _ backend.Enhanced = New(encryption.StateEncryptionDisabled())
+	var _ backend.Local = New(encryption.StateEncryptionDisabled())
+	var _ backend.CLI = New(encryption.StateEncryptionDisabled())
 }
 
 func TestLocal_backend(t *testing.T) {
 	testTmpDir(t)
-	b := New()
+	b := New(encryption.StateEncryptionDisabled())
 	backend.TestBackendStates(t, b)
 	backend.TestBackendStateLocks(t, b, b)
 }
@@ -39,7 +40,7 @@ func checkState(t *testing.T, path, expected string) {
 		t.Fatalf("err: %s", err)
 	}
 
-	state, err := statefile.Read(f)
+	state, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -53,7 +54,7 @@ func checkState(t *testing.T, path, expected string) {
 }
 
 func TestLocal_StatePaths(t *testing.T) {
-	b := New()
+	b := New(encryption.StateEncryptionDisabled())
 
 	// Test the defaults
 	path, out, back := b.StatePaths("")
@@ -98,7 +99,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 	dflt := backend.DefaultStateName
 	expectedStates := []string{dflt}
 
-	b := New()
+	b := New(encryption.StateEncryptionDisabled())
 	states, err := b.Workspaces()
 	if err != nil {
 		t.Fatal(err)
@@ -190,7 +191,7 @@ func (b *testDelegateBackend) StateMgr(name string) (statemgr.Full, error) {
 	if b.stateErr {
 		return nil, errTestDelegateState
 	}
-	s := statemgr.NewFilesystem("terraform.tfstate")
+	s := statemgr.NewFilesystem("terraform.tfstate", encryption.StateEncryptionDisabled())
 	return s, nil
 }
 
@@ -215,7 +216,7 @@ func TestLocal_multiStateBackend(t *testing.T) {
 		stateErr:  true,
 		statesErr: true,
 		deleteErr: true,
-	})
+	}, nil)
 
 	if _, err := b.StateMgr("test"); err != errTestDelegateState {
 		t.Fatal("expected errTestDelegateState, got:", err)

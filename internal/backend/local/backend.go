@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -89,20 +90,28 @@ type Local struct {
 
 	// opLock locks operations
 	opLock sync.Mutex
+
+	encryption encryption.StateEncryption
 }
 
 var _ backend.Backend = (*Local)(nil)
 
 // New returns a new initialized local backend.
-func New() *Local {
-	return NewWithBackend(nil)
+func New(enc encryption.StateEncryption) *Local {
+	return &Local{
+		encryption: enc,
+	}
 }
 
 // NewWithBackend returns a new local backend initialized with a
 // dedicated backend for non-enhanced behavior.
-func NewWithBackend(backend backend.Backend) *Local {
+func NewWithBackend(backend backend.Backend, enc encryption.StateEncryption) *Local {
+	if backend == nil && enc == nil {
+		panic("either backend or encryption required for backend.Local initialization")
+	}
 	return &Local{
-		Backend: backend,
+		Backend:    backend,
+		encryption: enc,
 	}
 }
 
@@ -257,7 +266,7 @@ func (b *Local) StateMgr(name string) (statemgr.Full, error) {
 	statePath, stateOutPath, backupPath := b.StatePaths(name)
 	log.Printf("[TRACE] backend/local: state manager for workspace %q will:\n - read initial snapshot from %s\n - write new snapshots to %s\n - create any backup at %s", name, statePath, stateOutPath, backupPath)
 
-	s := statemgr.NewFilesystemBetweenPaths(statePath, stateOutPath)
+	s := statemgr.NewFilesystemBetweenPaths(statePath, stateOutPath, b.encryption)
 	if backupPath != "" {
 		s.SetBackupPath(backupPath)
 	}

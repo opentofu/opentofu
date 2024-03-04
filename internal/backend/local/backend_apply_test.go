@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -351,7 +352,7 @@ type backendWithFailingState struct {
 
 func (b *backendWithFailingState) StateMgr(name string) (statemgr.Full, error) {
 	return &failingState{
-		statemgr.NewFilesystem("failing-state.tfstate"),
+		statemgr.NewFilesystem("failing-state.tfstate", encryption.StateEncryptionDisabled()),
 	}, nil
 }
 

@@ -76,14 +76,15 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	gzip := b.configData.Get("gzip").(bool)
 
 	// Build the state client
-	var stateMgr = &remote.State{
-		Client: &RemoteClient{
+	var stateMgr = remote.NewState(
+		&RemoteClient{
 			Client:    b.client,
 			Path:      path,
 			GZip:      gzip,
 			lockState: b.lock,
 		},
-	}
+		b.encryption,
+	)
 
 	if !b.lock {
 		stateMgr.DisableLocks()

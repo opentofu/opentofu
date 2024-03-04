@@ -30,6 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -181,7 +182,7 @@ func (m *Meta) Backend(opts *BackendOpts) (backend.Enhanced, tfdiags.Diagnostics
 	}
 
 	// Build the local backend
-	local := backendLocal.NewWithBackend(b)
+	local := backendLocal.NewWithBackend(b, encryption.StateEncryptionTODO())
 	if err := local.CLIInit(cliOpts); err != nil {
 		// Local backend isn't allowed to fail. It would be a bug.
 		panic(err)
@@ -312,7 +313,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), settings.Type))
 		return nil, diags
 	}
-	b := f()
+	b := f(encryption.StateEncryptionTODO())
 	log.Printf("[TRACE] Meta.BackendForLocalPlan: instantiated backend of type %T", b)
 
 	schema := b.ConfigSchema()
@@ -371,7 +372,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend) (backend.Enhanced, tf
 		return nil, diags
 	}
 	cliOpts.Validation = false // don't validate here in case config contains file(...) calls where the file doesn't exist
-	local := backendLocal.NewWithBackend(b)
+	local := backendLocal.NewWithBackend(b, encryption.StateEncryptionTODO())
 	if err := local.CLIInit(cliOpts); err != nil {
 		// Local backend should never fail, so this is always a bug.
 		panic(err)
@@ -493,7 +494,7 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 		})
 		return nil, 0, diags
 	}
-	b := bf()
+	b := bf(encryption.StateEncryptionTODO())
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
@@ -791,25 +792,25 @@ func (m *Meta) backendFromState(ctx context.Context) (backend.Backend, tfdiags.D
 	if s == nil {
 		// no state, so return a local backend
 		log.Printf("[TRACE] Meta.Backend: backend has not previously been initialized in this working directory")
-		return backendLocal.New(), diags
+		return backendLocal.New(encryption.StateEncryptionTODO()), diags
 	}
 	if s.Backend == nil {
 		// s.Backend is nil, so return a local backend
 		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend (is using legacy remote state?)")
-		return backendLocal.New(), diags
+		return backendLocal.New(encryption.StateEncryptionTODO()), diags
 	}
 	log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 
 	//backend init function
 	if s.Backend.Type == "" {
-		return backendLocal.New(), diags
+		return backendLocal.New(encryption.StateEncryptionTODO()), diags
 	}
 	f := backendInit.Backend(s.Backend.Type)
 	if f == nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), s.Backend.Type))
 		return nil, diags
 	}
-	b := f()
+	b := f(encryption.StateEncryptionTODO())
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
@@ -1266,7 +1267,7 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState) (backend.Backend, tfdiags
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), s.Backend.Type))
 		return nil, diags
 	}
-	b := f()
+	b := f(encryption.StateEncryptionTODO())
 
 	// The configuration saved in the working directory state file is used
 	// in this case, since it will contain any additional values that
@@ -1354,7 +1355,7 @@ func (m *Meta) backendConfigNeedsMigration(c *configs.Backend, s *legacy.Backend
 		log.Printf("[TRACE] backendConfigNeedsMigration: no backend of type %q, which migration codepath must handle", c.Type)
 		return true // let the migration codepath deal with the missing backend
 	}
-	b := f()
+	b := f(encryption.StateEncryptionTODO())
 
 	schema := b.ConfigSchema()
 	decSpec := schema.NoneRequired().DecoderSpec()
@@ -1391,7 +1392,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend) (backend.Backend, cty.V
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendNewUnknown), c.Type))
 		return nil, cty.NilVal, diags
 	}
-	b := f()
+	b := f(encryption.StateEncryptionTODO())
 
 	schema := b.ConfigSchema()
 	decSpec := schema.NoneRequired().DecoderSpec()

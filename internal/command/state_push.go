@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -68,7 +69,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Read the state
-	srcStateFile, err := statefile.Read(r)
+	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
 	if c, ok := r.(io.Closer); ok {
 		// Close the reader if possible right now since we're done with it.
 		c.Close()

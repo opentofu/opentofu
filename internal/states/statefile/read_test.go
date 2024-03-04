@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 func TestReadErrNoState_emptyFile(t *testing.T) {
@@ -15,7 +17,7 @@ func TestReadErrNoState_emptyFile(t *testing.T) {
 	}
 	defer emptyFile.Close()
 
-	_, err = Read(emptyFile)
+	_, err = Read(emptyFile, encryption.StateEncryptionDisabled())
 	if !errors.Is(err, ErrNoState) {
 		t.Fatalf("expected ErrNoState, got %T", err)
 	}
@@ -27,7 +29,7 @@ func TestReadErrNoState_nilFile(t *testing.T) {
 		t.Fatal("wrongly succeeded in opening non-existent file")
 	}
 
-	_, err = Read(nilFile)
+	_, err = Read(nilFile, encryption.StateEncryptionDisabled())
 	if !errors.Is(err, ErrNoState) {
 		t.Fatalf("expected ErrNoState, got %T", err)
 	}

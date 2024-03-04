@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 )
 
@@ -20,7 +21,7 @@ func TestRemoteClient_impl(t *testing.T) {
 
 func TestRemoteClient(t *testing.T) {
 	defer Reset()
-	b := backend.TestBackendConfig(t, New(), hcl.EmptyBody())
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), hcl.EmptyBody())
 
 	s, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {
@@ -32,7 +33,7 @@ func TestRemoteClient(t *testing.T) {
 
 func TestInmemLocks(t *testing.T) {
 	defer Reset()
-	s, err := backend.TestBackendConfig(t, New(), hcl.EmptyBody()).StateMgr(backend.DefaultStateName)
+	s, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), hcl.EmptyBody()).StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

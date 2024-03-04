@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -150,7 +151,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
-	stateFile, err := statefile.Read(f)
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

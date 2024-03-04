@@ -170,7 +170,7 @@ func (r *Reader) ReadStateFile() (*statefile.File, error) {
 			if err != nil {
 				return nil, errUnusable(fmt.Errorf("failed to extract state from plan file: %w", err))
 			}
-			return statefile.Read(r)
+			return statefile.Read(r, encryption.StateEncryptionDisabled())
 		}
 	}
 	return nil, errUnusable(statefile.ErrNoState)
@@ -188,7 +188,7 @@ func (r *Reader) ReadPrevStateFile() (*statefile.File, error) {
 			if err != nil {
 				return nil, errUnusable(fmt.Errorf("failed to extract previous state from plan file: %w", err))
 			}
-			return statefile.Read(r)
+			return statefile.Read(r, encryption.StateEncryptionDisabled())
 		}
 	}
 	return nil, errUnusable(statefile.ErrNoState)

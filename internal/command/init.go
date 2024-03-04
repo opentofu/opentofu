@@ -478,7 +478,7 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 			return nil, true, diags
 		}
 
-		b := bf()
+		b := bf(nil) // This is only used to get the schema, encryption should panic if attempted
 		backendSchema := b.ConfigSchema()
 		backendConfig = root.Backend
 

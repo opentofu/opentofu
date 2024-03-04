@@ -13,6 +13,7 @@ import (
 	"github.com/apparentlymart/go-dump/dump"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -320,7 +321,7 @@ func TestState_validation(t *testing.T) {
 	// the validation step in isolation does not attempt to configure
 	// the backend.
 	overrideBackendFactories = map[string]backend.InitFn{
-		"failsconfigure": func() backend.Backend {
+		"failsconfigure": func(enc encryption.StateEncryption) backend.Backend {
 			return backendFailsConfigure{}
 		},
 	}

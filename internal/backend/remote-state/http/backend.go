@@ -19,13 +19,14 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func New() backend.Backend {
+func New(enc encryption.StateEncryption) backend.Backend {
 	s := &schema.Backend{
 		Schema: map[string]*schema.Schema{
 			"address": &schema.Schema{
@@ -121,13 +122,14 @@ func New() backend.Backend {
 		},
 	}
 
-	b := &Backend{Backend: s}
+	b := &Backend{Backend: s, encryption: enc}
 	b.Backend.ConfigureFunc = b.configure
 	return b
 }
 
 type Backend struct {
 	*schema.Backend
+	encryption encryption.StateEncryption
 
 	client *httpClient
 }
@@ -250,7 +252,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
 
-	return &remote.State{Client: b.client}, nil
+	return remote.NewState(b.client, b.encryption), nil
 }
 
 func (b *Backend) Workspaces() ([]string, error) {

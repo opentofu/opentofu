@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -25,7 +26,7 @@ func TestHTTPClientFactory(t *testing.T) {
 	conf := map[string]cty.Value{
 		"address": cty.StringVal("http://127.0.0.1:8888/foo"),
 	}
-	b := backend.TestBackendConfig(t, New(), configs.SynthBody("synth", conf)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	client := b.client
 
 	if client == nil {
@@ -62,7 +63,7 @@ func TestHTTPClientFactory(t *testing.T) {
 		"retry_wait_max": cty.StringVal("150"),
 	}
 
-	b = backend.TestBackendConfig(t, New(), configs.SynthBody("synth", conf)).(*Backend)
+	b = backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	client = b.client
 
 	if client == nil {
@@ -122,7 +123,7 @@ func TestHTTPClientFactoryWithEnv(t *testing.T) {
 	t.Setenv("TF_HTTP_RETRY_WAIT_MIN", conf["retry_wait_min"])
 	t.Setenv("TF_HTTP_RETRY_WAIT_MAX", conf["retry_wait_max"])
 
-	b := backend.TestBackendConfig(t, New(), nil).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), nil).(*Backend)
 	client := b.client
 
 	if client == nil {

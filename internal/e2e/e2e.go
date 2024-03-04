@@ -193,7 +193,7 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 	}
 	defer f.Close()
 
-	stateFile, err := statefile.Read(f)
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		return nil, fmt.Errorf("Error reading statefile: %w", err)
 	}
@@ -231,7 +231,7 @@ func (b *binary) SetLocalState(state *states.State) error {
 		Lineage: "fake-for-testing",
 		State:   state,
 	}
-	return statefile.Write(sf, f)
+	return statefile.Write(sf, f, encryption.StateEncryptionDisabled())
 }
 
 func GoBuild(pkgPath, tmpPrefix string) string {
