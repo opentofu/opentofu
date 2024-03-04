@@ -97,10 +97,10 @@ func StateEncryptionDisabled() StateEncryption {
 
 type stateDisabled struct{}
 
-func (s *stateDisabled) EncryptState(plainState []byte) ([]byte, hcl.Diagnostics) {
+func (s *stateDisabled) EncryptState(plainState []byte) ([]byte, error) {
 	return plainState, nil
 }
-func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, hcl.Diagnostics) {
+func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, error) {
 	return encryptedState, nil
 }
 
