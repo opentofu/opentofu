@@ -16,6 +16,7 @@ BUG FIXES:
 * Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))
 * `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 * Fixed support for provider functions in tests ([#1603](https://github.com/opentofu/opentofu/pull/1603))
+* Only hide sensitive attributes in plan detail when plan on a set of resources ([#1313](https://github.com/opentofu/opentofu/pull/1313))
 * Added a better error message on `for_each` block with sensitive value of unsuitable type. ([#1485](https://github.com/opentofu/opentofu/pull/1485))
 * Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
 * Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
