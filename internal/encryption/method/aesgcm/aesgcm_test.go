@@ -2,8 +2,9 @@ package aesgcm_test
 
 import (
 	"errors"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"

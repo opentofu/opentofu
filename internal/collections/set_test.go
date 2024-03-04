@@ -1,9 +1,10 @@
 package collections_test
 
 import (
-	"github.com/opentofu/opentofu/internal/collections"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/collections"
 )
 
 type hasTestCase struct {

@@ -8,6 +8,7 @@ package encryption
 import (
 	"errors"
 	"fmt"
+
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"

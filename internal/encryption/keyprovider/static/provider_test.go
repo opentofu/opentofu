@@ -7,8 +7,9 @@ package static_test
 
 import (
 	"bytes"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 )

@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
