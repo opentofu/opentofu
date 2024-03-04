@@ -41,9 +41,9 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 }
 
 type basedata struct {
-	Meta    map[keyprovider.Addr][]byte `json:"meta"`
-	Data    []byte                      `json:"encrypted_data"`
-	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
+	Meta    map[keyprovider.Addr]any `json:"meta"`
+	Data    []byte                   `json:"encrypted_data"`
+	Version string                   `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
 func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
@@ -53,7 +53,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	}
 
 	es := basedata{
-		Meta:    make(map[keyprovider.Addr][]byte),
+		Meta:    make(map[keyprovider.Addr]any),
 		Version: encryptionVersion,
 	}
 

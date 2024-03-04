@@ -8,6 +8,7 @@ package encryption
 import (
 	"errors"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
 
@@ -162,6 +163,33 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	if diags.HasErrors() {
 		return diags
 	}
+	// Add the metadata
+	if meta, ok := e.keyProviderMetadata[metakey]; ok {
+		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			// We want all metadata fields to be consumed:
+			ErrorUnused: true,
+			// Fill the results in this struct:
+			Result: &keyProviderConfig,
+			// Use the "meta" tag:
+			TagName: "meta",
+			// Ignore fields not tagged with "meta":
+			IgnoreUntaggedFields: true,
+		})
+		if err != nil {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
+				Detail:   fmt.Sprintf("initializing metadata decoder for %s failed with error: %s", metakey, err.Error()),
+			})
+		}
+		if err := decoder.Decode(meta); err != nil {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
+				Detail:   fmt.Sprintf("decoding %s failed with error: %s", metakey, err.Error()),
+			})
+		}
+	}
 
 	// Build the Key Provider from the configuration
 	keyProvider, err := keyProviderConfig.Build()
@@ -173,9 +201,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	meta := e.keyProviderMetadata[metakey]
-
-	data, newmeta, err := keyProvider.Provide(meta)
+	output, err := keyProvider.Provide()
 	if err != nil {
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -184,14 +210,8 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	e.keyProviderMetadata[metakey] = newmeta
-
-	// Convert the data into it's cty equivalent
-	ctyData := make([]cty.Value, len(data))
-	for i, d := range data {
-		ctyData[i] = cty.NumberIntVal(int64(d))
-	}
-	e.keyValues[cfg.Type][cfg.Name] = cty.ListVal(ctyData)
+	e.keyProviderMetadata[metakey] = output.Metadata
+	e.keyValues[cfg.Type][cfg.Name] = output.Cty()
 
 	return nil
 }

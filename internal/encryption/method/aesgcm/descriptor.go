@@ -5,7 +5,10 @@
 
 package aesgcm
 
-import "github.com/opentofu/opentofu/internal/encryption/method"
+import (
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/opentofu/opentofu/internal/encryption/method"
+)
 
 // Descriptor integrates the method.Descriptor and provides a TypedConfig for easier configuration.
 type Descriptor interface {
@@ -25,8 +28,8 @@ type descriptor struct {
 
 func (f *descriptor) TypedConfig() *Config {
 	return &Config{
-		Key: nil,
-		AAD: nil,
+		Keys: keyprovider.Output{},
+		AAD:  nil,
 	}
 }
 
