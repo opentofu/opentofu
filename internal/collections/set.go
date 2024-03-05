@@ -2,6 +2,7 @@ package collections
 
 import (
 	"fmt"
+	"golang.org/x/exp/slices"
 	"strings"
 )
 
@@ -30,5 +31,15 @@ func (s Set[T]) String() string {
 		parts[i] = fmt.Sprintf("%v", v)
 		i++
 	}
+
+	slices.SortStableFunc(parts, func(a, b string) int {
+		if a < b {
+			return -1
+		} else if b > a {
+			return 1
+		} else {
+			return 0
+		}
+	})
 	return strings.Join(parts, ", ")
 }
