@@ -36,7 +36,7 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	}
 	// This performs a e2e validation run of the config -> methods flow.  It serves as a validation step and allows us to
 	// return detailed diagnostics here and simple errors below
-	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr]any))
 	return base, diags
 }
 
