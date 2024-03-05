@@ -2,8 +2,9 @@ package collections
 
 import (
 	"fmt"
-	"golang.org/x/exp/slices"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 // Set is a container that can hold each item only once and has a fast lookup time.
