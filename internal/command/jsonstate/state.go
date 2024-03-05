@@ -499,9 +499,15 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 	return SensitiveAsBoolWithPathValueMarks(val, nil)
 }
 
-func SensitiveAsBoolWithPathValueMarks(val cty.Value, marks []cty.PathValueMarks) cty.Value {
+func SensitiveAsBoolWithPathValueMarks(val cty.Value, pvms []cty.PathValueMarks) cty.Value {
 	var path cty.Path
-	return sensitiveAsBoolWithPathValueMarks(val, path, marks)
+	sensitiveMarks := make([]cty.PathValueMarks, 0)
+	for _, pvm := range pvms {
+		if _, ok := pvm.Marks[marks.Sensitive]; ok {
+			sensitiveMarks = append(sensitiveMarks, pvm)
+		}
+	}
+	return sensitiveAsBoolWithPathValueMarks(val, path, sensitiveMarks)
 }
 
 func sensitiveAsBoolWithPathValueMarks(val cty.Value, path cty.Path, pvms []cty.PathValueMarks) cty.Value {
