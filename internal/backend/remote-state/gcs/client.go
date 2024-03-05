@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 
 	"cloud.google.com/go/storage"
@@ -147,6 +148,15 @@ func (c *remoteClient) lockError(err error) *statemgr.LockError {
 // LockInfo struct.
 func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
 	r, err := c.lockFile().NewReader(c.storageContext)
+
+	// When lock file do exist in Lock() but writing fails because file removed by other process,
+	// then return dummy lock info to avoid breaking LockWithContext and ensure LockWithContext will repeat
+	if err == storage.ErrObjectNotExist {
+		info := statemgr.NewLockInfo()
+		// magic number to avoid conflics with real ones
+		info.ID = strconv.FormatInt(math.MinInt64, 10)
+		return info, nil
+	}
 	if err != nil {
 		return nil, err
 	}
