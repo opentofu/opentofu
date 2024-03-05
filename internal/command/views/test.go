@@ -625,5 +625,5 @@ This is a serious bug in OpenTofu and should be reported.
 const stateWriteConsoleFallbackError = `The errors shown above prevented OpenTofu from writing the state to
 the errored_test.tfstate. As a fallback, the raw state data is printed above as a JSON object.
 
-To retry writing this state, copy the state data (from the first { to the last } inclusive) and save it into a local file called errored_test.tfstate, and then run tofu commands on this state file.
+To retry writing this state, copy the state data (from the first { to the last } inclusive) and save it into a local file named "errored_test.tfstate".
 `

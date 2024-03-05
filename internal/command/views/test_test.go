@@ -7,6 +7,7 @@ package views
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -3503,6 +3504,7 @@ Writing state to file: errored_test.tfstate
 	// Run tests for JSON view
 	runTestSaveErroredStateFile(t, tcsJson, arguments.ViewJSON)
 }
+
 func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 	state  *states.State
 	run    *moduletest.Run
@@ -3512,6 +3514,29 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 }, viewType arguments.ViewType) {
 	for name, data := range tc {
 		t.Run(name, func(t *testing.T) {
+			// Create a temporary directory
+			tempDir := t.TempDir()
+
+			// Modify the state file path to use the temporary directory
+			tempStateFilePath := filepath.Clean(filepath.Join(tempDir, "errored_test.tfstate"))
+
+			// Get the current working directory
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Error getting current working directory: %v", err)
+			}
+
+			// Change the working directory to the temporary directory
+			if err := os.Chdir(tempDir); err != nil {
+				t.Fatalf("Error changing working directory: %v", err)
+			}
+			defer func() {
+				// Change the working directory back to the original directory after the test
+				if err := os.Chdir(originalDir); err != nil {
+					t.Fatalf("Error changing working directory back: %v", err)
+				}
+			}()
+
 			streams, done := terminal.StreamsForTesting(t)
 
 			if viewType == arguments.ViewHuman {
@@ -3536,18 +3561,10 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 			}
 
 			// Check if the state file exists
-			if _, err := os.Stat("errored_test.tfstate"); os.IsNotExist(err) {
+			if _, err := os.Stat(tempStateFilePath); os.IsNotExist(err) {
 				// File does not exist
-				t.Errorf("Expected state file 'errored_test.tfstate' to exist, but it does not.")
+				t.Errorf("Expected state file 'errored_test.tfstate' to exist in: %s, but it does not.", tempDir)
 			}
-
-			// Clean up - Delete the state file
-			defer func() {
-				removeErr := os.Remove("errored_test.tfstate")
-				if removeErr != nil {
-					t.Errorf("Error removing file: %v", removeErr)
-				}
-			}()
 		})
 	}
 }
