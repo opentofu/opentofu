@@ -17,7 +17,10 @@ func Example() {
 	if err := json.Unmarshal(
 		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
 		[]byte(`{
-    "key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
+    "keys": {
+		"encryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ=",
+		"decryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
+	}
 }`), &config); err != nil {
 		panic(err)
 	}

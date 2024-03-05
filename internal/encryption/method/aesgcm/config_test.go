@@ -102,7 +102,10 @@ func Example_config_hcl() {
 
 	// Unmarshal HCL code into the config struct. The input must be a list of bytes, so in a real world scenario
 	// you may want to put in a hex-decoding function:
-	rawHCLInput := `key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]`
+	rawHCLInput := `keys = {
+	encryption_key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32],
+	decryption_key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
+}`
 	file, diags := hclsyntax.ParseConfig(
 		[]byte(rawHCLInput),
 		"example.hcl",
