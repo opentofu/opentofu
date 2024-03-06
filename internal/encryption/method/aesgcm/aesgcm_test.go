@@ -41,7 +41,7 @@ func TestDecryptShortData(t *testing.T) {
 		t.Fatalf("unexpected error (%v)", err)
 	}
 
-	// Passing a non-empty, but shorted-than-nonce data
+	// Passing a non-empty, but shorter-than-nonce data
 	_, err = m.Decrypt([]byte("1"))
 	if err == nil {
 		t.Fatalf("Expected error, none returned.")
@@ -63,7 +63,7 @@ func TestDecryptInvalidData(t *testing.T) {
 		t.Fatalf("unexpected error (%v)", err)
 	}
 
-	// Passing a non-empty, but shorted-than-nonce data
+	// Passing a non-empty, but shorter-than-nonce data
 	_, err = m.Decrypt([]byte("abcdefghijklmnopqrstuvwxyz"))
 	if err == nil {
 		t.Fatalf("Expected error, none returned.")

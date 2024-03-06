@@ -1,9 +1,9 @@
 # AES-GCM encryption method
 
-This folder contains the state encryption implementation of the AES-GCM encryption method.
+> [!WARNING]
+> This file is not an end-user documentation, it is intended for developers. Please follow the user documentation on the OpenTofu website unless you want to work on the encryption code.
 
-This is implemented following the guidance of the following document: ([NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final)).
-
+This folder contains the state encryption implementation of the AES-GCM encryption method. This is implemented following the guidance of the following document: ([NIST SP 800-38D](https://csrc.nist.gov/pubs/sp/800/38/d/final)).
 
 ## Configuration
 
@@ -25,12 +25,12 @@ terraform {
 
 | Field               | Description                                                                                                                                                                                      |
 |---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `keys` (*required*) | Encryption and decryption key, as well as key provider metadata.                                                                                                                                 |
+| `keys` (*required*) | Encryption and decryption key in the standard output structure of the key providers (`{"encryption_key":[]byte, "decryption_key":[]byte}`).                                                      |
 | `aad`               | Additional Authenticated Data. This data is stored along the encrypted form and authenticated. The AAD value of the encrypted form must match the configuration, otherwise the decryption fails. |
 
-## Key rotation
+## Key exhaustion
 
-AES-GCM keys have a limited lifetime of `2^32` blocks, equaling roughly 64 GB of data that can be encrypted before the keys should be considered compromised. Users should not use AES-GCM without a regular key rotation mechanism or a key derivation function such as PBKDF2 as a key provider.
+AES-GCM keys have a limited lifetime of `2^32` blocks, equaling roughly 64 GB of data that can be encrypted before the keys should be considered compromised. The end-user documentation of this method should guide users to use either a key-derivation function, such as PBKDF2 or Argon2 with a sufficiently long passphrase, or a key management system that can automatically rotate the keys.
 
 ## Encryption vs. Authentication
 
@@ -44,8 +44,8 @@ The AAD in AES-GCM is a general-purpose authenticated, but not encrypted field i
 
 ### Future compatibility
 
-The current nonce and tag size recommendations may change in the future. The configuration fields here are allowed to permit users to to decrypt their old state files.
+The current nonce and tag size recommendations may change in the future. The configuration fields here are allowed to permit users to decrypt their old state files.
 
 ### Panics
 
-The current Go implementation of AES-GCM uses `panic()` to handle some input errors. To work around that, the `errorhandling.Safe` function is used to capture the panic and turn it into an error.
+The current Go implementation of AES-GCM uses `panic()` to handle some input errors.

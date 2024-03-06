@@ -1,7 +1,6 @@
 package collections_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/collections"
@@ -58,7 +57,7 @@ func TestSet_string(t *testing.T) {
 		"c": {},
 	}
 
-	if str := testSet.String(); !strings.Contains(str, "a, b, c") {
+	if str := testSet.String(); str != "a, b, c" {
 		t.Fatalf("Incorrect string concatenation: %s", str)
 	}
 }
