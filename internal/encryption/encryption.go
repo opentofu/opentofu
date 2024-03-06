@@ -76,7 +76,7 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 		enc.backend = StateEncryptionDisabled()
 	}
 
-	if cfg.Remote != nil {
+	if cfg.Remote != nil && cfg.Remote.Default != nil {
 		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default")
 		diags = append(diags, encDiags...)
 	} else {
