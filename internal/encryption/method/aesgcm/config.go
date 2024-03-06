@@ -45,31 +45,31 @@ func (c *Config) WithAAD(aad []byte) *Config {
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
 func (c *Config) Build() (method.Method, error) {
-	encryptionKeyLength := len(c.Keys.EncryptionKey)
-	if !validKeyLengths.Has(encryptionKeyLength) {
+	encryptionKey := c.Keys.EncryptionKey
+	decryptionKey := c.Keys.DecryptionKey
+
+	if len(decryptionKey) == 0 {
+		// Use encryption key as decryption key if missing
+		decryptionKey = encryptionKey
+	}
+
+	if !validKeyLengths.Has(len(encryptionKey)) {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: fmt.Errorf(
 				"AES-GCM requires the key length to be one of: %s, received %d bytes in the encryption key",
 				validKeyLengths.String(),
-				encryptionKeyLength,
+				len(encryptionKey),
 			),
 		}
 	}
-	encryptionKey := c.Keys.EncryptionKey
 
-	decryptionKeyLength := len(c.Keys.DecryptionKey)
-	decryptionKey := c.Keys.DecryptionKey
-	if decryptionKeyLength == 0 {
-		decryptionKey = encryptionKey
-	} else {
-		if !validKeyLengths.Has(encryptionKeyLength) {
-			return nil, &method.ErrInvalidConfiguration{
-				Cause: fmt.Errorf(
-					"AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
-					validKeyLengths.String(),
-					encryptionKeyLength,
-				),
-			}
+	if !validKeyLengths.Has(len(decryptionKey)) {
+		return nil, &method.ErrInvalidConfiguration{
+			Cause: fmt.Errorf(
+				"AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
+				validKeyLengths.String(),
+				len(decryptionKey),
+			),
 		}
 	}
 
