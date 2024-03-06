@@ -12,6 +12,38 @@ type hasTestCase struct {
 	testValueResults map[string]bool
 }
 
+func TestSet_NewSet(t *testing.T) {
+	testCases := []struct {
+		name        string
+		constructed collections.Set[int]
+		expected    collections.Set[int]
+	}{
+		{
+			name:        "empty",
+			constructed: collections.NewSet[int](),
+			expected:    collections.Set[int]{},
+		}, {
+			name:        "items",
+			constructed: collections.NewSet[int](1, 54, 284),
+			expected:    collections.Set[int]{1: {}, 54: {}, 284: {}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if len(tc.constructed) != len(tc.expected) {
+				t.Fatal("Set length mismatch")
+			}
+
+			for k := range tc.expected {
+				if _, ok := tc.constructed[k]; !ok {
+					t.Fatalf("Expected to find key %v in constructed set", k)
+				}
+			}
+		})
+	}
+}
+
 func TestSet_has(t *testing.T) {
 	testCases := []hasTestCase{
 		{

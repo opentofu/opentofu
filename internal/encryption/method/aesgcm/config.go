@@ -16,11 +16,7 @@ import (
 )
 
 // validKeyLengths holds the valid key lengths supported by this method.
-var validKeyLengths = collections.Set[int]{
-	16: {},
-	24: {},
-	32: {},
-}
+var validKeyLengths = collections.NewSet[int](16, 24, 32)
 
 // Config is the configuration for the AES-GCM method.
 type Config struct {

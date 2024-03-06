@@ -11,12 +11,25 @@ import (
 //
 // You can define a new set like this:
 //
-//	var validKeyLengths = golang.Set[int]{
+//	var validKeyLengths = collections.Set[int]{
 //	    16: {},
 //	    24: {},
 //	    32: {},
 //	}
+//
+// You can also use the constructor to create a new set
+//
+//	var validKeyLengths = collections.NewSet[int](16,24,32)
 type Set[T comparable] map[T]struct{}
+
+// Constructs a new set given the members of type T
+func NewSet[T comparable](members ...T) Set[T] {
+	set := Set[T]{}
+	for _, member := range members {
+		set[member] = struct{}{}
+	}
+	return set
+}
 
 // Has returns true if the item exists in the Set
 func (s Set[T]) Has(value T) bool {
