@@ -119,8 +119,7 @@ configuration, see
 
 ## Removing Resources
 
-By default, deleting a resource block from your configuration will result in a plan to destroy it, effectively removing
-the infrastructure object described by the resource.
+If you remove a resource block from your configuration, OpenTofu will destroy it as a default behavior.
 
 However, there are instances when you want to remove a resource from your configuration without destroying the
 corresponding infrastructure object. In such cases, you can remove it from the [OpenTofu state](/docs/language/state)
@@ -137,6 +136,11 @@ removed {
   from = aws_instance.web
 }
 ```
+
+:::note
+The address in the `from` attribute cannot include instance keys (for example, "aws_instance.web[0]").
+:::
+
 
 Upon executing `tofu plan`, OpenTofu will indicate that the resource is slated for removal from the state but will not
 be destroyed.
