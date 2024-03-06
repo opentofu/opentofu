@@ -52,7 +52,7 @@ func EncryptionRequired() encryption.Encryption {
 		backend {
 			method = method.aes_gcm.example
 		}
-		remote_data_source {
+		remote {
 			default {
 				method = method.aes_gcm.example
 			}
@@ -80,7 +80,7 @@ func EncryptionWithFallback() encryption.Encryption {
 			method = method.aes_gcm.example
 			fallback {}
 		}
-		remote_data_source {
+		remote {
 			default {
 				method = method.aes_gcm.example
 				fallback {}
