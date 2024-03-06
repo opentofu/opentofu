@@ -10,27 +10,12 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// Descriptor integrates the method.Descriptor and provides a TypedConfig for easier configuration.
-type Descriptor interface {
-	method.Descriptor
-
-	// TypedConfig returns a config typed for this method.
-	TypedConfig() *Config
-}
-
 // New creates a new descriptor for the AES-GCM encryption method, which requires a 32-byte key.
-func New() Descriptor {
+func New() method.Descriptor {
 	return &descriptor{}
 }
 
 type descriptor struct {
-}
-
-func (f *descriptor) TypedConfig() *Config {
-	return &Config{
-		Keys: keyprovider.Output{},
-		AAD:  nil,
-	}
 }
 
 func (f *descriptor) ID() method.ID {
@@ -38,5 +23,8 @@ func (f *descriptor) ID() method.ID {
 }
 
 func (f *descriptor) ConfigStruct() method.Config {
-	return f.TypedConfig()
+	return &Config{
+		Keys: keyprovider.Output{},
+		AAD:  nil,
+	}
 }

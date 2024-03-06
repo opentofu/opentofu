@@ -31,18 +31,6 @@ type Config struct {
 	AAD []byte `hcl:"aad,optional" json:"aad,omitempty" yaml:"aad,omitempty"`
 }
 
-// WithKeys adds keys to the configuration and returns the configuration.
-func (c *Config) WithKeys(keys keyprovider.Output) *Config {
-	c.Keys = keys
-	return c
-}
-
-// WithAAD adds an Additional AuthenticatedData to the configuration and returns the configuration.
-func (c *Config) WithAAD(aad []byte) *Config {
-	c.AAD = aad
-	return c
-}
-
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
 func (c *Config) Build() (method.Method, error) {
 	encryptionKey := c.Keys.EncryptionKey
