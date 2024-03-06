@@ -111,16 +111,20 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 
 	es := basedata{}
 	err := json.Unmarshal(data, &es)
-	if err != nil {
-		return nil, fmt.Errorf("invalid data format for decryption: %w", err)
-	}
 
-	if len(es.Version) == 0 {
+	if len(es.Version) == 0 || err != nil {
 		// Not a valid payload, might be already decrypted
-		err = validator(data)
-		if err != nil {
+		verr := validator(data)
+		if verr != nil {
 			// Nope, just bad input
-			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", err)
+
+			// Return the outer json error if we have one
+			if err != nil {
+				return nil, fmt.Errorf("invalid data format for decryption: %w, %w", err, verr)
+			}
+
+			// Must have been invalid json payload
+			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 		// Yep, it's already decrypted
 		return data, nil
