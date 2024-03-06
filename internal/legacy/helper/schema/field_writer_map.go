@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 // MapFieldWriter writes data into a single map[string]string structure.
