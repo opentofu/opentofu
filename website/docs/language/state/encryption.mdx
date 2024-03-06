@@ -104,7 +104,8 @@ If OpenTofu fails to read your state or plan file with the new method, it automa
 
 ## Remote state data sources
 
-For projects using the `terraform_remote_state` data source, you can also configure encryption. This can be the same encryption setup as your main configuration, but you can also define a separate set of keys and methods. The configuration syntax looks as follows:
+You can also configure an encryption setup for projects using the `terraform_remote_state` data source. This can be the same encryption setup as your main configuration, but you can also define a separate set of keys and methods. The configuration syntax looks as follows:
+
 
 <CodeBlock language="hcl">{RemoteState}</CodeBlock>
 
