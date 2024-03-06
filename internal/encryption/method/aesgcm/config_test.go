@@ -11,7 +11,6 @@ import (
 )
 
 func TestConfig_Build(t *testing.T) {
-	descriptor := New()
 	var testCases = []struct {
 		name      string
 		config    *Config
@@ -20,94 +19,97 @@ func TestConfig_Build(t *testing.T) {
 	}{
 		{
 			name: "key-32-bytes",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathe"),
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathd"),
-				nil,
-			}),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathe"),
+					DecryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathd"),
+				},
+			},
 			errorType: nil,
 			expected: aesgcm{
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathe"),
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathd"),
-				nil,
+				encryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathe"),
+				decryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathd"),
 			},
 		},
 		{
 			name: "key-24-bytes",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Zool5olaileefe"),
-				[]byte("bohwu9zoo7Zool5olaileefd"),
-				nil,
-			}),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Zool5olaileefe"),
+					DecryptionKey: []byte("bohwu9zoo7Zool5olaileefd"),
+				},
+			},
 			errorType: nil,
 			expected: aesgcm{
-				[]byte("bohwu9zoo7Zool5olaileefe"),
-				[]byte("bohwu9zoo7Zool5olaileefd"),
-				nil,
+				encryptionKey: []byte("bohwu9zoo7Zool5olaileefe"),
+				decryptionKey: []byte("bohwu9zoo7Zool5olaileefd"),
 			},
 		},
 		{
 			name: "key-16-bytes",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Zool5e"),
-				[]byte("bohwu9zoo7Zool5d"),
-				nil,
-			}),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Zool5e"),
+					DecryptionKey: []byte("bohwu9zoo7Zool5d"),
+				},
+			},
 			errorType: nil,
 			expected: aesgcm{
-				[]byte("bohwu9zoo7Zool5e"),
-				[]byte("bohwu9zoo7Zool5d"),
-				nil,
+				encryptionKey: []byte("bohwu9zoo7Zool5e"),
+				decryptionKey: []byte("bohwu9zoo7Zool5d"),
 			},
 		},
 		{
 			name:      "no-key",
-			config:    descriptor.TypedConfig(),
+			config:    &Config{},
 			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
 			name: "encryption-key-15-bytes",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Ze15"),
-				[]byte("bohwu9zoo7Zod16"),
-				nil,
-			}),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Ze15"),
+					DecryptionKey: []byte("bohwu9zoo7Zod16"),
+				},
+			},
 			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
 			name: "decryption-key-15-bytes",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Zooe16"),
-				[]byte("bohwu9zoo7Zod15"),
-				nil,
-			}),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Zooe16"),
+					DecryptionKey: []byte("bohwu9zoo7Zod15"),
+				},
+			},
 			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
 			name: "decryption-key-fallback",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Zooe16"),
-				nil,
-				nil,
-			}),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Zooe16"),
+				},
+			},
 			errorType: nil,
 			expected: aesgcm{
-				[]byte("bohwu9zoo7Zooe16"),
-				[]byte("bohwu9zoo7Zooe16"),
-				nil,
+				encryptionKey: []byte("bohwu9zoo7Zooe16"),
+				decryptionKey: []byte("bohwu9zoo7Zooe16"),
 			},
 		},
 		{
 			name: "aad",
-			config: descriptor.TypedConfig().WithKeys(keyprovider.Output{
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathe"),
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathd"),
-				nil,
-			}).WithAAD([]byte("foobar")),
+			config: &Config{
+				Keys: keyprovider.Output{
+					EncryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathe"),
+					DecryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathd"),
+				},
+				AAD: []byte("foobar"),
+			},
 			expected: aesgcm{
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathe"),
-				[]byte("bohwu9zoo7Zool5olaileef1eibeathd"),
-				[]byte("foobar"),
+				encryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathe"),
+				decryptionKey: []byte("bohwu9zoo7Zool5olaileef1eibeathd"),
+				aad:           []byte("foobar"),
 			},
 			errorType: nil,
 		},
