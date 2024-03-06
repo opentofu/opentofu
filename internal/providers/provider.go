@@ -9,7 +9,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -413,9 +412,6 @@ type ReadDataSourceRequest struct {
 	// each provider, and it should not be used without coordination with
 	// HashiCorp. It is considered experimental and subject to change.
 	ProviderMeta cty.Value
-
-	// Remote encryption configuration to use
-	Encryption encryption.StateEncryption
 }
 
 type ReadDataSourceResponse struct {

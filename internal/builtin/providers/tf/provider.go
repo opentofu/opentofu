@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
@@ -70,6 +71,10 @@ func (p *Provider) ConfigureProvider(providers.ConfigureProviderRequest) provide
 
 // ReadDataSource returns the data source's current state.
 func (p *Provider) ReadDataSource(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
+func (p *Provider) ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, enc encryption.StateEncryption) providers.ReadDataSourceResponse {
 	// call function
 	var res providers.ReadDataSourceResponse
 
@@ -79,7 +84,7 @@ func (p *Provider) ReadDataSource(req providers.ReadDataSourceRequest) providers
 		return res
 	}
 
-	newState, diags := dataSourceRemoteStateRead(req.Config, req.Encryption)
+	newState, diags := dataSourceRemoteStateRead(req.Config, enc)
 
 	res.State = newState
 	res.Diagnostics = diags
