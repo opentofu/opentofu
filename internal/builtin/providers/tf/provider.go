@@ -8,6 +8,7 @@ package tf
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -85,7 +86,19 @@ func (p *Provider) ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, 
 		return res
 	}
 
-	newState, diags := dataSourceRemoteStateRead(req.Config, enc.RemoteState(path.String()))
+	// These string manipulations are kind of funky
+	key := path.String()
+
+	// data.terraform_remote_state.foo[4] -> foo[4]
+	// module.submod[1].data.terraform_remote_state.bar -> module.submod[1].bar
+	key = strings.Replace(key, "data.terraform_remote_state.", "", 1)
+
+	// module.submod[1].bar -> submod[1].bar
+	key = strings.TrimPrefix(key, "module.")
+
+	log.Printf("[DEBUG] accessing remote state at %s", key)
+
+	newState, diags := dataSourceRemoteStateRead(req.Config, enc.RemoteState(key))
 
 	res.State = newState
 	res.Diagnostics = diags
