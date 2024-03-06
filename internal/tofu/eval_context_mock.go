@@ -414,6 +414,6 @@ func (c *MockEvalContext) InstanceExpander() *instances.Expander {
 	return c.InstanceExpanderExpander
 }
 
-func (c *MockEvalContext) GetRemoteStateEncryption(path addrs.AbsResourceInstance) encryption.StateEncryption {
-	return encryption.StateEncryptionDisabled()
+func (c *MockEvalContext) GetEncryption() encryption.Encryption {
+	return encryption.Disabled()
 }

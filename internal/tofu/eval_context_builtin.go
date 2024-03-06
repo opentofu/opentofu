@@ -518,6 +518,6 @@ func (ctx *BuiltinEvalContext) ImportResolver() *ImportResolver {
 	return ctx.ImportResolverValue
 }
 
-func (ctx *BuiltinEvalContext) GetRemoteStateEncryption(path addrs.AbsResourceInstance) encryption.StateEncryption {
-	return ctx.Encryption.RemoteState(path.String())
+func (ctx *BuiltinEvalContext) GetEncryption() encryption.Encryption {
+	return ctx.Encryption
 }

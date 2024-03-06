@@ -1422,7 +1422,7 @@ func processIgnoreChangesIndividual(prior, config cty.Value, ignoreChangesPath [
 }
 
 type ProviderWithEncryption interface {
-	ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, enc encryption.StateEncryption) providers.ReadDataSourceResponse
+	ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
 }
 
 // readDataSource handles everything needed to call ReadDataSource on the provider.
@@ -1487,7 +1487,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 	var resp providers.ReadDataSourceResponse
 	if tfp, ok := provider.(ProviderWithEncryption); ok {
 		// Special case for terraform_remote_state
-		resp = tfp.ReadDataSourceEncrypted(req, ctx.GetRemoteStateEncryption(n.Addr))
+		resp = tfp.ReadDataSourceEncrypted(req, n.Addr, ctx.GetEncryption())
 	} else {
 		resp = provider.ReadDataSource(req)
 	}

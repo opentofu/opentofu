@@ -216,6 +216,6 @@ type EvalContext interface {
 	// path argument.
 	WithPath(path addrs.ModuleInstance) EvalContext
 
-	// Returns the remote state encryption setup for the given path
-	GetRemoteStateEncryption(path addrs.AbsResourceInstance) encryption.StateEncryption
+	// Returns the currently configured encryption setup
+	GetEncryption() encryption.Encryption
 }
