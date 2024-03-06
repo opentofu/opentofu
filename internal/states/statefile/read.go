@@ -206,7 +206,7 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				unsupportedFormat,
-				fmt.Sprintf("This state file is encrypted and can not be read without an encryption configuration"),
+				"This state file is encrypted and can not be read without an encryption configuration",
 			))
 			return 0, diags
 		}
