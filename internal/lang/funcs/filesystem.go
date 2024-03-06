@@ -82,7 +82,7 @@ func (err ErrorTemplateRecursionLimit) Error() string {
 	trace := make([]string, 0)
 	maxTrace := 16
 
-	// Look for repitition in the first N sources
+	// Look for repetition in the first N sources
 	for _, source := range err.sources[:min(maxTrace, len(err.sources))] {
 		looped := false
 		for _, st := range trace {
