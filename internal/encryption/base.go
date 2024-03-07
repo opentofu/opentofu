@@ -127,7 +127,13 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 		// Yep, it's already decrypted
-		return data, nil
+		for target := s.target; target != nil; target = target.Fallback {
+			if target.Fallback == nil {
+				// fallback allowed
+				return data, nil
+			}
+		}
+		return data, fmt.Errorf("decrypted payload provided without fallback specified")
 	}
 
 	if es.Version != encryptionVersion {
