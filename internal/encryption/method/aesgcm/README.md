@@ -42,10 +42,6 @@ The AES-GCM implementation protects data at rest from being accessed. It does no
 
 The AAD in AES-GCM is a general-purpose authenticated, but not encrypted field in the encrypted payload. The Go implementation only supports using this field as a canary value, rejecting decryption if the value mismatches. AES-GCM would support using this field as a means to store data. Since Go does not support it, neither do we.
 
-### Future compatibility
-
-The current nonce and tag size recommendations may change in the future. The configuration fields here are allowed to permit users to decrypt their old state files.
-
 ### Panics
 
 The current Go implementation of AES-GCM uses `panic()` to handle some input errors.
