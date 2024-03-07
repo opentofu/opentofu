@@ -56,7 +56,7 @@ func Example_config() {
 
 	// Obtain a modifiable, buildable config. Alternatively, you can also use ConfigStruct() method to obtain a
 	// struct you can fill with HCL or JSON tags.
-	config := descriptor.ConfigStruct().(*aesgcm.Config)
+	config := descriptor.TypedConfig()
 
 	// Set up an encryption key:
 	config.Keys = keyprovider.Output{
