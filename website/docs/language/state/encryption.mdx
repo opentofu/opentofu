@@ -91,7 +91,7 @@ The only currently supported encryption method is AES-GCM. You can configure it 
 
 :::warning
 
-When using a key-management system as a key provider, always configure automatic key rotation in conjunction with AES-GCM, otherwise your security may be compromised! (This does not affect passphrase-based local keys.)
+AES-GCM is a secure, industry-standard encryption algorithm, but suffers from "key saturation". In order to configure a secure setup, you should either use a key-derivation key provider (such as PBKDF2) with a long and complex passphrase, or use a key management system that automatically rotates keys regularly. Using short, static keys will degrade your encryption.
 
 :::
 
