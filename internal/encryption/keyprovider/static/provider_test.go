@@ -6,7 +6,10 @@
 package static_test
 
 import (
+	"bytes"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 )
@@ -17,16 +20,14 @@ func TestKeyProvider(t *testing.T) {
 		name          string
 		key           string
 		expectSuccess bool
-		expectedData  string // The key as a string taken from the hex value of the key
-		expectedMeta  string
+		expectedData  keyprovider.Output
 	}
 
 	testCases := []testCase{
 		{
 			name:          "Empty",
 			expectSuccess: true,
-			expectedData:  "",
-			expectedMeta:  "magic", // We currently always output the metadata "magic"
+			expectedData:  keyprovider.Output{},
 		},
 		{
 			name:          "InvalidInput",
@@ -37,8 +38,7 @@ func TestKeyProvider(t *testing.T) {
 			name:          "Success",
 			key:           "48656c6c6f20776f726c6421",
 			expectSuccess: true,
-			expectedData:  "Hello world!", // "48656c6c6f20776f726c6421" in hex is "Hello world!"
-			expectedMeta:  "magic",        // We currently always output the metadata "magic"
+			expectedData:  keyprovider.Output{EncryptionKey: []byte("Hello world!"), DecryptionKey: []byte("Hello world!")}, // "48656c6c6f20776f726c6421" in hex is "Hello world!"
 		},
 	}
 
@@ -58,15 +58,15 @@ func TestKeyProvider(t *testing.T) {
 					t.Fatalf("unexpected error: %v", buildErr)
 				}
 
-				data, newMetadata, err := keyProvider.Provide(nil)
+				output, err := keyProvider.Provide()
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if string(data) != tc.expectedData {
-					t.Fatalf("unexpected key output: got %v, want %v", data, tc.expectedData)
+				if !bytes.Equal(output.EncryptionKey, tc.expectedData.EncryptionKey) {
+					t.Fatalf("unexpected encryption key in output: got %v, want %v", output.EncryptionKey, tc.expectedData.EncryptionKey)
 				}
-				if string(newMetadata) != tc.expectedMeta {
-					t.Fatalf("unexpected metadata: got %v, want %v", newMetadata, tc.expectedMeta)
+				if !bytes.Equal(output.DecryptionKey, tc.expectedData.DecryptionKey) {
+					t.Fatalf("unexpected decryption key in output: got %v, want %v", output.DecryptionKey, tc.expectedData.EncryptionKey)
 				}
 			} else {
 				if buildErr == nil {

@@ -36,14 +36,14 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	}
 	// This performs a e2e validation run of the config -> methods flow.  It serves as a validation step and allows us to
 	// return detailed diagnostics here and simple errors below
-	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr]any))
 	return base, diags
 }
 
 type basedata struct {
-	Meta    map[keyprovider.Addr][]byte `json:"meta"`
-	Data    []byte                      `json:"encrypted_data"`
-	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
+	Meta    map[keyprovider.Addr]any `json:"meta"`
+	Data    []byte                   `json:"encrypted_data"`
+	Version string                   `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
 func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
@@ -53,7 +53,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	}
 
 	es := basedata{
-		Meta:    make(map[keyprovider.Addr][]byte),
+		Meta:    make(map[keyprovider.Addr]any),
 		Version: encryptionVersion,
 	}
 

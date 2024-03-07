@@ -27,7 +27,7 @@ key_provider "static" "basic" {
 	key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
 }
 method "aes_gcm" "example" {
-	cipher = key_provider.static.basic
+	keys = key_provider.static.basic
 }
 statefile {
 	method = method.aes_gcm.example

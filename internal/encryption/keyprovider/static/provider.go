@@ -6,14 +6,15 @@
 // Package static contains a key provider that emits a static key.
 package static
 
+import "github.com/opentofu/opentofu/internal/encryption/keyprovider"
+
 type staticKeyProvider struct {
 	key []byte
 }
 
-func (p staticKeyProvider) Provide(metadata []byte) ([]byte, []byte, error) {
-	if metadata == nil {
-		metadata = []byte("magic")
-	}
-
-	return p.key, metadata, nil
+func (p staticKeyProvider) Provide() (keyprovider.Output, error) {
+	return keyprovider.Output{
+		EncryptionKey: p.key,
+		DecryptionKey: p.key,
+	}, nil
 }
