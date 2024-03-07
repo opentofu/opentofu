@@ -7,7 +7,7 @@ package pbkdf2
 
 // Metadata describes the metadata to be stored alongside the encrypted form.
 type Metadata struct {
-	Salt         string           `json:"salt"`
+	Salt         []byte           `json:"salt"`
 	Iterations   int              `json:"iterations"`
 	HashFunction HashFunctionName `json:"hash_function"`
 }

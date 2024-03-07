@@ -13,6 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
+type hashFunction func() hash.Hash
+
 // HashFunctionName describes a hash function to use for PBKDF2 hash generation. the hash function influences
 type HashFunctionName string
 
@@ -26,11 +28,12 @@ func (h HashFunctionName) Validate() error {
 	return nil
 }
 
-type hashFunction struct {
-	functionProvider func() hash.Hash
+func (h HashFunctionName) Function() hashFunction {
+	return hashFunctions[h]
 }
 
 type Config struct {
+	// Set by the descriptor
 	randomSource io.Reader
 
 	Passphrase   string           `hcl:"passphrase"`
@@ -51,15 +54,5 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		}
 	}
 
-	encryptHashFunction := hashFunctions[c.HashFunction]
-
-	return &pbkdf2KeyProvider{
-		randomSource:         c.randomSource,
-		passphrase:           c.Passphrase,
-		keyLength:            c.KeyLength,
-		iterations:           c.Iterations,
-		hashFunctionName:     c.HashFunction,
-		hashFunctionProvider: encryptHashFunction.functionProvider,
-		saltLength:           c.SaltLength,
-	}, Metadata{}, nil
+	return &pbkdf2KeyProvider{c}, new(Metadata), nil
 }

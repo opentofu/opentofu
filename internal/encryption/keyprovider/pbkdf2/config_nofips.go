@@ -19,10 +19,6 @@ const (
 )
 
 var hashFunctions = map[HashFunctionName]hashFunction{
-	SHA256HashFunctionName: {
-		sha256.New,
-	},
-	SHA512HashFunctionName: {
-		sha512.New,
-	},
+	SHA256HashFunctionName: sha256.New,
+	SHA512HashFunctionName: sha512.New,
 }

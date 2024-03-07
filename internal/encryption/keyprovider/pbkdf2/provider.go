@@ -7,9 +7,7 @@
 package pbkdf2
 
 import (
-	"encoding/hex"
 	"fmt"
-	"hash"
 	"io"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -18,63 +16,40 @@ import (
 )
 
 type pbkdf2KeyProvider struct {
-	randomSource         io.Reader
-	passphrase           string
-	iterations           int
-	hashFunctionName     HashFunctionName
-	hashFunctionProvider func() hash.Hash
-	saltLength           int
-	keyLength            int
+	Config
 }
 
 func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
-	meta := rawMeta.(*Metadata)
+	inMeta := rawMeta.(*Metadata)
 
-	var decryptSalt []byte
-	if len(meta.Salt) > 0 {
-		var err error
-		decryptSalt, err = hex.DecodeString(meta.Salt)
-		if err != nil {
-			return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
-				Message: "failed to hex-decode stored salt, possible data corruption",
-				Cause:   err,
-			}
-		}
+	// Build outMeta based on current configuration
+	outMeta := Metadata{
+		Iterations:   p.Iterations,
+		HashFunction: p.HashFunction,
+		Salt:         make([]byte, p.SaltLength),
 	}
-
-	var decryptHashFunction func() hash.Hash
-	if meta.HashFunction == "" {
-		decryptHashFunction = p.hashFunctionProvider
-	} else {
-		if err := meta.HashFunction.Validate(); err != nil {
-			return keyprovider.Output{}, nil, err
-		}
-		decryptHashFunction = hashFunctions[meta.HashFunction].functionProvider
-	}
-
-	salt := make([]byte, p.saltLength)
-	if _, err := io.ReadFull(p.randomSource, salt); err != nil {
+	// Generate new salt
+	if _, err := io.ReadFull(p.randomSource, outMeta.Salt); err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
-			Message: fmt.Sprintf("failed to obtain %d bytes of random data", p.saltLength),
+			Message: fmt.Sprintf("failed to obtain %d bytes of random data", p.SaltLength),
 			Cause:   err,
 		}
 	}
 
-	if len(decryptSalt) == 0 {
-		decryptSalt = salt
-	}
-	decryptIterations := meta.Iterations
-	if decryptIterations == 0 {
-		decryptIterations = p.iterations
+	if len(inMeta.Salt) == 0 {
+		// No previous metadata
+		inMeta.Salt = outMeta.Salt
+		inMeta.Iterations = outMeta.Iterations
+		inMeta.HashFunction = outMeta.HashFunction
+	} else {
+		// Make sure previous metadata is supported
+		if err := inMeta.HashFunction.Validate(); err != nil {
+			return keyprovider.Output{}, nil, err
+		}
 	}
 
 	return keyprovider.Output{
-			goPBKDF2.Key([]byte(p.passphrase), salt, p.iterations, p.keyLength, p.hashFunctionProvider),
-			goPBKDF2.Key([]byte(p.passphrase), decryptSalt, decryptIterations, p.keyLength, decryptHashFunction),
-		}, Metadata{
-			HashFunction: p.hashFunctionName,
-			Salt:         fmt.Sprintf("%x", salt),
-			Iterations:   p.iterations,
-		},
-		nil
+		goPBKDF2.Key([]byte(p.Passphrase), outMeta.Salt, outMeta.Iterations, p.KeyLength, outMeta.HashFunction.Function()),
+		goPBKDF2.Key([]byte(p.Passphrase), inMeta.Salt, inMeta.Iterations, p.KeyLength, inMeta.HashFunction.Function()),
+	}, outMeta, nil
 }
