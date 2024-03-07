@@ -5,6 +5,7 @@ UPGRADE NOTES:
 
 
 NEW FEATURES:
+* Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
 
 ENHANCEMENTS:
 * Added `templatestring` function that takes a string and renders it as a template using a supplied set of template variables. ([#1223](https://github.com/opentofu/opentofu/pull/1223))
@@ -20,7 +21,7 @@ ENHANCEMENTS:
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
-* Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
+* Add documentation for the `removed` block. ([#1332](https://github.com/opentofu/opentofu/pull/1332))
 
 BUG FIXES:
 * Fix view hooks unit test flakiness by deterministically waiting for heartbeats to execute ([$1153](https://github.com/opentofu/opentofu/issues/1153))
