@@ -333,6 +333,25 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			Remaining:   remain,
 		}, diags
 
+	case "run":
+		if len(traversal) < 3 {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid reference",
+				Detail:   `The "run" block output values must be followed by two attribute names: the block type and the output variable.`,
+				Subject:  traversal.SourceRange().Ptr(),
+			})
+			return nil, diags
+		}
+
+		remainingRefs := traversal[1:]
+		outputVariable := remainingRefs[len(remainingRefs)-1]
+		return &Reference{
+			Subject:     OutputValue{Name: outputVariable.(hcl.TraverseAttr).Name},
+			SourceRange: tfdiags.SourceRangeFromHCL(outputVariable.SourceRange()),
+			Remaining:   remainingRefs,
+		}, diags
+
 	case "var":
 		name, rng, remain, diags := parseSingleAttrRef(traversal)
 		return &Reference{

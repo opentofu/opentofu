@@ -453,6 +453,12 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 
 	if len(outputValues) > 0 {
 		vals["output"] = cty.ObjectVal(outputValues)
+
+		// "run" block will have output values when size of ref.Remaining is greater than 0.
+		if len(refs) > 0 && len(refs[0].Remaining) > 0 {
+			runBlockValue := getRunBlockValue(refs, outputValues)
+			vals["run"] = cty.ObjectVal(runBlockValue)
+		}
 	}
 
 	if self != cty.NilVal {
@@ -460,6 +466,21 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	}
 
 	return ctx, diags
+}
+
+func getRunBlockValue(refs []*addrs.Reference, outputValues map[string]cty.Value) map[string]cty.Value {
+	var block, outputVariable string
+	if attrTrav, ok := refs[0].Remaining[0].(hcl.TraverseAttr); ok {
+		block = attrTrav.Name
+	}
+	if attrTrav, ok := refs[0].Remaining[1].(hcl.TraverseAttr); ok {
+		outputVariable = attrTrav.Name
+	}
+	blockValue := outputValues[outputVariable]
+
+	return buildResourceObjects(map[string]map[string]cty.Value{
+		block: {outputVariable: blockValue},
+	})
 }
 
 func buildResourceObjects(resources map[string]map[string]cty.Value) map[string]cty.Value {
