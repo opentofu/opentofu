@@ -4,7 +4,7 @@ import "github.com/zclconf/go-cty/cty"
 
 // Output is the standardized structure a key provider must return when providing a key.
 // It contains two keys because some key providers may prefer include random data (e.g. salt)
-// in the generated keys. 
+// in the generated keys.
 // Additionally, the Metadata should contain a struct with `meta` tags that OpenTofu can serialize
 // into the encrypted form. OpenTofu will inject the `meta` tagged items back into the
 // key provider configuration when an item needs to be decrypted.
