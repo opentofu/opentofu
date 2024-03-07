@@ -101,7 +101,8 @@ In some cases, you may want to change your encryption configuration. This can in
 
 <CodeBlock language="hcl">{Fallback}</CodeBlock>
 
-If OpenTofu fails to read your state or plan file with the new method, it automatically tries the fallback method. When OpenTofu saves your state or plan files, it will always use the new method.
+If OpenTofu fails to **read** your state or plan file with the new method, it will automatically try the fallback method. When OpenTofu **saves** your state or plan file, it will always use the new method and not the fallback.
+
 
 ## Remote state data sources
 
