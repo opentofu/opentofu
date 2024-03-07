@@ -7,8 +7,9 @@ package pbkdf2
 
 import (
 	"crypto/rand"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"io"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
 const (

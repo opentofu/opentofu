@@ -9,6 +9,8 @@
 
 package pbkdf2
 
+import "crypto/sha256"
+
 const (
 	SHA256HashFunctionName  HashFunctionName = "sha256"
 	DefaultHashFunctionName HashFunctionName = SHA256HashFunctionName
