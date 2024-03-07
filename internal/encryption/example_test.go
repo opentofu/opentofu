@@ -62,10 +62,10 @@ func Example() {
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
-	enc := encryption.New(reg, cfg)
-
-	sfe, diags := enc.StateFile()
+	enc, diags := encryption.New(reg, cfg)
 	handleDiags(diags)
+
+	sfe := enc.StateFile()
 
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.

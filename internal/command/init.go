@@ -28,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
@@ -190,6 +191,14 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.EncryptionFromModule(rootModEarly)
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	var back backend.Backend
 
 	// There may be config errors or backend init errors but these will be shown later _after_
@@ -199,12 +208,12 @@ func (c *InitCommand) Run(args []string) int {
 
 	switch {
 	case flagCloud && rootModEarly.CloudConfig != nil:
-		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, flagConfigExtra)
+		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, flagConfigExtra, enc)
 	case flagBackend:
-		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, flagConfigExtra)
+		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, flagConfigExtra, enc)
 	default:
 		// load the previously-stored backend config
-		back, backDiags = c.Meta.backendFromState(ctx)
+		back, backDiags = c.Meta.backendFromState(ctx, enc.Backend())
 	}
 	if backendOutput {
 		header = true
@@ -413,7 +422,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 	return true, installAbort, diags
 }
 
-func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig rawFlags) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracer.Start(ctx, "initialize cloud backend")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenence hazard of having the wrong ctx in scope here
 	defer span.End()
@@ -436,12 +445,12 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 		Init:   true,
 	}
 
-	back, backDiags := c.Backend(opts)
+	back, backDiags := c.Backend(opts, enc.Backend())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }
 
-func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig rawFlags) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracer.Start(ctx, "initialize backend")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenence hazard of having the wrong ctx in scope here
 	defer span.End()
@@ -519,7 +528,7 @@ the backend configuration is present and valid.
 		Init:           true,
 	}
 
-	back, backDiags := c.Backend(opts)
+	back, backDiags := c.Backend(opts, enc.Backend())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }

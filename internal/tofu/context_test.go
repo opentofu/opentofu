@@ -261,6 +261,8 @@ func testContext2(t *testing.T, opts *ContextOpts) *Context {
 		t.Fatalf("failed to create test context\n\n%s\n", diags.Err())
 	}
 
+	ctx.encryption = encryption.Disabled()
+
 	return ctx
 }
 

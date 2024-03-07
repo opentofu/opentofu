@@ -78,8 +78,16 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	// Get the data we need to display
-	plan, jsonPlan, stateFile, config, schemas, showDiags := c.show(args.Path)
+	plan, jsonPlan, stateFile, config, schemas, showDiags := c.show(args.Path, enc)
 	diags = diags.Append(showDiags)
 	if showDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -111,7 +119,7 @@ func (c *ShowCommand) Synopsis() string {
 	return "Show the current state or a saved plan"
 }
 
-func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
+func (c *ShowCommand) show(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
 	var diags, showDiags, migrateDiags tfdiags.Diagnostics
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
@@ -122,7 +130,7 @@ func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON,
 	// No plan file or state file argument provided,
 	// so get the latest state snapshot
 	if path == "" {
-		stateFile, showDiags = c.showFromLatestStateSnapshot()
+		stateFile, showDiags = c.showFromLatestStateSnapshot(enc)
 		diags = diags.Append(showDiags)
 		if showDiags.HasErrors() {
 			return plan, jsonPlan, stateFile, config, schemas, diags
@@ -133,7 +141,7 @@ func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON,
 	// so try to load the argument as a plan file first.
 	// If that fails, try to load it as a statefile.
 	if path != "" {
-		plan, jsonPlan, stateFile, config, showDiags = c.showFromPath(path)
+		plan, jsonPlan, stateFile, config, showDiags = c.showFromPath(path, enc)
 		diags = diags.Append(showDiags)
 		if showDiags.HasErrors() {
 			return plan, jsonPlan, stateFile, config, schemas, diags
@@ -158,11 +166,11 @@ func (c *ShowCommand) show(path string) (*plans.Plan, *cloudplan.RemotePlanJSON,
 
 	return plan, jsonPlan, stateFile, config, schemas, diags
 }
-func (c *ShowCommand) showFromLatestStateSnapshot() (*statefile.File, tfdiags.Diagnostics) {
+func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (*statefile.File, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.Backend())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
@@ -186,7 +194,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot() (*statefile.File, tfdiags.Di
 	return stateFile, diags
 }
 
-func (c *ShowCommand) showFromPath(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, tfdiags.Diagnostics) {
+func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var planErr, stateErr error
 	var plan *plans.Plan
@@ -198,9 +206,9 @@ func (c *ShowCommand) showFromPath(path string) (*plans.Plan, *cloudplan.RemoteP
 	// state file. First, try to get a plan and associated data from a local
 	// plan file. If that fails, try to get a json plan from the path argument.
 	// If that fails, try to get the statefile from the path argument.
-	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(path)
+	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(path, enc)
 	if planErr != nil {
-		stateFile, stateErr = getStateFromPath(path)
+		stateFile, stateErr = getStateFromPath(path, enc)
 		if stateErr != nil {
 			// To avoid spamming the user with irrelevant errors, first check to
 			// see if one of our errors happens to know for a fact what file
@@ -266,14 +274,14 @@ func (c *ShowCommand) showFromPath(path string) (*plans.Plan, *cloudplan.RemoteP
 // yield a json plan, and cloud plans do not yield real plan/state/config
 // structs. An error generally suggests that the given path is either a
 // directory or a statefile.
-func (c *ShowCommand) getPlanFromPath(path string) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
+func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
 	var err error
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
 	var stateFile *statefile.File
 	var config *configs.Config
 
-	pf, err := planfile.OpenWrapped(path, encryption.PlanEncryptionTODO())
+	pf, err := planfile.OpenWrapped(path, enc.PlanFile())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -282,15 +290,15 @@ func (c *ShowCommand) getPlanFromPath(path string) (*plans.Plan, *cloudplan.Remo
 		plan, stateFile, config, err = getDataFromPlanfileReader(lp)
 	} else if cp, ok := pf.Cloud(); ok {
 		redacted := c.viewType != arguments.ViewJSON
-		jsonPlan, err = c.getDataFromCloudPlan(cp, redacted)
+		jsonPlan, err = c.getDataFromCloudPlan(cp, redacted, enc)
 	}
 
 	return plan, jsonPlan, stateFile, config, err
 }
 
-func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, redacted bool) (*cloudplan.RemotePlanJSON, error) {
+func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.Backend())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")
 	}
@@ -331,7 +339,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader) (*plans.Plan, *state
 }
 
 // getStateFromPath returns a statefile if the user-supplied path points to a statefile.
-func getStateFromPath(path string) (*statefile.File, error) {
+func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading statefile: %w", err)
@@ -339,7 +347,7 @@ func getStateFromPath(path string) (*statefile.File, error) {
 	defer file.Close()
 
 	var stateFile *statefile.File
-	stateFile, err = statefile.Read(file, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
+	stateFile, err = statefile.Read(file, enc.StateFile())
 	if err != nil {
 		return nil, fmt.Errorf("Error reading %s as a statefile: %w", path, err)
 	}

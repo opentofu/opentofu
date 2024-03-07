@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -36,8 +37,16 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 
 	view := views.NewOutput(args.ViewType, c.View)
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.View.Diagnostics(diags)
+		return 1
+	}
+
 	// Fetch data from state
-	outputs, diags := c.Outputs(args.StatePath)
+	outputs, diags := c.Outputs(args.StatePath, enc)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -56,7 +65,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	return 0
 }
 
-func (c *OutputCommand) Outputs(statePath string) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
+func (c *OutputCommand) Outputs(statePath string, enc encryption.Encryption) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Allow state path override
@@ -65,7 +74,7 @@ func (c *OutputCommand) Outputs(statePath string) (map[string]*states.OutputValu
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.Backend())
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		return nil, diags

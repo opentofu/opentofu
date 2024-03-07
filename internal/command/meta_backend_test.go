@@ -41,7 +41,7 @@ func TestMetaBackend_emptyDir(t *testing.T) {
 
 	// Get the backend
 	m := testMetaBackend(t, nil)
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -110,7 +110,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 
 	// Get the backend
 	m := testMetaBackend(t, nil)
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -181,7 +181,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 	m.statePath = statePath
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -233,7 +233,7 @@ func TestMetaBackend_configureInterpolation(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	_, err := m.Backend(&BackendOpts{Init: true})
+	_, err := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if err == nil {
 		t.Fatal("should error")
 	}
@@ -249,7 +249,7 @@ func TestMetaBackend_configureNew(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -320,7 +320,7 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 	m.migrateState = false
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -395,7 +395,7 @@ func TestMetaBackend_configureNewWithoutCopy(t *testing.T) {
 	m.input = false
 
 	// init the backend
-	_, diags := m.Backend(&BackendOpts{Init: true})
+	_, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -443,7 +443,7 @@ func TestMetaBackend_configureNewWithStateNoMigrate(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -486,7 +486,7 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 	m.forceInitCopy = true
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -558,7 +558,7 @@ func TestMetaBackend_configureNewWithStateExistingNoMigrate(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -623,7 +623,7 @@ func TestMetaBackend_configuredUnchanged(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -669,7 +669,7 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -755,7 +755,7 @@ func TestMetaBackend_reconfigureChange(t *testing.T) {
 	m.reconfigure = true
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -802,7 +802,7 @@ func TestMetaBackend_initSelectedWorkspaceDoesNotExist(t *testing.T) {
 	})()
 
 	// Get the backend
-	_, diags := m.Backend(&BackendOpts{Init: true})
+	_, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -844,7 +844,7 @@ func TestMetaBackend_initSelectedWorkspaceDoesNotExistAutoSelect(t *testing.T) {
 	}
 
 	// Get the backend
-	_, diags := m.Backend(&BackendOpts{Init: true})
+	_, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -873,7 +873,7 @@ func TestMetaBackend_initSelectedWorkspaceDoesNotExistInputFalse(t *testing.T) {
 	m.input = false
 
 	// Get the backend
-	_, diags := m.Backend(&BackendOpts{Init: true})
+	_, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 
 	// Should fail immediately
 	if got, want := diags.ErrWithWarnings().Error(), `Currently selected workspace "bar" does not exist`; !strings.Contains(got, want) {
@@ -895,7 +895,7 @@ func TestMetaBackend_configuredChangeCopy(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -948,7 +948,7 @@ func TestMetaBackend_configuredChangeCopy_singleState(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1002,7 +1002,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingleDefault(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1056,7 +1056,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingle(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1130,7 +1130,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingleCurrentEnv(t *testing.T) 
 	}
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1185,7 +1185,7 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1283,7 +1283,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithDefault(t *testing
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1357,7 +1357,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithoutDefault(t *test
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1423,7 +1423,7 @@ func TestMetaBackend_configuredUnset(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1485,7 +1485,7 @@ func TestMetaBackend_configuredUnsetCopy(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.Backend(&BackendOpts{Init: true})
+	b, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1553,7 +1553,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.BackendForLocalPlan(backendConfig)
+	b, diags := m.BackendForLocalPlan(backendConfig, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1654,7 +1654,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	m.stateOutPath = statePath
 
 	// Get the backend
-	b, diags := m.BackendForLocalPlan(plannedBackend)
+	b, diags := m.BackendForLocalPlan(plannedBackend, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1743,7 +1743,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.BackendForLocalPlan(backendConfig)
+	b, diags := m.BackendForLocalPlan(backendConfig, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1828,7 +1828,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 	_, diags := m.Backend(&BackendOpts{
 		ConfigOverride: configs.SynthBody("synth", extras),
 		Init:           true,
-	})
+	}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1844,7 +1844,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 	_, err = m.Backend(&BackendOpts{
 		ConfigOverride: configs.SynthBody("synth", extras),
 		Init:           true,
-	})
+	}, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1871,7 +1871,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 	m := testMetaBackend(t, nil)
 	m.forceInitCopy = true
 	// init the backend
-	_, diags := m.Backend(&BackendOpts{Init: true})
+	_, diags := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1894,7 +1894,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	m := testMetaBackend(t, nil)
 	_, err := m.Backend(&BackendOpts{
 		Init: true,
-	})
+	}, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1916,7 +1916,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	_, diags := m.Backend(&BackendOpts{
 		ConfigOverride: configs.SynthBody("synth", extras),
 		Init:           true,
-	})
+	}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1943,7 +1943,7 @@ func TestBackendFromState(t *testing.T) {
 	// them to match just for this test.
 	wd.OverrideDataDir(".")
 
-	stateBackend, diags := m.backendFromState(context.Background())
+	stateBackend, diags := m.backendFromState(context.Background(), encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}

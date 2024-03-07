@@ -38,7 +38,7 @@ func (m *Meta) Input() bool {
 //
 // Error will be non-nil if path refers to something which looks like a plan
 // file and loading the file fails.
-func (m *Meta) PlanFile(path string) (*planfile.WrappedPlanFile, error) {
+func (m *Meta) PlanFile(path string, enc encryption.PlanEncryption) (*planfile.WrappedPlanFile, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -49,5 +49,5 @@ func (m *Meta) PlanFile(path string) (*planfile.WrappedPlanFile, error) {
 		return nil, nil
 	}
 
-	return planfile.OpenWrapped(path, encryption.PlanEncryptionTODO())
+	return planfile.OpenWrapped(path, enc)
 }

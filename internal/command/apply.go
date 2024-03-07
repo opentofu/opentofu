@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -66,8 +67,16 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+
 	// Attempt to load the plan file, if specified
-	planFile, diags := c.LoadPlanFile(args.PlanPath)
+	planFile, diags := c.LoadPlanFile(args.PlanPath, enc)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -99,7 +108,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType)
+	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.Backend())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -107,7 +116,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove)
+	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
 	diags = diags.Append(opDiags)
 
 	// Collect variable value and add them to the operation request
@@ -152,14 +161,14 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	return 0
 }
 
-func (c *ApplyCommand) LoadPlanFile(path string) (*planfile.WrappedPlanFile, tfdiags.Diagnostics) {
+func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*planfile.WrappedPlanFile, tfdiags.Diagnostics) {
 	var planFile *planfile.WrappedPlanFile
 	var diags tfdiags.Diagnostics
 
 	// Try to load plan if path is specified
 	if path != "" {
 		var err error
-		planFile, err = c.PlanFile(path)
+		planFile, err = c.PlanFile(path, enc.PlanFile())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -196,7 +205,7 @@ func (c *ApplyCommand) LoadPlanFile(path string) (*planfile.WrappedPlanFile, tfd
 	return planFile, diags
 }
 
-func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// FIXME: we need to apply the state arguments to the meta object here
@@ -227,7 +236,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 			))
 			return nil, diags
 		}
-		be, beDiags = c.BackendForLocalPlan(plan.Backend)
+		be, beDiags = c.BackendForLocalPlan(plan.Backend, enc)
 	} else {
 		// Both new plans and saved cloud plans load their backend from config.
 		backendConfig, configDiags := c.loadBackendConfig(".")
@@ -239,7 +248,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 		be, beDiags = c.Backend(&BackendOpts{
 			Config:   backendConfig,
 			ViewType: viewType,
-		})
+		}, enc)
 	}
 
 	diags = diags.Append(beDiags)
@@ -256,6 +265,7 @@ func (c *ApplyCommand) OperationRequest(
 	planFile *planfile.WrappedPlanFile,
 	args *arguments.Operation,
 	autoApprove bool,
+	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -265,7 +275,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(be, viewType)
+	opReq := c.Operation(be, viewType, enc)
 	opReq.AutoApprove = autoApprove
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode

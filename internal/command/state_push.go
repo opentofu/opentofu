@@ -52,6 +52,13 @@ func (c *StatePushCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	if encDiags.HasErrors() {
+		c.showDiagnostics(encDiags)
+		return 1
+	}
+
 	// Determine our reader for the input state. This is the filepath
 	// or stdin if "-" is given.
 	var r io.Reader = os.Stdin
@@ -69,7 +76,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Read the state
-	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionTODO()) // Should we use encryption -> statefile config here?
+	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionDisabled()) // Assume the given statefile is not encrypted
 	if c, ok := r.(io.Closer); ok {
 		// Close the reader if possible right now since we're done with it.
 		c.Close()
@@ -80,7 +87,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.Backend())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1

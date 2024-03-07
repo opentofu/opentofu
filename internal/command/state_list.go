@@ -39,8 +39,15 @@ func (c *StateListCommand) Run(args []string) int {
 		c.Meta.statePath = statePath
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	if encDiags.HasErrors() {
+		c.showDiagnostics(encDiags)
+		return 1
+	}
+
 	// Load the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.Backend())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1

@@ -20,7 +20,7 @@ type EncryptionConfig struct {
 	Backend   *EnforcableTargetConfig `hcl:"backend,block"`
 	StateFile *EnforcableTargetConfig `hcl:"statefile,block"`
 	PlanFile  *EnforcableTargetConfig `hcl:"planfile,block"`
-	Remote    *RemoteConfig           `hcl:"remote_data_source,block"`
+	Remote    *RemoteConfig           `hcl:"remote,block"`
 
 	// Not preserved through merge operations
 	DeclRange hcl.Range
@@ -61,7 +61,7 @@ func (m MethodConfig) Addr() (method.Addr, hcl.Diagnostics) {
 // sources.
 type RemoteConfig struct {
 	Default *TargetConfig       `hcl:"default,block"`
-	Targets []NamedTargetConfig `hcl:"remote_data_source,block"`
+	Targets []NamedTargetConfig `hcl:"remote_state,block"`
 }
 
 // TargetConfig describes the target.encryption.state, target.encryption.plan, etc blocks.

@@ -46,6 +46,17 @@ type basedata struct {
 	Version string                   `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
 }
 
+func IsEncryptionPayload(data []byte) (bool, error) {
+	es := basedata{}
+	err := json.Unmarshal(data, &es)
+	if err != nil {
+		return false, err
+	}
+
+	// This could be extended with full version checking later on
+	return es.Version != "", nil
+}
+
 func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	// No configuration provided, don't do anything
 	if s.target == nil {
@@ -100,19 +111,29 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 
 	es := basedata{}
 	err := json.Unmarshal(data, &es)
-	if err != nil {
-		return nil, fmt.Errorf("invalid data format for decryption: %w", err)
-	}
 
-	if len(es.Version) == 0 {
+	if len(es.Version) == 0 || err != nil {
 		// Not a valid payload, might be already decrypted
-		err = validator(data)
-		if err != nil {
+		verr := validator(data)
+		if verr != nil {
 			// Nope, just bad input
-			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", err)
+
+			// Return the outer json error if we have one
+			if err != nil {
+				return nil, fmt.Errorf("invalid data format for decryption: %w, %w", err, verr)
+			}
+
+			// Must have been invalid json payload
+			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 		// Yep, it's already decrypted
-		return data, nil
+		for target := s.target; target != nil; target = target.Fallback {
+			if target.Fallback == nil {
+				// fallback allowed
+				return data, nil
+			}
+		}
+		return data, fmt.Errorf("decrypted payload provided without fallback specified")
 	}
 
 	if es.Version != encryptionVersion {

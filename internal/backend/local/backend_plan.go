@@ -12,7 +12,6 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -173,7 +172,7 @@ func (b *Local) opPlan(
 			StateFile:            plannedStateFile,
 			Plan:                 plan,
 			DependencyLocks:      op.DependencyLocks,
-		}, encryption.PlanEncryptionTODO())
+		}, op.Encryption.PlanFile())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
