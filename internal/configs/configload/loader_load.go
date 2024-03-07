@@ -25,13 +25,14 @@ import (
 // LoadConfig performs the basic syntax and uniqueness validations that are
 // required to process the individual modules
 func (l *Loader) LoadConfig(rootDir string) (*configs.Config, hcl.Diagnostics) {
-	return l.loadConfig(l.parser.LoadConfigDir(rootDir))
+	// TODO inject vars from environment / cli flags
+	return l.loadConfig(l.parser.LoadConfigDir(rootDir, configs.StaticModuleCall{Name: "root"}))
 }
 
 // LoadConfigWithTests matches LoadConfig, except the configs.Config contains
 // any relevant .tftest.hcl files.
-func (l *Loader) LoadConfigWithTests(rootDir string, testDir string) (*configs.Config, hcl.Diagnostics) {
-	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir))
+func (l *Loader) LoadConfigWithTests(rootDir string, testDir string, vars configs.RawVariables) (*configs.Config, hcl.Diagnostics) {
+	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir, configs.StaticModuleCall{Name: "root", Raw: vars}))
 }
 
 func (l *Loader) loadConfig(rootMod *configs.Module, diags hcl.Diagnostics) (*configs.Config, hcl.Diagnostics) {
@@ -83,7 +84,7 @@ func (l *Loader) moduleWalkerLoad(req *configs.ModuleRequest) (*configs.Module, 
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module source has changed",
-			Detail:   "The source address was changed since this module was installed. Run \"tofu init\" to install all modules required by this configuration.",
+			Detail:   fmt.Sprintf("The source address was changed from %q to %q since this module was installed. Run \"tofu init\" to install all modules required by this configuration.", record.SourceAddr, req.SourceAddr.String()),
 			Subject:  &req.SourceAddrRange,
 		})
 	}
@@ -107,7 +108,7 @@ func (l *Loader) moduleWalkerLoad(req *configs.ModuleRequest) (*configs.Module, 
 		})
 	}
 
-	mod, mDiags := l.parser.LoadConfigDir(record.Dir)
+	mod, mDiags := l.parser.LoadConfigDir(record.Dir, configs.StaticModuleCall{Name: req.Path.String(), Call: req.Variables})
 	diags = append(diags, mDiags...)
 	if mod == nil {
 		// nil specifically indicates that the directory does not exist or

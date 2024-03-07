@@ -7,7 +7,6 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -17,6 +16,7 @@ import (
 type Backend struct {
 	Type   string
 	Config hcl.Body
+	ctx    *StaticContext
 
 	TypeRange hcl.Range
 	DeclRange hcl.Range
@@ -45,8 +45,7 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 	// Don't fail if required attributes are not set. Instead, we'll just
 	// hash them as nulls.
 	schema = schema.NoneRequired()
-	spec := schema.DecoderSpec()
-	val, _ := hcldec.Decode(b.Config, spec, nil)
+	val, _ := b.Decode(schema)
 	if val == cty.NilVal {
 		val = cty.UnknownVal(schema.ImpliedType())
 	}
@@ -57,4 +56,8 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 	})
 
 	return toHash.Hash()
+}
+
+func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
+	return b.ctx.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{Module: "terraform", Type: "backend", Name: b.Type})
 }
