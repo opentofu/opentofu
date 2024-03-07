@@ -8649,7 +8649,34 @@ resource "null_instance" "depends" {
 	}
 }
 
-func TestContext2Apply_terraformWorkspace(t *testing.T) {
+func TestContext2Apply_tfWorkspace(t *testing.T) {
+	m := testModule(t, "apply-tf-workspace")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	ctx := testContext2(t, &ContextOpts{
+		Meta: &ContextMeta{Env: "foo"},
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	actual := state.RootModule().OutputValues["output"]
+	expected := cty.StringVal("foo")
+	if actual == nil || actual.Value != expected {
+		t.Fatalf("wrong value\ngot:  %#v\nwant: %#v", actual.Value, expected)
+	}
+}
+
+func TestContext2Apply_tofuWorkspace(t *testing.T) {
 	m := testModule(t, "apply-tofu-workspace")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn

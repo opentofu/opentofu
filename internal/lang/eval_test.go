@@ -346,6 +346,20 @@ func TestScopeEvalContext(t *testing.T) {
 				"terraform": cty.ObjectVal(map[string]cty.Value{
 					"workspace": cty.StringVal("default"),
 				}),
+				"tofu": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
+			},
+		},
+		{
+			`tofu.workspace`,
+			map[string]cty.Value{
+				"terraform": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
+				"tofu": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
 			},
 		},
 		{
@@ -809,6 +823,13 @@ func TestScopeEvalSelfBlock(t *testing.T) {
 		},
 		{
 			Config: `attr = terraform.workspace`,
+			Want: map[string]cty.Value{
+				"attr": cty.StringVal("default"),
+				"num":  cty.NullVal(cty.Number),
+			},
+		},
+		{
+			Config: `attr = tofu.workspace`,
 			Want: map[string]cty.Value{
 				"attr": cty.StringVal("default"),
 				"num":  cty.NullVal(cty.Number),

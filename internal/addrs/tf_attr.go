@@ -5,15 +5,31 @@
 
 package addrs
 
-// TerraformAttr is the address of an attribute of the "terraform" object in
-// the interpolation scope, like "terraform.workspace".
+func NewTerraformAttr(alias, name string) TerraformAttr {
+	return TerraformAttr{
+		name:  name,
+		alias: alias,
+	}
+}
+
+// TerraformAttr is the address of an attribute of the "terraform" and "tofu" object in
+// the interpolation scope, like "terraform.workspace" and "tofu.workspace".
 type TerraformAttr struct {
 	referenceable
-	Name string
+	name  string
+	alias string
+}
+
+func (ta TerraformAttr) Name() string {
+	return ta.name
+}
+
+func (ta TerraformAttr) Alias() string {
+	return ta.alias
 }
 
 func (ta TerraformAttr) String() string {
-	return "terraform." + ta.Name
+	return ta.alias + "." + ta.name
 }
 
 func (ta TerraformAttr) UniqueKey() UniqueKey {
