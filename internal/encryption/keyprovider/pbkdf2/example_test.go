@@ -7,8 +7,8 @@ package pbkdf2_test
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/mitchellh/mapstructure"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -24,13 +24,6 @@ var configuration = `key_provider "pbkdf2" "foo" {
 // and construct a static key provider from in.
 // And is not intended to be used as a real-world example.
 func Example_decrypt() {
-	// Fill in the metadata stored with the encrypted form:
-	decryptionMeta := map[string]any{
-		"salt":          "10ec3d3fe02ad2bee6f1f5540f8e6bbe3b8b29445cf502d27d47ad554aa8971f",
-		"iterations":    600000,
-		"hash_function": "sha512",
-	}
-
 	configStruct := pbkdf2.New().ConfigStruct()
 
 	// Parse the config:
@@ -48,36 +41,24 @@ func Example_decrypt() {
 		panic(err)
 	}
 
-	// Map the encrypted metadata into the config structure:
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		// We want all metadata fields to be consumed:
-		ErrorUnused: true,
-		// Fill the results in this struct:
-		Result: &configStruct,
-		// Use the "meta" tag:
-		TagName: "meta",
-		// Ignore fields not tagged with "meta":
-		IgnoreUntaggedFields: true,
-	})
+	// Create the actual key provider.
+	keyProvider, keyMeta, err := configStruct.Build()
 	if err != nil {
-		panic(err)
-	}
-	if err := decoder.Decode(decryptionMeta); err != nil {
 		panic(err)
 	}
 
-	// Create the actual key provider.
-	keyProvider, err := configStruct.Build()
-	if err != nil {
-		panic(err)
-	}
+	// Fill in the metadata stored with the encrypted form:
+	meta := keyMeta.(*pbkdf2.Metadata)
+	meta.Salt = []byte{0x10, 0xec, 0x3d, 0x3f, 0xe0, 0x2a, 0xd2, 0xbe, 0xe6, 0xf1, 0xf5, 0x54, 0xf, 0x8e, 0x6b, 0xbe, 0x3b, 0x8b, 0x29, 0x44, 0x5c, 0xf5, 0x2, 0xd2, 0x7d, 0x47, 0xad, 0x55, 0x4a, 0xa8, 0x97, 0x1f}
+	meta.Iterations = 600000
+	meta.HashFunction = "sha512"
 
 	// Get decryption key from the provider.
-	_, decryptionKey, _, err := keyProvider.Provide()
+	keys, _, err := keyProvider.Provide(meta)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("%x", decryptionKey)
+	fmt.Printf("%x", keys.DecryptionKey)
 	// Output: 7919af5a183ed2eb8bef7ab7555f5e9e3381afb91dbbc315be438a79de5c5fbd
 }
