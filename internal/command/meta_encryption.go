@@ -13,6 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+const encryptionConfigEnvName = "TF_ENCRYPTION"
+
 func (m *Meta) Encryption() (encryption.Encryption, tfdiags.Diagnostics) {
 	path, err := os.Getwd()
 	if err != nil {
@@ -46,10 +48,9 @@ func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encrypti
 	cfg := module.Encryption
 	var diags tfdiags.Diagnostics
 
-	envName := "TF_ENCRYPTION"
-	env := os.Getenv(envName)
+	env := os.Getenv(encryptionConfigEnvName)
 	if len(env) != 0 {
-		envCfg, envDiags := config.LoadConfigFromString(envName, env)
+		envCfg, envDiags := config.LoadConfigFromString(encryptionConfigEnvName, env)
 		diags = diags.Append(envDiags)
 		if envDiags.HasErrors() {
 			return nil, diags

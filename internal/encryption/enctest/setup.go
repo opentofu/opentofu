@@ -16,6 +16,8 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 )
 
+// TODO docstrings once this stabilizes
+
 func EncryptionDirect(configData string) encryption.Encryption {
 	reg := lockingencryptionregistry.New()
 	if err := reg.RegisterKeyProvider(static.New()); err != nil {
