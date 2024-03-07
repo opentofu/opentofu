@@ -2,7 +2,7 @@
 
 ## 2024-03-07
 
-Hello there! This week we got state encryption running on the main branch the first time, and we are planning to release an alpha build next week with a passphrase key provider and possible AWS KMS integration.
+Hello there! This week we got state encryption running on the main branch for the first time, and we are planning to release an alpha build next week with a passphrase key provider and possibly the AWS KMS integration.
 
 - Current Status and Up Next
   - State encryption
