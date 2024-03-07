@@ -2,6 +2,7 @@
 
 UPGRADE NOTES:
 * Backend/S3: The default of `use_legacy_workflow` changed to `false` and is now deprecated. The S3 backend will follow the same behavior as AWS CLI and SDKs for credential search, preferring backend configuration over environment variables. To support the legacy credential search workflow, you can set this option as `true`. It'll be completely removed in a future minor version.
+* Allow provider blocks in `tofu tests` to access variables and run outputs. ([#1347](https://github.com/opentofu/opentofu/pull/1347))
 
 
 NEW FEATURES:
