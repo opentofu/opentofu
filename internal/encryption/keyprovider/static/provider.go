@@ -12,9 +12,9 @@ type staticKeyProvider struct {
 	key []byte
 }
 
-func (p staticKeyProvider) Provide() (keyprovider.Output, error) {
+func (p staticKeyProvider) Provide(meta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
 	return keyprovider.Output{
 		EncryptionKey: p.key,
 		DecryptionKey: p.key,
-	}, nil
+	}, nil, nil
 }

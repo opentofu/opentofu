@@ -5,8 +5,11 @@
 
 package keyprovider
 
+// Reference to struct with json tags
+type KeyMeta any
+
 type Config interface {
-	Build() (KeyProvider, error)
+	Build() (KeyProvider, KeyMeta, error)
 }
 
 type Descriptor interface {
@@ -24,5 +27,5 @@ type Descriptor interface {
 
 type KeyProvider interface {
 	// Provide provides an encryption and decryption keys. If the process fails, it returns an error.
-	Provide() (Output, error)
+	Provide(KeyMeta) (Output, KeyMeta, error)
 }

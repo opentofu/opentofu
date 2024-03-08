@@ -24,7 +24,7 @@ type targetBuilder struct {
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
 
-	keyProviderMetadata map[keyprovider.Addr]any
+	keyProviderMetadata map[keyprovider.Addr][]byte
 
 	// Used to build EvalContext (and related mappings)
 	keyValues    map[string]map[string]cty.Value
@@ -32,7 +32,7 @@ type targetBuilder struct {
 	methods      map[method.Addr]method.Method
 }
 
-func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr]any) ([]method.Method, hcl.Diagnostics) {
+func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	builder := &targetBuilder{

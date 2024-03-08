@@ -16,10 +16,10 @@ type Config struct {
 	Key string `hcl:"key"`
 }
 
-func (c Config) Build() (keyprovider.KeyProvider, error) {
+func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	decodedData, err := hex.DecodeString(c.Key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hex-decode the provided key (%w)", err)
+		return nil, nil, fmt.Errorf("failed to hex-decode the provided key (%w)", err)
 	}
-	return &staticKeyProvider{decodedData}, nil
+	return &staticKeyProvider{decodedData}, nil, nil
 }

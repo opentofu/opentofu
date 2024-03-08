@@ -52,13 +52,13 @@ func TestKeyProvider(t *testing.T) {
 				c.Key = tc.key
 			}
 
-			keyProvider, buildErr := c.Build()
+			keyProvider, keyMeta, buildErr := c.Build()
 			if tc.expectSuccess {
 				if buildErr != nil {
 					t.Fatalf("unexpected error: %v", buildErr)
 				}
 
-				output, err := keyProvider.Provide()
+				output, _, err := keyProvider.Provide(keyMeta)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}

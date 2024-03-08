@@ -6,10 +6,9 @@
 package encryption
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
 
@@ -164,36 +163,9 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	if diags.HasErrors() {
 		return diags
 	}
-	// Add the metadata
-	if meta, ok := e.keyProviderMetadata[metakey]; ok {
-		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			// We want all metadata fields to be consumed:
-			ErrorUnused: true,
-			// Fill the results in this struct:
-			Result: &keyProviderConfig,
-			// Use the "meta" tag:
-			TagName: "meta",
-			// Ignore fields not tagged with "meta":
-			IgnoreUntaggedFields: true,
-		})
-		if err != nil {
-			return append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
-				Detail:   fmt.Sprintf("initializing metadata decoder for %s failed with error: %s", metakey, err.Error()),
-			})
-		}
-		if err := decoder.Decode(meta); err != nil {
-			return append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
-				Detail:   fmt.Sprintf("decoding %s failed with error: %s", metakey, err.Error()),
-			})
-		}
-	}
 
 	// Build the Key Provider from the configuration
-	keyProvider, err := keyProviderConfig.Build()
+	keyProvider, keyMetaIn, err := keyProviderConfig.Build()
 	if err != nil {
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -202,7 +174,19 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	output, err := keyProvider.Provide()
+	// Add the metadata
+	if meta, ok := e.keyProviderMetadata[metakey]; ok {
+		err := json.Unmarshal(meta, keyMetaIn)
+		if err != nil {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
+				Detail:   fmt.Sprintf("metadata decoder for %s failed with error: %s", metakey, err.Error()),
+			})
+		}
+	}
+
+	output, keyMetaOut, err := keyProvider.Provide(keyMetaIn)
 	if err != nil {
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -211,8 +195,20 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	e.keyProviderMetadata[metakey] = output.Metadata
+	if keyMetaOut != nil {
+		e.keyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
+
+		if err != nil {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to encode encrypted metadata",
+				Detail:   fmt.Sprintf("metadata encoder for %s failed with error: %s", metakey, err.Error()),
+			})
+		}
+	}
+
 	e.keyValues[cfg.Type][cfg.Name] = output.Cty()
 
 	return nil
+
 }
