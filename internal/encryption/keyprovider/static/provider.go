@@ -8,6 +8,7 @@ package static
 
 import (
 	"fmt"
+
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 

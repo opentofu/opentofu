@@ -6,8 +6,9 @@
 package pbkdf2_test
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
 )
 
 func TestHashFunctionName_Validate(t *testing.T) {

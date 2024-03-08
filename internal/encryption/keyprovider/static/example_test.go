@@ -7,12 +7,13 @@ package static_test
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
-	"strings"
 )
 
 var hclConfig = `key_provider "static" "foo" {
