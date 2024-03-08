@@ -7,7 +7,6 @@ package encryption
 
 import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 )
