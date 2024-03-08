@@ -53,8 +53,8 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob
 
 	if len(inMeta.CiphertextBlob) != 0 {
-		// We have an existing decryption key to decode
-		decodedKeyData, err := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
+		// We have an existing decryption key to decrypt
+		decryptedKeyData, err := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
 			KeyId:          aws.String(p.KMSKeyID),
 			CiphertextBlob: inMeta.CiphertextBlob,
 		})
@@ -64,7 +64,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		}
 
 		// Override decryption key for the existing data
-		out.DecryptionKey = decodedKeyData.Plaintext
+		out.DecryptionKey = decryptedKeyData.Plaintext
 	}
 
 	return out, outMeta, nil
