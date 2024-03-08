@@ -25,7 +25,7 @@ type Config struct {
 	KMSKeyID string `hcl:"kms_key_id" json:"-"`
 	KeySpec  string `hcl:"key_spec" json:"-"`
 
-	// Mirrored Backend Config
+	// Mirrored S3 Backend Config, mirror any changes
 	AccessKey                      string                     `hcl:"access_key,optional" json:"-"`
 	Endpoints                      []ConfigEndpoints          `hcl:"endpoints,block" json:"-"`
 	MaxRetries                     int                        `hcl:"max_retries,optional" json:"-"`
@@ -82,16 +82,13 @@ type AssumeRoleWithWebIdentity struct {
 	WebIdentityTokenFile string   `hcl:"web_identity_token_file,optional"`
 }
 
-func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
-	ctx := context.TODO()
-	ctx, baselog := attachLoggerToContext(ctx)
-
+func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
 	endpoints := ConfigEndpoints{}
 	if len(c.Endpoints) == 1 {
 		endpoints = c.Endpoints[1]
 	}
 	if len(c.Endpoints) > 1 {
-		return nil, nil, fmt.Errorf("expected single aws_kms endpoints block, multiple provided")
+		return nil, fmt.Errorf("expected single aws_kms endpoints block, multiple provided")
 	}
 
 	// env var fallbacks
@@ -157,7 +154,6 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		CustomCABundle:                 c.CustomCABundle,
 		EC2MetadataServiceEndpoint:     c.EC2MetadataServiceEndpoint,
 		EC2MetadataServiceEndpointMode: c.EC2MetadataServiceEndpointMode,
-		Logger:                         baselog,
 	}
 
 	if c.SkipMetadataAPICheck != nil {
@@ -205,7 +201,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		if len(c.AssumeRole.Duration) != 0 {
 			dur, err := time.ParseDuration(c.AssumeRole.Duration)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid assume_role duration %q: %w", c.AssumeRole.Duration, err)
+				return nil, fmt.Errorf("invalid assume_role duration %q: %w", c.AssumeRole.Duration, err)
 			}
 			cfg.AssumeRole.Duration = dur
 		}
@@ -238,7 +234,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		if len(c.AssumeRoleWithWebIdentity.Duration) != 0 {
 			dur, err := time.ParseDuration(c.AssumeRoleWithWebIdentity.Duration)
 			if err != nil {
-				return nil, nil, fmt.Errorf("invalid assume_role_with_web_identity duration %q: %w", c.AssumeRoleWithWebIdentity.Duration, err)
+				return nil, fmt.Errorf("invalid assume_role_with_web_identity duration %q: %w", c.AssumeRoleWithWebIdentity.Duration, err)
 			}
 			cfg.AssumeRoleWithWebIdentity.Duration = dur
 		}
@@ -250,10 +246,23 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	if len(c.RetryMode) != 0 {
 		mode, err := aws.ParseRetryMode(c.RetryMode)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid retry mode %q: %w", c.RetryMode, err)
+			return nil, fmt.Errorf("invalid retry mode %q: %w", c.RetryMode, err)
 		}
 		cfg.RetryMode = mode
 	}
+
+	return cfg, nil
+
+}
+func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
+	cfg, err := c.ToAWSBaseConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ctx := context.Background()
+	ctx, baselog := attachLoggerToContext(ctx)
+	cfg.Logger = baselog
 
 	_, awsConfig, awsDiags := awsbase.GetAwsConfig(ctx, cfg)
 
@@ -273,6 +282,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}, new(keyMeta), nil
 }
 
+// Mirrored from s3 backend config
 func includeProtoIfNessesary(endpoint string) string {
 	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
 		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
@@ -281,6 +291,7 @@ func includeProtoIfNessesary(endpoint string) string {
 	return endpoint
 }
 
+// Mirrored from s3 backend config
 func attachLoggerToContext(ctx context.Context) (context.Context, baselogging.HcLogger) {
 	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
 	ctx = baselogging.RegisterLogger(ctx, baselog)

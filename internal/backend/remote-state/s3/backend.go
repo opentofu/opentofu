@@ -57,6 +57,7 @@ type Backend struct {
 
 // ConfigSchema returns a description of the expected configuration
 // structure for the receiving backend.
+// This structure is mirrored by the encryption aws_kms key provider and should be kept in sync.
 func (b *Backend) ConfigSchema() *configschema.Block {
 	return &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
