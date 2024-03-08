@@ -3,15 +3,15 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package varhcl
+package gohcl_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/gohcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -46,7 +46,7 @@ func Test(t *testing.T) {
 
 	println()
 	println("> Detect Variables")
-	vars, diags := VariablesInBody(file.Body, ob)
+	vars, diags := gohcl.VariablesInBody(file.Body, ob)
 	println(diags.Error())
 	for _, v := range vars {
 		ident := ""
