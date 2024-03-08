@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -46,7 +47,6 @@ type Config struct {
 	EC2MetadataServiceEndpoint     string                     `hcl:"ec2_metadata_service_endpoint,optional" json:"-"`
 	EC2MetadataServiceEndpointMode string                     `hcl:"ec2_metadata_service_endpoint_mode,optional" json:"-"`
 	SkipMetadataAPICheck           *bool                      `hcl:"skip_metadata_api_check,optional" json:"-"`
-	SharedCredentialsFile          string                     `hcl:"shared_credentials_file,optional" json:"-"`
 	SharedCredentialsFiles         []string                   `hcl:"shared_credentials_files,optional" json:"-"`
 	SharedConfigFiles              []string                   `hcl:"shared_config_files,optional" json:"-"`
 	AssumeRole                     *AssumeRole                `hcl:"assume_role,optional" json:"-"`
@@ -82,30 +82,42 @@ type AssumeRoleWithWebIdentity struct {
 	WebIdentityTokenFile string   `hcl:"web_identity_token_file,optional"`
 }
 
-func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
+func stringAttrEnvFallback(val string, env string) string {
+	if val != "" {
+		return val
+	}
+	return os.Getenv(env)
+}
+
+func stringArrayAttrEnvFallback(val []string, env string) []string {
+	if len(val) != 0 {
+		return val
+	}
+	envVal := os.Getenv(env)
+	if envVal != "" {
+		return []string{envVal}
+	}
+	return nil
+}
+
+// Mirrored from s3 backend config
+func includeProtoIfNessesary(endpoint string) string {
+	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
+		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
+		endpoint = fmt.Sprintf("https://%s", endpoint)
+	}
+	return endpoint
+}
+
+func (c Config) getEndpoints() (ConfigEndpoints, error) {
 	endpoints := ConfigEndpoints{}
+
+	// Make sure we have 0 or 1 endpoint blocks
 	if len(c.Endpoints) == 1 {
 		endpoints = c.Endpoints[1]
 	}
 	if len(c.Endpoints) > 1 {
-		return nil, fmt.Errorf("expected single aws_kms endpoints block, multiple provided")
-	}
-
-	// env var fallbacks
-	if len(endpoints.IAM) == 0 {
-		endpoints.IAM = os.Getenv("AWS_ENDPOINT_URL_IAM")
-	}
-	if len(endpoints.STS) == 0 {
-		endpoints.STS = os.Getenv("AWS_ENDPOINT_URL_STS")
-	}
-	if len(c.CustomCABundle) == 0 {
-		c.CustomCABundle = os.Getenv("AWS_CA_BUNDLE")
-	}
-	if len(c.EC2MetadataServiceEndpoint) == 0 {
-		c.EC2MetadataServiceEndpoint = os.Getenv("AWS_EC2_METADATA_SERVICE_ENDPOINT")
-	}
-	if len(c.EC2MetadataServiceEndpointMode) == 0 {
-		c.EC2MetadataServiceEndpointMode = os.Getenv("AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE")
+		return endpoints, fmt.Errorf("expected single aws_kms endpoints block, multiple provided")
 	}
 
 	// Endpoint formatting
@@ -115,26 +127,160 @@ func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
 	if len(endpoints.STS) != 0 {
 		endpoints.STS = includeProtoIfNessesary(endpoints.STS)
 	}
+	return endpoints, nil
+}
 
-	// Defaults
+func parseAssumeRoleDuration(val string) (dur time.Duration, err error) {
+	if len(val) == 0 {
+		return dur, nil
+	}
+	dur, err = time.ParseDuration(val)
+	if err != nil {
+		return dur, fmt.Errorf("invalid assume_role duration %q: %w", val, err)
+	}
+
+	minDur := 15 * time.Minute
+	maxDur := 12 * time.Hour
+	if (minDur > 0 && dur < minDur) || (maxDur > 0 && dur > maxDur) {
+		return dur, fmt.Errorf("assume_role duration must be between %s and %s, had %s", minDur, maxDur, dur)
+	}
+	return dur, nil
+}
+
+func validatePolicyARNs(arns []string) error {
+	for _, v := range arns {
+		arn, err := arn.Parse(v)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(arn.Resource, "policy/") {
+			return fmt.Errorf("arn must be a valid IAM Policy ARN, got %q", v)
+		}
+	}
+	return nil
+}
+
+func (c Config) getAssumeRole() (*awsbase.AssumeRole, error) {
+	if c.AssumeRole == nil {
+		return nil, nil
+	}
+
+	duration, err := parseAssumeRoleDuration(c.AssumeRole.Duration)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validatePolicyARNs(c.AssumeRole.PolicyARNs)
+	if err != nil {
+		return nil, err
+	}
+
+	assumeRole := &awsbase.AssumeRole{
+		RoleARN:           c.AssumeRole.RoleARN,
+		Duration:          duration,
+		ExternalID:        c.AssumeRole.ExternalID,
+		Policy:            c.AssumeRole.Policy,
+		PolicyARNs:        c.AssumeRole.PolicyARNs,
+		SessionName:       c.AssumeRole.SessionName,
+		Tags:              c.AssumeRole.Tags,
+		TransitiveTagKeys: c.AssumeRole.TransitiveTagKeys,
+	}
+	return assumeRole, nil
+}
+func (c Config) getAssumeRoleWithWebIdentity() (*awsbase.AssumeRoleWithWebIdentity, error) {
+	if c.AssumeRoleWithWebIdentity == nil {
+		return nil, nil
+	}
+
+	if c.AssumeRoleWithWebIdentity.WebIdentityToken != "" && c.AssumeRoleWithWebIdentity.WebIdentityTokenFile != "" {
+		return nil, fmt.Errorf("conflicting config attributes: only web_identity_token or web_identity_token_file can be specified, not both")
+	}
+
+	duration, err := parseAssumeRoleDuration(c.AssumeRoleWithWebIdentity.Duration)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validatePolicyARNs(c.AssumeRoleWithWebIdentity.PolicyARNs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &awsbase.AssumeRoleWithWebIdentity{
+		RoleARN:              stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.RoleARN, "AWS_ROLE_ARN"),
+		Duration:             duration,
+		Policy:               c.AssumeRoleWithWebIdentity.Policy,
+		PolicyARNs:           c.AssumeRoleWithWebIdentity.PolicyARNs,
+		SessionName:          stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.SessionName, "AWS_ROLE_SESSION_NAME"),
+		WebIdentityToken:     stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.WebIdentityToken, "AWS_WEB_IDENTITY_TOKEN"),
+		WebIdentityTokenFile: stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.WebIdentityTokenFile, "AWS_WEB_IDENTITY_TOKEN_FILE"),
+	}, nil
+}
+
+func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
+	// Get endpoints to use
+	endpoints, err := c.getEndpoints()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get assume role
+	assumeRole, err := c.getAssumeRole()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get assume role with web identity
+	assumeRoleWithWebIdentity, err := c.getAssumeRoleWithWebIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate region
+	if c.Region == "" && os.Getenv("AWS_REGION") == "" && os.Getenv("AWS_DEFAULT_REGION") == "" {
+		return nil, fmt.Errorf(`the "region" attribute or the "AWS_REGION" or "AWS_DEFAULT_REGION" environment variables must be set.`)
+	}
+
+	// Retry Mode
 	if c.MaxRetries == 0 {
 		c.MaxRetries = 5
 	}
+	var retryMode aws.RetryMode
+	if len(c.RetryMode) != 0 {
+		retryMode, err = aws.ParseRetryMode(c.RetryMode)
+		if err != nil {
+			return nil, fmt.Errorf("%w: expected %q or %q", err, aws.RetryModeStandard, aws.RetryModeAdaptive)
+		}
+	}
 
-	// TODO include the full validation done by the s3 backend, which this is based off of
+	// IDMS handling
+	imdsEnabled := imds.ClientDefaultEnableState
+	if c.SkipMetadataAPICheck != nil {
+		if *c.SkipMetadataAPICheck {
+			imdsEnabled = imds.ClientEnabled
+		} else {
+			imdsEnabled = imds.ClientDisabled
+		}
+	}
 
-	cfg := &awsbase.Config{
+	// Validate account_ids
+	if len(c.AllowedAccountIds) != 0 && len(c.ForbiddenAccountIds) != 0 {
+		return nil, fmt.Errorf("conflicting config attributes: only allowed_account_ids or forbidden_account_ids can be specified, not both")
+	}
+
+	return &awsbase.Config{
 		AccessKey:               c.AccessKey,
 		CallerDocumentationURL:  "https://opentofu.org/docs/language/settings/backends/s3", // TODO
 		CallerName:              "KMS Key Provider",
-		IamEndpoint:             endpoints.IAM,
+		IamEndpoint:             stringAttrEnvFallback(endpoints.IAM, "AWS_ENDPOINT_URL_IAM"),
 		MaxRetries:              c.MaxRetries,
+		RetryMode:               retryMode,
 		Profile:                 c.Profile,
 		Region:                  c.Region,
 		SecretKey:               c.SecretKey,
 		SkipCredsValidation:     c.SkipCredsValidation,
 		SkipRequestingAccountId: c.SkipRequestingAccountId,
-		StsEndpoint:             endpoints.STS,
+		StsEndpoint:             stringAttrEnvFallback(endpoints.STS, "AWS_ENDPOINT_URL_STS"),
 		StsRegion:               c.STSRegion,
 		Token:                   c.Token,
 
@@ -151,109 +297,21 @@ func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
 			{Name: "APN", Version: "1.0"},
 			{Name: httpclient.DefaultApplicationName, Version: version.String()},
 		},
-		CustomCABundle:                 c.CustomCABundle,
-		EC2MetadataServiceEndpoint:     c.EC2MetadataServiceEndpoint,
-		EC2MetadataServiceEndpointMode: c.EC2MetadataServiceEndpointMode,
-	}
+		CustomCABundle: stringAttrEnvFallback(c.CustomCABundle, "AWS_CA_BUNDLE"),
 
-	if c.SkipMetadataAPICheck != nil {
-		if *c.SkipMetadataAPICheck {
-			cfg.EC2MetadataServiceEnableState = imds.ClientDisabled
-		} else {
-			cfg.EC2MetadataServiceEnableState = imds.ClientEnabled
-		}
-	}
+		EC2MetadataServiceEnableState:  imdsEnabled,
+		EC2MetadataServiceEndpoint:     stringAttrEnvFallback(c.EC2MetadataServiceEndpoint, "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
+		EC2MetadataServiceEndpointMode: stringAttrEnvFallback(c.EC2MetadataServiceEndpointMode, "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"),
 
-	// This is probably bugged, but it replicates the s3 backend behavior exactly
-	if len(c.SharedCredentialsFile) != 0 {
-		cfg.SharedCredentialsFiles = []string{c.SharedCredentialsFile}
-	}
-	if len(c.SharedCredentialsFiles) != 0 {
-		cfg.SharedCredentialsFiles = c.SharedCredentialsFiles
-	} else {
-		envFile := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
-		if len(envFile) != 0 {
-			cfg.SharedCredentialsFiles = []string{envFile}
-		}
-	}
-
-	if len(c.SharedConfigFiles) != 0 {
-		cfg.SharedConfigFiles = c.SharedConfigFiles
-	} else {
-		envFile := os.Getenv("AWS_SHARED_CONFIG_FILE")
-		if len(envFile) != 0 {
-			cfg.SharedConfigFiles = []string{envFile}
-		}
-	}
-
-	if c.AssumeRole != nil {
-		cfg.AssumeRole = &awsbase.AssumeRole{
-			RoleARN:           c.AssumeRole.RoleARN,
-			ExternalID:        c.AssumeRole.ExternalID,
-			Policy:            strings.TrimSpace(c.AssumeRole.Policy),
-			PolicyARNs:        c.AssumeRole.PolicyARNs,
-			SessionName:       c.AssumeRole.SessionName,
-			Tags:              c.AssumeRole.Tags,
-			TransitiveTagKeys: c.AssumeRole.TransitiveTagKeys,
-		}
-
-		// Parse duration
-		if len(c.AssumeRole.Duration) != 0 {
-			dur, err := time.ParseDuration(c.AssumeRole.Duration)
-			if err != nil {
-				return nil, fmt.Errorf("invalid assume_role duration %q: %w", c.AssumeRole.Duration, err)
-			}
-			cfg.AssumeRole.Duration = dur
-		}
-	}
-	if c.AssumeRoleWithWebIdentity != nil {
-		cfg.AssumeRoleWithWebIdentity = &awsbase.AssumeRoleWithWebIdentity{
-			RoleARN:              c.AssumeRoleWithWebIdentity.RoleARN,
-			Policy:               strings.TrimSpace(c.AssumeRoleWithWebIdentity.Policy),
-			PolicyARNs:           c.AssumeRoleWithWebIdentity.PolicyARNs,
-			SessionName:          c.AssumeRoleWithWebIdentity.SessionName,
-			WebIdentityToken:     c.AssumeRoleWithWebIdentity.WebIdentityToken,
-			WebIdentityTokenFile: c.AssumeRoleWithWebIdentity.WebIdentityTokenFile,
-		}
-
-		// Env defaults
-		if len(cfg.AssumeRoleWithWebIdentity.RoleARN) == 0 {
-			cfg.AssumeRoleWithWebIdentity.RoleARN = os.Getenv("AWS_ROLE_ARN")
-		}
-		if len(cfg.AssumeRoleWithWebIdentity.SessionName) == 0 {
-			cfg.AssumeRoleWithWebIdentity.SessionName = os.Getenv("AWS_ROLE_SESSION_NAME")
-		}
-		if len(cfg.AssumeRoleWithWebIdentity.WebIdentityToken) == 0 {
-			cfg.AssumeRoleWithWebIdentity.WebIdentityToken = os.Getenv("AWS_WEB_IDENTITY_TOKEN")
-		}
-		if len(cfg.AssumeRoleWithWebIdentity.WebIdentityTokenFile) == 0 {
-			cfg.AssumeRoleWithWebIdentity.WebIdentityTokenFile = os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
-		}
-
-		// Parse duration
-		if len(c.AssumeRoleWithWebIdentity.Duration) != 0 {
-			dur, err := time.ParseDuration(c.AssumeRoleWithWebIdentity.Duration)
-			if err != nil {
-				return nil, fmt.Errorf("invalid assume_role_with_web_identity duration %q: %w", c.AssumeRoleWithWebIdentity.Duration, err)
-			}
-			cfg.AssumeRoleWithWebIdentity.Duration = dur
-		}
-	}
-
-	cfg.AllowedAccountIds = c.AllowedAccountIds
-	cfg.ForbiddenAccountIds = c.ForbiddenAccountIds
-
-	if len(c.RetryMode) != 0 {
-		mode, err := aws.ParseRetryMode(c.RetryMode)
-		if err != nil {
-			return nil, fmt.Errorf("invalid retry mode %q: %w", c.RetryMode, err)
-		}
-		cfg.RetryMode = mode
-	}
-
-	return cfg, nil
-
+		SharedCredentialsFiles:    stringArrayAttrEnvFallback(c.SharedCredentialsFiles, "AWS_SHARED_CREDENTIALS_FILE"),
+		SharedConfigFiles:         stringArrayAttrEnvFallback(c.SharedConfigFiles, "AWS_SHARED_CONFIG_FILE"),
+		AssumeRole:                assumeRole,
+		AssumeRoleWithWebIdentity: assumeRoleWithWebIdentity,
+		AllowedAccountIds:         c.AllowedAccountIds,
+		ForbiddenAccountIds:       c.ForbiddenAccountIds,
+	}, nil
 }
+
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	cfg, err := c.ToAWSBaseConfig()
 	if err != nil {
@@ -280,15 +338,6 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		svc:    kms.NewFromConfig(awsConfig),
 		ctx:    ctx,
 	}, new(keyMeta), nil
-}
-
-// Mirrored from s3 backend config
-func includeProtoIfNessesary(endpoint string) string {
-	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
-		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
-		endpoint = fmt.Sprintf("https://%s", endpoint)
-	}
-	return endpoint
 }
 
 // Mirrored from s3 backend config
