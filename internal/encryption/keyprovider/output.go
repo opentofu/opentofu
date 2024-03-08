@@ -11,7 +11,6 @@ import "github.com/zclconf/go-cty/cty"
 type Output struct {
 	EncryptionKey []byte `hcl:"encryption_key" cty:"encryption_key" json:"encryption_key" yaml:"encryption_key"`
 	DecryptionKey []byte `hcl:"decryption_key" cty:"decryption_key" json:"decryption_key" yaml:"decryption_key"`
-	Metadata      any
 }
 
 func (o *Output) Cty() cty.Value {
