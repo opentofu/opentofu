@@ -15,9 +15,6 @@ import (
 var DefaultRegistry = lockingencryptionregistry.New()
 
 func init() {
-	if err := DefaultRegistry.RegisterKeyProvider(static.New()); err != nil {
-		panic(err)
-	}
 	if err := DefaultRegistry.RegisterKeyProvider(pbkdf2.New()); err != nil {
 		panic(err)
 	}
