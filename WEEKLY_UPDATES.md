@@ -1,5 +1,21 @@
 # Weekly Updates
 
+## 2024-03-07
+
+Hello there! This week we got state encryption running on the main branch for the first time, and we are planning to release an alpha build next week with a passphrase key provider and possibly the AWS KMS integration.
+
+- Current Status and Up Next
+  - State encryption
+    -  Several PRs have been merged ([#1316](https://github.com/opentofu/opentofu/pull/1316), [#1291](https://github.com/opentofu/opentofu/pull/1291), [#1295](https://github.com/opentofu/opentofu/pull/1295), [#1288](https://github.com/opentofu/opentofu/pull/1288), [#1292](https://github.com/opentofu/opentofu/pull/1292), [#1294](https://github.com/opentofu/opentofu/pull/1294))
+  - Declarative remove block
+    - Merged end-user documentation ([#1332](https://github.com/opentofu/opentofu/pull/1332))
+  - Website & community
+    - Added support for the urldecode() function in OpenTofu ([#1283](https://github.com/opentofu/opentofu/pull/1283)) 
+    - Improved website accessibility ([#274](https://github.com/opentofu/opentofu.org/pull/274))
+  - How can I help?
+    - Once the alpha build is out, please test state encryption. Watch the [OpenTofu YouTube channel](https://youtube.com/@opentofu) for detailed instructions.
+    - Use OpenTofu, report issues, and please upvote issues that are important to you, so we can better prioritize development work.
+
 ## 2024-02-22
 
 Hello! Over the last week we've finished up a couple of features, and we're continuing to work our way towards 1.7.0.
