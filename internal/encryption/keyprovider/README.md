@@ -15,7 +15,7 @@ Key providers in OpenTofu are responsible for integrating various key-management
 
 ## What is metadata?
 
-Some key providers need to store data alongside the encrypted data, such as salt, hashing function name, key length, etc. The key provider can use this metadata to recreate the exact same key for decryption as it used for encryption. However, the key provider can provide a different key for encryption, allowing for a quick rotation of encryption parameters. 
+Some key providers need to store data alongside the encrypted data, such as the salt, the hashing function name, the key length, etc. The key provider can use this metadata to recreate the exact same key for decryption as it used for encryption. However, the key provider could also provide a different key for each encryption and decryption, allowing for a quick rotation of encryption parameters. 
 
 > [!WARNING]
 > The metadata is **bound to the key provider name**. In order words, if you change the key provider name, OpenTofu will be unable to decrypt old data.
@@ -26,7 +26,7 @@ When you implement a key provider, take a look at the [static](static) key provi
 
 ### Implementing the descriptor
 
-The descriptor is very simple, you need to implement the [`Descriptor`](descriptor.go) interface in a type. (It does not have to be a struct.) However, make sure that the `ConfigStruct` always returns a struct with `hcl` tags on it.
+The descriptor is very simple, you need to implement the [`Descriptor`](descriptor.go) interface in a type. (It does not have to be a struct.) However, make sure that the `ConfigStruct` always returns a struct with `hcl` tags on it. For more information on the `hcl` tags, see the [gohcl documentation](https://godocs.io/github.com/hashicorp/hcl/v2/gohcl).
 
 ### The config struct
 
@@ -45,7 +45,7 @@ Think about what data you will need to decrypt data. For example, the user may c
 
 ### The key provider
 
-The heart of your key provider is... well, your key provider. It has two functions: to create a decryption key and to create an encryption key. If your key doesn't change, these two are the same. However, if you generate new keys every time, you should provide the old key as the decryption key and the new key as the encryption key. If you need to pass along data to help with recreating the decryption key, you can use the metadata for that.
+The heart of your key provider is... well, your key provider. It has two functions: to create a decryption key and to create an encryption key. If your key doesn't change, these two keys can be the same. However, if you generate new keys every time, you should provide the old key as the decryption key and the new key as the encryption key. If you need to pass along data to help with recreating the decryption key, you can use the metadata for that.
 
 ### The output
 

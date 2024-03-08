@@ -21,8 +21,7 @@ var configuration = `key_provider "pbkdf2" "foo" {
 
 // This example is a bare-bones configuration for a static key provider.
 // It is mainly intended to demonstrate how you can use parse configuration
-// and construct a static key provider from in.
-// And is not intended to be used as a real-world example.
+// and construct a static key provider from it.
 func Example_decrypt() {
 	configStruct := pbkdf2.New().ConfigStruct()
 
