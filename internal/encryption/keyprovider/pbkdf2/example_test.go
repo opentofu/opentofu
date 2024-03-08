@@ -15,7 +15,7 @@ import (
 )
 
 var configuration = `key_provider "pbkdf2" "foo" {
-  passphrase = "Hello world!"
+  passphrase = "correct-horse-battery-staple"
 }
 `
 
@@ -52,6 +52,7 @@ func Example_decrypt() {
 	meta.Salt = []byte{0x10, 0xec, 0x3d, 0x3f, 0xe0, 0x2a, 0xd2, 0xbe, 0xe6, 0xf1, 0xf5, 0x54, 0xf, 0x8e, 0x6b, 0xbe, 0x3b, 0x8b, 0x29, 0x44, 0x5c, 0xf5, 0x2, 0xd2, 0x7d, 0x47, 0xad, 0x55, 0x4a, 0xa8, 0x97, 0x1f}
 	meta.Iterations = 600000
 	meta.HashFunction = "sha512"
+	meta.KeyLength = 32
 
 	// Get decryption key from the provider.
 	keys, _, err := keyProvider.Provide(meta)
@@ -60,5 +61,5 @@ func Example_decrypt() {
 	}
 
 	fmt.Printf("%x", keys.DecryptionKey)
-	// Output: 7919af5a183ed2eb8bef7ab7555f5e9e3381afb91dbbc315be438a79de5c5fbd
+	// Output: 225872367198760137e0a18580433447bbf578fbe2b87ff36aef3c175fe5709c
 }

@@ -24,10 +24,17 @@ const (
 )
 
 // New creates a new PBKDF2 key provider descriptor.
-func New() keyprovider.Descriptor {
+func New() Descriptor {
 	return &descriptor{
 		randomSource: rand.Reader,
 	}
+}
+
+// Descriptor provides TypedConfig on top of keyprovider.Descriptor.
+type Descriptor interface {
+	keyprovider.Descriptor
+
+	TypedConfig() *Config
 }
 
 type descriptor struct {
@@ -38,7 +45,7 @@ func (f descriptor) ID() keyprovider.ID {
 	return "pbkdf2"
 }
 
-func (f descriptor) ConfigStruct() keyprovider.Config {
+func (f descriptor) TypedConfig() *Config {
 	return &Config{
 		randomSource: f.randomSource,
 		Passphrase:   "",
@@ -47,4 +54,8 @@ func (f descriptor) ConfigStruct() keyprovider.Config {
 		HashFunction: DefaultHashFunctionName,
 		SaltLength:   DefaultSaltLength,
 	}
+}
+
+func (f descriptor) ConfigStruct() keyprovider.Config {
+	return f.TypedConfig()
 }

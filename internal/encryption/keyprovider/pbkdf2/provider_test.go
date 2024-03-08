@@ -3,11 +3,53 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package pbkdf2_test
+package pbkdf2
+
+import (
+	"bytes"
+	"testing"
+)
+
+func TestPbkdf2KeyProvider_generateMetadata(t *testing.T) {
+	provider := pbkdf2KeyProvider{
+		Config{
+			randomSource: testRandomSource{t},
+			Passphrase:   "Hello world!",
+			KeyLength:    32,
+			Iterations:   MinimumIterations,
+			HashFunction: SHA256HashFunctionName,
+			SaltLength:   12,
+		},
+	}
+	metadata, err := provider.generateMetadata()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	if len(metadata.Salt) != 12 {
+		t.Fatalf("Invalid generated salt length: %d", len(metadata.Salt))
+	}
+	// This is read from the random source, which is the test function name in this case.
+	// Note: this relies on the internal behavior of generateMetadata, but it's a non-exported
+	// function, so in this case that's acceptable.
+	if !bytes.Equal(metadata.Salt, []byte("TestPbkdf2Ke")) {
+		t.Fatalf("Invalid generated salt: %s", metadata.Salt)
+	}
+
+	if metadata.KeyLength != 32 {
+		t.Fatalf("Invalid key length: %d", metadata.KeyLength)
+	}
+	if metadata.Iterations != MinimumIterations {
+		t.Fatalf("Invalid iterations: %d", metadata.Iterations)
+	}
+	if metadata.HashFunction != SHA256HashFunctionName {
+		t.Fatalf("Invalid hash function name: %s", SHA256HashFunctionName)
+	}
+}
 
 /*
 func TestKeyProvider(t *testing.T) {
-	// TODO: Rework to check the expected errors and not just expectSuccess
+
 	type testCase struct {
 		name          string
 		key           string

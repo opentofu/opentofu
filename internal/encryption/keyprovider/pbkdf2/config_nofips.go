@@ -18,7 +18,7 @@ const (
 	DefaultHashFunctionName HashFunctionName = SHA512HashFunctionName
 )
 
-var hashFunctions = map[HashFunctionName]hashFunction{
+var hashFunctions = map[HashFunctionName]HashFunction{
 	SHA256HashFunctionName: sha256.New,
 	SHA512HashFunctionName: sha512.New,
 }

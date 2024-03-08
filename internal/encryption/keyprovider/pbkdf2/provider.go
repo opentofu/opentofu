@@ -19,37 +19,54 @@ type pbkdf2KeyProvider struct {
 	Config
 }
 
-func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
-	inMeta := rawMeta.(*Metadata)
-
+func (p pbkdf2KeyProvider) generateMetadata() (Metadata, error) {
 	// Build outMeta based on current configuration
 	outMeta := Metadata{
 		Iterations:   p.Iterations,
 		HashFunction: p.HashFunction,
 		Salt:         make([]byte, p.SaltLength),
+		KeyLength:    p.KeyLength,
 	}
 	// Generate new salt
 	if _, err := io.ReadFull(p.randomSource, outMeta.Salt); err != nil {
-		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
+		return Metadata{}, &keyprovider.ErrKeyProviderFailure{
 			Message: fmt.Sprintf("failed to obtain %d bytes of random data", p.SaltLength),
 			Cause:   err,
 		}
 	}
+	return outMeta, nil
+}
 
-	if len(inMeta.Salt) == 0 {
-		// No previous metadata
-		inMeta.Salt = outMeta.Salt
-		inMeta.Iterations = outMeta.Iterations
-		inMeta.HashFunction = outMeta.HashFunction
-	} else {
-		// Make sure previous metadata is supported
-		if err := inMeta.HashFunction.Validate(); err != nil {
+func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
+	inMeta := rawMeta.(*Metadata)
+
+	outMeta, err := p.generateMetadata()
+	if err != nil {
+		return keyprovider.Output{}, nil, err
+	}
+
+	var decryptionKey []byte
+	if inMeta.isPresent() {
+		if err := inMeta.validate(); err != nil {
 			return keyprovider.Output{}, nil, err
 		}
+		decryptionKey = goPBKDF2.Key(
+			[]byte(p.Passphrase),
+			inMeta.Salt,
+			inMeta.Iterations,
+			inMeta.KeyLength,
+			inMeta.HashFunction.Function(),
+		)
 	}
 
 	return keyprovider.Output{
-		goPBKDF2.Key([]byte(p.Passphrase), outMeta.Salt, outMeta.Iterations, p.KeyLength, outMeta.HashFunction.Function()),
-		goPBKDF2.Key([]byte(p.Passphrase), inMeta.Salt, inMeta.Iterations, p.KeyLength, inMeta.HashFunction.Function()),
+		EncryptionKey: goPBKDF2.Key(
+			[]byte(p.Passphrase),
+			outMeta.Salt,
+			outMeta.Iterations,
+			outMeta.KeyLength,
+			outMeta.HashFunction.Function(),
+		),
+		DecryptionKey: decryptionKey,
 	}, outMeta, nil
 }
