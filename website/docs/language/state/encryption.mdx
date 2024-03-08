@@ -11,6 +11,7 @@ import ConfigurationSH from '!!raw-loader!./examples/encryption/configuration.sh
 import ConfigurationPS1 from '!!raw-loader!./examples/encryption/configuration.ps1'
 import Enforce from '!!raw-loader!./examples/encryption/enforce.tf'
 import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
+import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import RemoteState from '!!raw-loader!./examples/encryption/terraform_remote_state.tf'
 
@@ -77,7 +78,19 @@ If you use environment configuration, you can include the following code configu
 
 ## Key providers
 
-There are currently no supported key providers.
+### PBKDF2
+
+The PBKDF2 key provider allows you to use a long passphrase as to generate a key for an encryption method such as AES-GCM. You can configure it as follows:
+
+<CodeBlock language="hcl">{PBKDF2}</CodeBlock>
+
+| Option                  | Description                                                                                                                                             | Min.      | Default |
+|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|---------|
+| passphrase *(required)* | Enter a long and complex passphrase.                                                                                                                    | 16 chars. | -       |
+| key_length              | Number of bytes to generate as a key.                                                                                                                   | 1         | 32      |
+| iterations              | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000 |
+| salt_length             | Length of the salt for the key derivation.                                                                                                              | 1         | 32      |
+| hash_function           | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512  |
 
 ## Methods
 
@@ -86,6 +99,12 @@ There are currently no supported key providers.
 The only currently supported encryption method is AES-GCM. You can configure it in the following way:
 
 <CodeBlock language="hcl">{AESGCM}</CodeBlock>
+
+:::note
+
+The AES-GCM method needs 16, 24, or 32-byte keys. Please configure your key provider to supply keys with this exact length.
+
+:::
 
 :::warning
 
