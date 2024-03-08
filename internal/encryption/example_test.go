@@ -11,6 +11,9 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
+	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
+	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 )
 
 var (
@@ -38,6 +41,15 @@ backend {
 
 // This example demonstrates how to use the encryption package to encrypt and decrypt data.
 func Example() {
+	// Construct a new registry
+	// the registry is where we store the key providers and methods
+	reg := lockingencryptionregistry.New()
+	if err := reg.RegisterKeyProvider(static.New()); err != nil {
+		panic(err)
+	}
+	if err := reg.RegisterMethod(aesgcm.New()); err != nil {
+		panic(err)
+	}
 
 	// Load the 2 different configurations
 	cfgA, diags := config.LoadConfigFromString("Test Source A", ConfigA)
@@ -50,7 +62,7 @@ func Example() {
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
-	enc, diags := encryption.New(encryption.DefaultRegistry, cfg)
+	enc, diags := encryption.New(reg, cfg)
 	handleDiags(diags)
 
 	sfe := enc.StateFile()
