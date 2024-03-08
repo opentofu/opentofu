@@ -24,7 +24,6 @@ type Config struct {
 	// KeyProvider Config
 	KMSKeyID string `hcl:"kms_key_id" json:"-"`
 	KeySpec  string `hcl:"key_spec" json:"-"`
-	Symetric bool   `hcl:"symetric" json:"-"`
 
 	// Mirrored Backend Config
 	AccessKey                      string                     `hcl:"access_key,optional" json:"-"`

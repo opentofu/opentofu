@@ -26,58 +26,31 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	out := keyprovider.Output{}
 
 	// Generate new key pair
-	if p.Symetric {
-		var spec types.DataKeySpec
+	var spec types.DataKeySpec
 
-		for _, opt := range spec.Values() {
-			if string(opt) == p.KeySpec {
-				spec = opt
-			}
+	for _, opt := range spec.Values() {
+		if string(opt) == p.KeySpec {
+			spec = opt
 		}
-
-		if len(spec) == 0 {
-			return out, outMeta, fmt.Errorf("Invalid key_spec %s, expected one of %v", p.KeySpec, spec.Values())
-		}
-
-		generatedKeyData, err := p.svc.GenerateDataKey(p.ctx, &kms.GenerateDataKeyInput{
-			KeyId:   aws.String(p.KMSKeyID),
-			KeySpec: spec,
-		})
-
-		if err != nil {
-			return out, outMeta, err
-		}
-
-		// Set inital outputs
-		out.EncryptionKey = generatedKeyData.Plaintext
-		out.DecryptionKey = generatedKeyData.Plaintext
-		outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob
-	} else {
-		var spec types.DataKeyPairSpec
-
-		for _, opt := range spec.Values() {
-			if string(opt) == p.KeySpec {
-				spec = opt
-			}
-		}
-
-		if len(spec) == 0 {
-			return out, outMeta, fmt.Errorf("Invalid key_spec %s, expected one of %v", p.KeySpec, spec.Values())
-		}
-		generatedKeyData, err := p.svc.GenerateDataKeyPair(p.ctx, &kms.GenerateDataKeyPairInput{
-			KeyId:       aws.String(p.KMSKeyID),
-			KeyPairSpec: spec,
-		})
-
-		if err != nil {
-			return out, outMeta, err
-		}
-
-		// Set inital outputs
-		out.EncryptionKey = generatedKeyData.PublicKey
-		out.DecryptionKey = generatedKeyData.PrivateKeyPlaintext
-		outMeta.CiphertextBlob = generatedKeyData.PrivateKeyCiphertextBlob
 	}
+
+	if len(spec) == 0 {
+		return out, outMeta, fmt.Errorf("Invalid key_spec %s, expected one of %v", p.KeySpec, spec.Values())
+	}
+
+	generatedKeyData, err := p.svc.GenerateDataKey(p.ctx, &kms.GenerateDataKeyInput{
+		KeyId:   aws.String(p.KMSKeyID),
+		KeySpec: spec,
+	})
+
+	if err != nil {
+		return out, outMeta, err
+	}
+
+	// Set inital outputs
+	out.EncryptionKey = generatedKeyData.Plaintext
+	out.DecryptionKey = generatedKeyData.Plaintext
+	outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob
 
 	if len(inMeta.CiphertextBlob) != 0 {
 		// We have an existing decryption key to decode
