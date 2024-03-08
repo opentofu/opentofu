@@ -3,16 +3,11 @@ package aws_kms
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
-	"github.com/aws/aws-sdk-go/aws/arn"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -56,32 +51,6 @@ type Config struct {
 	RetryMode                      string                     `hcl:"retry_mode,optional" json:"-"`
 }
 
-type ConfigEndpoints struct {
-	IAM string `hcl:"iam,optional"`
-	STS string `hcl:"sts,optional"`
-}
-
-type AssumeRole struct {
-	RoleARN           string            `hcl:"role_arn"`
-	Duration          string            `hcl:"duration,optional"`
-	ExternalID        string            `hcl:"external_id,optional"`
-	Policy            string            `hcl:"policy,optional"`
-	PolicyARNs        []string          `hcl:"policy_arns,optional"`
-	SessionName       string            `hcl:"session_name,optional"`
-	Tags              map[string]string `hcl:"tags,optional"`
-	TransitiveTagKeys []string          `hcl:"transitive_tag_keys,optional"`
-}
-
-type AssumeRoleWithWebIdentity struct {
-	RoleARN              string   `hcl:"role_arn,optional"`
-	Duration             string   `hcl:"duration,optional"`
-	Policy               string   `hcl:"policy,optional"`
-	PolicyARNs           []string `hcl:"policy_arns,optional"`
-	SessionName          string   `hcl:"session_name,optional"`
-	WebIdentityToken     string   `hcl:"web_identity_token,optional"`
-	WebIdentityTokenFile string   `hcl:"web_identity_token_file,optional"`
-}
-
 func stringAttrEnvFallback(val string, env string) string {
 	if val != "" {
 		return val
@@ -100,124 +69,7 @@ func stringArrayAttrEnvFallback(val []string, env string) []string {
 	return nil
 }
 
-// Mirrored from s3 backend config
-func includeProtoIfNessesary(endpoint string) string {
-	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
-		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
-		endpoint = fmt.Sprintf("https://%s", endpoint)
-	}
-	return endpoint
-}
-
-func (c Config) getEndpoints() (ConfigEndpoints, error) {
-	endpoints := ConfigEndpoints{}
-
-	// Make sure we have 0 or 1 endpoint blocks
-	if len(c.Endpoints) == 1 {
-		endpoints = c.Endpoints[1]
-	}
-	if len(c.Endpoints) > 1 {
-		return endpoints, fmt.Errorf("expected single aws_kms endpoints block, multiple provided")
-	}
-
-	// Endpoint formatting
-	if len(endpoints.IAM) != 0 {
-		endpoints.IAM = includeProtoIfNessesary(endpoints.IAM)
-	}
-	if len(endpoints.STS) != 0 {
-		endpoints.STS = includeProtoIfNessesary(endpoints.STS)
-	}
-	return endpoints, nil
-}
-
-func parseAssumeRoleDuration(val string) (dur time.Duration, err error) {
-	if len(val) == 0 {
-		return dur, nil
-	}
-	dur, err = time.ParseDuration(val)
-	if err != nil {
-		return dur, fmt.Errorf("invalid assume_role duration %q: %w", val, err)
-	}
-
-	minDur := 15 * time.Minute
-	maxDur := 12 * time.Hour
-	if (minDur > 0 && dur < minDur) || (maxDur > 0 && dur > maxDur) {
-		return dur, fmt.Errorf("assume_role duration must be between %s and %s, had %s", minDur, maxDur, dur)
-	}
-	return dur, nil
-}
-
-func validatePolicyARNs(arns []string) error {
-	for _, v := range arns {
-		arn, err := arn.Parse(v)
-		if err != nil {
-			return err
-		}
-		if !strings.HasPrefix(arn.Resource, "policy/") {
-			return fmt.Errorf("arn must be a valid IAM Policy ARN, got %q", v)
-		}
-	}
-	return nil
-}
-
-func (c Config) getAssumeRole() (*awsbase.AssumeRole, error) {
-	if c.AssumeRole == nil {
-		return nil, nil
-	}
-
-	duration, err := parseAssumeRoleDuration(c.AssumeRole.Duration)
-	if err != nil {
-		return nil, err
-	}
-
-	err = validatePolicyARNs(c.AssumeRole.PolicyARNs)
-	if err != nil {
-		return nil, err
-	}
-
-	assumeRole := &awsbase.AssumeRole{
-		RoleARN:           c.AssumeRole.RoleARN,
-		Duration:          duration,
-		ExternalID:        c.AssumeRole.ExternalID,
-		Policy:            c.AssumeRole.Policy,
-		PolicyARNs:        c.AssumeRole.PolicyARNs,
-		SessionName:       c.AssumeRole.SessionName,
-		Tags:              c.AssumeRole.Tags,
-		TransitiveTagKeys: c.AssumeRole.TransitiveTagKeys,
-	}
-	return assumeRole, nil
-}
-func (c Config) getAssumeRoleWithWebIdentity() (*awsbase.AssumeRoleWithWebIdentity, error) {
-	if c.AssumeRoleWithWebIdentity == nil {
-		return nil, nil
-	}
-
-	if c.AssumeRoleWithWebIdentity.WebIdentityToken != "" && c.AssumeRoleWithWebIdentity.WebIdentityTokenFile != "" {
-		return nil, fmt.Errorf("conflicting config attributes: only web_identity_token or web_identity_token_file can be specified, not both")
-	}
-
-	duration, err := parseAssumeRoleDuration(c.AssumeRoleWithWebIdentity.Duration)
-	if err != nil {
-		return nil, err
-	}
-
-	err = validatePolicyARNs(c.AssumeRoleWithWebIdentity.PolicyARNs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &awsbase.AssumeRoleWithWebIdentity{
-		RoleARN:              stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.RoleARN, "AWS_ROLE_ARN"),
-		Duration:             duration,
-		Policy:               c.AssumeRoleWithWebIdentity.Policy,
-		PolicyARNs:           c.AssumeRoleWithWebIdentity.PolicyARNs,
-		SessionName:          stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.SessionName, "AWS_ROLE_SESSION_NAME"),
-		WebIdentityToken:     stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.WebIdentityToken, "AWS_WEB_IDENTITY_TOKEN"),
-		WebIdentityTokenFile: stringAttrEnvFallback(c.AssumeRoleWithWebIdentity.WebIdentityTokenFile, "AWS_WEB_IDENTITY_TOKEN_FILE"),
-	}, nil
-}
-
-func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
+func (c Config) asAWSBase() (*awsbase.Config, error) {
 	// Get endpoints to use
 	endpoints, err := c.getEndpoints()
 	if err != nil {
@@ -225,13 +77,13 @@ func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
 	}
 
 	// Get assume role
-	assumeRole, err := c.getAssumeRole()
+	assumeRole, err := c.AssumeRole.asAWSBase()
 	if err != nil {
 		return nil, err
 	}
 
 	// Get assume role with web identity
-	assumeRoleWithWebIdentity, err := c.getAssumeRoleWithWebIdentity()
+	assumeRoleWithWebIdentity, err := c.AssumeRoleWithWebIdentity.asAWSBase()
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +165,7 @@ func (c Config) ToAWSBaseConfig() (*awsbase.Config, error) {
 }
 
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
-	cfg, err := c.ToAWSBaseConfig()
+	cfg, err := c.asAWSBase()
 	if err != nil {
 		return nil, nil, err
 	}
