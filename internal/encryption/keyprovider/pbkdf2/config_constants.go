@@ -20,3 +20,8 @@ var hashFunctions = map[HashFunctionName]HashFunction{
 	SHA256HashFunctionName: sha256.New,
 	SHA512HashFunctionName: sha512.New,
 }
+
+const (
+	MinimumIterations       int = 200000
+	MinimumPassphraseLength int = 16
+)

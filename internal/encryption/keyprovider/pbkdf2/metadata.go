@@ -33,10 +33,12 @@ func (m Metadata) validate() error {
 			Message: fmt.Sprintf("invalid key length (%d)", m.KeyLength),
 		}
 	}
-	if err := m.HashFunction.Validate(); err != nil {
-		return keyprovider.ErrInvalidMetadata{
-			Message: "invalid hash function name",
-			Cause:   err,
+	if m.HashFunction != "" {
+		if err := m.HashFunction.Validate(); err != nil {
+			return keyprovider.ErrInvalidMetadata{
+				Message: "invalid hash function name",
+				Cause:   err,
+			}
 		}
 	}
 	return nil

@@ -10,13 +10,11 @@ import (
 	"testing"
 )
 
-type hashFunctionTestCase struct {
-	hashFunctionName pbkdf2.HashFunctionName
-	valid            bool
-}
-
 func TestHashFunctionName_Validate(t *testing.T) {
-	tc := map[string]hashFunctionTestCase{
+	tc := map[string]struct {
+		hashFunctionName pbkdf2.HashFunctionName
+		valid            bool
+	}{
 		"empty": {
 			hashFunctionName: "",
 			valid:            false,
@@ -25,8 +23,8 @@ func TestHashFunctionName_Validate(t *testing.T) {
 			hashFunctionName: pbkdf2.SHA256HashFunctionName,
 			valid:            true,
 		},
-		"sha1": {
-			hashFunctionName: "sha1",
+		"sha0": {
+			hashFunctionName: "sha0",
 			valid:            false,
 		},
 	}
@@ -43,11 +41,6 @@ func TestHashFunctionName_Validate(t *testing.T) {
 	}
 }
 
-type buildTestCase struct {
-	config *pbkdf2.Config
-	valid  bool
-}
-
 func generateFixedStringHelper(length int) string {
 	result := ""
 	for i := 0; i < length; i++ {
@@ -60,7 +53,10 @@ func TestConfig_Build(t *testing.T) {
 	knownGood := func() *pbkdf2.Config {
 		return pbkdf2.New().TypedConfig().WithPassphrase(generateFixedStringHelper(pbkdf2.MinimumPassphraseLength))
 	}
-	tc := map[string]buildTestCase{
+	tc := map[string]struct {
+		config *pbkdf2.Config
+		valid  bool
+	}{
 		"empty": {
 			config: &pbkdf2.Config{},
 			valid:  false,
@@ -101,7 +97,6 @@ func TestConfig_Build(t *testing.T) {
 	}
 	for name, testCase := range tc {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			_, _, err := testCase.config.Build()
 			if testCase.valid && err != nil {
 				t.Fatalf("unexpected error: %v", err)

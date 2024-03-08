@@ -37,11 +37,6 @@ func (h HashFunctionName) Function() HashFunction {
 	return hashFunctions[h]
 }
 
-const (
-	MinimumIterations       int = 200000
-	MinimumPassphraseLength int = 16
-)
-
 type Config struct {
 	// Set by the descriptor.
 	randomSource io.Reader

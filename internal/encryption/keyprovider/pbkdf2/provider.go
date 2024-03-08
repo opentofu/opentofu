@@ -19,9 +19,9 @@ type pbkdf2KeyProvider struct {
 	Config
 }
 
-func (p pbkdf2KeyProvider) generateMetadata() (Metadata, error) {
+func (p pbkdf2KeyProvider) generateMetadata() (*Metadata, error) {
 	// Build outMeta based on current configuration
-	outMeta := Metadata{
+	outMeta := &Metadata{
 		Iterations:   p.Iterations,
 		HashFunction: p.HashFunction,
 		Salt:         make([]byte, p.SaltLength),
@@ -29,7 +29,7 @@ func (p pbkdf2KeyProvider) generateMetadata() (Metadata, error) {
 	}
 	// Generate new salt
 	if _, err := io.ReadFull(p.randomSource, outMeta.Salt); err != nil {
-		return Metadata{}, &keyprovider.ErrKeyProviderFailure{
+		return nil, &keyprovider.ErrKeyProviderFailure{
 			Message: fmt.Sprintf("failed to obtain %d bytes of random data", p.SaltLength),
 			Cause:   err,
 		}
@@ -38,6 +38,9 @@ func (p pbkdf2KeyProvider) generateMetadata() (Metadata, error) {
 }
 
 func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
+	if rawMeta == nil {
+		return keyprovider.Output{}, nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
+	}
 	inMeta := rawMeta.(*Metadata)
 
 	outMeta, err := p.generateMetadata()
