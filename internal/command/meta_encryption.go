@@ -7,10 +7,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
-	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
-	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -38,17 +34,6 @@ func (m *Meta) EncryptionFromPath(path string) (encryption.Encryption, tfdiags.D
 }
 
 func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encryption, tfdiags.Diagnostics) {
-	reg := lockingencryptionregistry.New()
-	if err := reg.RegisterKeyProvider(static.New()); err != nil {
-		panic(err)
-	}
-	if err := reg.RegisterKeyProvider(pbkdf2.New()); err != nil {
-		panic(err)
-	}
-	if err := reg.RegisterMethod(aesgcm.New()); err != nil {
-		panic(err)
-	}
-
 	cfg := module.Encryption
 	var diags tfdiags.Diagnostics
 
@@ -62,7 +47,7 @@ func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encrypti
 		cfg = cfg.Merge(envCfg)
 	}
 
-	enc, encDiags := encryption.New(reg, cfg)
+	enc, encDiags := encryption.New(encryption.DefaultRegistry, cfg)
 	diags = diags.Append(encDiags)
 
 	return enc, diags
