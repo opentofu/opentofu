@@ -24,12 +24,11 @@ terraform {
             # for recommendations
             iterations = 600000 
 	
-	        # Pick the hashing function. Can be sha256 or sha512.
-	        hash_function = "sha512"
-
+            # Pick the hashing function. Can be sha256 or sha512.
+            hash_function = "sha512"
 	        
-	        # Pick the salt length in bytes.
-	        salt_length = 32
+            # Pick the salt length in bytes.
+            salt_length = 32
         }
     }
 }

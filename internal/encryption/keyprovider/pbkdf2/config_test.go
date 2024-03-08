@@ -101,6 +101,7 @@ func TestConfig_Build(t *testing.T) {
 	}
 	for name, testCase := range tc {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := testCase.config.Build()
 			if testCase.valid && err != nil {
 				t.Fatalf("unexpected error: %v", err)

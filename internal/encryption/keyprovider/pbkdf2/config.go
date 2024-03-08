@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
+// HashFunction is a provider of a hash.Hash.
 type HashFunction func() hash.Hash
 
 // HashFunctionName describes a hash function to use for PBKDF2 hash generation. While you could theoretically supply

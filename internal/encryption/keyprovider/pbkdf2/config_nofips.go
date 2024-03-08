@@ -3,8 +3,6 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !fips140_2
-
 package pbkdf2
 
 import (
