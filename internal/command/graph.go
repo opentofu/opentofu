@@ -57,7 +57,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(".")
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -67,7 +67,7 @@ func (c *GraphCommand) Run(rawArgs []string) int {
 	// Try to load plan if path is specified
 	var planFile *planfile.WrappedPlanFile
 	if args.PlanPath != "" {
-		planFile, err = c.PlanFile(planPath, enc.PlanFile())
+		planFile, err = c.PlanFile(args.PlanPath, enc.PlanFile())
 		if err != nil {
 			diags = diags.Append(err)
 			view.Diagnostics(diags)
