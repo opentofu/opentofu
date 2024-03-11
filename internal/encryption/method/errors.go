@@ -11,7 +11,7 @@ type ErrCryptoFailure struct {
 
 func (e ErrCryptoFailure) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("%s (%v)", e.Message, e.Cause)
+		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 	}
 	return e.Message
 }
@@ -27,7 +27,7 @@ type ErrEncryptionFailed struct {
 
 func (e ErrEncryptionFailed) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("encryption failed (%v)", e.Cause)
+		return fmt.Sprintf("encryption failed: %v", e.Cause)
 	}
 	return "encryption failed"
 }
@@ -43,7 +43,7 @@ type ErrDecryptionFailed struct {
 
 func (e ErrDecryptionFailed) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("decryption failed (%v)", e.Cause)
+		return fmt.Sprintf("decryption failed: %v", e.Cause)
 	}
 	return "decryption failed"
 }
@@ -59,7 +59,7 @@ type ErrInvalidConfiguration struct {
 
 func (e ErrInvalidConfiguration) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("invalid method configuration (%v)", e.Cause)
+		return fmt.Sprintf("invalid method configuration: %v", e.Cause)
 	}
 	return "invalid method configuration"
 }

@@ -10,7 +10,7 @@ type ErrKeyProviderFailure struct {
 
 func (e ErrKeyProviderFailure) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("%s (%v)", e.Message, e.Cause)
+		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 	}
 	return e.Message
 }
@@ -28,9 +28,9 @@ type ErrInvalidConfiguration struct {
 func (e ErrInvalidConfiguration) Error() string {
 	if e.Cause != nil {
 		if e.Message != "" {
-			return fmt.Sprintf("%s (%v)", e.Message, e.Cause)
+			return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 		}
-		return fmt.Sprintf("invalid key provider configuration (%v)", e.Cause)
+		return fmt.Sprintf("invalid key provider configuration: %v", e.Cause)
 	}
 	if e.Message != "" {
 		return e.Message
@@ -51,9 +51,9 @@ type ErrInvalidMetadata struct {
 func (e ErrInvalidMetadata) Error() string {
 	if e.Cause != nil {
 		if e.Message != "" {
-			return fmt.Sprintf("%s (%v)", e.Message, e.Cause)
+			return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 		}
-		return fmt.Sprintf("invalid key provider metadata (%v)", e.Cause)
+		return fmt.Sprintf("invalid key provider metadata: %v", e.Cause)
 	}
 	if e.Message != "" {
 		return e.Message
