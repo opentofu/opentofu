@@ -23,6 +23,7 @@ ENHANCEMENTS:
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
 * Add documentation for the `removed` block. ([#1332](https://github.com/opentofu/opentofu/pull/1332))
+* Allow for templatefile function recursion (up to 1024 call depth default). ([#1250](https://github.com/opentofu/opentofu/pull/1250))
 
 BUG FIXES:
 * Fix view hooks unit test flakiness by deterministically waiting for heartbeats to execute ([$1153](https://github.com/opentofu/opentofu/issues/1153))
