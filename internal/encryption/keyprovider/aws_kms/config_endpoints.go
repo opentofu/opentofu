@@ -25,7 +25,7 @@ func (c Config) getEndpoints() (ConfigEndpoints, error) {
 
 	// Make sure we have 0 or 1 endpoint blocks
 	if len(c.Endpoints) == 1 {
-		endpoints = c.Endpoints[1]
+		endpoints = c.Endpoints[0]
 	}
 	if len(c.Endpoints) > 1 {
 		return endpoints, fmt.Errorf("expected single aws_kms endpoints block, multiple provided")
