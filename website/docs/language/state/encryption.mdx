@@ -11,7 +11,10 @@ import ConfigurationSH from '!!raw-loader!./examples/encryption/configuration.sh
 import ConfigurationPS1 from '!!raw-loader!./examples/encryption/configuration.ps1'
 import Enforce from '!!raw-loader!./examples/encryption/enforce.tf'
 import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
+import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
+import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
+import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
 import RemoteState from '!!raw-loader!./examples/encryption/terraform_remote_state.tf'
 
 # State and Plan Encryption
@@ -35,6 +38,10 @@ When you enable encryption, consider who needs access to your state file directl
 You will also need to decide what kind of key you would like to use based on your security requirements. You can either opt for a static passphrase or you can choose a key management system. If you opt for a key management system, it is imperative to configure automatic key rotation for some encryption methods. This is particularly crucial if the encryption algorithm you choose has the potential to reach a point of 'key saturation', where the maximum safe usage limit of the key is approached, such as AES-GCM. You can find more information about this in the [encryption methods](#encryption-methods) section below.
 
 Finally, before enabling encryption, please exercise your disaster recovery plan and make a temporary backup of your unencrypted state file. You should also have backups of your keys. Once you enable encryption, OpenTofu cannot read your state file without the correct key.
+
+### Migrating from an unencrypted state/plan
+
+If you are migrating from an unencrypted state or plan file to an encrypted one, you may be surprised to find OpenTofu refusing to read your old data. This is a protection mechanism to prevent OpenTofu from reading manipulated, unencrypted data. Please see the [initial setup](#initial-setup) section below for details.
 
 ## Configuration
 
@@ -77,7 +84,19 @@ If you use environment configuration, you can include the following code configu
 
 ## Key providers
 
-There are currently no supported key providers.
+### PBKDF2
+
+The PBKDF2 key provider allows you to use a long passphrase as to generate a key for an encryption method such as AES-GCM. You can configure it as follows:
+
+<CodeBlock language="hcl">{PBKDF2}</CodeBlock>
+
+| Option                  | Description                                                                                                                                             | Min.      | Default |
+|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|---------|
+| passphrase *(required)* | Enter a long and complex passphrase.                                                                                                                    | 16 chars. | -       |
+| key_length              | Number of bytes to generate as a key.                                                                                                                   | 1         | 32      |
+| iterations              | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000 |
+| salt_length             | Length of the salt for the key derivation.                                                                                                              | 1         | 32      |
+| hash_function           | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512  |
 
 ## Methods
 
@@ -86,6 +105,12 @@ There are currently no supported key providers.
 The only currently supported encryption method is AES-GCM. You can configure it in the following way:
 
 <CodeBlock language="hcl">{AESGCM}</CodeBlock>
+
+:::note
+
+The AES-GCM method needs 16, 24, or 32-byte keys. Please configure your key provider to supply keys with this exact length.
+
+:::
 
 :::warning
 
@@ -101,6 +126,17 @@ In some cases, you may want to change your encryption configuration. This can in
 
 If OpenTofu fails to **read** your state or plan file with the new method, it will automatically try the fallback method. When OpenTofu **saves** your state or plan file, it will always use the new method and not the fallback.
 
+## Initial setup
+
+When you first configure encryption, your state and plan files are unencrypted. OpenTofu, by default, refuses to read them because they could have been manipulated. To enable reading unencrypted data, you will have to specify an empty fallback block:
+
+<CodeBlock language="hcl">{FallbackFromUnencrypted}</CodeBlock>
+
+## Rolling back encryption
+
+Similar to the initial setup above, migrating to unencrypted state and plan files is also possible in a similar manner. You simply have to specify no method in the target block as follows:
+
+<CodeBlock language="hcl">{FallbackToUnencrypted}</CodeBlock>
 
 ## Remote state data sources
 

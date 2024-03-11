@@ -79,8 +79,6 @@ func Example() {
 		panic("The data has not been encrypted!")
 	}
 
-	println(string(encrypted))
-
 	// Decrypt
 	decryptedState, err := sfe.DecryptState(encrypted)
 	if err != nil {
