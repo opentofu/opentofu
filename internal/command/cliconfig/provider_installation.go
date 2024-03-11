@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package cliconfig
@@ -258,7 +260,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					devOverrides[addr] = getproviders.PackageLocalDir(dirPath)
 				}
 
-				continue // We won't add anything to pi.Methods for this one
+				continue // We won't add anything to pi.MethodConfigs for this one
 
 			default:
 				diags = diags.Append(tfdiags.Sourceless(

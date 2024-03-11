@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -14,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -49,6 +52,13 @@ func (c *StatePushCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	if encDiags.HasErrors() {
+		c.showDiagnostics(encDiags)
+		return 1
+	}
+
 	// Determine our reader for the input state. This is the filepath
 	// or stdin if "-" is given.
 	var r io.Reader = os.Stdin
@@ -66,7 +76,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Read the state
-	srcStateFile, err := statefile.Read(r)
+	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionDisabled()) // Assume the given statefile is not encrypted
 	if c, ok := r.(io.Closer); ok {
 		// Close the reader if possible right now since we're done with it.
 		c.Close()
@@ -77,7 +87,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.Backend())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1

@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package pg
@@ -17,6 +19,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/lib/pq"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -160,7 +163,7 @@ func TestBackendConfig(t *testing.T) {
 			defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
 
 			var diags tfdiags.Diagnostics
-			b := New().(*Backend)
+			b := New(encryption.StateEncryptionDisabled()).(*Backend)
 			schema := b.ConfigSchema()
 			spec := schema.DecoderSpec()
 			obj, decDiags := hcldec.Decode(config, spec, nil)
@@ -323,7 +326,7 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 			}
 			defer db.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
 
-			b := backend.TestBackendConfig(t, New(), config).(*Backend)
+			b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
 			if b == nil {
 				t.Fatal("Backend could not be configured")
@@ -396,7 +399,7 @@ func TestBackendStates(t *testing.T) {
 				"conn_str":    connStr,
 				"schema_name": schemaName,
 			})
-			b := backend.TestBackendConfig(t, New(), config).(*Backend)
+			b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
 			if b == nil {
 				t.Fatal("Backend could not be configured")
@@ -421,13 +424,13 @@ func TestBackendStateLocks(t *testing.T) {
 		"conn_str":    connStr,
 		"schema_name": schemaName,
 	})
-	b := backend.TestBackendConfig(t, New(), config).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
 	if b == nil {
 		t.Fatal("Backend could not be configured")
 	}
 
-	bb := backend.TestBackendConfig(t, New(), config).(*Backend)
+	bb := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
 	if bb == nil {
 		t.Fatal("Backend could not be configured")
@@ -450,7 +453,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 			"conn_str":    connStr,
 			"schema_name": schemaName,
 		})
-		b := backend.TestBackendConfig(t, New(), config).(*Backend)
+		b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
 		if b == nil {
 			t.Fatal("Backend could not be configured")

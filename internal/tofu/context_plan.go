@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -10,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/hcl/v2"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -82,6 +86,10 @@ type PlanOpts struct {
 	// ImportTargets is a list of target resources to import. These resources
 	// will be added to the plan graph.
 	ImportTargets []*ImportTarget
+
+	// EndpointsToRemove are the list of resources and modules to forget from
+	// the state.
+	EndpointsToRemove []addrs.ConfigRemovable
 
 	// GenerateConfig tells OpenTofu where to write any generated configuration
 	// for any ImportTargets that do not have configuration already.
@@ -304,6 +312,17 @@ func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts 
 	}
 
 	opts.ImportTargets = c.findImportTargets(config, prevRunState)
+	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets)
+	diags = diags.Append(importTargetDiags)
+
+	var endpointsToRemoveDiags tfdiags.Diagnostics
+	opts.EndpointsToRemove, endpointsToRemoveDiags = refactoring.GetEndpointsToRemove(config)
+	diags = diags.Append(endpointsToRemoveDiags)
+
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	plan, walkDiags := c.planWalk(config, prevRunState, opts)
 	diags = diags.Append(walkDiags)
 
@@ -526,25 +545,19 @@ func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactor
 // All import target addresses with a key must already exist in config.
 // When we are able to generate config for expanded resources, this rule can be
 // relaxed.
-func (c *Context) postPlanValidateImports(config *configs.Config, importTargets []*ImportTarget, allInst instances.Set) tfdiags.Diagnostics {
+func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allInst instances.Set) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for _, it := range importTargets {
+	for resolvedImport := range importResolver.imports {
 		// We only care about import target addresses that have a key.
 		// If the address does not have a key, we don't need it to be in config
 		// because are able to generate config.
-		if it.Addr.Resource.Key == nil {
-			continue
+		address, addrParseDiags := addrs.ParseAbsResourceInstanceStr(resolvedImport.AddrStr)
+		if addrParseDiags.HasErrors() {
+			return addrParseDiags
 		}
 
-		if !allInst.HasResourceInstance(it.Addr) {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Cannot import to non-existent resource address",
-				fmt.Sprintf(
-					"Importing to resource address %s is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.",
-					it.Addr,
-				),
-			))
+		if !allInst.HasResourceInstance(address) {
+			diags = diags.Append(importResourceWithoutConfigDiags(address, nil))
 		}
 	}
 	return diags
@@ -557,13 +570,28 @@ func (c *Context) findImportTargets(config *configs.Config, priorState *states.S
 	for _, ic := range config.Module.Import {
 		if priorState.ResourceInstance(ic.To) == nil {
 			importTargets = append(importTargets, &ImportTarget{
-				Addr:   ic.To,
-				ID:     ic.ID,
 				Config: ic,
 			})
 		}
 	}
 	return importTargets
+}
+
+func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget) (diags tfdiags.Diagnostics) {
+	for _, imp := range importTargets {
+		staticAddress := imp.StaticAddr()
+		descendantConfig := config.Descendent(staticAddress.Module)
+		if descendantConfig == nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Cannot import to non-existent resource address",
+				Detail:   fmt.Sprintf("Importing to resource address '%s' is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", staticAddress),
+				Subject:  imp.Config.DeclRange.Ptr(),
+			})
+			return
+		}
+	}
+	return
 }
 
 func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
@@ -606,7 +634,7 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 
 	allInsts := walker.InstanceExpander.AllInstances()
 
-	importValidateDiags := c.postPlanValidateImports(config, opts.ImportTargets, allInsts)
+	importValidateDiags := c.postPlanValidateImports(walker.ImportResolver, allInsts)
 	if importValidateDiags.HasErrors() {
 		return nil, importValidateDiags
 	}
@@ -679,6 +707,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			ExternalReferences: opts.ExternalReferences,
 			ImportTargets:      opts.ImportTargets,
 			GenerateConfigPath: opts.GenerateConfigPath,
+			EndpointsToRemove:  opts.EndpointsToRemove,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:

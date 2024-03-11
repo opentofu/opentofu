@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -9,6 +11,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
@@ -30,7 +33,7 @@ func testStateBackups(t *testing.T, dir string) []string {
 func TestStateDefaultBackupExtension(t *testing.T) {
 	testCwd(t)
 
-	s, err := (&StateMeta{}).State()
+	s, err := (&StateMeta{}).State(encryption.Disabled())
 	if err != nil {
 		t.Fatal(err)
 	}

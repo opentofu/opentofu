@@ -1,10 +1,13 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package configs
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -149,6 +152,11 @@ func TestLoadModuleCall(t *testing.T) {
 }
 
 func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
+	absolutePath := "/absolute/path"
+	if runtime.GOOS == "windows" {
+		absolutePath = "C:\\absolute\\path"
+	}
+
 	tests := []struct {
 		Addr string
 		Want bool
@@ -162,7 +170,7 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 			false,
 		},
 		{
-			"/absolute/path",
+			absolutePath,
 			true,
 		},
 		{

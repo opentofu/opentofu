@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package gcs
@@ -96,7 +98,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		return nil, err
 	}
 
-	st := &remote.State{Client: c}
+	st := remote.NewState(c, b.encryption)
 
 	// Grab the value
 	if err := st.RefreshState(); err != nil {

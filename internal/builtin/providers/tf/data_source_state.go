@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tf
@@ -10,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -70,7 +73,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	// Getting the backend implicitly validates the configuration for it,
 	// but we can only do that if it's all known already.
 	if cfg.GetAttr("config").IsWhollyKnown() && cfg.GetAttr("backend").IsKnown() {
-		_, _, moreDiags := getBackend(cfg)
+		_, _, moreDiags := getBackend(cfg, nil) // Don't need the encryption for validation here
 		diags = diags.Append(moreDiags)
 	} else {
 		// Otherwise we'll just type-check the config object itself.
@@ -100,10 +103,10 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	return diags
 }
 
-func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	b, cfg, moreDiags := getBackend(d)
+	b, cfg, moreDiags := getBackend(d, enc)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return cty.NilVal, diags
@@ -181,7 +184,7 @@ func dataSourceRemoteStateRead(d cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	return cty.ObjectVal(newState), diags
 }
 
-func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics) {
+func getBackend(cfg cty.Value, enc encryption.StateEncryption) (backend.Backend, cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	backendType := cfg.GetAttr("backend").AsString()
@@ -209,7 +212,7 @@ func getBackend(cfg cty.Value) (backend.Backend, cty.Value, tfdiags.Diagnostics)
 		))
 		return nil, cty.NilVal, diags
 	}
-	b := f()
+	b := f(enc)
 
 	config := cfg.GetAttr("config")
 	if config.IsNull() {

@@ -1,6 +1,67 @@
 # Weekly Updates
 
-## 2023-02-07
+## 2024-03-07
+
+Hello there! This week we got state encryption running on the main branch for the first time, and we are planning to release an alpha build next week with a passphrase key provider and possibly the AWS KMS integration.
+
+- Current Status and Up Next
+  - State encryption
+    -  Several PRs have been merged ([#1316](https://github.com/opentofu/opentofu/pull/1316), [#1291](https://github.com/opentofu/opentofu/pull/1291), [#1295](https://github.com/opentofu/opentofu/pull/1295), [#1288](https://github.com/opentofu/opentofu/pull/1288), [#1292](https://github.com/opentofu/opentofu/pull/1292), [#1294](https://github.com/opentofu/opentofu/pull/1294))
+  - Declarative remove block
+    - Merged end-user documentation ([#1332](https://github.com/opentofu/opentofu/pull/1332))
+  - Website & community
+    - Added support for the urldecode() function in OpenTofu ([#1283](https://github.com/opentofu/opentofu/pull/1283)) 
+    - Improved website accessibility ([#274](https://github.com/opentofu/opentofu.org/pull/274))
+  - How can I help?
+    - Once the alpha build is out, please test state encryption. Watch the [OpenTofu YouTube channel](https://youtube.com/@opentofu) for detailed instructions.
+    - Use OpenTofu, report issues, and please upvote issues that are important to you, so we can better prioritize development work.
+
+## 2024-02-22
+
+Hello! Over the last week we've finished up a couple of features, and we're continuing to work our way towards 1.7.0.
+
+We've also [just released 1.6.2](https://github.com/opentofu/opentofu/releases/tag/v1.6.2) with a fix for a bug in `tofu test`.
+
+Additionally, if you're coming to KubeCon and will be there a day early, make sure to come to OpenTofu Day! It's happening on Tuesday, the 19th of March, as a KubeCon + CloudNativeCon Europe CNCF-hosted Co-located Event. You can find more details [here](https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/co-located-events/opentofu-day/#about).
+
+- Current Status and Up Next
+  - State encryption
+    - [First big pull request](https://github.com/opentofu/opentofu/pull/1227) has been merged.
+    - The team is now working with much better parallelism on integrating it with the codebase, as well as implementing the various encryption methods and key providers.
+  - Declarative remove block
+    - The [PR](https://github.com/opentofu/opentofu/pull/1158) has been merged, and the feature is now finished. It will be available as part of 1.7.0.
+    - We'll now work on the documentation for this feature.
+  - [Passing outputs of one test case to another as variables](https://github.com/opentofu/opentofu/pull/1254) is now fixed and is available as part of 1.6.2 today.
+  - Work on adding for_each to import blocks is being continued, [a draft PR is currently up](https://github.com/opentofu/opentofu/pull/1270) further refactoring the code.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
+## 2024-02-15
+
+Hey there! Last week was quiet due to most of the core team is off on winter holidays, but this week we're all back!
+
+- Current Status and Up Next
+  - We've finalized most of our discussions about the initial state encryption design. [The PR will be merged soon](https://github.com/opentofu/opentofu/pull/1227).
+  - The removed block project still [has a PR up](https://github.com/opentofu/opentofu/pull/1158), and is pending reviews. We're expecting to merge it soon.
+  - Work on adding for_each to import blocks is being continued, no PR up right now, though the refactor mentioned last week has been merged.
+  - We're refactoring our release workflow, so it properly handles future pre-release versions, with a stable release now in place. [A PR is open for this](https://github.com/opentofu/opentofu/pull/1235) and still being worked on.
+  - We're working on a bug fix to passing outputs of one test case to another as variables. [See the PR here](https://github.com/opentofu/opentofu/pull/1254).
+  - We're having a (positively!) surprisingly large amount of external contributors, so we're spending a nontrivial amount of time reviewing and helping contributors get their changes in. Thanks everybody!
+  - We've updated our [contribution guide](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md) to better guide contributors and also clarify how we make decisions on feature requests.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
+## 2024-02-07
 
 The last two weeks we've been focusing on working towards the 1.7.0 release, and on going through our issue backlog.
 

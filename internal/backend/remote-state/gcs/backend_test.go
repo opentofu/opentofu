@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package gcs
@@ -16,6 +18,7 @@ import (
 	kms "cloud.google.com/go/kms/apiv1"
 	"cloud.google.com/go/storage"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/version"
@@ -236,7 +239,7 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 		config["kms_encryption_key"] = kmsName
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config))
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
 	be := b.(*Backend)
 
 	// create the bucket if it doesn't exist

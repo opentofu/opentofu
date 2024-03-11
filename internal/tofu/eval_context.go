@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -8,6 +10,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -201,7 +204,18 @@ type EvalContext interface {
 	// objects accessible through it.
 	MoveResults() refactoring.MoveResults
 
+	// ImportResolver returns a map describing the resolved imports
+	// after evaluating the dynamic address of the import targets
+	//
+	// This data is created during the graph walk, as import target addresses are being resolved
+	// Its primary use is for validation at the end of a plan - To make sure all imports have been satisfied
+	// and have a configuration
+	ImportResolver() *ImportResolver
+
 	// WithPath returns a copy of the context with the internal path set to the
 	// path argument.
 	WithPath(path addrs.ModuleInstance) EvalContext
+
+	// Returns the currently configured encryption setup
+	GetEncryption() encryption.Encryption
 }

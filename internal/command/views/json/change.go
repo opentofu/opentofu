@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package json
@@ -70,6 +72,7 @@ const (
 	ActionReplace ChangeAction = "replace"
 	ActionDelete  ChangeAction = "delete"
 	ActionImport  ChangeAction = "import"
+	ActionForget  ChangeAction = "remove"
 )
 
 func changeAction(action plans.Action) ChangeAction {
@@ -86,6 +89,8 @@ func changeAction(action plans.Action) ChangeAction {
 		return ActionReplace
 	case plans.Delete:
 		return ActionDelete
+	case plans.Forget:
+		return ActionForget
 	default:
 		return ActionNoOp
 	}

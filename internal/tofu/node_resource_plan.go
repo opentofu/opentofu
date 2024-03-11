@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -45,10 +47,6 @@ type nodeExpandPlannableResource struct {
 	// structure in the future, as we need to compare for equality and take the
 	// union of multiple groups of dependencies.
 	dependencies []addrs.ConfigResource
-
-	// legacyImportMode is set if the graph is being constructed following an
-	// invocation of the legacy "tofu import" CLI command.
-	legacyImportMode bool
 }
 
 var (
@@ -304,6 +302,21 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
+	var commandLineImportTargets []CommandLineImportTarget
+	importResolver := ctx.ImportResolver()
+	// FIXME - Deal with cases of duplicate addresses
+
+	for _, importTarget := range n.importTargets {
+		if importTarget.IsFromImportCommandLine() {
+			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
+		} else {
+			err := importResolver.ResolveImport(importTarget, ctx)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// Our graph transformers require access to the full state, so we'll
 	// temporarily lock it while we work on this.
 	state := ctx.State().Lock()
@@ -313,27 +326,14 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		var m *NodePlannableResourceInstance
 
-		// If we're in legacy import mode (the import CLI command), we only need
+		// If we're in the `tofu import` CLI command, we only need
 		// to return the import node, not a plannable resource node.
-		if n.legacyImportMode {
-			for _, importTarget := range n.importTargets {
-				if importTarget.Addr.Equal(a.Addr) {
-
-					// The import ID was supplied as a string on the command
-					// line and made into a synthetic HCL expression.
-					importId, diags := evaluateImportIdExpression(importTarget.ID, ctx)
-					if diags.HasErrors() {
-						// This should be impossible, because the import command
-						// arg parsing builds the synth expression from a
-						// non-null string.
-						panic(fmt.Sprintf("Invalid import id: %s. This is a bug in OpenTofu; please report it!", diags.Err()))
-					}
-
-					return &graphNodeImportState{
-						Addr:             importTarget.Addr,
-						ID:               importId,
-						ResolvedProvider: n.ResolvedProvider,
-					}
+		for _, c := range commandLineImportTargets {
+			if c.Addr.Equal(a.Addr) {
+				return &graphNodeImportState{
+					Addr:             c.Addr,
+					ID:               c.ID,
+					ResolvedProvider: n.ResolvedProvider,
 				}
 			}
 		}
@@ -361,15 +361,13 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		for _, importTarget := range n.importTargets {
-			if importTarget.Addr.Equal(a.Addr) {
+		for _, evaluatedConfigImportTarget := range ctx.ImportResolver().GetAllImports() {
+			// TODO - Change this code once Config.To is not a static address, to actually evaluate it
+			if evaluatedConfigImportTarget.Config.To.Equal(a.Addr) {
 				// If we get here, we're definitely not in legacy import mode,
 				// so go ahead and plan the resource changes including import.
-				m.importTarget = ImportTarget{
-					ID:     importTarget.ID,
-					Addr:   importTarget.Addr,
-					Config: importTarget.Config,
-				}
+				m.importTarget = evaluatedConfigImportTarget
+				break
 			}
 		}
 

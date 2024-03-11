@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package statefile
@@ -6,16 +8,17 @@ package statefile
 import (
 	"io"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
 // Write writes the given state to the given writer in the current state
 // serialization format.
-func Write(s *File, w io.Writer) error {
+func Write(s *File, w io.Writer, enc encryption.StateEncryption) error {
 	// Always record the current tofu version in the state.
 	s.TerraformVersion = tfversion.SemVer
 
-	diags := writeStateV4(s, w)
+	diags := writeStateV4(s, w, enc)
 	return diags.Err()
 }
 
@@ -24,6 +27,6 @@ func Write(s *File, w io.Writer) error {
 // intended for use in tests that need to override the current tofu
 // version.
 func WriteForTest(s *File, w io.Writer) error {
-	diags := writeStateV4(s, w)
+	diags := writeStateV4(s, w, encryption.StateEncryptionDisabled())
 	return diags.Err()
 }

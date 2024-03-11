@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package oss
@@ -16,6 +18,7 @@ import (
 	"github.com/aliyun/aliyun-tablestore-go-sdk/tablestore"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 // verify that we are doing ACC tests or the OSS tests specifically
@@ -47,7 +50,7 @@ func TestBackendConfig(t *testing.T) {
 		"tablestore_table":    "TableStore",
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
 	if !strings.HasPrefix(b.ossClient.Config.Endpoint, "https://oss-cn-beijing") {
 		t.Fatalf("Incorrect region was provided")
@@ -82,7 +85,7 @@ func TestBackendConfigWorkSpace(t *testing.T) {
 		"tablestore_table":    "TableStore",
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 	createOSSBucket(t, b.ossClient, bucketName)
 	defer deleteOSSBucket(t, b.ossClient, bucketName)
 	if _, err := b.Workspaces(); err != nil {
@@ -121,7 +124,7 @@ func TestBackendConfigProfile(t *testing.T) {
 		"profile":             "default",
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
 	if !strings.HasPrefix(b.ossClient.Config.Endpoint, "https://oss-cn-beijing") {
 		t.Fatalf("Incorrect region was provided")
@@ -155,7 +158,7 @@ func TestBackendConfig_invalidKey(t *testing.T) {
 		"tablestore_table":    "TableStore",
 	})
 
-	_, results := New().PrepareConfig(cfg)
+	_, results := New(encryption.StateEncryptionDisabled()).PrepareConfig(cfg)
 	if !results.HasErrors() {
 		t.Fatal("expected config validation error")
 	}
@@ -167,12 +170,12 @@ func TestBackend(t *testing.T) {
 	bucketName := fmt.Sprintf("terraform-remote-oss-test-%x", time.Now().Unix())
 	statePrefix := "multi/level/path/"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket": bucketName,
 		"prefix": statePrefix,
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket": bucketName,
 		"prefix": statePrefix,
 	})).(*Backend)

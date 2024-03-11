@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package addrs
@@ -455,6 +457,10 @@ func (r ConfigResource) configCheckableSigil() {
 
 func (v ConfigResource) CheckableKind() CheckableKind {
 	return CheckableResource
+}
+
+func (r ConfigResource) configRemovableSigil() {
+	// Empty function so ConfigResource will fulfill the requirements of the removable interface
 }
 
 type configResourceKey string

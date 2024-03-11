@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package s3
@@ -29,6 +31,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -68,7 +71,7 @@ func TestBackendConfig_original(t *testing.T) {
 		"dynamodb_table": "dynamoTable",
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
 	if b.awsConfig.Region != "us-west-1" {
 		t.Fatalf("Incorrect region was populated")
@@ -132,7 +135,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 			configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(tc.config))
 
 			configSchema, diags := b.PrepareConfig(configSchema)
@@ -179,7 +182,7 @@ func TestBackendConfig_RegionEnvVar(t *testing.T) {
 				t.Setenv(k, v)
 			}
 
-			b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
+			b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
 			if b.awsConfig.Region != "us-west-1" {
 				t.Fatalf("Incorrect region was populated")
@@ -233,7 +236,7 @@ func TestBackendConfig_DynamoDBEndpoint(t *testing.T) {
 				}
 			}
 
-			backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config))
+			backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
 		})
 	}
 }
@@ -283,7 +286,7 @@ func TestBackendConfig_S3Endpoint(t *testing.T) {
 				}
 			}
 
-			backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config))
+			backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
 		})
 	}
 }
@@ -353,7 +356,7 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 				config["sts_endpoint"] = endpoint
 			}
 
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 			configSchema := populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config))
 
 			configSchema, diags := b.PrepareConfig(configSchema)
@@ -591,7 +594,7 @@ func TestBackendConfig_AssumeRole(t *testing.T) {
 
 			testCase.Config["sts_endpoint"] = endpoint
 
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
 
 			if diags.HasErrors() {
@@ -774,7 +777,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			servicemocks.StashEnv(t)
 
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 
 			_, valDiags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedErr != "" {
@@ -813,7 +816,7 @@ func TestBackendConfig_PrepareConfigValidationWarnings(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			servicemocks.StashEnv(t)
 
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 
 			_, diags := b.PrepareConfig(populateSchema(t, b.ConfigSchema(), tc.config))
 			if tc.expectedWarn != "" {
@@ -876,7 +879,7 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			servicemocks.StashEnv(t)
 
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 
 			for k, v := range tc.vars {
 				t.Setenv(k, v)
@@ -1041,7 +1044,7 @@ func TestBackendConfig_proxy(t *testing.T) {
 				t.Setenv(k, v)
 			}
 
-			b := New()
+			b := New(encryption.StateEncryptionDisabled())
 
 			got := b.Configure(populateSchema(t, b.ConfigSchema(), tc.config))
 			if got.HasErrors() != (tc.wantErrSubstr != "") {
@@ -1075,7 +1078,7 @@ func TestBackend(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":  bucketName,
 		"key":     keyName,
 		"encrypt": true,
@@ -1095,7 +1098,7 @@ func TestBackendLocked(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "test/state"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"encrypt":        true,
@@ -1103,7 +1106,7 @@ func TestBackendLocked(t *testing.T) {
 		"region":         "us-west-1",
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"encrypt":        true,
@@ -1154,7 +1157,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 				"region":           "us-west-1",
 			}
 
-			b := New().(*Backend)
+			b := New(encryption.StateEncryptionDisabled()).(*Backend)
 			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
@@ -1218,7 +1221,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 
 			t.Setenv("AWS_SSE_CUSTOMER_KEY", testCase.customerKey)
 
-			b := New().(*Backend)
+			b := New(encryption.StateEncryptionDisabled()).(*Backend)
 			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
@@ -1254,7 +1257,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "test/state/tfstate"
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":  bucketName,
 		"key":     keyName,
 		"encrypt": true,
@@ -1393,7 +1396,7 @@ func TestBackendPrefixInWorkspace(t *testing.T) {
 	testACC(t)
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":               bucketName,
 		"key":                  "test-env.tfstate",
 		"workspace_key_prefix": "env",
@@ -1422,7 +1425,7 @@ func TestKeyEnv(t *testing.T) {
 	keyName := "some/paths/tfstate"
 
 	bucket0Name := fmt.Sprintf("%s-%x-0", testBucketPrefix, time.Now().Unix())
-	b0 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b0 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":               bucket0Name,
 		"key":                  keyName,
 		"encrypt":              true,
@@ -1434,7 +1437,7 @@ func TestKeyEnv(t *testing.T) {
 	defer deleteS3Bucket(ctx, t, b0.s3Client, bucket0Name)
 
 	bucket1Name := fmt.Sprintf("%s-%x-1", testBucketPrefix, time.Now().Unix())
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":               bucket1Name,
 		"key":                  keyName,
 		"encrypt":              true,
@@ -1445,7 +1448,7 @@ func TestKeyEnv(t *testing.T) {
 	defer deleteS3Bucket(ctx, t, b1.s3Client, bucket1Name)
 
 	bucket2Name := fmt.Sprintf("%s-%x-2", testBucketPrefix, time.Now().Unix())
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":  bucket2Name,
 		"key":     keyName,
 		"encrypt": true,
@@ -1575,7 +1578,7 @@ func TestBackend_schemaCoercionMinimal(t *testing.T) {
 		"bucket": cty.StringVal("my-bucket"),
 		"key":    cty.StringVal("state.tf"),
 	})
-	schema := New().ConfigSchema()
+	schema := New(encryption.StateEncryptionDisabled()).ConfigSchema()
 	_, err := schema.CoerceValue(example)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())

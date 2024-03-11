@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -22,6 +24,7 @@ import (
 	backendinit "github.com/opentofu/opentofu/internal/backend/init"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -477,7 +480,7 @@ func TestPlan_outBackend(t *testing.T) {
 		t.Errorf("wrong backend workspace %q; want %q", got, want)
 	}
 	{
-		httpBackend := backendinit.Backend("http")()
+		httpBackend := backendinit.Backend("http")(encryption.StateEncryptionDisabled())
 		schema := httpBackend.ConfigSchema()
 		got, err := plan.Backend.Config.Decode(schema.ImpliedType())
 		if err != nil {

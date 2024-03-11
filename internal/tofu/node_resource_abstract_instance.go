@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -15,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -344,6 +347,31 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 
 	write(src)
 	return nil
+}
+
+// planForget returns a removed from state diff.
+func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) *plans.ResourceInstanceChange {
+	var plan *plans.ResourceInstanceChange
+
+	unmarkedPriorVal, _ := currentState.Value.UnmarkDeep()
+
+	// The config and new value are null to signify that this is a forget
+	// operation.
+	nullVal := cty.NullVal(unmarkedPriorVal.Type())
+
+	plan = &plans.ResourceInstanceChange{
+		Addr:        n.Addr,
+		PrevRunAddr: n.prevRunAddr(ctx),
+		DeposedKey:  deposedKey,
+		Change: plans.Change{
+			Action: plans.Forget,
+			Before: currentState.Value,
+			After:  nullVal,
+		},
+		ProviderAddr: n.ResolvedProvider,
+	}
+
+	return plan
 }
 
 // planDestroy returns a plain destroy diff.
@@ -1393,6 +1421,10 @@ func processIgnoreChangesIndividual(prior, config cty.Value, ignoreChangesPath [
 	return ret, nil
 }
 
+type ProviderWithEncryption interface {
+	ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
+}
+
 // readDataSource handles everything needed to call ReadDataSource on the provider.
 // A previously evaluated configVal can be passed in, or a new one is generated
 // from the resource configuration.
@@ -1447,11 +1479,18 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 		return newVal, diags
 	}
 
-	resp := provider.ReadDataSource(providers.ReadDataSourceRequest{
+	req := providers.ReadDataSourceRequest{
 		TypeName:     n.Addr.ContainingResource().Resource.Type,
 		Config:       configVal,
 		ProviderMeta: metaConfigVal,
-	})
+	}
+	var resp providers.ReadDataSourceResponse
+	if tfp, ok := provider.(ProviderWithEncryption); ok {
+		// Special case for terraform_remote_state
+		resp = tfp.ReadDataSourceEncrypted(req, n.Addr, ctx.GetEncryption())
+	} else {
+		resp = provider.ReadDataSource(req)
+	}
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
 		return newVal, diags

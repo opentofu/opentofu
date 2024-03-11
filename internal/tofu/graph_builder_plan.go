@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -80,6 +82,10 @@ type PlanGraphBuilder struct {
 
 	// ImportTargets are the list of resources to import.
 	ImportTargets []*ImportTarget
+
+	// EndpointsToRemove are the list of resources and modules to forget from
+	// the state.
+	EndpointsToRemove []addrs.ConfigRemovable
 
 	// GenerateConfig tells OpenTofu where to write and generated config for
 	// any import targets that do not already have configuration.
@@ -264,6 +270,7 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  b.skipRefresh,
 			skipPlanChanges:              b.skipPlanChanges,
+			EndpointsToRemove:            b.EndpointsToRemove,
 		}
 	}
 
@@ -272,8 +279,9 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			DeposedKey:                   key,
 
-			skipRefresh:     b.skipRefresh,
-			skipPlanChanges: b.skipPlanChanges,
+			skipRefresh:       b.skipRefresh,
+			skipPlanChanges:   b.skipPlanChanges,
+			EndpointsToRemove: b.EndpointsToRemove,
 		}
 	}
 }
@@ -331,13 +339,6 @@ func (b *PlanGraphBuilder) initImport() {
 			// as the new state, and users are not expecting the import process
 			// to update any other instances in state.
 			skipRefresh: true,
-
-			// If we get here, we know that we are in legacy import mode, and
-			// that the user has run the import command rather than plan.
-			// This flag must be propagated down to the
-			// NodePlannableResourceInstance so we can ignore the new import
-			// behaviour.
-			legacyImportMode: true,
 		}
 	}
 }

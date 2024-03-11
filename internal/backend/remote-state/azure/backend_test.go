@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package azure
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
 )
 
@@ -29,7 +32,7 @@ func TestBackendConfig(t *testing.T) {
 		"access_key": "QUNDRVNTX0tFWQ0K",
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
 	if b.containerName != "tfcontainer" {
 		t.Fatalf("Incorrect bucketName was populated")
@@ -56,7 +59,7 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -86,7 +89,7 @@ func TestAccBackendSASTokenBasic(t *testing.T) {
 		t.Fatalf("Error building SAS Token: %+v", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -111,7 +114,7 @@ func TestAccBackendOIDCBasic(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -139,7 +142,7 @@ func TestAccBackendManagedServiceIdentityBasic(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -174,7 +177,7 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name":        res.storageAccountName,
 		"container_name":              res.storageContainerName,
 		"key":                         res.storageKeyName,
@@ -204,7 +207,7 @@ func TestAccBackendServicePrincipalClientSecretBasic(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -240,7 +243,7 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -269,7 +272,7 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -278,7 +281,7 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -307,7 +310,7 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,
@@ -320,7 +323,7 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"storage_account_name": res.storageAccountName,
 		"container_name":       res.storageContainerName,
 		"key":                  res.storageKeyName,

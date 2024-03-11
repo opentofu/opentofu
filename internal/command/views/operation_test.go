@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package views
@@ -11,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -65,7 +68,7 @@ func TestOperation_emergencyDumpState(t *testing.T) {
 
 	stateFile := statefile.New(nil, "foo", 1)
 
-	err := v.EmergencyDumpState(stateFile)
+	err := v.EmergencyDumpState(stateFile, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("unexpected error dumping state: %s", err)
 	}
@@ -530,7 +533,7 @@ func TestOperationJSON_emergencyDumpState(t *testing.T) {
 
 	stateFile := statefile.New(nil, "foo", 1)
 	stateBuf := new(bytes.Buffer)
-	err := statefile.Write(stateFile, stateBuf)
+	err := statefile.Write(stateFile, stateBuf, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,7 +543,7 @@ func TestOperationJSON_emergencyDumpState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = v.EmergencyDumpState(stateFile)
+	err = v.EmergencyDumpState(stateFile, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("unexpected error dumping state: %s", err)
 	}

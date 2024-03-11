@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -14,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -30,19 +33,20 @@ type ContextGraphWalker struct {
 
 	// Configurable values
 	Context            *Context
-	State              *states.SyncState   // Used for safe concurrent access to state
-	RefreshState       *states.SyncState   // Used for safe concurrent access to state
-	PrevRunState       *states.SyncState   // Used for safe concurrent access to state
-	Changes            *plans.ChangesSync  // Used for safe concurrent writes to changes
-	Checks             *checks.State       // Used for safe concurrent writes of checkable objects and their check results
-	InstanceExpander   *instances.Expander // Tracks our gradual expansion of module and resource instances
-	Imports            []configs.Import
+	State              *states.SyncState       // Used for safe concurrent access to state
+	RefreshState       *states.SyncState       // Used for safe concurrent access to state
+	PrevRunState       *states.SyncState       // Used for safe concurrent access to state
+	Changes            *plans.ChangesSync      // Used for safe concurrent writes to changes
+	Checks             *checks.State           // Used for safe concurrent writes of checkable objects and their check results
+	InstanceExpander   *instances.Expander     // Tracks our gradual expansion of module and resource instances
+	ImportResolver     *ImportResolver         // Tracks import targets as they are being resolved
 	MoveResults        refactoring.MoveResults // Read-only record of earlier processing of move statements
 	Operation          walkOperation
 	StopContext        context.Context
 	RootVariableValues InputValues
 	Config             *configs.Config
 	PlanTimestamp      time.Time
+	Encryption         encryption.Encryption
 
 	// This is an output. Do not set this, nor read it while a graph walk
 	// is in progress.
@@ -101,6 +105,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		InstanceExpanderValue: w.InstanceExpander,
 		Plugins:               w.Context.plugins,
 		MoveResultsValue:      w.MoveResults,
+		ImportResolverValue:   w.ImportResolver,
 		ProviderCache:         w.providerCache,
 		ProviderInputConfig:   w.Context.providerInputConfig,
 		ProviderLock:          &w.providerLock,
@@ -114,6 +119,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		Evaluator:             evaluator,
 		VariableValues:        w.variableValues,
 		VariableValuesLock:    &w.variableValuesLock,
+		Encryption:            w.Encryption,
 	}
 
 	return ctx

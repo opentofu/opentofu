@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 syntax = "proto3";
@@ -114,6 +116,7 @@ enum Action {
     DELETE = 5;
     DELETE_THEN_CREATE = 6;
     CREATE_THEN_DELETE = 7;
+    FORGET = 8;
 }
 
 // Change represents a change made to some object, transforming it from an old
@@ -204,7 +207,7 @@ message ResourceInstanceChange {
     string provider = 8;
 
     // Description of the proposed change. May use "create", "read", "update",
-    // "replace", "delete" and "no-op" actions.
+    // "replace", "delete", "forget" and "no-op" actions.
     Change change = 9;
 
     // raw blob value provided by the provider as additional context for the

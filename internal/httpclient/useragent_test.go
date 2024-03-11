@@ -1,16 +1,24 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package httpclient
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/opentofu/opentofu/version"
 )
 
 func TestUserAgentString_env(t *testing.T) {
+
+	appendUaVal := os.Getenv(appendUaEnvVar)
+	os.Unsetenv(appendUaEnvVar)
+	defer os.Setenv(appendUaEnvVar, appendUaVal)
+
 	expectedBase := fmt.Sprintf("%s/%s", DefaultApplicationName, version.Version)
 
 	for i, c := range []struct {
@@ -65,6 +73,11 @@ func TestUserAgentAppendViaEnvVar(t *testing.T) {
 	}
 }
 func TestCustomUserAgentViaEnvVar(t *testing.T) {
+
+	appendUaVal := os.Getenv(appendUaEnvVar)
+	os.Unsetenv(appendUaEnvVar)
+	defer os.Setenv(appendUaEnvVar, appendUaVal)
+
 	testCases := []struct {
 		envVarValue string
 	}{

@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package s3
@@ -146,7 +148,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		return nil, err
 	}
 
-	stateMgr := &remote.State{Client: client}
+	stateMgr := remote.NewState(client, b.encryption)
 	// Check to see if this state already exists.
 	// If we're trying to force-unlock a state, we can't take the lock before
 	// fetching the state. If the state doesn't exist, we have to assume this

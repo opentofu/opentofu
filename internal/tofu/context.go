@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package tofu
@@ -12,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -41,6 +44,7 @@ type ContextOpts struct {
 	Parallelism  int
 	Providers    map[addrs.Provider]providers.Factory
 	Provisioners map[string]provisioners.Factory
+	Encryption   encryption.Encryption
 
 	UIInput UIInput
 }
@@ -87,6 +91,8 @@ type Context struct {
 	runCond             *sync.Cond
 	runContext          context.Context
 	runContextCancel    context.CancelFunc
+
+	encryption encryption.Encryption
 }
 
 // (additional methods on Context can be found in context_*.go files.)
@@ -142,6 +148,8 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		parallelSem:         NewSemaphore(par),
 		providerInputConfig: make(map[string]map[string]cty.Value),
 		sh:                  sh,
+
+		encryption: opts.Encryption,
 	}, diags
 }
 

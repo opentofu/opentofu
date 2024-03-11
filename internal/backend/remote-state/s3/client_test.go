@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package s3
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -28,7 +31,7 @@ func TestRemoteClient(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":  bucketName,
 		"key":     keyName,
 		"encrypt": true,
@@ -51,14 +54,14 @@ func TestRemoteClientLocks(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"encrypt":        true,
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"encrypt":        true,
@@ -90,14 +93,14 @@ func TestForceUnlock(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-force-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"encrypt":        true,
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"encrypt":        true,
@@ -168,7 +171,7 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"dynamodb_table": bucketName,
@@ -217,7 +220,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":         bucketName,
 		"key":            keyName,
 		"dynamodb_table": bucketName,
@@ -239,18 +242,18 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	s := statemgr.TestFullInitialState()
 	sf := &statefile.File{State: s}
 	var oldState bytes.Buffer
-	if err := statefile.Write(sf, &oldState); err != nil {
+	if err := statefile.Write(sf, &oldState, encryption.StateEncryptionDisabled()); err != nil {
 		t.Fatal(err)
 	}
 	sf.Serial++
 	var newState bytes.Buffer
-	if err := statefile.Write(sf, &newState); err != nil {
+	if err := statefile.Write(sf, &newState, encryption.StateEncryptionDisabled()); err != nil {
 		t.Fatal(err)
 	}
 
 	// Use b2 without a dynamodb_table to bypass the lock table to write the state directly.
 	// client2 will write the "incorrect" state, simulating s3 eventually consistency delays
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket": bucketName,
 		"key":    keyName,
 	})).(*Backend)

@@ -1,11 +1,13 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package discovery
 
 // A PluginMetaSet is a set of PluginMeta objects meeting a certain criteria.
 //
-// Methods on this type allow filtering of the set to produce subsets that
+// MethodConfigs on this type allow filtering of the set to produce subsets that
 // meet more restrictive criteria.
 type PluginMetaSet map[PluginMeta]struct{}
 

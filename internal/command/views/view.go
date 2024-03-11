@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package views
@@ -26,6 +28,10 @@ type View struct {
 	// However, we only do this on a best-effort basis, typically prioritizing
 	// the messages that users are most likely to see.
 	runningInAutomation bool
+
+	// Concise is used to reduce the level of noise in the output and display
+	// only the important details.
+	concise bool
 
 	// This unfortunate wart is required to enable rendering of diagnostics which
 	// have associated source code in the configuration. This function pointer
@@ -68,6 +74,7 @@ func (v *View) RunningInAutomation() bool {
 func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
+	v.concise = view.Concise
 }
 
 // SetConfigSources overrides the default no-op callback with a new function

@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -55,7 +57,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 
 		b, diags := m.Backend(&BackendOpts{
 			Config: backendConfig,
-		})
+		}, nil) // Don't need state encryption here.
 		if diags.HasErrors() {
 			return nil
 		}

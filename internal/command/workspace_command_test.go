@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -14,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 
@@ -251,7 +254,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 		)
 	})
 
-	err := statemgr.WriteAndPersist(statemgr.NewFilesystem("test.tfstate"), originalState, nil)
+	err := statemgr.WriteAndPersist(statemgr.NewFilesystem("test.tfstate", encryption.StateEncryptionDisabled()), originalState, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,13 +271,13 @@ func TestWorkspace_createWithState(t *testing.T) {
 	}
 
 	newPath := filepath.Join(local.DefaultWorkspaceDir, "test", DefaultStateFilename)
-	envState := statemgr.NewFilesystem(newPath)
+	envState := statemgr.NewFilesystem(newPath, encryption.StateEncryptionDisabled())
 	err = envState.RefreshState()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b := backend.TestBackendConfig(t, inmem.New(), nil)
+	b := backend.TestBackendConfig(t, inmem.New(encryption.StateEncryptionDisabled()), nil)
 	sMgr, err := b.StateMgr(workspace)
 	if err != nil {
 		t.Fatal(err)

@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -12,8 +14,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -110,6 +110,14 @@ func (c *ImportCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.EncryptionFromPath(configPath)
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	// Verify that the given address points to something that exists in config.
 	// This is to reduce the risk that a typo in the resource address will
 	// import something that OpenTofu will want to immediately destroy on
@@ -167,7 +175,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: config.Module.Backend,
-	})
+	}, enc.Backend())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -186,7 +194,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman)
+	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
@@ -236,11 +244,10 @@ func (c *ImportCommand) Run(args []string) int {
 	newState, importDiags := lr.Core.Import(lr.Config, lr.InputState, &tofu.ImportOpts{
 		Targets: []*tofu.ImportTarget{
 			{
-				Addr: addr,
-
-				// In the import block, the ID can be an arbitrary hcl.Expression,
-				// but here it's always interpreted as a literal string.
-				ID: hcl.StaticExpr(cty.StringVal(args[1]), configs.SynthBody("import", nil).MissingItemRange()),
+				CommandLineImportTarget: &tofu.CommandLineImportTarget{
+					Addr: addr,
+					ID:   args[1],
+				},
 			},
 		},
 

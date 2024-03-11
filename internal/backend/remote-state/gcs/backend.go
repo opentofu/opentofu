@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 // Package gcs implements remote storage of state on Google Cloud Storage (GCS).
@@ -14,6 +16,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 	"github.com/opentofu/opentofu/version"
@@ -27,6 +30,7 @@ import (
 // State(), DeleteState() and States() are implemented explicitly.
 type Backend struct {
 	*schema.Backend
+	encryption encryption.StateEncryption
 
 	storageClient  *storage.Client
 	storageContext context.Context
@@ -38,8 +42,8 @@ type Backend struct {
 	kmsKeyName    string
 }
 
-func New() backend.Backend {
-	b := &Backend{}
+func New(enc encryption.StateEncryption) backend.Backend {
+	b := &Backend{encryption: enc}
 	b.Backend = &schema.Backend{
 		ConfigureFunc: b.configure,
 		Schema: map[string]*schema.Schema{

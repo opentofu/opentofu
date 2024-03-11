@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package inmem
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 	statespkg "github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -44,7 +47,7 @@ func Reset() {
 }
 
 // New creates a new backend for Inmem remote state.
-func New() backend.Backend {
+func New(enc encryption.StateEncryption) backend.Backend {
 	// Set the schema
 	s := &schema.Backend{
 		Schema: map[string]*schema.Schema{
@@ -55,13 +58,14 @@ func New() backend.Backend {
 			},
 		},
 	}
-	backend := &Backend{Backend: s}
+	backend := &Backend{Backend: s, encryption: enc}
 	backend.Backend.ConfigureFunc = backend.configure
 	return backend
 }
 
 type Backend struct {
 	*schema.Backend
+	encryption encryption.StateEncryption
 }
 
 func (b *Backend) configure(ctx context.Context) error {
@@ -122,11 +126,12 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 
 	s := states.m[name]
 	if s == nil {
-		s = &remote.State{
-			Client: &RemoteClient{
+		s = remote.NewState(
+			&RemoteClient{
 				Name: name,
 			},
-		}
+			b.encryption,
+		)
 		states.m[name] = s
 
 		// to most closely replicate other implementations, we are going to

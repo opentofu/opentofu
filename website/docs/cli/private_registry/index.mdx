@@ -1,0 +1,23 @@
+---
+description: >-
+  Documentation listing third party projects that implement private registries 
+  and their corresponding guides for setting them up.
+---
+
+# Private Registries
+
+OpenTofu, by default, uses the public registry at [registry.opentofu.org](https://registry.opentofu.org). 
+However, organizations may have a need for a private registry for modules or providers that need to be kept private.
+
+There are several project that implement the [terraform registry API](https://developer.hashicorp.com/terraform/registry/api-docs), 
+aimed at providing this functionality of hosting a private registry. They are also
+compatible with OpenTofu. Some of the projects only support providers, some only support modules, and some support both. 
+Choose one that is appropriate for your use case.
+
+## List of Private Registries
+
+The list of projects is available at [awesome-opentofu](https://github.com/virtualroot/awesome-opentofu?tab=readme-ov-file#registry).
+
+## How to Use
+
+Follow the documentation provided by each registry to integrate it with your OpenTofu projects.

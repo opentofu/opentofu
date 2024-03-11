@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package views
@@ -436,6 +438,36 @@ func TestPreRefresh(t *testing.T) {
 	result := done(t)
 
 	if got, want := result.Stdout(), "test_instance.foo: Refreshing state... [id=test]\n"; got != want {
+		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestPreRefresh_concise(t *testing.T) {
+	streams, done := terminal.StreamsForTesting(t)
+	view := NewView(streams)
+	view.concise = true
+	h := NewUiHook(view)
+
+	addr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_instance",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	priorState := cty.ObjectVal(map[string]cty.Value{
+		"id":  cty.StringVal("test"),
+		"bar": cty.ListValEmpty(cty.String),
+	})
+
+	_, err := h.PreRefresh(addr, states.CurrentGen, priorState)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result := done(t)
+
+	if got, want := result.Stdout(), ""; got != want {
 		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
 	}
 }

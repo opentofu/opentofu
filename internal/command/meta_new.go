@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -7,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 )
 
@@ -35,7 +38,7 @@ func (m *Meta) Input() bool {
 //
 // Error will be non-nil if path refers to something which looks like a plan
 // file and loading the file fails.
-func (m *Meta) PlanFile(path string) (*planfile.WrappedPlanFile, error) {
+func (m *Meta) PlanFile(path string, enc encryption.PlanEncryption) (*planfile.WrappedPlanFile, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -46,5 +49,5 @@ func (m *Meta) PlanFile(path string) (*planfile.WrappedPlanFile, error) {
 		return nil, nil
 	}
 
-	return planfile.OpenWrapped(path)
+	return planfile.OpenWrapped(path, enc)
 }

@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -38,6 +40,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/initwd"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
@@ -226,7 +229,7 @@ func testPlanFileMatchState(t *testing.T, configSnap *configload.Snapshot, state
 		StateFile:            stateFile,
 		Plan:                 plan,
 		DependencyLocks:      depsfile.NewLocks(),
-	})
+	}, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to create temporary plan file: %s", err)
 	}
@@ -274,11 +277,10 @@ func testFileEquals(t *testing.T, got, want string) {
 func testReadPlan(t *testing.T, path string) *plans.Plan {
 	t.Helper()
 
-	f, err := planfile.Open(path)
+	f, err := planfile.Open(path, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("error opening plan file %q: %s", path, err)
 	}
-	defer f.Close()
 
 	p, err := f.ReadPlan()
 	if err != nil {
@@ -325,7 +327,7 @@ func writeStateForTesting(state *states.State, w io.Writer) error {
 		Lineage: "fake-for-testing",
 		State:   state,
 	}
-	return statefile.Write(sf, w)
+	return statefile.Write(sf, w, encryption.StateEncryptionDisabled())
 }
 
 // testStateMgrCurrentLineage returns the current lineage for the given state
@@ -480,7 +482,7 @@ func testStateRead(t *testing.T, path string) *states.State {
 	}
 	defer f.Close()
 
-	sf, err := statefile.Read(f)
+	sf, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -758,7 +760,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 
 	// If a state was given, make sure we calculate the proper b64md5
 	if s != nil {
-		err := statefile.Write(&statefile.File{State: s}, buf)
+		err := statefile.Write(&statefile.File{State: s}, buf, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -772,7 +774,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		Type:   "http",
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
 	}
-	b := backendInit.Backend("http")()
+	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()
 	hash := backendConfig.Hash(configSchema)
 
@@ -831,7 +833,7 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	retState.Backend = b
 
 	if s != nil {
-		err := statefile.Write(&statefile.File{State: s}, buf)
+		err := statefile.Write(&statefile.File{State: s}, buf, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatalf("failed to write initial state: %v", err)
 		}

@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package cos
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 )
 
@@ -223,7 +226,7 @@ func setupBackend(t *testing.T, bucket, prefix, key string, encrypt bool) backen
 		"key":    key,
 	}
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(config))
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
 	be := b.(*Backend)
 
 	c, err := be.client("tencentcloud")

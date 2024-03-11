@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package command
@@ -14,6 +16,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -90,7 +93,7 @@ func TestApply_destroy(t *testing.T) {
 	}
 	defer f.Close()
 
-	stateFile, err := statefile.Read(f)
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -110,7 +113,7 @@ func TestApply_destroy(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	backupStateFile, err := statefile.Read(f)
+	backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -486,7 +489,7 @@ func TestApply_destroyTargetedDependencies(t *testing.T) {
 	}
 	defer f.Close()
 
-	stateFile, err := statefile.Read(f)
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -505,7 +508,7 @@ func TestApply_destroyTargetedDependencies(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	backupStateFile, err := statefile.Read(f)
+	backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -637,7 +640,7 @@ func TestApply_destroyTargeted(t *testing.T) {
 	}
 	defer f.Close()
 
-	stateFile, err := statefile.Read(f)
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -657,7 +660,7 @@ func TestApply_destroyTargeted(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	backupStateFile, err := statefile.Read(f)
+	backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)

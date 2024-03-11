@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package http
@@ -29,6 +31,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -274,7 +277,7 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 		"address":                cty.StringVal(url),
 		"skip_cert_verification": cty.BoolVal(true),
 	}
-	b := backend.TestBackendConfig(t, New(), configs.SynthBody("synth", conf)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	if nil == b {
 		t.Fatal("nil backend")
 	}
@@ -345,7 +348,7 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 		"client_certificate_pem":    cty.StringVal(string(clientCertData)),
 		"client_private_key_pem":    cty.StringVal(string(clientKeyData)),
 	}
-	b := backend.TestBackendConfig(t, New(), configs.SynthBody("synth", conf)).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	if nil == b {
 		t.Fatal("nil backend")
 	}

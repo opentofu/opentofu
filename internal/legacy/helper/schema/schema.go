@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 // schema is a high-level framework for easily writing new providers
@@ -25,8 +27,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/mitchellh/copystructure"
-	"github.com/mitchellh/mapstructure"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )

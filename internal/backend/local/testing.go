@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package local
@@ -12,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -30,7 +33,7 @@ func TestLocal(t *testing.T) *Local {
 		t.Fatal(err)
 	}
 
-	local := New()
+	local := New(encryption.StateEncryptionDisabled())
 	local.StatePath = filepath.Join(tempDir, "state.tfstate")
 	local.StateOutPath = filepath.Join(tempDir, "state.tfstate")
 	local.StateBackupPath = filepath.Join(tempDir, "state.tfstate.bak")
@@ -113,8 +116,8 @@ type TestLocalSingleState struct {
 
 // TestNewLocalSingle is a factory for creating a TestLocalSingleState.
 // This function matches the signature required for backend/init.
-func TestNewLocalSingle() backend.Backend {
-	return &TestLocalSingleState{Local: New()}
+func TestNewLocalSingle(enc encryption.StateEncryption) backend.Backend {
+	return &TestLocalSingleState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
 func (b *TestLocalSingleState) Workspaces() ([]string, error) {
@@ -143,8 +146,8 @@ type TestLocalNoDefaultState struct {
 
 // TestNewLocalNoDefault is a factory for creating a TestLocalNoDefaultState.
 // This function matches the signature required for backend/init.
-func TestNewLocalNoDefault() backend.Backend {
-	return &TestLocalNoDefaultState{Local: New()}
+func TestNewLocalNoDefault(enc encryption.StateEncryption) backend.Backend {
+	return &TestLocalNoDefaultState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
 func (b *TestLocalNoDefaultState) Workspaces() ([]string, error) {
@@ -180,7 +183,7 @@ func (b *TestLocalNoDefaultState) StateMgr(name string) (statemgr.Full, error) {
 func testStateFile(t *testing.T, path string, s *states.State) {
 	t.Helper()
 
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path), s, nil); err != nil {
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
 		t.Fatal(err)
 	}
 }

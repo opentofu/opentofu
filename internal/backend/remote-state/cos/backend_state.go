@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package cos
@@ -83,7 +85,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	if err != nil {
 		return nil, err
 	}
-	stateMgr := &remote.State{Client: c}
+	stateMgr := remote.NewState(c, b.encryption)
 
 	ws, err := b.Workspaces()
 	if err != nil {

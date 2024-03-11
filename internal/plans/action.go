@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package plans
@@ -13,6 +15,7 @@ const (
 	DeleteThenCreate Action = '∓'
 	CreateThenDelete Action = '±'
 	Delete           Action = '-'
+	Forget           Action = '.'
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type Action

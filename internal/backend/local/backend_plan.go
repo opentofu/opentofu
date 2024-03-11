@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package local
@@ -170,7 +172,7 @@ func (b *Local) opPlan(
 			StateFile:            plannedStateFile,
 			Plan:                 plan,
 			DependencyLocks:      op.DependencyLocks,
-		})
+		}, op.Encryption.PlanFile())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

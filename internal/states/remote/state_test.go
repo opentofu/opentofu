@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package remote
@@ -13,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -30,9 +33,7 @@ func TestState_impl(t *testing.T) {
 }
 
 func TestStateRace(t *testing.T) {
-	s := &State{
-		Client: nilClient{},
-	}
+	s := NewState(nilClient{}, encryption.StateEncryptionDisabled())
 
 	current := states.NewState()
 
@@ -325,9 +326,10 @@ func TestStatePersist(t *testing.T) {
 	// Initial setup of state just to give us a fixed starting point for our
 	// test assertions below, or else we'd need to deal with
 	// random lineage.
-	mgr := &State{
-		Client: &mockClient{},
-	}
+	mgr := NewState(
+		&mockClient{},
+		encryption.StateEncryptionDisabled(),
+	)
 
 	// In normal use (during a OpenTofu operation) we always refresh and read
 	// before any writes would happen, so we'll mimic that here for realism.
@@ -387,8 +389,8 @@ func TestStatePersist(t *testing.T) {
 
 func TestState_GetRootOutputValues(t *testing.T) {
 	// Initial setup of state with outputs already defined
-	mgr := &State{
-		Client: &mockClient{
+	mgr := NewState(
+		&mockClient{
 			current: []byte(`
 				{
 					"version": 4,
@@ -400,7 +402,8 @@ func TestState_GetRootOutputValues(t *testing.T) {
 				}
 			`),
 		},
-	}
+		encryption.StateEncryptionDisabled(),
+	)
 
 	outputs, err := mgr.GetRootOutputValues()
 	if err != nil {
@@ -425,8 +428,8 @@ type migrationTestCase struct {
 }
 
 func TestWriteStateForMigration(t *testing.T) {
-	mgr := &State{
-		Client: &mockClient{
+	mgr := NewState(
+		&mockClient{
 			current: []byte(`
 				{
 					"version": 4,
@@ -438,7 +441,8 @@ func TestWriteStateForMigration(t *testing.T) {
 				}
 			`),
 		},
-	}
+		encryption.StateEncryptionDisabled(),
+	)
 
 	testCases := []migrationTestCase{
 		// Refreshing state before we run the test loop causes a GET
@@ -581,8 +585,8 @@ func TestWriteStateForMigration(t *testing.T) {
 // us to test that -force continues to work for backends without
 // this interface, but that this interface works for those that do.
 func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
-	mgr := &State{
-		Client: &mockClientForcePusher{
+	mgr := NewState(
+		&mockClientForcePusher{
 			current: []byte(`
 				{
 					"version": 4,
@@ -594,7 +598,8 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 				}
 			`),
 		},
-	}
+		encryption.StateEncryptionDisabled(),
+	)
 
 	testCases := []migrationTestCase{
 		// Refreshing state before we run the test loop causes a GET

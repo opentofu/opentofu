@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package e2e
@@ -12,6 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
@@ -190,7 +193,7 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 	}
 	defer f.Close()
 
-	stateFile, err := statefile.Read(f)
+	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		return nil, fmt.Errorf("Error reading statefile: %w", err)
 	}
@@ -200,11 +203,10 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 // Plan is a helper for easily reading a plan file from the working directory.
 func (b *binary) Plan(path string) (*plans.Plan, error) {
 	path = b.Path(path)
-	pr, err := planfile.Open(path)
+	pr, err := planfile.Open(path, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
 	plan, err := pr.ReadPlan()
 	if err != nil {
 		return nil, err
@@ -229,7 +231,7 @@ func (b *binary) SetLocalState(state *states.State) error {
 		Lineage: "fake-for-testing",
 		State:   state,
 	}
-	return statefile.Write(sf, f)
+	return statefile.Write(sf, f, encryption.StateEncryptionDisabled())
 }
 
 func GoBuild(pkgPath, tmpPrefix string) string {

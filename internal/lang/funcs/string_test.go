@@ -1,4 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
 package funcs
@@ -7,7 +9,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 func TestReplace(t *testing.T) {
@@ -249,6 +253,122 @@ func TestStartsWith(t *testing.T) {
 					"wrong result\nstring: %#v\nprefix: %#v\ngot:    %#v\nwant:   %#v",
 					test.String, test.Prefix, got, test.Want,
 				)
+			}
+		})
+	}
+}
+
+func TestTemplateString(t *testing.T) {
+	tests := map[string]struct {
+		Content cty.Value
+		Vars    cty.Value
+		Want    cty.Value
+		Err     string
+	}{
+		"Simple string template": {
+			cty.StringVal("Hello, Jodie!"),
+			cty.EmptyObjectVal,
+			cty.StringVal("Hello, Jodie!"),
+			``,
+		},
+		"String interpolation with variable": {
+			cty.StringVal("Hello, ${name}!"),
+			cty.MapVal(map[string]cty.Value{
+				"name": cty.StringVal("Jodie"),
+			}),
+			cty.StringVal("Hello, Jodie!"),
+			``,
+		},
+		"Looping through list": {
+			cty.StringVal("Items: %{ for x in list ~} ${x} %{ endfor ~}"),
+			cty.ObjectVal(map[string]cty.Value{
+				"list": cty.ListVal([]cty.Value{
+					cty.StringVal("a"),
+					cty.StringVal("b"),
+					cty.StringVal("c"),
+				}),
+			}),
+			cty.StringVal("Items: a b c "),
+			``,
+		},
+		"Looping through map": {
+			cty.StringVal("%{ for key, value in list ~} ${key}:${value} %{ endfor ~}"),
+			cty.ObjectVal(map[string]cty.Value{
+				"list": cty.ObjectVal(map[string]cty.Value{
+					"item1": cty.StringVal("a"),
+					"item2": cty.StringVal("b"),
+					"item3": cty.StringVal("c"),
+				}),
+			}),
+			cty.StringVal("item1:a item2:b item3:c "),
+			``,
+		},
+		"Invalid template variable name": {
+			cty.StringVal("Hello, ${1}!"),
+			cty.MapVal(map[string]cty.Value{
+				"1": cty.StringVal("Jodie"),
+			}),
+			cty.NilVal,
+			`invalid template variable name "1": must start with a letter, followed by zero or more letters, digits, and underscores`,
+		},
+		"Variable not present in vars map": {
+			cty.StringVal("Hello, ${name}!"),
+			cty.EmptyObjectVal,
+			cty.NilVal,
+			`vars map does not contain key "name"`,
+		},
+		"Interpolation of a boolean value": {
+			cty.StringVal("${val}"),
+			cty.ObjectVal(map[string]cty.Value{
+				"val": cty.True,
+			}),
+			cty.True,
+			``,
+		},
+		"Sensitive string template": {
+			cty.StringVal("My password is 1234").Mark(marks.Sensitive),
+			cty.EmptyObjectVal,
+			cty.StringVal("My password is 1234").Mark(marks.Sensitive),
+			``,
+		},
+		"Sensitive template variable": {
+			cty.StringVal("My password is ${pass}"),
+			cty.ObjectVal(map[string]cty.Value{
+				"pass": cty.StringVal("secret").Mark(marks.Sensitive),
+			}),
+			cty.StringVal("My password is secret").Mark(marks.Sensitive),
+			``,
+		},
+	}
+
+	templateStringFn := MakeTemplateStringFunc(".", func() map[string]function.Function {
+		return map[string]function.Function{}
+	})
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TemplateString(%#v, %#v)", test.Content, test.Vars), func(t *testing.T) {
+			got, err := templateStringFn.Call([]cty.Value{test.Content, test.Vars})
+
+			if argErr, ok := err.(function.ArgError); ok {
+				if argErr.Index < 0 || argErr.Index > 1 {
+					t.Errorf("ArgError index %d is out of range for templatestring (must be 0 or 1)", argErr.Index)
+				}
+			}
+
+			if err != nil {
+				if test.Err == "" {
+					t.Fatalf("unexpected error: %s", err)
+				} else {
+					if got, want := err.Error(), test.Err; got != want {
+						t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
+					}
+				}
+			} else if test.Err != "" {
+				t.Fatal("succeeded; want error")
+			} else {
+				if !got.RawEquals(test.Want) {
+					t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+				}
 			}
 		})
 	}
