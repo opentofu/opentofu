@@ -14,13 +14,14 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 )
 
-func renderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[string]function.Function) (cty.Value, error) {
+func renderTemplate(expr hcl.Expression, varsVal cty.Value, funcs map[string]function.Function) (cty.Value, error) {
 	if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
 		return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
 	}
 
 	ctx := &hcl.EvalContext{
 		Variables: varsVal.AsValueMap(),
+		Functions: funcs,
 	}
 
 	// We require all of the variables to be valid HCL identifiers, because
@@ -54,36 +55,21 @@ func renderTemplate(expr hcl.Expression, varsVal cty.Value, funcsCb func() map[s
 		}
 	}
 
-	givenFuncs := funcsCb() // this callback indirection is to avoid chicken/egg problems
-	funcs := make(map[string]function.Function, len(givenFuncs))
-	for name, fn := range givenFuncs {
-		if name == "templatefile" {
-			// We stub this one out to prevent recursive calls.
-			funcs[name] = function.New(&function.Spec{
-				Params: []function.Parameter{
-					{
-						Name:        "path",
-						Type:        cty.String,
-						AllowMarked: true,
-					},
-					{
-						Name: "vars",
-						Type: cty.DynamicPseudoType,
-					},
-				},
-				Type: func(args []cty.Value) (cty.Type, error) {
-					return cty.NilType, fmt.Errorf("cannot recursively call templatefile from inside templatefile or templatestring")
-				},
-			})
-			continue
-		}
-		funcs[name] = fn
-	}
-	ctx.Functions = funcs
-
 	val, diags := expr.Value(ctx)
 	if diags.HasErrors() {
+		for _, diag := range diags {
+			// Roll up recursive errors
+			if extra, ok := diag.Extra.(hclsyntax.FunctionCallDiagExtra); ok {
+				if extra.CalledFunctionName() == "templatefile" {
+					err := extra.FunctionCallError()
+					if err, ok := err.(ErrorTemplateRecursionLimit); ok {
+						return cty.DynamicVal, ErrorTemplateRecursionLimit{sources: append(err.sources, diag.Subject.String())}
+					}
+				}
+			}
+		}
 		return cty.DynamicVal, diags
 	}
+
 	return val, nil
 }
