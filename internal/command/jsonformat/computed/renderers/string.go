@@ -6,6 +6,7 @@
 package renderers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -33,7 +34,9 @@ func evaluatePrimitiveString(value interface{}, opts computed.RenderHumanOpts) e
 
 	if strings.HasPrefix(str, "{") || strings.HasPrefix(str, "[") {
 		var jv interface{}
-		if err := json.Unmarshal([]byte(str), &jv); err == nil {
+		decoder := json.NewDecoder(bytes.NewBufferString(str))
+		decoder.UseNumber()
+		if err := decoder.Decode(&jv); err == nil {
 			return evaluatedString{
 				String: str,
 				Json:   jv,
