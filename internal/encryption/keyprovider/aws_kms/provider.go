@@ -47,7 +47,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		return out, outMeta, err
 	}
 
-	// Set inital outputs
+	// Set initial outputs
 	out.EncryptionKey = generatedKeyData.Plaintext
 	out.DecryptionKey = generatedKeyData.Plaintext
 	outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob

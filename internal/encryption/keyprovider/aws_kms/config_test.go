@@ -16,40 +16,6 @@ import (
 	"github.com/opentofu/opentofu/version"
 )
 
-/*
-	KMSKeyID string `hcl:"kms_key_id" json:"-"`
-	KeySpec  string `hcl:"key_spec" json:"-"`
-
-	// Mirrored S3 Backend Config, mirror any changes
-	AccessKey                      string                     `hcl:"access_key,optional" json:"-"`
-	Endpoints                      []ConfigEndpoints          `hcl:"endpoints,block" json:"-"`
-	MaxRetries                     int                        `hcl:"max_retries,optional" json:"-"`
-	Profile                        string                     `hcl:"profile,optional" json:"-"`
-	Region                         string                     `hcl:"region,optional" json:"-"`
-	SecretKey                      string                     `hcl:"secret_key,optional" json:"-"`
-	SkipCredsValidation            bool                       `hcl:"skip_credentials_validation,optional" json:"-"`
-	SkipRequestingAccountId        bool                       `hcl:"skip_requesting_account_id,optional" json:"-"`
-	STSRegion                      string                     `hcl:"sts_region,optional" json:"-"`
-	Token                          string                     `hcl:"token,optional" json:"-"`
-	HTTPProxy                      *string                    `hcl:"http_proxy,optional" json:"-"`
-	HTTPSProxy                     *string                    `hcl:"https_proxy,optional" json:"-"`
-	NoProxy                        string                     `hcl:"no_proxy,optional" json:"-"`
-	Insecure                       bool                       `hcl:"insecure,optional" json:"-"`
-	UseDualStackEndpoint           bool                       `hcl:"use_dualstack_endpoint,optional" json:"-"`
-	UseFIPSEndpoint                bool                       `hcl:"use_fips_endpoint,optional" json:"-"`
-	CustomCABundle                 string                     `hcl:"custom_ca_bundle,optional" json:"-"`
-	EC2MetadataServiceEndpoint     string                     `hcl:"ec2_metadata_service_endpoint,optional" json:"-"`
-	EC2MetadataServiceEndpointMode string                     `hcl:"ec2_metadata_service_endpoint_mode,optional" json:"-"`
-	SkipMetadataAPICheck           *bool                      `hcl:"skip_metadata_api_check,optional" json:"-"`
-	SharedCredentialsFiles         []string                   `hcl:"shared_credentials_files,optional" json:"-"`
-	SharedConfigFiles              []string                   `hcl:"shared_config_files,optional" json:"-"`
-	AssumeRole                     *AssumeRole                `hcl:"assume_role,optional" json:"-"`
-	AssumeRoleWithWebIdentity      *AssumeRoleWithWebIdentity `hcl:"assume_role_with_web_identity,optional" json:"-"`
-	AllowedAccountIds              []string                   `hcl:"allowed_account_ids,optional" json:"-"`
-	ForbiddenAccountIds            []string                   `hcl:"forbidden_account_ids,optional" json:"-"`
-	RetryMode                      string                     `hcl:"retry_mode,optional" json:"-"`
-*/
-
 func TestConfig_asAWSBase(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -221,8 +187,6 @@ func TestConfig_asAWSBase(t *testing.T) {
 			if !reflect.DeepEqual(tc.expected, *actual) {
 				t.Fatalf("Expected %s, got %s", spew.Sdump(tc.expected), spew.Sdump(*actual))
 			}
-
 		})
 	}
-
 }
