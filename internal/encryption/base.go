@@ -126,9 +126,16 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			// Must have been invalid json payload
 			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
+
+		methods, diags := s.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+		if diags.HasErrors() {
+			// This cast to error here is safe as we know that at least one error exists
+			// This is also quite unlikely to happen as the constructor already has checked this code path
+			return nil, diags
+		}
 		// Yep, it's already decrypted
-		for target := s.target; target != nil; target = target.Fallback {
-			if target.Fallback == nil {
+		for _, method := range methods {
+			if method == nil {
 				// fallback allowed
 				return data, nil
 			}
