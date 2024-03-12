@@ -7,9 +7,10 @@ package pbkdf2
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
-	"testing"
 )
 
 func TestCompliance(t *testing.T) {

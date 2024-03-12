@@ -9,13 +9,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
 var hclTagRe = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
