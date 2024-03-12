@@ -13,6 +13,10 @@ type keyMeta struct {
 	CiphertextBlob []byte `json:"ciphertext_blob"`
 }
 
+func (m keyMeta) isPresent() bool {
+	return len(m.CiphertextBlob) != 0
+}
+
 type keyProvider struct {
 	Config
 	svc *kms.Client
@@ -20,7 +24,11 @@ type keyProvider struct {
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
+	if rawMeta == nil {
+		return keyprovider.Output{}, nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
+	}
 	inMeta := rawMeta.(*keyMeta)
+
 	outMeta := keyMeta{}
 	out := keyprovider.Output{}
 
@@ -33,7 +41,10 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	})
 
 	if err != nil {
-		return out, outMeta, err
+		return out, outMeta, &keyprovider.ErrKeyProviderFailure{
+			Message: "failed to generate key",
+			Cause:   err,
+		}
 	}
 
 	// Set initial outputs that are always set
@@ -44,7 +55,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	// and that is handled below when we check if the inMeta has a CiphertextBlob
 	//out.DecryptionKey = generatedKeyData.Plaintext
 
-	if len(inMeta.CiphertextBlob) != 0 {
+	if inMeta.isPresent() {
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
 		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
 			KeyId:          aws.String(p.KMSKeyID),
