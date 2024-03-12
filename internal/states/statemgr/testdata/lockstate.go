@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
@@ -15,7 +16,7 @@ func main() {
 		log.Fatal(os.Args[0], "statefile")
 	}
 
-	s := statemgr.NewFilesystem(os.Args[1])
+	s := statemgr.NewFilesystem(os.Args[1], encryption.StateEncryptionDisabled())
 
 	info := statemgr.NewLockInfo()
 	info.Operation = "test"

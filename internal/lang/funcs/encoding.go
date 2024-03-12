@@ -227,6 +227,26 @@ var URLEncodeFunc = function.New(&function.Spec{
 	},
 })
 
+// URLDecodeFunc constructs a function that applies URL decoding to a given encoded string.
+var URLDecodeFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name: "str",
+			Type: cty.String,
+		},
+	},
+	Type:         function.StaticReturnType(cty.String),
+	RefineResult: refineNotNull,
+	Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+		query, err := url.QueryUnescape(args[0].AsString())
+		if err != nil {
+			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decode URL '%s': %v", query, err)
+		}
+
+		return cty.StringVal(query), nil
+	},
+})
+
 // Base64Decode decodes a string containing a base64 sequence.
 //
 // OpenTofu uses the "standard" Base64 alphabet as defined in RFC 4648 section 4.
@@ -279,6 +299,16 @@ func Base64Gunzip(str cty.Value) (cty.Value, error) {
 // UTF-8 and then percent encoding is applied separately to each UTF-8 byte.
 func URLEncode(str cty.Value) (cty.Value, error) {
 	return URLEncodeFunc.Call([]cty.Value{str})
+}
+
+// URLDecode decodes a URL encoded string.
+//
+// This function decodes the given string that has been encoded.
+//
+// If the given string contains non-ASCII characters, these are first encoded as
+// UTF-8 and then percent decoding is applied separately to each UTF-8 byte.
+func URLDecode(str cty.Value) (cty.Value, error) {
+	return URLDecodeFunc.Call([]cty.Value{str})
 }
 
 // TextEncodeBase64 applies Base64 encoding to a string that was encoded before with a target encoding.

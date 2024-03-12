@@ -18,6 +18,7 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -62,6 +63,8 @@ type Filesystem struct {
 	readFile      *statefile.File
 	backupFile    *statefile.File
 	writtenBackup bool
+
+	encryption encryption.StateEncryption
 }
 
 var (
@@ -75,20 +78,22 @@ var (
 //
 // This is equivalent to calling NewFileSystemBetweenPaths with statePath as
 // both of the path arguments.
-func NewFilesystem(statePath string) *Filesystem {
+func NewFilesystem(statePath string, enc encryption.StateEncryption) *Filesystem {
 	return &Filesystem{
-		path:     statePath,
-		readPath: statePath,
+		path:       statePath,
+		readPath:   statePath,
+		encryption: enc,
 	}
 }
 
 // NewFilesystemBetweenPaths creates a filesystem-based state manager that
 // reads an initial snapshot from readPath and then writes all new snapshots to
 // writePath.
-func NewFilesystemBetweenPaths(readPath, writePath string) *Filesystem {
+func NewFilesystemBetweenPaths(readPath, writePath string, enc encryption.StateEncryption) *Filesystem {
 	return &Filesystem{
-		path:     writePath,
-		readPath: readPath,
+		path:       writePath,
+		readPath:   readPath,
+		encryption: enc,
 	}
 }
 
@@ -187,7 +192,7 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			}
 			defer bfh.Close()
 
-			err = statefile.Write(s.backupFile, bfh)
+			err = statefile.Write(s.backupFile, bfh, s.encryption)
 			if err != nil {
 				return fmt.Errorf("failed to write to local state backup file: %w", err)
 			}
@@ -231,7 +236,7 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 	}
 
 	log.Printf("[TRACE] statemgr.Filesystem: writing snapshot at %s", s.path)
-	if err := statefile.Write(s.file, s.stateFileOut); err != nil {
+	if err := statefile.Write(s.file, s.stateFileOut, s.encryption); err != nil {
 		return err
 	}
 
@@ -303,7 +308,7 @@ func (s *Filesystem) refreshState() error {
 		reader = s.stateFileOut
 	}
 
-	f, err := statefile.Read(reader)
+	f, err := statefile.Read(reader, s.encryption)
 	// if there's no state then a nil file is fine
 	if err != nil {
 		if err != statefile.ErrNoState {
@@ -492,7 +497,7 @@ func (s *Filesystem) createStateFiles() error {
 
 	// If the file already existed with content then that'll be the content
 	// of our backup file if we write a change later.
-	s.backupFile, err = statefile.Read(s.stateFileOut)
+	s.backupFile, err = statefile.Read(s.stateFileOut, s.encryption)
 	if err != nil {
 		if err != statefile.ErrNoState {
 			return err

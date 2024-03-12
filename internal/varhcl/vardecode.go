@@ -54,7 +54,9 @@ func findVariablesInBodyStruct(body hcl.Body, val reflect.Value) ([]hcl.Traversa
 
 	for name := range tags.Attributes {
 		attr := content.Attributes[name]
-		variables = append(variables, attr.Expr.Variables()...)
+		if attr != nil {
+			variables = append(variables, attr.Expr.Variables()...)
+		}
 	}
 
 	blocksByType := content.Blocks.ByType()

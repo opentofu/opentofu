@@ -31,6 +31,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -242,7 +243,7 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	} else {
 		s = testServer(t)
 	}
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	// Configure the backend so the client is created.
 	newObj, valDiags := b.PrepareConfig(obj)
@@ -319,7 +320,7 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 	skipIfTFENotEnabled(t)
 
 	s := testServer(t)
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	// Normally, the client is created during configuration, but the configuration uses the
 	// client to read entitlements.
@@ -369,7 +370,7 @@ func testUnconfiguredBackend(t *testing.T) (*Cloud, func()) {
 func testLocalBackend(t *testing.T, cloud *Cloud) backend.Enhanced {
 	skipIfTFENotEnabled(t)
 
-	b := backendLocal.NewWithBackend(cloud)
+	b := backendLocal.NewWithBackend(cloud, nil)
 
 	// Add a test provider to the local backend.
 	p := backendLocal.TestLocalProvider(t, b, "null", providers.ProviderSchema{
@@ -426,7 +427,7 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 			fakeState := states.NewState()
 			fakeStateFile := statefile.New(fakeState, "boop", 1)
 			var buf bytes.Buffer
-			statefile.Write(fakeStateFile, &buf)
+			statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())
 			respBody := buf.Bytes()
 			w.Header().Set("content-type", "application/json")
 			w.Header().Set("content-length", strconv.FormatInt(int64(len(respBody)), 10))

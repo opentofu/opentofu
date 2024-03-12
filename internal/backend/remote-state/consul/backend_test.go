@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 func TestBackend_impl(t *testing.T) {
@@ -56,12 +57,12 @@ func TestBackend(t *testing.T) {
 	path := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
 	// Get the backend. We need two to test locking.
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path,
 	}))
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path,
 	}))
@@ -78,13 +79,13 @@ func TestBackend_lockDisabled(t *testing.T) {
 	path := fmt.Sprintf("tf-unit/%s", time.Now().String())
 
 	// Get the backend. We need two to test locking.
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path,
 		"lock":    false,
 	}))
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path + "different", // Diff so locking test would fail if it was locking
 		"lock":    false,
@@ -100,7 +101,7 @@ func TestBackend_gzip(t *testing.T) {
 	defer func() { _ = srv.Stop() }()
 
 	// Get the backend
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    fmt.Sprintf("tf-unit/%s", time.Now().String()),
 		"gzip":    true,

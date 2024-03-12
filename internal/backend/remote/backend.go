@@ -25,6 +25,7 @@ import (
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -95,6 +96,8 @@ type Remote struct {
 	// version. This will also cause VerifyWorkspaceTerraformVersion to return
 	// a warning diagnostic instead of an error.
 	ignoreVersionConflict bool
+
+	encryption encryption.StateEncryption
 }
 
 var _ backend.Backend = (*Remote)(nil)
@@ -102,9 +105,10 @@ var _ backend.Enhanced = (*Remote)(nil)
 var _ backend.Local = (*Remote)(nil)
 
 // New creates a new initialized remote backend.
-func New(services *disco.Disco) *Remote {
+func New(services *disco.Disco, enc encryption.StateEncryption) *Remote {
 	return &Remote{
-		services: services,
+		services:   services,
+		encryption: enc,
 	}
 }
 
@@ -374,7 +378,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	// Configure a local backend for when we need to run operations locally.
-	b.local = backendLocal.NewWithBackend(b)
+	b.local = backendLocal.NewWithBackend(b, nil)
 	b.forceLocal = b.forceLocal || !entitlements.Operations
 
 	// Enable retries for server errors as the backend is now fully configured.
@@ -704,9 +708,8 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		runID: os.Getenv("TFE_RUN_ID"),
 	}
 
-	return &remote.State{
-		Client: client,
-
+	state := remote.NewState(client, b.encryption)
+	if client.runID != "" {
 		// client.runID will be set if we're running a Terraform Cloud
 		// or Terraform Enterprise remote execution environment, in which
 		// case we'll disable intermediate snapshots to avoid extra storage
@@ -714,8 +717,9 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		// Other implementations of the remote state protocol should not run
 		// in contexts where there's a "TFE Run ID" and so are not affected
 		// by this special case.
-		DisableIntermediateSnapshots: client.runID != "",
-	}, nil
+		state.DisableIntermediateSnapshots()
+	}
+	return state, nil
 }
 
 func isLocalExecutionMode(execMode string) bool {

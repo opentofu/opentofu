@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -68,8 +69,16 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(args.State, args.ViewType)
+	be, beDiags := c.PrepareBackend(args.State, args.ViewType, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -77,7 +86,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath)
+	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -115,7 +124,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.ViewType) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
@@ -131,7 +140,7 @@ func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.V
 	be, beDiags := c.Backend(&BackendOpts{
 		Config:   backendConfig,
 		ViewType: viewType,
-	})
+	}, enc.Backend())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {
 		return nil, diags
@@ -147,11 +156,12 @@ func (c *PlanCommand) OperationRequest(
 	args *arguments.Operation,
 	planOutPath string,
 	generateConfigOut string,
+	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(be, viewType)
+	opReq := c.Operation(be, viewType, enc)
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()

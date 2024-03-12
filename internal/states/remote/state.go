@@ -14,6 +14,7 @@ import (
 	uuid "github.com/hashicorp/go-uuid"
 
 	"github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -28,6 +29,8 @@ type State struct {
 	mu sync.Mutex
 
 	Client Client
+
+	encryption encryption.StateEncryption
 
 	// We track two pieces of meta data in addition to the state itself:
 	//
@@ -47,12 +50,23 @@ type State struct {
 	// state snapshots created while a OpenTofu Core apply operation is in
 	// progress. Otherwise (by default) it will accept persistent snapshots
 	// using the default rules defined in the local backend.
-	DisableIntermediateSnapshots bool
+	disableIntermediateSnapshots bool
 }
 
 var _ statemgr.Full = (*State)(nil)
 var _ statemgr.Migrator = (*State)(nil)
 var _ local.IntermediateStateConditionalPersister = (*State)(nil)
+
+func NewState(client Client, enc encryption.StateEncryption) *State {
+	return &State{
+		Client:     client,
+		encryption: enc,
+	}
+}
+
+func (s *State) DisableIntermediateSnapshots() {
+	s.disableIntermediateSnapshots = true
+}
 
 // statemgr.Reader impl.
 func (s *State) State() *states.State {
@@ -150,7 +164,7 @@ func (s *State) refreshState() error {
 		return nil
 	}
 
-	stateFile, err := statefile.Read(bytes.NewReader(payload.Data))
+	stateFile, err := statefile.Read(bytes.NewReader(payload.Data), s.encryption)
 	if err != nil {
 		return err
 	}
@@ -207,7 +221,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 	f := statefile.New(s.state, s.lineage, s.serial)
 
 	var buf bytes.Buffer
-	err := statefile.Write(f, &buf)
+	err := statefile.Write(f, &buf, s.encryption)
 	if err != nil {
 		return err
 	}
@@ -231,7 +245,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 
 // ShouldPersistIntermediateState implements local.IntermediateStateConditionalPersister
 func (s *State) ShouldPersistIntermediateState(info *local.IntermediateStatePersistInfo) bool {
-	if s.DisableIntermediateSnapshots {
+	if s.disableIntermediateSnapshots {
 		return false
 	}
 	return local.DefaultIntermediateStatePersistRule(info)

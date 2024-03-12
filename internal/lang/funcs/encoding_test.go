@@ -243,6 +243,141 @@ func TestURLEncode(t *testing.T) {
 	}
 }
 
+func TestURLDecode(t *testing.T) {
+	tests := []struct {
+		String cty.Value
+		Want   cty.Value
+		Err    bool
+	}{
+		{
+			cty.StringVal("abc123-_"),
+			cty.StringVal("abc123-_"),
+			false,
+		},
+		{
+			cty.StringVal("foo%3Abar%40localhost%3Ffoo%3Dbar%26bar%3Dbaz"),
+			cty.StringVal("foo:bar@localhost?foo=bar&bar=baz"),
+			false,
+		},
+		{
+			cty.StringVal("mailto%3Aemail%3Fsubject%3Dthis%2Bis%2Bmy%2Bsubject"),
+			cty.StringVal("mailto:email?subject=this+is+my+subject"),
+			false,
+		},
+		{
+			cty.StringVal("foo%2Fbar"),
+			cty.StringVal("foo/bar"),
+			false,
+		},
+		{
+			cty.StringVal("foo% bar"),
+			cty.UnknownVal(cty.String),
+			true,
+		},
+		{
+			cty.StringVal("foo%2 bar"),
+			cty.UnknownVal(cty.String),
+			true,
+		},
+		{
+			cty.StringVal("%GGfoo%2bar"),
+			cty.UnknownVal(cty.String),
+			true,
+		},
+		{
+			cty.StringVal("foo%00, bar!"),
+			cty.StringVal("foo\x00, bar!"),
+			false,
+		},
+		{
+			cty.StringVal("hello%20%E4%B8%96%E7%95%8C"), //Unicode character support
+			cty.StringVal("hello 世界"),
+			false,
+		},
+		{
+			cty.StringVal("hello%20%D8%AF%D9%86%DB%8C%D8%A7"), //Unicode character support
+			cty.StringVal("hello دنیا"),
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("urldecode(%#v)", test.String), func(t *testing.T) {
+			got, err := URLDecode(test.String)
+
+			if test.Err {
+				if err == nil {
+					t.Fatal("succeeded; want error")
+				}
+				return
+			} else if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if !got.RawEquals(test.Want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+			}
+		})
+	}
+}
+
+func TestURLEncodeDecode(t *testing.T) {
+	tests := []struct {
+		String cty.Value
+		Want   cty.Value
+		Err    bool
+	}{
+		{
+			cty.StringVal("abc123-_"),
+			cty.StringVal("abc123-_"),
+			false,
+		},
+		{
+			cty.StringVal("foo:bar@localhost?foo=bar&bar=baz"),
+			cty.StringVal("foo:bar@localhost?foo=bar&bar=baz"),
+			false,
+		},
+		{
+			cty.StringVal("mailto:email?subject=this+is+my+subject"),
+			cty.StringVal("mailto:email?subject=this+is+my+subject"),
+			false,
+		},
+		{
+			cty.StringVal("foo/bar"),
+			cty.StringVal("foo/bar"),
+			false,
+		},
+		{
+			cty.StringVal("foo%00, bar!"),
+			cty.StringVal("foo%00, bar!"),
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("url encode decode(%#v)", test.String), func(t *testing.T) {
+			encoded, err := URLEncode(test.String)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			got, err := URLDecode(encoded)
+
+			if test.Err {
+				if err == nil {
+					t.Fatal("succeeded; want error")
+				}
+				return
+			} else if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if !got.RawEquals(test.Want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+			}
+		})
+	}
+}
+
 func TestBase64TextEncode(t *testing.T) {
 	tests := []struct {
 		String   cty.Value

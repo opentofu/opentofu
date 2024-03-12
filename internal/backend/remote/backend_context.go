@@ -72,6 +72,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 
 	// Copy set options from the operation
 	opts.UIInput = op.UIIn
+	opts.Encryption = op.Encryption
 
 	// Load the latest state. If we enter contextFromPlanFile below then the
 	// state snapshot in the plan file must match this, or else it'll return

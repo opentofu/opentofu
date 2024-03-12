@@ -118,7 +118,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	if err != nil {
 		return nil, err
 	}
-	stateMgr := &remote.State{Client: client}
+	stateMgr := remote.NewState(client, b.encryption)
 
 	// Check to see if this state already exists.
 	existing, err := b.Workspaces()

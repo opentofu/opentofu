@@ -18,7 +18,7 @@ import (
 )
 
 type targetBuilder struct {
-	cfg *config.Config
+	cfg *config.EncryptionConfig
 	reg registry.Registry
 
 	// Used to evaluate hcl expressions

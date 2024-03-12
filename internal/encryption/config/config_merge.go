@@ -7,12 +7,18 @@ package config
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 )
 
 // MergeConfigs merges two Configs together, with the override taking precedence.
-func MergeConfigs(cfg *Config, override *Config) *Config {
-	return &Config{
+func MergeConfigs(cfg *EncryptionConfig, override *EncryptionConfig) *EncryptionConfig {
+	if cfg == nil {
+		return override
+	}
+	if override == nil {
+		return cfg
+	}
+	return &EncryptionConfig{
 		KeyProviderConfigs: mergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
 		MethodConfigs:      mergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
 
@@ -162,5 +168,5 @@ func mergeBody(base hcl.Body, override hcl.Body) hcl.Body {
 		return base
 	}
 
-	return configs.MergeBodies(base, override)
+	return hcl2shim.MergeBodies(base, override)
 }

@@ -25,6 +25,8 @@ type GraphCommand struct {
 }
 
 func (c *GraphCommand) Run(args []string) int {
+	var diags tfdiags.Diagnostics
+
 	var drawCycles bool
 	var graphTypeStr string
 	var moduleDepth int
@@ -56,17 +58,23 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.EncryptionFromPath(configPath)
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	// Try to load plan if path is specified
 	var planFile *planfile.WrappedPlanFile
 	if planPath != "" {
-		planFile, err = c.PlanFile(planPath)
+		planFile, err = c.PlanFile(planPath, enc.PlanFile())
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
@@ -78,7 +86,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: backendConfig,
-	})
+	}, enc.Backend())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -97,7 +105,7 @@ func (c *GraphCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman)
+	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile

@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -211,6 +212,9 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}
+
+	// Don't use encryption during testing
+	opts.Encryption = encryption.Disabled()
 
 	// Print out all the diagnostics we have from the setup. These will just be
 	// warnings, and we want them out of the way before we start the actual

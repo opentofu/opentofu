@@ -148,6 +148,7 @@ func (s *Scope) Functions() map[string]function.Function {
 			"try":              tryfunc.TryFunc,
 			"upper":            stdlib.UpperFunc,
 			"urlencode":        funcs.URLEncodeFunc,
+			"urldecode":        funcs.URLDecodeFunc,
 			"uuid":             funcs.UUIDFunc,
 			"uuidv5":           funcs.UUIDV5Func,
 			"values":           stdlib.ValuesFunc,
@@ -159,6 +160,12 @@ func (s *Scope) Functions() map[string]function.Function {
 		s.funcs["templatefile"] = funcs.MakeTemplateFileFunc(s.BaseDir, func() map[string]function.Function {
 			// The templatefile function prevents recursive calls to itself
 			// by copying this map and overwriting the "templatefile" entry.
+			return s.funcs
+		})
+
+		// Registers "templatestring" function in function map.
+		s.funcs["templatestring"] = funcs.MakeTemplateStringFunc(s.BaseDir, func() map[string]function.Function {
+			// This anonymous function returns the existing map of functions for initialization.
 			return s.funcs
 		})
 

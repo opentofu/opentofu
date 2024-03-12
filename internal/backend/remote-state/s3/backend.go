@@ -25,6 +25,7 @@ import (
 	awsbaseValidation "github.com/hashicorp/aws-sdk-go-base/v2/validation"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -33,14 +34,15 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func New() backend.Backend {
-	return &Backend{}
+func New(enc encryption.StateEncryption) backend.Backend {
+	return &Backend{encryption: enc}
 }
 
 type Backend struct {
-	s3Client  *s3.Client
-	dynClient *dynamodb.Client
-	awsConfig aws.Config
+	encryption encryption.StateEncryption
+	s3Client   *s3.Client
+	dynClient  *dynamodb.Client
+	awsConfig  aws.Config
 
 	bucketName            string
 	keyName               string

@@ -36,6 +36,8 @@ In this section we describe the features that are out of scope for state and pla
 
 The primary goal of this feature is to protect state and plan files **at rest**. It is not the goal of this feature to protect other channels secrets may be accessed through, such as the JSON output. As such, it is not a goal of this feature to encrypt any output on the standard output, or file output that is not a state or plan file.
 
+Furthermore, it is not a goal of this feature to *authenticate* that the user is running an up-to-date plan file. It does not protect against, among others, replay attacks where a malicious actor replaces a current plan or state file with an old one.
+
 It is also not a goal of this feature to protect the state file against the operator of the device running `tofu`. The operator already has access to the encryption key and can decrypt the data without the `tofu` binary being present if they so chose.
 
 ## User-facing effects

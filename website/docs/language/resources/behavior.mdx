@@ -29,6 +29,7 @@ In summary, applying an OpenTofu configuration will:
 
 - _Create_ resources that exist in the configuration but are not associated with a real infrastructure object in the state.
 - _Destroy_ resources that exist in the state but no longer exist in the configuration.
+- _Forget_ resources that exist in the state but no longer in the configuration and are referenced in a `removed` block within the configuration.
 - _Update in-place_ resources whose arguments have changed.
 - _Destroy and re-create_ resources whose arguments have changed but which cannot be updated in-place due to remote API limitations.
 
