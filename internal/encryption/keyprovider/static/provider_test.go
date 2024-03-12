@@ -7,8 +7,9 @@ package static_test
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 

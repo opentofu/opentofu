@@ -7,6 +7,7 @@ package static
 
 import (
 	"encoding/hex"
+
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
