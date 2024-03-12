@@ -6,9 +6,10 @@
 package lockingencryptionregistry_test
 
 import (
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
-	"testing"
 )
 
 func TestCompliance(t *testing.T) {

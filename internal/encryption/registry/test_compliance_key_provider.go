@@ -7,8 +7,9 @@ package registry
 
 import (
 	"errors"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
 func complianceTestKeyProviders(t *testing.T, factory func() Registry) {
