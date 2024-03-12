@@ -49,8 +49,11 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 
 	// Set initial outputs
 	out.EncryptionKey = generatedKeyData.Plaintext
-	out.DecryptionKey = generatedKeyData.Plaintext
 	outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob
+
+	// We do not set the DecryptionKey here as we should only be setting the decryption key if we are decrypting
+	// and that is handled below when we check if the inMeta has a CiphertextBlob
+	//out.DecryptionKey = generatedKeyData.Plaintext
 
 	if len(inMeta.CiphertextBlob) != 0 {
 		// We have an existing decryption key to decrypt
