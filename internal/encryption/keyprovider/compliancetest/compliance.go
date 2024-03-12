@@ -540,9 +540,24 @@ func complianceTestFullCircle(t *testing.T, testCase TestCase, descriptor keypro
 			cfg,
 			err,
 		)
+	} else {
+		log(
+			t,
+			"Build() called successfully.",
+		)
 	}
 
 	output2, _, err := provider2.Provide(outMeta)
+	if err != nil {
+		fail(
+			t,
+			"Failed call Provide() with valid configuration on %T (%v).",
+			cfg,
+			err,
+		)
+	} else {
+		log(t, "Provide() called successfully.")
+	}
 
 	keysMatchfunc := testCase.KeysMatchFunc
 	if keysMatchfunc == nil {
