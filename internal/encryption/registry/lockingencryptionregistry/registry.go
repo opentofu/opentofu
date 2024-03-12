@@ -68,7 +68,7 @@ func (l *lockingRegistry) GetKeyProviderDescriptor(id keyprovider.ID) (keyprovid
 	return provider, nil
 }
 
-func (l *lockingRegistry) GetMethod(id method.ID) (method.Descriptor, error) {
+func (l *lockingRegistry) GetMethodDescriptor(id method.ID) (method.Descriptor, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	foundMethod, ok := l.methods[id]
