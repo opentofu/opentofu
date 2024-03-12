@@ -716,6 +716,10 @@
             "path": "language/functions/sensitive"
           },
           {
+            "title": "<code>issensitive</code>",
+            "path": "language/functions/issensitive",
+          },
+          {
             "title": "<code>tobool</code>",
             "path": "language/functions/tobool"
           },
@@ -952,6 +956,11 @@
       {
         "title": "index",
         "path": "language/functions/index_function",
+        "hidden": true
+      },
+      {
+        "title": "issensitive",
+        "path": "language/functions/issensitive",
         "hidden": true
       },
       { "title": "join", "path": "language/functions/join", "hidden": true },
