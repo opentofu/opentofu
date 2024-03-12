@@ -25,18 +25,18 @@ func (m Metadata) isPresent() bool {
 
 func (m Metadata) validate() error {
 	if m.Iterations < 0 {
-		return keyprovider.ErrInvalidMetadata{
+		return &keyprovider.ErrInvalidMetadata{
 			Message: fmt.Sprintf("invalid number of iterations (%d)", m.Iterations),
 		}
 	}
 	if m.KeyLength < 0 {
-		return keyprovider.ErrInvalidMetadata{
+		return &keyprovider.ErrInvalidMetadata{
 			Message: fmt.Sprintf("invalid key length (%d)", m.KeyLength),
 		}
 	}
 	if m.HashFunction != "" {
 		if err := m.HashFunction.Validate(); err != nil {
-			return keyprovider.ErrInvalidMetadata{
+			return &keyprovider.ErrInvalidMetadata{
 				Message: "invalid hash function name",
 				Cause:   err,
 			}

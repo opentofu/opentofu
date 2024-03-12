@@ -6,7 +6,8 @@
 package static_test
 
 import (
-	"bytes"
+	"fmt"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -15,64 +16,87 @@ import (
 )
 
 func TestKeyProvider(t *testing.T) {
-	// TODO: Rework to check the expected errors and not just expectSuccess
-	type testCase struct {
-		name          string
-		key           string
-		expectSuccess bool
-		expectedData  keyprovider.Output
-	}
-
-	testCases := []testCase{
-		{
-			name:          "Empty",
-			expectSuccess: true,
-			expectedData:  keyprovider.Output{},
+	compliancetest.ComplianceTest(
+		t,
+		static.New(),
+		map[string]compliancetest.TestCase{
+			"success": {
+				`key_provider "static" "foo" {
+    key = "48656c6c6f20776f726c6421"
+}`,
+				true,
+				func(config keyprovider.Config) error {
+					if parsedKey := config.(*static.Config).Key; parsedKey != "48656c6c6f20776f726c6421" {
+						return fmt.Errorf("incorrect key in parsed config: %s", parsedKey)
+					}
+					return nil
+				},
+				false,
+				true,
+				nil,
+				&keyprovider.Output{
+					EncryptionKey: []byte("Hello world!"), // "48656c6c6f20776f726c6421" in hex is "Hello world!"
+					DecryptionKey: []byte("Hello world!"),
+				},
+				func() any {
+					return &static.Metadata{
+						Magic: "Broken magic.",
+					}
+				},
+				func(output keyprovider.Output, meta any) error {
+					if magic := meta.(*static.Metadata).Magic; magic != "Hello world!" {
+						return fmt.Errorf("incorrect output magic: %s", magic)
+					}
+					return nil
+				},
+			},
+			"empty": {
+				`key_provider "static" "foo" {
+}`,
+				false,
+				nil,
+				true,
+				false,
+				nil,
+				nil,
+				nil,
+				nil,
+			},
+			"empty-internal": {
+				`key_provider "static" "foo" {
+    key = "48656c6c6f20776f726c6421"
+}`,
+				true,
+				func(config keyprovider.Config) error {
+					// Inject incorrect key for internal validation test
+					config.(*static.Config).Key = ""
+					return nil
+				},
+				false,
+				false,
+				nil,
+				nil,
+				nil,
+				nil,
+			},
+			"invalid-hex": {
+				`key_provider "static" "foo" {
+    key = "G"
+}`,
+				true,
+				func(config keyprovider.Config) error {
+					if parsedKey := config.(*static.Config).Key; parsedKey != "G" {
+						return fmt.Errorf("incorrect key in parsed config: %s", parsedKey)
+					}
+					return nil
+				},
+				false,
+				false,
+				nil,
+				nil,
+				nil,
+				nil,
+			},
 		},
-		{
-			name:          "InvalidInput",
-			key:           "G",
-			expectSuccess: false,
-		},
-		{
-			name:          "Success",
-			key:           "48656c6c6f20776f726c6421",
-			expectSuccess: true,
-			expectedData:  keyprovider.Output{EncryptionKey: []byte("Hello world!"), DecryptionKey: []byte("Hello world!")}, // "48656c6c6f20776f726c6421" in hex is "Hello world!"
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			descriptor := static.New()
-			c := descriptor.ConfigStruct().(*static.Config)
-
-			// Set key if provided
-			if tc.key != "" {
-				c.Key = tc.key
-			}
-
-			keyProvider, keyMeta, buildErr := c.Build()
-			if tc.expectSuccess {
-				if buildErr != nil {
-					t.Fatalf("unexpected error: %v", buildErr)
-				}
-
-				output, _, err := keyProvider.Provide(keyMeta)
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				if !bytes.Equal(output.EncryptionKey, tc.expectedData.EncryptionKey) {
-					t.Fatalf("unexpected encryption key in output: got %v, want %v", output.EncryptionKey, tc.expectedData.EncryptionKey)
-				}
-				if !bytes.Equal(output.DecryptionKey, tc.expectedData.DecryptionKey) {
-					t.Fatalf("unexpected decryption key in output: got %v, want %v", output.DecryptionKey, tc.expectedData.EncryptionKey)
-				}
-			} else {
-				if buildErr == nil {
-					t.Fatalf("expected an error but got none")
-				}
-			}
-		})
-	}
+	)
 }
