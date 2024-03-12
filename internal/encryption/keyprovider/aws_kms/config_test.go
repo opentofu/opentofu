@@ -1,6 +1,7 @@
 package aws_kms
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -186,6 +187,58 @@ func TestConfig_asAWSBase(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tc.expected, *actual) {
 				t.Fatalf("Expected %s, got %s", spew.Sdump(tc.expected), spew.Sdump(*actual))
+			}
+		})
+	}
+}
+
+func TestValidate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    Config
+		expected error
+	}{
+		{
+			name: "valid",
+			input: Config{
+				KMSKeyID: "my-kms-key-id",
+				KeySpec:  "AES_256",
+			},
+			expected: nil,
+		},
+		{
+			name: "missing kms_key_id",
+			input: Config{
+				KMSKeyID: "",
+				KeySpec:  "AES_256",
+			},
+			expected: fmt.Errorf("no kms_key_id provided"),
+		},
+		{
+			name: "missing key_spec",
+			input: Config{
+				KMSKeyID: "my-kms-key-id",
+				KeySpec:  "",
+			},
+			expected: fmt.Errorf("no key_spec provided"),
+		},
+		{
+			name: "invalid key_spec",
+			input: Config{
+				KMSKeyID: "my-kms-key-id",
+				KeySpec:  "invalid??",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.input.validate()
+			// check if the error message is the same
+			if tc.expected != nil {
+				if err.Error() != tc.expected.Error() {
+					t.Fatalf("Expected %q, got %q", tc.expected.Error(), err.Error())
+				}
 			}
 		})
 	}

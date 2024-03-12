@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -88,7 +89,7 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 		return nil, err
 	}
 
-	// Validate region
+	// validate region
 	if c.Region == "" && os.Getenv("AWS_REGION") == "" && os.Getenv("AWS_DEFAULT_REGION") == "" {
 		return nil, fmt.Errorf(`the "region" attribute or the "AWS_REGION" or "AWS_DEFAULT_REGION" environment variables must be set.`)
 	}
@@ -115,7 +116,7 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 		}
 	}
 
-	// Validate account_ids
+	// validate account_ids
 	if len(c.AllowedAccountIds) != 0 && len(c.ForbiddenAccountIds) != 0 {
 		return nil, fmt.Errorf("conflicting config attributes: only allowed_account_ids or forbidden_account_ids can be specified, not both")
 	}
@@ -165,6 +166,11 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 }
 
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
+	err := c.validate()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	cfg, err := c.asAWSBase()
 	if err != nil {
 		return nil, nil, err
@@ -192,9 +198,45 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}, new(keyMeta), nil
 }
 
+// validate checks the configuration for the key provider
+func (c Config) validate() (err error) {
+	if c.KMSKeyID == "" {
+		return &keyprovider.ErrInvalidConfiguration{
+			Message: "no kms_key_id provided",
+		}
+	}
+
+	if c.KeySpec == "" {
+		return &keyprovider.ErrInvalidConfiguration{
+			Message: "no key_spec provided",
+		}
+	}
+
+	spec := c.getKeySpecAsAWSType()
+	if spec == nil {
+		return &keyprovider.ErrInvalidConfiguration{
+			Message: fmt.Sprintf("invalid key_spec %s, expected one of %v", c.KeySpec, spec.Values()),
+		}
+	}
+
+	return nil
+}
+
+// getSpecAsAWSType handles conversion between the string from the config and the aws expected enum type
+// it will return nil if it cannot find a match
+func (c Config) getKeySpecAsAWSType() *types.DataKeySpec {
+	var spec types.DataKeySpec
+	for _, opt := range spec.Values() {
+		if string(opt) == c.KeySpec {
+			spec = opt
+		}
+	}
+	return &spec
+}
+
 // Mirrored from s3 backend config
 func attachLoggerToContext(ctx context.Context) (context.Context, baselogging.HcLogger) {
-	ctx, baselog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
-	ctx = baselogging.RegisterLogger(ctx, baselog)
-	return ctx, baselog
+	ctx, baseLog := baselogging.NewHcLogger(ctx, logging.HCLogger().Named("backend-s3"))
+	ctx = baselogging.RegisterLogger(ctx, baseLog)
+	return ctx, baseLog
 }

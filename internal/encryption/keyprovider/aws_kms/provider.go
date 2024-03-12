@@ -2,7 +2,6 @@ package aws_kms
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
@@ -25,18 +24,8 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	outMeta := keyMeta{}
 	out := keyprovider.Output{}
 
-	// Generate new key pair
-	var spec types.DataKeySpec
-
-	for _, opt := range spec.Values() {
-		if string(opt) == p.KeySpec {
-			spec = opt
-		}
-	}
-
-	if len(spec) == 0 {
-		return out, outMeta, fmt.Errorf("Invalid key_spec %s, expected one of %v", p.KeySpec, spec.Values())
-	}
+	// as validation has happened in the config, we can safely cast here and not worry about the cast failing
+	spec := types.DataKeySpec(p.KeySpec)
 
 	generatedKeyData, err := p.svc.GenerateDataKey(p.ctx, &kms.GenerateDataKeyInput{
 		KeyId:   aws.String(p.KMSKeyID),
@@ -47,7 +36,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		return out, outMeta, err
 	}
 
-	// Set initial outputs
+	// Set initial outputs that are always set
 	out.EncryptionKey = generatedKeyData.Plaintext
 	outMeta.CiphertextBlob = generatedKeyData.CiphertextBlob
 
@@ -56,17 +45,17 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	//out.DecryptionKey = generatedKeyData.Plaintext
 
 	if len(inMeta.CiphertextBlob) != 0 {
-		// We have an existing decryption key to decrypt
-		decryptedKeyData, err := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
+		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
+		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, &kms.DecryptInput{
 			KeyId:          aws.String(p.KMSKeyID),
 			CiphertextBlob: inMeta.CiphertextBlob,
 		})
 
-		if err != nil {
-			return out, outMeta, err
+		if decryptErr != nil {
+			return out, outMeta, decryptErr
 		}
 
-		// Override decryption key for the existing data
+		// Set decryption key on the output
 		out.DecryptionKey = decryptedKeyData.Plaintext
 	}
 
