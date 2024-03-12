@@ -980,6 +980,9 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 		}
 		runner.Suite.View.DestroySummary(diags, state.Run, file, updated)
 
+		if updated.HasManagedResourceInstanceObjects() {
+			views.SaveErroredTestStateFile(updated, state.Run, file, runner.Suite.View)
+		}
 		reset()
 	}
 }
