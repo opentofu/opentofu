@@ -3,16 +3,17 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package registry
+package compliancetest
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
 
-func complianceTestKeyProviders(t *testing.T, factory func() Registry) {
+func complianceTestKeyProviders(t *testing.T, factory func() registry.Registry) {
 	t.Run("registration-and-return", func(t *testing.T) {
 		complianceTestKeyProviderRegistrationAndReturn(t, factory)
 	})
@@ -24,15 +25,15 @@ func complianceTestKeyProviders(t *testing.T, factory func() Registry) {
 	})
 }
 
-func complianceTestKeyProviderRegistrationAndReturn(t *testing.T, factory func() Registry) {
-	registry := factory()
+func complianceTestKeyProviderRegistrationAndReturn(t *testing.T, factory func() registry.Registry) {
+	reg := factory()
 	testKeyProvider := &testKeyProviderDescriptor{
 		"test",
 	}
-	if err := registry.RegisterKeyProvider(testKeyProvider); err != nil {
+	if err := reg.RegisterKeyProvider(testKeyProvider); err != nil {
 		t.Fatalf("Failed to register test key provider with ID %s (%v)", testKeyProvider.id, err)
 	}
-	returnedKeyProvider, err := registry.GetKeyProviderDescriptor(testKeyProvider.id)
+	returnedKeyProvider, err := reg.GetKeyProviderDescriptor(testKeyProvider.id)
 	if err != nil {
 		t.Fatalf("The previously registered key provider with the ID %s couldn't be fetched from the registry (%v).", testKeyProvider.id, err)
 	}
@@ -44,11 +45,11 @@ func complianceTestKeyProviderRegistrationAndReturn(t *testing.T, factory func()
 		t.Fatalf("The returned key provider contained the wrong ID %s instead of %s", returnedTypedKeyProvider.id, testKeyProvider.id)
 	}
 
-	_, err = registry.GetKeyProviderDescriptor("nonexistent")
+	_, err = reg.GetKeyProviderDescriptor("nonexistent")
 	if err == nil {
 		t.Fatalf("Requesting a non-existent key provider from GetKeyProviderDescriptor did not return an error.")
 	}
-	var typedErr *KeyProviderNotFoundError
+	var typedErr *registry.KeyProviderNotFoundError
 	if !errors.As(err, &typedErr) {
 		t.Fatalf(
 			"Requesting a non-existent key provider from GetKeyProviderDescriptor returned an incorrect error type of %T. This function should always return a *registry.KeyProviderNotFoundError if the key provider was not found.",
@@ -57,16 +58,16 @@ func complianceTestKeyProviderRegistrationAndReturn(t *testing.T, factory func()
 	}
 }
 
-func complianceTestKeyProviderInvalidID(t *testing.T, factory func() Registry) {
-	registry := factory()
+func complianceTestKeyProviderInvalidID(t *testing.T, factory func() registry.Registry) {
+	reg := factory()
 	testKeyProvider := &testKeyProviderDescriptor{
 		"Hello world!",
 	}
-	err := registry.RegisterKeyProvider(testKeyProvider)
+	err := reg.RegisterKeyProvider(testKeyProvider)
 	if err == nil {
 		t.Fatalf("Registering a key provider with the invalid ID of %s did not result in an error.", testKeyProvider.id)
 	}
-	var typedErr *InvalidKeyProviderError
+	var typedErr *registry.InvalidKeyProviderError
 	if !errors.As(err, &typedErr) {
 		t.Fatalf(
 			"Registering a key provider with an invalid ID of %s resulted in an error of type %T instead of %T. Please make sure to use the correct typed errors.",
@@ -77,22 +78,22 @@ func complianceTestKeyProviderInvalidID(t *testing.T, factory func() Registry) {
 	}
 }
 
-func complianceTestKeyProviderDuplicateRegistration(t *testing.T, factory func() Registry) {
-	registry := factory()
+func complianceTestKeyProviderDuplicateRegistration(t *testing.T, factory func() registry.Registry) {
+	reg := factory()
 	testKeyProvider := &testKeyProviderDescriptor{
 		"test",
 	}
 	testKeyProvider2 := &testKeyProviderDescriptor{
 		"test",
 	}
-	if err := registry.RegisterKeyProvider(testKeyProvider); err != nil {
+	if err := reg.RegisterKeyProvider(testKeyProvider); err != nil {
 		t.Fatalf("Failed to register test key provider with ID %s (%v)", testKeyProvider.id, err)
 	}
-	err := registry.RegisterKeyProvider(testKeyProvider)
+	err := reg.RegisterKeyProvider(testKeyProvider)
 	if err == nil {
 		t.Fatalf("Re-registering the same key provider again did not result in an error.")
 	}
-	var typedErr *KeyProviderAlreadyRegisteredError
+	var typedErr *registry.KeyProviderAlreadyRegisteredError
 	if !errors.As(err, &typedErr) {
 		t.Fatalf(
 			"Re-registering the same key provider twice resulted in an error of the type %T instead of %T. Please make sure to use the correct typed errors.",
@@ -101,7 +102,7 @@ func complianceTestKeyProviderDuplicateRegistration(t *testing.T, factory func()
 		)
 	}
 
-	err = registry.RegisterKeyProvider(testKeyProvider2)
+	err = reg.RegisterKeyProvider(testKeyProvider2)
 	if err == nil {
 		t.Fatalf("Re-registering the a provider with a duplicate ID did not result in an error.")
 	}
