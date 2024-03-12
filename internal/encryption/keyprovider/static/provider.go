@@ -23,17 +23,30 @@ func (p staticKeyProvider) Provide(meta keyprovider.KeyMeta) (keyprovider.Output
 	// but it illustrates well how you can store and retrieve metadata. We wish we could use generics to
 	// save you the trouble of doing a type assertion, but Go does not have sufficiently advanced enough generics
 	// to do that.
+	if meta == nil {
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
+			Message: "bug: nil provided as metadata",
+		}
+	}
 	typedMeta, ok := meta.(*Metadata)
 	if !ok {
-		return keyprovider.Output{}, nil, fmt.Errorf("bug: invalid metadata type received: %T", meta)
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
+			Message: fmt.Sprintf("bug: invalid metadata type received: %T", meta),
+		}
 	}
 	// Note: the Magic may be empty if OpenTofu isn't decrypting anything, make sure to account for that possibility.
-	if typedMeta.Magic != "" && typedMeta.Magic != magic {
-		return keyprovider.Output{}, nil, fmt.Errorf("corrupted data received, no or invalid magic string: %s", typedMeta.Magic)
+	var decryptionKey []byte
+	if typedMeta.Magic != "" {
+		decryptionKey = p.key
+		if typedMeta.Magic != magic {
+			return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
+				Message: fmt.Sprintf("corrupted data received, no or invalid magic string: %s", typedMeta.Magic),
+			}
+		}
 	}
 
 	return keyprovider.Output{
 		EncryptionKey: p.key,
-		DecryptionKey: p.key,
+		DecryptionKey: decryptionKey,
 	}, &Metadata{Magic: magic}, nil
 }
