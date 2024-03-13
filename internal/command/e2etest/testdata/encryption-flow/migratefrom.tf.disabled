@@ -10,16 +10,15 @@ terraform {
                 method "aes_gcm" "example" {
                         keys = key_provider.pbkdf2.basic
                 }
-                backend {
-                        method = method.aes_gcm.example
+                state {
+			fallback {
+				method = method.aes_gcm.example
+			}
                 }
+		plan {
+			fallback {
+				method = method.aes_gcm.example
+			}
+		}
         }
-}
-
-variable "iter" {
-	type = string
-}
-
-resource "tfcoremock_simple_resource" "simple" {
-        string = "helloworld ${var.iter}"
 }
