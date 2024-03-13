@@ -14,14 +14,11 @@ import (
 // Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
 // purpose. If no encryption configuration is present, it should return a pass through method that doesn't do anything.
 type Encryption interface {
-	// StateFile produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
-	StateFile() StateEncryption
+	// State produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
+	State() StateEncryption
 
-	// PlanFile produces a PlanEncryption overlay for encrypting and decrypting plan files.
-	PlanFile() PlanEncryption
-
-	// Backend produces a StateEncryption overlay for storing state files on remote backends, such as an S3 bucket.
-	Backend() StateEncryption
+	// Plan produces a PlanEncryption overlay for encrypting and decrypting plan files.
+	Plan() PlanEncryption
 
 	// RemoteState produces a StateEncryption for reading remote states using the terraform_remote_state data
 	// source.
@@ -29,9 +26,8 @@ type Encryption interface {
 }
 
 type encryption struct {
-	statefile     StateEncryption
-	planfile      PlanEncryption
-	backend       StateEncryption
+	state         StateEncryption
+	plan          PlanEncryption
 	remoteDefault StateEncryption
 	remotes       map[string]StateEncryption
 
@@ -55,25 +51,18 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 	var diags hcl.Diagnostics
 	var encDiags hcl.Diagnostics
 
-	if cfg.StateFile != nil {
-		enc.statefile, encDiags = newStateEncryption(enc, cfg.StateFile.AsTargetConfig(), cfg.StateFile.Enforced, "statefile")
+	if cfg.State != nil {
+		enc.state, encDiags = newStateEncryption(enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state")
 		diags = append(diags, encDiags...)
 	} else {
-		enc.statefile = StateEncryptionDisabled()
+		enc.state = StateEncryptionDisabled()
 	}
 
-	if cfg.PlanFile != nil {
-		enc.planfile, encDiags = newPlanEncryption(enc, cfg.PlanFile.AsTargetConfig(), cfg.PlanFile.Enforced, "planfile")
+	if cfg.Plan != nil {
+		enc.plan, encDiags = newPlanEncryption(enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan")
 		diags = append(diags, encDiags...)
 	} else {
-		enc.planfile = PlanEncryptionDisabled()
-	}
-
-	if cfg.Backend != nil {
-		enc.backend, encDiags = newStateEncryption(enc, cfg.Backend.AsTargetConfig(), cfg.Backend.Enforced, "backend")
-		diags = append(diags, encDiags...)
-	} else {
-		enc.backend = StateEncryptionDisabled()
+		enc.plan = PlanEncryptionDisabled()
 	}
 
 	if cfg.Remote != nil && cfg.Remote.Default != nil {
@@ -97,16 +86,12 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 	return enc, diags
 }
 
-func (e *encryption) StateFile() StateEncryption {
-	return e.statefile
+func (e *encryption) State() StateEncryption {
+	return e.state
 }
 
-func (e *encryption) PlanFile() PlanEncryption {
-	return e.planfile
-}
-
-func (e *encryption) Backend() StateEncryption {
-	return e.backend
+func (e *encryption) Plan() PlanEncryption {
+	return e.plan
 }
 
 func (e *encryption) RemoteState(name string) StateEncryption {
@@ -122,9 +107,8 @@ type encryptionDisabled struct{}
 func Disabled() Encryption {
 	return &encryptionDisabled{}
 }
-func (e *encryptionDisabled) StateFile() StateEncryption { return StateEncryptionDisabled() }
-func (e *encryptionDisabled) PlanFile() PlanEncryption   { return PlanEncryptionDisabled() }
-func (e *encryptionDisabled) Backend() StateEncryption   { return StateEncryptionDisabled() }
+func (e *encryptionDisabled) State() StateEncryption { return StateEncryptionDisabled() }
+func (e *encryptionDisabled) Plan() PlanEncryption   { return PlanEncryptionDisabled() }
 func (e *encryptionDisabled) RemoteState(name string) StateEncryption {
 	return StateEncryptionDisabled()
 }

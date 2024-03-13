@@ -93,7 +93,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: config.Module.Backend,
-	}, enc.Backend())
+	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

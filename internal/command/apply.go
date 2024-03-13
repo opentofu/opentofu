@@ -108,7 +108,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.Backend())
+	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.State())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -168,7 +168,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 	// Try to load plan if path is specified
 	if path != "" {
 		var err error
-		planFile, err = c.PlanFile(path, enc.PlanFile())
+		planFile, err = c.PlanFile(path, enc.Plan())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

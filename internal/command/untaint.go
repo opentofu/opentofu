@@ -66,7 +66,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.Backend())
+	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

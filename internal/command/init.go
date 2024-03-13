@@ -213,7 +213,7 @@ func (c *InitCommand) Run(args []string) int {
 		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, flagConfigExtra, enc)
 	default:
 		// load the previously-stored backend config
-		back, backDiags = c.Meta.backendFromState(ctx, enc.Backend())
+		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
 	}
 	if backendOutput {
 		header = true
@@ -445,7 +445,7 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 		Init:   true,
 	}
 
-	back, backDiags := c.Backend(opts, enc.Backend())
+	back, backDiags := c.Backend(opts, enc.State())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }
@@ -528,7 +528,7 @@ the backend configuration is present and valid.
 		Init:           true,
 	}
 
-	back, backDiags := c.Backend(opts, enc.Backend())
+	back, backDiags := c.Backend(opts, enc.State())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }

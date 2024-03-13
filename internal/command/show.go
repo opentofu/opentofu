@@ -170,7 +170,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (*s
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.Backend())
+	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
@@ -281,7 +281,7 @@ func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption) (*
 	var stateFile *statefile.File
 	var config *configs.Config
 
-	pf, err := planfile.OpenWrapped(path, enc.PlanFile())
+	pf, err := planfile.OpenWrapped(path, enc.Plan())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -298,7 +298,7 @@ func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption) (*
 
 func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	b, backendDiags := c.Backend(nil, enc.Backend())
+	b, backendDiags := c.Backend(nil, enc.State())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")
 	}
@@ -347,7 +347,7 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 	defer file.Close()
 
 	var stateFile *statefile.File
-	stateFile, err = statefile.Read(file, enc.StateFile())
+	stateFile, err = statefile.Read(file, enc.State())
 	if err != nil {
 		return nil, fmt.Errorf("Error reading %s as a statefile: %w", path, err)
 	}

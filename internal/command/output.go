@@ -74,7 +74,7 @@ func (c *OutputCommand) Outputs(statePath string, enc encryption.Encryption) (ma
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.Backend())
+	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		return nil, diags

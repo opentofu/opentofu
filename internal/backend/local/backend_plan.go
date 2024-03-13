@@ -172,7 +172,7 @@ func (b *Local) opPlan(
 			StateFile:            plannedStateFile,
 			Plan:                 plan,
 			DependencyLocks:      op.DependencyLocks,
-		}, op.Encryption.PlanFile())
+		}, op.Encryption.Plan())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
