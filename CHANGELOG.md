@@ -23,7 +23,6 @@ ENHANCEMENTS:
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
-* Add documentation for the `removed` block. ([#1332](https://github.com/opentofu/opentofu/pull/1332))
 * Allow for templatefile function recursion (up to 1024 call depth default). ([#1250](https://github.com/opentofu/opentofu/pull/1250))
 * Dump state file when `tofu test` fails to clean up resources. ([#1243](https://github.com/opentofu/opentofu/pull/1243))
 
