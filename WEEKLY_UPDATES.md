@@ -13,6 +13,7 @@ Additionally, next week is KubeCon, and as part of it, OpenTofu Day! If you're g
     - The AWS KMS key provider is also being worked on, and needs a bit more fine-tuning based on the compliance tests ([#1349](https://github.com/opentofu/opentofu/pull/1349))
     - We've made some simplifications to the naming and structure of the encryption configuration ([#1385](https://github.com/opentofu/opentofu/issues/1385))
     - We've made some struct-embedding-related improvements to the gohcl package of the hcl library, and are trying to get them upstreamed (for now we've vendored a copy of the package) ([#667](https://github.com/hashicorp/hcl/pull/667))
+  - We've added support for recursively calling the templatefile function ([#1250](https://github.com/opentofu/opentofu/pull/1250))
   - Work continues on import blocks with for_each support.
   - We're working on `tofu test`-related improvements for provider blocks.
   - We're preparing for OpenTofu Day, esp. Arel who together with James will be giving a presentation on the registry.
