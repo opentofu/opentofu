@@ -175,7 +175,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		resource.ProviderConfig.Provider = to
 	}
 
-	b, backendDiags := c.Backend(nil, enc.Backend())
+	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

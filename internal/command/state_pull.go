@@ -42,7 +42,7 @@ func (c *StatePullCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.Backend())
+	b, backendDiags := c.Backend(nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1

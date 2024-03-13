@@ -69,7 +69,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Try to load plan if path is specified
 	var planFile *planfile.WrappedPlanFile
 	if planPath != "" {
-		planFile, err = c.PlanFile(planPath, enc.PlanFile())
+		planFile, err = c.PlanFile(planPath, enc.Plan())
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
@@ -86,7 +86,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(&BackendOpts{
 		Config: backendConfig,
-	}, enc.Backend())
+	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

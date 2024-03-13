@@ -24,7 +24,7 @@ method "aes_gcm" "bar" {
   keys = key_provider.static.foo
 }
 
-planfile {
+plan {
   method = method.aes_gcm.bar
 }
 `
@@ -49,7 +49,7 @@ func Example() {
 		panic(diags)
 	}
 
-	encryptor := enc.PlanFile()
+	encryptor := enc.Plan()
 
 	encryptedPlan, err := encryptor.EncryptPlan([]byte("Hello world!"))
 	if err != nil {

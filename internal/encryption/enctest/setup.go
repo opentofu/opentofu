@@ -45,16 +45,13 @@ func EncryptionRequired() encryption.Encryption {
 		method "aes_gcm" "example" {
 			keys = key_provider.static.basic
 		}
-		statefile {
+		state {
 			method = method.aes_gcm.example
 		}
-		planfile {
+		plan {
 			method = method.aes_gcm.example
 		}
-		backend {
-			method = method.aes_gcm.example
-		}
-		remote {
+		remote_state_data_sources {
 			default {
 				method = method.aes_gcm.example
 			}
@@ -70,19 +67,15 @@ func EncryptionWithFallback() encryption.Encryption {
 		method "aes_gcm" "example" {
 			keys = key_provider.static.basic
 		}
-		statefile {
+		state {
 			method = method.aes_gcm.example
 			fallback {}
 		}
-		planfile {
+		plan {
 			method = method.aes_gcm.example
 			fallback {}
 		}
-		backend {
-			method = method.aes_gcm.example
-			fallback {}
-		}
-		remote {
+		remote_state_data_sources {
 			default {
 				method = method.aes_gcm.example
 				fallback {}

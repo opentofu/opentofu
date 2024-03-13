@@ -18,7 +18,7 @@ import (
 
 var (
 	ConfigA = `
-backend {
+state {
 	enforced = true
 }
 `
@@ -29,11 +29,7 @@ key_provider "static" "basic" {
 method "aes_gcm" "example" {
 	keys = key_provider.static.basic
 }
-statefile {
-	method = method.aes_gcm.example
-}
-
-backend {
+state {
 	method = method.aes_gcm.example
 }
 `
@@ -65,7 +61,7 @@ func Example() {
 	enc, diags := encryption.New(reg, cfg)
 	handleDiags(diags)
 
-	sfe := enc.StateFile()
+	sfe := enc.State()
 
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.

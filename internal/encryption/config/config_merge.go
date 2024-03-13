@@ -22,10 +22,9 @@ func MergeConfigs(cfg *EncryptionConfig, override *EncryptionConfig) *Encryption
 		KeyProviderConfigs: mergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
 		MethodConfigs:      mergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
 
-		StateFile: mergeEnforcableTargetConfigs(cfg.StateFile, override.StateFile),
-		PlanFile:  mergeEnforcableTargetConfigs(cfg.PlanFile, override.PlanFile),
-		Backend:   mergeEnforcableTargetConfigs(cfg.Backend, override.Backend),
-		Remote:    mergeRemoteConfigs(cfg.Remote, override.Remote),
+		State:  mergeEnforcableTargetConfigs(cfg.State, override.State),
+		Plan:   mergeEnforcableTargetConfigs(cfg.Plan, override.Plan),
+		Remote: mergeRemoteConfigs(cfg.Remote, override.Remote),
 	}
 }
 
