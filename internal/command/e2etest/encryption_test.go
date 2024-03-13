@@ -185,6 +185,15 @@ func TestEncryptionFlow(t *testing.T) {
 		requireEncryptedState()
 	})
 
+	with("broken.tf", func() {
+		// Make sure changes to encryption keys notify the user correctly
+		apply().Failure().StderrContains("decryption failed for state")
+		requireEncryptedState()
+
+		applyPlan(encryptedPlan).Failure().StderrContains("decryption failed: cipher: message authentication failed")
+		requireEncryptedState()
+	})
+
 	with("migratefrom.tf", func() {
 		// Apply migration from encrypted state
 		apply().Success()
