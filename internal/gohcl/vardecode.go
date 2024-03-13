@@ -3,14 +3,13 @@
 
 // This is a fork of hashicorp/hcl/gohcl/decode.go that pulls out variable dependencies in attributes
 
-package varhcl
+package gohcl
 
 import (
 	"fmt"
 	"reflect"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 )
 
 func VariablesInBody(body hcl.Body, val interface{}) ([]hcl.Traversal, hcl.Diagnostics) {
@@ -37,7 +36,7 @@ func findVariablesInBody(body hcl.Body, val reflect.Value) ([]hcl.Traversal, hcl
 func findVariablesInBodyStruct(body hcl.Body, val reflect.Value) ([]hcl.Traversal, hcl.Diagnostics) {
 	var variables []hcl.Traversal
 
-	schema, partial := gohcl.ImpliedBodySchema(val.Interface())
+	schema, partial := ImpliedBodySchema(val.Interface())
 
 	var content *hcl.BodyContent
 	var diags hcl.Diagnostics

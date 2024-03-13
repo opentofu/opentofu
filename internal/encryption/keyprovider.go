@@ -13,10 +13,9 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
-	"github.com/opentofu/opentofu/internal/varhcl"
+	"github.com/opentofu/opentofu/internal/gohcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -107,7 +106,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
 
 	// Locate all the dependencies
-	deps, diags := varhcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	deps, diags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
 	if diags.HasErrors() {
 		return diags
 	}

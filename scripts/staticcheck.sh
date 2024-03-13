@@ -11,7 +11,7 @@ echo "==> Checking that code complies with static analysis requirements..."
 skip="internal/legacy|backend/remote-state/"
 
 # Skip generated code for protobufs.
-skip=$skip"|internal/planproto|internal/tfplugin5|internal/tfplugin6"
+skip=$skip"|internal/planproto|internal/tfplugin5|internal/tfplugin6|internal/gohcl"
 
 packages=$(go list ./... | egrep -v ${skip})
 

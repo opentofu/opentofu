@@ -27,6 +27,7 @@ type ErrInvalidConfiguration struct {
 
 func (e ErrInvalidConfiguration) Error() string {
 	if e.Cause != nil {
+
 		if e.Message != "" {
 			return fmt.Sprintf("%s: %v", e.Message, e.Cause)
 		}
