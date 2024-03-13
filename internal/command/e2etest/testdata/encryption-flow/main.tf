@@ -1,7 +1,7 @@
 variable "iter" {
-	type = string
+  type = string
 }
 
 resource "tfcoremock_simple_resource" "simple" {
-        string = "helloworld ${var.iter}"
+  string = "helloworld ${var.iter}"
 }
