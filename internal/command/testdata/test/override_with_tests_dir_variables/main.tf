@@ -1,5 +1,5 @@
 variable "testVar" {
-  type=string
+  type = string
 }
 
 resource "test_resource" "testRes" {

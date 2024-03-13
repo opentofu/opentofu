@@ -1,1 +1,1 @@
-testVar="ValueFROMtests/tfvars"
+testVar = "ValueFROMtests/tfvars"
