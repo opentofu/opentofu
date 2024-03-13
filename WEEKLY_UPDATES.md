@@ -1,5 +1,27 @@
 # Weekly Updates
 
+## 2024-03-13
+
+Hey there! The main goal this week is getting an alpha release of 1.7 out, and you can expect it by the end of the week. It will include state encryption and the new removed block as major features, so that you can take those features for a spin and give us feedback.
+
+Additionally, next week is KubeCon, and as part of it, OpenTofu Day! If you're going to KubeCon, make sure to come and say hi!
+
+- Current Status and Up Next
+  - State encryption
+    - PBKDF2 key provider has been finished and merged ([#1310](https://github.com/opentofu/opentofu/pull/1310))
+    - We're working on compliance tests that will better verify whether all key providers behave correctly and have the same contract ([#1377](https://github.com/opentofu/opentofu/pull/1377))
+    - The AWS KMS key provider is also being worked on, and needs a bit more fine-tuning based on the compliance tests ([#1349](https://github.com/opentofu/opentofu/pull/1349))
+    - We've made some simplifications to the naming and structure of the encryption configuration ([#1385](https://github.com/opentofu/opentofu/issues/1385))
+    - We've made some struct-embedding-related improvements to the gohcl package of the hcl library, and are trying to get them upstreamed (for now we've vendored a copy of the package) ([#667](https://github.com/hashicorp/hcl/pull/667))
+  - We've added support for recursively calling the templatefile function ([#1250](https://github.com/opentofu/opentofu/pull/1250))
+  - Work continues on import blocks with for_each support.
+  - We're working on `tofu test`-related improvements for provider blocks.
+  - We're preparing for OpenTofu Day, esp. Arel who together with James will be giving a presentation on the registry.
+  - We've been doing some hardening on our registry (which has been working great so far) and after identifying features we need that aren't available in the pro plan, CloudFlare has agreed to sponsor us with a business plan. Thanks a lot to them!
+- How can I help?
+  - Once the alpha build is out, please test state encryption. Watch the [OpenTofu YouTube channel](https://youtube.com/@opentofu) for detailed instructions.
+  - Use OpenTofu, report issues, and please upvote issues that are important to you, so we can better prioritize development work.
+
 ## 2024-03-07
 
 Hello there! This week we got state encryption running on the main branch for the first time, and we are planning to release an alpha build next week with a passphrase key provider and possibly the AWS KMS integration.
