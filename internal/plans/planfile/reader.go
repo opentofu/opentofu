@@ -71,6 +71,11 @@ func Open(filename string, enc encryption.PlanEncryption) (*Reader, error) {
 
 	r, err := zip.NewReader(bytes.NewReader(decrypted), int64(len(decrypted)))
 	if err != nil {
+		// Check to see if it's encrypted
+		if encrypted, _ := encryption.IsEncryptionPayload(decrypted); encrypted {
+			return nil, errUnusable(fmt.Errorf("the given plan file is encrypted and requires a valid encryption configuration to decrypt"))
+		}
+
 		// To give a better error message, we'll sniff to see if this looks
 		// like our old plan format from versions prior to 0.12.
 		if b, sErr := os.ReadFile(filename); sErr == nil {
