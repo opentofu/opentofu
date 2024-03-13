@@ -29,7 +29,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 	inMeta := rawMeta.(*keyMeta)
 
-	outMeta := keyMeta{}
+	outMeta := &keyMeta{}
 	out := keyprovider.Output{}
 
 	// as validation has happened in the config, we can safely cast here and not worry about the cast failing
@@ -53,7 +53,6 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 
 	// We do not set the DecryptionKey here as we should only be setting the decryption key if we are decrypting
 	// and that is handled below when we check if the inMeta has a CiphertextBlob
-	//out.DecryptionKey = generatedKeyData.Plaintext
 
 	if inMeta.isPresent() {
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey

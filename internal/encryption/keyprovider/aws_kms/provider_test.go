@@ -76,11 +76,31 @@ func TestKMSProvider_Simple(t *testing.T) {
 		t.Fatalf("No encryption key provided")
 	}
 
+	if len(output.DecryptionKey) != 0 {
+		t.Fatalf("Decryption key provided and should not be")
+	}
+
+	if len(meta.(*keyMeta).CiphertextBlob) == 0 {
+		t.Fatalf("No ciphertext blob provided")
+	}
+
+	t.Log("Continue to meta -> decryption key")
+
+	// Now that we have a encyption key and it's meta, let's get the decryption key
+	output, meta, err = provider.Provide(meta)
+	if err != nil {
+		t.Fatalf("Error providing keys: %s", err)
+	}
+
+	if len(output.EncryptionKey) == 0 {
+		t.Fatalf("No encryption key provided")
+	}
+
 	if len(output.DecryptionKey) == 0 {
 		t.Fatalf("No decryption key provided")
 	}
 
-	if len(meta.(keyMeta).CiphertextBlob) == 0 {
+	if len(meta.(*keyMeta).CiphertextBlob) == 0 {
 		t.Fatalf("No ciphertext blob provided")
 	}
 }
