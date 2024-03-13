@@ -260,23 +260,17 @@ The main component of the library should be the `Encryption` interface. This int
 
 ```go
 type Encryption interface {
-	StateFile() StateEncryption
-	PlanFile() PlanEncryption
-	Backend() StateEncryption
-	RemoteState(string) ReadOnlyStateEncryption
+	State() StateEncryption
+	Plan() PlanEncryption
+	RemoteState(string) StateEncryption
 }
 ```
 
 Each of the returned encryption tools should provide methods to encrypt the data of the specified purpose, such as:
 
 ```go
-type ReadOnlyStateEncryption interface {
-    DecryptState([]byte) ([]byte, error)	
-}
-
 type StateEncryption interface {
-    ReadOnlyStateEncryption
-	
+    DecryptState([]byte) ([]byte, error)	
 	EncryptState([]byte) ([]byte, error)
 }
 ```
