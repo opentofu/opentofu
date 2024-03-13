@@ -19,6 +19,9 @@ func (o *Output) Cty() cty.Value {
 }
 
 func (o *Output) byteToCty(data []byte) cty.Value {
+	if len(data) == 0 {
+		return cty.NullVal(cty.List(cty.Number))
+	}
 	ctyData := make([]cty.Value, len(data))
 	for i, d := range data {
 		ctyData[i] = cty.NumberIntVal(int64(d))
