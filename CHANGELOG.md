@@ -12,6 +12,7 @@ ENHANCEMENTS:
 * Added `base64gunzip` function that takes a base64 encoded gzip string and returns the decompressed data as a string. ([#800](https://github.com/opentofu/opentofu/issues/800))
 * Added `cidrcontains` function that determines if an address belongs to a certain prefix. ([#366](https://github.com/opentofu/opentofu/issues/366))
 * Added `urldecode` function that will decode a url-encoded string. ([#1234](https://github.com/opentofu/opentofu/issues/1234))
+* Added `issensitive` function that returns whether or not a value is sensitive. ([#1370](https://github.com/opentofu/opentofu/issues/1370))
 * Added `-concise` flag to omit the refreshing state logs when tofu plan is run. ([#1225](https://github.com/opentofu/opentofu/pull/1225))
 * `nonsensitive` function no longer returns error when applied to values that are not sensitive ([#369](https://github.com/opentofu/opentofu/pull/369))
 * Managing large local terraform.tfstate files is now much faster. ([#579](https://github.com/opentofu/opentofu/pull/579))

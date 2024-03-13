@@ -1,0 +1,40 @@
+---
+sidebar_label: issensitive
+description: >-
+  The issensitive function returns a boolean saying whether or not a value is
+  marked as sensitive.
+---
+
+# `issensitive` Function
+
+`issensitive` takes any value and returns `true` if the value is marked as
+sensitive, and `false` otherwise.
+
+The `issensitive` function might be useful if you need to programmatically
+determine whether or not a value is sensitive, for example if you have a value
+containing both sensitive and non-sensitive values and you need to separate the
+two parts:
+
+```hcl
+variable "environment_variables" {
+  description = "A list of environment variables that may contain both sensitive and non-sensitive values"
+  type        = map(string)
+  sensitive   = true
+}
+
+locals {
+  sensitive_variables = [for key, value in var.environment_variables: key if issensitive(value)]
+  nonsensitive_variables = [for key, value in var.environment_variables: key if !issensitive(value)]
+}
+```
+
+## Examples
+
+```
+> issensitive(1)
+false
+> issensitive("hello")
+false
+> issensitive(sensitive("hello"))
+true
+```
