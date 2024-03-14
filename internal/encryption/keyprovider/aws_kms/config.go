@@ -214,8 +214,11 @@ func (c Config) validate() (err error) {
 
 	spec := c.getKeySpecAsAWSType()
 	if spec == nil {
+		// This is to fetch a list of the values from the enum, because `spec` here can be nil, so we have to grab
+		// at least one of the enum possibilities here just to call .Values()
+		values := types.DataKeySpecAes256.Values()
 		return &keyprovider.ErrInvalidConfiguration{
-			Message: fmt.Sprintf("invalid key_spec %s, expected one of %v", c.KeySpec, spec.Values()),
+			Message: fmt.Sprintf("invalid key_spec %s, expected one of %v", c.KeySpec, values),
 		}
 	}
 
@@ -228,10 +231,10 @@ func (c Config) getKeySpecAsAWSType() *types.DataKeySpec {
 	var spec types.DataKeySpec
 	for _, opt := range spec.Values() {
 		if string(opt) == c.KeySpec {
-			spec = opt
+			return &opt
 		}
 	}
-	return &spec
+	return nil
 }
 
 // Mirrored from s3 backend config
