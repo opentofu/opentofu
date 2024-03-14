@@ -84,6 +84,33 @@ func TestKeyProvider(t *testing.T) {
 					ValidHCL:   false,
 					ValidBuild: false,
 				},
+				"with-access-token": {
+					HCL: `key_provider "gcp_kms" "foo" {
+							kms_encryption_key = "alias/temp"
+							key_size = 32
+							access_token = "my-access-token"
+							}`,
+					ValidHCL:   true,
+					ValidBuild: true,
+				},
+				"bad-credentials": {
+					HCL: `key_provider "gcp_kms" "foo" {
+							kms_encryption_key = "alias/temp"
+							key_size = 32
+							credentials = "AS{DU*@#8UQDD*a"
+							}`,
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
+				"impersonation": {
+					HCL: `key_provider "gcp_kms" "foo" {
+							kms_encryption_key = "alias/temp"
+							key_size = 32
+							impersonate_service_account = "batman"
+							}`,
+					ValidHCL:   true,
+					ValidBuild: true,
+				},
 			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
