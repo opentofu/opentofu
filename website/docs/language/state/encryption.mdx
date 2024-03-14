@@ -12,6 +12,7 @@ import ConfigurationPS1 from '!!raw-loader!./examples/encryption/configuration.p
 import Enforce from '!!raw-loader!./examples/encryption/enforce.tf'
 import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
 import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
+import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
@@ -97,6 +98,19 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 | iterations              | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000 |
 | salt_length             | Length of the salt for the key derivation.                                                                                                              | 1         | 32      |
 | hash_function           | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512  |
+
+### AWS KMS
+
+This key provider uses the [Amazon Web Servers Key Management Service](https://aws.amazon.com/kms/) to generate keys. The authentication options are identical to the [S3 backend](/docs/language/settings/backends/s3/) excluding any deprecated options. In addition, please provide the following options:
+
+| Option     | Description                                                                                                                                        | Min. | Default |
+|------------|----------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
+| kms_key_id | [Key ID on AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                   | 1    | -       |
+| key_spec   | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. . | 1    | -       |
+
+The following example illustrates a minimal example:
+
+<CodeBlock language="hcl">{AWSKMS}</CodeBlock>
 
 ## Methods
 
