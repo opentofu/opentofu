@@ -10,4 +10,3 @@ import (
 )
 
 var hclTagRe = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
-var testNameRe = regexp.MustCompile("^[a-zA-Z0-9-_]+$")

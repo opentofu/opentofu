@@ -11,12 +11,12 @@ import "fmt"
 type ID string
 
 // Validate validates the key provider ID for correctness.
-func (i ID) Validate() error {
-	if i == "" {
+func (id ID) Validate() error {
+	if id == "" {
 		return fmt.Errorf("empty key provider ID (key provider IDs must match %s)", idRe.String())
 	}
-	if !idRe.MatchString(string(i)) {
-		return fmt.Errorf("invalid key provider ID: %s (must match %s)", i, idRe.String())
+	if !idRe.MatchString(string(id)) {
+		return fmt.Errorf("invalid key provider ID: %s (must match %s)", id, idRe.String())
 	}
 	return nil
 }
