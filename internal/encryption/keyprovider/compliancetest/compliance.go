@@ -377,7 +377,7 @@ func complianceTestBuildConfigAndValidate[TKeyProvider keyprovider.KeyProvider, 
 			} else {
 				compliancetest.Log(t, "Build() returned metadata and the declared metadata type is not an interface.")
 			}
-			typedMeta = meta.(TMeta)
+			typedMeta, ok = meta.(TMeta)
 			if !ok {
 				compliancetest.Fail(t, "Build() returned an invalid metadata type of %T, expected %T", meta, typedMeta)
 			} else {
