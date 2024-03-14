@@ -11,13 +11,14 @@ import (
 	"testing"
 )
 
-func ConfigStruct(t *testing.T, configStruct any) {
+func ConfigStruct[TConfig any](t *testing.T, configStruct any) {
 	Log(t, "Testing config struct compliance...")
 	if configStruct == nil {
 		Fail(t, "The ConfigStruct() method on the descriptor returns a nil configuration. Please implement this function correctly.")
 	} else {
 		Log(t, "The ConfigStruct() method returned a non-nil value.")
 	}
+
 	configStructPtrType := reflect.TypeOf(configStruct)
 	if configStructPtrType.Kind() != reflect.Ptr {
 		Fail(t, "The ConfigStruct() method returns a %T, but it should return a pointer to a struct.", configStruct)
@@ -29,6 +30,13 @@ func ConfigStruct(t *testing.T, configStruct any) {
 		Fail(t, "The ConfigStruct() method returns a pointer to %s, but it should return a pointer to a struct.", configStructType.Elem().Name())
 	} else {
 		Log(t, "The ConfigStruct() method returned a pointer to a struct.")
+	}
+
+	typedConfigStruct, ok := configStruct.(TConfig)
+	if !ok {
+		Fail(t, "The ConfigStruct() method returns a %T instead of a %T", configStruct, typedConfigStruct)
+	} else {
+		Log(t, "The ConfigStruct() method correctly returns a %T", typedConfigStruct)
 	}
 
 	hclTagFound := false

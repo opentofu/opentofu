@@ -3,100 +3,114 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package static_test
+package static
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 )
 
 func TestKeyProvider(t *testing.T) {
 	compliancetest.ComplianceTest(
 		t,
-		static.New(),
-		map[string]compliancetest.TestCase{
-			"success": {
-				`key_provider "static" "foo" {
+		compliancetest.TestConfiguration[*descriptor, *Config, *Metadata, *staticKeyProvider]{
+			Descriptor: New().(*descriptor),
+			HCLParseTestCases: map[string]compliancetest.HCLParseTestCase[*Config, *staticKeyProvider]{
+				"success": {
+					HCL: `key_provider "static" "foo" {
     key = "48656c6c6f20776f726c6421"
 }`,
-				true,
-				func(config keyprovider.Config) error {
-					if parsedKey := config.(*static.Config).Key; parsedKey != "48656c6c6f20776f726c6421" {
-						return fmt.Errorf("incorrect key in parsed config: %s", parsedKey)
-					}
-					return nil
+					ValidHCL:   true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *staticKeyProvider) error {
+						if config.Key != "48656c6c6f20776f726c6421" {
+							return fmt.Errorf("incorrect key returned")
+						}
+						if !bytes.Equal(keyProvider.key, []byte("Hello world!")) {
+							return fmt.Errorf("key provider contains invalid key")
+						}
+						return nil
+					},
 				},
-				false,
-				true,
-				nil,
-				&keyprovider.Output{
+				"empty": {
+					HCL:        `key_provider "static" "foo" {}`,
+					ValidHCL:   false,
+					ValidBuild: false,
+				},
+				"bad-hex": {
+					HCL: `key_provider "static" "foo" {
+	key = "G"
+}`,
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
+				"bad-argument": {
+					HCL: `key_provider "static" "foo" {
+	keys = "48656c6c6f20776f726c6421" # Note the incorrect key name
+}`,
+					ValidHCL:   false,
+					ValidBuild: false,
+				},
+			},
+			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *staticKeyProvider]{
+				"empty": {
+					Config: &Config{
+						Key: "",
+					},
+					ValidBuild: false,
+					Validate:   nil,
+				},
+			},
+			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *Metadata]{
+				"empty": {
+					Config: &Config{
+						Key: "48656c6c6f20776f726c6421",
+					},
+					Meta:      &Metadata{},
+					IsPresent: false,
+					IsValid:   false,
+				},
+				"invalid": {
+					Config: &Config{
+						Key: "48656c6c6f20776f726c6421",
+					},
+					Meta: &Metadata{
+						Magic: "Invalid",
+					},
+					IsPresent: true,
+					IsValid:   false,
+				},
+				"valid": {
+					Config: &Config{
+						Key: "48656c6c6f20776f726c6421",
+					},
+					Meta: &Metadata{
+						Magic: "Hello world!",
+					},
+					IsPresent: true,
+					IsValid:   true,
+				},
+			},
+			IntegrationTestCase: compliancetest.IntegrationTestCase[*Config, *Metadata]{
+				ValidConfig: &Config{
+					Key: "48656c6c6f20776f726c6421",
+				},
+				ExpectedOutput: &keyprovider.Output{
 					EncryptionKey: []byte("Hello world!"), // "48656c6c6f20776f726c6421" in hex is "Hello world!"
 					DecryptionKey: []byte("Hello world!"),
 				},
-				func() any {
-					return &static.Metadata{
-						Magic: "Broken magic.",
-					}
-				},
-				func(output keyprovider.Output, meta any) error {
-					if magic := meta.(*static.Metadata).Magic; magic != "Hello world!" {
-						return fmt.Errorf("incorrect output magic: %s", magic)
+				ValidateKeys: nil,
+				ValidateMetadata: func(meta *Metadata) error {
+					if meta.Magic != "Hello world!" {
+						return fmt.Errorf("incorrect output magic: %s", meta.Magic)
 					}
 					return nil
 				},
-			},
-			"empty": {
-				`key_provider "static" "foo" {
-}`,
-				false,
-				nil,
-				true,
-				false,
-				nil,
-				nil,
-				nil,
-				nil,
-			},
-			"empty-internal": {
-				`key_provider "static" "foo" {
-    key = "48656c6c6f20776f726c6421"
-}`,
-				true,
-				func(config keyprovider.Config) error {
-					// Inject incorrect key for internal validation test
-					config.(*static.Config).Key = ""
-					return nil
-				},
-				false,
-				false,
-				nil,
-				nil,
-				nil,
-				nil,
-			},
-			"invalid-hex": {
-				`key_provider "static" "foo" {
-    key = "G"
-}`,
-				true,
-				func(config keyprovider.Config) error {
-					if parsedKey := config.(*static.Config).Key; parsedKey != "G" {
-						return fmt.Errorf("incorrect key in parsed config: %s", parsedKey)
-					}
-					return nil
-				},
-				false,
-				false,
-				nil,
-				nil,
-				nil,
-				nil,
 			},
 		},
 	)

@@ -22,12 +22,12 @@ type TestCase struct {
 
 // ComplianceTest tests the functionality of a method to make sure it conforms to the expectations of the method
 // interface.
-func ComplianceTest(t *testing.T, testDescriptor TestDescriptor) {
+func ComplianceTest[TConfig method.Config](t *testing.T, testDescriptor TestDescriptor) {
 	t.Run("id", func(t *testing.T) {
 		complianceTestID(t, testDescriptor)
 	})
 	t.Run("config-struct", func(t *testing.T) {
-		compliancetest.ConfigStruct(t, testDescriptor.Descriptor.ConfigStruct())
+		compliancetest.ConfigStruct[TConfig](t, testDescriptor.Descriptor.ConfigStruct())
 	})
 	t.Run("behavior", func(t *testing.T) {
 

@@ -7,62 +7,268 @@ package compliancetest
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
-	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/opentofu/opentofu/internal/encryption/compliancetest"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
-var hclTagRe = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
-var testNameRe = regexp.MustCompile("^[a-zA-Z0-9-_]+$")
+func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TMeta keyprovider.KeyMeta, TKeyProvider keyprovider.KeyProvider](
+	t *testing.T,
+	config TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
+) {
+	var cfg TConfig
+	cfgType := reflect.TypeOf(cfg)
+	if cfgType.Kind() != reflect.Ptr || cfgType.Elem().Kind() != reflect.Struct {
+		compliancetest.Fail(t, "You declared the config type to be %T, but it should be a pointer to a struct. Please fix your call to ComplianceTest().", cfg)
+	}
 
-// TestCase contains a full compliance test case, starting from HCL and ending with an expected output.
-type TestCase struct {
-	// HCL is the initial HCL configuration that will be parsed into the ConfigStruct.
-	HCL string
-	// ValidHCL should be set to true if the HCL results in a valid configuration.
-	ValidHCL bool
-	// ValidateAndConfigure will be called after the HCL configuration is parsed. You should validate the values of the
-	// parsed configuration here. Additionally, you may modify the configuration to inject additional values in this
-	// function.
-	ValidateAndConfigure ValidateAndConfigureFunc
-	// StopAfterHCLValidation indicates that the test case should not continue with the full suite after the
-	// ValidateAndConfigure function is done.
-	StopAfterHCLValidation bool
+	var meta TMeta
+	metaType := reflect.TypeOf(cfg)
+	if metaType.Kind() != reflect.Interface {
+		if metaType.Kind() != reflect.Ptr || metaType.Elem().Kind() != reflect.Struct {
+			compliancetest.Log(t, "You declared a metadata type as %T, but it should be a pointer to a struct. Please fix your call to ComplianceTest().", meta)
+		}
+	} else {
+		compliancetest.Log(t, "Metadata type declared as interface{}, assuming the key provider does not need metadata. (This will be validated later.)")
+	}
 
-	// ValidBuild should be true if the Build() function should succeed, or if a configuration error should be returned.
-	ValidBuild bool
+	t.Run("ID", func(t *testing.T) {
+		complianceTestID(t, config)
+	})
 
-	// KeysMatchFunc is a function that compares an encryption and decryption key. It should return true if the two keys
-	// belong together. Defaults to bytes.Equal
-	KeysMatchFunc KeysMatchFunc
-	// ExpectedOutput contains the expected key output of this key provider.
-	ExpectedOutput *keyprovider.Output
+	t.Run("ConfigStruct", func(t *testing.T) {
+		compliancetest.ConfigStruct[TConfig](t, config.Descriptor.ConfigStruct())
 
-	// CreateInvalidMetadata must create a metadata set that the provider considers invalid. This is only relevant
-	// if the provider needs metadata.
-	CreateInvalidMetadata func() any
+		t.Run("hcl-parsing", func(t *testing.T) {
+			for name, tc := range config.HCLParseTestCases {
+				tc := tc
+				t.Run(name, func(t *testing.T) {
+					complianceTestHCLParsingTestCase(t, tc, config)
+				})
+			}
+		})
 
-	// ValidateOutput is a hook to validate if the created output and metadata are correct.
-	ValidateOutput func(output keyprovider.Output, meta any) error
+		t.Run("config", func(t *testing.T) {
+			for name, tc := range config.ConfigStructTestCases {
+				tc := tc
+				t.Run(name, func(t *testing.T) {
+					complianceTestConfigCase(t, tc)
+				})
+			}
+		})
+	})
+
+	t.Run("metadata", func(t *testing.T) {
+		for name, tc := range config.MetadataStructTestCases {
+			tc := tc
+			t.Run(name, func(t *testing.T) {
+				complianceTestMetadataTestCase[TConfig, TKeyProvider, TMeta](t, tc)
+			})
+		}
+	})
+
+	t.Run("integration", func(t *testing.T) {
+		complianceTestIntegration[TDescriptor, TConfig, TKeyProvider, TMeta](t, config)
+	})
+
+	t.Run("test-completeness", func(t *testing.T) {
+		t.Run("HCL", func(t *testing.T) {
+			hasNotValidHCL := false
+			hasValidHCLNotValidBuild := false
+			hasValidHCLAndBuild := false
+			for _, tc := range config.HCLParseTestCases {
+				if !tc.ValidHCL {
+					hasNotValidHCL = true
+				} else {
+					if tc.ValidBuild {
+						hasValidHCLAndBuild = true
+					} else {
+						hasValidHCLNotValidBuild = true
+					}
+				}
+			}
+			if !hasNotValidHCL {
+				compliancetest.Fail(t, "Please define at least one test with an invalid HCL.")
+			}
+			if !hasValidHCLNotValidBuild {
+				compliancetest.Fail(t, "Please define at least one test with a valid HCL that will fail on Build() for validation.")
+			}
+			if !hasValidHCLAndBuild {
+				compliancetest.Fail(t, "Please define at least one test with a valid HCL that will succeed on Build() for validation.")
+			}
+		})
+	})
 }
 
-func (tc TestCase) prepare(t *testing.T, descriptor keyprovider.Descriptor) keyprovider.Config {
-	log(t, "Preparing key provider config.")
-	// Parse the config:
+func complianceTestIntegration[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
+	t *testing.T,
+	cfg TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
+) {
+	keyProviderConfig := cfg.IntegrationTestCase.ValidConfig
+	t.Run("nil-metadata", func(t *testing.T) {
+		keyProvider, inMeta := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, keyProviderConfig, true)
+
+		if reflect.ValueOf(inMeta).IsNil() {
+			compliancetest.Skip(t, "The key provider does not have metadata (no metadata returned from Build()).")
+			return
+		}
+		_, _, err := keyProvider.Provide(nil)
+		if err == nil {
+			compliancetest.Fail(t, "Provide() did not return no error when provided with nil metadata.")
+		} else {
+			compliancetest.Log(t, "Provide() correctly returned an error when provided with nil metadata (%v).", err)
+		}
+		var typedError *keyprovider.ErrInvalidMetadata
+		if !errors.As(err, &typedError) {
+			compliancetest.Fail(t, "Provide() returned an error of the type %T instead of %T. Please use the correct typed errors.", err, typedError)
+		} else {
+			compliancetest.Log(t, "Provide() correctly returned a %T when provided with nil metadata.", typedError)
+		}
+	})
+	t.Run("incorrect-metadata-type", func(t *testing.T) {
+		keyProvider, inMeta := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, keyProviderConfig, true)
+		if reflect.ValueOf(inMeta).IsNil() {
+			compliancetest.Skip(t, "The key provider does not have metadata (no metadata returned from Build()).")
+			return
+		}
+		_, _, err := keyProvider.Provide(&struct{}{})
+		if err == nil {
+			compliancetest.Fail(t, "Provide() did not return no error when provided with an incorrect metadata type.")
+		} else {
+			compliancetest.Log(t, "Provide() correctly returned an error when provided with an metadata type (%v).", err)
+		}
+		var typedError *keyprovider.ErrInvalidMetadata
+		if !errors.As(err, &typedError) {
+			compliancetest.Fail(t, "Provide() returned an error of the type %T instead of %T. Please use the correct typed errors.", err, typedError)
+		} else {
+			compliancetest.Log(t, "Provide() correctly returned a %T when provided with an incorrect metadata type.", typedError)
+		}
+	})
+	t.Run("round-trip", func(t *testing.T) {
+		complianceTestRoundTrip(t, keyProviderConfig, cfg)
+	})
+}
+
+func complianceTestRoundTrip[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
+	t *testing.T,
+	keyProviderConfig TConfig,
+	cfg TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
+) {
+	keyProvider, inMeta := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, keyProviderConfig, true)
+	output, outMeta, err := keyProvider.Provide(inMeta)
+	if err != nil {
+		compliancetest.Fail(t, "Provide() failed (%v).", err)
+	} else {
+		compliancetest.Log(t, "Provide() succeeded.")
+	}
+	if cfg.IntegrationTestCase.ValidateMetadata != nil {
+		if err := cfg.IntegrationTestCase.ValidateMetadata(outMeta.(TMeta)); err != nil {
+			compliancetest.Fail(t, "The metadata after the second Provide() call failed the test (%v).", err)
+		}
+	}
+
+	// Create a second key provider to avoid internal state.
+	keyProvider2, inMeta2 := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, keyProviderConfig, true)
+
+	marshalledMeta, err := json.Marshal(outMeta)
+	if err != nil {
+		compliancetest.Fail(t, "JSON-marshalling output meta failed (%v).", err)
+	} else {
+		compliancetest.Log(t, "JSON-marshalling output meta succeeded: %s", marshalledMeta)
+	}
+
+	if err := json.Unmarshal(marshalledMeta, &inMeta2); err != nil {
+		compliancetest.Fail(t, "JSON-unmarshalling meta failed (%v).", err)
+	} else {
+		compliancetest.Log(t, "JSON-unmarshalling meta succeeded.")
+	}
+
+	output2, outMeta2, err := keyProvider2.Provide(inMeta2)
+	if err != nil {
+		compliancetest.Fail(t, "Provide() on the subsequent run failed (%v).", err)
+	} else {
+		compliancetest.Log(t, "Provide() on the subsequent run succeeded.")
+	}
+
+	if cfg.IntegrationTestCase.ExpectedOutput != nil {
+		if !bytes.Equal(cfg.IntegrationTestCase.ExpectedOutput.EncryptionKey, output.EncryptionKey) {
+			compliancetest.Fail(t, "Incorrect encryption key received after the first Provide() call. Please set a break point to the line of this error message to debug this error.")
+		}
+		if !bytes.Equal(cfg.IntegrationTestCase.ExpectedOutput.DecryptionKey, output2.DecryptionKey) {
+			compliancetest.Fail(t, "Incorrect decryption key received after the second Provide() call. Please set a break point to the line of this error message to debug this error.")
+		}
+		if !bytes.Equal(cfg.IntegrationTestCase.ExpectedOutput.EncryptionKey, output2.EncryptionKey) {
+			compliancetest.Fail(t, "Incorrect encryption key received after the second Provide() call. Please set a break point to the line of this error message to debug this error.")
+		}
+	}
+	if cfg.IntegrationTestCase.ValidateMetadata != nil {
+		if err := cfg.IntegrationTestCase.ValidateMetadata(outMeta2.(TMeta)); err != nil {
+			compliancetest.Fail(t, "The metadata after the second Provide() call failed the test (%v).", err)
+		}
+	}
+	if cfg.IntegrationTestCase.ValidateKeys == nil {
+		if !bytes.Equal(output2.DecryptionKey, output.EncryptionKey) {
+			compliancetest.Fail(
+				t,
+				"The encryption key from the first call to Provide() does not match the decryption key provided by the second Provide() call. If you intend the two keys to be different, please provide an IntegrationTestCase.ValidateKeys function. If this is not intended, please set a break point to the line of this error message.",
+			)
+		} else {
+			compliancetest.Log(
+				t,
+				"The encryption and decryption keys match.",
+			)
+		}
+	} else {
+		if err := cfg.IntegrationTestCase.ValidateKeys(output2.DecryptionKey, output.EncryptionKey); err != nil {
+			compliancetest.Fail(
+				t,
+				"The encryption key from the first call to Provide() does not match the decryption key provided by the second Provide() call (%v),",
+				err,
+			)
+		} else {
+			compliancetest.Log(
+				t,
+				"The encryption and decryption keys match.",
+			)
+		}
+	}
+}
+
+func complianceTestID[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TMeta keyprovider.KeyMeta, TKeyProvider keyprovider.KeyProvider](
+	t *testing.T,
+	config TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
+) {
+	id := config.Descriptor.ID()
+	if id == "" {
+		compliancetest.Fail(t, "ID is empty.")
+	} else {
+		compliancetest.Log(t, "ID is not empty.")
+	}
+	if err := id.Validate(); err != nil {
+		compliancetest.Fail(t, "ID failed validation: %s", id)
+	} else {
+		compliancetest.Log(t, "ID passed validation.")
+	}
+}
+
+func complianceTestHCLParsingTestCase[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TMeta keyprovider.KeyMeta, TKeyProvider keyprovider.KeyProvider](
+	t *testing.T,
+	tc HCLParseTestCase[TConfig, TKeyProvider],
+	cfg TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
+) {
 	parseError := false
 	parsedConfig, diags := config.LoadConfigFromString("config.hcl", tc.HCL)
 	if tc.ValidHCL {
 		if diags.HasErrors() {
-			fail(t, "Unexpected HCL error (%v).", diags)
+			compliancetest.Fail(t, "Unexpected HCL error (%v).", diags)
 		} else {
-			log(t, "HCL successfully parsed.")
+			compliancetest.Log(t, "HCL successfully parsed.")
 		}
 	} else {
 		if diags.HasErrors() {
@@ -70,18 +276,21 @@ func (tc TestCase) prepare(t *testing.T, descriptor keyprovider.Descriptor) keyp
 		}
 	}
 
-	configStruct := descriptor.ConfigStruct()
+	configStruct := cfg.Descriptor.ConfigStruct()
 	diags = gohcl.DecodeBody(
 		parsedConfig.KeyProviderConfigs[0].Body,
 		nil,
 		configStruct,
 	)
+	var keyProvider TKeyProvider
 	if tc.ValidHCL {
 		if diags.HasErrors() {
-			fail(t, "Failed to parse empty HCL block into config struct (%v).", diags)
+			compliancetest.Fail(t, "Failed to parse empty HCL block into config struct (%v).", diags)
 		} else {
-			log(t, "HCL successfully loaded into config struct.")
+			compliancetest.Log(t, "HCL successfully loaded into config struct.")
 		}
+
+		keyProvider, _ = complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, configStruct, tc.ValidBuild)
 	} else {
 		if !parseError && !diags.HasErrors() {
 			fail(t, "Expected error during HCL parsing, but no error was returned.")
@@ -90,8 +299,8 @@ func (tc TestCase) prepare(t *testing.T, descriptor keyprovider.Descriptor) keyp
 		}
 	}
 
-	if tc.ValidateAndConfigure != nil {
-		if err := tc.ValidateAndConfigure(configStruct); err != nil {
+	if tc.Validate != nil {
+		if err := tc.Validate(configStruct.(TConfig), keyProvider); err != nil {
 			fail(t, "Error during validation and configuration (%v).", err)
 		} else {
 			log(t, "Successfully validated parsed HCL config and applied modifications.")
@@ -99,505 +308,157 @@ func (tc TestCase) prepare(t *testing.T, descriptor keyprovider.Descriptor) keyp
 	} else {
 		log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
 	}
-
-	return configStruct
 }
 
-// ValidateAndConfigureFunc is a function that validates a parsed configuration and potentially modifies the
-// configuration for the test case.
-type ValidateAndConfigureFunc func(config keyprovider.Config) error
-
-// TestCases is a map of a configuration name to a ValidateAndConfigureFunc.
-type TestCases map[string]TestCase
-
-// Validate checks if the TestCases is valid.
-func (c TestCases) Validate() error {
-	for name, testcase := range c {
-		if !testNameRe.MatchString(name) {
-			return fmt.Errorf("the TestCases name %s does not match the required expression %s", name, testNameRe.String())
+func complianceTestConfigCase[TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider](
+	t *testing.T,
+	tc ConfigStructTestCase[TConfig, TKeyProvider],
+) {
+	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TConfig](t, tc.Config, tc.ValidBuild)
+	if tc.Validate != nil {
+		if err := tc.Validate(keyProvider); err != nil {
+			fail(t, "Error during validation and configuration (%v).", err)
+		} else {
+			log(t, "Successfully validated parsed HCL config and applied modifications.")
 		}
-		if testcase.ValidateAndConfigure == nil {
-			return fmt.Errorf("the ValidateAndConfigure function for %s is nil", name)
-		}
-	}
-	return nil
-}
-
-// ComplianceConfigureResult contains the result of the configuration phase of the compliance test. You can provide
-// a key comparison function and an expected key output.
-type ComplianceConfigureResult struct {
-	KeysMatchFunc  KeysMatchFunc
-	ExpectedOutput *keyprovider.Output
-}
-
-// KeysMatchFunc is a function that returns true if the encryption and decryption keys match.
-// It defaults to bytes.Equal.
-type KeysMatchFunc func(encryptionKey []byte, decryptionKey []byte) bool
-
-type HCLParseTestFunc func()
-
-// ComplianceTest tests if the key provider behaves as expected in certain situations. The error messages will indicate
-// what changes need to be made. You can use this function in your tests to make sure your provider behaves correctly.
-func ComplianceTest(t *testing.T, descriptor keyprovider.Descriptor, testCases TestCases) {
-	t.Run("ID", func(t *testing.T) {
-		complianceTestID(t, descriptor)
-	})
-
-	t.Run("config-struct", func(t *testing.T) {
-		complianceTestConfigStruct(t, descriptor)
-	})
-
-	for name, testCase := range testCases {
-		t.Run(name, func(t *testing.T) {
-			complianceTestCase(t, descriptor, testCase)
-		})
-	}
-}
-
-// complianceTestID tests that the ID returned from the descriptor is correct.
-func complianceTestID(t *testing.T, descriptor keyprovider.Descriptor) {
-	id := descriptor.ID()
-	if err := id.Validate(); err != nil {
-		fail(
-			t,
-			"The ID() function returns an invalid key provider ID: %s (%v)",
-			id,
-			err,
-		)
 	} else {
-		log(t, "The ID() function returns a valid provider ID.")
+		log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
 	}
 }
 
-// complianceTestConfigStruct tests that the value from ConfigStruct() is of the correct type. Unfortunately, we can't
-// enforce this with the compiler.
-func complianceTestConfigStruct(t *testing.T, descriptor keyprovider.Descriptor) {
-	log(t, "Testing config struct compliance...")
-	configStruct := descriptor.ConfigStruct()
+func complianceTestBuildConfigAndValidate[TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
+	t *testing.T,
+	configStruct keyprovider.Config,
+	validBuild bool,
+) (TKeyProvider, TMeta) {
 	if configStruct == nil {
-		fail(t, "The ConfigStruct() method on the descriptor returns a nil configuration. Please implement this function correctly.")
-	} else {
-		log(t, "The ConfigStruct() method returned a non-nil value.")
-	}
-	configStructPtrType := reflect.TypeOf(configStruct)
-	if configStructPtrType.Kind() != reflect.Ptr {
-		fail(t, "The ConfigStruct() method returns a %T, but it should return a pointer to a struct.", configStruct)
-	} else {
-		log(t, "The ConfigStruct() method returned a pointer.")
-	}
-	configStructType := configStructPtrType.Elem()
-	if configStructType.Kind() != reflect.Struct {
-		fail(t, "The ConfigStruct() method returns a pointer to %s, but it should return a pointer to a struct.", configStructType.Elem().Name())
-	} else {
-		log(t, "The ConfigStruct() method returned a pointer to a struct.")
+		compliancetest.Fail(t, "Nil struct passed!")
 	}
 
-	hclTagFound := false
-	for i := 0; i < configStructType.NumField(); i++ {
-		field := configStructType.Field(i)
-		hclTag, ok := field.Tag.Lookup("hcl")
+	var typedKeyProvider TKeyProvider
+	var typedMeta TMeta
+	var ok bool
+	kp, meta, err := configStruct.Build()
+	if validBuild {
+		if err != nil {
+			compliancetest.Fail(t, "Build() returned an error: %v.", err)
+		} else {
+			compliancetest.Log(t, "Build() did not return an error.")
+		}
+		typedKeyProvider, ok = kp.(TKeyProvider)
 		if !ok {
-			continue
+			compliancetest.Fail(t, "Build() returned an invalid key provider type of %T, expected %T", kp, typedKeyProvider)
+		} else {
+			compliancetest.Log(t, "Build() returned the correct key provider type of %T.", typedKeyProvider)
 		}
-		hclTagFound = true
-		if hclTag == "" {
-			fail(
+
+		metaType := reflect.TypeOf(typedMeta)
+		if meta == nil {
+			if metaType.Kind() != reflect.Interface {
+				compliancetest.Fail(t, "Build() did not return a metadata, but you declared a metadata type. Please make sure that you always return the same metadata type.")
+			} else {
+				compliancetest.Log(t, "Build() did not return a metadata and the declared metadata type is interface{}.")
+			}
+		} else {
+			if metaType.Kind() == reflect.Interface {
+				compliancetest.Fail(t, "Build() returned metadata, but you declared an interface type as the metadata type. Please always declare a pointer to a struct as a metadata type.")
+			} else {
+				compliancetest.Log(t, "Build() returned metadata and the declared metadata type is not an interface.")
+			}
+			typedMeta = meta.(TMeta)
+			if !ok {
+				compliancetest.Fail(t, "Build() returned an invalid metadata type of %T, expected %T", meta, typedMeta)
+			} else {
+				compliancetest.Log(t, "Build() returned the correct metadata type of %T.", meta)
+			}
+		}
+	} else {
+		if err == nil {
+			compliancetest.Fail(t, "Build() did not return an error.")
+		} else {
+			compliancetest.Log(t, "Build() correctly returned an error: %v", err)
+		}
+
+		var typedError *keyprovider.ErrInvalidConfiguration
+		if !errors.As(err, &typedError) {
+			compliancetest.Fail(
 				t,
-				"The field '%s' on the config structure %s has an empty HCL tag. Please remove the hcl tag or add a value that matches %s.",
-				field.Name,
-				configStructType.Name(),
-				hclTagRe,
+				"Build() did not return the correct error type, got %T but expected %T",
+				err,
+				typedError,
 			)
 		} else {
-			log(t, "Found a non-empty hcl tag on field '%s' of %s.", field.Name, configStructType.Name())
+			compliancetest.Log(t, "Build() returned the correct error type of %T", typedError)
 		}
-		hclTagParts := strings.Split(hclTag, ",")
-		if !hclTagRe.MatchString(hclTagParts[0]) {
-			fail(
+	}
+	return typedKeyProvider, typedMeta
+}
+
+func complianceTestMetadataTestCase[TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
+	t *testing.T,
+	tc MetadataStructTestCase[TConfig, TMeta],
+) {
+	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, tc.Config, true)
+
+	output, _, err := keyProvider.Provide(tc.Meta)
+	if tc.IsPresent {
+		// This test case means that the input metadata should be considered present, so it's either an error or a
+		// decryption key.
+		if tc.IsValid {
+			if err != nil {
+				var typedError *keyprovider.ErrKeyProviderFailure
+				if !errors.As(err, &typedError) {
+					compliancetest.Fail(
+						t,
+						"The Provide() function returned an unexpected error, which was also of the incorrect type of %T instead of %T: %v",
+						err,
+						typedError,
+						err,
+					)
+				}
+				compliancetest.Fail(t, "The Provide() function returned an unexpected error: %v", err)
+			}
+		} else {
+			if err == nil {
+				compliancetest.Fail(t, "The Provide() function did not return an error as expected.")
+			} else {
+				compliancetest.Log(t, "The Provide() function returned an expected error: %v", err)
+			}
+
+			var typedError *keyprovider.ErrInvalidMetadata
+			if !errors.As(err, &typedError) {
+				compliancetest.Fail(
+					t,
+					"The Provide() function returned the error type of %T instead of %T. Please use the correct typed errors.",
+					err,
+					typedError,
+				)
+			}
+		}
+	} else {
+		if err != nil {
+			var typedError *keyprovider.ErrKeyProviderFailure
+			if !errors.As(err, &typedError) {
+				compliancetest.Fail(
+					t,
+					"The Provide() function returned an unexpected error, which was also of the incorrect type of %T instead of %T: %v",
+					err,
+					typedError,
+					err,
+				)
+			}
+			compliancetest.Fail(t, "The Provide() function returned an unexpected error: %v", err)
+		}
+		if len(output.DecryptionKey) != 0 {
+			compliancetest.Fail(
 				t,
-				"The field '%s' on the config structure %s has an invalid hcl tag: %s. Please add a value that matches %s.",
-				field.Name,
-				configStructType.Name(),
-				hclTag,
-				hclTagRe,
+				"The Provide() function a decryption key despite not receiving input meta. This is incorrect, please don't return a decryption key unless you receive the input metadata.",
 			)
 		} else {
-			log(t, "Found hcl tag on field '%s' of %s matches the name requirements.", field.Name, configStructType.Name())
-		}
-	}
-	if !hclTagFound {
-		fail(
-			t,
-			"The configuration struct %s does not contain any fields with hcl tags, which means users will not be able to configure this key provider. Please provide at least one field with an hcl tag.",
-			configStructType.Name(),
-		)
-	} else {
-		log(t, "Found at least one field with a hcl tag.")
-	}
-}
-
-func complianceTestCase(t *testing.T, descriptor keyprovider.Descriptor, testCase TestCase) {
-	configStruct := testCase.prepare(t, descriptor)
-
-	if testCase.StopAfterHCLValidation {
-		return
-	}
-
-	configStructPtrType := reflect.TypeOf(configStruct)
-	configStructType := configStructPtrType.Elem()
-
-	if !testCase.ValidBuild {
-		complianceTestInvalidConfig(t, testCase, descriptor, configStructType)
-	} else {
-		complianceTestValidConfig(t, testCase, descriptor, configStructType)
-	}
-}
-
-// complianceTestInvalidConfig tests that the key provider behavior is correct when supplied with a single invalid
-// configuration.
-func complianceTestInvalidConfig(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, configStructType reflect.Type) {
-	configStruct := testCase.prepare(t, descriptor)
-
-	_, _, err := configStruct.Build()
-	if err == nil {
-		fail(
-			t,
-			"Calling Build() with an invalid configuration on %s did not return an error.",
-			configStructType.Name(),
-		)
-	} else {
-		log(t, "Build() called successfully.")
-	}
-	var configError *keyprovider.ErrInvalidConfiguration
-	var keyProviderFailure *keyprovider.ErrKeyProviderFailure
-	if !errors.As(err, &configError) && !errors.As(err, &keyProviderFailure) {
-		fail(
-			t,
-			"Calling Build() with an invalid configuration on %s returned an error, but it was not a *keyprovider.ErrInvalidConfiguration or *keyprovider.ErrKeyProviderFailure. Please make sure all your errors are typed errors.",
-			configStructType.Name(),
-		)
-	} else {
-		log(
-			t,
-			"The returned error is of the expected type.",
-		)
-	}
-}
-
-// complianceTestValidConfig tests the key provider behavior when the configuration is valid.
-func complianceTestValidConfig(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, configStructType reflect.Type) {
-
-	configStruct := testCase.prepare(t, descriptor)
-
-	provider, inMeta, err := configStruct.Build()
-	if err != nil {
-		fail(
-			t,
-			"Error while calling Build() with a valid configuration on %s (%v).",
-			configStructType.Name(),
-			err,
-		)
-	} else {
-		log(
-			t,
-			"Build() called successfully.",
-		)
-	}
-	if provider == nil {
-		fail(
-			t,
-			"Calling Build() with a valid configuration on %s returned nil for a key provider.",
-			configStructType.Name(),
-		)
-	} else {
-		log(
-			t,
-			"Provide() resulted in a non-nil provider.",
-		)
-	}
-
-	_, _, err = provider.Provide(inMeta)
-	if err != nil {
-		fail(t, "Calling Provide() on %T with a valid configuration resulted in an error (%v).", provider, err)
-	} else {
-		log(t, "Provide() called successfully.")
-	}
-	if inMeta != nil {
-		t.Run("meta-consistency", func(t *testing.T) {
-			complianceTestMetaConsistency(t, testCase, descriptor, configStructType)
-		})
-		t.Run("no-decryption-key-on-missing-in-meta", func(t *testing.T) {
-			complianceTestNoDecryptionKeyOnMissingInMeta(t, testCase, descriptor, configStructType)
-		})
-
-		if testCase.CreateInvalidMetadata != nil {
-			t.Run("error-handling-invalid-metadata", func(t *testing.T) {
-				complianceTestInvalidMetadata(t, testCase, descriptor, configStructType)
-			})
-		}
-	} else {
-		t.Run("meta-consistency", func(t *testing.T) {
-			complianceTestNoMetaConsistency(t, testCase, descriptor, configStructType)
-		})
-	}
-
-	t.Run("full-circle", func(t *testing.T) {
-		complianceTestFullCircle(t, testCase, descriptor, configStructType)
-	})
-}
-
-func complianceTestInvalidMetadata(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, structType reflect.Type) {
-	log(t, "Testing provider behavior with invalid metadata.")
-
-	cfg := testCase.prepare(t, descriptor)
-
-	provider, _, err := cfg.Build()
-	if err != nil {
-		fail(t, "Build() returned an unexpected error (%v).", err)
-	} else {
-		log(t, "Build() succeeded.")
-	}
-
-	_, _, err = provider.Provide(testCase.CreateInvalidMetadata())
-	if err == nil {
-		fail(t, "Expected Provide() to return an error error, but nil returned.")
-	} else {
-		log(t, "Provide() correctly returned an error.")
-	}
-	var typedError *keyprovider.ErrInvalidMetadata
-	if !errors.As(err, &typedError) {
-		fail(
-			t,
-			"Provide() returned an incorrect error type of %T when supplied with invalid metadata. Please make sure that Provide() returns a %T instead.",
-			err,
-			typedError,
-		)
-	} else {
-		log(t, "Provide() returned the correct error type of %T.", typedError)
-	}
-}
-
-// complianceTestMetaConsistency tests if the key provider behaves consistently when it comes to metadata. This is
-// important because errors in metadata handling may result in unrecoverable data, and we have no simple way of
-// enforcing correctness through the compiler.
-func complianceTestMetaConsistency(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, configStructType reflect.Type) {
-	log(t, "Testing metadata type consistency for non-nil metadata...")
-
-	configStruct := testCase.prepare(t, descriptor)
-	provider, inMeta, err := configStruct.Build()
-	if err != nil {
-		fail(t, "Failed call Build() with valid configuration on %T (%v).", configStruct, err)
-	} else {
-		log(t, "Build() called successfully.")
-	}
-
-	inMetaPtrType := reflect.TypeOf(inMeta)
-	if inMetaPtrType.Kind() != reflect.Ptr {
-		fail(t, "When calling Build() on %s, the metadata returned is not a pointer to a struct but a %T.", configStructType.Name(), inMeta)
-	} else {
-		log(t, "The returned input metadata from Build() is a pointer.")
-	}
-	inMetaType := inMetaPtrType.Elem()
-	if inMetaType.Kind() != reflect.Struct {
-		fail(t, "When calling Build() on %s, the metadata returned is not a pointer to a struct but a pointer to %s.", configStructType.Name(), inMetaType.Name())
-	} else {
-		log(t, "The returned input metadata from Build() is a pointer to a struct.")
-	}
-
-	_, _, err = provider.Provide(nil)
-	if err == nil {
-		fail(t, "Calling Provide() on %T with a nil metadata did not result in an error even though the ConfigStruct() returned a meta structure.", provider)
-	} else {
-		log(t, "Provide() returned an error as expected.")
-	}
-	var typedErr *keyprovider.ErrInvalidMetadata
-	if !errors.As(err, &typedErr) {
-		fail(t, "Calling Provide() on %T with nil metadata returned a %T instead of a %T. Please use the correct typed errors.", provider, err, typedErr)
-	} else {
-		log(t, "The returned error is a %T", typedErr)
-	}
-
-	_, _, err = provider.Provide(struct{}{})
-	if err == nil {
-		fail(t, "Calling Provide() on %T with an incorrect data type metadata did not result in an error even though the ConfigStruct() returned a meta structure.", provider)
-	} else {
-		log(t, "Provide() returned an error as expected.")
-	}
-	if !errors.As(err, &typedErr) {
-		fail(t, "Calling Provide() on %T with an incorrect data type metadata returned a %T instead of a %T. Please use the correct typed errors.", provider, err, typedErr)
-	} else {
-		log(t, "The returned error is a %T", typedErr)
-	}
-
-	_, outMeta, err := provider.Provide(inMeta)
-	if err != nil {
-		fail(t, "Calling Provide() on %T with a valid configuration resulted in an error (%v).", provider, err)
-	} else {
-		log(t, "Provide() returned no error, as expected.")
-	}
-
-	outMetaPtrType := reflect.TypeOf(outMeta)
-	if outMetaPtrType.Kind() != reflect.Ptr {
-		fail(t, "Calling Provide() on %T resulted in a metadata of the type %T, but it should have been a pointer to %s", provider, outMeta, inMetaType.Name())
-	} else {
-		log(t, "Output meta is a pointer.")
-	}
-	outMetaType := outMetaPtrType.Elem()
-	if outMetaType.Kind() != reflect.Struct || outMetaType.Name() != inMetaType.Name() {
-		fail(t, "Calling Provide() on %T resulted in a metadata of the type %T, but it should have been a pointer to %s", provider, outMeta, inMetaType.Name())
-	} else {
-		log(t, "Output meta is a pointer to a struct and matches the input meta.")
-	}
-}
-
-// complianceTestNoMetaConsistency tests that the key provider returns no metadata on Provide if the Build() function
-// did not return one. This is important because inconsistent metadata may lead to undefined behavior.
-func complianceTestNoMetaConsistency(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, configStructType reflect.Type) {
-	log(t, "Testing metadata consistency for nil metadata type...")
-
-	cfg := testCase.prepare(t, descriptor)
-	provider, inMeta, err := cfg.Build()
-	if err != nil {
-		fail(t, "Failed call Build() with valid configuration on %T (%v).", cfg, err)
-	} else {
-		log(t, "Build() called successfully.")
-	}
-
-	_, outMeta, err := provider.Provide(inMeta)
-	if err != nil {
-		fail(t, "Calling Provide() on %T with a valid configuration resulted in an error (%v).", provider, err)
-	} else {
-		log(t, "Provide() called successfully.")
-	}
-	if outMeta != nil {
-		fail(
-			t,
-			"Calling Provide() on %T resulted in a non-nil metadata, even though calling Build() on %s returned a nil metadata. Please make sure that the metadata is always the same type.",
-			provider,
-			configStructType.Name(),
-		)
-	} else {
-		log(t, "The output metadata is nil.")
-	}
-}
-
-// complianceTestNoDecryptionKeyOnMissingInMeta tests if the key provider returns an empty decryption key if no input
-// meta was provided. This is important because key providers that expect an input meta should not return a decryption
-// key if they don't receive one.
-func complianceTestNoDecryptionKeyOnMissingInMeta(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, configStructType reflect.Type) {
-	log(t, "Testing if the missing input meta returns no decryption key...")
-
-	cfg := testCase.prepare(t, descriptor)
-	provider, inMeta, err := cfg.Build()
-	if err != nil {
-		fail(t, "Failed call Build() with valid configuration on %T (%v).", cfg, err)
-	} else {
-		log(t, "Build() called successfully.")
-	}
-
-	output, _, err := provider.Provide(inMeta)
-	if err != nil {
-		fail(t, "Calling Provide() on %T with a valid configuration resulted in an error (%v).", provider, err)
-	} else {
-		log(t, "Provide() called successfully.")
-	}
-
-	if len(output.DecryptionKey) != 0 {
-		fail(
-			t,
-			"Calling Provide() on %T without input metadata resulted in a decryption key even though the metadata is required for this provider. Please make sure you only return a decryption key if you receive input metadata.",
-			provider,
-		)
-	} else {
-		log(t, "Calling Provide() on %T without input metadata returned no decryption key as expected.", provider)
-	}
-}
-
-// complianceTestFullCircle tests a full-circle encryption behavior by calling the provider twice.
-func complianceTestFullCircle(t *testing.T, testCase TestCase, descriptor keyprovider.Descriptor, configStructType reflect.Type) {
-	log(t, "Running full circle test...")
-
-	cfg := testCase.prepare(t, descriptor)
-	provider, inMeta, err := cfg.Build()
-	if err != nil {
-		fail(t, "Failed call Build() with valid configuration on %T (%v).", cfg, err)
-	} else {
-		log(t, "Build() called successfully.")
-	}
-
-	output, outMeta, err := provider.Provide(inMeta)
-	if err != nil {
-		fail(t, "Calling Provide() on %T with a valid configuration resulted in an error (%v).", provider, err)
-	} else {
-		log(t, "Provide() called successfully.")
-	}
-
-	provider2, _, err := cfg.Build()
-	if err != nil {
-		fail(
-			t,
-			"Failed call Build() with valid configuration on %T (%v).",
-			cfg,
-			err,
-		)
-	} else {
-		log(
-			t,
-			"Build() called successfully.",
-		)
-	}
-
-	output2, _, err := provider2.Provide(outMeta)
-	if err != nil {
-		fail(
-			t,
-			"Failed call Provide() with valid configuration on %T (%v).",
-			cfg,
-			err,
-		)
-	} else {
-		log(t, "Provide() called successfully.")
-	}
-
-	keysMatchfunc := testCase.KeysMatchFunc
-	if keysMatchfunc == nil {
-		keysMatchfunc = bytes.Equal
-	}
-
-	if !keysMatchfunc(output.EncryptionKey, output2.DecryptionKey) {
-		fail(
-			t,
-			"The first encryption key does not match the second decryption key. The behavior of your key provider is not consistent or your key comparison function is incorrect. Please set a break point to the line of this error message and inspect the keys manually.",
-		)
-	} else {
-		log(t, "The resulting encryption and decryption keys match each other.")
-	}
-	if testCase.ExpectedOutput != nil {
-		if !bytes.Equal(testCase.ExpectedOutput.DecryptionKey, output2.DecryptionKey) {
-			fail(
+			compliancetest.Log(
 				t,
-				"The resulting decryption key did not match the expected value. Please set a break point to the line of this error message and inspect the keys manually.",
+				"The Provide() function correctly did not return a decryption key without input metadata.",
 			)
-		} else {
-			log(t, "The resulting decryption key matches the expected output.")
-		}
-		if !bytes.Equal(testCase.ExpectedOutput.EncryptionKey, output2.EncryptionKey) {
-			fail(
-				t,
-				"The resulting encryption key did not match the expected value. Please set a break point to the line of this error message and inspect the keys manually.",
-			)
-		} else {
-			log(t, "The resulting encryption key matches the expected output.")
 		}
 	}
-}
-
-func log(t *testing.T, msg string, params ...any) {
-	t.Helper()
-	t.Logf("\033[32m%s\033[0m", fmt.Sprintf(msg, params...))
-}
-
-func fail(t *testing.T, msg string, params ...any) {
-	t.Helper()
-	t.Fatalf("\033[31m%s\033[0m", fmt.Sprintf(msg, params...))
 }

@@ -14,7 +14,7 @@ import (
 )
 
 func TestCompliance(t *testing.T) {
-	compliancetest.ComplianceTest(
+	compliancetest.OldComplianceTest(
 		t,
 		New(),
 		map[string]compliancetest.TestCase{
