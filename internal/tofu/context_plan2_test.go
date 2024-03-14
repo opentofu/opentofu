@@ -5076,6 +5076,120 @@ resource "test_object" "a" {
 	}
 }
 
+func TestContext2Plan_importDuplication(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+		expectedError       string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "Duplication with dynamic address with a variable",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "a" {
+ count = 2
+}
+
+variable "address1" {
+ default = 1
+}
+
+variable "address2" {
+ default = 1
+}
+
+import {
+  to   = test_object.a[var.address1]
+  id   = "123"
+}
+
+import {
+  to   = test_object.a[var.address2]
+  id   = "123"
+}
+`,
+			},
+			expectedError: "Duplicate import configuration for \"test_object.a[1]\"",
+		},
+		{
+			Description: "Duplication with dynamic address with a resource reference",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "example" {
+ test_string = "boop"
+}
+
+resource "test_object" "a" {
+ for_each = toset(["boop"])
+}
+
+import {
+  to   = test_object.a[test_object.example.test_string]
+  id   = "123"
+}
+
+import {
+  to   = test_object.a[test_object.example.test_string]
+  id   = "123"
+}
+`,
+			},
+			expectedError: "Duplicate import configuration for \"test_object.a[\\\"boop\\\"]\"",
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			p := simpleMockProvider()
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"test_string": cty.StringVal("foo"),
+						}),
+					},
+				},
+			}
+
+			_, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+
+			if !diags.HasErrors() {
+				t.Fatalf("expected error")
+			}
+
+			var errNum int
+			for _, diag := range diags {
+				if diag.Severity() == tfdiags.Error {
+					errNum++
+				}
+			}
+			if errNum > 1 {
+				t.Fatalf("expected a single error, but got %d", errNum)
+			}
+
+			if !strings.Contains(diags.Err().Error(), configuration.expectedError) {
+				t.Fatalf("expected error to be %s, but it was %s", configuration.expectedError, diags.Err().Error())
+			}
+		})
+	}
+}
+
 func TestContext2Plan_importResourceConfigGen(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	m := testModuleInline(t, map[string]string{
