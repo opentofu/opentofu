@@ -52,6 +52,14 @@ func (e ErrDecryptionFailed) Unwrap() error {
 	return e.Cause
 }
 
+// ErrDecryptionKeyUnavailable indicates that no decryption key is available.
+type ErrDecryptionKeyUnavailable struct {
+}
+
+func (e ErrDecryptionKeyUnavailable) Error() string {
+	return "no decryption key available"
+}
+
 // ErrInvalidConfiguration indicates that the method configuration is incorrect.
 type ErrInvalidConfiguration struct {
 	Cause error

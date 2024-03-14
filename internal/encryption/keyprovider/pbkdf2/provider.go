@@ -39,9 +39,14 @@ func (p pbkdf2KeyProvider) generateMetadata() (*Metadata, error) {
 
 func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
 	if rawMeta == nil {
-		return keyprovider.Output{}, nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
-	inMeta := rawMeta.(*Metadata)
+	inMeta, ok := rawMeta.(*Metadata)
+	if !ok {
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
+			Message: fmt.Sprintf("bug: incorrect metadata type of %T provided", rawMeta),
+		}
+	}
 
 	outMeta, err := p.generateMetadata()
 	if err != nil {
