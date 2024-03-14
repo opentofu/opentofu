@@ -23,8 +23,8 @@ type TestConfiguration[TDescriptor keyprovider.Descriptor, TConfig keyprovider.C
 	// MetadataStructTestCases test various metadata values for correct handling.
 	MetadataStructTestCases map[string]MetadataStructTestCase[TConfig, TMeta]
 
-	// IntegrationTestCase exercises the entire chain and generates two keys.
-	IntegrationTestCase IntegrationTestCase[TConfig, TMeta]
+	// ProvideTestCase exercises the entire chain and generates two keys.
+	ProvideTestCase ProvideTestCase[TConfig, TMeta]
 }
 
 // HCLParseTestCase contains a test case that parses HCL into a configuration.
@@ -51,7 +51,7 @@ type ConfigStructTestCase[TConfig keyprovider.Config, TKeyProvider keyprovider.K
 // MetadataStructTestCase is a test case for metadata.
 type MetadataStructTestCase[TConfig keyprovider.Config, TMeta any] struct {
 	// Config contains a valid configuration that should be used to construct the key provider.
-	Config TConfig
+	ValidConfig TConfig
 	// Meta contains the metadata for this test case.
 	Meta TMeta
 	// IsPresent indicates that the supplied metadata in Meta should be treated as present and the Provide() function
@@ -63,9 +63,9 @@ type MetadataStructTestCase[TConfig keyprovider.Config, TMeta any] struct {
 	IsValid bool
 }
 
-// IntegrationTestCase provides a test configuration for a full integration test where a key is requested and then
+// ProvideTestCase provides a test configuration Provide() test where a key is requested and then
 // subsequently compared.
-type IntegrationTestCase[TConfig keyprovider.Config, TMeta any] struct {
+type ProvideTestCase[TConfig keyprovider.Config, TMeta any] struct {
 	// ValidConfig is a valid configuration that the integration test can use to generate keys.
 	ValidConfig TConfig
 	// ExpectedOutput indicates what keys are expected as an output when the integration test is ran with full metadata.

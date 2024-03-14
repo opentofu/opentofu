@@ -12,7 +12,7 @@ import (
 )
 
 func TestCompliance(t *testing.T) {
-	compliancetest.ComplianceTest(t, compliancetest.TestDescriptor{
+	compliancetest.ComplianceTest[*Config](t, compliancetest.TestDescriptor{
 		Descriptor: New(),
 	})
 }

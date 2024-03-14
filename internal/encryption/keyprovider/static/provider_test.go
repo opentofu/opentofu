@@ -68,7 +68,7 @@ func TestKeyProvider(t *testing.T) {
 			},
 			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *Metadata]{
 				"empty": {
-					Config: &Config{
+					ValidConfig: &Config{
 						Key: "48656c6c6f20776f726c6421",
 					},
 					Meta:      &Metadata{},
@@ -76,7 +76,7 @@ func TestKeyProvider(t *testing.T) {
 					IsValid:   false,
 				},
 				"invalid": {
-					Config: &Config{
+					ValidConfig: &Config{
 						Key: "48656c6c6f20776f726c6421",
 					},
 					Meta: &Metadata{
@@ -86,7 +86,7 @@ func TestKeyProvider(t *testing.T) {
 					IsValid:   false,
 				},
 				"valid": {
-					Config: &Config{
+					ValidConfig: &Config{
 						Key: "48656c6c6f20776f726c6421",
 					},
 					Meta: &Metadata{
@@ -96,7 +96,7 @@ func TestKeyProvider(t *testing.T) {
 					IsValid:   true,
 				},
 			},
-			IntegrationTestCase: compliancetest.IntegrationTestCase[*Config, *Metadata]{
+			ProvideTestCase: compliancetest.ProvideTestCase[*Config, *Metadata]{
 				ValidConfig: &Config{
 					Key: "48656c6c6f20776f726c6421",
 				},

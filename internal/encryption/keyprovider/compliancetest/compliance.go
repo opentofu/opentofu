@@ -110,7 +110,7 @@ func complianceTestIntegration[TDescriptor keyprovider.Descriptor, TConfig keypr
 	t *testing.T,
 	cfg TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
 ) {
-	keyProviderConfig := cfg.IntegrationTestCase.ValidConfig
+	keyProviderConfig := cfg.ProvideTestCase.ValidConfig
 	t.Run("nil-metadata", func(t *testing.T) {
 		keyProvider, inMeta := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, keyProviderConfig, true)
 
@@ -167,8 +167,8 @@ func complianceTestRoundTrip[TDescriptor keyprovider.Descriptor, TConfig keyprov
 	} else {
 		compliancetest.Log(t, "Provide() succeeded.")
 	}
-	if cfg.IntegrationTestCase.ValidateMetadata != nil {
-		if err := cfg.IntegrationTestCase.ValidateMetadata(outMeta.(TMeta)); err != nil {
+	if cfg.ProvideTestCase.ValidateMetadata != nil {
+		if err := cfg.ProvideTestCase.ValidateMetadata(outMeta.(TMeta)); err != nil {
 			compliancetest.Fail(t, "The metadata after the second Provide() call failed the test (%v).", err)
 		}
 	}
@@ -196,27 +196,27 @@ func complianceTestRoundTrip[TDescriptor keyprovider.Descriptor, TConfig keyprov
 		compliancetest.Log(t, "Provide() on the subsequent run succeeded.")
 	}
 
-	if cfg.IntegrationTestCase.ExpectedOutput != nil {
-		if !bytes.Equal(cfg.IntegrationTestCase.ExpectedOutput.EncryptionKey, output.EncryptionKey) {
+	if cfg.ProvideTestCase.ExpectedOutput != nil {
+		if !bytes.Equal(cfg.ProvideTestCase.ExpectedOutput.EncryptionKey, output.EncryptionKey) {
 			compliancetest.Fail(t, "Incorrect encryption key received after the first Provide() call. Please set a break point to the line of this error message to debug this error.")
 		}
-		if !bytes.Equal(cfg.IntegrationTestCase.ExpectedOutput.DecryptionKey, output2.DecryptionKey) {
+		if !bytes.Equal(cfg.ProvideTestCase.ExpectedOutput.DecryptionKey, output2.DecryptionKey) {
 			compliancetest.Fail(t, "Incorrect decryption key received after the second Provide() call. Please set a break point to the line of this error message to debug this error.")
 		}
-		if !bytes.Equal(cfg.IntegrationTestCase.ExpectedOutput.EncryptionKey, output2.EncryptionKey) {
+		if !bytes.Equal(cfg.ProvideTestCase.ExpectedOutput.EncryptionKey, output2.EncryptionKey) {
 			compliancetest.Fail(t, "Incorrect encryption key received after the second Provide() call. Please set a break point to the line of this error message to debug this error.")
 		}
 	}
-	if cfg.IntegrationTestCase.ValidateMetadata != nil {
-		if err := cfg.IntegrationTestCase.ValidateMetadata(outMeta2.(TMeta)); err != nil {
+	if cfg.ProvideTestCase.ValidateMetadata != nil {
+		if err := cfg.ProvideTestCase.ValidateMetadata(outMeta2.(TMeta)); err != nil {
 			compliancetest.Fail(t, "The metadata after the second Provide() call failed the test (%v).", err)
 		}
 	}
-	if cfg.IntegrationTestCase.ValidateKeys == nil {
+	if cfg.ProvideTestCase.ValidateKeys == nil {
 		if !bytes.Equal(output2.DecryptionKey, output.EncryptionKey) {
 			compliancetest.Fail(
 				t,
-				"The encryption key from the first call to Provide() does not match the decryption key provided by the second Provide() call. If you intend the two keys to be different, please provide an IntegrationTestCase.ValidateKeys function. If this is not intended, please set a break point to the line of this error message.",
+				"The encryption key from the first call to Provide() does not match the decryption key provided by the second Provide() call. If you intend the two keys to be different, please provide an ProvideTestCase.ValidateKeys function. If this is not intended, please set a break point to the line of this error message.",
 			)
 		} else {
 			compliancetest.Log(
@@ -225,7 +225,7 @@ func complianceTestRoundTrip[TDescriptor keyprovider.Descriptor, TConfig keyprov
 			)
 		}
 	} else {
-		if err := cfg.IntegrationTestCase.ValidateKeys(output2.DecryptionKey, output.EncryptionKey); err != nil {
+		if err := cfg.ProvideTestCase.ValidateKeys(output2.DecryptionKey, output.EncryptionKey); err != nil {
 			compliancetest.Fail(
 				t,
 				"The encryption key from the first call to Provide() does not match the decryption key provided by the second Provide() call (%v),",
@@ -398,7 +398,7 @@ func complianceTestMetadataTestCase[TConfig keyprovider.Config, TKeyProvider key
 	t *testing.T,
 	tc MetadataStructTestCase[TConfig, TMeta],
 ) {
-	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, tc.Config, true)
+	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, tc.ValidConfig, true)
 
 	output, _, err := keyProvider.Provide(tc.Meta)
 	if tc.IsPresent {
