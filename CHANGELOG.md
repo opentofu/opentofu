@@ -3,6 +3,13 @@
 UPGRADE NOTES:
 * Backend/S3: The default of `use_legacy_workflow` changed to `false` and is now deprecated. The S3 backend will follow the same behavior as AWS CLI and SDKs for credential search, preferring backend configuration over environment variables. To support the legacy credential search workflow, you can set this option as `true`. It'll be completely removed in a future minor version.
 
+STATE ENCRYPTION
+* We're introducing optional end-to-end encryption for state files.
+* Available encryption methods as of now are:
+  * AES GCM ([#1291](https://github.com/opentofu/opentofu/pull/1291))
+* Available key providers:
+  * Passphrase, via pbkdf2 ([#1310](https://github.com/opentofu/opentofu/pull/1310))
+  * AWS KMS ([#1349](https://github.com/opentofu/opentofu/pull/1349))
 
 NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
