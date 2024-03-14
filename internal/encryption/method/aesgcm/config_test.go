@@ -85,19 +85,6 @@ func TestConfig_Build(t *testing.T) {
 			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
-			name: "decryption-key-fallback",
-			config: &Config{
-				Keys: keyprovider.Output{
-					EncryptionKey: []byte("bohwu9zoo7Zooe16"),
-				},
-			},
-			errorType: nil,
-			expected: aesgcm{
-				encryptionKey: []byte("bohwu9zoo7Zooe16"),
-				decryptionKey: []byte("bohwu9zoo7Zooe16"),
-			},
-		},
-		{
 			name: "aad",
 			config: &Config{
 				Keys: keyprovider.Output{

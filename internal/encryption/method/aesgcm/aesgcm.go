@@ -55,6 +55,9 @@ func (a aesgcm) Encrypt(data []byte) ([]byte, error) {
 
 // Decrypt decrypts an AES-GCM-encrypted data set. If the data set fails decryption, it returns an error.
 func (a aesgcm) Decrypt(data []byte) ([]byte, error) {
+	if len(a.decryptionKey) == 0 {
+		return nil, &method.ErrDecryptionKeyUnavailable{}
+	}
 	result, err := handlePanic(
 		func() ([]byte, error) {
 			if len(data) == 0 {

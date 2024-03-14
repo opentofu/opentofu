@@ -36,11 +36,6 @@ func (c *Config) Build() (method.Method, error) {
 	encryptionKey := c.Keys.EncryptionKey
 	decryptionKey := c.Keys.DecryptionKey
 
-	if len(decryptionKey) == 0 {
-		// Use encryption key as decryption key if missing
-		decryptionKey = encryptionKey
-	}
-
 	if !validKeyLengths.Has(len(encryptionKey)) {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: fmt.Errorf(
@@ -51,13 +46,15 @@ func (c *Config) Build() (method.Method, error) {
 		}
 	}
 
-	if !validKeyLengths.Has(len(decryptionKey)) {
-		return nil, &method.ErrInvalidConfiguration{
-			Cause: fmt.Errorf(
-				"AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
-				validKeyLengths.String(),
-				len(decryptionKey),
-			),
+	if len(decryptionKey) > 0 {
+		if !validKeyLengths.Has(len(decryptionKey)) {
+			return nil, &method.ErrInvalidConfiguration{
+				Cause: fmt.Errorf(
+					"AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
+					validKeyLengths.String(),
+					len(decryptionKey),
+				),
+			}
 		}
 	}
 
