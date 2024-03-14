@@ -103,10 +103,10 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 
 This key provider uses the [Amazon Web Servers Key Management Service](https://aws.amazon.com/kms/) to generate keys. The authentication options are identical to the [S3 backend](/docs/language/settings/backends/s3/) excluding any deprecated options. In addition, please provide the following options:
 
-| Option     | Description                                                                                                                                        | Min. | Default |
-|------------|----------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
-| kms_key_id | [Key ID on AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                   | 1    | -       |
-| key_spec   | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. . | 1    | -       |
+| Option     | Description                                                                                                                                                  | Min. | Default |
+|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
+| kms_key_id | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -       |
+| key_spec   | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -       |
 
 The following example illustrates a minimal example:
 
