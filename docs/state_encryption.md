@@ -36,6 +36,8 @@ In this section we describe the features that are out of scope for state and pla
 
 The primary goal of this feature is to protect state and plan files **at rest**. It is not the goal of this feature to protect other channels secrets may be accessed through, such as the JSON output. As such, it is not a goal of this feature to encrypt any output on the standard output, or file output that is not a state or plan file.
 
+Furthermore, it is not a goal of this feature to *authenticate* that the user is running an up-to-date plan file. It does not protect against, among others, replay attacks where a malicious actor replaces a current plan or state file with an old one.
+
 It is also not a goal of this feature to protect the state file against the operator of the device running `tofu`. The operator already has access to the encryption key and can decrypt the data without the `tofu` binary being present if they so chose.
 
 ## User-facing effects
@@ -90,20 +92,17 @@ Finally, the user must reference the method for use in their state file, plan fi
 terraform {
   encryption {
     //...
-    statefile {
+    state {
       method = method.aes_gcm.abc
     }
-    planfile {
+    plan {
       method = method.aes_gcm.cde
     }
-    backend {
-      method = method.some_derivative_key_provider.efg
-    }
-    remote_data_sources {
+    remote_state_data_sources {
       default {
         method = method.aes_gcm.ghi
       }
-      remote_data_source "some_module.remote_data_source.foo" {
+      remote_state_data_source "some_module.remote_data_source.foo" {
         method = method.aes_gcm.ijk
       }
     }
@@ -117,7 +116,7 @@ To facilitate key and method rollover, the user can specify a fallback configura
 terraform {
   encryption {
     //...
-    statefile {
+    state {
       method = method.aes_gcm.bar
       fallback {
         method = method.aes_gcm.baz
@@ -170,7 +169,7 @@ key_provider "static" "my_key" {
 method "aes_gcm" "foo" {
   key_provider = key_provider.static.my_key
 }
-statefile {
+state {
   method = method.aes_gcm.foo
 }
 ```
@@ -191,7 +190,7 @@ statefile {
       }
     }
   },
-  "statefile": {
+  "state": {
     "method": "${method.aes_gcm.foo}"
   }
 }
@@ -200,7 +199,7 @@ statefile {
 The user can set either of these structures in the `TF_ENCRYPTION` environment variable:
 
 ```bash
-export TF_ENCRYPTION='{"key_provider":{...},"method":{...},"statefile":{...}}'
+export TF_ENCRYPTION='{"key_provider":{...},"method":{...},"state":{...}}'
 ```
 
 When the user specifies both an environment and a code configuration, `tofu` merges the two configurations. If two values conflict, the environment configuration takes precedence.
@@ -211,13 +210,10 @@ To ensure that the encryption cannot be accidentally forgotten or disabled and t
 terraform {
   encryption {
     //...
-    statefile {
+    state {
       enforced = true
     }
-    planfile {
-      enforced = true
-    }
-    backend {
+    plan {
       enforced = true
     }
   }
@@ -264,23 +260,17 @@ The main component of the library should be the `Encryption` interface. This int
 
 ```go
 type Encryption interface {
-	StateFile() StateEncryption
-	PlanFile() PlanEncryption
-	Backend() StateEncryption
-	RemoteState(string) ReadOnlyStateEncryption
+	State() StateEncryption
+	Plan() PlanEncryption
+	RemoteState(string) StateEncryption
 }
 ```
 
 Each of the returned encryption tools should provide methods to encrypt the data of the specified purpose, such as:
 
 ```go
-type ReadOnlyStateEncryption interface {
-    DecryptState([]byte) ([]byte, error)	
-}
-
 type StateEncryption interface {
-    ReadOnlyStateEncryption
-	
+    DecryptState([]byte) ([]byte, error)	
 	EncryptState([]byte) ([]byte, error)
 }
 ```

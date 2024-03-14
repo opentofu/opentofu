@@ -18,7 +18,7 @@ import (
 
 var (
 	ConfigA = `
-backend {
+state {
 	enforced = true
 }
 `
@@ -27,13 +27,9 @@ key_provider "static" "basic" {
 	key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
 }
 method "aes_gcm" "example" {
-	cipher = key_provider.static.basic
+	keys = key_provider.static.basic
 }
-statefile {
-	method = method.aes_gcm.example
-}
-
-backend {
+state {
 	method = method.aes_gcm.example
 }
 `
@@ -62,10 +58,10 @@ func Example() {
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
-	enc := encryption.New(reg, cfg)
-
-	sfe, diags := enc.StateFile()
+	enc, diags := encryption.New(reg, cfg)
 	handleDiags(diags)
+
+	sfe := enc.State()
 
 	// Encrypt the data, for this example we will be using the string "test",
 	// but in a real world scenario this would be the plan file.
@@ -78,8 +74,6 @@ func Example() {
 	if string(encrypted) == "test" {
 		panic("The data has not been encrypted!")
 	}
-
-	println(string(encrypted))
 
 	// Decrypt
 	decryptedState, err := sfe.DecryptState(encrypted)

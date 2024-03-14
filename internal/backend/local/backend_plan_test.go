@@ -732,6 +732,7 @@ func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func
 
 	return &backend.Operation{
 		Type:            backend.OperationTypePlan,
+		Encryption:      encryption.Disabled(),
 		ConfigDir:       configDir,
 		ConfigLoader:    configLoader,
 		StateLocker:     clistate.NewNoopLocker(),

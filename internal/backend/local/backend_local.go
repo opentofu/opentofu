@@ -78,6 +78,7 @@ func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.
 	}
 	coreOpts.UIInput = op.UIIn
 	coreOpts.Hooks = op.Hooks
+	coreOpts.Encryption = op.Encryption
 
 	var ctxDiags tfdiags.Diagnostics
 	var configSnap *configload.Snapshot

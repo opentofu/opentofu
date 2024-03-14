@@ -8,6 +8,7 @@ package localexec
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -141,9 +142,13 @@ func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 	p := New()
 	schema := p.GetSchema().Provisioner
 
+	command := "echo `pwd`"
+	if runtime.GOOS == "windows" {
+		command = "echo %cd%"
+	}
 	c, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
 		"working_dir": cty.StringVal(testdir),
-		"command":     cty.StringVal("echo `pwd`"),
+		"command":     cty.StringVal(command),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -165,6 +170,9 @@ func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 
 	got := strings.TrimSpace(output.OutputWriter.String())
 	want := "Executing: [\"/bin/sh\" \"-c\" \"echo `pwd`\"]\n" + dir + "/" + testdir
+	if runtime.GOOS == "windows" {
+		want = "Executing: [\"cmd\" \"/C\" \"echo %cd%\"]\n" + dir + "\\" + testdir
+	}
 	if got != want {
 		t.Errorf("wrong output\ngot:  %s\nwant: %s", got, want)
 	}
@@ -174,9 +182,12 @@ func TestResourceProvider_ApplyCustomEnv(t *testing.T) {
 	output := cli.NewMockUi()
 	p := New()
 	schema := p.GetSchema().Provisioner
-
+	command := "echo $FOO $BAR $BAZ"
+	if runtime.GOOS == "windows" {
+		command = "echo %FOO% %BAR% %BAZ%"
+	}
 	c, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
-		"command": cty.StringVal("echo $FOO $BAR $BAZ"),
+		"command": cty.StringVal(command),
 		"environment": cty.MapVal(map[string]cty.Value{
 			"FOO": cty.StringVal("BAR"),
 			"BAR": cty.StringVal("1"),
@@ -196,8 +207,12 @@ func TestResourceProvider_ApplyCustomEnv(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(output.OutputWriter.String())
-	want := `Executing: ["/bin/sh" "-c" "echo $FOO $BAR $BAZ"]
-BAR 1 true`
+
+	want := "Executing: [\"/bin/sh\" \"-c\" \"echo $FOO $BAR $BAZ\"]\nBAR 1 true"
+	if runtime.GOOS == "windows" {
+		want = "Executing: [\"cmd\" \"/C\" \"echo %FOO% %BAR% %BAZ%\"]\nBAR 1 true"
+	}
+
 	if got != want {
 		t.Errorf("wrong output\ngot:  %s\nwant: %s", got, want)
 	}

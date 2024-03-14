@@ -19,10 +19,12 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -223,7 +225,7 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	t.Diagnostics(run, file, diags)
 
 	if state.HasManagedResourceInstanceObjects() {
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, and they need to be cleaned up manually:\n", identifier), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:\n", identifier), t.view.errorColumns()))
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
 			if resource.DeposedKey != states.NotDeposed {
 				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey)
@@ -460,21 +462,19 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 
 		if run != nil {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s/%s, they need to be cleaned up manually.", file.Name, run.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s/%s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:", file.Name, run.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name,
 				"@testrun", run.Name)
 		} else {
 			t.view.log.Error(
-				fmt.Sprintf("OpenTofu left some resources in state after executing %s, they need to be cleaned up manually.", file.Name),
+				fmt.Sprintf("OpenTofu left some resources in state after executing %s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:", file.Name),
 				"type", json.MessageTestCleanup,
 				json.MessageTestCleanup, cleanup,
 				"@testfile", file.Name)
 		}
-
 	}
-
 	t.Diagnostics(run, file, diags)
 }
 
@@ -570,3 +570,61 @@ func testStatus(status moduletest.Status) string {
 		panic("unrecognized status: " + status.String())
 	}
 }
+
+// SaveErroredTestStateFile is a helper function to invoked in DestorySummary
+// to store the state to errored_test.tfstate and handle associated diagnostics and errors with this operation
+func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *moduletest.File, view Test) {
+	var diags tfdiags.Diagnostics
+	localFileSystem := statemgr.NewFilesystem("errored_test.tfstate", encryption.StateEncryptionDisabled())
+	stateFile := statemgr.NewStateFile()
+	stateFile.State = state
+
+	//creating an operation to invoke EmergencyDumpState()
+	var op Operation
+	switch v := view.(type) {
+	case *TestHuman:
+		op = NewOperation(arguments.ViewHuman, false, v.view)
+		v.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", v.view.errorColumns()))
+	case *TestJSON:
+		op = &OperationJSON{
+			view: v.view,
+		}
+		v.view.log.Info("Writing state to file: errored_test.tfstate")
+	default:
+	}
+
+	writeErr := localFileSystem.WriteStateForMigration(stateFile, true)
+	if writeErr != nil {
+		// if the write operation to errored_test.tfstate executed by WriteStateForMigration fails, as a final attempt to
+		// prevent leaving the user with no state file at all, the JSON state is printed onto the terminal by EmergencyDumpState()
+
+		if dumpErr := op.EmergencyDumpState(stateFile, encryption.StateEncryptionDisabled()); dumpErr != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to serialize state",
+				fmt.Sprintf(stateWriteFatalErrorFmt, dumpErr),
+			))
+		}
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to persist state",
+			stateWriteConsoleFallbackError,
+		))
+	}
+	view.Diagnostics(run, file, diags)
+}
+
+const stateWriteFatalErrorFmt = `Failed to save state after an errored test run.
+
+Error serializing state: %s
+
+A catastrophic error has prevented OpenTofu from persisting the state during an errored test run. 
+
+This is a serious bug in OpenTofu and should be reported.
+`
+
+const stateWriteConsoleFallbackError = `The errors shown above prevented OpenTofu from writing the state to
+the errored_test.tfstate. As a fallback, the raw state data is printed above as a JSON object.
+
+To retry writing this state, copy the state data (from the first { to the last } inclusive) and save it into a local file named "errored_test.tfstate".
+`

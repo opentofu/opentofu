@@ -379,6 +379,7 @@ func testOperationApply(t *testing.T, configDir string) (*backend.Operation, fun
 
 	return &backend.Operation{
 		Type:            backend.OperationTypeApply,
+		Encryption:      encryption.Disabled(),
 		ConfigDir:       configDir,
 		ConfigLoader:    configLoader,
 		StateLocker:     clistate.NewNoopLocker(),

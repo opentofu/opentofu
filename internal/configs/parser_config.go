@@ -337,6 +337,9 @@ var terraformBlockSchema = &hcl.BodySchema{
 			Type:       "provider_meta",
 			LabelNames: []string{"provider"},
 		},
+		{
+			Type: "encryption",
+		},
 	},
 }
 

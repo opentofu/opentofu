@@ -57,7 +57,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 
 		b, diags := m.Backend(&BackendOpts{
 			Config: backendConfig,
-		})
+		}, nil) // Don't need state encryption here.
 		if diags.HasErrors() {
 			return nil
 		}

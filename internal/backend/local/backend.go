@@ -106,9 +106,6 @@ func New(enc encryption.StateEncryption) *Local {
 // NewWithBackend returns a new local backend initialized with a
 // dedicated backend for non-enhanced behavior.
 func NewWithBackend(backend backend.Backend, enc encryption.StateEncryption) *Local {
-	if backend == nil && enc == nil {
-		panic("either backend or encryption required for backend.Local initialization")
-	}
 	return &Local{
 		Backend:    backend,
 		encryption: enc,

@@ -13,10 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
-const StateEncryptionMarkerField = "encryption"
-
-// ReadOnlyStateEncryption is an encryption layer for reading encrypted state files.
-type ReadOnlyStateEncryption interface {
+// StateEncryption describes the interface for encrypting state files.
+type StateEncryption interface {
 	// DecryptState decrypts a potentially encrypted state file and returns a valid JSON-serialized state file.
 	//
 	// When implementing this function:
@@ -34,11 +32,6 @@ type ReadOnlyStateEncryption interface {
 	// and all encryption-related matters. After the function returns, use the returned byte array as a normal state
 	// file.
 	DecryptState([]byte) ([]byte, error)
-}
-
-// StateEncryption describes the interface for encrypting state files.
-type StateEncryption interface {
-	ReadOnlyStateEncryption
 
 	// EncryptState encrypts a state file and returns the encrypted form.
 	//
@@ -76,7 +69,7 @@ func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 	return s.base.decrypt(encryptedState, func(data []byte) error {
 		tmp := struct {
-			FormatVersion string `json:"format_version"`
+			FormatVersion string `json:"terraform_version"`
 		}{}
 		err := json.Unmarshal(data, &tmp)
 		if err != nil {
@@ -102,9 +95,4 @@ func (s *stateDisabled) EncryptState(plainState []byte) ([]byte, error) {
 }
 func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, error) {
 	return encryptedState, nil
-}
-
-// TODO REMOVEME once state encryption is fully integrated into the codebase
-func StateEncryptionTODO() StateEncryption {
-	return &stateDisabled{}
 }

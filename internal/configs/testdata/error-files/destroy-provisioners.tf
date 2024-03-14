@@ -10,6 +10,7 @@ resource "null_resource" "a" {
 
   provisioner "remote-exec" {
     when = destroy
+    on_failure = continue
     index = count.index
     key = each.key
 
@@ -34,6 +35,7 @@ resource "null_resource" "b" {
 resource "null_resource" "b" {
   provisioner "remote-exec" {
     when = destroy
+    on_failure = fail
     connection {
       host = self.hostname
       user = local.user # ERROR: Invalid reference from destroy provisioner

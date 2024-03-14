@@ -76,8 +76,10 @@ func Read(r io.Reader, enc encryption.StateEncryption) (*File, error) {
 		return nil, ErrNoState
 	}
 
-	decrypted, decDiags := enc.DecryptState(src)
-	diags = diags.Append(decDiags)
+	decrypted, err := enc.DecryptState(src)
+	if err != nil {
+		return nil, err
+	}
 
 	state, err := readState(decrypted)
 	if err != nil {
@@ -191,6 +193,23 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 	}
 
 	if sniff.Version == nil {
+		encrypted, err := encryption.IsEncryptionPayload(src)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				unsupportedFormat,
+				fmt.Sprintf("The state file can not be checked for presense of encryption: %s", err.Error()),
+			))
+			return 0, diags
+		}
+		if encrypted {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				unsupportedFormat,
+				"This state file is encrypted and can not be read without an encryption configuration",
+			))
+			return 0, diags
+		}
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			unsupportedFormat,

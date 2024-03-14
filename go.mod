@@ -20,6 +20,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.23.2
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.6
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.25.5
+	github.com/aws/aws-sdk-go-v2/service/kms v1.26.5
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.46.0
 	github.com/bgentry/speakeasy v0.1.0
 	github.com/bmatcuk/doublestar/v4 v4.6.0

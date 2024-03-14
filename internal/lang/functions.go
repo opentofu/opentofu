@@ -112,6 +112,7 @@ func (s *Scope) Functions() map[string]function.Function {
 			"rsadecrypt":       funcs.RsaDecryptFunc,
 			"sensitive":        funcs.SensitiveFunc,
 			"nonsensitive":     funcs.NonsensitiveFunc,
+			"issensitive":      funcs.IsSensitiveFunc,
 			"setintersection":  stdlib.SetIntersectionFunc,
 			"setproduct":       stdlib.SetProductFunc,
 			"setsubtract":      stdlib.SetSubtractFunc,
