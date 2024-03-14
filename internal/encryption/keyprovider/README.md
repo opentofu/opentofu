@@ -26,7 +26,7 @@ When you implement a key provider, take a look at the [static](static) key provi
 
 ### Testing your provider (do this first!)
 
-Before you even go about writing a key provider, please set up the compliance tests. You can create a single test case that calls `keyprovider.ComplianceTest`. This test suite will run your key provider through all important compliance tests and will make sure that you are not missing anything during the implementation.
+Before you even go about writing a key provider, please set up the compliance tests. You can create a single test case that calls `compliancetest.ComplianceTest`. This test suite will run your key provider through all important compliance tests and will make sure that you are not missing anything during the implementation.
 
 ### Implementing the descriptor
 
