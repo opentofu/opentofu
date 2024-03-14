@@ -122,6 +122,10 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{Cause: err}
 	}
 
+	if c.KMSKeyName == "" {
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "kms_key_name must be provided"}
+	}
+
 	if c.KeySize < 1 {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_size must be at least 1"}
 	}

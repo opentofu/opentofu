@@ -26,9 +26,12 @@ type keyProvider struct {
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
 	if rawMeta == nil {
-		return keyprovider.Output{}, nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
-	inMeta := rawMeta.(*keyMeta)
+	inMeta, ok := rawMeta.(*keyMeta)
+	if !ok {
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: invalid metadata struct type"}
+	}
 
 	outMeta := &keyMeta{}
 	out := keyprovider.Output{}
@@ -48,6 +51,12 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		Name:      p.keyName,
 		Plaintext: out.EncryptionKey,
 	})
+	if err != nil {
+		return out, outMeta, &keyprovider.ErrKeyProviderFailure{
+			Message: "failed to encrypt key",
+			Cause:   err,
+		}
+	}
 
 	outMeta.Ciphertext = encryptedKeyData.Ciphertext
 
