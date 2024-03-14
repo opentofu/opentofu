@@ -112,6 +112,31 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 				compliancetest.Fail(t, "Please define at least one test with a valid HCL that will succeed on Build() for validation.")
 			}
 		})
+		t.Run("metadata", func(t *testing.T) {
+			hasNotPresent := false
+			hasNotValid := false
+			hasValid := false
+			for _, tc := range config.MetadataStructTestCases {
+				if !tc.IsPresent {
+					hasNotPresent = true
+				} else {
+					if tc.IsValid {
+						hasValid = true
+					} else {
+						hasNotValid = true
+					}
+				}
+			}
+			if !hasNotPresent {
+				compliancetest.Fail(t, "Please provide at least one metadata test that represents non-present metadata.")
+			}
+			if !hasNotValid {
+				compliancetest.Fail(t, "Please provide at least one metadata test that represents an invalid metadata that is present.")
+			}
+			if !hasValid {
+				compliancetest.Fail(t, "Please provide at least one metadata test that represents a valid metadata.")
+			}
+		})
 	})
 }
 
