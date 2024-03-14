@@ -353,7 +353,7 @@ func complianceTestBuildConfigAndValidate[TKeyProvider keyprovider.KeyProvider, 
 	kp, meta, err := configStruct.Build()
 	if validBuild {
 		if err != nil {
-			compliancetest.Fail(t, "Build() returned an error: %v.", err)
+			compliancetest.Fail(t, "Build() returned an unexpected error: %v.", err)
 		} else {
 			compliancetest.Log(t, "Build() did not return an error.")
 		}
