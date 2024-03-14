@@ -7,7 +7,7 @@ This folder contains the implementations for the encryption methods used in Open
 
 ## Implementing a method
 
-When you implement a method, take a look at the [aesgcm](aesgcm) key provider as a template.
+When you implement a method, take a look at the [aesgcm](aesgcm) method as a template.
 
 ### Implementing the descriptor
 
