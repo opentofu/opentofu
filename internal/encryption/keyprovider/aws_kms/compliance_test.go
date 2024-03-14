@@ -13,11 +13,7 @@ import (
 )
 
 func TestKeyProvider(t *testing.T) {
-
-	// TODO: stop skipping the test once we have the infrastructure set up for testing with an existing key in our AWS account
-	//t.Skip()
-
-	skipCheck(t)
+	testKeyId := skipCheckGetKey(t)
 
 	compliancetest.ComplianceTest(
 		t,
@@ -25,14 +21,14 @@ func TestKeyProvider(t *testing.T) {
 			Descriptor: New().(*descriptor),
 			HCLParseTestCases: map[string]compliancetest.HCLParseTestCase[*Config, *keyProvider]{
 				"success": {
-					HCL: `key_provider "aws_kms" "foo" {
-							kms_key_id = "alias/opentofu-test-key"
+					HCL: fmt.Sprintf(`key_provider "aws_kms" "foo" {
+							kms_key_id = "%s"
 							key_spec = "AES_256"
-						}`,
+						}`, testKeyId),
 					ValidHCL:   true,
 					ValidBuild: true,
 					Validate: func(config *Config, keyProvider *keyProvider) error {
-						if config.KMSKeyID != "alias/opentofu-test-key" {
+						if config.KMSKeyID != testKeyId {
 							return fmt.Errorf("incorrect key ID returned")
 						}
 						return nil
@@ -44,10 +40,10 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: false,
 				},
 				"invalid-key-spec": {
-					HCL: `key_provider "aws_kms" "foo" {
-							kms_key_id = "alias/opentofu-test-key"
+					HCL: fmt.Sprintf(`key_provider "aws_kms" "foo" {
+							kms_key_id = "%s"
 							key_spec = "BROKEN STUFF"
-							}`,
+							}`, testKeyId),
 					ValidHCL:   true,
 					ValidBuild: false,
 				},
@@ -68,11 +64,11 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: false,
 				},
 				"unknown-property": {
-					HCL: `key_provider "aws_kms" "foo" {
-							kms_key_id = "alias/opentofu-test-key"	
+					HCL: fmt.Sprintf(`key_provider "aws_kms" "foo" {
+							kms_key_id = "%s"	
 							key_spec = "AES_256"	
 							unknown_property = "foo"
-				}`,
+				}`, testKeyId),
 					ValidHCL:   false,
 					ValidBuild: false,
 				},
@@ -80,7 +76,7 @@ func TestKeyProvider(t *testing.T) {
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
-						KMSKeyID: "alias/opentofu-test-key",
+						KMSKeyID: testKeyId,
 						KeySpec:  "AES_256",
 					},
 					ValidBuild: true,
@@ -98,18 +94,17 @@ func TestKeyProvider(t *testing.T) {
 			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *keyMeta]{
 				"empty": {
 					ValidConfig: &Config{
-						KMSKeyID: "alias/opentofu-test-key",
+						KMSKeyID: testKeyId,
 						KeySpec:  "AES_256",
 					},
 					Meta:      &keyMeta{},
 					IsPresent: false,
 					IsValid:   false,
 				},
-				// TODO: Add a test case for an existing ciphertextblob to check if we can decrypt it
 			},
 			ProvideTestCase: compliancetest.ProvideTestCase[*Config, *keyMeta]{
 				ValidConfig: &Config{
-					KMSKeyID: "alias/opentofu-test-key",
+					KMSKeyID: testKeyId,
 					KeySpec:  "AES_256",
 				},
 				ValidateKeys: func(dec []byte, enc []byte) error {

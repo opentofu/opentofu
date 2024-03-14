@@ -65,7 +65,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		})
 
 		if decryptErr != nil {
-			return out, outMeta, decryptErr
+			return out, outMeta, &keyprovider.ErrKeyProviderFailure{Cause: decryptErr}
 		}
 
 		// Set decryption key on the output
