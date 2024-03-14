@@ -64,7 +64,7 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 			for name, tc := range config.ConfigStructTestCases {
 				tc := tc
 				t.Run(name, func(t *testing.T) {
-					complianceTestConfigCase(t, tc)
+					complianceTestConfigCase[TConfig, TKeyProvider, TMeta](t, tc)
 				})
 			}
 		})
@@ -322,11 +322,11 @@ func complianceTestHCLParsingTestCase[TDescriptor keyprovider.Descriptor, TConfi
 	}
 }
 
-func complianceTestConfigCase[TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider](
+func complianceTestConfigCase[TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
 	t *testing.T,
 	tc ConfigStructTestCase[TConfig, TKeyProvider],
 ) {
-	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TConfig](t, tc.Config, tc.ValidBuild)
+	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, tc.Config, tc.ValidBuild)
 	if tc.Validate != nil {
 		if err := tc.Validate(keyProvider); err != nil {
 			fail(t, "Error during validation and configuration (%v).", err)
