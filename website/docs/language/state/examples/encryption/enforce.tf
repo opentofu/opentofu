@@ -1,13 +1,10 @@
 terraform {
     encryption {
-        statefile {
-            enforce = true
+        state {
+            enforced = true
         }
-        planfile {
-            enforce = true
-        }
-        backend {
-            enforce = true
+        plan {
+            enforced = true
         }
     }
 }

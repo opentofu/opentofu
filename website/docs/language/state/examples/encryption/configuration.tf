@@ -9,22 +9,17 @@ terraform {
       keys = key_provider.some_key_provider.some_name
     }
 
-    statefile {
-      # Encryption/decryption for local state files
+    state {
+      # Encryption/decryption for state data
       method = method.some_method.some_method_name
     }
 
-    planfile {
-      # Encryption/decryption for local plan files
+    plan {
+      # Encryption/decryption for plan data
       method = method.some_method.some_method_name
     }
 
-    backend {
-      # Encryption/decryption method for backends
-      method = method.some_method.some_method_name
-    }
-
-    remote {
+    remote_state_data_sources {
       # See below
     }
   }
