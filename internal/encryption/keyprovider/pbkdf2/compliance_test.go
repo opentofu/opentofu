@@ -6,6 +6,7 @@
 package pbkdf2
 
 import (
+	"crypto/rand"
 	"fmt"
 	"testing"
 
@@ -14,69 +15,211 @@ import (
 )
 
 func TestCompliance(t *testing.T) {
-	compliancetest.OldComplianceTest(
+	validConfig := &Config{
+		randomSource: rand.Reader,
+		Passphrase:   "Hello world! 123",
+		KeyLength:    DefaultKeyLength,
+		Iterations:   DefaultIterations,
+		HashFunction: SHA256HashFunctionName,
+		SaltLength:   DefaultSaltLength,
+	}
+	compliancetest.ComplianceTest(
 		t,
-		New(),
-		map[string]compliancetest.TestCase{
-			"passphrase": {
-				`key_provider "pbkdf2" "foo" {
+		compliancetest.TestConfiguration[*descriptor, *Config, *Metadata, *pbkdf2KeyProvider]{
+			Descriptor: New().(*descriptor),
+			HCLParseTestCases: map[string]compliancetest.HCLParseTestCase[*Config, *pbkdf2KeyProvider]{
+				"empty": {
+					HCL: `key_provider "pbkdf2" "foo" {
+}`,
+					ValidHCL:   false,
+					ValidBuild: false,
+					Validate:   nil,
+				},
+				"basic": {
+					HCL: `key_provider "pbkdf2" "foo" {
     passphrase = "Hello world! 123"
 }`,
-				true,
-				func(config keyprovider.Config) error {
-					typedConfig := config.(*Config)
-					if parsedKey := typedConfig.Passphrase; parsedKey != "Hello world! 123" {
-						return fmt.Errorf("incorrect key in parsed config: %s", parsedKey)
-					}
-					if typedConfig.KeyLength != DefaultKeyLength {
-						return fmt.Errorf("incorrect key length in parsed config: %d", typedConfig.KeyLength)
-					}
-					if typedConfig.Iterations != DefaultIterations {
-						return fmt.Errorf("incorrect iterations in parsed config: %d", typedConfig.Iterations)
-					}
-					if typedConfig.SaltLength != DefaultSaltLength {
-						return fmt.Errorf("incorrect salt length in parsed config: %d", typedConfig.SaltLength)
-					}
-					if typedConfig.HashFunction != DefaultHashFunctionName {
-						return fmt.Errorf("incorrect hash function name in parsed config: %s", typedConfig.HashFunction)
-					}
-					typedConfig.randomSource = &testRandomSource{t}
-					return nil
+					ValidHCL:   true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *pbkdf2KeyProvider) error {
+						if config.Passphrase != "Hello world! 123" {
+							return fmt.Errorf("invalid passphrase after HCL parsing")
+						}
+						if keyProvider.Passphrase != "Hello world! 123" {
+							return fmt.Errorf("invalid passphrase in key provideer")
+						}
+						return nil
+					},
 				},
-				false,
-				true,
-				nil,
-				&keyprovider.Output{
+				"extended": {
+					HCL: fmt.Sprintf(`key_provider "pbkdf2" "foo" {
+    passphrase = "Hello world! 123"
+    key_length = %d
+    iterations = %d
+    salt_length = %d
+    hash_function = "%s"
+}`, DefaultKeyLength+1, DefaultIterations+1, DefaultSaltLength+1, SHA256HashFunctionName),
+					ValidHCL:   true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *pbkdf2KeyProvider) error {
+						if config.KeyLength != DefaultKeyLength+1 {
+							return fmt.Errorf("incorrect key length after HCL parsing: %d", config.KeyLength)
+						}
+						if config.Iterations != DefaultIterations+1 {
+							return fmt.Errorf("incorrect iterations after HCL parsing: %d", config.Iterations)
+						}
+						if config.SaltLength != DefaultSaltLength+1 {
+							return fmt.Errorf("incorrect salt length after HCL parsing: %d", config.SaltLength)
+						}
+						if config.HashFunction != SHA256HashFunctionName {
+							return fmt.Errorf("incorrect hash function after HCL parsing: %s", config.HashFunction)
+						}
+						return nil
+					},
+				},
+				"short-passphrase": {
+					HCL: `key_provider "pbkdf2" "foo" {
+    passphrase = "Hello world! 12"
+}`,
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
+				"too-small-iterations": {
+					HCL: fmt.Sprintf(`key_provider "pbkdf2" "foo" {
+    passphrase = "Hello world! 123"
+    iterations = %d
+}`, MinimumIterations-1),
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
+				"invalid-hash-function": {
+					HCL: `key_provider "pbkdf2" "foo" {
+    passphrase = "Hello world! 123"
+    hash_function = "non_existent"
+}`,
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
+			},
+			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *pbkdf2KeyProvider]{},
+			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *Metadata]{
+				"not-present-salt": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         nil,
+						Iterations:   DefaultIterations,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    32,
+					},
+					IsPresent: false,
+				},
+				"not-present-iterations": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   0,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    32,
+					},
+					IsPresent: false,
+				},
+				"not-present-hash-func": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   DefaultIterations,
+						HashFunction: "",
+						KeyLength:    32,
+					},
+					IsPresent: false,
+				},
+				"not-present-key-length": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   DefaultIterations,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    0,
+					},
+					IsPresent: false,
+				},
+				"present-valid": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   DefaultIterations,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    32,
+					},
+					IsPresent: true,
+					IsValid:   true,
+				},
+				"present-valid-too-few-iterations": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   MinimumIterations - 1,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    32,
+					},
+					IsPresent: true,
+					IsValid:   true,
+				},
+				"invalid-iterations": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   -1,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    32,
+					},
+					IsPresent: true,
+					IsValid:   false,
+				},
+				"invalid-salt-length": {
+					ValidConfig: validConfig,
+					Meta: &Metadata{
+						Salt:         []byte("Hello world!"),
+						Iterations:   DefaultIterations,
+						HashFunction: SHA256HashFunctionName,
+						KeyLength:    -1,
+					},
+					IsPresent: true,
+					IsValid:   false,
+				},
+			},
+			ProvideTestCase: compliancetest.ProvideTestCase[*Config, *Metadata]{
+				ValidConfig: &Config{
+					randomSource: &testRandomSource{t: t},
+					Passphrase:   "Hello world! 123",
+					KeyLength:    DefaultKeyLength,
+					Iterations:   DefaultIterations,
+					HashFunction: DefaultHashFunctionName,
+					SaltLength:   DefaultSaltLength,
+				},
+				ExpectedOutput: &keyprovider.Output{
 					EncryptionKey: []byte{87, 192, 98, 53, 186, 42, 63, 139, 58, 118, 223, 169, 46, 84, 139, 29, 130, 59, 247, 106, 82, 61, 235, 144, 97, 131, 60, 229, 195, 109, 81, 111},
 					DecryptionKey: []byte{87, 192, 98, 53, 186, 42, 63, 139, 58, 118, 223, 169, 46, 84, 139, 29, 130, 59, 247, 106, 82, 61, 235, 144, 97, 131, 60, 229, 195, 109, 81, 111},
 				},
-				func() any {
-					return &Metadata{
-						Iterations:   1,
-						Salt:         []byte("Hello world!"),
-						HashFunction: SHA256HashFunctionName,
-						KeyLength:    -1,
-					}
-				},
-				func(output keyprovider.Output, meta any) error {
-					typedMeta := meta.(*Metadata)
-					if !typedMeta.isPresent() {
+				ValidateKeys: nil,
+				ValidateMetadata: func(meta *Metadata) error {
+					if !meta.isPresent() {
 						return fmt.Errorf("output metadata is not present")
 					}
-					if err := typedMeta.validate(); err != nil {
+					if err := meta.validate(); err != nil {
 						return err
 					}
-					if typedMeta.KeyLength != DefaultKeyLength {
-						return fmt.Errorf("incorrect output metadata key length: %d", typedMeta.KeyLength)
+					if meta.KeyLength != DefaultKeyLength {
+						return fmt.Errorf("incorrect output metadata key length: %d", meta.KeyLength)
 					}
-					if typedMeta.Iterations != DefaultIterations {
-						return fmt.Errorf("incorrect output metadata iterations: %d", typedMeta.Iterations)
+					if meta.Iterations != DefaultIterations {
+						return fmt.Errorf("incorrect output metadata iterations: %d", meta.Iterations)
 					}
-					if len(typedMeta.Salt) != DefaultSaltLength {
-						return fmt.Errorf("incorrect output salt length: %d", len(typedMeta.Salt))
+					if len(meta.Salt) != DefaultSaltLength {
+						return fmt.Errorf("incorrect output salt length: %d", len(meta.Salt))
 					}
-					if typedMeta.HashFunction != DefaultHashFunctionName {
-						return fmt.Errorf("incorrect output hash function name: %s", typedMeta.HashFunction)
+					if meta.HashFunction != DefaultHashFunctionName {
+						return fmt.Errorf("incorrect output hash function name: %s", meta.HashFunction)
 					}
 					return nil
 				},

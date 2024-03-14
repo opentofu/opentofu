@@ -305,20 +305,20 @@ func complianceTestHCLParsingTestCase[TDescriptor keyprovider.Descriptor, TConfi
 		keyProvider, _ = complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, configStruct, tc.ValidBuild)
 	} else {
 		if !parseError && !diags.HasErrors() {
-			fail(t, "Expected error during HCL parsing, but no error was returned.")
+			compliancetest.Fail(t, "Expected error during HCL parsing, but no error was returned.")
 		} else {
-			log(t, "HCL loading errored correctly (%v).", diags)
+			compliancetest.Log(t, "HCL loading errored correctly (%v).", diags)
 		}
 	}
 
 	if tc.Validate != nil {
 		if err := tc.Validate(configStruct.(TConfig), keyProvider); err != nil {
-			fail(t, "Error during validation and configuration (%v).", err)
+			compliancetest.Fail(t, "Error during validation and configuration (%v).", err)
 		} else {
-			log(t, "Successfully validated parsed HCL config and applied modifications.")
+			compliancetest.Log(t, "Successfully validated parsed HCL config and applied modifications.")
 		}
 	} else {
-		log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
+		compliancetest.Log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
 	}
 }
 
@@ -329,12 +329,12 @@ func complianceTestConfigCase[TConfig keyprovider.Config, TKeyProvider keyprovid
 	keyProvider, _ := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, tc.Config, tc.ValidBuild)
 	if tc.Validate != nil {
 		if err := tc.Validate(keyProvider); err != nil {
-			fail(t, "Error during validation and configuration (%v).", err)
+			compliancetest.Fail(t, "Error during validation and configuration (%v).", err)
 		} else {
-			log(t, "Successfully validated parsed HCL config and applied modifications.")
+			compliancetest.Log(t, "Successfully validated parsed HCL config and applied modifications.")
 		}
 	} else {
-		log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
+		compliancetest.Log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
 	}
 }
 
