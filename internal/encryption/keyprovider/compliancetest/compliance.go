@@ -46,6 +46,9 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 		compliancetest.ConfigStruct[TConfig](t, config.Descriptor.ConfigStruct())
 
 		t.Run("hcl-parsing", func(t *testing.T) {
+			if config.HCLParseTestCases == nil {
+				compliancetest.Fail(t, "Please provide a map in HCLParseTestCases.")
+			}
 			for name, tc := range config.HCLParseTestCases {
 				tc := tc
 				t.Run(name, func(t *testing.T) {
@@ -55,6 +58,9 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 		})
 
 		t.Run("config", func(t *testing.T) {
+			if config.ConfigStructTestCases == nil {
+				compliancetest.Fail(t, "Please provide a map in ConfigStructTestCases.")
+			}
 			for name, tc := range config.ConfigStructTestCases {
 				tc := tc
 				t.Run(name, func(t *testing.T) {
@@ -65,6 +71,9 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 	})
 
 	t.Run("metadata", func(t *testing.T) {
+		if config.MetadataStructTestCases == nil {
+			compliancetest.Fail(t, "Please provide a map in MetadataStructTestCases.")
+		}
 		for name, tc := range config.MetadataStructTestCases {
 			tc := tc
 			t.Run(name, func(t *testing.T) {
@@ -73,8 +82,8 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 		}
 	})
 
-	t.Run("integration", func(t *testing.T) {
-		complianceTestIntegration[TDescriptor, TConfig, TKeyProvider, TMeta](t, config)
+	t.Run("provide", func(t *testing.T) {
+		complianceTestProvide[TDescriptor, TConfig, TKeyProvider, TMeta](t, config)
 	})
 
 	t.Run("test-completeness", func(t *testing.T) {
@@ -106,10 +115,13 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 	})
 }
 
-func complianceTestIntegration[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
+func complianceTestProvide[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider, TMeta keyprovider.KeyMeta](
 	t *testing.T,
 	cfg TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
 ) {
+	if reflect.ValueOf(cfg.ProvideTestCase.ValidConfig).IsNil() {
+		compliancetest.Fail(t, "Please provide a ValidConfig in ProvideTestCase.")
+	}
 	keyProviderConfig := cfg.ProvideTestCase.ValidConfig
 	t.Run("nil-metadata", func(t *testing.T) {
 		keyProvider, inMeta := complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, keyProviderConfig, true)
