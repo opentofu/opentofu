@@ -15,6 +15,7 @@ import (
 // TODO is there a generalized way to regexp-check names?
 var addrRe = regexp.MustCompile(`^method\.([a-zA-Z_0-9-]+)\.([a-zA-Z_0-9-]+)$`)
 var nameRe = regexp.MustCompile("^([a-zA-Z_0-9-]+)$")
+var idRe = regexp.MustCompile("^([a-zA-Z_0-9-]+)$")
 
 // Addr is a type-alias for method address strings that identify a specific encryption method configuration.
 // The Addr is an opaque value. Do not perform string manipulation on it outside the functions supplied by the

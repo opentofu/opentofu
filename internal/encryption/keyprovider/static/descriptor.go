@@ -9,8 +9,13 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
-func New() keyprovider.Descriptor {
+func New() Descriptor {
 	return &descriptor{}
+}
+
+// Descriptor is an additional interface to allow for providing custom methods.
+type Descriptor interface {
+	keyprovider.Descriptor
 }
 
 type descriptor struct {

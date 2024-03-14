@@ -50,7 +50,7 @@ func (e *targetBuilder) setupMethod(cfg config.MethodConfig) hcl.Diagnostics {
 	}
 
 	// Lookup the definition of the encryption method from the registry
-	encryptionMethod, err := e.reg.GetMethod(method.ID(cfg.Type))
+	encryptionMethod, err := e.reg.GetMethodDescriptor(method.ID(cfg.Type))
 	if err != nil {
 
 		// Handle if the method was not found
