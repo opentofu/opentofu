@@ -554,7 +554,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		return instanceRefreshState, diags
 	}
 
-	// insert marks from schema
+	// Insert marks from configuration
 	if n.Config != nil {
 		valueWithSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
 		diags = diags.Append(configDiags)
