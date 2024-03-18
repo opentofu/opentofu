@@ -42,7 +42,7 @@ func stringAttrEnvFallback(val string, env string) string {
 }
 
 // TODO This is copied in from the backend packge to prevent a circular dependency loop
-// If the argument is a path, Read loads it and returns the contents,
+// If the argument is a path, ReadPathOrContents loads it and returns the contents,
 // otherwise the argument is assumed to be the desired contents and is simply
 // returned.
 func ReadPathOrContents(poc string) (string, error) {
