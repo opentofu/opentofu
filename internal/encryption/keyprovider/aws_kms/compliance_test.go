@@ -13,7 +13,16 @@ import (
 )
 
 func TestKeyProvider(t *testing.T) {
-	testKeyId := skipCheckGetKey(t)
+	testKeyId := getKey(t)
+
+	if testKeyId == "" {
+		testKeyId = "alias/my-mock-key"
+		injectDefaultMock()
+
+		t.Setenv("AWS_REGION", "us-east-1")
+		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")
+	}
 
 	compliancetest.ComplianceTest(
 		t,
@@ -24,6 +33,7 @@ func TestKeyProvider(t *testing.T) {
 					HCL: fmt.Sprintf(`key_provider "aws_kms" "foo" {
 							kms_key_id = "%s"
 							key_spec = "AES_256"
+							skip_credentials_validation = true // required for mocking
 						}`, testKeyId),
 					ValidHCL:   true,
 					ValidBuild: true,
@@ -78,6 +88,8 @@ func TestKeyProvider(t *testing.T) {
 					Config: &Config{
 						KMSKeyID: testKeyId,
 						KeySpec:  "AES_256",
+
+						SkipCredsValidation: true, // Required for mocking
 					},
 					ValidBuild: true,
 					Validate:   nil,
@@ -96,6 +108,8 @@ func TestKeyProvider(t *testing.T) {
 					ValidConfig: &Config{
 						KMSKeyID: testKeyId,
 						KeySpec:  "AES_256",
+
+						SkipCredsValidation: true, // Required for mocking
 					},
 					Meta:      &keyMeta{},
 					IsPresent: false,
@@ -104,8 +118,9 @@ func TestKeyProvider(t *testing.T) {
 			},
 			ProvideTestCase: compliancetest.ProvideTestCase[*Config, *keyMeta]{
 				ValidConfig: &Config{
-					KMSKeyID: testKeyId,
-					KeySpec:  "AES_256",
+					KMSKeyID:            testKeyId,
+					KeySpec:             "AES_256",
+					SkipCredsValidation: true, // Required for mocking
 				},
 				ValidateKeys: func(dec []byte, enc []byte) error {
 					if len(dec) == 0 {

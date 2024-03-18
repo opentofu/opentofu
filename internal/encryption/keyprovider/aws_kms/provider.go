@@ -17,9 +17,14 @@ func (m keyMeta) isPresent() bool {
 	return len(m.CiphertextBlob) != 0
 }
 
+type kmsClient interface {
+	GenerateDataKey(ctx context.Context, params *kms.GenerateDataKeyInput, optFns ...func(*kms.Options)) (*kms.GenerateDataKeyOutput, error)
+	Decrypt(ctx context.Context, params *kms.DecryptInput, optFns ...func(*kms.Options)) (*kms.DecryptOutput, error)
+}
+
 type keyProvider struct {
 	Config
-	svc *kms.Client
+	svc kmsClient
 	ctx context.Context
 }
 

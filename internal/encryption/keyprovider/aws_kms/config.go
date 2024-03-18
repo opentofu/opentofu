@@ -17,6 +17,11 @@ import (
 	"github.com/opentofu/opentofu/version"
 )
 
+// Can be overridden for test mocking
+var newKMSFromConfig func(aws.Config) kmsClient = func(cfg aws.Config) kmsClient {
+	return kms.NewFromConfig(cfg)
+}
+
 type Config struct {
 	// KeyProvider Config
 	KMSKeyID string `hcl:"kms_key_id"`
@@ -193,7 +198,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 
 	return &keyProvider{
 		Config: c,
-		svc:    kms.NewFromConfig(awsConfig),
+		svc:    newKMSFromConfig(awsConfig),
 		ctx:    ctx,
 	}, new(keyMeta), nil
 }

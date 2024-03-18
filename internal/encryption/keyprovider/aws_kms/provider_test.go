@@ -5,29 +5,30 @@ import (
 	"testing"
 )
 
-// skipCheck checks if the test should be skipped or not based on environment variables
-func skipCheckGetKey(t *testing.T) string {
-	// check if TF_ACC and TF_KMS_TEST are unset
-	// if so, skip the test
+func getKey(t *testing.T) string {
 	if os.Getenv("TF_ACC") == "" && os.Getenv("TF_KMS_TEST") == "" {
-		t.Log("Skipping test because TF_ACC or TF_KMS_TEST is not set")
-		t.Skip()
+		return ""
 	}
-	key := os.Getenv("TF_AWS_KMS_KEY_ID")
-	if key == "" {
-		t.Log("Skipping test because TF_AWS_KMS_KEY_ID is not set")
-		t.Skip()
-	}
-	return key
+	return os.Getenv("TF_AWS_KMS_KEY_ID")
 }
 
 func TestKMSProvider_Simple(t *testing.T) {
-	testKeyId := skipCheckGetKey(t)
+	testKeyId := getKey(t)
+	if testKeyId == "" {
+		testKeyId = "alias/my-mock-key"
+		injectDefaultMock()
+
+		t.Setenv("AWS_REGION", "us-east-1")
+		t.Setenv("AWS_ACCESS_KEY_ID", "accesskey")
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "secretkey")
+	}
 
 	// Constructs a aws kms key provider config that accepts the key id
 	providerConfig := Config{
 		KMSKeyID: testKeyId,
 		KeySpec:  "AES_256",
+
+		SkipCredsValidation: true, // Required for mocking
 	}
 
 	// Now that we have the config, we can build the provider
