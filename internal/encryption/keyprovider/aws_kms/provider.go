@@ -17,17 +17,25 @@ func (m keyMeta) isPresent() bool {
 	return len(m.CiphertextBlob) != 0
 }
 
+type kmsClient interface {
+	GenerateDataKey(ctx context.Context, params *kms.GenerateDataKeyInput, optFns ...func(*kms.Options)) (*kms.GenerateDataKeyOutput, error)
+	Decrypt(ctx context.Context, params *kms.DecryptInput, optFns ...func(*kms.Options)) (*kms.DecryptOutput, error)
+}
+
 type keyProvider struct {
 	Config
-	svc *kms.Client
+	svc kmsClient
 	ctx context.Context
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
 	if rawMeta == nil {
-		return keyprovider.Output{}, nil, keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
-	inMeta := rawMeta.(*keyMeta)
+	inMeta, ok := rawMeta.(*keyMeta)
+	if !ok {
+		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: metadata struct is not of the correct type"}
+	}
 
 	outMeta := &keyMeta{}
 	out := keyprovider.Output{}
@@ -62,7 +70,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		})
 
 		if decryptErr != nil {
-			return out, outMeta, decryptErr
+			return out, outMeta, &keyprovider.ErrKeyProviderFailure{Cause: decryptErr}
 		}
 
 		// Set decryption key on the output

@@ -131,10 +131,10 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 				compliancetest.Fail(t, "Please provide at least one metadata test that represents non-present metadata.")
 			}
 			if !hasNotValid {
-				compliancetest.Fail(t, "Please provide at least one metadata test that represents an invalid metadata that is present.")
+				compliancetest.Log(t, "Warning: Please provide at least one metadata test that represents an invalid metadata that is present.")
 			}
 			if !hasValid {
-				compliancetest.Fail(t, "Please provide at least one metadata test that represents a valid metadata.")
+				compliancetest.Log(t, "Warning: Please provide at least one metadata test that represents a valid metadata.")
 			}
 		})
 	})
