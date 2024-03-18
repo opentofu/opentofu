@@ -70,7 +70,8 @@ func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
 }
 
 func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
-	if len(ctx.State.Modules) != len(ctx.Plan.PlannedState.Modules) {
+	if ctx.Plan != nil && ctx.Plan.PlannedState != nil &&
+		len(ctx.State.Modules) != len(ctx.Plan.PlannedState.Modules) {
 		state = checkPlannedState(ctx.State, ctx.Plan.PlannedState)
 	}
 
