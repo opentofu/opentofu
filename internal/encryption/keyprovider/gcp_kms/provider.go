@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 
-	kms "cloud.google.com/go/kms/apiv1"
 	"cloud.google.com/go/kms/apiv1/kmspb"
+	"github.com/googleapis/gax-go/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
@@ -17,8 +17,13 @@ func (m keyMeta) isPresent() bool {
 	return len(m.Ciphertext) != 0
 }
 
+type keyManagementClient interface {
+	Encrypt(ctx context.Context, req *kmspb.EncryptRequest, opts ...gax.CallOption) (*kmspb.EncryptResponse, error)
+	Decrypt(ctx context.Context, req *kmspb.DecryptRequest, opts ...gax.CallOption) (*kmspb.DecryptResponse, error)
+}
+
 type keyProvider struct {
-	svc     *kms.KeyManagementClient
+	svc     keyManagementClient
 	ctx     context.Context
 	keyName string
 	keySize int

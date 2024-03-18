@@ -16,6 +16,11 @@ import (
 	kms "cloud.google.com/go/kms/apiv1"
 )
 
+// Can be overridden for test mocking
+var newKeyManagementClient func(ctx context.Context, opts ...option.ClientOption) (keyManagementClient, error) = func(ctx context.Context, opts ...option.ClientOption) (keyManagementClient, error) {
+	return kms.NewKeyManagementClient(ctx, opts...)
+}
+
 type Config struct {
 	Credentials string `hcl:"credentials,optional"`
 	AccessToken string `hcl:"access_token,optional"`
@@ -117,7 +122,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 
 	opts = append(opts, option.WithUserAgent(httpclient.OpenTofuUserAgent(version.Version)))
 
-	svc, err := kms.NewKeyManagementClient(ctx, opts...)
+	svc, err := newKeyManagementClient(ctx, opts...)
 	if err != nil {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{Cause: err}
 	}

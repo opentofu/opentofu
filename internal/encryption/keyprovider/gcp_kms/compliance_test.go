@@ -5,27 +5,41 @@ import (
 	"os"
 	"testing"
 
+	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 )
 
-// skipCheck checks if the test should be skipped or not based on environment variables
-func skipCheckGetKey(t *testing.T) string {
-	// check if TF_ACC and TF_KMS_TEST are unset
-	// if so, skip the test
+func getKey(t *testing.T) string {
 	if os.Getenv("TF_ACC") == "" && os.Getenv("TF_KMS_TEST") == "" {
-		t.Log("Skipping test because TF_ACC or TF_KMS_TEST is not set")
-		t.Skip()
+		return ""
 	}
-	key := os.Getenv("TF_GCP_KMS_KEY")
-	if key == "" {
-		t.Log("Skipping test because TF_AWS_GCP_KEY is not set")
-		t.Skip()
-	}
-	return key
+	return os.Getenv("TF_GCP_KMS_KEY")
 }
 
 func TestKeyProvider(t *testing.T) {
-	testKeyId := skipCheckGetKey(t)
+	testKeyId := getKey(t)
+
+	if testKeyId == "" {
+		testKeyId = "projects/local-vehicle-id/locations/global/keyRings/ringid/cryptoKeys/keyid"
+		mock := &mockKMC{
+			encrypt: func(req *kmspb.EncryptRequest) (*kmspb.EncryptResponse, error) {
+				return &kmspb.EncryptResponse{
+					Ciphertext: append([]byte(testKeyId), req.Plaintext...),
+				}, nil
+			},
+			decrypt: func(req *kmspb.DecryptRequest) (*kmspb.DecryptResponse, error) {
+				return &kmspb.DecryptResponse{
+					Plaintext: req.Ciphertext[len(testKeyId):],
+				}, nil
+			},
+		}
+
+		injectMock(mock)
+
+		// Used by impersonation tests
+		t.Setenv("GOOGLE_CREDENTIALS", `{"type": "service_account"}`)
+
+	}
 
 	compliancetest.ComplianceTest(
 		t,
