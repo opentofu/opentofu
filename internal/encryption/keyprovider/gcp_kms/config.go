@@ -16,8 +16,10 @@ import (
 	kms "cloud.google.com/go/kms/apiv1"
 )
 
+type keyManagementClientInit func(ctx context.Context, opts ...option.ClientOption) (keyManagementClient, error)
+
 // Can be overridden for test mocking
-var newKeyManagementClient func(ctx context.Context, opts ...option.ClientOption) (keyManagementClient, error) = func(ctx context.Context, opts ...option.ClientOption) (keyManagementClient, error) {
+var newKeyManagementClient keyManagementClientInit = func(ctx context.Context, opts ...option.ClientOption) (keyManagementClient, error) {
 	return kms.NewKeyManagementClient(ctx, opts...)
 }
 
