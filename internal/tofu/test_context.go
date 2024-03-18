@@ -67,6 +67,10 @@ func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
 }
 
 func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
+	if len(ctx.State.Modules) != len(ctx.Plan.PlannedState.Modules) {
+		state = checkPlannedState(ctx.State, ctx.Plan.PlannedState)
+	}
+
 	data := &evaluationStateData{
 		Evaluator: &Evaluator{
 			Operation: operation,
@@ -185,4 +189,18 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			continue
 		}
 	}
+}
+
+// checkPlannedState compares the planned state against the current state and updates the current state
+// with any missing modules from the planned state. It returns a SyncState representing the updated state.
+//
+// If a planned module has no resources, it's added to the current state to ensure access to output variables.
+func checkPlannedState(state *states.State, plannedState *states.State) *states.SyncState {
+	newState := state.DeepCopy()
+	for key, value := range plannedState.Modules {
+		if _, exists := newState.Modules[key]; !exists {
+			newState.Modules[key] = value
+		}
+	}
+	return newState.SyncWrapper()
 }
