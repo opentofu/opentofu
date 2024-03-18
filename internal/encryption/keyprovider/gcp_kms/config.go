@@ -31,7 +31,7 @@ type Config struct {
 	ImpersonateServiceAccountDelegates []string `hcl:"impersonate_service_account_delegates,optional"`
 
 	KMSKeyName string `hcl:"kms_encryption_key"`
-	KeySize    int    `hcl:"key_size"`
+	KeyLength  int    `hcl:"key_length"`
 }
 
 func stringAttrEnvFallback(val string, env string) string {
@@ -133,17 +133,17 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "kms_key_name must be provided"}
 	}
 
-	if c.KeySize < 1 {
-		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_size must be at least 1"}
+	if c.KeyLength < 1 {
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_length must be at least 1"}
 	}
-	if c.KeySize > 1024 {
-		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_size must be less than the GCP limit of 1024"}
+	if c.KeyLength > 1024 {
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{Message: "key_length must be less than the GCP limit of 1024"}
 	}
 
 	return &keyProvider{
-		svc:     svc,
-		ctx:     ctx,
-		keyName: c.KMSKeyName,
-		keySize: c.KeySize,
+		svc:       svc,
+		ctx:       ctx,
+		keyName:   c.KMSKeyName,
+		keyLength: c.KeyLength,
 	}, new(keyMeta), nil
 }

@@ -49,7 +49,7 @@ func TestKeyProvider(t *testing.T) {
 				"success": {
 					HCL: fmt.Sprintf(`key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "%s"
-							key_size = 32
+							key_length = 32
 						}`, testKeyId),
 					ValidHCL:   true,
 					ValidBuild: true,
@@ -68,7 +68,7 @@ func TestKeyProvider(t *testing.T) {
 				"invalid-key-size": {
 					HCL: fmt.Sprintf(`key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "%s"
-							key_size = -1
+							key_length = -1
 							}`, testKeyId),
 					ValidHCL:   true,
 					ValidBuild: false,
@@ -76,7 +76,7 @@ func TestKeyProvider(t *testing.T) {
 				"empty-key-id": {
 					HCL: `key_provider "gcp_kms" "foo" {
 							kms_encryption_key = ""
-							key_size = 32
+							key_length = 32
 							}`,
 					ValidHCL:   true,
 					ValidBuild: false,
@@ -84,7 +84,7 @@ func TestKeyProvider(t *testing.T) {
 				"large-key-size": {
 					HCL: `key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "alias/temp"
-							key_size = 999999999999
+							key_length = 999999999999
 							}`,
 					ValidHCL:   true,
 					ValidBuild: false,
@@ -92,7 +92,7 @@ func TestKeyProvider(t *testing.T) {
 				"unknown-property": {
 					HCL: fmt.Sprintf(`key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "%s"	
-							key_size = 32	
+							key_length = 32	
 							unknown_property = "foo"
 				}`, testKeyId),
 					ValidHCL:   false,
@@ -101,7 +101,7 @@ func TestKeyProvider(t *testing.T) {
 				"with-access-token": {
 					HCL: `key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "alias/temp"
-							key_size = 32
+							key_length = 32
 							access_token = "my-access-token"
 							}`,
 					ValidHCL:   true,
@@ -110,7 +110,7 @@ func TestKeyProvider(t *testing.T) {
 				"bad-credentials": {
 					HCL: `key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "alias/temp"
-							key_size = 32
+							key_length = 32
 							credentials = "AS{DU*@#8UQDD*a"
 							}`,
 					ValidHCL:   true,
@@ -119,7 +119,7 @@ func TestKeyProvider(t *testing.T) {
 				"impersonation": {
 					HCL: `key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "alias/temp"
-							key_size = 32
+							key_length = 32
 							impersonate_service_account = "batman"
 							}`,
 					ValidHCL:   true,
@@ -130,7 +130,7 @@ func TestKeyProvider(t *testing.T) {
 				"success": {
 					Config: &Config{
 						KMSKeyName: testKeyId,
-						KeySize:    32,
+						KeyLength:  32,
 					},
 					ValidBuild: true,
 					Validate:   nil,
@@ -138,7 +138,7 @@ func TestKeyProvider(t *testing.T) {
 				"empty": {
 					Config: &Config{
 						KMSKeyName: "",
-						KeySize:    0,
+						KeyLength:  0,
 					},
 					ValidBuild: false,
 					Validate:   nil,
@@ -148,7 +148,7 @@ func TestKeyProvider(t *testing.T) {
 				"empty": {
 					ValidConfig: &Config{
 						KMSKeyName: testKeyId,
-						KeySize:    32,
+						KeyLength:  32,
 					},
 					Meta:      &keyMeta{},
 					IsPresent: false,
@@ -158,7 +158,7 @@ func TestKeyProvider(t *testing.T) {
 			ProvideTestCase: compliancetest.ProvideTestCase[*Config, *keyMeta]{
 				ValidConfig: &Config{
 					KMSKeyName: testKeyId,
-					KeySize:    32,
+					KeyLength:  32,
 				},
 				ValidateKeys: func(dec []byte, enc []byte) error {
 					if len(dec) == 0 {

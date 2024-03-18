@@ -23,10 +23,10 @@ type keyManagementClient interface {
 }
 
 type keyProvider struct {
-	svc     keyManagementClient
-	ctx     context.Context
-	keyName string
-	keySize int
+	svc       keyManagementClient
+	ctx       context.Context
+	keyName   string
+	keyLength int
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
@@ -42,7 +42,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	out := keyprovider.Output{}
 
 	// Generate new key
-	out.EncryptionKey = make([]byte, p.keySize)
+	out.EncryptionKey = make([]byte, p.keyLength)
 	_, err := rand.Read(out.EncryptionKey)
 	if err != nil {
 		return out, outMeta, &keyprovider.ErrKeyProviderFailure{
