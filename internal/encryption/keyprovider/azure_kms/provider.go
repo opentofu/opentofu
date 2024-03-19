@@ -12,8 +12,8 @@ import (
 
 type keyMeta struct {
 	Result       []byte                     `json:"result"`
-	keyAlgorithm azkeys.EncryptionAlgorithm `json:"key_algoritm"`
-	keyVersion   string                     `json:"key_version"`
+	KeyAlgorithm azkeys.EncryptionAlgorithm `json:"key_algorithm"`
+	KeyVersion   string                     `json:"key_version"`
 }
 
 func (m keyMeta) isPresent() bool {
@@ -87,16 +87,16 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	outMeta.Result = encryptedKeyData.Result
-	outMeta.keyAlgorithm = p.keyAlgorithm
-	outMeta.keyVersion = version
+	outMeta.KeyAlgorithm = p.keyAlgorithm
+	outMeta.KeyVersion = version
 
 	// We do not set the DecryptionKey here as we should only be setting the decryption key if we are decrypting
 	// and that is handled below when we check if the inMeta has a CiphertextBlob
 
 	if inMeta.isPresent() {
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
-		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, p.keyName, inMeta.keyVersion, azkeys.KeyOperationParameters{
-			Algorithm: &inMeta.keyAlgorithm,
+		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, p.keyName, inMeta.KeyVersion, azkeys.KeyOperationParameters{
+			Algorithm: &inMeta.KeyAlgorithm,
 			Value:     inMeta.Result,
 		}, nil)
 
