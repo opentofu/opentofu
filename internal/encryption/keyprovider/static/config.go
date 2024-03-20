@@ -7,7 +7,6 @@ package static
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
@@ -20,9 +19,18 @@ type Config struct {
 
 // Build will create the usable key provider.
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
+	if c.Key == "" {
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{
+			Message: "Missing key",
+		}
+	}
+
 	decodedData, err := hex.DecodeString(c.Key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to hex-decode the provided key (%w)", err)
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{
+			Message: "failed to hex-decode the provided key",
+			Cause:   err,
+		}
 	}
 
 	return &staticKeyProvider{decodedData}, new(Metadata), nil

@@ -2,7 +2,7 @@ terraform {
   encryption {
     # Methods and key providers here.
 
-    statefile {
+    state {
       # The empty block allows writing unencrypted state files
       # unless the enforced setting is set to true.
       fallback {

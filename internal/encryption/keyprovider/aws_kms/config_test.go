@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/davecgh/go-spew/spew"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/hashicorp/hcl/v2"
@@ -239,6 +240,46 @@ func TestValidate(t *testing.T) {
 				if err.Error() != tc.expected.Error() {
 					t.Fatalf("Expected %q, got %q", tc.expected.Error(), err.Error())
 				}
+			}
+		})
+	}
+}
+
+func TestGetKeySpecAsAWSType(t *testing.T) {
+
+	aes256 := types.DataKeySpecAes256
+	aes128 := types.DataKeySpecAes128
+
+	cases := []struct {
+		key      string
+		expected *types.DataKeySpec
+	}{
+		{
+			key:      "AES_256",
+			expected: &aes256,
+		},
+		{
+			key:      "AES_128",
+			expected: &aes128,
+		},
+		{
+			key:      "",
+			expected: nil,
+		},
+		{
+			key:      "invalidKey",
+			expected: nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.key, func(t *testing.T) {
+			config := Config{
+				KeySpec: c.key,
+			}
+			actual := config.getKeySpecAsAWSType()
+			if !reflect.DeepEqual(c.expected, actual) {
+				t.Fatalf("Expected %s, got %s", spew.Sdump(c.expected), spew.Sdump(actual))
 			}
 		})
 	}

@@ -4,6 +4,13 @@ UPGRADE NOTES:
 * Backend/S3: The default of `use_legacy_workflow` changed to `false` and is now deprecated. The S3 backend will follow the same behavior as AWS CLI and SDKs for credential search, preferring backend configuration over environment variables. To support the legacy credential search workflow, you can set this option as `true`. It'll be completely removed in a future minor version.
 * Allow provider blocks in `tofu tests` to access variables and run outputs. ([#1347](https://github.com/opentofu/opentofu/pull/1347))
 
+STATE ENCRYPTION
+* We're introducing optional end-to-end encryption for state files.
+* Available encryption methods as of now are:
+  * AES GCM ([#1291](https://github.com/opentofu/opentofu/pull/1291))
+* Available key providers:
+  * Passphrase, via pbkdf2 ([#1310](https://github.com/opentofu/opentofu/pull/1310))
+  * AWS KMS ([#1349](https://github.com/opentofu/opentofu/pull/1349))
 
 NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
@@ -26,6 +33,7 @@ ENHANCEMENTS:
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
 * Allow for templatefile function recursion (up to 1024 call depth default). ([#1250](https://github.com/opentofu/opentofu/pull/1250))
 * Dump state file when `tofu test` fails to clean up resources. ([#1243](https://github.com/opentofu/opentofu/pull/1243))
+* Added aliases for `state list` (`state ls`), `state mv` (`state move`), and `state rm` (`state remove`) ([#1220](https://github.com/opentofu/opentofu/pull/1220))
 
 BUG FIXES:
 * Fix view hooks unit test flakiness by deterministically waiting for heartbeats to execute ([$1153](https://github.com/opentofu/opentofu/issues/1153))
@@ -37,7 +45,7 @@ BUG FIXES:
 * Fix Global Schema Cache not working in provider acceptance tests ([#1054](https://github.com/opentofu/opentofu/pull/1054))
 * Fix `tofu show` and `tofu state show` not working with state files referencing Terraform registry providers in some instances ([#1141](https://github.com/opentofu/opentofu/pull/1141))
 * Improved stability on 32-bit architectures ([#1154](https://github.com/opentofu/opentofu/pull/1154))
-* Added aliases for `state list` (`state ls`), `state mv` (`state move`), and `state rm` (`state remove`) ([#1220](https://github.com/opentofu/opentofu/pull/1220))
+* Fix panic when provisioner source and content are both null ([#1376](https://github.com/opentofu/opentofu/pull/1376))
 
 ## Previous Releases
 

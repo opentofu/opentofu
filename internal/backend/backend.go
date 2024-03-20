@@ -419,7 +419,7 @@ func (r OperationResult) ExitStatus() int {
 	return int(r)
 }
 
-// If the argument is a path, Read loads it and returns the contents,
+// If the argument is a path, ReadPathOrContents loads it and returns the contents,
 // otherwise the argument is assumed to be the desired contents and is simply
 // returned.
 func ReadPathOrContents(poc string) (string, error) {

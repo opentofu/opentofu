@@ -24,6 +24,10 @@ Some key providers need to store data alongside the encrypted data, such as the 
 
 When you implement a key provider, take a look at the [static](static) key provider as a template. You should never use this provider in production because it exposes users to certain weaknesses in some encryption methods, but it is a simple example for the structure.
 
+### Testing your provider (do this first!)
+
+Before you even go about writing a key provider, please set up the compliance tests. You can create a single test case that calls `compliancetest.ComplianceTest`. This test suite will run your key provider through all important compliance tests and will make sure that you are not missing anything during the implementation.
+
 ### Implementing the descriptor
 
 The descriptor is very simple, you need to implement the [`Descriptor`](descriptor.go) interface in a type. (It does not have to be a struct.) However, make sure that the `ConfigStruct` always returns a struct with `hcl` tags on it. For more information on the `hcl` tags, see the [gohcl documentation](https://godocs.io/github.com/hashicorp/hcl/v2/gohcl).

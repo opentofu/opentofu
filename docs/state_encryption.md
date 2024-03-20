@@ -307,35 +307,3 @@ type Config struct {
 	Key string `hcl:"key"`
 }
 ```
-
-### OpenTofu integration
-
-Currently, the OpenTofu code is in large parts procedural and has globally scoped state. Launching a second instance of OpenTofu is impossible. As it is a much-requested feature to embed OpenTofu as a library, this will need to change in the future. Therefore, the integration of the library should do its best to not introduce more global variables if possible.
-
-The implementation may avail itself of either a singleton, or choose to pass the Encryption interface along several function calls. Both have benefits and drawbacks. However, singletons make parallelized testing very difficult and should therefore be avoided in tests as much as possible.
-
-#### Singleton
-
-A singleton takes an otherwise instance-based struct and stores it in a global variable. As such, it can carry information across otherwise procedural code.
-
-**Pros:**
-
-* Simpler access to the singleton from calling code
-* Less refactoring as the singleton is either available or not.
-
-**Cons:**
-
-* Harder to trace when/where the configuration is initialized.
-* Easy to introduce new code paths that access the singleton before it is available.
-
-#### Passed Instance
-
-This approach requires changing large parts of the OpenTofu code in order to pass along the `Encryption` object. This can cause additional bugs and seduce the inexperienced coder into introducing a super-object (also often referred to as context) to hold everything. Instead, a more granular approach would be desirable, but may not be possible given the state of the code.   
-
-**Pros:**
-
-* Easy to trace where a given encryption instance comes from
-* Hard to introduce new code paths without passing the correct encryption interface.
-
-Cons:
-* More in-depth refactoring is required / more of the codebase edited in this work
