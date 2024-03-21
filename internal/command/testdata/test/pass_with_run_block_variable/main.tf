@@ -1,19 +1,17 @@
-# main.tf
-
-variable "aws_access_key_id" {
+variable "sample_test_value" {
   type    = string
-  default = "unix:///Users/siddharthasonker/.docker/run/docker.sock"
+  default = "test_value"
 }
 
-output "aws_access_key_id" {
+output "sample_test_value" {
   sensitive = false
-  value = var.aws_access_key_id
+  value = var.sample_test_value
 }
 
 terraform {
   required_providers {
     docker = {
-      source  = "kreuzwerker/docker"
+      source  = "test/docker"
       version = ">= 2.0.0"
     }
   }
@@ -26,6 +24,6 @@ resource "docker_image" "ubuntu" {
 
 # Create a container
 resource "docker_container" "foo" {
-  image = docker_image.ubuntu.latest
+  image = docker_image.ubuntu.image_id
   name  = "foo"
 }

@@ -1,7 +1,5 @@
-# tests/main.tftest.hcl
-
 provider "docker" {
-  host = run.setup.aws_access_key_id
+  host = run.setup.sample_test_value
 }
 
 run "setup" {
