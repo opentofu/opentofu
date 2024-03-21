@@ -226,7 +226,27 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 		}
 	}
 
-	return
+	return handleOtfPaths(primary), handleOtfPaths(override), handleOtfPaths(tests), diags
+}
+
+func handleOtfPaths(paths []string) []string {
+	m := make(map[string]string)
+	for _, p := range paths {
+		// This is terrible and should be replaced with "proper" extension munging
+		isOtf := strings.Contains(p, ".otf")
+		abs := strings.ReplaceAll(p, ".otf", ".tf")
+		if _, exists := m[abs]; !exists || isOtf {
+			m[abs] = p
+		}
+	}
+
+	o := make([]string, 0, len(paths))
+
+	for _, v := range m {
+		o = append(o, v)
+	}
+
+	return o
 }
 
 func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*TestFile, hcl.Diagnostics) {
@@ -266,6 +286,14 @@ func fileExt(path string) string {
 		return ".tftest.hcl"
 	} else if strings.HasSuffix(path, ".tftest.json") {
 		return ".tftest.json"
+	} else if strings.HasSuffix(path, ".otf") {
+		return ".otf"
+	} else if strings.HasSuffix(path, ".otf.json") {
+		return ".otf.json"
+	} else if strings.HasSuffix(path, ".otftest.hcl") {
+		return ".otftest.hcl"
+	} else if strings.HasSuffix(path, ".otftest.json") {
+		return ".otftest.json"
 	} else {
 		return ""
 	}
