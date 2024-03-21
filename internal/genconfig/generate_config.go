@@ -6,6 +6,7 @@
 package genconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -160,15 +161,44 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 			if attrS.Sensitive || val.IsMarked() {
 				buf.WriteString("null # sensitive")
 			} else {
-				tok := hclwrite.TokensForValue(val)
-				if _, err := tok.WriteTo(buf); err != nil {
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagWarning,
-						Summary:  "Skipped part of config generation",
-						Detail:   fmt.Sprintf("Could not create attribute %s in %s when generating import configuration. The plan will likely report the missing attribute as being deleted.", name, addr),
-						Extra:    err,
-					})
-					continue
+				if val.IsKnown() && !val.IsNull() && val.Type().Equals(cty.String) && json.Valid([]byte(val.AsString())) {
+					buf.WriteString("jsonencode(")
+
+					var jsonData interface{}
+					err := json.Unmarshal([]byte(val.AsString()), &jsonData)
+					if err != nil {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagWarning,
+							Summary:  "Skipped part of config generation",
+							Detail:   fmt.Sprintf("Could not create attribute %s in %s when generating import configuration. There was a problem while decoding JSON data. The plan will likely report the missing attribute as being deleted.", name, addr),
+							Extra:    err,
+						})
+						continue
+					}
+					// Format JSON data
+					formattedJSON, err := json.MarshalIndent(jsonData, "", "  ")
+					if err != nil {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagWarning,
+							Summary:  "Skipped part of config generation",
+							Detail:   fmt.Sprintf("Could not create attribute %s in %s when generating import configuration. There was a problem while formatting JSON data. The plan will likely report the missing attribute as being deleted.", name, addr),
+							Extra:    err,
+						})
+						continue
+					}
+					buf.WriteString(string(formattedJSON))
+					buf.WriteString(")")
+				} else {
+					tok := hclwrite.TokensForValue(val)
+					if _, err := tok.WriteTo(buf); err != nil {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagWarning,
+							Summary:  "Skipped part of config generation",
+							Detail:   fmt.Sprintf("Could not create attribute %s in %s when generating import configuration. The plan will likely report the missing attribute as being deleted.", name, addr),
+							Extra:    err,
+						})
+						continue
+					}
 				}
 			}
 
