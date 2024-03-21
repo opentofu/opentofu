@@ -143,7 +143,7 @@ func TestEncryptionFlow(t *testing.T) {
 
 	with("required.tf", func() {
 		// Can't switch directly to encryption, need to migrate
-		apply().Failure().StderrContains("decrypted payload provided without fallback specified")
+		apply().Failure().StderrContains("decrypted payload provided without \"migrate_to_encrypted")
 		requireUnencryptedState()
 	})
 
@@ -177,7 +177,7 @@ func TestEncryptionFlow(t *testing.T) {
 		requireEncryptedState()
 
 		// Can't apply unencrypted plan
-		applyPlan(unencryptedPlan).Failure().StderrContains("decrypted payload provided without fallback specified")
+		applyPlan(unencryptedPlan).Failure().StderrContains("decrypted payload provided without \"migrate_to_encrypted")
 		requireEncryptedState()
 
 		// Apply encrypted plan

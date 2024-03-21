@@ -52,21 +52,21 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 	var encDiags hcl.Diagnostics
 
 	if cfg.State != nil {
-		enc.state, encDiags = newStateEncryption(enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state")
+		enc.state, encDiags = newStateEncryption(enc, cfg.State.AsTargetConfig(), cfg.State.MigrateToEncrypted, cfg.State.MigrateToUnencrypted, "state")
 		diags = append(diags, encDiags...)
 	} else {
 		enc.state = StateEncryptionDisabled()
 	}
 
 	if cfg.Plan != nil {
-		enc.plan, encDiags = newPlanEncryption(enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan")
+		enc.plan, encDiags = newPlanEncryption(enc, cfg.Plan.AsTargetConfig(), cfg.Plan.MigrateToEncrypted, cfg.Plan.MigrateToUnencrypted, "plan")
 		diags = append(diags, encDiags...)
 	} else {
 		enc.plan = PlanEncryptionDisabled()
 	}
 
 	if cfg.Remote != nil && cfg.Remote.Default != nil {
-		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default")
+		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, false, "remote.default")
 		diags = append(diags, encDiags...)
 	} else {
 		enc.remoteDefault = StateEncryptionDisabled()
@@ -76,7 +76,7 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 		for _, remoteTarget := range cfg.Remote.Targets {
 			// TODO the addr here should be generated in one place.
 			addr := "remote.remote_state_datasource." + remoteTarget.Name
-			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, addr)
+			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, false, addr)
 			diags = append(diags, encDiags...)
 		}
 	}

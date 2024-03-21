@@ -68,6 +68,61 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*EncryptionConfig, hcl.Diagnost
 		}
 	}
 
+	if cfg.Plan != nil {
+		if cfg.Plan.MigrateToUnencrypted && cfg.Plan.MigrateToEncrypted {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Field conflict in encryption",
+				Detail:   "Only one of migrate_to_encrypted or migrate_to_unencrypted may be specified",
+				Subject:  rng.Ptr(),
+			})
+		} else {
+			if cfg.Plan.MigrateToUnencrypted {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "Plan Encryption Migration Enabled",
+					Detail:   "plan > migrate_to_unencrypted is enabled and should be disabled once the migration is complete",
+					Subject:  rng.Ptr(),
+				})
+			}
+			if cfg.Plan.MigrateToEncrypted {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "Plan Encryption Migration Enabled",
+					Detail:   "plan > migrate_to_encrypted is enabled and should be disabled once the migration is complete",
+					Subject:  rng.Ptr(),
+				})
+			}
+		}
+	}
+	if cfg.State != nil {
+		if cfg.State.MigrateToUnencrypted && cfg.State.MigrateToEncrypted {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Field conflict in encryption",
+				Detail:   "Only one of migrate_to_encrypted or migrate_to_unencrypted may be specified",
+				Subject:  rng.Ptr(),
+			})
+		} else {
+			if cfg.State.MigrateToUnencrypted {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "State Encryption Migration Enabled",
+					Detail:   "plan > migrate_to_unencrypted is enabled and should be disabled once the migration is complete",
+					Subject:  rng.Ptr(),
+				})
+			}
+			if cfg.State.MigrateToEncrypted {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "State Encryption Migration Enabled",
+					Detail:   "plan > migrate_to_encrypted is enabled and should be disabled once the migration is complete",
+					Subject:  rng.Ptr(),
+				})
+			}
+		}
+	}
+
 	if diags.HasErrors() {
 		return nil, diags
 	}

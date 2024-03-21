@@ -73,9 +73,12 @@ type TargetConfig struct {
 //
 // Note: This struct is copied because gohcl does not support embedding.
 type EnforcableTargetConfig struct {
-	Enforced bool           `hcl:"enforced,optional"`
-	Method   hcl.Expression `hcl:"method,optional"`
-	Fallback *TargetConfig  `hcl:"fallback,block"`
+	//TODO if a state{} or plan{} block is defined it implies enforced
+	Enforced             bool           `hcl:"enforced,optional"`
+	Method               hcl.Expression `hcl:"method"`
+	Fallback             *TargetConfig  `hcl:"fallback,block"`
+	MigrateToUnencrypted bool           `hcl:"migrate_to_unencrypted,optional"`
+	MigrateToEncrypted   bool           `hcl:"migrate_to_encrypted,optional"`
 }
 
 // AsTargetConfig converts the struct into its parent TargetConfig.

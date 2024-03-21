@@ -115,9 +115,11 @@ func mergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *Enforca
 
 	mergeTarget := mergeTargetConfigs(cfg.AsTargetConfig(), override.AsTargetConfig())
 	return &EnforcableTargetConfig{
-		Enforced: cfg.Enforced || override.Enforced,
-		Method:   mergeTarget.Method,
-		Fallback: mergeTarget.Fallback,
+		Enforced:             cfg.Enforced || override.Enforced,
+		Method:               mergeTarget.Method,
+		Fallback:             mergeTarget.Fallback,
+		MigrateToUnencrypted: cfg.MigrateToUnencrypted || override.MigrateToUnencrypted,
+		MigrateToEncrypted:   cfg.MigrateToEncrypted || override.MigrateToEncrypted,
 	}
 }
 

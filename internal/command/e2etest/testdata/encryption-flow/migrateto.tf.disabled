@@ -12,11 +12,11 @@ terraform {
     }
     state {
       method = method.aes_gcm.example
-      fallback {}
+      migrate_to_encrypted = true
     }
     plan {
       method = method.aes_gcm.example
-      fallback {}
+      migrate_to_encrypted = true
     }
   }
 }
