@@ -1188,3 +1188,71 @@ Success! 2 passed, 0 failed.
 		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
 	}
 }
+
+func TestTest_LocalVariables2(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath(path.Join("test", "fail_variable_assertion")), td)
+	defer testChdir(t, td)()
+
+	provider := testing_command.NewProvider(nil)
+
+	providerSource, close := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer close()
+
+	streams, done := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
+	ui := new(cli.MockUi)
+
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		Ui:               ui,
+		View:             view,
+		Streams:          streams,
+		ProviderSource:   providerSource,
+	}
+
+	init := &InitCommand{
+		Meta: meta,
+	}
+
+	if code := init.Run(nil); code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+	}
+
+	c := &TestCommand{
+		Meta: meta,
+	}
+	code := c.Run([]string{"-no-color"})
+	output := done(t)
+
+	if code != 1 {
+		t.Errorf("expected status code 1 but got %d", code)
+	}
+
+	expected := `main.tftest.hcl... fail
+  run "first"... fail
+
+Error: Test assertion failed
+
+  on main.tftest.hcl line 7, in run "first":
+   7:     condition = output.sss == false
+    ├────────────────
+    │ output.sss is "true"
+
+Should work
+
+Failure! 0 passed, 1 failed.
+`
+
+	actual := output.All()
+
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
+	}
+
+	if provider.ResourceCount() > 0 {
+		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+	}
+}
