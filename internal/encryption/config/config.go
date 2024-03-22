@@ -59,8 +59,8 @@ func (m MethodConfig) Addr() (method.Addr, hcl.Diagnostics) {
 // RemoteConfig describes the terraform.encryption.remote block you can use to declare encryption for remote state data
 // sources.
 type RemoteConfig struct {
-	Default *TargetConfig       `hcl:"default,block"`
-	Targets []NamedTargetConfig `hcl:"remote_state_data_source,block"`
+	Default *RemoteDefaultTargetConfig `hcl:"default,block"`
+	Targets []NamedTargetConfig        `hcl:"remote_state_data_source,block"`
 }
 
 // TargetConfig describes the target.encryption.state, target.encryption.plan, etc blocks.
@@ -73,9 +73,8 @@ type TargetConfig struct {
 //
 // Note: This struct is copied because gohcl does not support embedding.
 type EnforcableTargetConfig struct {
-	//TODO if a state{} or plan{} block is defined it implies enforced
 	Enforced             bool           `hcl:"enforced,optional"`
-	Method               hcl.Expression `hcl:"method"`
+	Method               hcl.Expression `hcl:"method,optional"` // This is optional in the seperate configs, but is required during validation.
 	Fallback             *TargetConfig  `hcl:"fallback,block"`
 	MigrateToUnencrypted bool           `hcl:"migrate_to_unencrypted,optional"`
 	MigrateToEncrypted   bool           `hcl:"migrate_to_encrypted,optional"`
@@ -90,17 +89,36 @@ func (e EnforcableTargetConfig) AsTargetConfig() *TargetConfig {
 }
 
 // NamedTargetConfig is an extension of the TargetConfig that describes a
-// terraform.encryption.remote.remote_state_data.* block.
+// terraform.encryption.remote_state_data_sources.remote_state_data_source.* block.
 //
 // Note: This struct is copied because gohcl does not support embedding.
 type NamedTargetConfig struct {
-	Name     string         `hcl:"name,label"`
-	Method   hcl.Expression `hcl:"method,optional"`
-	Fallback *TargetConfig  `hcl:"fallback,block"`
+	Name             string         `hcl:"name,label"`
+	Method           hcl.Expression `hcl:"method,optional"`
+	Fallback         *TargetConfig  `hcl:"fallback,block"`
+	AllowUnencrypted bool           `hcl:"allow_unencrypted,optional"`
 }
 
 // AsTargetConfig converts the struct into its parent TargetConfig.
 func (n NamedTargetConfig) AsTargetConfig() *TargetConfig {
+	return &TargetConfig{
+		Method:   n.Method,
+		Fallback: n.Fallback,
+	}
+}
+
+// RemoteDefaultTargetConfig is an extension of the TargetConfig that describes a
+// terraform.encryption.remote_state_data_sources.default block.
+//
+// Note: This struct is copied because gohcl does not support embedding.
+type RemoteDefaultTargetConfig struct {
+	Method           hcl.Expression `hcl:"method,optional"`
+	Fallback         *TargetConfig  `hcl:"fallback,block"`
+	AllowUnencrypted bool           `hcl:"allow_unencrypted,optional"`
+}
+
+// AsTargetConfig converts the struct into its parent TargetConfig.
+func (n RemoteDefaultTargetConfig) AsTargetConfig() *TargetConfig {
 	return &TargetConfig{
 		Method:   n.Method,
 		Fallback: n.Fallback,

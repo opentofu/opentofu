@@ -66,7 +66,7 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 	}
 
 	if cfg.Remote != nil && cfg.Remote.Default != nil {
-		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, false, "remote.default")
+		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default.AsTargetConfig(), false, cfg.Remote.Default.AllowUnencrypted, "remote.default")
 		diags = append(diags, encDiags...)
 	} else {
 		enc.remoteDefault = StateEncryptionDisabled()
@@ -76,7 +76,7 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 		for _, remoteTarget := range cfg.Remote.Targets {
 			// TODO the addr here should be generated in one place.
 			addr := "remote.remote_state_datasource." + remoteTarget.Name
-			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, false, addr)
+			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, remoteTarget.AllowUnencrypted, addr)
 			diags = append(diags, encDiags...)
 		}
 	}

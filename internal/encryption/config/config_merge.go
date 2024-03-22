@@ -132,8 +132,19 @@ func mergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 	}
 
 	merged := &RemoteConfig{
-		Default: mergeTargetConfigs(cfg.Default, override.Default),
 		Targets: make([]NamedTargetConfig, len(cfg.Targets)),
+	}
+	if cfg.Default == nil {
+		merged.Default = override.Default
+	} else if override.Default == nil {
+		merged.Default = cfg.Default
+	} else {
+		mergeTarget := mergeTargetConfigs(cfg.Default.AsTargetConfig(), override.Default.AsTargetConfig())
+		cfg.Default = &RemoteDefaultTargetConfig{
+			Method:           mergeTarget.Method,
+			Fallback:         mergeTarget.Fallback,
+			AllowUnencrypted: cfg.Default.AllowUnencrypted || override.Default.AllowUnencrypted,
+		}
 	}
 
 	copy(merged.Targets, cfg.Targets)
@@ -145,9 +156,10 @@ func mergeRemoteConfigs(cfg *RemoteConfig, override *RemoteConfig) *RemoteConfig
 				// gohcl does not support struct embedding
 				mergeTarget := mergeTargetConfigs(t.AsTargetConfig(), overrideTarget.AsTargetConfig())
 				merged.Targets[i] = NamedTargetConfig{
-					Name:     t.Name,
-					Method:   mergeTarget.Method,
-					Fallback: mergeTarget.Fallback,
+					Name:             t.Name,
+					Method:           mergeTarget.Method,
+					Fallback:         mergeTarget.Fallback,
+					AllowUnencrypted: t.AllowUnencrypted || overrideTarget.AllowUnencrypted,
 				}
 				break
 			}

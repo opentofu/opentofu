@@ -68,20 +68,29 @@ func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (m
 	// https://github.com/hashicorp/hcl/blob/main/gohcl/decode.go#L112-L118
 
 	// Descriptor referenced by this target
-	var methodIdent string
+	var methodIdent *string
 	decodeDiags := gohcl.DecodeExpression(target.Method, e.ctx, &methodIdent)
 	diags = append(diags, decodeDiags...)
 
 	// Only attempt to fetch the method if the decoding was successful
 	if !decodeDiags.HasErrors() {
-		if method, ok := e.methods[method.Addr(methodIdent)]; ok {
-			methods = append(methods, method)
+		if methodIdent != nil {
+			if method, ok := e.methods[method.Addr(methodIdent)]; ok {
+				methods = append(methods, method)
+			} else {
+				// We can't continue if the method is not found
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Undefined encryption method",
+					Detail:   fmt.Sprintf("Can not find %q for %q", methodIdent, targetName),
+					Subject:  target.Method.Range().Ptr(),
+				})
+			}
 		} else {
-			// We can't continue if the method is not found
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Undefined encryption method",
-				Detail:   fmt.Sprintf("Can not find %q for %q", methodIdent, targetName),
+				Summary:  "Missing encryption method",
+				Detail:   "method must be specifed in all encryption blocks",
 				Subject:  target.Method.Range().Ptr(),
 			})
 		}
