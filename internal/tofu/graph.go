@@ -44,6 +44,10 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 	// The callbacks for enter/exiting a graph
 	ctx := walker.EvalContext()
 
+	// We explicitly create the panicHandler before
+	// spawning many go routines for vertex evaluation
+	// to minimize the performance impact of capturing
+	// the stack trace.
 	panicHandler := logging.PanicHandlerWithTraceFn()
 
 	// Walk the graph.
