@@ -50,3 +50,21 @@ Now you have to create the OpenTofu source list.
 Finally, you can install OpenTofu:
 
 <CodeBlock language={"bash"}>{DebStep4Script}</CodeBlock>
+
+### Installation Instructions for Hardened Environments
+
+These installation instructions are designed to support environments with hardened security settings, particularly when dealing with a hardened umask.
+
+The steps provided are tailored for Debian family operating systems.
+
+#### Step 1: Temporary Umask Adjustment
+
+<CodeBlock language="bash">{debmask1}</CodeBlock>
+
+Before initiating the installation, temporarily adjust the umask to accommodate the hardened environment. The script sets a `0027` umask to provide restrictive permissions during the installation process.
+
+#### Step 2: Revert Umask After GPG Key Installation
+
+After the installation, revert the umask to its default value to maintain a secure environment.
+
+<CodeBlock language="bash">{debmask2}</CodeBlock>
