@@ -12,7 +12,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"sort"
 	"sync"
 
@@ -327,11 +326,11 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 
 	op.StateLocker = op.StateLocker.WithContext(stopCtx)
 
-	trace := debug.Stack()
+	panicHandler := logging.PanicHandlerWithTraceFn()
 
 	// Do it
 	go func() {
-		defer logging.PanicHandlerWithTrace(trace)
+		defer panicHandler()
 		defer done()
 		defer stop()
 		defer cancel()

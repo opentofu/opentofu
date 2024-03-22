@@ -40,10 +40,6 @@ var panicMutex sync.Mutex
 // PanicHandler must be called as a defered function, and must be the first
 // defer called at the start of a new goroutine.
 func PanicHandler() {
-	PanicHandlerWithTrace(nil)
-}
-
-func PanicHandlerWithTrace(trace []byte) {
 	// Have all managed goroutines checkin here, and prevent them from exiting
 	// if there's a panic in progress. While this can't lock the entire runtime
 	// to block progress, we can prevent some cases where OpenTofu may return
@@ -52,6 +48,39 @@ func PanicHandlerWithTrace(trace []byte) {
 	defer panicMutex.Unlock()
 
 	recovered := recover()
+	panicHandler(recovered, nil)
+}
+
+// PanicHandlerWithTraceFn returns a function similar to PanicHandler which is
+// called to recover from an internal panic in OpenTofu, and augments the
+// standard stack trace with a more user friendly error message.
+// The calling stack trace is captured before returing the augmented panicHandler
+// The returned panicHandler must be called as a defered function, and must be the
+// first defer called at the start of a new goroutine.
+//
+// This only is a partial solution to the problem of panics within deeply nested
+// go-routines.  It only works between the go-routine being called and the calling
+// go-routine.  If you have multiple nested go-rotuines, it will only preserve the
+// calling stack and the called panic stack.  Idealy we would be able to use context
+// or a similar construct to build a more comprehensive panic handler, but this
+// is a significant step in the right direction that will dramatically improve crash
+// debugging
+func PanicHandlerWithTraceFn() func() {
+	trace := debug.Stack()
+	return func() {
+		// Have all managed goroutines checkin here, and prevent them from exiting
+		// if there's a panic in progress. While this can't lock the entire runtime
+		// to block progress, we can prevent some cases where OpenTofu may return
+		// early before the panic has been printed out.
+		panicMutex.Lock()
+		defer panicMutex.Unlock()
+
+		recovered := recover()
+		panicHandler(recovered, trace)
+	}
+}
+
+func panicHandler(recovered interface{}, trace []byte) {
 	if recovered == nil {
 		return
 	}
