@@ -40,6 +40,10 @@ var panicMutex sync.Mutex
 // PanicHandler must be called as a defered function, and must be the first
 // defer called at the start of a new goroutine.
 func PanicHandler() {
+	PanicHandlerWithTrace(nil)
+}
+
+func PanicHandlerWithTrace(trace []byte) {
 	// Have all managed goroutines checkin here, and prevent them from exiting
 	// if there's a panic in progress. While this can't lock the entire runtime
 	// to block progress, we can prevent some cases where OpenTofu may return
@@ -58,6 +62,10 @@ func PanicHandler() {
 	// When called from a deferred function, debug.PrintStack will include the
 	// full stack from the point of the pending panic.
 	debug.PrintStack()
+	if trace != nil {
+		fmt.Fprint(os.Stderr, "With go-routine called from:\n")
+		os.Stderr.Write(trace)
+	}
 
 	// An exit code of 11 keeps us out of the way of the detailed exitcodes
 	// from plan, and also happens to be the same code as SIGSEGV which is
