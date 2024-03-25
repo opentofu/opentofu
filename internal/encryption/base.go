@@ -169,7 +169,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		return nil, fmt.Errorf("invalid encrypted payload version: %s != %s", es.Version, encryptionVersion)
 	}
 
-	// TODO We could potentially cache this based on a json-encoded version of es.Meta and reduce overhead dramatically
+	// TODO Discuss if we should potentially cache this based on a json-encoded version of es.Meta and reduce overhead dramatically
 	methods, diags := s.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
 		// This cast to error here is safe as we know that at least one error exists
