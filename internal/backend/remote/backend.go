@@ -641,6 +641,7 @@ func (b *Remote) DeleteWorkspace(name string, _ bool) error {
 		workspace: &tfe.Workspace{
 			Name: name,
 		},
+		encryption: b.encryption,
 	}
 
 	return client.Delete()
@@ -706,6 +707,8 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 
 		// This is optionally set during OpenTofu Enterprise runs.
 		runID: os.Getenv("TFE_RUN_ID"),
+
+		encryption: b.encryption,
 	}
 
 	state := remote.NewState(client, b.encryption)

@@ -32,6 +32,7 @@ type remoteClient struct {
 	stateUploadErr bool
 	workspace      *tfe.Workspace
 	forcePush      bool
+	encryption     encryption.StateEncryption
 }
 
 // Get the remote state.
@@ -96,8 +97,7 @@ func (r *remoteClient) Put(state []byte) error {
 	ctx := context.Background()
 
 	// Read the raw state into a OpenTofu state.
-	// State Encryption is not supported for the remote backend
-	stateFile, err := statefile.Read(bytes.NewReader(state), encryption.StateEncryptionDisabled())
+	stateFile, err := statefile.Read(bytes.NewReader(state), r.encryption)
 	if err != nil {
 		return fmt.Errorf("error reading state: %w", err)
 	}
