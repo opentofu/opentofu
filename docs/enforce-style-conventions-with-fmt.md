@@ -248,5 +248,5 @@ This convention says they _can_ be grouped, rather than _should_ or _must_ be gr
 Other things to consider:
 
 -  Do we want any or all of the conventions to be optional/configurable?
-  - I suggest we add as few options as possible, but having an option to out in our out of the new behavior could probably be good (e.g. `tofu fmt --legacy` or `tofu fmt --strict`) to allow backwards compatibility.
+  - I suggest we add as few options as possible, but having an option to opt in or out of the new behavior could probably be good (e.g. `tofu fmt --legacy` or `tofu fmt --strict`) to allow backwards compatibility.
 - We also have the option of releasing one or two conventions at a time/iteratively rather than a big bang release with all conventions right off the bat.
