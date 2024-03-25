@@ -413,7 +413,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	// Configure a local backend for when we need to run operations locally.
-	b.local = backendLocal.NewWithBackend(b, nil)
+	b.local = backendLocal.NewWithBackend(b, b.encryption)
 	b.forceLocal = b.forceLocal || !entitlements.Operations
 
 	// Enable retries for server errors as the backend is now fully configured.
