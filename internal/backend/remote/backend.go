@@ -378,7 +378,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	// Configure a local backend for when we need to run operations locally.
-	b.local = backendLocal.NewWithBackend(b, nil)
+	b.local = backendLocal.NewWithBackend(b, b.encryption)
 	b.forceLocal = b.forceLocal || !entitlements.Operations
 
 	// Enable retries for server errors as the backend is now fully configured.
@@ -641,6 +641,7 @@ func (b *Remote) DeleteWorkspace(name string, _ bool) error {
 		workspace: &tfe.Workspace{
 			Name: name,
 		},
+		encryption: b.encryption,
 	}
 
 	return client.Delete()
@@ -706,6 +707,8 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 
 		// This is optionally set during OpenTofu Enterprise runs.
 		runID: os.Getenv("TFE_RUN_ID"),
+
+		encryption: b.encryption,
 	}
 
 	state := remote.NewState(client, b.encryption)
