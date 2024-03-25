@@ -21,21 +21,23 @@ const (
 )
 
 type baseEncryption struct {
-	enc        *encryption
-	target     *config.TargetConfig
-	enforced   bool
-	name       string
-	encMethods []method.Method
-	encMeta    map[keyprovider.Addr][]byte
+	enc                  *encryption
+	target               *config.TargetConfig
+	migrateToEncrypted   bool
+	migrateToUnencrypted bool
+	name                 string
+	encMethods           []method.Method
+	encMeta              map[keyprovider.Addr][]byte
 }
 
-func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (*baseEncryption, hcl.Diagnostics) {
+func newBaseEncryption(enc *encryption, target *config.TargetConfig, migrateToEncrypted bool, migrateToUnencrypted bool, name string) (*baseEncryption, hcl.Diagnostics) {
 	base := &baseEncryption{
-		enc:      enc,
-		target:   target,
-		enforced: enforced,
-		name:     name,
-		encMeta:  make(map[keyprovider.Addr][]byte),
+		enc:                  enc,
+		target:               target,
+		migrateToEncrypted:   migrateToEncrypted,
+		migrateToUnencrypted: migrateToUnencrypted,
+		name:                 name,
+		encMeta:              make(map[keyprovider.Addr][]byte),
 	}
 	// Setup the encryptor
 	//
@@ -88,8 +90,7 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 }
 
 func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
-	// No configuration provided, don't do anything
-	if s.target == nil {
+	if s.migrateToUnencrypted {
 		return data, nil
 	}
 
@@ -97,14 +98,6 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	if len(s.encMethods) != 0 {
 		// Use the pre-configured encryption method
 		encryptor = s.encMethods[0]
-	}
-
-	if encryptor == nil {
-		// ensure that the method is defined when Enforced is true
-		if s.enforced {
-			return nil, fmt.Errorf("encryption of %q is enforced, and therefore requires a method to be provided", s.name)
-		}
-		return data, nil
 	}
 
 	encd, err := encryptor.Encrypt(data)
@@ -127,10 +120,6 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 
 // TODO Find a way to make these errors actionable / clear
 func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
-	if s.target == nil {
-		return data, nil
-	}
-
 	es := basedata{}
 	err := json.Unmarshal(data, &es)
 
@@ -149,20 +138,11 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 
-		methods, diags := s.buildTargetMethods(make(map[keyprovider.Addr][]byte))
-		if diags.HasErrors() {
-			// This cast to error here is safe as we know that at least one error exists
-			// This is also quite unlikely to happen as the constructor already has checked this code path
-			return nil, diags
+		// Yep, it's already decrypted and we are in the process of migration
+		if s.migrateToEncrypted || s.migrateToUnencrypted {
+			return data, nil
 		}
-		// Yep, it's already decrypted
-		for _, method := range methods {
-			if method == nil {
-				// fallback allowed
-				return data, nil
-			}
-		}
-		return data, fmt.Errorf("decrypted payload provided without fallback specified")
+		return data, fmt.Errorf("decrypted payload provided without \"migrate_to_encrypted = true\"")
 	}
 
 	if es.Version != encryptionVersion {
@@ -177,28 +157,8 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		return nil, diags
 	}
 
-	if len(methods) == 0 {
-		err = validator(data)
-		if err != nil {
-			// TODO improve this error message
-			return nil, err
-		}
-		// No methods/fallbacks specified and data is valid payload
-		return data, nil
-	}
-
 	errs := make([]error, 0)
 	for _, method := range methods {
-		if method == nil {
-			// No method specified for this target
-			err = validator(data)
-			if err == nil {
-				return data, nil
-			}
-			// TODO improve this error message
-			errs = append(errs, fmt.Errorf("payload is not already decrypted: %w", err))
-			continue
-		}
 		uncd, err := method.Decrypt(es.Data)
 		if err == nil {
 			// Success

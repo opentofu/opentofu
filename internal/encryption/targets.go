@@ -74,22 +74,25 @@ func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (m
 
 	// Only attempt to fetch the method if the decoding was successful
 	if !decodeDiags.HasErrors() {
-
 		if methodIdent != nil {
-			if method, ok := e.methods[method.Addr(*methodIdent)]; ok {
+			if method, ok := e.methods[method.Addr(methodIdent)]; ok {
 				methods = append(methods, method)
 			} else {
 				// We can't continue if the method is not found
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Undefined encryption method",
-					Detail:   fmt.Sprintf("Can not find %q for %q", *methodIdent, targetName),
+					Detail:   fmt.Sprintf("Can not find %q for %q", methodIdent, targetName),
 					Subject:  target.Method.Range().Ptr(),
 				})
 			}
 		} else {
-			// nil is a nop method
-			methods = append(methods, nil)
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing encryption method",
+				Detail:   "method must be specifed in all encryption blocks",
+				Subject:  target.Method.Range().Ptr(),
+			})
 		}
 	}
 

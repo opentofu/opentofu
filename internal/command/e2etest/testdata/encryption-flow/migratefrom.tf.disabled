@@ -11,14 +11,12 @@ terraform {
       keys = key_provider.pbkdf2.basic
     }
     state {
-      fallback {
-        method = method.aes_gcm.example
-      }
+      migrate_to_unencrypted = true
+      method = method.aes_gcm.example
     }
     plan {
-      fallback {
-        method = method.aes_gcm.example
-      }
+      migrate_to_unencrypted = true
+      method = method.aes_gcm.example
     }
   }
 }
