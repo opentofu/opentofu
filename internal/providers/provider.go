@@ -476,12 +476,20 @@ type ReadDataSourceResponse struct {
 }
 
 type CallFunctionRequest struct {
-	Name    string
-	Args    []cty.Value
-	RetType cty.Type // This could be done by looking at the metadata instead
+	Name      string
+	Arguments []cty.Value
 }
 
 type CallFunctionResponse struct {
 	Result cty.Value
 	Error  error
+}
+
+type CallFunctionArgumentError struct {
+	Text             string
+	FunctionArgument *int
+}
+
+func (err *CallFunctionArgumentError) Error() string {
+	return err.Text
 }

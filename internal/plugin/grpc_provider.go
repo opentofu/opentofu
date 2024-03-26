@@ -693,8 +693,72 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
-func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	panic("TODO - implement me")
+func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	logger.Trace("GRPCProvider: CallFunction")
+
+	schema := p.GetProviderSchema()
+	if schema.Diagnostics.HasErrors() {
+		// This should be unreachable
+		resp.Error = schema.Diagnostics.Err()
+		return resp
+	}
+
+	spec, ok := schema.Functions[r.Name]
+	if !ok {
+		// This should be unreachable
+		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s not defined in provider schema", r.Name)
+		return resp
+	}
+
+	protoReq := &proto.CallFunction_Request{
+		Name:      r.Name,
+		Arguments: make([]*proto.DynamicValue, len(r.Arguments)),
+	}
+	// Translate the arguments
+	for i, arg := range r.Arguments {
+		// Most of the validation we do here should have already happened, but it does not hurt to be extra safe
+		var paramSpec providers.FunctionParameterSpec
+		if i >= len(spec.Parameters) {
+			// We are past the end of spec.Parameters, this is either variadic or an error
+			if spec.VariadicParameter != nil {
+				paramSpec = *spec.VariadicParameter
+			} else {
+				// This should be unreachable
+				resp.Error = fmt.Errorf("invalid CallFunctionRequest: too many arguments passed to non-variadic function %s", r.Name)
+			}
+		}
+
+		encodedArg, err := msgpack.Marshal(arg, paramSpec.Type)
+		if err != nil {
+			resp.Error = err
+			return
+		}
+
+		protoReq.Arguments[i] = &proto.DynamicValue{
+			Msgpack: encodedArg,
+		}
+	}
+
+	protoResp, err := p.client.CallFunction(p.ctx, protoReq)
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	if protoResp.Error != nil {
+		err := &providers.CallFunctionArgumentError{
+			Text: protoResp.Error.Text,
+		}
+		if protoResp.Error.FunctionArgument != nil {
+			arg := int(*protoResp.Error.FunctionArgument)
+			err.FunctionArgument = &arg
+		}
+		resp.Error = err
+		return
+	}
+
+	resp.Result, resp.Error = decodeDynamicValue(protoResp.Result, spec.Return)
+	return
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.
