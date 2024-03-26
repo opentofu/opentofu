@@ -1,9 +1,9 @@
 ---
-sidebar_label: s3
+sidebar_label: Amazon S3
 description: OpenTofu can store state remotely in S3 and lock that state with DynamoDB.
 ---
 
-# Backend Type: s3
+# Backend Type: Amazon S3
 
 Stores the state as a given key in a given bucket on
 [Amazon S3](https://aws.amazon.com/s3/).
@@ -17,6 +17,12 @@ It is highly recommended that you enable
 [Bucket Versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/manage-versioning-examples.html)
 on the S3 bucket to allow for state recovery in the case of accidental deletions and human error.
 :::
+
+## Bootstrap the backend using Amazon CloudFormation
+
+Amazon provides a sample repository for bootstrapping the backend with Amazon CloudFormation, accessible at the following link: [bootstrap-amazon-s3-remote-backend-for-open-tofu
+](https://github.com/aws-samples/bootstrap-amazon-s3-remote-backend-for-open-tofu).
+
 
 ## Example Configuration
 
