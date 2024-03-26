@@ -57,7 +57,7 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 	return es.Version != "", nil
 }
 
-func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
+func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
 	// No configuration provided, don't do anything
 	if s.target == nil {
 		return data, nil
@@ -95,7 +95,7 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 	}
 
 	es.Data = encd
-	jsond, err := json.Marshal(es)
+	jsond, err := json.Marshal(enhance(es))
 	if err != nil {
 		return nil, fmt.Errorf("unable to encode encrypted data as json: %w", err)
 	}

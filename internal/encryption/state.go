@@ -62,12 +62,31 @@ func newStateEncryption(enc *encryption, target *config.TargetConfig, enforced b
 	return &stateEncryption{base}, diags
 }
 
+type statedata struct {
+	Serial *int `json:"serial"`
+}
+
 func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
-	return s.base.encrypt(plainState)
+	var passthrough statedata
+	err := json.Unmarshal(plainState, &passthrough)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.base.encrypt(plainState, func(base basedata) interface{} {
+		// Merge together the base encryption data and the passthrough fields
+		return struct {
+			statedata
+			basedata
+		}{
+			statedata: passthrough,
+			basedata:  base,
+		}
+	})
 }
 
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
-	return s.base.decrypt(encryptedState, func(data []byte) error {
+	decryptedState, err := s.base.decrypt(encryptedState, func(data []byte) error {
 		tmp := struct {
 			FormatVersion string `json:"terraform_version"`
 		}{}
@@ -82,6 +101,29 @@ func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 		// Probably a state file
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Make sure that the state passthrough fields match
+	var encrypted statedata
+	err = json.Unmarshal(encryptedState, &encrypted)
+	if err != nil {
+		return nil, err
+	}
+	var state statedata
+	err = json.Unmarshal(decryptedState, &state)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO make encrypted.Serial non-optional.  This is only for supporting alpha1 states!
+	if encrypted.Serial != nil && state.Serial != nil && *state.Serial != *encrypted.Serial {
+		return nil, fmt.Errorf("invalid state metadata, serial field mismatch %v vs %v", *encrypted.Serial, *state.Serial)
+	}
+
+	return decryptedState, nil
 }
 
 func StateEncryptionDisabled() StateEncryption {
