@@ -449,31 +449,6 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			// will already have been caught.
 		}
 
-		// It is invalid for any import block to have a "to" argument matching
-		// any moved block's "from" argument.
-		for _, mb := range m.Moved {
-			// Comparing string serialisations is good enough here, because we
-			// only care about equality in the case that both addresses are
-			// AbsResourceInstances.
-			// TODO - Check what happens here if validation is removed. The address might be resolved later to be a target of a `moved` block, so it probably means we will import "over" it
-			//   For now I will keep this validation, but I'll check what happens when the import's dynamic address is the same as a moved's from
-			//   We might also want this validation with the removed block
-			// TODO - Check if this validation still works now that the address is not an instance, but a ConfigResource
-
-			// We should skip the moved-import validation if the moved `from` was not successfully decoded
-			if mb.From == nil {
-				continue
-			}
-			if mb.From.String() == i.StaticTo.String() {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Cannot import to a move source",
-					Detail:   fmt.Sprintf("An import block for ID %q targets resource address %s, but this address appears in the \"from\" argument of a moved block, which is invalid. Please change the import target to a different address, such as the move target.", i.ID, i.StaticTo),
-					Subject:  &i.DeclRange,
-				})
-			}
-		}
-
 		m.Import = append(m.Import, i)
 	}
 
