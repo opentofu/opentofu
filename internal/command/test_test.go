@@ -1189,7 +1189,7 @@ Success! 2 passed, 0 failed.
 	}
 }
 
-func TestTest_LocalVariables2(t *testing.T) {
+func TestTest_VariableBlockReference(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "fail_variable_assertion")), td)
 	defer testChdir(t, td)()
