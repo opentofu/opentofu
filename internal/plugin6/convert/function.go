@@ -10,6 +10,7 @@ import (
 )
 
 func ProtoToCtyType(in []byte) cty.Type {
+	println(string(in))
 	var out cty.Type
 	if err := json.Unmarshal(in, &out); err != nil {
 		panic(err)

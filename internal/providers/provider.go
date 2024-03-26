@@ -487,7 +487,7 @@ type CallFunctionResponse struct {
 
 type CallFunctionArgumentError struct {
 	Text             string
-	FunctionArgument *int
+	FunctionArgument int
 }
 
 func (err *CallFunctionArgumentError) Error() string {

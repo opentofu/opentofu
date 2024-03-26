@@ -96,6 +96,25 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 				},
 			},
 		},
+		Functions: map[string]*proto.Function{
+			"fn": &proto.Function{
+				Parameters: []*proto.Function_Parameter{{
+					Name:               "par_a",
+					Type:               []byte(`"string"`),
+					AllowNullValue:     false,
+					AllowUnknownValues: false,
+				}},
+				VariadicParameter: &proto.Function_Parameter{
+					Name:               "par_var",
+					Type:               []byte(`"string"`),
+					AllowNullValue:     true,
+					AllowUnknownValues: false,
+				},
+				Return: &proto.Function_Return{
+					Type: []byte(`"string"`),
+				},
+			},
+		},
 	}
 }
 
@@ -874,5 +893,31 @@ func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 
 	if !cmp.Equal(expected, resp.State, typeComparer, valueComparer, equateEmpty) {
 		t.Fatal(cmp.Diff(expected, resp.State, typeComparer, valueComparer, equateEmpty))
+	}
+}
+
+func TestGRPCProvider_CallFunction(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().CallFunction(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.CallFunction_Response{
+		Result: &proto.DynamicValue{Json: []byte(`"foo"`)},
+	}, nil)
+
+	resp := p.CallFunction(providers.CallFunctionRequest{
+		Name:      "fn",
+		Arguments: []cty.Value{cty.StringVal("bar"), cty.NilVal},
+	})
+
+	if resp.Error != nil {
+		t.Fatal(resp.Error)
+	}
+	if resp.Result != cty.StringVal("foo") {
+		t.Fatalf("%v", resp.Result)
 	}
 }

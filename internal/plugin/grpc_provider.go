@@ -714,11 +714,19 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 		Name:      r.Name,
 		Arguments: make([]*proto.DynamicValue, len(r.Arguments)),
 	}
+	if len(r.Arguments) < len(spec.Parameters) {
+		// This should be unreachable
+		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s expected %d parameters and got %d instead", r.Name, len(spec.Parameters), len(r.Arguments))
+		return resp
+	}
+
 	// Translate the arguments
 	for i, arg := range r.Arguments {
 		// Most of the validation we do here should have already happened, but it does not hurt to be extra safe
 		var paramSpec providers.FunctionParameterSpec
-		if i >= len(spec.Parameters) {
+		if i < len(spec.Parameters) {
+			paramSpec = spec.Parameters[i]
+		} else {
 			// We are past the end of spec.Parameters, this is either variadic or an error
 			if spec.VariadicParameter != nil {
 				paramSpec = *spec.VariadicParameter
@@ -726,6 +734,18 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 				// This should be unreachable
 				resp.Error = fmt.Errorf("invalid CallFunctionRequest: too many arguments passed to non-variadic function %s", r.Name)
 			}
+		}
+
+		if arg.IsNull() {
+			if paramSpec.AllowNullValue {
+				continue
+			} else {
+				resp.Error = &providers.CallFunctionArgumentError{
+					Text:             fmt.Sprintf("parameter %s is null, which is not allowed for function %s", paramSpec.Name, r.Name),
+					FunctionArgument: i,
+				}
+			}
+
 		}
 
 		encodedArg, err := msgpack.Marshal(arg, paramSpec.Type)
@@ -750,8 +770,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 			Text: protoResp.Error.Text,
 		}
 		if protoResp.Error.FunctionArgument != nil {
-			arg := int(*protoResp.Error.FunctionArgument)
-			err.FunctionArgument = &arg
+			err.FunctionArgument = int(*protoResp.Error.FunctionArgument)
 		}
 		resp.Error = err
 		return
