@@ -186,7 +186,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		gomock.Any(),
 	).Times(1).Return(&proto.GetProviderSchema_Response{
 		Provider:           mockedProviderResponse,
-		ServerCapabilities: &proto.GetProviderSchema_ServerCapabilities{GetProviderSchemaOptional: true},
+		ServerCapabilities: &proto.ServerCapabilities{GetProviderSchemaOptional: true},
 	}, nil)
 
 	// Run GetProviderTwice, expect GetSchema to be called once
@@ -233,7 +233,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		gomock.Any(),
 	).Times(2).Return(&proto.GetProviderSchema_Response{
 		Provider:           mockedProviderResponse,
-		ServerCapabilities: &proto.GetProviderSchema_ServerCapabilities{GetProviderSchemaOptional: false},
+		ServerCapabilities: &proto.ServerCapabilities{GetProviderSchemaOptional: false},
 	}, nil)
 
 	// Run GetProviderTwice, expect GetSchema to be called once
