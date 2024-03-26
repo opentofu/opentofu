@@ -15,7 +15,6 @@ import (
 type Import struct {
 	ID hcl.Expression
 
-	// TODO add documentation about the acceptable import to addresses
 	// To is the address HCL expression given in the `import` block configuration.
 	// It supports the following address formats:
 	// 1. aws_s3_bucket.my_bucket
