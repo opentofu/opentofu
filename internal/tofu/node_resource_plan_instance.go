@@ -200,13 +200,6 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// If the resource is to be imported, we now ask the provider for an Import
 	// and a Refresh, and save the resulting state to instanceRefreshState.
 	if importing {
-		state := ctx.State()
-		existing := state.ResourceInstance(addr)
-		if existing != nil {
-			// Import target is already in the state, so simply ignore and exit early
-			return diags
-		}
-
 		instanceRefreshState, diags = n.importState(ctx, addr, n.importTarget.ID, provider, providerSchema)
 	} else {
 		var readDiags tfdiags.Diagnostics
