@@ -824,9 +824,11 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	runningOp.Cancel = cancel
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
+
 	// Do it.
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 		defer stop()
 		defer cancel()
