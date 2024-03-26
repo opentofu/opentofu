@@ -10,20 +10,12 @@ import (
 	openbao "github.com/openbao/openbao/api"
 )
 
-type rawClient struct {
-	c *openbao.Client
-}
-
-func (c rawClient) WriteBytesWithContext(ctx context.Context, path string, data []byte) (*openbao.Secret, error) {
-	return c.c.Logical().WriteBytesWithContext(ctx, path, data)
-}
-
-type RawClient interface {
+type rawClient interface {
 	WriteBytesWithContext(ctx context.Context, path string, data []byte) (*openbao.Secret, error)
 }
 
 type service struct {
-	c RawClient
+	c rawClient
 }
 
 type dataKey struct {

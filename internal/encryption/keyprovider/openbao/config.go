@@ -44,7 +44,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	// TODO: raw client injection
 
 	return &keyProvider{
-		svc:     service{rawClient{client}},
+		svc:     service{client.Logical()},
 		keyName: c.KeyName,
 		ctx:     context.Background(),
 	}, new(keyMeta), nil
