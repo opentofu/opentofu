@@ -326,9 +326,11 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 
 	op.StateLocker = op.StateLocker.WithContext(stopCtx)
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
+
 	// Do it
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 		defer stop()
 		defer cancel()

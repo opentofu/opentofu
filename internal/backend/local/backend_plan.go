@@ -103,8 +103,9 @@ func (b *Local) opPlan(
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: plan calling Plan")
 		plan, planDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
