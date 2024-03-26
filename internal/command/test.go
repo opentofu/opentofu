@@ -1013,7 +1013,7 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 		if file != nil {
 			if expr, exists := file.Config.Variables[name]; exists {
 				// If it's not set locally, it maybe set for the entire file.
-				variables[name] = unparsedVariableValueExpression{
+				variables[name] = testVariableValueExpression{
 					expr:       expr,
 					sourceType: tofu.ValueFromConfig,
 					ctx:        evalCtx,
@@ -1040,10 +1040,11 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 // getEvalContextFromStates constructs an hcl.EvalContext based on the provided map
 // of TestFileState instances. It extracts the relevant information from the
 // states to create a context suitable for HCL evaluation, including the output
-// values of modules.
+// values of modules, and the variables defined in the .tf files.
 //
 // Parameters:
 //   - states: A map of TestFileState instances containing the state information.
+//   - mod: Moudles mapped with their assoicated metadata
 //
 // Returns:
 //   - *hcl.EvalContext: The constructed HCL evaluation context.
