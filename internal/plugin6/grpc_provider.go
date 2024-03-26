@@ -104,6 +104,7 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
+	resp.Functions = make(map[string]providers.FunctionSpec)
 
 	// Some providers may generate quite large schemas, and the internal default
 	// grpc response size limit is 4MB. 64MB should cover most any use case, and
@@ -144,6 +145,10 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	for name, data := range protoResp.DataSourceSchemas {
 		resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+	}
+
+	for name, fn := range protoResp.Functions {
+		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
 	}
 
 	if protoResp.ServerCapabilities != nil {

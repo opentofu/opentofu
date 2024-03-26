@@ -175,7 +175,7 @@ type FunctionParameterSpec struct {
 	// Human-readable documentation for the parameter
 	Description string
 	// Formatting type of the Description field
-	DescriptionKind TextFormatting
+	DescriptionFormat TextFormatting
 }
 
 type TextFormatting string
