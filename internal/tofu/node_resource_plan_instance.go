@@ -556,13 +556,12 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	// Insert marks from configuration
 	if n.Config != nil {
-		valueWithSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
+		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return instanceRefreshState, diags
 		}
-		_, pvm := valueWithSchemaMarks.UnmarkDeepWithPaths()
-		instanceRefreshState.Value = instanceRefreshState.Value.MarkWithPaths(pvm)
+		instanceRefreshState.Value = copyMarksFromValue(instanceRefreshState.Value, valueWithConfigurationSchemaMarks)
 	}
 
 	// If we're importing and generating config, generate it now.
