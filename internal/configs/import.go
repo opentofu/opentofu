@@ -16,7 +16,16 @@ type Import struct {
 	ID hcl.Expression
 
 	// TODO add documentation about the acceptable import to addresses
-	// To is the address HCL expression given in the `import` block configuration
+	// To is the address HCL expression given in the `import` block configuration.
+	// It supports the following address formats:
+	// 1. aws_s3_bucket.my_bucket
+	// 2. module.my_module.aws_s3_bucket.my_bucket
+	// 3. aws_s3_bucket.my_bucket["static_key"]
+	// 4. module.my_module[0].aws_s3_bucket.my_buckets["static_key"]
+	// 3. aws_s3_bucket.my_bucket[expression]
+	// 4. module.my_module[expression].aws_s3_bucket.my_buckets[expression]
+	// A dynamic instance key supports a dynamic expression like - a variable, a local, a condition (for example,
+	// ternary), a resource block attribute, a data block attribute, etc.
 	To hcl.Expression
 	// StaticTo is the corresponding resource and module that the address is referring to. When decoding, as long
 	// as the `to` field is in the accepted format, we could determine the actual modules and resource that the
