@@ -16,6 +16,11 @@ import (
 // Interface represents the set of methods required for a complete resource
 // provider plugin.
 type Interface interface {
+	// GetMetadata is not yet implemented or used at this time.  It may
+	// be used in the future to avoid loading a provider's full schema
+	// for initial validation.  This could result in some potential
+	// memory savings.
+
 	// GetSchema returns the complete schema for the provider.
 	GetProviderSchema() GetProviderSchemaResponse
 
@@ -72,6 +77,13 @@ type Interface interface {
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
 
+	// GetFunctions not yet implemented or used at this stage as it is not required.
+	// tofu queries a full set of provider schemas early on in the process which contain
+	// the required information.
+
+	// CallFunction requests that the given function is called and response returned.
+	CallFunction(CallFunctionRequest) CallFunctionResponse
+
 	// Close shuts down the plugin process if applicable.
 	Close() error
 }
@@ -99,6 +111,9 @@ type GetProviderSchemaResponse struct {
 
 	// ServerCapabilities lists optional features supported by the provider.
 	ServerCapabilities ServerCapabilities
+
+	// Functions lists all functions supported by this provider.
+	Functions map[string]FunctionSpec
 }
 
 // Schema pairs a provider or resource schema with that schema's version.
@@ -129,6 +144,44 @@ type ServerCapabilities struct {
 	// require their schema to be read after EVERY instantiation to function normally.
 	GetProviderSchemaOptional bool
 }
+
+type FunctionSpec struct {
+	// List of parameters required to call the function
+	Parameters []FunctionParameterSpec
+	// Optional Spec for variadic parameters
+	VariadicParameter *FunctionParameterSpec
+	// Type which the function will return
+	Return cty.Type
+	// Human-readable shortened documentation for the function
+	Summary string
+	// Human-readable documentation for the function
+	Description string
+	// Formatting type of the Description field
+	DescriptionFormat TextFormatting
+	// Human-readable message present if the function is deprecated
+	DeprecationMessage string
+}
+
+type FunctionParameterSpec struct {
+	// Human-readable display name for the parameter
+	Name string
+	// Type constraint for the parameter
+	Type cty.Type
+	// Null values alowed for the parameter
+	AllowNullValue bool
+	// Unknown Values allowd for the parameter
+	// Implies the Return type of the function is also Unknown
+	AllowUnknownValues bool
+	// Human-readable documentation for the parameter
+	Description string
+	// Formatting type of the Description field
+	DescriptionKind TextFormatting
+}
+
+type TextFormatting string
+
+const TextFormattingPlain = TextFormatting("Plain")
+const TextFormattingMarkdown = TextFormatting("Markdown")
 
 type ValidateProviderConfigRequest struct {
 	// Config is the raw configuration value for the provider.
@@ -420,4 +473,15 @@ type ReadDataSourceResponse struct {
 
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
+}
+
+type CallFunctionRequest struct {
+	Name    string
+	Args    []cty.Value
+	RetType cty.Type // This could be done by looking at the metadata instead
+}
+
+type CallFunctionResponse struct {
+	Result cty.Value
+	Error  error
 }

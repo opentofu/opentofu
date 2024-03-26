@@ -76,6 +76,8 @@ type GRPCProvider struct {
 	schema providers.GetProviderSchemaResponse
 }
 
+var _ providers.Interface = new(GRPCProvider)
+
 func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider: GetProviderSchema")
 	p.mu.Lock()
@@ -684,6 +686,10 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	resp.State = state
 
 	return resp
+}
+
+func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("TODO - implement me")
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.
