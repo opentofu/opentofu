@@ -554,6 +554,16 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		return instanceRefreshState, diags
 	}
 
+	// Insert marks from configuration
+	if n.Config != nil {
+		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
+		diags = diags.Append(configDiags)
+		if configDiags.HasErrors() {
+			return instanceRefreshState, diags
+		}
+		instanceRefreshState.Value = copyMarksFromValue(instanceRefreshState.Value, valueWithConfigurationSchemaMarks)
+	}
+
 	// If we're importing and generating config, generate it now.
 	if len(n.generateConfigPath) > 0 {
 		if n.Config != nil {

@@ -10,6 +10,8 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -20,6 +22,10 @@ type graphNodeImportState struct {
 	ID               string                    // ID is the ID to import as
 	ProviderAddr     addrs.AbsProviderConfig   // Provider address given by the user, or implied by the resource type
 	ResolvedProvider addrs.AbsProviderConfig   // provider node address after resolution
+
+	Schema        *configschema.Block // Schema for processing the configuration body
+	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
+	Config        *configs.Resource   // Config is the resource in the config
 
 	states []providers.ImportedResource
 }
@@ -178,6 +184,9 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			TargetAddr:       addrs[i],
 			State:            state,
 			ResolvedProvider: n.ResolvedProvider,
+			Schema:           n.Schema,
+			SchemaVersion:    n.SchemaVersion,
+			Config:           n.Config,
 		})
 	}
 
@@ -194,6 +203,11 @@ type graphNodeImportStateSub struct {
 	TargetAddr       addrs.AbsResourceInstance
 	State            providers.ImportedResource
 	ResolvedProvider addrs.AbsProviderConfig
+
+	Schema        *configschema.Block // Schema for processing the configuration body
+	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
+	Config        *configs.Resource   // Config is the resource in the config
+
 }
 
 var (
@@ -249,6 +263,13 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 			),
 		))
 		return diags
+	}
+
+	// Insert marks from configuration
+	if n.Config != nil {
+		// Since the import command allow import resource with incomplete configuration, we ignore diagnostics here
+		valueWithConfigurationSchemaMarks, _, _ := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
+		state.Value = copyMarksFromValue(state.Value, valueWithConfigurationSchemaMarks)
 	}
 
 	diags = diags.Append(riNode.writeResourceInstanceState(ctx, state, workingState))

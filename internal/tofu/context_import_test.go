@@ -115,6 +115,83 @@ resource "aws_instance" "foo" {
 	}
 }
 
+func TestContextImport_importResourceWithSensitiveDataSource(t *testing.T) {
+	p := testProvider("aws")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+provider "aws" {
+  foo = "bar"
+}
+
+data "aws_sensitive_data_source" "source" {
+  id = "source_id"
+}
+
+resource "aws_instance" "foo" {
+  id = "bar"
+  var = data.aws_sensitive_data_source.source.value
+}
+`})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "aws_instance",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id": cty.StringVal("bar"),
+				}),
+			},
+		},
+	}
+
+	p.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
+		State: cty.ObjectVal(map[string]cty.Value{
+			"id":    cty.StringVal("source_id"),
+			"value": cty.StringVal("pass"),
+		}),
+	}
+
+	p.ReadResourceResponse = &providers.ReadResourceResponse{
+		NewState: cty.ObjectVal(map[string]cty.Value{
+			"id":  cty.StringVal("bar"),
+			"var": cty.StringVal("pass"),
+		}),
+	}
+
+	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+		Targets: []*ImportTarget{
+			{
+				CommandLineImportTarget: &CommandLineImportTarget{
+					Addr: addrs.RootModuleInstance.ResourceInstance(
+						addrs.ManagedResourceMode, "aws_instance", "foo", addrs.NoKey,
+					),
+					ID: "bar",
+				},
+			},
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	actual := strings.TrimSpace(state.String())
+	expected := strings.TrimSpace(testImportResourceWithSensitiveDataSource)
+	if actual != expected {
+		t.Fatalf("bad: \n%s", actual)
+	}
+
+	obj := state.ResourceInstance(mustResourceInstanceAddr("aws_instance.foo"))
+	if len(obj.Current.AttrSensitivePaths) != 1 {
+		t.Fatalf("Expected 1 sensitive mark for aws_instance.foo, got %#v\n", obj.Current.AttrSensitivePaths)
+	}
+}
+
 func TestContextImport_collision(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
@@ -1088,6 +1165,17 @@ const testImportCountIndexStr = `
 aws_instance.foo.0:
   ID = foo
   provider = provider["registry.opentofu.org/hashicorp/aws"]
+`
+
+const testImportResourceWithSensitiveDataSource = `
+data.aws_sensitive_data_source.source:
+  ID = source_id
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  value = pass
+aws_instance.foo:
+  ID = bar
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  var = pass
 `
 
 const testImportModuleStr = `

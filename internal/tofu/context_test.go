@@ -672,6 +672,19 @@ func testProviderSchema(name string) *providers.GetProviderSchemaResponse {
 					},
 				},
 			},
+			name + "_sensitive_data_source": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"value": {
+						Type:      cty.String,
+						Optional:  true,
+						Sensitive: true,
+					},
+				},
+			},
 		},
 	})
 }

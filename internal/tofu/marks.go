@@ -58,3 +58,11 @@ func marksEqual(a, b []cty.PathValueMarks) bool {
 
 	return true
 }
+
+func copyMarksFromValue(dst, src cty.Value) cty.Value {
+	_, pvm := src.UnmarkDeepWithPaths()
+	if len(pvm) == 0 {
+		return dst
+	}
+	return dst.MarkWithPaths(pvm)
+}
