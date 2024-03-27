@@ -362,6 +362,10 @@ func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) provide
 	return p.ReadDataSourceResponse
 }
 
+func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("Not Implemented")
+}
+
 func (p *MockProvider) Close() error {
 	p.CloseCalled = true
 	return p.CloseError
