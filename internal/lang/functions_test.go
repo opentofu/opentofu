@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1246,9 +1247,10 @@ func TestFunctions(t *testing.T) {
 		// suitable type.
 		for _, impureFunc := range impureFunctions {
 			delete(allFunctions, impureFunc)
+			delete(allFunctions, "core::"+impureFunc)
 		}
 		for f := range scope.Functions() {
-			if _, ok := tests[f]; !ok {
+			if _, ok := tests[strings.TrimPrefix(f, "core::")]; !ok {
 				t.Errorf("Missing test for function %s\n", f)
 			}
 		}

@@ -732,7 +732,7 @@ func TestApplyGraphBuilder_withChecks(t *testing.T) {
 		},
 	}
 
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins, _ := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
 	}, nil)
 

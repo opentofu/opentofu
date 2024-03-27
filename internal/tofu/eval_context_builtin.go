@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -403,7 +404,6 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		InstanceKeyData: keyData,
 		Operation:       ctx.Evaluator.Operation,
 	}
-	scope := ctx.Evaluator.Scope(data, self, source)
 
 	// ctx.PathValue is the path of the module that contains whatever
 	// expression the caller will be trying to evaluate, so this will
@@ -412,9 +412,23 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	// package itself works. The nil check here is for robustness in
 	// incompletely-mocked testing situations; mc should never be nil in
 	// real situations.
-	if mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue); mc != nil {
-		scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+	mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue)
+
+	if mc == nil || mc.Module.ProviderRequirements == nil {
+		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
+
+	// TODO This could be cached
+	funcs := make(map[string]function.Function)
+	for alias, provider := range mc.Module.ProviderRequirements.RequiredProviders {
+		for name, fn := range ctx.Plugins.Functions(provider.Type, alias) {
+			funcs[name] = fn
+		}
+	}
+
+	scope := ctx.Evaluator.Scope(data, self, source, funcs)
+	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+
 	return scope
 }
 
