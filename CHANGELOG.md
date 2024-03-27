@@ -15,6 +15,7 @@ NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
 
 ENHANCEMENTS:
+* Added support to use `.tfvars` files from tests folder. ([#1386](https://github.com/opentofu/opentofu/pull/1386))
 * Added `templatestring` function that takes a string and renders it as a template using a supplied set of template variables. ([#1223](https://github.com/opentofu/opentofu/pull/1223))
 * Added `base64gunzip` function that takes a base64 encoded gzip string and returns the decompressed data as a string. ([#800](https://github.com/opentofu/opentofu/issues/800))
 * Added `cidrcontains` function that determines if an address belongs to a certain prefix. ([#366](https://github.com/opentofu/opentofu/issues/366))

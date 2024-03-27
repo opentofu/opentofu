@@ -8,6 +8,7 @@ package command
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -62,30 +63,12 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 		}
 	}
 
-	// Next up we have some implicit files that are loaded automatically
-	// if they are present. There's the original terraform.tfvars
-	// (DefaultVarsFilename) along with the later-added search for all files
-	// ending in .auto.tfvars.
-	if _, err := os.Stat(DefaultVarsFilename); err == nil {
-		moreDiags := m.addVarsFromFile(DefaultVarsFilename, tofu.ValueFromAutoFile, ret)
-		diags = diags.Append(moreDiags)
-	}
-	const defaultVarsFilenameJSON = DefaultVarsFilename + ".json"
-	if _, err := os.Stat(defaultVarsFilenameJSON); err == nil {
-		moreDiags := m.addVarsFromFile(defaultVarsFilenameJSON, tofu.ValueFromAutoFile, ret)
-		diags = diags.Append(moreDiags)
-	}
-	if infos, err := os.ReadDir("."); err == nil {
-		// "infos" is already sorted by name, so we just need to filter it here.
-		for _, info := range infos {
-			name := info.Name()
-			if !isAutoVarFile(name) {
-				continue
-			}
-			moreDiags := m.addVarsFromFile(name, tofu.ValueFromAutoFile, ret)
-			diags = diags.Append(moreDiags)
-		}
-	}
+	// Next up we load implicit files from the specified directory (first root then tests dir
+	// as tests dir files have higher precendence). These files are automatically loaded if present.
+	// There's the original terraform.tfvars (DefaultVarsFilename) along with the later-added
+	// search for all files ending in .auto.tfvars.
+	diags = diags.Append(m.addVarsFromDir(".", ret))
+	diags = diags.Append(m.addVarsFromDir("tests", ret))
 
 	// Finally we process values given explicitly on the command line, either
 	// as individual literal settings or as additional files to read.
@@ -133,6 +116,33 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	}
 
 	return ret, diags
+}
+
+func (m *Meta) addVarsFromDir(currDir string, ret map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	if _, err := os.Stat(filepath.Join(currDir, DefaultVarsFilename)); err == nil {
+		moreDiags := m.addVarsFromFile(filepath.Join(currDir, DefaultVarsFilename), tofu.ValueFromAutoFile, ret)
+		diags = diags.Append(moreDiags)
+	}
+	const defaultVarsFilenameJSON = DefaultVarsFilename + ".json"
+	if _, err := os.Stat(filepath.Join(currDir, defaultVarsFilenameJSON)); err == nil {
+		moreDiags := m.addVarsFromFile(filepath.Join(currDir, defaultVarsFilenameJSON), tofu.ValueFromAutoFile, ret)
+		diags = diags.Append(moreDiags)
+	}
+	if infos, err := os.ReadDir(currDir); err == nil {
+		// "infos" is already sorted by name, so we just need to filter it here.
+		for _, info := range infos {
+			name := info.Name()
+			if !isAutoVarFile(name) {
+				continue
+			}
+			moreDiags := m.addVarsFromFile(filepath.Join(currDir, name), tofu.ValueFromAutoFile, ret)
+			diags = diags.Append(moreDiags)
+		}
+	}
+
+	return diags
 }
 
 func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
