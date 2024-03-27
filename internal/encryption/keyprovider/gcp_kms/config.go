@@ -30,7 +30,7 @@ type Config struct {
 	ImpersonateServiceAccount          string   `hcl:"impersonate_service_account,optional"`
 	ImpersonateServiceAccountDelegates []string `hcl:"impersonate_service_account_delegates,optional"`
 
-	KMSKeyName string `hcl:"kms_encryption_key"`
+	KMSKeyName string `hcl:"kms_encryption_key,optional"`
 	KeyLength  int    `hcl:"key_length"`
 }
 
