@@ -6,13 +6,17 @@
 package tofu
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // contextPlugins represents a library of available plugins (providers and
@@ -21,15 +25,120 @@ import (
 // about the providers for performance reasons.
 type contextPlugins struct {
 	providerFactories    map[addrs.Provider]providers.Factory
+	providerFunctions    map[addrs.Provider]map[string]function.Function
 	provisionerFactories map[string]provisioners.Factory
 }
 
-func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
+func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) (*contextPlugins, error) {
 	ret := &contextPlugins{
 		providerFactories:    providerFactories,
+		providerFunctions:    make(map[addrs.Provider]map[string]function.Function),
 		provisionerFactories: provisionerFactories,
 	}
-	return ret
+
+	if err := ret.initProviderFunctions(); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}
+
+func (cp *contextPlugins) initProviderFunctions() error {
+	// Captured via closure
+	var instancesLock sync.Mutex
+	instances := make(map[addrs.Provider]providers.Interface)
+
+	// Helper to convert parameters from the provider spec
+	paramBuilder := func(spec providers.FunctionParameterSpec) function.Parameter {
+		return function.Parameter{
+			Name:         spec.Name,
+			Description:  spec.Description,
+			Type:         spec.Type,
+			AllowNull:    spec.AllowNullValue,
+			AllowUnknown: spec.AllowUnknownValues,
+			// Not sure if we should use this
+			// AllowDynamicType bool
+			// force cty to strip marks ahead of time and re-add them to the resulting object
+			// need to test if the marks are passed via GRPC or not
+			AllowMarked: false,
+		}
+	}
+
+	for addr, factory := range cp.providerFactories {
+		addr := addr
+		factory := factory
+
+		schema, err := cp.ProviderSchema(addr)
+		if err != nil {
+			// This is probably cached and be even less likely to hit this error
+			return err
+		}
+
+		funcs := make(map[string]function.Function)
+		for name, spec := range schema.Functions {
+			name := name
+			spec := spec
+
+			params := make([]function.Parameter, len(spec.Parameters))
+			for i, param := range spec.Parameters {
+				params[i] = paramBuilder(param)
+			}
+
+			var varParam *function.Parameter
+			if spec.VariadicParameter != nil {
+				value := paramBuilder(*spec.VariadicParameter)
+				varParam = &value
+			}
+
+			instance := func() (providers.Interface, error) {
+				instancesLock.Lock()
+				defer instancesLock.Unlock()
+
+				provider, ok := instances[addr]
+				if !ok {
+					var err error
+					provider, err = factory()
+					if err != nil {
+						// Incredibly unlikely
+						return nil, err
+					}
+					instances[addr] = provider
+				}
+
+				return provider, nil
+			}
+
+			impl := func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+				provider, err := instance()
+				if err != nil {
+					// Incredibly unlikely
+					return cty.UnknownVal(retType), err
+				}
+				resp := provider.CallFunction(providers.CallFunctionRequest{
+					Name:      name,
+					Arguments: args,
+				})
+
+				if argError, ok := resp.Error.(*providers.CallFunctionArgumentError); ok {
+					// Convert ArgumentError to cty error
+					return resp.Result, function.NewArgError(argError.FunctionArgument, errors.New(argError.Text))
+				}
+
+				return resp.Result, resp.Error
+			}
+
+			funcs[name] = function.New(&function.Spec{
+				Description: spec.Summary,
+				Params:      params,
+				VarParam:    varParam,
+				Type:        function.StaticReturnType(spec.Return),
+				Impl:        impl,
+			})
+		}
+
+		cp.providerFunctions[addr] = funcs
+	}
+	return nil
 }
 
 func (cp *contextPlugins) HasProvider(addr addrs.Provider) bool {
@@ -77,6 +186,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 	// That is because we're checking *prior* to the provider's instantiation.
 	// GetProviderSchemaOptional only says that *if we instantiate a provider*,
 	// then we need to run the get schema call at least once.
+	// BUG This SHORT CIRCUITS the logic below and is not the only code which inserts provider schemas into the cache!!
 	schemas, ok := providers.SchemaCache.Get(addr)
 	if ok {
 		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
@@ -178,4 +288,13 @@ func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, er
 	}
 
 	return resp.Provisioner, nil
+}
+
+func (cp *contextPlugins) Functions(addr addrs.Provider, alias string) map[string]function.Function {
+	funcs := cp.providerFunctions[addr]
+	aliased := make(map[string]function.Function)
+	for name, fn := range funcs {
+		aliased[fmt.Sprintf("provider::%s::%s", alias, name)] = fn
+	}
+	return aliased
 }
