@@ -10,12 +10,13 @@ import (
 	openbao "github.com/openbao/openbao/api"
 )
 
-type rawClient interface {
+type client interface {
 	WriteBytesWithContext(ctx context.Context, path string, data []byte) (*openbao.Secret, error)
 }
 
+// service implements missing utility functions from openbao/api such as routing and serialization.
 type service struct {
-	c rawClient
+	c client
 }
 
 type dataKey struct {
@@ -23,10 +24,17 @@ type dataKey struct {
 	Ciphertext []byte
 }
 
-func (s service) generateDataKey(ctx context.Context, keyName string) (dataKey, error) {
+func (s service) generateDataKey(ctx context.Context, keyName string, bitSize int) (dataKey, error) {
 	path := fmt.Sprintf("/transit/datakey/plaintext/%s", keyName)
 
-	secret, err := s.c.WriteBytesWithContext(ctx, path, nil)
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"bits": bitSize,
+	})
+	if err != nil {
+		return dataKey{}, fmt.Errorf("serializing datakey request to openbao: %w", err)
+	}
+
+	secret, err := s.c.WriteBytesWithContext(ctx, path, reqBody)
 	if err != nil {
 		return dataKey{}, fmt.Errorf("sending datakey request to openbao: %w", err)
 	}

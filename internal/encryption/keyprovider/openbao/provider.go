@@ -15,9 +15,10 @@ func (m keyMeta) isPresent() bool {
 }
 
 type keyProvider struct {
-	svc     service
-	keyName string
-	ctx     context.Context
+	svc            service
+	keyName        string
+	dataKeyBitSize int
+	ctx            context.Context
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
@@ -34,7 +35,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		}
 	}
 
-	dataKey, err := p.svc.generateDataKey(p.ctx, p.keyName)
+	dataKey, err := p.svc.generateDataKey(p.ctx, p.keyName, p.dataKeyBitSize)
 	if err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
 			Message: "failed to generate openbao data key",
