@@ -55,7 +55,7 @@ func newPlanEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 }
 
 func (p planEncryption) EncryptPlan(data []byte) ([]byte, error) {
-	return p.base.encrypt(data)
+	return p.base.encrypt(data, func(base basedata) interface{} { return base })
 }
 
 func (p planEncryption) DecryptPlan(data []byte) ([]byte, error) {
