@@ -290,6 +290,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	countAttrs := map[string]cty.Value{}
 	forEachAttrs := map[string]cty.Value{}
 	checkBlocks := map[string]cty.Value{}
+	runBlockValue := map[string]map[string]cty.Value{}
 	var self cty.Value
 
 	for _, ref := range refs {
@@ -414,6 +415,9 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			val, valDiags := normalizeRefValue(s.Data.GetOutput(subj, rng))
 			diags = diags.Append(valDiags)
 			outputValues[subj.Name] = val
+			if len(ref.Remaining) > 0 {
+				getRunBlockValue(ref, val, runBlockValue)
+			}
 
 		case addrs.Check:
 			val, valDiags := normalizeRefValue(s.Data.GetCheckBlock(subj, rng))
@@ -455,11 +459,29 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 		vals["output"] = cty.ObjectVal(outputValues)
 	}
 
+	if len(runBlockValue) > 0 {
+		vals["run"] = cty.ObjectVal(buildResourceObjects(runBlockValue))
+	}
+
 	if self != cty.NilVal {
 		vals["self"] = self
 	}
 
 	return ctx, diags
+}
+
+func getRunBlockValue(ref *addrs.Reference, value cty.Value, runBlockValue map[string]map[string]cty.Value) {
+	var block, outputVariable string
+	if attrTrav, ok := ref.Remaining[0].(hcl.TraverseAttr); ok {
+		block = attrTrav.Name
+	}
+	if attrTrav, ok := ref.Remaining[1].(hcl.TraverseAttr); ok {
+		outputVariable = attrTrav.Name
+	}
+	if runBlockValue[block] == nil {
+		runBlockValue[block] = make(map[string]cty.Value)
+	}
+	runBlockValue[block][outputVariable] = value
 }
 
 func buildResourceObjects(resources map[string]map[string]cty.Value) map[string]cty.Value {
