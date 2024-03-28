@@ -4286,6 +4286,242 @@ import {
 	})
 }
 
+func TestContext2Plan_importToDynamicAddress(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		ResolvedAddress     string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description:     "To address includes a variable as index",
+			ResolvedAddress: "test_object.a[0]",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "index" {
+  default = 0
+}
+
+resource "test_object" "a" {
+  count = 1
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[var.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a local as index",
+			ResolvedAddress: "test_object.a[0]",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = 0
+}
+
+resource "test_object" "a" {
+  count = 1
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[local.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a conditional expression as index",
+			ResolvedAddress: "test_object.a[\"zero\"]",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "a" {
+  for_each = toset(["zero"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[ true ? "zero" : "one"]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a conditional expression with vars and locals as index",
+			ResolvedAddress: "test_object.a[\"one\"]",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "one" {
+  default = 1
+}
+
+locals {
+  zero = "zero"
+  one = "one"
+}
+
+resource "test_object" "a" {
+  for_each = toset(["one"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[var.one == 1 ? local.one : local.zero]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a resource reference as index",
+			ResolvedAddress: "test_object.a[\"boop\"]",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+  test_string = "boop"
+}
+
+resource "test_object" "a" {
+  for_each = toset(["boop"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[test_object.reference.test_string]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a data reference as index",
+			ResolvedAddress: "test_object.a[\"bip\"]",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+data "test_object" "reference" {
+}
+
+resource "test_object" "a" {
+  for_each = toset(["bip"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[data.test_object.reference.test_string]
+  id   = "123"
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			addr := mustResourceInstanceAddr(configuration.ResolvedAddress)
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			p := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					Provider: providers.Schema{Block: simpleTestSchema()},
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": providers.Schema{Block: simpleTestSchema()},
+					},
+					DataSources: map[string]providers.Schema{
+						"test_object": providers.Schema{
+							Block: &configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"test_string": {
+										Type:     cty.String,
+										Optional: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			hook := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{hook},
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			}
+
+			p.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("bip"),
+				}),
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"test_string": cty.StringVal("foo"),
+						}),
+					},
+				},
+			}
+
+			plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+
+			t.Run(addr.String(), func(t *testing.T) {
+				instPlan := plan.Changes.ResourceInstance(addr)
+				if instPlan == nil {
+					t.Fatalf("no plan for %s at all", addr)
+				}
+
+				if got, want := instPlan.Addr, addr; !got.Equal(want) {
+					t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+				}
+				if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
+					t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+				}
+				if got, want := instPlan.Action, plans.NoOp; got != want {
+					t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+				}
+				if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+				}
+				if instPlan.Importing.ID != "123" {
+					t.Errorf("expected import change from \"123\", got non-import change")
+				}
+
+				if !hook.PrePlanImportCalled {
+					t.Fatalf("PostPlanImport hook not called")
+				}
+				if addr, wantAddr := hook.PrePlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
+					t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
+				}
+
+				if !hook.PostPlanImportCalled {
+					t.Fatalf("PostPlanImport hook not called")
+				}
+				if addr, wantAddr := hook.PostPlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
+					t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
+				}
+			})
+		})
+	}
+}
+
 func TestContext2Plan_importResourceAlreadyInState(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	m := testModuleInline(t, map[string]string{
