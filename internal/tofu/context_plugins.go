@@ -6,16 +6,13 @@
 package tofu
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
@@ -32,113 +29,43 @@ type contextPlugins struct {
 func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) (*contextPlugins, error) {
 	ret := &contextPlugins{
 		providerFactories:    providerFactories,
-		providerFunctions:    make(map[addrs.Provider]map[string]function.Function),
 		provisionerFactories: provisionerFactories,
 	}
 
-	if err := ret.initProviderFunctions(); err != nil {
+	// This is a bit convoluted as we need to use the ProviderSchema function call below to
+	// validate and initialize the provider schemas.  Long term the whole provider abstraction
+	// needs to be re-thought.
+	var err error
+	ret.providerFunctions, err = ret.buildProviderFunctions()
+	if err != nil {
 		return nil, err
 	}
-
 	return ret, nil
 }
 
-func (cp *contextPlugins) initProviderFunctions() error {
-	// Captured via closure
-	var instancesLock sync.Mutex
-	instances := make(map[addrs.Provider]providers.Interface)
+// Loop through all of the providerFactories and build a map of addr -> functions
+// As a side effect, this initialzes the schema cache if not already initialized, with the proper validation path.
+func (cp *contextPlugins) buildProviderFunctions() (map[addrs.Provider]map[string]function.Function, error) {
+	funcs := make(map[addrs.Provider]map[string]function.Function)
 
-	// Helper to convert parameters from the provider spec
-	paramBuilder := func(spec providers.FunctionParameterSpec) function.Parameter {
-		return function.Parameter{
-			Name:         spec.Name,
-			Description:  spec.Description,
-			Type:         spec.Type,
-			AllowNull:    spec.AllowNullValue,
-			AllowUnknown: spec.AllowUnknownValues,
-			// Not sure if we should use this
-			// AllowDynamicType bool
-			// force cty to strip marks ahead of time and re-add them to the resulting object
-			// need to test if the marks are passed via GRPC or not
-			AllowMarked: false,
-		}
-	}
-
+	// Pull all functions out of given providers
 	for addr, factory := range cp.providerFactories {
 		addr := addr
 		factory := factory
 
+		// Before functions, the provider schemas were already pre-loaded and cached.  That initial caching
+		// has been moved here.  When the provider abstraction layers are refactored, this could instead
+		// expose and use provider.GetFunctions instead of needing to load and cache the whole schema.
+		// However, at the time of writing there is no benefit to defer caching these schemas in code
+		// paths which build a tofu.Context.
 		schema, err := cp.ProviderSchema(addr)
 		if err != nil {
-			// This is probably cached and be even less likely to hit this error
-			return err
+			return nil, err
 		}
 
-		funcs := make(map[string]function.Function)
-		for name, spec := range schema.Functions {
-			name := name
-			spec := spec
-
-			params := make([]function.Parameter, len(spec.Parameters))
-			for i, param := range spec.Parameters {
-				params[i] = paramBuilder(param)
-			}
-
-			var varParam *function.Parameter
-			if spec.VariadicParameter != nil {
-				value := paramBuilder(*spec.VariadicParameter)
-				varParam = &value
-			}
-
-			instance := func() (providers.Interface, error) {
-				instancesLock.Lock()
-				defer instancesLock.Unlock()
-
-				provider, ok := instances[addr]
-				if !ok {
-					var err error
-					provider, err = factory()
-					if err != nil {
-						// Incredibly unlikely
-						return nil, err
-					}
-					instances[addr] = provider
-				}
-
-				return provider, nil
-			}
-
-			impl := func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-				provider, err := instance()
-				if err != nil {
-					// Incredibly unlikely
-					return cty.UnknownVal(retType), err
-				}
-				resp := provider.CallFunction(providers.CallFunctionRequest{
-					Name:      name,
-					Arguments: args,
-				})
-
-				if argError, ok := resp.Error.(*providers.CallFunctionArgumentError); ok {
-					// Convert ArgumentError to cty error
-					return resp.Result, function.NewArgError(argError.FunctionArgument, errors.New(argError.Text))
-				}
-
-				return resp.Result, resp.Error
-			}
-
-			funcs[name] = function.New(&function.Spec{
-				Description: spec.Summary,
-				Params:      params,
-				VarParam:    varParam,
-				Type:        function.StaticReturnType(spec.Return),
-				Impl:        impl,
-			})
-		}
-
-		cp.providerFunctions[addr] = funcs
+		funcs[addr] = providerFunctions(schema.Functions, factory)
 	}
-	return nil
+	return funcs, nil
 }
 
 func (cp *contextPlugins) HasProvider(addr addrs.Provider) bool {
@@ -290,6 +217,9 @@ func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, er
 	return resp.Provisioner, nil
 }
 
+// Functions provides a map of provider::alias:function for a given provider type.
+// All providers of a given type us the same functions and provider instance and
+// additional aliases do not incur any performance penalty.
 func (cp *contextPlugins) Functions(addr addrs.Provider, alias string) map[string]function.Function {
 	funcs := cp.providerFunctions[addr]
 	aliased := make(map[string]function.Function)
