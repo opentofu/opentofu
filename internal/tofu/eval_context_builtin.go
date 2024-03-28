@@ -70,6 +70,7 @@ type BuiltinEvalContext struct {
 	ProviderLock          *sync.Mutex
 	ProvisionerCache      map[string]provisioners.Interface
 	ProvisionerLock       *sync.Mutex
+	FunctionCache         map[string]function.Function
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -88,6 +89,7 @@ func (ctx *BuiltinEvalContext) WithPath(path addrs.ModuleInstance) EvalContext {
 	newCtx := *ctx
 	newCtx.pathSet = true
 	newCtx.PathValue = path
+	newCtx.FunctionCache = nil
 	return &newCtx
 }
 
@@ -418,15 +420,20 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
 
-	// TODO This could be cached
-	funcs := make(map[string]function.Function)
-	for alias, provider := range mc.Module.ProviderRequirements.RequiredProviders {
-		for name, fn := range ctx.Plugins.Functions(provider.Type, alias) {
-			funcs[name] = fn
-		}
-	}
+	if ctx.FunctionCache == nil {
+		// This is not behind a lock, but in a race will just assign the same value to the cache multiple times
+		funcs := make(map[string]function.Function)
 
-	scope := ctx.Evaluator.Scope(data, self, source, funcs)
+		// Providers must exist within required_providers to register their functions
+		for alias, provider := range mc.Module.ProviderRequirements.RequiredProviders {
+			// Functions are only registered under their alias, not their type name
+			for name, fn := range ctx.Plugins.Functions(provider.Type, alias) {
+				funcs[name] = fn
+			}
+		}
+		ctx.FunctionCache = funcs
+	}
+	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 
 	return scope
