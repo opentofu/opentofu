@@ -51,7 +51,6 @@ func ProtoToFunctionSpec(proto *tfplugin6.Function) providers.FunctionSpec {
 		varParam = &param
 	}
 
-	// *FunctionParameterSpec
 	return providers.FunctionSpec{
 		Parameters:         params,
 		VariadicParameter:  varParam,

@@ -716,7 +716,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 	}
 
 	// Translate the arguments
-	// As this is functionallity is always sitting behind cty/function.Function, we skip some validation
+	// As this is functionality is always sitting behind cty/function.Function, we skip some validation
 	// checks of from the function and param spec.  We still include basic validation to prevent panics,
 	// just in case there are bugs in cty
 	if len(r.Arguments) < len(spec.Parameters) {
