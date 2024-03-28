@@ -30,7 +30,7 @@ type Config struct {
 	ImpersonateServiceAccount          string   `hcl:"impersonate_service_account,optional"`
 	ImpersonateServiceAccountDelegates []string `hcl:"impersonate_service_account_delegates,optional"`
 
-	KMSKeyName string `hcl:"kms_encryption_key,optional"`
+	KMSKeyName string `hcl:"kms_encryption_key"`
 	KeyLength  int    `hcl:"key_length"`
 }
 
@@ -78,7 +78,6 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	c.AccessToken = stringAttrEnvFallback(c.AccessToken, "GOOGLE_OAUTH_ACCESS_TOKEN")
 	c.ImpersonateServiceAccount = stringAttrEnvFallback(c.ImpersonateServiceAccount, "GOOGLE_BACKEND_IMPERSONATE_SERVICE_ACCOUNT")
 	c.ImpersonateServiceAccount = stringAttrEnvFallback(c.ImpersonateServiceAccount, "GOOGLE_IMPERSONATE_SERVICE_ACCOUNT")
-	c.KMSKeyName = stringAttrEnvFallback(c.KMSKeyName, "GOOGLE_KMS_ENCRYPTION_KEY")
 
 	ctx := context.Background()
 
