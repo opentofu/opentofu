@@ -63,7 +63,8 @@ func newStateEncryption(enc *encryption, target *config.TargetConfig, enforced b
 }
 
 type statedata struct {
-	Serial *int `json:"serial"`
+	Serial  *int   `json:"serial"`
+	Lineage string `json:"lineage"`
 }
 
 func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
@@ -121,6 +122,11 @@ func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 	// TODO make encrypted.Serial non-optional.  This is only for supporting alpha1 states!
 	if encrypted.Serial != nil && state.Serial != nil && *state.Serial != *encrypted.Serial {
 		return nil, fmt.Errorf("invalid state metadata, serial field mismatch %v vs %v", *encrypted.Serial, *state.Serial)
+	}
+
+	// TODO make encrypted.Lineage non-optional.  This is only for supporting alpha1 states!
+	if encrypted.Lineage != "" && state.Lineage != encrypted.Lineage {
+		return nil, fmt.Errorf("invalid state metadata, linage field mismatch %v vs %v", encrypted.Lineage, state.Lineage)
 	}
 
 	return decryptedState, nil
