@@ -703,15 +703,18 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 		Name:      r.Name,
 		Arguments: make([]*proto6.DynamicValue, len(r.Arguments)),
 	}
+
+	// Translate the arguments
+	// As this is functionallity is always sitting behind cty/function.Function, we skip some validation
+	// checks of from the function and param spec.  We still include basic validation to prevent panics,
+	// just in case there are bugs in cty
 	if len(r.Arguments) < len(spec.Parameters) {
 		// This should be unreachable
 		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s expected %d parameters and got %d instead", r.Name, len(spec.Parameters), len(r.Arguments))
 		return resp
 	}
 
-	// Translate the arguments
 	for i, arg := range r.Arguments {
-		// Most of the validation we do here should have already happened, but it does not hurt to be extra safe
 		var paramSpec providers.FunctionParameterSpec
 		if i < len(spec.Parameters) {
 			paramSpec = spec.Parameters[i]
