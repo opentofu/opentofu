@@ -21,10 +21,12 @@ const (
 )
 
 type baseEncryption struct {
-	enc      *encryption
-	target   *config.TargetConfig
-	enforced bool
-	name     string
+	enc        *encryption
+	target     *config.TargetConfig
+	enforced   bool
+	name       string
+	encMethods []method.Method
+	encMeta    map[keyprovider.Addr][]byte
 }
 
 func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (*baseEncryption, hcl.Diagnostics) {
@@ -33,10 +35,38 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 		target:   target,
 		enforced: enforced,
 		name:     name,
+		encMeta:  make(map[keyprovider.Addr][]byte),
 	}
-	// This performs a e2e validation run of the config -> methods flow.  It serves as a validation step and allows us to
-	// return detailed diagnostics here and simple errors below
-	_, diags := base.buildTargetMethods(make(map[keyprovider.Addr][]byte))
+	// Setup the encryptor
+	//
+	//     Instead of creating new encryption key data for each call to encrypt, we use the same encryptor for the given application (statefile or planfile).
+	//
+	// Why do we do this?
+	//
+	//   This allows us to always be in a state where we can encrypt data, which is particularly important when dealing with crashes. If the network is severed
+	//   mid-apply, we still need to be able to write an encrypted errored.tfstate or dump to stdout. Additionally it reduces the overhead of encryption in
+	//   general, as well as reducing cloud key provider costs.
+	//
+	// What are the security implications?
+	//
+	//   Plan file flow is fairly simple and is not impacted by this change. It only ever calls encrypt once at the end of plan generation.
+	//
+	//   State file is a bit more complex. The encrypted local state file (terraform.tfstate, .terraform.tfstate) will be written with the same
+	//   keys as any remote state. These files should be identical, which will make debugging easier.
+	//
+	//   The major concern with this is that many of the encryption methods used have a limit to how much data a key can safely encrypt. Pbkdf2 for example
+	//   has a limit of around 64GB before exhaustion is approached. Writing to the two local and one remote location specified above could not
+	//   approach that limit. However the cached state file (.terraform/terraform.tfstate) is persisted every 30 seconds during long applies. For an
+	//   extremely large state file (100MB) it would take an apply of over 5 hours to come close to the 64GB limit of pbkdf2 with some malicious actor recording
+	//   every single change to the filesystem (or inspecting deleted blocks).
+	//
+	// What other benfits does this provide?
+	//
+	//   This performs a e2e validation run of the config -> methods flow. It serves as a validation step and allows us to return detailed
+	//   diagnostics here and simple errors in the decrypt function below.
+	//
+	methods, diags := base.buildTargetMethods(base.encMeta)
+	base.encMethods = methods
 	return base, diags
 }
 
@@ -63,22 +93,10 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 		return data, nil
 	}
 
-	es := basedata{
-		Meta:    make(map[keyprovider.Addr][]byte),
-		Version: encryptionVersion,
-	}
-
-	// Mutates es.Meta
-	methods, diags := s.buildTargetMethods(es.Meta)
-	if diags.HasErrors() {
-		// This cast to error here is safe as we know that at least one error exists
-		// This is also quite unlikely to happen as the constructor already has checked this code path
-		return nil, diags
-	}
-
 	var encryptor method.Method = nil
-	if len(methods) != 0 {
-		encryptor = methods[0]
+	if len(s.encMethods) != 0 {
+		// Use the pre-configured encryption method
+		encryptor = s.encMethods[0]
 	}
 
 	if encryptor == nil {
@@ -94,7 +112,11 @@ func (s *baseEncryption) encrypt(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("encryption failed for %s: %w", s.name, err)
 	}
 
-	es.Data = encd
+	es := basedata{
+		Version: encryptionVersion,
+		Meta:    s.encMeta,
+		Data:    encd,
+	}
 	jsond, err := json.Marshal(es)
 	if err != nil {
 		return nil, fmt.Errorf("unable to encode encrypted data as json: %w", err)
@@ -147,6 +169,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		return nil, fmt.Errorf("invalid encrypted payload version: %s != %s", es.Version, encryptionVersion)
 	}
 
+	// TODO Discuss if we should potentially cache this based on a json-encoded version of es.Meta and reduce overhead dramatically
 	methods, diags := s.buildTargetMethods(es.Meta)
 	if diags.HasErrors() {
 		// This cast to error here is safe as we know that at least one error exists
