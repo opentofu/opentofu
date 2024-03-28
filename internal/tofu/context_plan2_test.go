@@ -4522,6 +4522,171 @@ import {
 	}
 }
 
+func TestContext2Plan_importToInvalidDynamicAddress(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		expectedError       string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description:   "To address index value is null",
+			expectedError: "Import block 'to' address contains invalid key: Import block contained a resource address using an index which is null. Please make sure the expression for the index is not null",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "index" {
+  default = null
+}
+
+resource "test_object" "a" {
+  count = 1
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[var.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:   "To address index is not a number or a string",
+			expectedError: "Import block 'to' address contains invalid key: Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please make sure the expression for the index is correct, and returns either a string or a number",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = toset(["foo"])
+}
+
+resource "test_object" "a" {
+  for_each = toset(["foo"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[local.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:   "To address index value is sensitive",
+			expectedError: "Import block 'to' address contains invalid key: Import block contained a resource address using an index which is sensitive. Please make sure indexes used in the resource address of an import target are not sensitive",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = sensitive("foo")
+}
+
+resource "test_object" "a" {
+  for_each = toset(["foo"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[local.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:   "To address index value will only be known after apply",
+			expectedError: "Import block contained a resource address using an index will only be known after apply. Please make sure to use expressions that are known at plan time for the index of an import target address",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+resource "test_object" "a" {
+  count = 1
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[test_object.reference.id]
+  id   = "123"
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			providerSchema := &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"test_string": {
+						Type:     cty.String,
+						Optional: true,
+					},
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+				},
+			}
+
+			p := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					Provider: providers.Schema{Block: providerSchema},
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": providers.Schema{Block: providerSchema},
+					},
+				},
+			}
+
+			hook := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{hook},
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			}
+
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+				testStringVal := req.ProposedNewState.GetAttr("test_string")
+				return providers.PlanResourceChangeResponse{
+					PlannedState: cty.ObjectVal(map[string]cty.Value{
+						"test_string": testStringVal,
+						"id":          cty.UnknownVal(cty.String),
+					}),
+				}
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"test_string": cty.StringVal("foo"),
+						}),
+					},
+				},
+			}
+
+			_, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+
+			if !diags.HasErrors() {
+				t.Fatal("succeeded; want errors")
+			}
+			if got, want := diags.Err().Error(), configuration.expectedError; !strings.Contains(got, want) {
+				t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+			}
+		})
+	}
+}
+
 func TestContext2Plan_importResourceAlreadyInState(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	m := testModuleInline(t, map[string]string{
