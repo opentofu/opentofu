@@ -63,15 +63,15 @@ func Example() {
 
 	sfe := enc.State()
 
-	// Encrypt the data, for this example we will be using the string "test",
+	// Encrypt the data, for this example we will be using the string `{"serial": 42, "lineage": "magic"}`,
 	// but in a real world scenario this would be the plan file.
-	sourceData := []byte("test")
+	sourceData := []byte(`{"serial": 42, "lineage": "magic"}`)
 	encrypted, err := sfe.EncryptState(sourceData)
 	if err != nil {
 		panic(err)
 	}
 
-	if string(encrypted) == "test" {
+	if string(encrypted) == `{"serial": 42, "lineage": "magic"}` {
 		panic("The data has not been encrypted!")
 	}
 
@@ -82,7 +82,7 @@ func Example() {
 	}
 
 	fmt.Printf("%s\n", decryptedState)
-	// Output: test
+	// Output: {"serial": 42, "lineage": "magic"}
 }
 
 func handleDiags(diags hcl.Diagnostics) {
