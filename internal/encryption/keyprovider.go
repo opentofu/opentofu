@@ -6,16 +6,16 @@
 package encryption
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/encryption/config"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
-	"github.com/opentofu/opentofu/internal/varhcl"
+	"github.com/opentofu/opentofu/internal/gohcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -106,7 +106,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
 
 	// Locate all the dependencies
-	deps, diags := varhcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	deps, diags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -164,7 +164,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	// Build the Key Provider from the configuration
-	keyProvider, err := keyProviderConfig.Build()
+	keyProvider, keyMetaIn, err := keyProviderConfig.Build()
 	if err != nil {
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -173,9 +173,19 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	meta := e.keyProviderMetadata[metakey]
+	// Add the metadata
+	if meta, ok := e.keyProviderMetadata[metakey]; ok {
+		err := json.Unmarshal(meta, keyMetaIn)
+		if err != nil {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
+				Detail:   fmt.Sprintf("metadata decoder for %s failed with error: %s", metakey, err.Error()),
+			})
+		}
+	}
 
-	data, newmeta, err := keyProvider.Provide(meta)
+	output, keyMetaOut, err := keyProvider.Provide(keyMetaIn)
 	if err != nil {
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -184,14 +194,20 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		})
 	}
 
-	e.keyProviderMetadata[metakey] = newmeta
+	if keyMetaOut != nil {
+		e.keyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
 
-	// Convert the data into it's cty equivalent
-	ctyData := make([]cty.Value, len(data))
-	for i, d := range data {
-		ctyData[i] = cty.NumberIntVal(int64(d))
+		if err != nil {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to encode encrypted metadata",
+				Detail:   fmt.Sprintf("metadata encoder for %s failed with error: %s", metakey, err.Error()),
+			})
+		}
 	}
-	e.keyValues[cfg.Type][cfg.Name] = cty.ListVal(ctyData)
+
+	e.keyValues[cfg.Type][cfg.Name] = output.Cty()
 
 	return nil
+
 }

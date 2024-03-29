@@ -31,6 +31,10 @@ type provider struct {
 	schema   providers.GetProviderSchemaResponse
 }
 
+func (p *provider) GetMetadata(context.Context, *tfplugin5.GetMetadata_Request) (*tfplugin5.GetMetadata_Response, error) {
+	panic("Not Implemented")
+}
+
 func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema_Request) (*tfplugin5.GetProviderSchema_Response, error) {
 	resp := &tfplugin5.GetProviderSchema_Response{
 		ResourceSchemas:   make(map[string]*tfplugin5.Schema),
@@ -64,7 +68,7 @@ func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema
 		}
 	}
 
-	resp.ServerCapabilities = &tfplugin5.GetProviderSchema_ServerCapabilities{
+	resp.ServerCapabilities = &tfplugin5.ServerCapabilities{
 		PlanDestroy: p.schema.ServerCapabilities.PlanDestroy,
 	}
 
@@ -352,6 +356,10 @@ func (p *provider) ImportResourceState(_ context.Context, req *tfplugin5.ImportR
 	return resp, nil
 }
 
+func (p *provider) MoveResourceState(context.Context, *tfplugin5.MoveResourceState_Request) (*tfplugin5.MoveResourceState_Response, error) {
+	panic("Not Implemented")
+}
+
 func (p *provider) ReadDataSource(_ context.Context, req *tfplugin5.ReadDataSource_Request) (*tfplugin5.ReadDataSource_Response, error) {
 	resp := &tfplugin5.ReadDataSource_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
@@ -395,6 +403,14 @@ func (p *provider) Stop(context.Context, *tfplugin5.Stop_Request) (*tfplugin5.St
 		resp.Error = err.Error()
 	}
 	return resp, nil
+}
+
+func (p *provider) GetFunctions(context.Context, *tfplugin5.GetFunctions_Request) (*tfplugin5.GetFunctions_Response, error) {
+	panic("Not Implemented")
+}
+
+func (p *provider) CallFunction(context.Context, *tfplugin5.CallFunction_Request) (*tfplugin5.CallFunction_Response, error) {
+	panic("Not Implemented")
 }
 
 // decode a DynamicValue from either the JSON or MsgPack encoding.

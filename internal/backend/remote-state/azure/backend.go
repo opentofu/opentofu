@@ -10,11 +10,12 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
 
 // New creates a new backend for Azure remote state.
-func New() backend.Backend {
+func New(enc encryption.StateEncryption) backend.Backend {
 	s := &schema.Backend{
 		Schema: map[string]*schema.Schema{
 			"storage_account_name": {
@@ -182,13 +183,14 @@ func New() backend.Backend {
 		},
 	}
 
-	result := &Backend{Backend: s}
+	result := &Backend{Backend: s, encryption: enc}
 	result.Backend.ConfigureFunc = result.configure
 	return result
 }
 
 type Backend struct {
 	*schema.Backend
+	encryption encryption.StateEncryption
 
 	// The fields below are set from configure
 	armClient     *ArmClient

@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -212,6 +213,9 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Don't use encryption during testing
+	opts.Encryption = encryption.Disabled()
+
 	// Print out all the diagnostics we have from the setup. These will just be
 	// warnings, and we want them out of the way before we start the actual
 	// testing.
@@ -252,8 +256,9 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	view.Abstract(&suite)
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 		defer stop()
 		defer cancel()
@@ -631,8 +636,9 @@ func (runner *TestFileRunner) validate(config *configs.Config, run *moduletest.R
 	runningCtx, done := context.WithCancel(context.Background())
 
 	var validateDiags tfdiags.Diagnostics
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting validate for %s/%s", file.Name, run.Name)
@@ -684,8 +690,9 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting destroy plan for %s/%s", file.Name, run.Name)
@@ -757,8 +764,9 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting plan for %s/%s", file.Name, run.Name)
@@ -812,8 +820,9 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 	var updated *states.State
 	var applyDiags tfdiags.Diagnostics
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
 		updated, applyDiags = tfCtx.Apply(plan, config)
@@ -976,6 +985,9 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 		}
 		runner.Suite.View.DestroySummary(diags, state.Run, file, updated)
 
+		if updated.HasManagedResourceInstanceObjects() {
+			views.SaveErroredTestStateFile(updated, state.Run, file, runner.Suite.View)
+		}
 		reset()
 	}
 }

@@ -18,7 +18,7 @@ import (
 
 var (
 	ConfigA = `
-backend {
+state {
 	enforced = true
 }
 `
@@ -27,13 +27,9 @@ key_provider "static" "basic" {
 	key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
 }
 method "aes_gcm" "example" {
-	cipher = key_provider.static.basic
+	keys = key_provider.static.basic
 }
-statefile {
-	method = method.aes_gcm.example
-}
-
-backend {
+state {
 	method = method.aes_gcm.example
 }
 `
@@ -62,28 +58,31 @@ func Example() {
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct the encryption object
-	enc := encryption.New(reg, cfg)
-
-	// Encrypt the data, for this example we will be using the string "test",
-	// but in a real world scenario this would be the plan file.
-	sourceData := []byte("test")
-	encrypted, diags := enc.StateFile().EncryptState(sourceData)
+	enc, diags := encryption.New(reg, cfg)
 	handleDiags(diags)
 
-	if string(encrypted) == "test" {
+	sfe := enc.State()
+
+	// Encrypt the data, for this example we will be using the string `{"serial": 42, "lineage": "magic"}`,
+	// but in a real world scenario this would be the plan file.
+	sourceData := []byte(`{"serial": 42, "lineage": "magic"}`)
+	encrypted, err := sfe.EncryptState(sourceData)
+	if err != nil {
+		panic(err)
+	}
+
+	if string(encrypted) == `{"serial": 42, "lineage": "magic"}` {
 		panic("The data has not been encrypted!")
 	}
 
-	println(string(encrypted))
-
 	// Decrypt
-	decryptedState, err := enc.StateFile().DecryptState(encrypted)
+	decryptedState, err := sfe.DecryptState(encrypted)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("%s\n", decryptedState)
-	// Output: test
+	// Output: {"serial": 42, "lineage": "magic"}
 }
 
 func handleDiags(diags hcl.Diagnostics) {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -313,7 +314,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 	return file, diags
 }
 
-func writeStateV4(file *File, w io.Writer) tfdiags.Diagnostics {
+func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdiags.Diagnostics {
 	// Here we'll convert back from the "File" representation to our
 	// stateV4 struct representation and write that.
 	//
@@ -435,7 +436,10 @@ func writeStateV4(file *File, w io.Writer) tfdiags.Diagnostics {
 	}
 	src = append(src, '\n')
 
-	_, err = w.Write(src)
+	encrypted, encDiags := enc.EncryptState(src)
+	diags = diags.Append(encDiags)
+
+	_, err = w.Write(encrypted)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

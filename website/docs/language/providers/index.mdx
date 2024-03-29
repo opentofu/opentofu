@@ -95,3 +95,13 @@ volunteers.
 
 Providers are written in Go, using the Terraform Plugin SDK. For more
 information on developing providers, see the [Plugin Development](https://developer.hashicorp.com/terraform/plugin) documentation.
+
+### Running Acceptance Tests with OpenTofu CLI
+
+When testing with OpenTofu, additional steps are required to run acceptance tests against the OpenTofu CLI. Set the following environment variables before running your acceptance tests:
+
+```
+TF_ACC_TERRAFORM_PATH="/path/to/opentofu"
+TF_ACC_PROVIDER_NAMESPACE="hashicorp"
+TF_ACC_PROVIDER_HOST="registry.opentofu.org"
+```

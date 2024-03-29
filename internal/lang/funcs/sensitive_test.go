@@ -182,3 +182,57 @@ func TestNonsensitive(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSensitive(t *testing.T) {
+	tests := []struct {
+		Input       cty.Value
+		IsSensitive bool
+	}{
+		{
+			cty.NumberIntVal(1).Mark(marks.Sensitive),
+			true,
+		},
+		{
+			cty.NumberIntVal(1),
+			false,
+		},
+		{
+			cty.DynamicVal.Mark(marks.Sensitive),
+			true,
+		},
+		{
+			cty.DynamicVal,
+			false,
+		},
+		{
+			cty.UnknownVal(cty.String).Mark(marks.Sensitive),
+			true,
+		},
+		{
+			cty.UnknownVal(cty.String),
+			false,
+		},
+		{
+			cty.NullVal(cty.EmptyObject).Mark(marks.Sensitive),
+			true,
+		},
+		{
+			cty.NullVal(cty.EmptyObject),
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("issensitive(%#v)", test.Input), func(t *testing.T) {
+			got, err := IsSensitive(test.Input)
+
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if got.Equals(cty.BoolVal(test.IsSensitive)).False() {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, cty.BoolVal(test.IsSensitive))
+			}
+		})
+	}
+}

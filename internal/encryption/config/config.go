@@ -11,21 +11,23 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// Config describes the terraform.encryption HCL block you can use to configure the state and plan encryption.
+// EncryptionConfig describes the terraform.encryption HCL block you can use to configure the state and plan encryption.
 // The individual fields of this struct match the HCL structure directly.
-type Config struct {
+type EncryptionConfig struct {
 	KeyProviderConfigs []KeyProviderConfig `hcl:"key_provider,block"`
 	MethodConfigs      []MethodConfig      `hcl:"method,block"`
 
-	Backend   *EnforcableTargetConfig `hcl:"backend,block"`
-	StateFile *EnforcableTargetConfig `hcl:"statefile,block"`
-	PlanFile  *EnforcableTargetConfig `hcl:"planfile,block"`
-	Remote    *RemoteConfig           `hcl:"remote_data_source,block"`
+	State  *EnforcableTargetConfig `hcl:"state,block"`
+	Plan   *EnforcableTargetConfig `hcl:"plan,block"`
+	Remote *RemoteConfig           `hcl:"remote_state_data_sources,block"`
+
+	// Not preserved through merge operations
+	DeclRange hcl.Range
 }
 
 // Merge returns a merged configuration with  the current config and the specified override combined, the override
 // taking precedence.
-func (c *Config) Merge(override *Config) *Config {
+func (c *EncryptionConfig) Merge(override *EncryptionConfig) *EncryptionConfig {
 	return MergeConfigs(c, override)
 }
 
@@ -58,7 +60,7 @@ func (m MethodConfig) Addr() (method.Addr, hcl.Diagnostics) {
 // sources.
 type RemoteConfig struct {
 	Default *TargetConfig       `hcl:"default,block"`
-	Targets []NamedTargetConfig `hcl:"remote_data_source,block"`
+	Targets []NamedTargetConfig `hcl:"remote_state_data_source,block"`
 }
 
 // TargetConfig describes the target.encryption.state, target.encryption.plan, etc blocks.

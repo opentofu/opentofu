@@ -7,19 +7,31 @@ package static
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
+// Config contains the configuration for this key provider supplied by the user. This struct must have hcl tags in order
+// to function.
 type Config struct {
 	Key string `hcl:"key"`
 }
 
-func (c Config) Build() (keyprovider.KeyProvider, error) {
+// Build will create the usable key provider.
+func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
+	if c.Key == "" {
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{
+			Message: "Missing key",
+		}
+	}
+
 	decodedData, err := hex.DecodeString(c.Key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hex-decode the provided key (%w)", err)
+		return nil, nil, &keyprovider.ErrInvalidConfiguration{
+			Message: "failed to hex-decode the provided key",
+			Cause:   err,
+		}
 	}
-	return &staticKeyProvider{decodedData}, nil
+
+	return &staticKeyProvider{decodedData}, new(Metadata), nil
 }

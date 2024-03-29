@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
+	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/encryption/enctest"
 )
 
 func TestRoundtrip(t *testing.T) {
@@ -53,13 +55,13 @@ func TestRoundtrip(t *testing.T) {
 			}
 			defer ir.Close()
 
-			f, err := Read(ir)
+			f, err := Read(ir, encryption.StateEncryptionDisabled())
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
 			var buf bytes.Buffer
-			err = Write(f, &buf)
+			err = Write(f, &buf, encryption.StateEncryptionDisabled())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -76,5 +78,50 @@ func TestRoundtrip(t *testing.T) {
 				t.Error(problem)
 			}
 		})
+	}
+}
+
+func TestRoundtripEncryption(t *testing.T) {
+	const path = "testdata/roundtrip/v4-modules.out.tfstate"
+
+	enc := enctest.EncryptionWithFallback().State()
+
+	unencryptedInput, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unencryptedInput.Close()
+
+	// Read unencrypted using fallback
+	originalState, err := Read(unencryptedInput, enc)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Write encrypted
+	var encrypted bytes.Buffer
+	err = Write(originalState, &encrypted, enc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure it is encrypted / not readable
+	encryptedCopy := encrypted
+	_, err = Read(&encryptedCopy, encryption.StateEncryptionDisabled())
+	if err == nil || err.Error() != "Unsupported state file format: This state file is encrypted and can not be read without an encryption configuration" {
+		t.Fatalf("expected written state file to be encrypted!")
+	}
+
+	// Read encrypted
+	newState, err := Read(&encrypted, enc)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// Compare before/after encryption workflow
+	problems := deep.Equal(newState, originalState)
+	sort.Strings(problems)
+	for _, problem := range problems {
+		t.Error(problem)
 	}
 }

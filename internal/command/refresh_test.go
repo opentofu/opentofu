@@ -22,6 +22,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -75,7 +76,7 @@ func TestRefresh(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	newStateFile, err := statefile.Read(f)
+	newStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -218,7 +219,7 @@ func TestRefresh_cwd(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	newStateFile, err := statefile.Read(f)
+	newStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	f.Close()
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -243,7 +244,7 @@ func TestRefresh_defaultState(t *testing.T) {
 	// default filename.
 	statePath := testStateFile(t, originalState)
 
-	localState := statemgr.NewFilesystem(statePath)
+	localState := statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled())
 	if err := localState.RefreshState(); err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +570,7 @@ func TestRefresh_backup(t *testing.T) {
 
 	// Need to put some state content in the output file so that there's
 	// something to back up.
-	err = statefile.Write(statefile.New(state, "baz", 0), outf)
+	err = statefile.Write(statefile.New(state, "baz", 0), outf, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("error writing initial output state file %s", err)
 	}

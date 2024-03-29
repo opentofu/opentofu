@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -123,7 +124,7 @@ func testRemoteClient(t *testing.T) remote.Client {
 
 func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 	s := testServer(t)
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	// Configure the backend so the client is created.
 	newObj, valDiags := b.PrepareConfig(obj)
@@ -181,7 +182,7 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 }
 
 func testLocalBackend(t *testing.T, remote *Remote) backend.Enhanced {
-	b := backendLocal.NewWithBackend(remote)
+	b := backendLocal.NewWithBackend(remote, nil)
 
 	// Add a test provider to the local backend.
 	p := backendLocal.TestLocalProvider(t, b, "null", providers.ProviderSchema{

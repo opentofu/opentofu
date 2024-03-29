@@ -18,6 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	tfversion "github.com/opentofu/opentofu/version"
@@ -169,7 +170,7 @@ func TestFilesystem_backup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bf, err := statefile.Read(bfh)
+	bf, err := statefile.Read(bfh, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +211,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		Serial:           0,
 		TerraformVersion: version.Must(version.NewVersion("1.2.3")),
 		State:            outState,
-	}, outFile)
+	}, outFile, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to write initial outfile state to %s: %s", outFile.Name(), err)
 	}
@@ -232,14 +233,14 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		Serial:           0,
 		TerraformVersion: version.Must(version.NewVersion("1.2.3")),
 		State:            inState,
-	}, inFile)
+	}, inFile, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to write initial infile state to %s: %s", inFile.Name(), err)
 	}
 
 	backupPath := outFile.Name() + ".backup"
 
-	ls := NewFilesystemBetweenPaths(inFile.Name(), outFile.Name())
+	ls := NewFilesystemBetweenPaths(inFile.Name(), outFile.Name(), encryption.StateEncryptionDisabled())
 	ls.SetBackupPath(backupPath)
 
 	newState := states.BuildState(func(ss *states.SyncState) {
@@ -262,7 +263,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		bf, err := statefile.Read(bfh)
+		bf, err := statefile.Read(bfh, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -276,7 +277,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		of, err := statefile.Read(ofh)
+		of, err := statefile.Read(ofh, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -289,7 +290,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 
 func TestFilesystem_nonExist(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
-	ls := NewFilesystem("ishouldntexist")
+	ls := NewFilesystem("ishouldntexist", encryption.StateEncryptionDisabled())
 	if err := ls.RefreshState(); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -356,13 +357,13 @@ func testFilesystem(t *testing.T) *Filesystem {
 		Serial:           0,
 		TerraformVersion: version.Must(version.NewVersion("1.2.3")),
 		State:            TestFullInitialState(),
-	}, f)
+	}, f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to write initial state to %s: %s", f.Name(), err)
 	}
 	f.Close()
 
-	ls := NewFilesystem(f.Name())
+	ls := NewFilesystem(f.Name(), encryption.StateEncryptionDisabled())
 	if err := ls.RefreshState(); err != nil {
 		t.Fatalf("initial refresh failed: %s", err)
 	}
@@ -383,13 +384,13 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 		Serial:           0,
 		TerraformVersion: version.Must(version.NewVersion("1.2.3")),
 		State:            TestFullInitialState(),
-	}, f)
+	}, f, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	f.Close()
 
-	s := NewFilesystem(f.Name())
+	s := NewFilesystem(f.Name(), encryption.StateEncryptionDisabled())
 	defer os.Remove(s.path)
 
 	// lock first

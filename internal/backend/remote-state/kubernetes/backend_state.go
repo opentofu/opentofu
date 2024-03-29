@@ -84,7 +84,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		return nil, err
 	}
 
-	stateMgr := &remote.State{Client: c}
+	stateMgr := remote.NewState(c, b.encryption)
 
 	// Grab the value
 	if err := stateMgr.RefreshState(); err != nil {

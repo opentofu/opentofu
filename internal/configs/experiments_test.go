@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -38,7 +39,7 @@ func TestExperimentsConfig(t *testing.T) {
 			Summary:  `Experimental feature "current" is active`,
 			Detail:   "Experimental features are available only in alpha releases of OpenTofu and are subject to breaking changes or total removal in later versions, based on feedback. We recommend against using experimental features in production.\n\nIf you have feedback on the design of this feature, please open a GitHub issue to discuss it.",
 			Subject: &hcl.Range{
-				Filename: "testdata/experiments/current/current_experiment.tf",
+				Filename: filepath.FromSlash("testdata/experiments/current/current_experiment.tf"),
 				Start:    hcl.Pos{Line: 2, Column: 18, Byte: 29},
 				End:      hcl.Pos{Line: 2, Column: 25, Byte: 36},
 			},
@@ -66,7 +67,7 @@ func TestExperimentsConfig(t *testing.T) {
 			Summary:  `Experiment has concluded`,
 			Detail:   `Experiment "concluded" is no longer available. Reticulate your splines.`,
 			Subject: &hcl.Range{
-				Filename: "testdata/experiments/concluded/concluded_experiment.tf",
+				Filename: filepath.FromSlash("testdata/experiments/concluded/concluded_experiment.tf"),
 				Start:    hcl.Pos{Line: 2, Column: 18, Byte: 29},
 				End:      hcl.Pos{Line: 2, Column: 27, Byte: 38},
 			},
@@ -88,7 +89,7 @@ func TestExperimentsConfig(t *testing.T) {
 			Summary:  `Unknown experiment keyword`,
 			Detail:   `There is no current experiment with the keyword "unknown".`,
 			Subject: &hcl.Range{
-				Filename: "testdata/experiments/unknown/unknown_experiment.tf",
+				Filename: filepath.FromSlash("testdata/experiments/unknown/unknown_experiment.tf"),
 				Start:    hcl.Pos{Line: 2, Column: 18, Byte: 29},
 				End:      hcl.Pos{Line: 2, Column: 25, Byte: 36},
 			},
@@ -110,7 +111,7 @@ func TestExperimentsConfig(t *testing.T) {
 			Summary:  `Invalid expression`,
 			Detail:   `A static list expression is required.`,
 			Subject: &hcl.Range{
-				Filename: "testdata/experiments/invalid/invalid_experiments.tf",
+				Filename: filepath.FromSlash("testdata/experiments/invalid/invalid_experiments.tf"),
 				Start:    hcl.Pos{Line: 2, Column: 17, Byte: 28},
 				End:      hcl.Pos{Line: 2, Column: 24, Byte: 35},
 			},
@@ -132,7 +133,7 @@ func TestExperimentsConfig(t *testing.T) {
 			Summary:  `Module uses experimental features`,
 			Detail:   `Experimental features are intended only for gathering early feedback on new language designs, and so are available only in alpha releases of OpenTofu.`,
 			Subject: &hcl.Range{
-				Filename: "testdata/experiments/current/current_experiment.tf",
+				Filename: filepath.FromSlash("testdata/experiments/current/current_experiment.tf"),
 				Start:    hcl.Pos{Line: 2, Column: 3, Byte: 14},
 				End:      hcl.Pos{Line: 2, Column: 14, Byte: 25},
 			},

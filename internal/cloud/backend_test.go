@@ -15,6 +15,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
@@ -23,8 +24,8 @@ import (
 )
 
 func TestCloud(t *testing.T) {
-	var _ backend.Enhanced = New(nil)
-	var _ backend.CLI = New(nil)
+	var _ backend.Enhanced = New(nil, encryption.StateEncryptionDisabled())
+	var _ backend.CLI = New(nil, encryption.StateEncryptionDisabled())
 }
 
 func TestCloud_backendWithName(t *testing.T) {
@@ -55,7 +56,7 @@ func TestCloud_backendWithName(t *testing.T) {
 
 func TestCloud_backendWithoutHost(t *testing.T) {
 	s := testServer(t)
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.NullVal(cty.String),
@@ -175,7 +176,7 @@ func TestCloud_PrepareConfig(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := testServer(t)
-			b := New(testDisco(s))
+			b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 			// Validate
 			_, valDiags := b.PrepareConfig(tc.config)
@@ -326,7 +327,7 @@ func TestCloud_PrepareConfigWithEnvVars(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := testServer(t)
-			b := New(testDisco(s))
+			b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 			for k, v := range tc.vars {
 				t.Setenv(k, v)
@@ -487,7 +488,7 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 	}
 	s := testServerWithHandlers(handlers)
 
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	confDiags := b.Configure(config)
 	if confDiags.Err() == nil {
@@ -524,7 +525,7 @@ func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 	}
 	s := testServerWithHandlers(handlers)
 
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 	b.runningInAutomation = true
 
 	confDiags := b.Configure(config)
@@ -1286,7 +1287,7 @@ func TestCloudBackend_DeleteWorkspace_DoesNotExist(t *testing.T) {
 
 func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(tfeHost),
