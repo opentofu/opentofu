@@ -6,9 +6,10 @@
 package configs
 
 import (
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"

@@ -8,10 +8,11 @@ package tofu
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"log"
 	"sync"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
