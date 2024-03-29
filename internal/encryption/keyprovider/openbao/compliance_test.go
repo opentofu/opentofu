@@ -71,17 +71,17 @@ func TestKeyProvider(t *testing.T) {
 					ValidHCL:   true,
 					ValidBuild: false,
 				},
-				"invalid-data-key-bit-size": {
+				"invalid-key-length": {
 					HCL: fmt.Sprintf(`key_provider "openbao" "foo" {
 							key_name = "%s"
-							data_key_bit_size = 257
+							key_length = 17
 						}`, testKeyName),
 					ValidHCL:   true,
 					ValidBuild: false,
 				},
 				"no-key-name": {
 					HCL: `key_provider "openbao" "foo" {
-							data_key_bit_size = 128
+							key_length = 16
 						}`,
 					ValidHCL:   false,
 					ValidBuild: false,
@@ -89,7 +89,7 @@ func TestKeyProvider(t *testing.T) {
 				"unknown-property": {
 					HCL: fmt.Sprintf(`key_provider "openbao" "foo" {
 							key_name = "%s"
-							data_key_bit_size = 128
+							key_length = 16
 							unknown_property = "foo"
 						}`, testKeyName),
 					ValidHCL:   false,
@@ -99,21 +99,21 @@ func TestKeyProvider(t *testing.T) {
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
-						KeyName:        testKeyName,
-						DataKeyBitSize: 128,
+						KeyName:   testKeyName,
+						KeyLength: 16,
 					},
 					ValidBuild: true,
 					Validate: func(p *keyProvider) error {
 						if p.keyName != testKeyName {
 							return fmt.Errorf("key names don't match: %v and %v", p.keyName, testKeyName)
 						}
-						if p.dataKeyBitSize != 128 {
-							return fmt.Errorf("invalid data key bit size: %v", p.dataKeyBitSize)
+						if p.keyLength != 16 {
+							return fmt.Errorf("invalid key length: %v", p.keyLength)
 						}
 						return nil
 					},
 				},
-				"success-default-data-key-bit-size": {
+				"success-default-key-length": {
 					Config: &Config{
 						KeyName: testKeyName,
 					},
@@ -122,8 +122,8 @@ func TestKeyProvider(t *testing.T) {
 						if p.keyName != testKeyName {
 							return fmt.Errorf("key names don't match: %v and %v", p.keyName, testKeyName)
 						}
-						if p.dataKeyBitSize != 256 {
-							return fmt.Errorf("invalid default data key bit size: %v", p.dataKeyBitSize)
+						if p.keyLength != 32 {
+							return fmt.Errorf("invalid default key length: %v", p.keyLength)
 						}
 						return nil
 					},

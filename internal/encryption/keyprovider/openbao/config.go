@@ -13,8 +13,8 @@ type Config struct {
 	Address string `hcl:"address,optional"`
 	Token   string `hcl:"token,optional"`
 
-	KeyName        string `hcl:"key_name"`
-	DataKeyBitSize int    `hcl:"data_key_bit_size,optional"`
+	KeyName   string `hcl:"key_name"`
+	KeyLength int    `hcl:"key_length,optional"`
 }
 
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
@@ -24,11 +24,11 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		}
 	}
 
-	if c.DataKeyBitSize == 0 {
-		c.DataKeyBitSize = defaultDataKeyBitSize
+	if c.KeyLength == 0 {
+		c.KeyLength = defaultKeyLength
 	}
 
-	if err := validateDataKeyBitSize(c.DataKeyBitSize); err != nil {
+	if err := validateKeyLength(c.KeyLength); err != nil {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{
 			Cause: err,
 		}
@@ -55,10 +55,10 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 
 	return &keyProvider{
-		svc:            service{client},
-		keyName:        c.KeyName,
-		dataKeyBitSize: c.DataKeyBitSize,
-		ctx:            context.Background(),
+		svc:       service{client},
+		keyName:   c.KeyName,
+		keyLength: c.KeyLength,
+		ctx:       context.Background(),
 	}, new(keyMeta), nil
 }
 
@@ -86,11 +86,11 @@ var newClient clientConstructor = func(config *openbao.Config, token string) (cl
 	return c.Logical(), nil
 }
 
-const defaultDataKeyBitSize = 256
+const defaultKeyLength = 32
 
-func validateDataKeyBitSize(dataKeyBitSize int) error {
-	if dataKeyBitSize != 128 && dataKeyBitSize != 256 && dataKeyBitSize != 512 {
-		return fmt.Errorf("invalid data key bit size: %d, supported options are 128, 256 or 512", dataKeyBitSize)
+func validateKeyLength(keyLength int) error {
+	if keyLength != 16 && keyLength != 32 && keyLength != 64 {
+		return fmt.Errorf("invalid key length: %d, supported options are 16, 32 or 64 bytes", keyLength)
 	}
 
 	return nil
