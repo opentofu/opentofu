@@ -18,6 +18,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -31,6 +32,7 @@ type remoteClient struct {
 	stateUploadErr bool
 	workspace      *tfe.Workspace
 	forcePush      bool
+	encryption     encryption.StateEncryption
 }
 
 // Get the remote state.
@@ -95,7 +97,7 @@ func (r *remoteClient) Put(state []byte) error {
 	ctx := context.Background()
 
 	// Read the raw state into a OpenTofu state.
-	stateFile, err := statefile.Read(bytes.NewReader(state))
+	stateFile, err := statefile.Read(bytes.NewReader(state), r.encryption)
 	if err != nil {
 		return fmt.Errorf("error reading state: %w", err)
 	}

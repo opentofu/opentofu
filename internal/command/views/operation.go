@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -29,7 +30,7 @@ type Operation interface {
 	Stopping()
 	Cancelled(planMode plans.Mode)
 
-	EmergencyDumpState(stateFile *statefile.File) error
+	EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error
 
 	PlannedChange(change *plans.ResourceInstanceChangeSrc)
 	Plan(plan *plans.Plan, schemas *tofu.Schemas)
@@ -83,9 +84,9 @@ func (v *OperationHuman) Cancelled(planMode plans.Mode) {
 	}
 }
 
-func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File) error {
+func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error {
 	stateBuf := new(bytes.Buffer)
-	jsonErr := statefile.Write(stateFile, stateBuf)
+	jsonErr := statefile.Write(stateFile, stateBuf, enc)
 	if jsonErr != nil {
 		return jsonErr
 	}
@@ -199,9 +200,9 @@ func (v *OperationJSON) Cancelled(planMode plans.Mode) {
 	}
 }
 
-func (v *OperationJSON) EmergencyDumpState(stateFile *statefile.File) error {
+func (v *OperationJSON) EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error {
 	stateBuf := new(bytes.Buffer)
-	jsonErr := statefile.Write(stateFile, stateBuf)
+	jsonErr := statefile.Write(stateFile, stateBuf, enc)
 	if jsonErr != nil {
 		return jsonErr
 	}

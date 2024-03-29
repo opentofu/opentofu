@@ -69,8 +69,15 @@ func (c *StateMvCommand) Run(args []string) int {
 		setLegacyLocalBackendOptions = append(setLegacyLocalBackendOptions, "-backup-out")
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	if encDiags.HasErrors() {
+		c.showDiagnostics(encDiags)
+		return 1
+	}
+
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(&BackendOpts{})
+		currentBackend, diags := c.backendFromConfig(&BackendOpts{}, enc.State())
 		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
@@ -93,7 +100,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State()
+	stateFromMgr, err := c.State(enc)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
@@ -131,7 +138,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		c.statePath = statePathOut
 		c.backupPath = backupPathOut
 
-		stateToMgr, err = c.State()
+		stateToMgr, err = c.State(enc)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 			return 1
@@ -392,7 +399,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -521,7 +528,7 @@ func (c *StateMvCommand) validateResourceMove(addrFrom, addrTo addrs.AbsResource
 
 func (c *StateMvCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] state (mv|move) [options] SOURCE DESTINATION
+Usage: tofu [global options] state (move|mv) [options] SOURCE DESTINATION
 
  This command will move an item matched by the address given to the
  destination address. This command can also move to a destination address

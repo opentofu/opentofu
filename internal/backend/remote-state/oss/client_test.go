@@ -15,6 +15,7 @@ import (
 	"crypto/md5"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -33,7 +34,7 @@ func TestRemoteClient(t *testing.T) {
 	bucketName := fmt.Sprintf("tf-remote-oss-test-%x", time.Now().Unix())
 	path := "testState"
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":  bucketName,
 		"prefix":  path,
 		"encrypt": true,
@@ -56,7 +57,7 @@ func TestRemoteClientLocks(t *testing.T) {
 	tableName := fmt.Sprintf("tfRemoteTestForce%x", time.Now().Unix())
 	path := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"encrypt":             true,
@@ -64,7 +65,7 @@ func TestRemoteClientLocks(t *testing.T) {
 		"tablestore_endpoint": RemoteTestUsedOTSEndpoint,
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"encrypt":             true,
@@ -97,7 +98,7 @@ func TestRemoteClientLocks_multipleStates(t *testing.T) {
 	tableName := fmt.Sprintf("tfRemoteTestForce%x", time.Now().Unix())
 	path := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"encrypt":             true,
@@ -105,7 +106,7 @@ func TestRemoteClientLocks_multipleStates(t *testing.T) {
 		"tablestore_endpoint": RemoteTestUsedOTSEndpoint,
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"encrypt":             true,
@@ -143,7 +144,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 	tableName := fmt.Sprintf("tfRemoteTestForce%x", time.Now().Unix())
 	path := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"encrypt":             true,
@@ -151,7 +152,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 		"tablestore_endpoint": RemoteTestUsedOTSEndpoint,
 	})).(*Backend)
 
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"encrypt":             true,
@@ -223,7 +224,7 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 	tableName := fmt.Sprintf("tfRemoteTestForce%x", time.Now().Unix())
 	path := "testState"
 
-	b := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"tablestore_table":    tableName,
@@ -273,7 +274,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	tableName := fmt.Sprintf("tfRemoteTestForce%x", time.Now().Unix())
 	path := "testState"
 
-	b1 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":              bucketName,
 		"prefix":              path,
 		"tablestore_table":    tableName,
@@ -295,18 +296,18 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	s := statemgr.TestFullInitialState()
 	sf := &statefile.File{State: s}
 	var oldState bytes.Buffer
-	if err := statefile.Write(sf, &oldState); err != nil {
+	if err := statefile.Write(sf, &oldState, encryption.StateEncryptionDisabled()); err != nil {
 		t.Fatal(err)
 	}
 	sf.Serial++
 	var newState bytes.Buffer
-	if err := statefile.Write(sf, &newState); err != nil {
+	if err := statefile.Write(sf, &newState, encryption.StateEncryptionDisabled()); err != nil {
 		t.Fatal(err)
 	}
 
 	// Use b2 without a tablestore_table to bypass the lock table to write the state directly.
 	// client2 will write the "incorrect" state, simulating oss eventually consistency delays
-	b2 := backend.TestBackendConfig(t, New(), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket": bucketName,
 		"prefix": path,
 	})).(*Backend)

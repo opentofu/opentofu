@@ -7,6 +7,7 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
 // LoadConfigFile reads the file at the given path and parses it as a config
@@ -111,6 +112,13 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 						file.ProviderMetas = append(file.ProviderMetas, providerCfg)
 					}
 
+				case "encryption":
+					encryptionCfg, cfgDiags := config.DecodeConfig(innerBlock.Body, innerBlock.DefRange)
+					diags = append(diags, cfgDiags...)
+					if encryptionCfg != nil {
+						file.Encryptions = append(file.Encryptions, encryptionCfg)
+					}
+
 				default:
 					// Should never happen because the above cases should be exhaustive
 					// for all block type names in our schema.
@@ -194,6 +202,13 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.Checks = append(file.Checks, cfg)
+			}
+
+		case "removed":
+			cfg, cfgDiags := decodeRemovedBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.Removed = append(file.Removed, cfg)
 			}
 
 		default:
@@ -293,6 +308,9 @@ var configFileSchema = &hcl.BodySchema{
 			Type:       "check",
 			LabelNames: []string{"name"},
 		},
+		{
+			Type: "removed",
+		},
 	},
 }
 
@@ -318,6 +336,9 @@ var terraformBlockSchema = &hcl.BodySchema{
 		{
 			Type:       "provider_meta",
 			LabelNames: []string{"provider"},
+		},
+		{
+			Type: "encryption",
 		},
 	},
 }

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 )
 
@@ -36,7 +37,7 @@ func TestRemoteClient(t *testing.T) {
 		"conn_str":    connStr,
 		"schema_name": schemaName,
 	})
-	b := backend.TestBackendConfig(t, New(), config).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
 	if b == nil {
 		t.Fatal("Backend could not be configured")
@@ -65,13 +66,13 @@ func TestRemoteLocks(t *testing.T) {
 		"schema_name": schemaName,
 	})
 
-	b1 := backend.TestBackendConfig(t, New(), config).(*Backend)
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 	s1, err := b1.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b2 := backend.TestBackendConfig(t, New(), config).(*Backend)
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 	s2, err := b2.StateMgr(backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)

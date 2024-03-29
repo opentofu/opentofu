@@ -117,6 +117,41 @@ For more information about how OpenTofu manages resources when applying a
 configuration, see
 [Resource Behavior](/docs/language/resources/behavior).
 
+## Removing Resources
+
+If you remove a resource block from your configuration, OpenTofu will destroy it as a default behavior.
+
+However, there are instances when you want to remove a resource from your configuration without destroying the
+corresponding infrastructure object. In such cases, you can remove it from the [OpenTofu state](/docs/language/state)
+while allowing it to persist in the remote system.
+
+To achieve this, follow these steps:
+1. Delete the resource from your configuration.
+2. Add a removed block instead, specifying the resource address you want to "forget" in the `from` attribute.
+
+For example:
+```hcl
+removed {
+  from = aws_instance.web
+}
+```
+
+:::note
+
+The address in the `from` attribute cannot include instance keys (for example, "aws_instance.web[0]").
+
+:::
+
+Upon executing `tofu plan`, OpenTofu will indicate that the resource is slated for removal from the state but will not
+be destroyed.
+
+The `removed` block can be used to remove specific resources or modules containing multiple resources. For example:
+```hcl
+removed {
+  from = module.some_module
+}
+```
+
 ## Meta-Arguments
 
 The OpenTofu language defines several meta-arguments, which can be used with

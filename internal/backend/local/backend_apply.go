@@ -233,8 +233,9 @@ func (b *Local) opApply(
 	var applyState *states.State
 	var applyDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
 		applyState, applyDiags = lr.Core.Apply(plan, lr.Config)
@@ -295,7 +296,7 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 		fmt.Sprintf("Error saving state: %s", err),
 	))
 
-	local := statemgr.NewFilesystem("errored.tfstate")
+	local := statemgr.NewFilesystem("errored.tfstate", b.encryption)
 	writeErr := local.WriteStateForMigration(stateFile, true)
 	if writeErr != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -309,7 +310,7 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 		// UX, so we should definitely avoid doing this if at all possible,
 		// but at least the user has _some_ path to recover if we end up
 		// here for some reason.
-		if dumpErr := view.EmergencyDumpState(stateFile); dumpErr != nil {
+		if dumpErr := view.EmergencyDumpState(stateFile, b.encryption); dumpErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to serialize state",

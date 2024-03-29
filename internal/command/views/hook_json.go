@@ -62,6 +62,9 @@ type applyProgress struct {
 	// heartbeatDone is used to allow tests to safely wait for the progress
 	// goroutine to finish
 	heartbeatDone chan struct{}
+
+	// elapsed is used to allow tests to safely check for heartbeat executions
+	elapsed chan time.Duration
 }
 
 func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
@@ -74,6 +77,7 @@ func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generatio
 		addr:          addr,
 		action:        action,
 		start:         h.timeNow().Round(time.Second),
+		elapsed:       make(chan time.Duration),
 		done:          make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
 	}
@@ -89,6 +93,7 @@ func (h *jsonHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generatio
 
 func (h *jsonHook) applyingHeartbeat(progress applyProgress) {
 	defer close(progress.heartbeatDone)
+	defer close(progress.elapsed)
 	for {
 		select {
 		case <-progress.done:
@@ -98,6 +103,7 @@ func (h *jsonHook) applyingHeartbeat(progress applyProgress) {
 
 		elapsed := h.timeNow().Round(time.Second).Sub(progress.start)
 		h.view.Hook(json.NewApplyProgress(progress.addr, progress.action, elapsed))
+		progress.elapsed <- elapsed
 	}
 }
 

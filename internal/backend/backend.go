@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
@@ -54,7 +55,7 @@ var (
 )
 
 // InitFn is used to initialize a new backend.
-type InitFn func() Backend
+type InitFn func(encryption.StateEncryption) Backend
 
 // Backend is the minimal interface that must be implemented to enable OpenTofu.
 type Backend interface {
@@ -237,6 +238,9 @@ type Operation struct {
 	// Type is the operation to perform.
 	Type OperationType
 
+	// Encryption is used by enhanced backends for planning and tofu.Context initialization
+	Encryption encryption.Encryption
+
 	// PlanId is an opaque value that backends can use to execute a specific
 	// plan for an apply operation.
 	//
@@ -415,7 +419,7 @@ func (r OperationResult) ExitStatus() int {
 	return int(r)
 }
 
-// If the argument is a path, Read loads it and returns the contents,
+// If the argument is a path, ReadPathOrContents loads it and returns the contents,
 // otherwise the argument is assumed to be the desired contents and is simply
 // returned.
 func ReadPathOrContents(poc string) (string, error) {

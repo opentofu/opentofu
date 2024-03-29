@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -98,12 +99,12 @@ func TestRoundtrip(t *testing.T) {
 		StateFile:            stateFileIn,
 		Plan:                 planIn,
 		DependencyLocks:      locksIn,
-	})
+	}, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to create plan file: %s", err)
 	}
 
-	wpf, err := OpenWrapped(planFn)
+	wpf, err := OpenWrapped(planFn, encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to open plan file for reading: %s", err)
 	}
@@ -181,14 +182,14 @@ func TestRoundtrip(t *testing.T) {
 func TestWrappedError(t *testing.T) {
 	// Open something that isn't a cloud or local planfile: should error
 	wrongFile := "not a valid zip file"
-	_, err := OpenWrapped(filepath.Join("testdata", "test-config", "root.tf"))
+	_, err := OpenWrapped(filepath.Join("testdata", "test-config", "root.tf"), encryption.PlanEncryptionDisabled())
 	if !strings.Contains(err.Error(), wrongFile) {
 		t.Fatalf("expected  %q, got %q", wrongFile, err)
 	}
 
 	// Open something that doesn't exist: should error
 	missingFile := "no such file or directory"
-	_, err = OpenWrapped(filepath.Join("testdata", "absent.tfplan"))
+	_, err = OpenWrapped(filepath.Join("testdata", "absent.tfplan"), encryption.PlanEncryptionDisabled())
 	if !strings.Contains(err.Error(), missingFile) {
 		t.Fatalf("expected  %q, got %q", missingFile, err)
 	}
@@ -196,7 +197,7 @@ func TestWrappedError(t *testing.T) {
 
 func TestWrappedCloud(t *testing.T) {
 	// Loading valid cloud plan results in a wrapped cloud plan
-	wpf, err := OpenWrapped(filepath.Join("testdata", "cloudplan.json"))
+	wpf, err := OpenWrapped(filepath.Join("testdata", "cloudplan.json"), encryption.PlanEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("failed to open valid cloud plan: %s", err)
 	}

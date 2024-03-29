@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
@@ -48,9 +49,16 @@ func (b *Backend) Workspaces() ([]string, error) {
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
 		if err != nil {
-			var e *types.NoSuchBucket
-			if errors.As(err, &e) {
+			var noBucketErr *types.NoSuchBucket
+			if errors.As(err, &noBucketErr) {
 				return nil, fmt.Errorf(errS3NoSuchBucket, err)
+			}
+
+			// Ignoring AccessDenied errors for backward compatibility,
+			// since it should work for default state when no other workspaces present.
+			var apiErr smithy.APIError
+			if errors.As(err, &apiErr) && apiErr.ErrorCode() == "AccessDenied" {
+				break
 			}
 
 			return nil, err
@@ -148,7 +156,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		return nil, err
 	}
 
-	stateMgr := &remote.State{Client: client}
+	stateMgr := remote.NewState(client, b.encryption)
 	// Check to see if this state already exists.
 	// If we're trying to force-unlock a state, we can't take the lock before
 	// fetching the state. If the state doesn't exist, we have to assume this

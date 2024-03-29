@@ -9,8 +9,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -58,6 +61,50 @@ func MakeFileFunc(baseDir string, encBase64 bool) function.Function {
 	})
 }
 
+func templateMaxRecursionDepth() (int, error) {
+	envkey := "TF_TEMPLATE_RECURSION_DEPTH"
+	val := os.Getenv(envkey)
+	if val != "" {
+		i, err := strconv.Atoi(val)
+		if err != nil {
+			return -1, fmt.Errorf("invalid value for %s: %w", envkey, err)
+		}
+		return i, nil
+	}
+	return 1024, nil // Sane Default
+}
+
+type ErrorTemplateRecursionLimit struct {
+	sources []string
+}
+
+func (err ErrorTemplateRecursionLimit) Error() string {
+	trace := make([]string, 0)
+	maxTrace := 16
+
+	// Look for repetition in the first N sources
+	for _, source := range err.sources[:min(maxTrace, len(err.sources))] {
+		looped := false
+		for _, st := range trace {
+			if st == source {
+				// Repeated source, probably a loop.  TF_LOG=debug will contain the full trace.
+				looped = true
+				break
+			}
+		}
+
+		trace = append(trace, source)
+
+		if looped {
+			break
+		}
+	}
+
+	log.Printf("[DEBUG] Template Stack (%d): %s", len(err.sources)-1, err.sources[len(err.sources)-1])
+
+	return fmt.Sprintf("maximum recursion depth %d reached in %s ... ", len(err.sources)-1, strings.Join(trace, ", "))
+}
+
 // MakeTemplateFileFunc constructs a function that takes a file path and
 // an arbitrary object of named values and attempts to render the referenced
 // file as a template using HCL template syntax.
@@ -68,10 +115,12 @@ func MakeFileFunc(baseDir string, encBase64 bool) function.Function {
 // those variables provided in the second function argument, to ensure that all
 // dependencies on other graph nodes can be seen before executing this function.
 //
-// As a special exception, a referenced template file may not recursively call
-// the templatefile function, since that would risk the same file being
-// included into itself indefinitely.
+// As a special exception, a referenced template file may call the templatefile
+// function, with a recursion depth limit providing an error when reached
 func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Function) function.Function {
+	return makeTemplateFileFuncImpl(baseDir, funcsCb, 0)
+}
+func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function.Function, depth int) function.Function {
 
 	params := []function.Parameter{
 		{
@@ -86,6 +135,15 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 	}
 
 	loadTmpl := func(fn string, marks cty.ValueMarks) (hcl.Expression, error) {
+		maxDepth, err := templateMaxRecursionDepth()
+		if err != nil {
+			return nil, err
+		}
+		if depth > maxDepth {
+			// Sources will unwind up the stack
+			return nil, ErrorTemplateRecursionLimit{}
+		}
+
 		// We re-use File here to ensure the same filename interpretation
 		// as it does, along with its other safety checks.
 		tmplVal, err := File(baseDir, cty.StringVal(fn).WithMarks(marks))
@@ -101,61 +159,18 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 		return expr, nil
 	}
 
-	renderTmpl := func(expr hcl.Expression, varsVal cty.Value) (cty.Value, error) {
-		if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
-			return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
-		}
-
-		ctx := &hcl.EvalContext{
-			Variables: varsVal.AsValueMap(),
-		}
-
-		// We require all of the variables to be valid HCL identifiers, because
-		// otherwise there would be no way to refer to them in the template
-		// anyway. Rejecting this here gives better feedback to the user
-		// than a syntax error somewhere in the template itself.
-		for n := range ctx.Variables {
-			if !hclsyntax.ValidIdentifier(n) {
-				// This error message intentionally doesn't describe _all_ of
-				// the different permutations that are technically valid as an
-				// HCL identifier, but rather focuses on what we might
-				// consider to be an "idiomatic" variable name.
-				return cty.DynamicVal, function.NewArgErrorf(1, "invalid template variable name %q: must start with a letter, followed by zero or more letters, digits, and underscores", n)
-			}
-		}
-
-		// We'll pre-check references in the template here so we can give a
-		// more specialized error message than HCL would by default, so it's
-		// clearer that this problem is coming from a templatefile call.
-		for _, traversal := range expr.Variables() {
-			root := traversal.RootName()
-			if _, ok := ctx.Variables[root]; !ok {
-				return cty.DynamicVal, function.NewArgErrorf(1, "vars map does not contain key %q, referenced at %s", root, traversal[0].SourceRange())
-			}
-		}
-
+	funcsCbDepth := func() map[string]function.Function {
 		givenFuncs := funcsCb() // this callback indirection is to avoid chicken/egg problems
 		funcs := make(map[string]function.Function, len(givenFuncs))
 		for name, fn := range givenFuncs {
 			if name == "templatefile" {
-				// We stub this one out to prevent recursive calls.
-				funcs[name] = function.New(&function.Spec{
-					Params: params,
-					Type: func(args []cty.Value) (cty.Type, error) {
-						return cty.NilType, fmt.Errorf("cannot recursively call templatefile from inside templatefile call")
-					},
-				})
+				// Increment the recursion depth counter
+				funcs[name] = makeTemplateFileFuncImpl(baseDir, funcsCb, depth+1)
 				continue
 			}
 			funcs[name] = fn
 		}
-		ctx.Functions = funcs
-
-		val, diags := expr.Value(ctx)
-		if diags.HasErrors() {
-			return cty.DynamicVal, diags
-		}
-		return val, nil
+		return funcs
 	}
 
 	return function.New(&function.Spec{
@@ -177,7 +192,7 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 
 			// This is safe even if args[1] contains unknowns because the HCL
 			// template renderer itself knows how to short-circuit those.
-			val, err := renderTmpl(expr, args[1])
+			val, err := renderTemplate(expr, args[1], funcsCbDepth())
 			return val.Type(), err
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
@@ -186,7 +201,8 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 			if err != nil {
 				return cty.DynamicVal, err
 			}
-			result, err := renderTmpl(expr, args[1])
+
+			result, err := renderTemplate(expr, args[1], funcsCbDepth())
 			return result.WithMarks(pathMarks), err
 		},
 	})

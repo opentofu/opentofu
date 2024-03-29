@@ -9,13 +9,14 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestDeprecateBackend(t *testing.T) {
 	deprecateMessage := "deprecated backend"
 	deprecatedBackend := deprecateBackend(
-		inmem.New(),
+		inmem.New(encryption.StateEncryptionDisabled()),
 		deprecateMessage,
 	)
 
