@@ -70,6 +70,7 @@ type BuiltinEvalContext struct {
 	ProvisionerCache      map[string]provisioners.Interface
 	ProvisionerLock       *sync.Mutex
 	FunctionCache         *ProviderFunctions
+	FunctionLock          sync.Mutex
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -89,6 +90,7 @@ func (ctx *BuiltinEvalContext) WithPath(path addrs.ModuleInstance) EvalContext {
 	newCtx.pathSet = true
 	newCtx.PathValue = path
 	newCtx.FunctionCache = nil
+	newCtx.FunctionLock = sync.Mutex{}
 	return &newCtx
 }
 
@@ -419,6 +421,8 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
 
+	ctx.FunctionLock.Lock()
+	defer ctx.FunctionLock.Unlock()
 	if ctx.FunctionCache == nil {
 		aliases := make(map[string]addrs.Provider)
 
@@ -428,7 +432,6 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 			aliases[alias] = provider.Type
 		}
 
-		// This is not behind a lock, but in a race will just assign the same value to the cache multiple times
 		ctx.FunctionCache = ctx.Plugins.Functions(aliases)
 	}
 	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
