@@ -45,7 +45,7 @@ var (
 )
 
 // will attempt for requests with retryable errors, like 502 status codes
-func configureDiscoveryRetry() {
+func configureProviderDownloadRetry() {
 	maxRetryCount = defaultRetry
 	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
 		retry, err := strconv.Atoi(v)
