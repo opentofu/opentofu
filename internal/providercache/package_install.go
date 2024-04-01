@@ -81,7 +81,7 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
-	resp, err := retryableClient.HTTPClient.Do(req)
+	resp, err := retryableClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.Canceled {
 			// "context canceled" is not a user-friendly error message,
