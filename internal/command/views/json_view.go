@@ -129,18 +129,22 @@ func (v *JSONView) Outputs(outputs json.Outputs) {
 	)
 }
 
+// Output is designed for supporting command.WrappedUi
 func (v *JSONView) Output(message string) {
 	v.log.Info(message, "type", "output")
 }
 
+// Info is designed for supporting command.WrappedUi
 func (v *JSONView) Info(message string) {
 	v.log.Info(message)
 }
 
+// Warn is designed for supporting command.WrappedUi
 func (v *JSONView) Warn(message string) {
 	v.log.Warn(message)
 }
 
+// Error is designed for supporting command.WrappedUi
 func (v *JSONView) Error(message string) {
 	v.log.Error(message)
 }

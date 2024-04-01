@@ -6,6 +6,13 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 )
 
+// WrappedUi is a shim which adds json compatibility to those commands which
+// have not yet been refactored to support output by views.View.
+//
+// For those not support json output command, all output is printed by cli.Ui.
+// So we create WrappedUi, contains the old cli.Ui and views.JSONView,
+// implement cli.Ui interface, so that we can make all command support json
+// output in a short time.
 type WrappedUi struct {
 	cliUi        cli.Ui
 	jsonView     *views.JSONView
