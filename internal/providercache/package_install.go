@@ -8,6 +8,7 @@ package providercache
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from
@@ -76,6 +78,7 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	retryableClient.HTTPClient = httpclient.New()
 	retryableClient.RetryMax = maxRetryCount
 	retryableClient.RequestLogHook = requestLogHook
+	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
