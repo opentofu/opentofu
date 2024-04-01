@@ -23,9 +23,10 @@ const JSON_UI_VERSION = "1.2"
 
 func NewJSONView(view *View) *JSONView {
 	log := hclog.New(&hclog.LoggerOptions{
-		Name:       "tofu.ui",
-		Output:     view.streams.Stdout.File,
-		JSONFormat: true,
+		Name:               "tofu.ui",
+		Output:             view.streams.Stdout.File,
+		JSONFormat:         true,
+		JSONEscapeDisabled: true,
 	})
 	jv := &JSONView{
 		log:  log,
