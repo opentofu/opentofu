@@ -84,7 +84,7 @@ func TestKeyProvider(t *testing.T) {
 				"large-key-size": {
 					HCL: `key_provider "gcp_kms" "foo" {
 							kms_encryption_key = "alias/temp"
-							key_length = 999999999999
+							key_length = 99999999
 							}`,
 					ValidHCL:   true,
 					ValidBuild: false,
