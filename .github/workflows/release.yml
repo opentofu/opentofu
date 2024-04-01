@@ -129,8 +129,7 @@ jobs:
           # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
-          SNAPCRAFT_GRADE: ${{ inputs.prerelease && 'devel' || 'stable' }}
-          SNAPCRAFT_CHANNEL: ${{ inputs.prerelease && 'edge' || 'stable' }}
+          PRERELEASE_RELEASE: ${{ inputs.prerelease }}
 
       - name: Remove GPG key
         if: always()
