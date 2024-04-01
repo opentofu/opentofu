@@ -19,7 +19,7 @@ ENHANCEMENTS:
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
-* Support for automatic retries for provider installation, specifically targeting transient errors ([$1233](https://github.com/opentofu/opentofu/issues/1233))
+* Added mechanism to introduce automatic retries for provider installations, specifically targeting transient errors ([$1233](https://github.com/opentofu/opentofu/issues/1233))
 
 BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
