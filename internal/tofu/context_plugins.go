@@ -63,7 +63,7 @@ func (cp *contextPlugins) buildProviderFunctions() (map[addrs.Provider]map[strin
 			return nil, err
 		}
 
-		funcs[addr] = providerFunctions(schema.Functions, factory)
+		funcs[addr] = providerFunctions(addr, schema.Functions, factory)
 	}
 	return funcs, nil
 }

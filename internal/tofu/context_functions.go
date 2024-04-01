@@ -2,8 +2,10 @@ package tofu
 
 import (
 	"errors"
+	"log"
 	"sync"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -11,7 +13,7 @@ import (
 
 // Lazily creates a single instance of a provider for repeated use.
 // Concurrency safe
-func lazyProviderInstance(factory providers.Factory) providers.Factory {
+func lazyProviderInstance(addr addrs.Provider, factory providers.Factory) providers.Factory {
 	var provider providers.Interface
 	var providerLock sync.Mutex
 	var err error
@@ -21,6 +23,7 @@ func lazyProviderInstance(factory providers.Factory) providers.Factory {
 		defer providerLock.Unlock()
 
 		if provider == nil {
+			log.Printf("[TRACE] tofu.contextFunctions: Initializing function provider %q", addr)
 			provider, err = factory()
 		}
 		return provider, err
@@ -30,11 +33,12 @@ func lazyProviderInstance(factory providers.Factory) providers.Factory {
 // Loop through all functions specified and build a map of name -> function.
 // All functions will use the same lazily initialized provider instance.
 // This instance will run until the application is terminated.
-func providerFunctions(funcSpecs map[string]providers.FunctionSpec, factory providers.Factory) map[string]function.Function {
-	lazy := lazyProviderInstance(factory)
+func providerFunctions(addr addrs.Provider, funcSpecs map[string]providers.FunctionSpec, factory providers.Factory) map[string]function.Function {
+	lazy := lazyProviderInstance(addr, factory)
 
 	functions := make(map[string]function.Function)
 	for name, spec := range funcSpecs {
+		log.Printf("[TRACE] tofu.contextFunctions: Registering function %q in provider type %q", name, addr)
 		functions[name] = providerFunction(name, spec, lazy)
 	}
 	return functions
