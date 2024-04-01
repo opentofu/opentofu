@@ -7,10 +7,13 @@ package lang
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -71,7 +74,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	body = blocktoattr.FixUpBlockAttrs(body, schema)
 
 	val, evalDiags := hcldec.Decode(body, spec, ctx)
-	diags = diags.Append(evalDiags)
+	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
 
 	return val, diags
 }
@@ -149,7 +152,7 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 	}
 
 	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), ctx)
-	diags = diags.Append(decDiags)
+	diags = diags.Append(s.enhanceFunctionDiags(decDiags))
 	return val, diags
 }
 
@@ -175,7 +178,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	}
 
 	val, evalDiags := expr.Value(ctx)
-	diags = diags.Append(evalDiags)
+	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
 
 	if wantType != cty.DynamicPseudoType {
 		var convErr error
@@ -194,6 +197,60 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	}
 
 	return val, diags
+}
+
+// Identify and enhance any function related dialogs produced by a hcl.EvalContext
+func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
+	out := make(hcl.Diagnostics, len(diags))
+	for i, diag := range diags {
+		out[i] = diag
+
+		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallUnknownDiagExtra); ok {
+			funcName := funcExtra.CalledFunctionName()
+			// prefix::stuff::
+			fullNamespace := funcExtra.CalledFunctionNamespace()
+
+			if !strings.Contains(fullNamespace, "::") {
+				// Not a namespaced function, no enhancements nessesary
+				continue
+			}
+
+			// Insert the an enhanced copy of diag into diags
+			enhanced := *diag
+			out[i] = &enhanced
+
+			// Update enhanced with additional details
+
+			if fullNamespace == "core::" {
+				// Error is in core namespace, mirror non-core equivalent
+				enhanced.Summary = "Call to unknown function"
+				enhanced.Detail = fmt.Sprintf("There is no function named %q.", funcName)
+				continue
+			}
+
+			providerFuncNamespace := regexp.MustCompile("^([^:]*)::([^:]*)::$")
+			match := providerFuncNamespace.FindSubmatch([]byte(fullNamespace))
+			if match == nil || string(match[1]) != "provider" {
+				// complete mismatch or invalid prefix
+				enhanced.Summary = "Invalid function format"
+				enhanced.Detail = fmt.Sprintf("Expected provider::provider_alias::function_name, instead found \"%s%s\"", fullNamespace, funcName)
+				continue
+			}
+
+			providerAlias := string(match[2])
+			addr, ok := s.ProviderAliases[providerAlias]
+			if !ok {
+				// Provider not registered
+				enhanced.Summary = "Unknown function provider"
+				enhanced.Detail = fmt.Sprintf("Provider %q does not exist within the required_providers of this module", providerAlias)
+			} else {
+				// Func not in provider
+				enhanced.Summary = "Function not found in provider"
+				enhanced.Detail = fmt.Sprintf("Function %q was not registered by provider named %q of type %q", funcName, providerAlias, addr)
+			}
+		}
+	}
+	return out
 }
 
 // EvalReference evaluates the given reference in the receiving scope and

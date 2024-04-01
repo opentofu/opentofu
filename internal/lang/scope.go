@@ -73,6 +73,7 @@ type Scope struct {
 	PlanTimestamp time.Time
 
 	ProviderFunctions map[string]function.Function
+	ProviderAliases   map[string]addrs.Provider
 }
 
 // SetActiveExperiments allows a caller to declare that a set of experiments

@@ -13,7 +13,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -70,7 +69,7 @@ type BuiltinEvalContext struct {
 	ProviderLock          *sync.Mutex
 	ProvisionerCache      map[string]provisioners.Interface
 	ProvisionerLock       *sync.Mutex
-	FunctionCache         map[string]function.Function
+	FunctionCache         *ProviderFunctions
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -421,17 +420,16 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	if ctx.FunctionCache == nil {
-		// This is not behind a lock, but in a race will just assign the same value to the cache multiple times
-		funcs := make(map[string]function.Function)
+		aliases := make(map[string]addrs.Provider)
 
 		// Providers must exist within required_providers to register their functions
 		for alias, provider := range mc.Module.ProviderRequirements.RequiredProviders {
 			// Functions are only registered under their alias, not their type name
-			for name, fn := range ctx.Plugins.Functions(provider.Type, alias) {
-				funcs[name] = fn
-			}
+			aliases[alias] = provider.Type
 		}
-		ctx.FunctionCache = funcs
+
+		// This is not behind a lock, but in a race will just assign the same value to the cache multiple times
+		ctx.FunctionCache = ctx.Plugins.Functions(aliases)
 	}
 	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)

@@ -15,7 +15,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -77,16 +76,18 @@ type Evaluator struct {
 // If the "self" argument is nil then the "self" object is not available
 // in evaluated expressions. Otherwise, it behaves as an alias for the given
 // address.
-func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions map[string]function.Function) *lang.Scope {
+func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions *ProviderFunctions) *lang.Scope {
 	return &lang.Scope{
-		Data:              data,
-		ParseRef:          addrs.ParseRef,
-		SelfAddr:          self,
-		SourceAddr:        source,
-		PureOnly:          e.Operation != walkApply && e.Operation != walkDestroy && e.Operation != walkEval,
-		BaseDir:           ".", // Always current working directory for now.
-		PlanTimestamp:     e.PlanTimestamp,
-		ProviderFunctions: functions,
+		Data:          data,
+		ParseRef:      addrs.ParseRef,
+		SelfAddr:      self,
+		SourceAddr:    source,
+		PureOnly:      e.Operation != walkApply && e.Operation != walkDestroy && e.Operation != walkEval,
+		BaseDir:       ".", // Always current working directory for now.
+		PlanTimestamp: e.PlanTimestamp,
+		// Can't pass the object directly as it would cause an import loop
+		ProviderAliases:   functions.Aliases,
+		ProviderFunctions: functions.Functions,
 	}
 }
 
