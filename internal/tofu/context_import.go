@@ -113,19 +113,23 @@ func NewImportResolver() *ImportResolver {
 // This function mutates the EvalContext's ImportResolver, adding the resolved import target
 // The function errors if we failed to evaluate the ID or the address (soon)
 func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
 	// The import block expressions are declared within the root module.
 	// We need to explicitly use the context with the path of the root module, so that all references will be
 	// relative to the root module
 	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
 
 	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx)
-	if evalDiags.HasErrors() {
-		return evalDiags
+	diags = diags.Append(evalDiags)
+	if diags.HasErrors() {
+		return diags
 	}
 
 	importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To)
-	if addressDiags.HasErrors() {
-		return addressDiags
+	diags = diags.Append(addressDiags)
+	if diags.HasErrors() {
+		return diags
 	}
 
 	ri.mu.Lock()
@@ -134,7 +138,6 @@ func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalCont
 	resolvedImportKey := importAddress.String()
 
 	if importTarget, exists := ri.imports[resolvedImportKey]; exists {
-		var diags tfdiags.Diagnostics
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Duplicate import configuration for %q", importAddress),
@@ -149,7 +152,7 @@ func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalCont
 		ID:     importId,
 	}
 
-	return nil
+	return diags
 }
 
 // GetAllImports returns all resolved imports
