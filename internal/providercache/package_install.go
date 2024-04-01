@@ -37,7 +37,7 @@ const (
 )
 
 func init() {
-	configureDiscoveryRetry()
+	configureProviderDownloadRetry()
 }
 
 var (
@@ -77,7 +77,7 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	retryableClient.RetryMax = maxRetryCount
 	retryableClient.RequestLogHook = requestLogHook
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
@@ -88,7 +88,7 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 			// so we'll return a more appropriate one here.
 			return nil, fmt.Errorf("provider download was interrupted")
 		}
-		return nil, fmt.Errorf("%s: %w", getproviders.HostFromRequest(req), err)
+		return nil, fmt.Errorf("%s: %w", getproviders.HostFromRequest(req.Request), err)
 	}
 	defer resp.Body.Close()
 
