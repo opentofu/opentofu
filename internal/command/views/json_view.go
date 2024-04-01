@@ -128,3 +128,19 @@ func (v *JSONView) Outputs(outputs json.Outputs) {
 		"outputs", outputs,
 	)
 }
+
+func (v *JSONView) Output(message string) {
+	v.log.Info(message, "type", "output")
+}
+
+func (v *JSONView) Info(message string) {
+	v.log.Info(message)
+}
+
+func (v *JSONView) Warn(message string) {
+	v.log.Warn(message)
+}
+
+func (v *JSONView) Error(message string) {
+	v.log.Error(message)
+}

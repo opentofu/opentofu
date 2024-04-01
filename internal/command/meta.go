@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
@@ -266,6 +266,8 @@ type Meta struct {
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local OpenTofu versions don't match.
 	ignoreRemoteVersion bool
+
+	outputInJSON bool
 }
 
 type testingOverrides struct {
@@ -690,6 +692,12 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	diags.Sort()
 
 	if len(diags) == 0 {
+		return
+	}
+
+	if m.outputInJSON {
+		jsonView := views.NewJSONView(m.View)
+		jsonView.Diagnostics(diags)
 		return
 	}
 
