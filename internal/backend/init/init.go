@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
@@ -54,24 +55,24 @@ func Init(services *disco.Disco) {
 	defer backendsLock.Unlock()
 
 	backends = map[string]backend.InitFn{
-		"local":  func() backend.Backend { return backendLocal.New() },
-		"remote": func() backend.Backend { return backendRemote.New(services) },
+		"local":  func(enc encryption.StateEncryption) backend.Backend { return backendLocal.New(enc) },
+		"remote": func(enc encryption.StateEncryption) backend.Backend { return backendRemote.New(services, enc) },
 
 		// Remote State backends.
-		"azurerm":    func() backend.Backend { return backendAzure.New() },
-		"consul":     func() backend.Backend { return backendConsul.New() },
-		"cos":        func() backend.Backend { return backendCos.New() },
-		"gcs":        func() backend.Backend { return backendGCS.New() },
-		"http":       func() backend.Backend { return backendHTTP.New() },
-		"inmem":      func() backend.Backend { return backendInmem.New() },
-		"kubernetes": func() backend.Backend { return backendKubernetes.New() },
-		"oss":        func() backend.Backend { return backendOSS.New() },
-		"pg":         func() backend.Backend { return backendPg.New() },
-		"s3":         func() backend.Backend { return backendS3.New() },
+		"azurerm":    func(enc encryption.StateEncryption) backend.Backend { return backendAzure.New(enc) },
+		"consul":     func(enc encryption.StateEncryption) backend.Backend { return backendConsul.New(enc) },
+		"cos":        func(enc encryption.StateEncryption) backend.Backend { return backendCos.New(enc) },
+		"gcs":        func(enc encryption.StateEncryption) backend.Backend { return backendGCS.New(enc) },
+		"http":       func(enc encryption.StateEncryption) backend.Backend { return backendHTTP.New(enc) },
+		"inmem":      func(enc encryption.StateEncryption) backend.Backend { return backendInmem.New(enc) },
+		"kubernetes": func(enc encryption.StateEncryption) backend.Backend { return backendKubernetes.New(enc) },
+		"oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
+		"pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
+		"s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
-		"cloud": func() backend.Backend { return backendCloud.New(services) },
+		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
 	}
 
 	RemovedBackends = map[string]string{

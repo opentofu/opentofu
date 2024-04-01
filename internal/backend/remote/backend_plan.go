@@ -329,11 +329,13 @@ in order to capture the filesystem context the remote workspace expects:
 		return r, generalError("Failed to create run", err)
 	}
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
+
 	// When the lock timeout is set, if the run is still pending and
 	// cancellable after that period, we attempt to cancel it.
 	if lockTimeout := op.StateLocker.Timeout(); lockTimeout > 0 {
 		go func() {
-			defer logging.PanicHandler()
+			defer panicHandler()
 
 			select {
 			case <-stopCtx.Done():

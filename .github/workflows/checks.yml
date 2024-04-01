@@ -9,7 +9,7 @@
 # The build.yml workflow includes some additional checks we run only for
 # already-merged changes to release branches and tags, as a compromise to
 # keep the PR feedback relatively fast. The intent is that checks.yml should
-# catch most problems but that build.yml might occasionally by the one to catch
+# catch most problems but that build.yml might occasionally be the one to catch
 # more esoteric situations, such as architecture-specific or OS-specific
 # misbehavior.
 
@@ -35,6 +35,9 @@ jobs:
   unit-tests:
     name: "Unit Tests"
     runs-on: ubuntu-latest
+
+    env:
+      TF_APPEND_USER_AGENT: Integration-Test
 
     steps:
       - name: "Fetch source code"

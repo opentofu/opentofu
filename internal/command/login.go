@@ -454,8 +454,9 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 			resp.Write([]byte(callbackSuccessMessage))
 		}),
 	}
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			diags = diags.Append(tfdiags.Sourceless(

@@ -7,14 +7,9 @@ package keyprovider
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/hashicorp/hcl/v2"
 )
-
-// TODO is there a generalized way to regexp-check names?
-var addrRe = regexp.MustCompile(`^key_provider\.([a-zA-Z_0-9-]+)\.([a-zA-Z_0-9-]+)$`)
-var nameRe = regexp.MustCompile("^([a-zA-Z_0-9-]+)$")
 
 // Addr is a type-alias for key provider address strings that identify a specific key provider configuration.
 // The Addr is an opaque value. Do not perform string manipulation on it outside the functions supplied by the

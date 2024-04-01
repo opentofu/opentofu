@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -33,8 +34,15 @@ func (c *StatePullCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Load the encryption configuration
+	enc, encDiags := c.Encryption()
+	if encDiags.HasErrors() {
+		c.showDiagnostics(encDiags)
+		return 1
+	}
+
 	// Load the backend
-	b, backendDiags := c.Backend(nil)
+	b, backendDiags := c.Backend(nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -64,7 +72,7 @@ func (c *StatePullCommand) Run(args []string) int {
 
 	if stateFile != nil { // we produce no output if the statefile is nil
 		var buf bytes.Buffer
-		err = statefile.Write(stateFile, &buf)
+		err = statefile.Write(stateFile, &buf, encryption.StateEncryptionDisabled()) // Don't encrypt to stdout
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to write state: %s", err))
 			return 1

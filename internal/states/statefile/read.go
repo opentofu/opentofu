@@ -14,6 +14,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
 )
@@ -49,7 +50,7 @@ func (e *ErrUnusableState) Unwrap() error {
 // If the state file is empty, the special error value ErrNoState is returned.
 // Otherwise, the returned error might be a wrapper around tfdiags.Diagnostics
 // potentially describing multiple errors.
-func Read(r io.Reader) (*File, error) {
+func Read(r io.Reader, enc encryption.StateEncryption) (*File, error) {
 	// Some callers provide us a "typed nil" *os.File here, which would
 	// cause us to panic below if we tried to use it.
 	if f, ok := r.(*os.File); ok && f == nil {
@@ -75,7 +76,12 @@ func Read(r io.Reader) (*File, error) {
 		return nil, ErrNoState
 	}
 
-	state, err := readState(src)
+	decrypted, err := enc.DecryptState(src)
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := readState(decrypted)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +193,23 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 	}
 
 	if sniff.Version == nil {
+		encrypted, err := encryption.IsEncryptionPayload(src)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				unsupportedFormat,
+				fmt.Sprintf("The state file can not be checked for presense of encryption: %s", err.Error()),
+			))
+			return 0, diags
+		}
+		if encrypted {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				unsupportedFormat,
+				"This state file is encrypted and can not be read without an encryption configuration",
+			))
+			return 0, diags
+		}
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			unsupportedFormat,

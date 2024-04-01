@@ -5,24 +5,6 @@
 
 package method
 
-type Config interface {
-	// Build takes the configuration and builds an encryption method.
-	Build() (Method, error)
-}
-
-type Descriptor interface {
-	// ID returns the unique identifier used when parsing HCL or JSON configs.
-	ID() ID
-
-	// ConfigStruct creates a new configuration struct annotated with hcl tags. The Build() receiver on
-	// this struct must be able to build a Method from the configuration.
-	//
-	// Common errors:
-	// - Returning a struct without a pointer
-	// - Returning a non-struct
-	ConfigStruct() Config
-}
-
 // Method is a low-level encryption method interface that is responsible for encrypting a binary blob of data. It should
 // not try to interpret what kind of data it is encrypting.
 type Method interface {

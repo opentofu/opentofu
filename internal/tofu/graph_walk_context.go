@@ -15,7 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -45,6 +45,7 @@ type ContextGraphWalker struct {
 	RootVariableValues InputValues
 	Config             *configs.Config
 	PlanTimestamp      time.Time
+	Encryption         encryption.Encryption
 
 	// This is an output. Do not set this, nor read it while a graph walk
 	// is in progress.
@@ -56,10 +57,8 @@ type ContextGraphWalker struct {
 	variableValues     map[string]map[string]cty.Value
 	variableValuesLock sync.Mutex
 	providerCache      map[string]providers.Interface
-	providerSchemas    map[string]providers.ProviderSchema
 	providerLock       sync.Mutex
 	provisionerCache   map[string]provisioners.Interface
-	provisionerSchemas map[string]*configschema.Block
 	provisionerLock    sync.Mutex
 }
 
@@ -117,6 +116,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		Evaluator:             evaluator,
 		VariableValues:        w.variableValues,
 		VariableValuesLock:    &w.variableValuesLock,
+		Encryption:            w.Encryption,
 	}
 
 	return ctx
@@ -125,9 +125,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 func (w *ContextGraphWalker) init() {
 	w.contexts = make(map[string]*BuiltinEvalContext)
 	w.providerCache = make(map[string]providers.Interface)
-	w.providerSchemas = make(map[string]providers.ProviderSchema)
 	w.provisionerCache = make(map[string]provisioners.Interface)
-	w.provisionerSchemas = make(map[string]*configschema.Block)
 	w.variableValues = make(map[string]map[string]cty.Value)
 
 	// Populate root module variable values. Other modules will be populated

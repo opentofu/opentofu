@@ -16,6 +16,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
@@ -25,8 +26,8 @@ import (
 )
 
 func TestRemote(t *testing.T) {
-	var _ backend.Enhanced = New(nil)
-	var _ backend.CLI = New(nil)
+	var _ backend.Enhanced = New(nil, encryption.StateEncryptionDisabled())
+	var _ backend.CLI = New(nil, encryption.StateEncryptionDisabled())
 }
 
 func TestRemote_backendDefault(t *testing.T) {
@@ -153,7 +154,7 @@ func TestRemote_config(t *testing.T) {
 
 	for name, tc := range cases {
 		s := testServer(t)
-		b := New(testDisco(s))
+		b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 		// Validate
 		_, valDiags := b.PrepareConfig(tc.config)
@@ -228,7 +229,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 
 	for name, tc := range cases {
 		s := testServer(t)
-		b := New(testDisco(s))
+		b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 		// Set the version for this test.
 		tfversion.Prerelease = tc.prerelease
@@ -783,7 +784,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 
 func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
-	b := New(testDisco(s))
+	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
 	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),

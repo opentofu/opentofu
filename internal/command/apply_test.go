@@ -24,6 +24,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -450,7 +451,7 @@ func TestApply_defaultState(t *testing.T) {
 	}
 
 	// create an existing state file
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath), states.NewState(), nil); err != nil {
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled()), states.NewState(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -738,7 +739,7 @@ func TestApply_plan_backup(t *testing.T) {
 	}
 
 	// create a state file that needs to be backed up
-	fs := statemgr.NewFilesystem(statePath)
+	fs := statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled())
 	fs.StateSnapshotMeta()
 	if err := statemgr.WriteAndPersist(fs, states.NewState(), nil); err != nil {
 		t.Fatal(err)

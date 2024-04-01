@@ -29,6 +29,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -79,6 +80,8 @@ type State struct {
 	// If the header X-Terraform-Snapshot-Interval is present then
 	// we will enable snapshots
 	enableIntermediateSnapshots bool
+
+	encryption encryption.StateEncryption
 }
 
 var ErrStateVersionUnauthorizedUpgradeState = errors.New(strings.TrimSpace(`
@@ -204,7 +207,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 	f := statefile.New(s.state, s.lineage, s.serial)
 
 	var buf bytes.Buffer
-	err := statefile.Write(f, &buf)
+	err := statefile.Write(f, &buf, s.encryption)
 	if err != nil {
 		return err
 	}
@@ -217,7 +220,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 		}
 	}
 
-	stateFile, err := statefile.Read(bytes.NewReader(buf.Bytes()))
+	stateFile, err := statefile.Read(bytes.NewReader(buf.Bytes()), s.encryption)
 	if err != nil {
 		return fmt.Errorf("failed to read state: %w", err)
 	}
@@ -387,7 +390,7 @@ func (s *State) refreshState() error {
 		return nil
 	}
 
-	stateFile, err := statefile.Read(bytes.NewReader(payload.Data))
+	stateFile, err := statefile.Read(bytes.NewReader(payload.Data), s.encryption)
 	if err != nil {
 		return err
 	}

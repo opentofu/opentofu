@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/experiments"
 
 	tfversion "github.com/opentofu/opentofu/version"
@@ -41,6 +42,7 @@ type Module struct {
 	ProviderRequirements *RequiredProviders
 	ProviderLocalNames   map[addrs.Provider]string
 	ProviderMetas        map[addrs.Provider]*ProviderMeta
+	Encryption           *config.EncryptionConfig
 
 	Variables map[string]*Variable
 	Locals    map[string]*Local
@@ -51,8 +53,9 @@ type Module struct {
 	ManagedResources map[string]*Resource
 	DataResources    map[string]*Resource
 
-	Moved  []*Moved
-	Import []*Import
+	Moved   []*Moved
+	Import  []*Import
+	Removed []*Removed
 
 	Checks map[string]*Check
 
@@ -80,6 +83,7 @@ type File struct {
 	ProviderConfigs   []*Provider
 	ProviderMetas     []*ProviderMeta
 	RequiredProviders []*RequiredProviders
+	Encryptions       []*config.EncryptionConfig
 
 	Variables []*Variable
 	Locals    []*Local
@@ -90,8 +94,9 @@ type File struct {
 	ManagedResources []*Resource
 	DataResources    []*Resource
 
-	Moved  []*Moved
-	Import []*Import
+	Moved   []*Moved
+	Import  []*Import
+	Removed []*Removed
 
 	Checks []*Check
 }
@@ -276,6 +281,19 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			})
 		}
 		m.ProviderMetas[provider] = pm
+	}
+
+	for _, e := range file.Encryptions {
+		if m.Encryption != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate encryption configuration",
+				Detail:   fmt.Sprintf("A module may have only one encryption configuration. Encryption was previously configured at %s.", m.Encryption.DeclRange),
+				Subject:  &e.DeclRange,
+			})
+			continue
+		}
+		m.Encryption = e
 	}
 
 	for _, v := range file.Variables {
@@ -468,6 +486,8 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		m.Import = append(m.Import, i)
 	}
 
+	m.Removed = append(m.Removed, file.Removed...)
+
 	return diags
 }
 
@@ -545,6 +565,22 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 			}
 			mergeDiags := existing.merge(pc)
 			diags = append(diags, mergeDiags...)
+		}
+	}
+
+	if len(file.Encryptions) != 0 {
+		switch len(file.Encryptions) {
+		case 1:
+			m.Encryption = m.Encryption.Merge(file.Encryptions[0])
+		default:
+			// An override file with multiple encryptions is still invalid, even
+			// though it can override encryptions from _other_ files.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate encryption configuration",
+				Detail:   fmt.Sprintf("Each override file may have only one encryption configuration. Encryption was previously configured at %s.", file.Encryptions[0].DeclRange),
+				Subject:  &file.Encryptions[1].DeclRange,
+			})
 		}
 	}
 
@@ -654,6 +690,15 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 			Severity: hcl.DiagError,
 			Summary:  "Cannot override 'import' blocks",
 			Detail:   "Import blocks can appear only in normal files, not in override files.",
+			Subject:  m.DeclRange.Ptr(),
+		})
+	}
+
+	for _, m := range file.Removed {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Cannot override 'Removed' blocks",
+			Detail:   "Removed blocks can appear only in normal files, not in override files.",
 			Subject:  m.DeclRange.Ptr(),
 		})
 	}

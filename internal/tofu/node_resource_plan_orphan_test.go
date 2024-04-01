@@ -8,6 +8,8 @@ package tofu
 import (
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -16,61 +18,153 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestNodeResourcePlanOrphanExecute(t *testing.T) {
-	state := states.NewState()
-	state.Module(addrs.RootModuleInstance).SetResourceInstanceCurrent(
-		addrs.Resource{
-			Mode: addrs.ManagedResourceMode,
-			Type: "test_object",
-			Name: "foo",
-		}.Instance(addrs.NoKey),
-		&states.ResourceInstanceObjectSrc{
-			AttrsFlat: map[string]string{
-				"test_string": "foo",
+func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
+	tests := []struct {
+		description           string
+		nodeAddress           string
+		nodeEndpointsToRemove []addrs.ConfigRemovable
+		wantAction            plans.Action
+	}{
+		{
+			nodeAddress:           "test_instance.foo",
+			nodeEndpointsToRemove: make([]addrs.ConfigRemovable, 0),
+			wantAction:            plans.Delete,
+		},
+		{
+			nodeAddress: "test_instance.foo",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(mustConfigResourceAddr("test_instance.bar")).(addrs.ConfigRemovable),
 			},
-			Status: states.ObjectReady,
+			wantAction: plans.Delete,
 		},
-		addrs.AbsProviderConfig{
-			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+		{
+			nodeAddress: "test_instance.foo",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Delete,
 		},
-	)
+		{
+			nodeAddress: "test_instance.foo",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Forget,
+		},
+		{
+			nodeAddress: "test_instance.foo[1]",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Forget,
+		},
+		{
+			nodeAddress: "module.boop.test_instance.foo",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Forget,
+		},
+		{
+			nodeAddress: "module.boop[1].test_instance.foo[1]",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Forget,
+		},
+		{
+			nodeAddress: "module.boop.test_instance.foo",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Forget,
+		},
+		{
+			nodeAddress: "module.boop[1].test_instance.foo",
+			nodeEndpointsToRemove: []addrs.ConfigRemovable{
+				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			},
+			wantAction: plans.Forget,
+		},
+	}
 
-	p := simpleMockProvider()
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
-	ctx := &MockEvalContext{
-		StateState:               state.SyncWrapper(),
-		RefreshStateState:        state.DeepCopy().SyncWrapper(),
-		PrevRunStateState:        state.DeepCopy().SyncWrapper(),
-		InstanceExpanderExpander: instances.NewExpander(),
-		ProviderProvider:         p,
-		ProviderSchemaSchema: providers.ProviderSchema{
+	for _, test := range tests {
+		state := states.NewState()
+		absResource := mustResourceInstanceAddr(test.nodeAddress)
+
+		if !absResource.Module.Module().Equal(addrs.RootModule) {
+			state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
+		}
+
+		state.Module(absResource.Module).SetResourceInstanceCurrent(
+			absResource.Resource,
+			&states.ResourceInstanceObjectSrc{
+				AttrsFlat: map[string]string{
+					"test_string": "foo",
+				},
+				Status: states.ObjectReady,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+		)
+
+		schema := providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": {
-					Block: simpleTestSchema(),
+				"test_instance": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"id": {
+								Type:     cty.String,
+								Computed: true,
+							},
+						},
+					},
 				},
 			},
-		},
-		ChangesChanges: plans.NewChanges().SyncWrapper(),
-	}
+		}
 
-	node := NodePlannableResourceInstanceOrphan{
-		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
+		p := simpleMockProvider()
+		p.ConfigureProvider(providers.ConfigureProviderRequest{})
+		p.GetProviderSchemaResponse = &schema
+
+		ctx := &MockEvalContext{
+			StateState:               state.SyncWrapper(),
+			RefreshStateState:        state.DeepCopy().SyncWrapper(),
+			PrevRunStateState:        state.DeepCopy().SyncWrapper(),
+			InstanceExpanderExpander: instances.NewExpander(),
+			ProviderProvider:         p,
+			ProviderSchemaSchema:     schema,
+			ChangesChanges:           plans.NewChanges().SyncWrapper(),
+		}
+
+		node := NodePlannableResourceInstanceOrphan{
+			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
+				NodeAbstractResource: NodeAbstractResource{
+					ResolvedProvider: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
 				},
+				Addr: absResource,
 			},
-			Addr: mustResourceInstanceAddr("test_object.foo"),
-		},
-	}
-	diags := node.Execute(ctx, walkApply)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected error: %s", diags.Err())
-	}
-	if !state.Empty() {
-		t.Fatalf("expected empty state, got %s", state.String())
+			EndpointsToRemove: test.nodeEndpointsToRemove,
+		}
+
+		err := node.Execute(ctx, walkPlan)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		change := ctx.Changes().GetResourceInstanceChange(absResource, states.NotDeposed)
+		if got, want := change.ChangeSrc.Action, test.wantAction; got != want {
+			t.Fatalf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+
+		if !state.Empty() {
+			t.Fatalf("expected empty state, got %s", state.String())
+		}
 	}
 }
 

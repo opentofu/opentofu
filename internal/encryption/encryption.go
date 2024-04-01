@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
@@ -13,62 +14,101 @@ import (
 // Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific
 // purpose. If no encryption configuration is present, it should return a pass through method that doesn't do anything.
 type Encryption interface {
-	// StateFile produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
-	StateFile() StateEncryption
+	// State produces a StateEncryption overlay for encrypting and decrypting state files for local storage.
+	State() StateEncryption
 
-	// PlanFile produces a PlanEncryption overlay for encrypting and decrypting plan files.
-	PlanFile() PlanEncryption
+	// Plan produces a PlanEncryption overlay for encrypting and decrypting plan files.
+	Plan() PlanEncryption
 
-	// Backend produces a StateEncryption overlay for storing state files on remote backends, such as an S3 bucket.
-	Backend() StateEncryption
-
-	// RemoteState produces a ReadOnlyStateEncryption for reading remote states using the terraform_remote_state data
+	// RemoteState produces a StateEncryption for reading remote states using the terraform_remote_state data
 	// source.
-	RemoteState(string) ReadOnlyStateEncryption
+	RemoteState(string) StateEncryption
 }
 
 type encryption struct {
+	state         StateEncryption
+	plan          PlanEncryption
+	remoteDefault StateEncryption
+	remotes       map[string]StateEncryption
+
 	// Inputs
-	cfg *config.Config
+	cfg *config.EncryptionConfig
 	reg registry.Registry
 }
 
 // New creates a new Encryption provider from the given configuration and registry.
-func New(reg registry.Registry, cfg *config.Config) Encryption {
-	return &encryption{
+func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.Diagnostics) {
+	if cfg == nil {
+		return Disabled(), nil
+	}
+
+	enc := &encryption{
 		cfg: cfg,
 		reg: reg,
-	}
-}
 
-func (e *encryption) StateFile() StateEncryption {
-	return &stateEncryption{
-		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "statefile"),
+		remotes: make(map[string]StateEncryption),
 	}
-}
+	var diags hcl.Diagnostics
+	var encDiags hcl.Diagnostics
 
-func (e *encryption) PlanFile() PlanEncryption {
-	return &planEncryption{
-		base: newBaseEncryption(e, e.cfg.PlanFile.AsTargetConfig(), e.cfg.PlanFile.Enforced, "planfile"),
+	if cfg.State != nil {
+		enc.state, encDiags = newStateEncryption(enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state")
+		diags = append(diags, encDiags...)
+	} else {
+		enc.state = StateEncryptionDisabled()
 	}
-}
 
-func (e *encryption) Backend() StateEncryption {
-	return &stateEncryption{
-		base: newBaseEncryption(e, e.cfg.StateFile.AsTargetConfig(), e.cfg.StateFile.Enforced, "backend"),
+	if cfg.Plan != nil {
+		enc.plan, encDiags = newPlanEncryption(enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan")
+		diags = append(diags, encDiags...)
+	} else {
+		enc.plan = PlanEncryptionDisabled()
 	}
-}
 
-func (e *encryption) RemoteState(name string) ReadOnlyStateEncryption {
-	for _, remoteTarget := range e.cfg.Remote.Targets {
-		if remoteTarget.Name == name {
-			return &stateEncryption{
-				// TODO the addr here should be generated in one place.
-				base: newBaseEncryption(e, remoteTarget.AsTargetConfig(), false, "remote.remote_state_datasource."+remoteTarget.Name),
-			}
+	if cfg.Remote != nil && cfg.Remote.Default != nil {
+		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default")
+		diags = append(diags, encDiags...)
+	} else {
+		enc.remoteDefault = StateEncryptionDisabled()
+	}
+
+	if cfg.Remote != nil {
+		for _, remoteTarget := range cfg.Remote.Targets {
+			// TODO the addr here should be generated in one place.
+			addr := "remote.remote_state_datasource." + remoteTarget.Name
+			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, addr)
+			diags = append(diags, encDiags...)
 		}
 	}
-	return &stateEncryption{
-		base: newBaseEncryption(e, e.cfg.Remote.Default, false, "remote.default"),
+	if diags.HasErrors() {
+		return nil, diags
 	}
+	return enc, diags
+}
+
+func (e *encryption) State() StateEncryption {
+	return e.state
+}
+
+func (e *encryption) Plan() PlanEncryption {
+	return e.plan
+}
+
+func (e *encryption) RemoteState(name string) StateEncryption {
+	if enc, ok := e.remotes[name]; ok {
+		return enc
+	}
+	return e.remoteDefault
+}
+
+// Mostly used in tests
+type encryptionDisabled struct{}
+
+func Disabled() Encryption {
+	return &encryptionDisabled{}
+}
+func (e *encryptionDisabled) State() StateEncryption { return StateEncryptionDisabled() }
+func (e *encryptionDisabled) Plan() PlanEncryption   { return PlanEncryptionDisabled() }
+func (e *encryptionDisabled) RemoteState(name string) StateEncryption {
+	return StateEncryptionDisabled()
 }

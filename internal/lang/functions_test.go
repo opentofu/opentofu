@@ -529,6 +529,17 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"issensitive": {
+			{
+				`issensitive(1)`,
+				cty.False,
+			},
+			{
+				`issensitive(sensitive(1))`,
+				cty.True,
+			},
+		},
+
 		"join": {
 			{
 				`join(" ", ["Hello", "World"])`,
@@ -979,6 +990,13 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"templatestring": {
+			{
+				`templatestring("Hello, $${name}!", {name = "Jodie"})`,
+				cty.StringVal("Hello, Jodie!"),
+			},
+		},
+
 		"timeadd": {
 			{
 				`timeadd("2017-11-22T00:00:00Z", "1s")`,
@@ -1123,6 +1141,12 @@ func TestFunctions(t *testing.T) {
 			{
 				`urlencode("foo:bar@localhost?foo=bar&bar=baz")`,
 				cty.StringVal("foo%3Abar%40localhost%3Ffoo%3Dbar%26bar%3Dbaz"),
+			},
+		},
+		"urldecode": {
+			{
+				`urldecode("foo%3Abar%40localhost%3Ffoo%3Dbar%26bar%3Dbaz")`,
+				cty.StringVal("foo:bar@localhost?foo=bar&bar=baz"),
 			},
 		},
 

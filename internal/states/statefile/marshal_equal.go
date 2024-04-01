@@ -8,6 +8,7 @@ package statefile
 import (
 	"bytes"
 
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -30,12 +31,12 @@ func StatesMarshalEqual(a, b *states.State) bool {
 	// We write here some temporary files that have no header information
 	// populated, thus ensuring that we're only comparing the state itself
 	// and not any metadata.
-	err := Write(&File{State: a}, &aBuf)
+	err := Write(&File{State: a}, &aBuf, encryption.StateEncryptionDisabled())
 	if err != nil {
 		// Should never happen, because we're writing to an in-memory buffer
 		panic(err)
 	}
-	err = Write(&File{State: b}, &bBuf)
+	err = Write(&File{State: b}, &bBuf, encryption.StateEncryptionDisabled())
 	if err != nil {
 		// Should never happen, because we're writing to an in-memory buffer
 		panic(err)

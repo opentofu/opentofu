@@ -26,7 +26,7 @@ transfers immediately into one of the "command" implementations in
 [the `command` package](https://pkg.go.dev/github.com/opentofu/opentofu/internal/command).
 The mapping between the user-facing command names and
 their corresponding `command` package types can be found in the `commands.go`
-file in the root of the repository.
+file under the `cmd/tofu` directory (package `main`).
 
 The full flow illustrated above does not actually apply to _all_ commands,
 but it applies to the main OpenTofu workflow commands `tofu plan` and

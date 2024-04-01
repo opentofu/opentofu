@@ -15,6 +15,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -42,7 +43,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 
 	state := &State{tfeClient: b.client, organization: b.organization, workspace: &tfe.Workspace{
 		ID: "ws-abcd",
-	}}
+	}, encryption: encryption.StateEncryptionDisabled()}
 	outputs, err := state.GetRootOutputValues()
 
 	if err != nil {
@@ -94,7 +95,7 @@ func TestState(t *testing.T) {
 	var buf bytes.Buffer
 	s := statemgr.TestFullInitialState()
 	sf := statefile.New(s, "stub-lineage", 2)
-	err := statefile.Write(sf, &buf)
+	err := statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

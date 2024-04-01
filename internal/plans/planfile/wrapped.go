@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
+	"github.com/opentofu/opentofu/internal/encryption"
 )
 
 // WrappedPlanFile is a sum type that represents a saved plan, loaded from a
@@ -76,9 +77,9 @@ func NewWrappedCloud(c *cloudplan.SavedPlanBookmark) *WrappedPlanFile {
 // returns an error if the file doesn't seem to be a plan file of either kind.
 // Most consumers should use this and switch behaviors based on the kind of plan
 // they expected, rather than directly using Open.
-func OpenWrapped(filename string) (*WrappedPlanFile, error) {
+func OpenWrapped(filename string, enc encryption.PlanEncryption) (*WrappedPlanFile, error) {
 	// First, try to load it as a local planfile.
-	local, localErr := Open(filename)
+	local, localErr := Open(filename, enc)
 	if localErr == nil {
 		return &WrappedPlanFile{local: local}, nil
 	}

@@ -1,5 +1,102 @@
 # Weekly Updates
 
+## 2024-03-27
+
+Hello there!  We've had a fairly quiet couple days after KubeCon last week, but still managed to make progress in some key areas!
+
+- Current Status:
+  - Large numbers are no longer truncated in plans [#1382](https://github.com/opentofu/opentofu/pull/1382)
+  - Debugging crashes is now much easer with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
+  - State Encryption
+    - Integration testing with TACOS identified some issues that have been fixed with remote and cloud backends [#1431](https://github.com/opentofu/opentofu/pull/1431)
+    - Dumping state during a crash is more resilient [#1421](https://github.com/opentofu/opentofu/pull/1421)
+    - Configuration is undergoing some polish
+    - Additional key providers in flight
+  - Work has been started on Provider Functions [#1326](https://github.com/opentofu/opentofu/issues/1326)
+  - Work continues on import blocks with for_each support.
+- How can I help?
+  - Please test the 1.7.0-alpha1 release and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
+## 2024-03-21
+
+Hey there! We released [OpenTofu 1.7.0-alpha1](https://github.com/opentofu/opentofu/releases/tag/v1.7.0-alpha1) end of last week and most of the team spent the week at OpenTofu Day Europe and KubeCon. You can find the videos [on YouTube](https://www.youtube.com/watch?v=kudru6Rm1n0&list=PLnVotLM2Qsyiw_6Pd_9WxRRLdrUAs3c1c). Attendance was high, 150+ people (more than available seats).
+
+Here's what we worked on:
+
+- Current Status and Up Next
+  - We released a [blog post](https://opentofu.org/blog/help-us-test-opentofu-1-7-0-alpha1/) and a [video](https://www.youtube.com/watch?v=36FN-DzHz6s) asking the community to test the 1.7.0-alpha1 release. 
+  - State encryption
+    - Compliance tests for all KMS and method implementations, as well as individual README files in the encryption package to ease future development ([#1377](https://github.com/opentofu/opentofu/pull/1377),[#1396](https://github.com/opentofu/opentofu/pull/1396))  
+    - Released the first version with PBKDF2 and AWS KMS (1.7.0-alpha1)
+    - Merged the GCP KMS ([#1392](https://github.com/opentofu/opentofu/pull/1392))
+    - More work being done on Azure and OpenBao integrations
+  - Working on making the website friendlier to newcomers to OpenTofu without previous Terraform experience
+- How can I help?
+  - Please test the 1.7.0-alpha1 release and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
+## 2024-03-13
+
+Hey there! The main goal this week is getting an alpha release of 1.7 out, and you can expect it by the end of the week. It will include state encryption and the new removed block as major features, so that you can take those features for a spin and give us feedback.
+
+Additionally, next week is KubeCon, and as part of it, OpenTofu Day! If you're going to KubeCon, make sure to come and say hi!
+
+- Current Status and Up Next
+  - State encryption
+    - PBKDF2 key provider has been finished and merged ([#1310](https://github.com/opentofu/opentofu/pull/1310))
+    - We're working on compliance tests that will better verify whether all key providers behave correctly and have the same contract ([#1377](https://github.com/opentofu/opentofu/pull/1377))
+    - The AWS KMS key provider is also being worked on, and needs a bit more fine-tuning based on the compliance tests ([#1349](https://github.com/opentofu/opentofu/pull/1349))
+    - We've made some simplifications to the naming and structure of the encryption configuration ([#1385](https://github.com/opentofu/opentofu/issues/1385))
+    - We've made some struct-embedding-related improvements to the gohcl package of the hcl library, and are trying to get them upstreamed (for now we've vendored a copy of the package) ([#667](https://github.com/hashicorp/hcl/pull/667))
+  - We've added support for recursively calling the templatefile function ([#1250](https://github.com/opentofu/opentofu/pull/1250))
+  - Work continues on import blocks with for_each support.
+  - We're working on `tofu test`-related improvements for provider blocks.
+  - We're preparing for OpenTofu Day, esp. Arel who together with James will be giving a presentation on the registry.
+  - We've been doing some hardening on our registry (which has been working great so far) and after identifying features we need that aren't available in the pro plan, CloudFlare has agreed to sponsor us with a business plan. Thanks a lot to them!
+- How can I help?
+  - Once the alpha build is out, please test state encryption. Watch the [OpenTofu YouTube channel](https://youtube.com/@opentofu) for detailed instructions.
+  - Use OpenTofu, report issues, and please upvote issues that are important to you, so we can better prioritize development work.
+
+## 2024-03-07
+
+Hello there! This week we got state encryption running on the main branch for the first time, and we are planning to release an alpha build next week with a passphrase key provider and possibly the AWS KMS integration.
+
+- Current Status and Up Next
+  - State encryption
+    -  Several PRs have been merged ([#1316](https://github.com/opentofu/opentofu/pull/1316), [#1291](https://github.com/opentofu/opentofu/pull/1291), [#1295](https://github.com/opentofu/opentofu/pull/1295), [#1288](https://github.com/opentofu/opentofu/pull/1288), [#1292](https://github.com/opentofu/opentofu/pull/1292), [#1294](https://github.com/opentofu/opentofu/pull/1294))
+  - Declarative remove block
+    - Merged end-user documentation ([#1332](https://github.com/opentofu/opentofu/pull/1332))
+  - Website & community
+    - Added support for the urldecode() function in OpenTofu ([#1283](https://github.com/opentofu/opentofu/pull/1283)) 
+    - Improved website accessibility ([#274](https://github.com/opentofu/opentofu.org/pull/274))
+  - How can I help?
+    - Once the alpha build is out, please test state encryption. Watch the [OpenTofu YouTube channel](https://youtube.com/@opentofu) for detailed instructions.
+    - Use OpenTofu, report issues, and please upvote issues that are important to you, so we can better prioritize development work.
+
+## 2024-02-22
+
+Hello! Over the last week we've finished up a couple of features, and we're continuing to work our way towards 1.7.0.
+
+We've also [just released 1.6.2](https://github.com/opentofu/opentofu/releases/tag/v1.6.2) with a fix for a bug in `tofu test`.
+
+Additionally, if you're coming to KubeCon and will be there a day early, make sure to come to OpenTofu Day! It's happening on Tuesday, the 19th of March, as a KubeCon + CloudNativeCon Europe CNCF-hosted Co-located Event. You can find more details [here](https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/co-located-events/opentofu-day/#about).
+
+- Current Status and Up Next
+  - State encryption
+    - [First big pull request](https://github.com/opentofu/opentofu/pull/1227) has been merged.
+    - The team is now working with much better parallelism on integrating it with the codebase, as well as implementing the various encryption methods and key providers.
+  - Declarative remove block
+    - The [PR](https://github.com/opentofu/opentofu/pull/1158) has been merged, and the feature is now finished. It will be available as part of 1.7.0.
+    - We'll now work on the documentation for this feature.
+  - [Passing outputs of one test case to another as variables](https://github.com/opentofu/opentofu/pull/1254) is now fixed and is available as part of 1.6.2 today.
+  - Work on adding for_each to import blocks is being continued, [a draft PR is currently up](https://github.com/opentofu/opentofu/pull/1270) further refactoring the code.
+- How can I help?
+  - Use OpenTofu! Let us know about your experience, and if you run into any issues, please report them.
+  - Other than that, the best way to help is to create issues, discuss on issues, and spread the word about OpenTofu.
+  - There are some issues which are accepted and open to external contribution. [Please see the contributing guide for more details](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
+    - You can look for `good-first-issue` and `help-wanted` labels to find issues we've deemed are the best to pick up for external contributors. They are generally picked up quickly, so there might not be any available when you look. Please take a look there periodically if you'd like to find an issue to contribute to.
+
+Please let us know if you have any feedback on what we could improve, either with these updates or more generally - this very document was a result of such feedback! We're available on Slack, via GitHub issues, or even in the pull request updating this file.
+
 ## 2024-02-15
 
 Hey there! Last week was quiet due to most of the core team is off on winter holidays, but this week we're all back!

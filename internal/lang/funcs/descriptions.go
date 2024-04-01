@@ -244,6 +244,10 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`index` finds the element index for a given value in a list.",
 		ParamDescription: []string{"", ""},
 	},
+	"issensitive": {
+		Description:      "`issensitive` takes any value and returns `true` if the value is marked as sensitive, and `false` otherwise.",
+		ParamDescription: []string{""},
+	},
 	"join": {
 		Description: "`join` produces a string by concatenating together all elements of a given list of strings with the given delimiter.",
 		ParamDescription: []string{
@@ -427,6 +431,10 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`templatefile` reads the file at the given path and renders its content as a template using a supplied set of template variables.",
 		ParamDescription: []string{"", ""},
 	},
+	"templatestring": {
+		Description:      "`templatestring` processes the provided string as a template using a supplied set of template variables.",
+		ParamDescription: []string{"", ""},
+	},
 	"textdecodebase64": {
 		Description:      "`textdecodebase64` function decodes a string that was previously Base64-encoded, and then interprets the result as characters in a specified character encoding.",
 		ParamDescription: []string{"", ""},
@@ -516,6 +524,10 @@ var DescriptionList = map[string]descriptionEntry{
 	},
 	"urlencode": {
 		Description:      "`urlencode` applies URL encoding to a given string.",
+		ParamDescription: []string{""},
+	},
+	"urldecode": {
+		Description:      "`urldecode` applies URL decoding to a given encoded string.",
 		ParamDescription: []string{""},
 	},
 	"uuid": {

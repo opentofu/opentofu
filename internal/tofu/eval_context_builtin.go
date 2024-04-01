@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -76,6 +77,7 @@ type BuiltinEvalContext struct {
 	InstanceExpanderValue *instances.Expander
 	MoveResultsValue      refactoring.MoveResults
 	ImportResolverValue   *ImportResolver
+	Encryption            encryption.Encryption
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -153,21 +155,6 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	// first see if we have already have an initialized provider to avoid
-	// re-loading it only for the schema
-	p := ctx.Provider(addr)
-	if p != nil {
-		resp := p.GetProviderSchema()
-		// convert any diagnostics here in case this is the first call
-		// FIXME: better control provider instantiation so we can be sure this
-		// won't be the first call to ProviderSchema
-		var err error
-		if resp.Diagnostics.HasErrors() {
-			err = resp.Diagnostics.ErrWithWarnings()
-		}
-		return resp, err
-	}
-
 	return ctx.Plugins.ProviderSchema(addr.Provider)
 }
 
@@ -514,4 +501,8 @@ func (ctx *BuiltinEvalContext) MoveResults() refactoring.MoveResults {
 
 func (ctx *BuiltinEvalContext) ImportResolver() *ImportResolver {
 	return ctx.ImportResolverValue
+}
+
+func (ctx *BuiltinEvalContext) GetEncryption() encryption.Encryption {
+	return ctx.Encryption
 }

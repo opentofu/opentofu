@@ -60,10 +60,34 @@ var NonsensitiveFunc = function.New(&function.Spec{
 	},
 })
 
+// IsSensitiveFunc returns whether or not the value is sensitive.
+var IsSensitiveFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "value",
+			Type:             cty.DynamicPseudoType,
+			AllowUnknown:     true,
+			AllowNull:        true,
+			AllowMarked:      true,
+			AllowDynamicType: true,
+		},
+	},
+	Type: func(args []cty.Value) (cty.Type, error) {
+		return cty.Bool, nil
+	},
+	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+		return cty.BoolVal(args[0].HasMark(marks.Sensitive)), nil
+	},
+})
+
 func Sensitive(v cty.Value) (cty.Value, error) {
 	return SensitiveFunc.Call([]cty.Value{v})
 }
 
 func Nonsensitive(v cty.Value) (cty.Value, error) {
 	return NonsensitiveFunc.Call([]cty.Value{v})
+}
+
+func IsSensitive(v cty.Value) (cty.Value, error) {
+	return IsSensitiveFunc.Call([]cty.Value{v})
 }

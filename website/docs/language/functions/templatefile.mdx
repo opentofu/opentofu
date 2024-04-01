@@ -22,10 +22,9 @@ out into a separate file for readability.
 
 The "vars" argument must be an object. Within the template file, each of the
 keys in the map is available as a variable for interpolation. The template may
-also use any other function available in the OpenTofu language, except that
-recursive calls to `templatefile` are not permitted. Variable names must
-each start with a letter, followed by zero or more letters, digits, or
-underscores.
+also use any other function available in the OpenTofu language. Variable
+names must each start with a letter, followed by zero or more
+letters, digits, or underscores.
 
 Strings in the OpenTofu language are sequences of Unicode characters, so
 this function will interpret the file contents as UTF-8 encoded text and
@@ -41,6 +40,29 @@ dynamically during an OpenTofu operation.
 OpenTofu will not prevent you from using other names, but following this
 convention will help your editor understand the content and likely provide
 better editing experience as a result.
+
+## Recursion
+
+There are a few limitations to be aware of if recursion is used with templatefile.
+
+Any recursive calls to `templatefile` will have a limited call depth (1024 by default).
+This is to prevent crashes due to unintential infinite recursive calls and limit the chance
+of Out Of Memory crashes.
+
+As tail-recursion is not supported, all documents in a call stack must be loaded
+into memory before the stack can unwind. On most modern systems and configurations
+this will likely not be an issue, but it is worth being mindful of.
+
+If the maximum recursion depth is hit during execution, a concise error will be provided
+which describes the first few steps of the call stack to help you diagnose the issue.
+If you need the full call stack, setting `TF_LOG=debug` will cause the full templatefile
+callstack to be printed to the console.
+
+If your configuration requires a larger maximum recursion depth, you can override the
+default using the `TF_TEMPLATE_RECURSION_DEPTH` environment variable. This is not
+recommended and is only provided as an escape hatch. Additionally, setting it lower
+than the 1024 default has the potential to cause problems with modules that use
+the templatefile function.
 
 ## Examples
 
@@ -148,3 +170,5 @@ For more information, see the main documentation for
 
 * [`file`](/docs/language/functions/file) reads a file from disk and returns its literal contents
   without any template interpretation.
+* [`templatestring`](/docs/language/functions/templatestring) takes a string and renders it as a
+  template using a supplied set of template variables.
