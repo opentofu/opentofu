@@ -869,7 +869,7 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 			"Missing core function",
 			"attr = core::missing_function(54)",
 			"Call to unknown function",
-			"There is no function named \"missing_function\".",
+			"There is no builtin (core::) function named \"missing_function\".",
 		},
 		{
 			"Invalid prefix",

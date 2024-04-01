@@ -224,7 +224,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 			if fullNamespace == "core::" {
 				// Error is in core namespace, mirror non-core equivalent
 				enhanced.Summary = "Call to unknown function"
-				enhanced.Detail = fmt.Sprintf("There is no function named %q.", funcName)
+				enhanced.Detail = fmt.Sprintf("There is no builtin (core::) function named %q.", funcName)
 				continue
 			}
 
