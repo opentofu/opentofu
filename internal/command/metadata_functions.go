@@ -79,7 +79,7 @@ Usage: tofu [global options] metadata functions -json
 
 func isIgnoredFunction(name string) bool {
 	for _, i := range ignoredFunctions {
-		if i == name {
+		if i == name || "core::"+i == name {
 			return true
 		}
 	}
