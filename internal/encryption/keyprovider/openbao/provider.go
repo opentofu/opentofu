@@ -18,7 +18,6 @@ type keyProvider struct {
 	svc       service
 	keyName   string
 	keyLength int
-	ctx       context.Context
 }
 
 func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
@@ -35,8 +34,10 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		}
 	}
 
+	ctx := context.Background()
+
 	// KeyLength is specified in bytes, but OpenBao wants it in bits so it's KeyLength * 8.
-	dataKey, err := p.svc.generateDataKey(p.ctx, p.keyName, p.keyLength*8)
+	dataKey, err := p.svc.generateDataKey(ctx, p.keyName, p.keyLength*8)
 	if err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
 			Message: "failed to generate openbao data key",
@@ -53,7 +54,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	if inMeta.isPresent() {
-		out.DecryptionKey, err = p.svc.decryptData(p.ctx, p.keyName, inMeta.Ciphertext)
+		out.DecryptionKey, err = p.svc.decryptData(ctx, p.keyName, inMeta.Ciphertext)
 		if err != nil {
 			return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
 				Message: "failed to decrypt ciphertext",

@@ -1,7 +1,6 @@
 package openbao
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -58,7 +57,6 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		svc:       service{client},
 		keyName:   c.KeyName,
 		keyLength: c.KeyLength,
-		ctx:       context.Background(),
 	}, new(keyMeta), nil
 }
 
