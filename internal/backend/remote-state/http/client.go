@@ -144,7 +144,7 @@ func (c *httpClient) Unlock(id string) error {
 }
 
 func (c *httpClient) Get() (*remote.Payload, error) {
-	resp, err := c.httpRequest("GET", c.URL, nil, "get state")
+	resp, err := c.httpRequest(http.MethodGet, c.URL, nil, "get state")
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (c *httpClient) Put(data []byte) error {
 
 func (c *httpClient) Delete() error {
 	// Make the request
-	resp, err := c.httpRequest("DELETE", c.URL, nil, "delete state")
+	resp, err := c.httpRequest(http.MethodDelete, c.URL, nil, "delete state")
 	if err != nil {
 		return err
 	}
