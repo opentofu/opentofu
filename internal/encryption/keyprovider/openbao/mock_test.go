@@ -17,3 +17,7 @@ func injectMock(m mockClientFunc) {
 		return m, nil
 	}
 }
+
+func injectDefaultClient() {
+	newClient = newOpenBaoClient
+}
