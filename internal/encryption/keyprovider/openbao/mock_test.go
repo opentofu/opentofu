@@ -6,9 +6,9 @@ import (
 	openbao "github.com/openbao/openbao/api"
 )
 
-type mockClientFunc func(ctx context.Context, path string, data []byte) (*openbao.Secret, error)
+type mockClientFunc func(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error)
 
-func (f mockClientFunc) WriteBytesWithContext(ctx context.Context, path string, data []byte) (*openbao.Secret, error) {
+func (f mockClientFunc) WriteWithContext(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error) {
 	return f(ctx, path, data)
 }
 

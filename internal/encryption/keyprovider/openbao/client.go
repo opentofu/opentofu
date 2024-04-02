@@ -3,7 +3,6 @@ package openbao
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -11,7 +10,7 @@ import (
 )
 
 type client interface {
-	WriteBytesWithContext(ctx context.Context, path string, data []byte) (*openbao.Secret, error)
+	WriteWithContext(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error)
 }
 
 // service implements missing utility functions from openbao/api such as routing and serialization.
@@ -27,14 +26,9 @@ type dataKey struct {
 func (s service) generateDataKey(ctx context.Context, keyName string, bitSize int) (dataKey, error) {
 	path := fmt.Sprintf("/transit/datakey/plaintext/%s", keyName)
 
-	reqBody, err := json.Marshal(map[string]interface{}{
+	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
 		"bits": bitSize,
 	})
-	if err != nil {
-		return dataKey{}, fmt.Errorf("serializing datakey request to openbao: %w", err)
-	}
-
-	secret, err := s.c.WriteBytesWithContext(ctx, path, reqBody)
 	if err != nil {
 		return dataKey{}, fmt.Errorf("sending datakey request to openbao: %w", err)
 	}
@@ -57,14 +51,9 @@ func (s service) generateDataKey(ctx context.Context, keyName string, bitSize in
 func (s service) decryptData(ctx context.Context, keyName string, ciphertext []byte) ([]byte, error) {
 	path := fmt.Sprintf("/transit/decrypt/%s", keyName)
 
-	reqBody, err := json.Marshal(map[string]string{
+	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
 		"ciphertext": string(ciphertext),
 	})
-	if err != nil {
-		return nil, fmt.Errorf("serializing decryption request to openbao: %w", err)
-	}
-
-	secret, err := s.c.WriteBytesWithContext(ctx, path, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("sending decryption request to openbao: %w", err)
 	}

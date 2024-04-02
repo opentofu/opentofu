@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -175,16 +174,10 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 	generateDataKeyPath := fmt.Sprintf("/transit/datakey/plaintext/%s", testKeyName)
 	decryptPath := fmt.Sprintf("/transit/decrypt/%s", testKeyName)
 
-	return func(ctx context.Context, path string, data []byte) (*openbao.Secret, error) {
-		reqBody := make(map[string]interface{})
-
-		if err := json.Unmarshal(data, &reqBody); err != nil {
-			t.Fatalf("Invalid JSON data supplied to mock: %v", err)
-		}
-
+	return func(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error) {
 		switch path {
 		case generateDataKeyPath:
-			bits, ok := reqBody["bits"].(float64)
+			bits, ok := data["bits"].(int)
 			if !ok {
 				t.Fatalf("Invalid bits in data suplied to mock: not a number")
 			}
@@ -204,7 +197,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 			return s, nil
 
 		case decryptPath:
-			ciphertext, ok := reqBody["ciphertext"].(string)
+			ciphertext, ok := data["ciphertext"].(string)
 			if !ok {
 				t.Fatalf("Invalid ciphertext in data suplied to mock: not an string")
 			}
