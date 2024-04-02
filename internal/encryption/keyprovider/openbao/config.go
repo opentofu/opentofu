@@ -12,8 +12,8 @@ type Config struct {
 	Address string `hcl:"address,optional"`
 	Token   string `hcl:"token,optional"`
 
-	KeyName   string `hcl:"key_name"`
-	KeyLength int    `hcl:"key_length,optional"`
+	KeyName   string        `hcl:"key_name"`
+	KeyLength DataKeyLength `hcl:"key_length,optional"`
 }
 
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
@@ -24,10 +24,10 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 
 	if c.KeyLength == 0 {
-		c.KeyLength = defaultKeyLength
+		c.KeyLength = defaultDataKeyLength
 	}
 
-	if err := validateKeyLength(c.KeyLength); err != nil {
+	if err := c.KeyLength.Validate(); err != nil {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{
 			Cause: err,
 		}
@@ -60,6 +60,23 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}, new(keyMeta), nil
 }
 
+const defaultDataKeyLength DataKeyLength = 32
+
+type DataKeyLength int
+
+func (l DataKeyLength) Validate() error {
+	switch l {
+	case 16, 32, 64:
+		return nil
+	default:
+		return fmt.Errorf("data key length should one of 16, 32 or 64 bytes: got %v", l)
+	}
+}
+
+func (l DataKeyLength) Bits() int {
+	return int(l) * 8
+}
+
 type clientConstructor func(config *openbao.Config, token string) (client, error)
 
 var errNoOpenBaoTokenFound = errors.New("no OpenBao token found")
@@ -84,14 +101,4 @@ func newOpenBaoClient(config *openbao.Config, token string) (client, error) {
 	}
 
 	return c.Logical(), nil
-}
-
-const defaultKeyLength = 32
-
-func validateKeyLength(keyLength int) error {
-	if keyLength != 16 && keyLength != 32 && keyLength != 64 {
-		return fmt.Errorf("invalid key length: %d, supported options are 16, 32 or 64 bytes", keyLength)
-	}
-
-	return nil
 }
