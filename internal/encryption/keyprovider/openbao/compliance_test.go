@@ -17,7 +17,7 @@ func getBaoKeyName() string {
 	if os.Getenv("TF_ACC") == "" {
 		return ""
 	}
-	return os.Getenv("TF_BAO_KEY_NAME")
+	return os.Getenv("TF_ACC_BAO_KEY_NAME")
 }
 
 const defaultTestKeyName = "test-key"
