@@ -60,7 +60,6 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 	// Work with data/body
 	if len(data) > 0 {
 		req.Header.Set("Content-Type", "application/json")
-		req.ContentLength = int64(len(data))
 
 		// Generate the MD5
 		hash := md5.Sum(data)
