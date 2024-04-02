@@ -69,7 +69,9 @@ var errNoOpenBaoTokenFound = errors.New("no openbao token found")
 // newClient variable allows to inject different client implementations.
 // In order to keep client interface simple, token setting is in this function as well.
 // It's not possible to pass token in config.
-var newClient clientConstructor = func(config *openbao.Config, token string) (client, error) {
+var newClient clientConstructor = newOpenBaoClient
+
+func newOpenBaoClient(config *openbao.Config, token string) (client, error) {
 	// NewClient reads BAO_TOKEN and some other optional env variables.
 	c, err := openbao.NewClient(config)
 	if err != nil {
