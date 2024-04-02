@@ -1,5 +1,39 @@
 # Weekly Updates
 
+## 2024-03-27
+
+Hello there!  We've had a fairly quiet couple days after KubeCon last week, but still managed to make progress in some key areas!
+
+- Current Status:
+  - Large numbers are no longer truncated in plans [#1382](https://github.com/opentofu/opentofu/pull/1382)
+  - Debugging crashes is now much easer with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
+  - State Encryption
+    - Integration testing with TACOS identified some issues that have been fixed with remote and cloud backends [#1431](https://github.com/opentofu/opentofu/pull/1431)
+    - Dumping state during a crash is more resilient [#1421](https://github.com/opentofu/opentofu/pull/1421)
+    - Configuration is undergoing some polish
+    - Additional key providers in flight
+  - Work has been started on Provider Functions [#1326](https://github.com/opentofu/opentofu/issues/1326)
+  - Work continues on import blocks with for_each support.
+- How can I help?
+  - Please test the 1.7.0-alpha1 release and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
+## 2024-03-21
+
+Hey there! We released [OpenTofu 1.7.0-alpha1](https://github.com/opentofu/opentofu/releases/tag/v1.7.0-alpha1) end of last week and most of the team spent the week at OpenTofu Day Europe and KubeCon. You can find the videos [on YouTube](https://www.youtube.com/watch?v=kudru6Rm1n0&list=PLnVotLM2Qsyiw_6Pd_9WxRRLdrUAs3c1c). Attendance was high, 150+ people (more than available seats).
+
+Here's what we worked on:
+
+- Current Status and Up Next
+  - We released a [blog post](https://opentofu.org/blog/help-us-test-opentofu-1-7-0-alpha1/) and a [video](https://www.youtube.com/watch?v=36FN-DzHz6s) asking the community to test the 1.7.0-alpha1 release. 
+  - State encryption
+    - Compliance tests for all KMS and method implementations, as well as individual README files in the encryption package to ease future development ([#1377](https://github.com/opentofu/opentofu/pull/1377),[#1396](https://github.com/opentofu/opentofu/pull/1396))  
+    - Released the first version with PBKDF2 and AWS KMS (1.7.0-alpha1)
+    - Merged the GCP KMS ([#1392](https://github.com/opentofu/opentofu/pull/1392))
+    - More work being done on Azure and OpenBao integrations
+  - Working on making the website friendlier to newcomers to OpenTofu without previous Terraform experience
+- How can I help?
+  - Please test the 1.7.0-alpha1 release and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
 ## 2024-03-13
 
 Hey there! The main goal this week is getting an alpha release of 1.7 out, and you can expect it by the end of the week. It will include state encryption and the new removed block as major features, so that you can take those features for a spin and give us feedback.

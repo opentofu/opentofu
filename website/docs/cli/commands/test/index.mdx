@@ -244,10 +244,11 @@ can provide variables to your test run using any of the following methods:
 | Order  | Source                                                                                                                         |
 |:------:|:-------------------------------------------------------------------------------------------------------------------------------|
 |   1    | Environment variables with the `TF_VAR_` prefix.                                                                               |
-|   2    | tfvar files specified: `terraform.tfvars` and `*.auto.tfvars`.                                                                 |
-|   3    | Commandline variables defined using the flag `-var`, and the variables defined in the files specified by the flag `-var-file`. |
-|   4    | The variables from the `variables` block in a test file.                                                                       |
-|   5    | The variables from the `variables` block in `run` block.                                                                       |
+|   2    | tfvar files specified in the current directory: `terraform.tfvars` and `*.auto.tfvars`.                                        |
+|   3    | tfvar files specified in the tests directory: `tests/terraform.tfvars` and `tests/*.auto.tfvars`.                              |
+|   4    | Commandline variables defined using the flag `-var`, and the variables defined in the files specified by the flag `-var-file`. |
+|   5    | The variables from the `variables` block in a test file.                                                                       |
+|   6    | The variables from the `variables` block in `run` block.                                                                       |
 
 OpenTofu evaluates the variables in the order listed above, so you can use it to override the previously set variable.
 For example:
