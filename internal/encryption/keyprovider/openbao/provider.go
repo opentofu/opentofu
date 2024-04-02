@@ -40,7 +40,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	dataKey, err := p.svc.generateDataKey(ctx, p.keyName, p.keyLength*8)
 	if err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
-			Message: "failed to generate openbao data key",
+			Message: "failed to generate OpenBao data key (check if the configuration valid and OpenBao server accessible)",
 			Cause:   err,
 		}
 	}
@@ -57,7 +57,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		out.DecryptionKey, err = p.svc.decryptData(ctx, p.keyName, inMeta.Ciphertext)
 		if err != nil {
 			return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
-				Message: "failed to decrypt ciphertext",
+				Message: "failed to decrypt ciphertext (check if the configuration valid and OpenBao server accessible)",
 				Cause:   err,
 			}
 		}
