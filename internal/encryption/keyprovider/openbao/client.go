@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 
 	openbao "github.com/openbao/openbao/api"
 )
@@ -24,7 +25,7 @@ type dataKey struct {
 }
 
 func (s service) generateDataKey(ctx context.Context, keyName string, bitSize int) (dataKey, error) {
-	path := fmt.Sprintf("/transit/datakey/plaintext/%s", keyName)
+	path := fmt.Sprintf("/transit/datakey/plaintext/%s", url.PathEscape(keyName))
 
 	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
 		"bits": bitSize,
@@ -49,7 +50,7 @@ func (s service) generateDataKey(ctx context.Context, keyName string, bitSize in
 }
 
 func (s service) decryptData(ctx context.Context, keyName string, ciphertext []byte) ([]byte, error) {
-	path := fmt.Sprintf("/transit/decrypt/%s", keyName)
+	path := fmt.Sprintf("/transit/decrypt/%s", url.PathEscape(keyName))
 
 	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
 		"ciphertext": string(ciphertext),

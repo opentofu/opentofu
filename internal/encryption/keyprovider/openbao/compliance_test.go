@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 
@@ -175,8 +176,10 @@ func TestKeyProvider(t *testing.T) {
 // but in order to test cover as much as we can, it has to have some logic in here.
 
 func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockClientFunc {
-	generateDataKeyPath := fmt.Sprintf("/transit/datakey/plaintext/%s", testKeyName)
-	decryptPath := fmt.Sprintf("/transit/decrypt/%s", testKeyName)
+	escapedTestKeyName := url.PathEscape(testKeyName)
+
+	generateDataKeyPath := fmt.Sprintf("/transit/datakey/plaintext/%s", escapedTestKeyName)
+	decryptPath := fmt.Sprintf("/transit/decrypt/%s", escapedTestKeyName)
 
 	return func(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error) {
 		switch path {
