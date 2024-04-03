@@ -64,6 +64,15 @@ func TestFunctions(t *testing.T) {
 					}},
 					Return: cty.String,
 				},
+				"error_param": providers.FunctionSpec{
+					Parameters: []providers.FunctionParameterSpec{providers.FunctionParameterSpec{
+						Name:               "input",
+						Type:               cty.String,
+						AllowNullValue:     false,
+						AllowUnknownValues: false,
+					}},
+					Return: cty.String,
+				},
 			},
 		},
 	}
@@ -85,6 +94,11 @@ func TestFunctions(t *testing.T) {
 			}
 		case "unknown_param":
 			resp.Result = cty.StringVal("knownvalue")
+		case "error_param":
+			resp.Error = &providers.CallFunctionArgumentError{
+				Text:             "my error text",
+				FunctionArgument: 0,
+			}
 		default:
 			panic("Invalid function")
 		}
@@ -269,6 +283,12 @@ func TestFunctions(t *testing.T) {
 		}
 		if !val.RawEquals(cty.StringVal("knownvalue")) {
 			t.Error(val.AsString())
+		}
+	})
+	t.Run("error_param function", func(t *testing.T) {
+		_, diags := evaluate(`provider::mockalias::error_param("foo")`)
+		if !strings.Contains(diags.Error(), `Invalid function argument; Invalid value for "input" parameter: my error text.`) {
+			t.Error(diags.Error())
 		}
 	})
 }
