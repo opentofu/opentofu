@@ -223,7 +223,7 @@ type ProviderFunctions struct {
 }
 
 // Functions provides a map of provider::alias:function for a given provider type.
-// All providers of a given type us the same functions and provider instance and
+// All providers of a given type use the same functions and provider instance and
 // additional aliases do not incur any performance penalty.
 func (cp *contextPlugins) Functions(aliases map[string]addrs.Provider) *ProviderFunctions {
 	providerFuncs := &ProviderFunctions{

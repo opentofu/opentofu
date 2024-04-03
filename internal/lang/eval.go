@@ -199,6 +199,9 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	return val, diags
 }
 
+// Common provider function namespace form
+var providerFuncNamespace = regexp.MustCompile("^([^:]*)::([^:]*)::$")
+
 // Identify and enhance any function related dialogs produced by a hcl.EvalContext
 func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 	out := make(hcl.Diagnostics, len(diags))
@@ -215,7 +218,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 				continue
 			}
 
-			// Insert the an enhanced copy of diag into diags
+			// Insert the enhanced copy of diag into diags
 			enhanced := *diag
 			out[i] = &enhanced
 
@@ -228,7 +231,6 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 				continue
 			}
 
-			providerFuncNamespace := regexp.MustCompile("^([^:]*)::([^:]*)::$")
 			match := providerFuncNamespace.FindSubmatch([]byte(fullNamespace))
 			if match == nil || string(match[1]) != "provider" {
 				// complete mismatch or invalid prefix

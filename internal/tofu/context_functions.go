@@ -2,6 +2,7 @@ package tofu
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
@@ -39,6 +40,9 @@ func providerFunctions(addr addrs.Provider, funcSpecs map[string]providers.Funct
 	functions := make(map[string]function.Function)
 	for name, spec := range funcSpecs {
 		log.Printf("[TRACE] tofu.contextFunctions: Registering function %q in provider type %q", name, addr)
+		if _, ok := functions[name]; ok {
+			panic(fmt.Sprintf("broken provider %q: multiple functions registered under name %q", addr, name))
+		}
 		functions[name] = providerFunction(name, spec, lazy)
 	}
 	return functions
@@ -97,7 +101,7 @@ func providerFunctionParameter(spec providers.FunctionParameterSpec) function.Pa
 		AllowNull:    spec.AllowNullValue,
 		AllowUnknown: spec.AllowUnknownValues,
 		// Not sure if we should use this
-		// AllowDynamicType bool
+		AllowDynamicType: false,
 		// force cty to strip marks ahead of time and re-add them to the resulting object
 		// need to test if the marks are passed via GRPC or not
 		AllowMarked: false,

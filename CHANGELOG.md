@@ -13,7 +13,7 @@ STATE ENCRYPTION
 
 NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
-* Provider defined functions are now available.  They may be referenced via `provider::alias::funcname(args)`.  ([#1439](https://github.com/opentofu/opentofu/pull/1439))
+* Provider defined functions are now available.  They may be referenced via `provider::provider_alias::funcname(args)`.  ([#1439](https://github.com/opentofu/opentofu/pull/1439))
 
 ENHANCEMENTS:
 * Added support to use `.tfvars` files from tests folder. ([#1386](https://github.com/opentofu/opentofu/pull/1386))
