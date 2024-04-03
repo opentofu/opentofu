@@ -571,7 +571,7 @@ func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
 }
 
 // validateImportTargets makes sure all import targets are not breaking the following rules:
-//  1. Imports are attempted to resources that do not exist (if config generation is not enabled).
+//  1. Imports are attempted into resources that do not exist (if config generation is not enabled).
 //  2. Config generation is not attempted for resources inside sub-modules
 //  3. Config generation is not attempted for resources with indexes (for_each/count) - This will always include
 //     resources for which we could not yet resolve the address
