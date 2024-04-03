@@ -100,10 +100,10 @@ func providerFunctionParameter(spec providers.FunctionParameterSpec) function.Pa
 		Type:         spec.Type,
 		AllowNull:    spec.AllowNullValue,
 		AllowUnknown: spec.AllowUnknownValues,
-		// Not sure if we should use this
+		// I don't believe this is allowable for provider functions
 		AllowDynamicType: false,
 		// force cty to strip marks ahead of time and re-add them to the resulting object
-		// need to test if the marks are passed via GRPC or not
+		// GRPC: failed: value has marks, so it cannot be serialized.
 		AllowMarked: false,
 	}
 }
