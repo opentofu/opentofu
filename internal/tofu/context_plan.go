@@ -311,7 +311,7 @@ func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts 
 		panic(fmt.Sprintf("called Context.plan with %s", opts.Mode))
 	}
 
-	opts.ImportTargets = c.findImportTargets(config, prevRunState)
+	opts.ImportTargets = c.findImportTargets(config)
 	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets, opts.GenerateConfigPath)
 	diags = diags.Append(importTargetDiags)
 	if diags.HasErrors() {
@@ -558,9 +558,9 @@ func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allIns
 	return diags
 }
 
-// findImportTargets builds a list of import targets by taking the import blocks
-// in the config and filtering out any that target a resource already in state.
-func (c *Context) findImportTargets(config *configs.Config, priorState *states.State) []*ImportTarget {
+// findImportTargets builds a list of import targets by going over the import
+// blocks in the config.
+func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
 	var importTargets []*ImportTarget
 	for _, ic := range config.Module.Import {
 		importTargets = append(importTargets, &ImportTarget{
