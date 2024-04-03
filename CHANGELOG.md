@@ -50,6 +50,8 @@ BUG FIXES:
 * Don't show false update action when import resource with sensitive datasource([#1220](https://github.com/opentofu/opentofu/pull/1220))
 * Fix panic when provisioner source and content are both null ([#1376](https://github.com/opentofu/opentofu/pull/1376))
 * Fix large number will be truncated in plan ([#1382](https://github.com/opentofu/opentofu/pull/1382))
+* S3 backend no longer requires to have permissions to use the default 'env:' workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
+* Fixed a crash when using a conditional with Twingate resource ([1446](https://github.com/opentofu/opentofu/pull/1446))
 
 ## Previous Releases
 
