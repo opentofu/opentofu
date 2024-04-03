@@ -53,7 +53,7 @@ Eager to get started on coding? Here's the short version:
 
 Please make sure you complete the following checklist before you mark your PR ready for review. If you cannot complete the checklist but want to submit a PR, please submit it as a draft PR. Please note, the core team will only review your PR if you have completed the checklist and marked your PR as ready to review.
 
-- [ ] I have read the these contribution guidelines.
+- [ ] I have read the contribution guidelines.
 - [ ] I have not used an AI coding assistant to create this PR.
 - [ ] I have marked any code I have not written myself (including modified code, e.g. copied from other places and then modified) with a comment indicating where it came from.
 
