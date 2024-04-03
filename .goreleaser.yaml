@@ -207,6 +207,7 @@ snapcrafts:
       safely and efficiently. OpenTofu can manage existing and popular service
       providers as well as custom in-house solutions.
     base: core22
+    grade: '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}devel{{ else }}stable{{ end }}'
     channel_templates:
       - '{{ .Major }}.{{ .Minor }}/{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}edge{{ else }}stable{{ end }}'
       - >-
@@ -214,7 +215,6 @@ snapcrafts:
           {{- if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}latest/edge{{- end }}
           {{- if eq .Env.RELEASE_FLAG_PRERELEASE "false" }}latest/stable{{- end }}
         {{- end }}
-    grade: '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}devel{{ else }}stable{{ end }}'
     confinement: classic
     license: MPL-2.0
     apps:
