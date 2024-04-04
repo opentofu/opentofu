@@ -7,6 +7,7 @@ package e2etest
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -465,8 +466,13 @@ func TestInitProviderNotFound(t *testing.T) {
 			t.Fatal("expected error, got success")
 		}
 
-		if !strings.Contains(stdout, `"diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"Could not retrieve the list of available versions for provider hashicorp/nonexist: provider registry.opentofu.org/hashicorp/nonexist was not found in any of the search locations\n\n  - `+pluginDir+`"},"type":"diagnostic"}`) {
-			t.Errorf("expected error message is missing from output:\n%s", stdout)
+		escapedPluginDir, err := json.Marshal(pluginDir)
+		if err != nil {
+			panic("failed to marshal plugin dir: " + pluginDir)
+		}
+
+		if !strings.Contains(stdout, `"diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"Could not retrieve the list of available versions for provider hashicorp/nonexist: provider registry.opentofu.org/hashicorp/nonexist was not found in any of the search locations\n\n  - `+string(escapedPluginDir)+`"},"type":"diagnostic"}`) {
+			t.Errorf("expected error message is missing from output (pluginDir = '%s'):\n%s", pluginDir, stdout)
 		}
 	})
 
