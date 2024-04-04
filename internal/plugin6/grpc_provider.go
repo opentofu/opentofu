@@ -76,6 +76,8 @@ type GRPCProvider struct {
 	schema providers.GetProviderSchemaResponse
 }
 
+var _ providers.Interface = new(GRPCProvider)
+
 func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider.v6: GetProviderSchema")
 	p.mu.Lock()
@@ -102,6 +104,7 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
+	resp.Functions = make(map[string]providers.FunctionSpec)
 
 	// Some providers may generate quite large schemas, and the internal default
 	// grpc response size limit is 4MB. 64MB should cover most any use case, and
@@ -142,6 +145,10 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	for name, data := range protoResp.DataSourceSchemas {
 		resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+	}
+
+	for name, fn := range protoResp.Functions {
+		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
 	}
 
 	if protoResp.ServerCapabilities != nil {
@@ -673,6 +680,96 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	resp.State = state
 
 	return resp
+}
+
+func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	logger.Trace("GRPCProvider6: CallFunction")
+
+	schema := p.GetProviderSchema()
+	if schema.Diagnostics.HasErrors() {
+		// This should be unreachable
+		resp.Error = schema.Diagnostics.Err()
+		return resp
+	}
+
+	spec, ok := schema.Functions[r.Name]
+	if !ok {
+		// This should be unreachable
+		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s not defined in provider schema", r.Name)
+		return resp
+	}
+
+	protoReq := &proto6.CallFunction_Request{
+		Name:      r.Name,
+		Arguments: make([]*proto6.DynamicValue, len(r.Arguments)),
+	}
+
+	// Translate the arguments
+	// As this is functionality is always sitting behind cty/function.Function, we skip some validation
+	// checks of from the function and param spec.  We still include basic validation to prevent panics,
+	// just in case there are bugs in cty
+	if len(r.Arguments) < len(spec.Parameters) {
+		// This should be unreachable
+		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s expected %d parameters and got %d instead", r.Name, len(spec.Parameters), len(r.Arguments))
+		return resp
+	}
+
+	for i, arg := range r.Arguments {
+		var paramSpec providers.FunctionParameterSpec
+		if i < len(spec.Parameters) {
+			paramSpec = spec.Parameters[i]
+		} else {
+			// We are past the end of spec.Parameters, this is either variadic or an error
+			if spec.VariadicParameter != nil {
+				paramSpec = *spec.VariadicParameter
+			} else {
+				// This should be unreachable
+				resp.Error = fmt.Errorf("invalid CallFunctionRequest: too many arguments passed to non-variadic function %s", r.Name)
+			}
+		}
+
+		if arg.IsNull() {
+			if paramSpec.AllowNullValue {
+				continue
+			} else {
+				resp.Error = &providers.CallFunctionArgumentError{
+					Text:             fmt.Sprintf("parameter %s is null, which is not allowed for function %s", paramSpec.Name, r.Name),
+					FunctionArgument: i,
+				}
+			}
+
+		}
+
+		encodedArg, err := msgpack.Marshal(arg, paramSpec.Type)
+		if err != nil {
+			resp.Error = err
+			return
+		}
+
+		protoReq.Arguments[i] = &proto6.DynamicValue{
+			Msgpack: encodedArg,
+		}
+	}
+
+	protoResp, err := p.client.CallFunction(p.ctx, protoReq)
+	if err != nil {
+		resp.Error = err
+		return
+	}
+
+	if protoResp.Error != nil {
+		err := &providers.CallFunctionArgumentError{
+			Text: protoResp.Error.Text,
+		}
+		if protoResp.Error.FunctionArgument != nil {
+			err.FunctionArgument = int(*protoResp.Error.FunctionArgument)
+		}
+		resp.Error = err
+		return
+	}
+
+	resp.Result, resp.Error = decodeDynamicValue(protoResp.Result, spec.Return)
+	return
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.

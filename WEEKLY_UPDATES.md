@@ -1,5 +1,22 @@
 # Weekly Updates
 
+## 2024-03-27
+
+Hello there!  We've had a fairly quiet couple days after KubeCon last week, but still managed to make progress in some key areas!
+
+- Current Status:
+  - Large numbers are no longer truncated in plans [#1382](https://github.com/opentofu/opentofu/pull/1382)
+  - Debugging crashes is now much easer with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
+  - State Encryption
+    - Integration testing with TACOS identified some issues that have been fixed with remote and cloud backends [#1431](https://github.com/opentofu/opentofu/pull/1431)
+    - Dumping state during a crash is more resilient [#1421](https://github.com/opentofu/opentofu/pull/1421)
+    - Configuration is undergoing some polish
+    - Additional key providers in flight
+  - Work has been started on Provider Functions [#1326](https://github.com/opentofu/opentofu/issues/1326)
+  - Work continues on import blocks with for_each support.
+- How can I help?
+  - Please test the 1.7.0-alpha1 release and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
 ## 2024-03-21
 
 Hey there! We released [OpenTofu 1.7.0-alpha1](https://github.com/opentofu/opentofu/releases/tag/v1.7.0-alpha1) end of last week and most of the team spent the week at OpenTofu Day Europe and KubeCon. You can find the videos [on YouTube](https://www.youtube.com/watch?v=kudru6Rm1n0&list=PLnVotLM2Qsyiw_6Pd_9WxRRLdrUAs3c1c). Attendance was high, 150+ people (more than available seats).
