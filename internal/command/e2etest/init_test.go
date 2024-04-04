@@ -544,5 +544,5 @@ func escapeStringJSON(v string) string {
 		return string(marshaledV)
 	}
 
-	return string(marshaledV[1 : len(marshaledV)-1])
+	return string(marshaledV[1 : len(marshaledV)-2])
 }
