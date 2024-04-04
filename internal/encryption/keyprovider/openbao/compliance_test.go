@@ -36,10 +36,6 @@ func TestKeyProvider(t *testing.T) {
 		t.Cleanup(func() {
 			injectDefaultClient()
 		})
-
-		// Token has to be present either in HCL configuration or in env vars.
-		// Exposing it as an env var makes it easier to run tests without mocks.
-		t.Setenv("BAO_TOKEN", "s.dummytoken")
 	}
 
 	compliancetest.ComplianceTest(

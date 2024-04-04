@@ -1,7 +1,6 @@
 package openbao
 
 import (
-	"errors"
 	"fmt"
 
 	openbao "github.com/openbao/openbao/api"
@@ -90,8 +89,6 @@ func (l DataKeyLength) Bits() int {
 
 type clientConstructor func(config *openbao.Config, token string) (client, error)
 
-var errNoOpenBaoTokenFound = errors.New("no OpenBao token found")
-
 // newClient variable allows to inject different client implementations.
 // In order to keep client interface simple, token setting is in this function as well.
 // It's not possible to pass token in config.
@@ -107,8 +104,6 @@ func newOpenBaoClient(config *openbao.Config, token string) (client, error) {
 	// Token from HCL supersedes BAO_TOKEN.
 	if token != "" {
 		c.SetToken(token)
-	} else if c.Token() == "" {
-		return nil, errNoOpenBaoTokenFound
 	}
 
 	return c.Logical(), nil
