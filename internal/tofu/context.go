@@ -136,8 +136,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 
 	plugins, err := newContextPlugins(opts.Providers, opts.Provisioners)
 	if err != nil {
-		diags.Append(err)
-		return nil, diags
+		return nil, diags.Append(err)
 	}
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
