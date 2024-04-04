@@ -13,6 +13,7 @@ import Enforce from '!!raw-loader!./examples/encryption/enforce.tf'
 import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
 import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
+import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
@@ -108,9 +109,22 @@ This key provider uses the [Amazon Web Servers Key Management Service](https://a
 | kms_key_id | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -       |
 | key_spec   | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -       |
 
-The following example illustrates a minimal example:
+The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{AWSKMS}</CodeBlock>
+
+### GCP KMS
+
+This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](/docs/language/settings/backends/gcs/) excluding any deprecated options. In addition, please provide the following options:
+
+| Option                          | Description                                                                                                                                                  | Min. | Default |
+|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
+| kms_encryption_key *(required)* | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console).                                             | N/A  | -       |
+| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                                             | 1    | -       |
+
+The following example illustrates a minimal configuration:
+
+<CodeBlock language="hcl">{GCPKMS}</CodeBlock>
 
 ## Methods
 
