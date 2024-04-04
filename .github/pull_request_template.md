@@ -28,8 +28,9 @@ Resolves #
 <-- If your PR contains Go code, please make sure you check off all items on this list: --> 
 
 - [ ] I have run golangci-lint on my change and receive no errors relevant to my code.
-- [ ] I have added tests for all relevant use cases of my code.
-- [ ] I have only exported functions, variables and structs that should be used from other packages
+- [ ] I have run existing tests to ensure my code doesn't break anything.
+- [ ] I have added tests for all relevant use cases of my code, and those tests are passing.
+- [ ] I have only exported functions, variables and structs that should be used from other packages.
 - [ ] I have added meaningful comments to all exported functions, variables, and structs.
 
 ### Website/documentation checklist
