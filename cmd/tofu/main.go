@@ -83,7 +83,7 @@ func realMain() int {
 	var ctx context.Context
 	var otelSpan trace.Span
 	{
-		// At minimum we emit a span covering the entire command execution.
+		// At a minimum we emit a span covering the entire command execution.
 		_, displayArgs := shquot.POSIXShellSplit(os.Args)
 		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("tofu %s", displayArgs))
 		defer otelSpan.End()
@@ -140,7 +140,7 @@ func realMain() int {
 	// path in the TERRAFORM_CONFIG_FILE environment variable (though probably
 	// ill-advised) will be resolved relative to the true working directory,
 	// not the overridden one.
-	config, diags := cliconfig.LoadConfig()
+	config, diags := cliconfig.LoadConfig(ctx)
 
 	if len(diags) > 0 {
 		// Since we haven't instantiated a command.Meta yet, we need to do

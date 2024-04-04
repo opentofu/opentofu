@@ -14,6 +14,7 @@
 package cliconfig
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,6 +24,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	svchost "github.com/hashicorp/terraform-svchost"
 
@@ -106,7 +109,11 @@ func DataDirs() ([]string, error) {
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.
-func LoadConfig() (*Config, tfdiags.Diagnostics) {
+func LoadConfig(ctx context.Context) (*Config, tfdiags.Diagnostics) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "load configuration")
+	defer span.End()
+
 	var diags tfdiags.Diagnostics
 	configVal := BuiltinConfig // copy
 	config := &configVal
@@ -115,7 +122,7 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 		if _, err := os.Stat(mainFilename); err == nil {
 			mainConfig, mainDiags := loadConfigFile(mainFilename)
 			diags = diags.Append(mainDiags)
-			config = config.Merge(mainConfig)
+			config = config.Merge(ctx, mainConfig)
 		}
 	} else {
 		diags = diags.Append(mainFileDiags)
@@ -131,9 +138,9 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 	if cliConfigFileOverride() == "" {
 		if configDir, err := ConfigDir(); err == nil {
 			if info, err := os.Stat(configDir); err == nil && info.IsDir() {
-				dirConfig, dirDiags := loadConfigDir(configDir)
+				dirConfig, dirDiags := loadConfigDir(ctx, configDir)
 				diags = diags.Append(dirDiags)
-				config = config.Merge(dirConfig)
+				config = config.Merge(ctx, dirConfig)
 			}
 		}
 	} else {
@@ -142,10 +149,10 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 
 	if envConfig := EnvConfig(); envConfig != nil {
 		// envConfig takes precedence
-		config = envConfig.Merge(config)
+		config = envConfig.Merge(ctx, config)
 	}
 
-	diags = diags.Append(config.Validate())
+	diags = diags.Append(config.Validate(ctx))
 
 	return config, diags
 }
@@ -199,7 +206,7 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	return result, diags
 }
 
-func loadConfigDir(path string) (*Config, tfdiags.Diagnostics) {
+func loadConfigDir(ctx context.Context, path string) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	result := &Config{}
 
@@ -222,7 +229,7 @@ func loadConfigDir(path string) (*Config, tfdiags.Diagnostics) {
 		filePath := filepath.Join(path, name)
 		fileConfig, fileDiags := loadConfigFile(filePath)
 		diags = diags.Append(fileDiags)
-		result = result.Merge(fileConfig)
+		result = result.Merge(ctx, fileConfig)
 	}
 
 	return result, diags
@@ -282,7 +289,11 @@ func makeEnvMap(environ []string) map[string]string {
 // On success, the returned diagnostics will return false from the HasErrors
 // method. A non-nil diagnostics is not necessarily an error, since it may
 // contain just warnings.
-func (c *Config) Validate() tfdiags.Diagnostics {
+func (c *Config) Validate(ctx context.Context) tfdiags.Diagnostics {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "validate")
+	defer span.End()
+
 	var diags tfdiags.Diagnostics
 
 	if c == nil {
@@ -297,9 +308,10 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 	for givenHost := range c.Hosts {
 		_, err := svchost.ForComparison(givenHost)
 		if err != nil {
-			diags = diags.Append(
-				fmt.Errorf("The host %q block has an invalid hostname: %w", givenHost, err),
-			)
+			err := fmt.Errorf("The host %q block has an invalid hostname: %w", givenHost, err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			diags = diags.Append(err)
 		}
 	}
 
@@ -307,32 +319,36 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 	for givenHost := range c.Credentials {
 		_, err := svchost.ForComparison(givenHost)
 		if err != nil {
-			diags = diags.Append(
-				fmt.Errorf("The credentials %q block has an invalid hostname: %w", givenHost, err),
-			)
+			err := fmt.Errorf("The credentials %q block has an invalid hostname: %w", givenHost, err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			diags = diags.Append(err)
 		}
 	}
 
 	// Should have zero or one "credentials_helper" blocks
 	if len(c.CredentialsHelpers) > 1 {
-		diags = diags.Append(
-			fmt.Errorf("No more than one credentials_helper block may be specified"),
-		)
+		err := fmt.Errorf("No more than one credentials_helper block may be specified")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		diags = diags.Append(err)
 	}
 
 	// Should have zero or one "provider_installation" blocks
 	if len(c.ProviderInstallation) > 1 {
-		diags = diags.Append(
-			fmt.Errorf("No more than one provider_installation block may be specified"),
-		)
+		err := fmt.Errorf("No more than one provider_installation block may be specified")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		diags = diags.Append(err)
 	}
 
 	if c.PluginCacheDir != "" {
 		_, err := os.Stat(c.PluginCacheDir)
 		if err != nil {
-			diags = diags.Append(
-				fmt.Errorf("The specified plugin cache dir %s cannot be opened: %w", c.PluginCacheDir, err),
-			)
+			err := fmt.Errorf("The specified plugin cache dir %s cannot be opened: %w", c.PluginCacheDir, err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			diags = diags.Append(err)
 		}
 	}
 
@@ -341,7 +357,11 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 
 // Merge merges two configurations and returns a third entirely
 // new configuration with the two merged.
-func (c *Config) Merge(c2 *Config) *Config {
+func (c *Config) Merge(ctx context.Context, c2 *Config) *Config {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "merge configuration")
+	defer span.End()
+
 	var result Config
 	result.Providers = make(map[string]string)
 	result.Provisioners = make(map[string]string)

@@ -11,6 +11,7 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // InstallPackage takes a metadata object describing a package available for
@@ -22,6 +23,10 @@ import (
 // hashes match then the returned error message assumes that the hashes came
 // from a lock file.
 func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "install package")
+	defer span.End()
+
 	if meta.TargetPlatform != d.targetPlatform {
 		return nil, fmt.Errorf("can't install %s package into cache directory expecting %s", meta.TargetPlatform, d.targetPlatform)
 	}

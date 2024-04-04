@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	copydir "github.com/opentofu/opentofu/internal/copy"
@@ -182,6 +184,10 @@ func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{})
 // in the final returned error value so callers should show either one or the
 // other, and not both.
 func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.Locks, reqs getproviders.Requirements, mode InstallMode) (*depsfile.Locks, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "ensure provider versions")
+	defer span.End()
+
 	errs := map[addrs.Provider]error{}
 	evts := installerEventsForContext(ctx)
 
@@ -292,15 +298,21 @@ NeedProvider:
 			return nil, err
 		}
 
+		providerCtx, providerSpan := tracer.Start(ctx, "query provider versions")
+		providerSpan.SetAttributes(
+			attribute.String("provider", provider.String()),
+		)
+
 		if cb := evts.QueryPackagesBegin; cb != nil {
 			cb(provider, reqs[provider], locked[provider])
 		}
-		available, warnings, err := i.source.AvailableVersions(ctx, provider)
+		available, warnings, err := i.source.AvailableVersions(providerCtx, provider)
 		if err != nil {
 			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
 				cb(provider, err)
 			}
+			providerSpan.End()
 			// We will take no further actions for this provider.
 			continue
 		}
@@ -316,6 +328,7 @@ NeedProvider:
 				if cb := evts.QueryPackagesSuccess; cb != nil {
 					cb(provider, available[i])
 				}
+				providerSpan.End()
 				continue NeedProvider
 			}
 		}
@@ -336,6 +349,7 @@ NeedProvider:
 		if cb := evts.QueryPackagesFailure; cb != nil {
 			cb(provider, err)
 		}
+		providerSpan.End()
 	}
 
 	// Step 3: For each provider version we've decided we need to install,
@@ -343,10 +357,18 @@ NeedProvider:
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
 	targetPlatform := i.targetDir.targetPlatform                                  // we inherit this to behave correctly in unit tests
 	for provider, version := range need {
-		if err := ctx.Err(); err != nil {
+		providerCtx, providerSpan := tracer.Start(ctx, "install provider version")
+		providerSpan.SetAttributes(
+			attribute.String("provider", provider.String()),
+			attribute.String("version", version.String()),
+			attribute.String("targetPlatform", targetPlatform.String()),
+		)
+
+		if err := providerCtx.Err(); err != nil {
 			// If our context has been cancelled or reached a timeout then
 			// we'll abort early, because subsequent operations against
 			// that context will fail immediately anyway.
+			providerSpan.End()
 			return nil, err
 		}
 
@@ -363,6 +385,7 @@ NeedProvider:
 					if cb := evts.ProviderAlreadyInstalled; cb != nil {
 						cb(provider, version)
 					}
+					providerSpan.End()
 					continue
 				}
 			}
@@ -451,6 +474,7 @@ NeedProvider:
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
 						}
+						providerSpan.End()
 						continue
 					}
 
@@ -460,6 +484,7 @@ NeedProvider:
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
 						}
+						providerSpan.End()
 						continue
 					}
 					// We'll fetch what we just linked to make sure it actually
@@ -471,6 +496,7 @@ NeedProvider:
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
 						}
+						providerSpan.End()
 						continue
 					}
 
@@ -513,6 +539,7 @@ NeedProvider:
 						if cb := evts.LinkFromCacheFailure; cb != nil {
 							cb(provider, version, err)
 						}
+						providerSpan.End()
 						continue
 					}
 					// The hashes slice gets deduplicated in the lock file
@@ -533,6 +560,7 @@ NeedProvider:
 					if cb := evts.LinkFromCacheSuccess; cb != nil {
 						cb(provider, version, new.PackageDir)
 					}
+					providerSpan.End()
 					continue // Don't need to do full install, then.
 				}
 			}
@@ -546,12 +574,13 @@ NeedProvider:
 		if cb := evts.FetchPackageMeta; cb != nil {
 			cb(provider, version)
 		}
-		meta, err := i.source.PackageMeta(ctx, provider, version, targetPlatform)
+		meta, err := i.source.PackageMeta(providerCtx, provider, version, targetPlatform)
 		if err != nil {
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			providerSpan.End()
 			continue
 		}
 
@@ -575,7 +604,7 @@ NeedProvider:
 			allowedHashes = []getproviders.Hash{}
 		}
 
-		authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes)
+		authResult, err := installTo.InstallPackage(providerCtx, meta, allowedHashes)
 		if err != nil {
 			// TODO: Consider retrying for certain kinds of error that seem
 			// likely to be transient. For now, we just treat all errors equally.
@@ -583,6 +612,7 @@ NeedProvider:
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			providerSpan.End()
 			continue
 		}
 		new := installTo.ProviderVersion(provider, version)
@@ -592,6 +622,7 @@ NeedProvider:
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			providerSpan.End()
 			continue
 		}
 		if _, err := new.ExecutableFile(); err != nil {
@@ -600,6 +631,7 @@ NeedProvider:
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			providerSpan.End()
 			continue
 		}
 		if linkTo != nil {
@@ -615,6 +647,7 @@ NeedProvider:
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
 				}
+				providerSpan.End()
 				continue
 			}
 
@@ -629,6 +662,7 @@ NeedProvider:
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
 				}
+				providerSpan.End()
 				continue
 			}
 			if _, err := new.ExecutableFile(); err != nil {
@@ -637,6 +671,7 @@ NeedProvider:
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
 				}
+				providerSpan.End()
 				continue
 			}
 		}
@@ -673,6 +708,7 @@ NeedProvider:
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			providerSpan.End()
 			continue
 		}
 
@@ -700,6 +736,7 @@ NeedProvider:
 			// But we do need to sort signedHashes so we can reason about it
 			// sensibly.
 			sort.Slice(signedHashes, func(i, j int) bool {
+				providerSpan.End()
 				return string(signedHashes[i]) < string(signedHashes[j])
 			})
 
@@ -709,6 +746,7 @@ NeedProvider:
 		if cb := evts.FetchPackageSuccess; cb != nil {
 			cb(provider, version, new.PackageDir, authResult)
 		}
+		providerSpan.End()
 	}
 
 	// Emit final event for fetching if any were successfully fetched

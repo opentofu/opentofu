@@ -24,6 +24,8 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -99,6 +101,10 @@ func newRegistryClient(baseURL *url.URL, creds svcauth.HostCredentials) *registr
 // ErrUnauthorized if the registry responds with 401 or 403 status codes, or
 // ErrQueryFailed for any other protocol or operational problem.
 func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provider) (map[string][]string, []string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "provider versions")
+	defer span.End()
+
 	endpointPath, err := url.Parse(path.Join(addr.Namespace, addr.Type, "versions"))
 	if err != nil {
 		// Should never happen because we're constructing this from
@@ -123,13 +129,23 @@ func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provid
 	case http.StatusOK:
 		// Great!
 	case http.StatusNotFound:
+		span.RecordError(ErrRegistryProviderNotKnown{
+			Provider: addr,
+		})
+		span.SetStatus(codes.Error, "provider not known")
 		return nil, nil, ErrRegistryProviderNotKnown{
 			Provider: addr,
 		}
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return nil, nil, c.errUnauthorized(addr.Hostname)
+		err := c.errUnauthorized(addr.Hostname)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
 	default:
-		return nil, nil, c.errQueryFailed(addr, errors.New(resp.Status))
+		err := c.errQueryFailed(addr, errors.New(resp.Status))
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
 	}
 
 	// We ignore the platforms portion of the response body, because the
