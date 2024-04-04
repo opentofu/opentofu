@@ -39,6 +39,7 @@ func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProvi
 	resp := &tfplugin6.GetProviderSchema_Response{
 		ResourceSchemas:   make(map[string]*tfplugin6.Schema),
 		DataSourceSchemas: make(map[string]*tfplugin6.Schema),
+		Functions:         make(map[string]*tfplugin6.Function),
 	}
 
 	resp.Provider = &tfplugin6.Schema{
@@ -66,6 +67,9 @@ func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProvi
 			Version: dat.Version,
 			Block:   convert.ConfigSchemaToProto(dat.Block),
 		}
+	}
+	for typ, fn := range p.schema.Functions {
+		resp.Functions[typ] = convert.FunctionSpecToProto(fn)
 	}
 
 	resp.ServerCapabilities = &tfplugin6.ServerCapabilities{
@@ -396,6 +400,48 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 	return resp, nil
 }
 
+func (p *provider6) GetFunctions(context.Context, *tfplugin6.GetFunctions_Request) (*tfplugin6.GetFunctions_Response, error) {
+	panic("Not Implemented")
+}
+
+func (p *provider6) CallFunction(ctx context.Context, req *tfplugin6.CallFunction_Request) (*tfplugin6.CallFunction_Response, error) {
+	var err error
+	resp := &tfplugin6.CallFunction_Response{}
+
+	spec := p.schema.Functions[req.Name]
+
+	args := make([]cty.Value, len(req.Arguments))
+	for i, arg := range req.Arguments {
+		var typ cty.Type
+		if i < len(spec.Parameters) {
+			typ = spec.Parameters[i].Type
+		} else {
+			typ = spec.VariadicParameter.Type
+		}
+		args[i], err = decodeDynamicValue6(arg, typ)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	callResp := p.provider.CallFunction(providers.CallFunctionRequest{
+		Name:      req.Name,
+		Arguments: args,
+	})
+
+	resp.Result, err = encodeDynamicValue6(callResp.Result, spec.Return)
+	if err != nil {
+		panic(err)
+	}
+	if callResp.Error != nil {
+		resp.Error = &tfplugin6.FunctionError{
+			Text: err.Error(),
+		}
+	}
+
+	return resp, nil
+}
+
 func (p *provider6) StopProvider(context.Context, *tfplugin6.StopProvider_Request) (*tfplugin6.StopProvider_Response, error) {
 	resp := &tfplugin6.StopProvider_Response{}
 	err := p.provider.Stop()
@@ -403,14 +449,6 @@ func (p *provider6) StopProvider(context.Context, *tfplugin6.StopProvider_Reques
 		resp.Error = err.Error()
 	}
 	return resp, nil
-}
-
-func (p *provider6) GetFunctions(context.Context, *tfplugin6.GetFunctions_Request) (*tfplugin6.GetFunctions_Response, error) {
-	panic("Not Implemented")
-}
-
-func (p *provider6) CallFunction(context.Context, *tfplugin6.CallFunction_Request) (*tfplugin6.CallFunction_Response, error) {
-	panic("Not Implemented")
 }
 
 // decode a DynamicValue from either the JSON or MsgPack encoding.

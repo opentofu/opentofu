@@ -16,6 +16,13 @@ func ProtoToCtyType(in []byte) cty.Type {
 	}
 	return out
 }
+func CtyTypeToProto(in cty.Type) []byte {
+	out, err := json.Marshal(in)
+	if err != nil {
+		panic(err)
+	}
+	return out
+}
 
 func ProtoToTextFormatting(proto tfplugin5.StringKind) providers.TextFormatting {
 	switch proto {
@@ -28,6 +35,19 @@ func ProtoToTextFormatting(proto tfplugin5.StringKind) providers.TextFormatting 
 	}
 }
 
+func TextFormattingToProto(spec providers.TextFormatting) tfplugin5.StringKind {
+	switch spec {
+	case "":
+		fallthrough
+	case providers.TextFormattingPlain:
+		return tfplugin5.StringKind_PLAIN
+	case providers.TextFormattingMarkdown:
+		return tfplugin5.StringKind_MARKDOWN
+	default:
+		panic(fmt.Sprintf("Invalid TextFormatting %v", spec))
+	}
+}
+
 func ProtoToFunctionParameterSpec(proto *tfplugin5.Function_Parameter) providers.FunctionParameterSpec {
 	return providers.FunctionParameterSpec{
 		Name:               proto.Name,
@@ -36,6 +56,17 @@ func ProtoToFunctionParameterSpec(proto *tfplugin5.Function_Parameter) providers
 		AllowUnknownValues: proto.AllowUnknownValues,
 		Description:        proto.Description,
 		DescriptionFormat:  ProtoToTextFormatting(proto.DescriptionKind),
+	}
+}
+
+func FunctionParameterSpecToProto(spec providers.FunctionParameterSpec) *tfplugin5.Function_Parameter {
+	return &tfplugin5.Function_Parameter{
+		Name:               spec.Name,
+		Type:               CtyTypeToProto(spec.Type),
+		AllowNullValue:     spec.AllowNullValue,
+		AllowUnknownValues: spec.AllowUnknownValues,
+		Description:        spec.Description,
+		DescriptionKind:    TextFormattingToProto(spec.DescriptionFormat),
 	}
 }
 
@@ -59,5 +90,27 @@ func ProtoToFunctionSpec(proto *tfplugin5.Function) providers.FunctionSpec {
 		Description:        proto.Description,
 		DescriptionFormat:  ProtoToTextFormatting(proto.DescriptionKind),
 		DeprecationMessage: proto.DeprecationMessage,
+	}
+}
+
+func FunctionSpecToProto(spec providers.FunctionSpec) *tfplugin5.Function {
+	params := make([]*tfplugin5.Function_Parameter, len(spec.Parameters))
+	for i, param := range spec.Parameters {
+		params[i] = FunctionParameterSpecToProto(param)
+	}
+
+	var varParam *tfplugin5.Function_Parameter
+	if spec.VariadicParameter != nil {
+		varParam = FunctionParameterSpecToProto(*spec.VariadicParameter)
+	}
+
+	return &tfplugin5.Function{
+		Parameters:         params,
+		VariadicParameter:  varParam,
+		Return:             &tfplugin5.Function_Return{Type: CtyTypeToProto(spec.Return)},
+		Summary:            spec.Summary,
+		Description:        spec.Description,
+		DescriptionKind:    TextFormattingToProto(spec.DescriptionFormat),
+		DeprecationMessage: spec.DeprecationMessage,
 	}
 }

@@ -70,6 +70,19 @@ func TestProviderProtocols(t *testing.T) {
 		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 	}
 
+	plan, err := tf.Plan("tfplan")
+	if err != nil {
+		t.Fatalf("unexpected plan error: %s", err)
+	}
+	if len(plan.Changes.Outputs) != 2 {
+		t.Fatalf("expected 2 outputs, got %d", len(plan.Changes.Outputs))
+	}
+	for _, out := range plan.Changes.Outputs {
+		if string(out.After) != "\x92\xc4\b\"string\"\xa9foobarbaz" {
+			t.Fatalf("unexpected plan output: %s", string(out.After))
+		}
+	}
+
 	//// APPLY
 	stdout, stderr, err := tf.Run("apply", "tfplan")
 	if err != nil {

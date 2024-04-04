@@ -18,3 +18,11 @@ resource "simple_resource" "test-proto5" {
 resource "simple_resource" "test-proto6" {
   provider = simple6
 }
+
+output "function_output5" {
+	value = provider::simple5::simple_function("foo", "bar", "baz")
+}
+
+output "function_output6" {
+	value = provider::simple6::simple_function("foo", "bar", "baz")
+}

@@ -35,6 +35,17 @@ func Provider() providers.Interface {
 			},
 		},
 	}
+	simpleFunction := providers.FunctionSpec{
+		Parameters: []providers.FunctionParameterSpec{providers.FunctionParameterSpec{
+			Name: "input",
+			Type: cty.String,
+		}},
+		VariadicParameter: &providers.FunctionParameterSpec{
+			Name: "vary",
+			Type: cty.String,
+		},
+		Return: cty.String,
+	}
 
 	return simple{
 		schema: providers.GetProviderSchemaResponse{
@@ -46,6 +57,9 @@ func Provider() providers.Interface {
 			},
 			DataSources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
+			},
+			Functions: map[string]providers.FunctionSpec{
+				"simple_function": simpleFunction,
 			},
 			ServerCapabilities: providers.ServerCapabilities{
 				PlanDestroy: true,
@@ -138,8 +152,16 @@ func (s simple) ReadDataSource(req providers.ReadDataSourceRequest) (resp provid
 	return resp
 }
 
-func (s simple) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	panic("Not Implemented")
+func (s simple) CallFunction(req providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	if req.Name != "simple_function" {
+		panic("Unknown function " + req.Name)
+	}
+	var result string
+	for _, item := range req.Arguments {
+		result += item.AsString()
+	}
+	resp.Result = cty.StringVal(result)
+	return resp
 }
 
 func (s simple) Close() error {
