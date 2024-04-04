@@ -466,13 +466,10 @@ func TestInitProviderNotFound(t *testing.T) {
 			t.Fatal("expected error, got success")
 		}
 
-		escapedPluginDir, err := json.Marshal(pluginDir)
-		if err != nil {
-			panic("failed to marshal plugin dir: " + pluginDir)
-		}
+		escapedPluginDir := escapeStringJSON(pluginDir)
 
-		if !strings.Contains(stdout, `"diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"Could not retrieve the list of available versions for provider hashicorp/nonexist: provider registry.opentofu.org/hashicorp/nonexist was not found in any of the search locations\n\n  - `+string(escapedPluginDir)+`"},"type":"diagnostic"}`) {
-			t.Errorf("expected error message is missing from output (pluginDir = '%s'):\n%s", pluginDir, stdout)
+		if !strings.Contains(stdout, `"diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"Could not retrieve the list of available versions for provider hashicorp/nonexist: provider registry.opentofu.org/hashicorp/nonexist was not found in any of the search locations\n\n  - `+escapedPluginDir+`"},"type":"diagnostic"}`) {
+			t.Errorf("expected error message is missing from output (pluginDir = '%s'):\n%s", escapedPluginDir, stdout)
 		}
 	})
 
@@ -528,3 +525,24 @@ func TestInitProviderNotFound(t *testing.T) {
 //	}
 //
 //}
+
+func escapeStringJSON(v string) string {
+	b := &strings.Builder{}
+
+	enc := json.NewEncoder(b)
+
+	enc.SetEscapeHTML(false)
+
+	if err := enc.Encode(v); err != nil {
+		panic("failed to escapeStringJSON: " + v)
+	}
+
+	marshaledV := b.String()
+
+	// shouldn't happen
+	if len(marshaledV) < 2 {
+		return string(marshaledV)
+	}
+
+	return string(marshaledV[1 : len(marshaledV)-1])
+}
