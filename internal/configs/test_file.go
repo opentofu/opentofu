@@ -230,7 +230,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 				tf.Variables[v.Name] = v.Expr
 			}
 		case "provider":
-			provider, providerDiags := decodeProviderBlock(block)
+			provider, providerDiags := decodeTestProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
 				tf.Providers[provider.moduleUniqueKey()] = provider
@@ -239,6 +239,35 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 	}
 
 	return &tf, diags
+}
+
+func decodeTestProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	_, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
+	diags = append(diags, moreDiags...)
+
+	// Provider names must be localized. Produce an error with a message
+	// indicating the action the user can take to fix this message if the local
+	// name is not localized.
+	name := block.Labels[0]
+	nameDiags := checkProviderNameNormalized(name, block.DefRange)
+	diags = append(diags, nameDiags...)
+	if nameDiags.HasErrors() {
+		// If the name is invalid then we mustn't produce a result because
+		// downstreams could try to use it as a provider type and then crash.
+		return nil, diags
+	}
+
+	provider := &Provider{
+		Name:      name,
+		NameRange: block.LabelRanges[0],
+		Config:    config,
+		ParseRef:  addrs.ParseRefFromTestingScope,
+		DeclRange: block.DefRange,
+	}
+
+	return provider, diags
 }
 
 func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {

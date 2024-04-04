@@ -140,7 +140,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx EvalContext, p *config
 func (n *NodeValidatableResource) evaluateBlock(ctx EvalContext, body hcl.Body, schema *configschema.Block) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
-	return ctx.EvaluateBlock(body, schema, selfAddr, keyData)
+	return ctx.EvaluateBlock(body, schema, selfAddr, keyData, nil)
 }
 
 // connectionBlockSupersetSchema is a schema representing the superset of all
@@ -380,7 +380,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 			return diags
 		}
 
-		configVal, _, valDiags := ctx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := ctx.EvaluateBlock(n.Config.Config, schema, nil, keyData, nil)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -454,7 +454,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 			return diags
 		}
 
-		configVal, _, valDiags := ctx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := ctx.EvaluateBlock(n.Config.Config, schema, nil, keyData, nil)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -480,7 +480,7 @@ func (n *NodeValidatableResource) evaluateExpr(ctx EvalContext, expr hcl.Express
 	refs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	diags = diags.Append(refDiags)
 
-	scope := ctx.EvaluationScope(self, nil, keyData)
+	scope := ctx.EvaluationScope(self, nil, keyData, nil)
 
 	hclCtx, moreDiags := scope.EvalContext(refs)
 	diags = diags.Append(moreDiags)
@@ -596,7 +596,7 @@ func validateDependsOn(ctx EvalContext, dependsOn []hcl.Traversal) (diags tfdiag
 		// we'll just eval it and count on the fact that our evaluator will
 		// detect references to non-existent objects.
 		if !diags.HasErrors() {
-			scope := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
+			scope := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey, nil)
 			if scope != nil { // sometimes nil in tests, due to incomplete mocks
 				_, refDiags = scope.EvalReference(ref, cty.DynamicPseudoType)
 				diags = diags.Append(refDiags)

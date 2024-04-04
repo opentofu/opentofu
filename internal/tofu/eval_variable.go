@@ -240,7 +240,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 				config.Name: val,
 			}),
 		},
-		Functions: ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey).Functions(),
+		Functions: ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey, nil).Functions(),
 	}
 
 	for ix, validation := range config.Validations {

@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -78,7 +79,12 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 		configSchema = &configschema.Block{}
 	}
 
-	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
+	parseRef := addrs.ParseRef
+	if n.ProviderConfig().ParseRef != nil {
+		parseRef = n.ProviderConfig().ParseRef
+	}
+
+	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey, parseRef)
 	if evalDiags.HasErrors() {
 		return diags.Append(evalDiags)
 	}
@@ -113,7 +119,13 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 	}
 
 	configSchema := resp.Provider.Block
-	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
+
+	parseRef := addrs.ParseRef
+	if n.ProviderConfig().ParseRef != nil {
+		parseRef = n.ProviderConfig().ParseRef
+	}
+
+	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey, parseRef)
 	diags = diags.Append(evalDiags)
 	if evalDiags.HasErrors() {
 		return diags

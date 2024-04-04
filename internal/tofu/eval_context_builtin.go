@@ -264,9 +264,9 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 	return diags.Err()
 }
 
-func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	scope := ctx.EvaluationScope(self, nil, keyData)
+	scope := ctx.EvaluationScope(self, nil, keyData, parseRef)
 	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
@@ -275,7 +275,7 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 }
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
-	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
+	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey, nil)
 	return scope.EvalExpr(expr, wantType)
 }
 
@@ -393,7 +393,7 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	return ref, replace, diags
 }
 
-func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
+func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) *lang.Scope {
 	if !ctx.pathSet {
 		panic("context path not set")
 	}
@@ -403,7 +403,10 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		InstanceKeyData: keyData,
 		Operation:       ctx.Evaluator.Operation,
 	}
-	scope := ctx.Evaluator.Scope(data, self, source)
+	if parseRef == nil {
+		parseRef = addrs.ParseRef
+	}
+	scope := ctx.Evaluator.Scope(data, self, source, parseRef)
 
 	// ctx.PathValue is the path of the module that contains whatever
 	// expression the caller will be trying to evaluate, so this will

@@ -101,7 +101,7 @@ func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalCo
 			panic(fmt.Sprintf("Invalid source reference type %t", addr.Container))
 		}
 	}
-	scope := ctx.EvaluationScope(selfReference, sourceReference, keyData)
+	scope := ctx.EvaluationScope(selfReference, sourceReference, keyData, nil)
 
 	hclCtx, moreDiags := scope.EvalContext(refs)
 	diags = diags.Append(moreDiags)

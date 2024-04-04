@@ -61,7 +61,7 @@ func (n *NodeAbstractProvider) References() []*addrs.Reference {
 		return nil
 	}
 
-	return ReferencesFromConfig(n.Config.Config, n.Schema)
+	return ReferencesFromConfig(n.Config.Config, n.Schema, n.Config.ParseRef)
 }
 
 // GraphNodeProvider

@@ -124,9 +124,9 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 
 			if p.When == configs.ProvisionerWhenDestroy {
 				if p.Connection != nil {
-					result = append(result, ReferencesFromConfig(p.Connection.Config, connectionBlockSupersetSchema)...)
+					result = append(result, ReferencesFromConfig(p.Connection.Config, connectionBlockSupersetSchema, nil)...)
 				}
-				result = append(result, ReferencesFromConfig(p.Config, schema)...)
+				result = append(result, ReferencesFromConfig(p.Config, schema, nil)...)
 			}
 		}
 

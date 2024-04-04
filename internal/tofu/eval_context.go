@@ -114,7 +114,7 @@ type EvalContext interface {
 	// "dynamic" blocks replaced with zero or more static blocks. This can be
 	// used to extract correct source location information about attributes of
 	// the returned object value.
-	EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics)
+	EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) (cty.Value, hcl.Body, tfdiags.Diagnostics)
 
 	// EvaluateExpr takes the given HCL expression and evaluates it to produce
 	// a value.
@@ -131,7 +131,7 @@ type EvalContext interface {
 
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.
-	EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope
+	EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) *lang.Scope
 
 	// SetRootModuleArgument defines the value for one variable of the root
 	// module. The caller must ensure that given value is a suitable
