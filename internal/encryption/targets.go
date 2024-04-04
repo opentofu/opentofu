@@ -46,16 +46,19 @@ func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte)
 		keyProviderMetadata: meta,
 	}
 
-	diags = append(diags, builder.setupKeyProviders()...)
+	keyDiags := append(diags, builder.setupKeyProviders()...)
+	diags = append(diags, keyDiags...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	diags = append(diags, builder.setupMethods()...)
+	methodDiags := append(diags, builder.setupMethods()...)
+	diags = append(diags, methodDiags...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	return builder.build(base.target, base.name)
+	methods, targetDiags := builder.build(base.target, base.name)
+	return methods, append(diags, targetDiags...)
 }
 
 // build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
