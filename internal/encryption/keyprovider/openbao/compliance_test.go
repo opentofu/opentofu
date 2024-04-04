@@ -99,12 +99,22 @@ func TestKeyProvider(t *testing.T) {
 					ValidHCL:   false,
 					ValidBuild: false,
 				},
+				"transit-path": {
+					HCL: fmt.Sprintf(`key_provider "openbao" "foo" {
+							key_name = "%s"
+							key_length = 16
+							transit_engine_path = "foo"
+						}`, testKeyName),
+					ValidHCL:   true,
+					ValidBuild: true,
+				},
 			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
-						KeyName:   testKeyName,
-						KeyLength: 16,
+						KeyName:           testKeyName,
+						KeyLength:         16,
+						TransitEnginePath: "/pki",
 					},
 					ValidBuild: true,
 					Validate: func(p *keyProvider) error {
@@ -114,10 +124,13 @@ func TestKeyProvider(t *testing.T) {
 						if p.keyLength != 16 {
 							return fmt.Errorf("invalid key length: %v", p.keyLength)
 						}
+						if p.svc.transitPath != "/pki" {
+							return fmt.Errorf("invalid transit path: %v", p.svc.transitPath)
+						}
 						return nil
 					},
 				},
-				"success-default-key-length": {
+				"success-default-values": {
 					Config: &Config{
 						KeyName: testKeyName,
 					},
@@ -128,6 +141,9 @@ func TestKeyProvider(t *testing.T) {
 						}
 						if p.keyLength != 32 {
 							return fmt.Errorf("invalid default key length: %v", p.keyLength)
+						}
+						if p.svc.transitPath != "/transit" {
+							return fmt.Errorf("invalid default transit path: %v; expected: '/transit'", p.svc.transitPath)
 						}
 						return nil
 					},
@@ -178,6 +194,7 @@ func TestKeyProvider(t *testing.T) {
 func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockClientFunc {
 	escapedTestKeyName := url.PathEscape(testKeyName)
 
+	// Mock uses default transit engine path: "/transit".
 	generateDataKeyPath := fmt.Sprintf("/transit/datakey/plaintext/%s", escapedTestKeyName)
 	decryptPath := fmt.Sprintf("/transit/decrypt/%s", escapedTestKeyName)
 

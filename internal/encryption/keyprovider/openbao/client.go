@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path"
 
 	openbao "github.com/openbao/openbao/api"
 )
@@ -16,7 +17,8 @@ type client interface {
 
 // service implements missing utility functions from openbao/api such as routing and serialization.
 type service struct {
-	c client
+	c           client
+	transitPath string
 }
 
 type dataKey struct {
@@ -25,7 +27,7 @@ type dataKey struct {
 }
 
 func (s service) generateDataKey(ctx context.Context, keyName string, bitSize int) (dataKey, error) {
-	path := fmt.Sprintf("/transit/datakey/plaintext/%s", url.PathEscape(keyName))
+	path := path.Join(s.transitPath, "datakey/plaintext", url.PathEscape(keyName))
 
 	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
 		"bits": bitSize,
@@ -50,7 +52,7 @@ func (s service) generateDataKey(ctx context.Context, keyName string, bitSize in
 }
 
 func (s service) decryptData(ctx context.Context, keyName string, ciphertext []byte) ([]byte, error) {
-	path := fmt.Sprintf("/transit/decrypt/%s", url.PathEscape(keyName))
+	path := path.Join(s.transitPath, "decrypt", url.PathEscape(keyName))
 
 	secret, err := s.c.WriteWithContext(ctx, path, map[string]interface{}{
 		"ciphertext": string(ciphertext),

@@ -12,9 +12,15 @@ type Config struct {
 	Address string `hcl:"address,optional"`
 	Token   string `hcl:"token,optional"`
 
-	KeyName   string        `hcl:"key_name"`
-	KeyLength DataKeyLength `hcl:"key_length,optional"`
+	KeyName           string        `hcl:"key_name"`
+	KeyLength         DataKeyLength `hcl:"key_length,optional"`
+	TransitEnginePath string        `hcl:"transit_engine_path,optional"`
 }
+
+const (
+	defaultDataKeyLength     DataKeyLength = 32
+	defaultTransitEnginePath string        = "/transit"
+)
 
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	if c.KeyName == "" {
@@ -31,6 +37,10 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		return nil, nil, &keyprovider.ErrInvalidConfiguration{
 			Cause: err,
 		}
+	}
+
+	if c.TransitEnginePath == "" {
+		c.TransitEnginePath = defaultTransitEnginePath
 	}
 
 	// DefaultConfig reads BAO_ADDR and some other optional env variables.
@@ -54,13 +64,14 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 
 	return &keyProvider{
-		svc:       service{client},
+		svc: service{
+			c:           client,
+			transitPath: c.TransitEnginePath,
+		},
 		keyName:   c.KeyName,
 		keyLength: c.KeyLength,
 	}, new(keyMeta), nil
 }
-
-const defaultDataKeyLength DataKeyLength = 32
 
 type DataKeyLength int
 
