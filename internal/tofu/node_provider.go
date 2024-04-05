@@ -80,7 +80,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 	}
 
 	parseRef := addrs.ParseRef
-	if n.ProviderConfig().ParseRef != nil {
+	if n.ProviderConfig() != nil && n.ProviderConfig().ParseRef != nil {
 		parseRef = n.ProviderConfig().ParseRef
 	}
 
@@ -121,7 +121,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 	configSchema := resp.Provider.Block
 
 	parseRef := addrs.ParseRef
-	if n.ProviderConfig().ParseRef != nil {
+	if n.ProviderConfig() != nil && n.ProviderConfig().ParseRef != nil {
 		parseRef = n.ProviderConfig().ParseRef
 	}
 

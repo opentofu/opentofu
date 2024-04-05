@@ -1,5 +1,5 @@
-provider "docker" {
-  host = run.setup.sample_test_value
+provider "test" {
+  region = run.setup.sample_test_value
 }
 
 run "setup" {

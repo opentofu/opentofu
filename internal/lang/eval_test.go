@@ -75,9 +75,6 @@ func TestScopeEvalContext(t *testing.T) {
 		InputVariables: map[string]cty.Value{
 			"baz": cty.StringVal("boop"),
 		},
-		OutputValues: map[string]cty.Value{
-			"foo": cty.StringVal("bar"),
-		},
 	}
 
 	tests := []struct {
@@ -356,19 +353,6 @@ func TestScopeEvalContext(t *testing.T) {
 			map[string]cty.Value{
 				"var": cty.ObjectVal(map[string]cty.Value{
 					"baz": cty.StringVal("boop"),
-				}),
-			},
-		},
-		{
-			`run.setup.foo`,
-			map[string]cty.Value{
-				"output": cty.ObjectVal(map[string]cty.Value{
-					"foo": cty.StringVal("bar"),
-				}),
-				"run": cty.ObjectVal(map[string]cty.Value{
-					"setup": cty.ObjectVal(map[string]cty.Value{
-						"foo": cty.StringVal("bar"),
-					}),
 				}),
 			},
 		},

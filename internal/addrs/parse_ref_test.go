@@ -85,6 +85,37 @@ func TestParseRefInTestingScope(t *testing.T) {
 			},
 			``,
 		},
+
+		// run
+		{
+			`run.setup.foo`,
+			&Reference{
+				Subject: OutputValue{
+					Name: "foo",
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 10, Byte: 9},
+					End:   tfdiags.SourcePos{Line: 1, Column: 14, Byte: 13},
+				},
+				Remaining: hcl.Traversal{
+					hcl.TraverseAttr{
+						Name: "setup",
+						SrcRange: hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
+							End:   hcl.Pos{Line: 1, Column: 10, Byte: 9},
+						},
+					},
+					hcl.TraverseAttr{
+						Name: "foo",
+						SrcRange: hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 10, Byte: 9},
+							End:   hcl.Pos{Line: 1, Column: 14, Byte: 13},
+						},
+					},
+				},
+			},
+			``,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.Input, func(t *testing.T) {
@@ -647,37 +678,6 @@ func TestParseRef(t *testing.T) {
 			`terraform["workspace"]`,
 			nil,
 			`The "terraform" object does not support this operation.`,
-		},
-
-		// run
-		{
-			`run.setup.foo`,
-			&Reference{
-				Subject: OutputValue{
-					Name: "foo",
-				},
-				SourceRange: tfdiags.SourceRange{
-					Start: tfdiags.SourcePos{Line: 1, Column: 10, Byte: 9},
-					End:   tfdiags.SourcePos{Line: 1, Column: 14, Byte: 13},
-				},
-				Remaining: hcl.Traversal{
-					hcl.TraverseAttr{
-						Name: "setup",
-						SrcRange: hcl.Range{
-							Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
-							End:   hcl.Pos{Line: 1, Column: 10, Byte: 9},
-						},
-					},
-					hcl.TraverseAttr{
-						Name: "foo",
-						SrcRange: hcl.Range{
-							Start: hcl.Pos{Line: 1, Column: 10, Byte: 9},
-							End:   hcl.Pos{Line: 1, Column: 14, Byte: 13},
-						},
-					},
-				},
-			},
-			``,
 		},
 
 		// var
