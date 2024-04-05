@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -244,7 +245,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 func decodeTestProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	_, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
+	content, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
 	diags = append(diags, moreDiags...)
 
 	// Provider names must be localized. Produce an error with a message
@@ -265,6 +266,44 @@ func decodeTestProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		Config:    config,
 		ParseRef:  addrs.ParseRefFromTestingScope,
 		DeclRange: block.DefRange,
+	}
+
+	if attr, exists := content.Attributes["alias"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
+		diags = append(diags, valDiags...)
+		provider.AliasRange = attr.Expr.Range().Ptr()
+
+		if !hclsyntax.ValidIdentifier(provider.Alias) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration alias",
+				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
+			})
+		}
+	}
+
+	if attr, exists := content.Attributes["version"]; exists {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Version constraints inside provider configuration blocks are deprecated",
+			Detail:   "OpenTofu 0.13 and earlier allowed provider version constraints inside the provider configuration block, but that is now deprecated and will be removed in a future version of OpenTofu. To silence this warning, move the provider version constraint into the required_providers block.",
+			Subject:  attr.Expr.Range().Ptr(),
+		})
+		var versionDiags hcl.Diagnostics
+		provider.Version, versionDiags = decodeVersionConstraint(attr)
+		diags = append(diags, versionDiags...)
+	}
+
+	// Reserved attribute names
+	for _, name := range []string{"count", "depends_on", "for_each", "source"} {
+		if attr, exists := content.Attributes[name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reserved argument name in provider block",
+				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
+				Subject:  &attr.NameRange,
+			})
+		}
 	}
 
 	return provider, diags
