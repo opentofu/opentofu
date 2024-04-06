@@ -9,7 +9,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/aws_kms"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/azure_kms"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/gcp_kms"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/azure_kms"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"

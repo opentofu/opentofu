@@ -5,15 +5,15 @@ import (
 	"crypto/rand"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
 type keyMeta struct {
-	Result       []byte                     `json:"result"`
-	keyAlgorithm azkeys.EncryptionAlgorithm `json:"key_algoritm"`
-	keyVersion   string                     `json:"key_version"`
+	Result []byte `json:"result"`
+	// keyAlgorithm azkeys.EncryptionAlgorithm `json:"key_algoritm"`
+	// keyVersion   string                     `json:"key_version"`
 }
 
 func (m keyMeta) isPresent() bool {
@@ -74,8 +74,8 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	}
 
 	// Encrypt new encryption key using kms
-	encryptedKeyData, err := p.svc.Encrypt(p.ctx, p.keyName, version, azkeys.KeyOperationParameters{
-		Algorithm: &p.keyAlgorithm,
+	wrappedKeyData, err := p.svc.WrapKey(p.ctx, p.keyName, version, azkeys.KeyOperationParameters{
+		Algorithm: to.Ptr(azkeys.EncryptionAlgorithmA256GCM),
 		Value:     out.EncryptionKey,
 	}, nil)
 
@@ -86,17 +86,17 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		}
 	}
 
-	outMeta.Result = encryptedKeyData.Result
-	outMeta.keyAlgorithm = p.keyAlgorithm
-	outMeta.keyVersion = version
+	outMeta.Result = wrappedKeyData.Result
+	// outMeta.keyAlgorithm = p.keyAlgorithm
+	// outMeta.keyVersion = version
 
 	// We do not set the DecryptionKey here as we should only be setting the decryption key if we are decrypting
 	// and that is handled below when we check if the inMeta has a CiphertextBlob
 
 	if inMeta.isPresent() {
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
-		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, p.keyName, inMeta.keyVersion, azkeys.KeyOperationParameters{
-			Algorithm: &inMeta.keyAlgorithm,
+		unwrappedKeyData, decryptErr := p.svc.UnwrapKey(p.ctx, p.keyName, version, azkeys.KeyOperationParameters{
+			Algorithm: to.Ptr(azkeys.EncryptionAlgorithmA256GCM),
 			Value:     inMeta.Result,
 		}, nil)
 
@@ -105,7 +105,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		}
 
 		// Set decryption key on the output
-		out.DecryptionKey = decryptedKeyData.Result
+		out.DecryptionKey = unwrappedKeyData.Result
 	}
 
 	return out, outMeta, nil

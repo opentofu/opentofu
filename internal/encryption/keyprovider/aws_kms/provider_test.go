@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func getKey(t *testing.T) string {
+func getKey(_ *testing.T) string {
 	if os.Getenv("TF_ACC") == "" && os.Getenv("TF_KMS_TEST") == "" {
 		return ""
 	}

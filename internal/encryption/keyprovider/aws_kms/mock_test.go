@@ -21,7 +21,7 @@ func (m *mockKMS) Decrypt(ctx context.Context, params *kms.DecryptInput, optFns 
 }
 
 func injectMock(m *mockKMS) {
-	newKMSFromConfig = func(cfg aws.Config) kmsClient {
+	newKMSFromConfig = func(_ aws.Config) kmsClient {
 		return m
 	}
 }

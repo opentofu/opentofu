@@ -49,3 +49,25 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 		keySize:      c.KeySize,
 	}, new(keyMeta), nil
 }
+
+func (c Config) validate() (err error) {
+	if c.VaultName == "" {
+		return &keyprovider.ErrInvalidConfiguration{
+			Message: "No vault_name provided",
+		}
+	}
+
+	if c.KeyName == "" {
+		return &keyprovider.ErrInvalidConfiguration{
+			Message: "No key_name provided",
+		}
+	}
+
+	if c.KeyAlgorithm == "" {
+		return &keyprovider.ErrInvalidConfiguration{
+			Message: "No key_algorithm provided",
+		}
+	}
+
+	return nil
+}
