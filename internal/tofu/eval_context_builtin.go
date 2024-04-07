@@ -472,8 +472,8 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	if !val.IsKnown() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Import block 'to' address contains invalid key",
-			Detail:   "Import block contained a resource address using an index will only be known after apply. Please make sure to use expressions that are known at plan time for the index of an import target address",
+			Summary:  "Import block 'to' address contains an invalid key",
+			Detail:   "Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address",
 			Subject:  expr.Range().Ptr(),
 		})
 		return idx, diags
@@ -482,7 +482,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	if val.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Import block 'to' address contains invalid key",
+			Summary:  "Import block 'to' address contains an invalid key",
 			Detail:   "Import block contained a resource address using an index which is null. Please make sure the expression for the index is not null",
 			Subject:  expr.Range().Ptr(),
 		})
@@ -492,7 +492,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	if val.Type() != cty.String && val.Type() != cty.Number {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Import block 'to' address contains invalid key",
+			Summary:  "Import block 'to' address contains an invalid key",
 			Detail:   "Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please make sure the expression for the index is correct, and returns either a string or a number",
 			Subject:  expr.Range().Ptr(),
 		})
@@ -503,7 +503,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	if _, sensitive := valMarks[marks.Sensitive]; sensitive {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Import block 'to' address contains invalid key",
+			Summary:  "Import block 'to' address contains an invalid key",
 			Detail:   "Import block contained a resource address using an index which is sensitive. Please make sure indexes used in the resource address of an import target are not sensitive",
 			Subject:  expr.Range().Ptr(),
 		})
