@@ -719,7 +719,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 	// As this is functionality is always sitting behind cty/function.Function, we skip some validation
 	// checks of from the function and param spec.  We still include basic validation to prevent panics,
 	// just in case there are bugs in cty.  See context_functions_test.go for explicit testing of argument
-	// handling and short-cicuiting.
+	// handling and short-circuiting.
 	if len(r.Arguments) < len(spec.Parameters) {
 		// This should be unreachable
 		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s expected %d parameters and got %d instead", r.Name, len(spec.Parameters), len(r.Arguments))
