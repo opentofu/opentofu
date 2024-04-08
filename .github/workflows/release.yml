@@ -6,12 +6,12 @@ on:
       tag:
         description: "Git tag (leave empty for dry run)"
         required: false
-      prerelease:
-        description: "Release as prerelease?"
-        required: true
-        type: boolean
       latest:
         description: "Release as latest?"
+        required: true
+        type: boolean
+      prerelease:
+        description: "Release as prerelease?"
         required: true
         type: boolean
 
