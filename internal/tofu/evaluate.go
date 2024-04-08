@@ -89,7 +89,7 @@ func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs
 		BaseDir:       ".", // Always current working directory for now.
 		PlanTimestamp: e.PlanTimestamp,
 		// Can't pass the object directly as it would cause an import loop
-		ProviderAliases:   functions.Aliases,
+		ProviderAliases:   functions.ProviderNames,
 		ProviderFunctions: functions.Functions,
 	}
 }

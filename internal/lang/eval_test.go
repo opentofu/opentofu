@@ -875,13 +875,13 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 			"Invalid prefix",
 			"attr = magic::missing_function(54)",
 			"Invalid function format",
-			"Expected provider::provider_alias::function_name, instead found \"magic::missing_function\"",
+			"Expected provider::<provider_name>::<function_name>, instead found \"magic::missing_function\"",
 		},
 		{
 			"Broken prefix",
 			"attr = magic::foo::bar::extra::missing_function(54)",
 			"Invalid function format",
-			"Expected provider::provider_alias::function_name, instead found \"magic::foo::bar::extra::missing_function\"",
+			"Expected provider::<provider_name>::<function_name>, instead found \"magic::foo::bar::extra::missing_function\"",
 		},
 		{
 			"Missing provider",

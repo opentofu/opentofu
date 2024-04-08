@@ -424,15 +424,15 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	ctx.FunctionLock.Lock()
 	defer ctx.FunctionLock.Unlock()
 	if ctx.FunctionCache == nil {
-		aliases := make(map[string]addrs.Provider)
+		names := make(map[string]addrs.Provider)
 
 		// Providers must exist within required_providers to register their functions
-		for alias, provider := range mc.Module.ProviderRequirements.RequiredProviders {
-			// Functions are only registered under their alias, not their type name
-			aliases[alias] = provider.Type
+		for name, provider := range mc.Module.ProviderRequirements.RequiredProviders {
+			// Functions are only registered under their name, not their type name
+			names[name] = provider.Type
 		}
 
-		ctx.FunctionCache = ctx.Plugins.Functions(aliases)
+		ctx.FunctionCache = ctx.Plugins.Functions(names)
 	}
 	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)

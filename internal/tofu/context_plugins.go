@@ -218,23 +218,23 @@ func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, er
 }
 
 type ProviderFunctions struct {
-	Aliases   map[string]addrs.Provider
-	Functions map[string]function.Function
+	ProviderNames map[string]addrs.Provider
+	Functions     map[string]function.Function
 }
 
-// Functions provides a map of provider::alias:function for a given provider type.
+// Functions provides a map of provider::<provider_name>::<function> for a given provider type.
 // All providers of a given type use the same functions and provider instance and
-// additional aliases do not incur any performance penalty.
-func (cp *contextPlugins) Functions(aliases map[string]addrs.Provider) *ProviderFunctions {
+// additional names do not incur any performance penalty.
+func (cp *contextPlugins) Functions(names map[string]addrs.Provider) *ProviderFunctions {
 	providerFuncs := &ProviderFunctions{
-		Aliases:   aliases,
-		Functions: make(map[string]function.Function),
+		ProviderNames: names,
+		Functions:     make(map[string]function.Function),
 	}
 
-	for alias, addr := range aliases {
+	for name, addr := range names {
 		funcs := cp.providerFunctions[addr]
-		for name, fn := range funcs {
-			providerFuncs.Functions[fmt.Sprintf("provider::%s::%s", alias, name)] = fn
+		for fn_name, fn := range funcs {
+			providerFuncs.Functions[fmt.Sprintf("provider::%s::%s", name, fn_name)] = fn
 		}
 	}
 	return providerFuncs

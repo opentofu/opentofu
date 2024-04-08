@@ -40,7 +40,7 @@ execution.
 
 OpenTofu iterates through the [required_providers](/docs/language/providers/requirements/) block
 and queries the specified providers for any functions they wish to register. Functions are
-added to the current module's context under `provider::${provider_alias}::${function_name}`.
+added to the current module's context under `provider::<provider_name>::<function_name>`.
 Functions are scoped to the module that requires the provider and are not inherited by child modules.
 
 ### Example:

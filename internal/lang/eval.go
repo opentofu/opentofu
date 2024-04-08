@@ -235,7 +235,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 			if match == nil || string(match[1]) != "provider" {
 				// complete mismatch or invalid prefix
 				enhanced.Summary = "Invalid function format"
-				enhanced.Detail = fmt.Sprintf("Expected provider::provider_alias::function_name, instead found \"%s%s\"", fullNamespace, funcName)
+				enhanced.Detail = fmt.Sprintf("Expected provider::<provider_name>::<function_name>, instead found \"%s%s\"", fullNamespace, funcName)
 				continue
 			}
 

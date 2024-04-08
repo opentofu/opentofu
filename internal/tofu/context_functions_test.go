@@ -125,17 +125,17 @@ func TestFunctions(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	t.Run("empty alias map", func(t *testing.T) {
+	t.Run("empty names map", func(t *testing.T) {
 		res := plugins.Functions(map[string]addrs.Provider{})
-		if len(res.Aliases) != 0 {
-			t.Error("did not expect any aliases")
+		if len(res.ProviderNames) != 0 {
+			t.Error("did not expect any names")
 		}
 		if len(res.Functions) != 0 {
 			t.Error("did not expect any functions")
 		}
 	})
 
-	t.Run("broken alias map", func(t *testing.T) {
+	t.Run("broken names map", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Errorf("Expected panic due to broken configuration")
@@ -145,8 +145,8 @@ func TestFunctions(t *testing.T) {
 		res := plugins.Functions(map[string]addrs.Provider{
 			"borky": addrs.NewDefaultProvider("my_borky"),
 		})
-		if len(res.Aliases) != 0 {
-			t.Error("did not expect any aliases")
+		if len(res.ProviderNames) != 0 {
+			t.Error("did not expect any names")
 		}
 		if len(res.Functions) != 0 {
 			t.Error("did not expect any functions")
@@ -154,10 +154,10 @@ func TestFunctions(t *testing.T) {
 	})
 
 	res := plugins.Functions(map[string]addrs.Provider{
-		"mockalias": addr,
+		"mockname": addr,
 	})
-	if res.Aliases["mockalias"] != addr {
-		t.Errorf("expected alias %q, got %q", addr, res.Aliases["mockalias"])
+	if res.ProviderNames["mockname"] != addr {
+		t.Errorf("expected names %q, got %q", addr, res.ProviderNames["mockname"])
 	}
 
 	ctx := &hcl.EvalContext{
@@ -179,25 +179,25 @@ func TestFunctions(t *testing.T) {
 		// These are all assumptions that the provider implementation should not have to worry about:
 
 		t.Log("Checking not enough arguments")
-		_, diags := evaluate("provider::mockalias::echo()")
-		if !strings.Contains(diags.Error(), `Not enough function arguments; Function "provider::mockalias::echo" expects 1 argument(s). Missing value for "input"`) {
+		_, diags := evaluate("provider::mockname::echo()")
+		if !strings.Contains(diags.Error(), `Not enough function arguments; Function "provider::mockname::echo" expects 1 argument(s). Missing value for "input"`) {
 			t.Error(diags.Error())
 		}
 
 		t.Log("Checking too many arguments")
-		_, diags = evaluate(`provider::mockalias::echo("1", "2", "3")`)
-		if !strings.Contains(diags.Error(), `Too many function arguments; Function "provider::mockalias::echo" expects only 1 argument(s)`) {
+		_, diags = evaluate(`provider::mockname::echo("1", "2", "3")`)
+		if !strings.Contains(diags.Error(), `Too many function arguments; Function "provider::mockname::echo" expects only 1 argument(s)`) {
 			t.Error(diags.Error())
 		}
 
 		t.Log("Checking null argument")
-		_, diags = evaluate(`provider::mockalias::echo(null)`)
+		_, diags = evaluate(`provider::mockname::echo(null)`)
 		if !strings.Contains(diags.Error(), `Invalid function argument; Invalid value for "input" parameter: argument must not be null`) {
 			t.Error(diags.Error())
 		}
 
 		t.Log("Checking unknown argument")
-		val, diags := evaluate(`provider::mockalias::echo(unknown_value)`)
+		val, diags := evaluate(`provider::mockname::echo(unknown_value)`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -212,7 +212,7 @@ func TestFunctions(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			t.Log("Checking valid argument")
 
-			val, diags = evaluate(`provider::mockalias::echo("hello functions!")`)
+			val, diags = evaluate(`provider::mockname::echo("hello functions!")`)
 			if diags.HasErrors() {
 				t.Error(diags.Error())
 			}
@@ -227,7 +227,7 @@ func TestFunctions(t *testing.T) {
 
 		t.Log("Checking sensitive argument")
 
-		val, diags = evaluate(`provider::mockalias::echo(sensitive_value)`)
+		val, diags = evaluate(`provider::mockname::echo(sensitive_value)`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -240,7 +240,7 @@ func TestFunctions(t *testing.T) {
 		// Make sure varargs are handled properly
 
 		// Single
-		val, diags := evaluate(`provider::mockalias::concat("foo")`)
+		val, diags := evaluate(`provider::mockname::concat("foo")`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -249,7 +249,7 @@ func TestFunctions(t *testing.T) {
 		}
 
 		// Multi
-		val, diags = evaluate(`provider::mockalias::concat("foo", "bar", "baz")`)
+		val, diags = evaluate(`provider::mockname::concat("foo", "bar", "baz")`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -259,7 +259,7 @@ func TestFunctions(t *testing.T) {
 	})
 
 	t.Run("coalesce function", func(t *testing.T) {
-		val, diags := evaluate(`provider::mockalias::coalesce("first", "second")`)
+		val, diags := evaluate(`provider::mockname::coalesce("first", "second")`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -267,7 +267,7 @@ func TestFunctions(t *testing.T) {
 			t.Error(val.AsString())
 		}
 
-		val, diags = evaluate(`provider::mockalias::coalesce(null, "second")`)
+		val, diags = evaluate(`provider::mockname::coalesce(null, "second")`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -277,7 +277,7 @@ func TestFunctions(t *testing.T) {
 	})
 
 	t.Run("unknown_param function", func(t *testing.T) {
-		val, diags := evaluate(`provider::mockalias::unknown_param(unknown_value)`)
+		val, diags := evaluate(`provider::mockname::unknown_param(unknown_value)`)
 		if diags.HasErrors() {
 			t.Error(diags.Error())
 		}
@@ -286,7 +286,7 @@ func TestFunctions(t *testing.T) {
 		}
 	})
 	t.Run("error_param function", func(t *testing.T) {
-		_, diags := evaluate(`provider::mockalias::error_param("foo")`)
+		_, diags := evaluate(`provider::mockname::error_param("foo")`)
 		if !strings.Contains(diags.Error(), `Invalid function argument; Invalid value for "input" parameter: my error text.`) {
 			t.Error(diags.Error())
 		}
