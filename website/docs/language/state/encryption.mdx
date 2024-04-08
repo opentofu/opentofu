@@ -14,6 +14,7 @@ import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
 import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
+import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
@@ -125,6 +126,22 @@ This key provider uses the [Google Cloud Key Management Service](https://cloud.g
 The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
+
+### OpenBao
+
+This key provider uses the [OpenBao Transit Secret Engine](https://janma.github.io/openbao/docs/secrets/transit) to generate data keys. You can configure it as follows:
+
+| Option                | Description                                                                                                                                                                              | Min. | Default                |
+|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------|
+| key_name *(required)* | Name of the transit encryption key to use to encrypt/decrypt the datakey. It should be [pre-configured](https://janma.github.io/openbao/docs/secrets/transit/#setup) in OpenBao server. | N/A  | -                      |
+| token                 | [Authorization Token](https://janma.github.io/openbao/docs/concepts/tokens/) to use when accessing OpenBao API. Available as `BAO_TOKEN` environment variable.                           | N/A  | -                      |
+| address               | OpenBao server address to access the API. Available as `BAO_ADDR` environment variable.                                                                                                  | N/A  | https://127.0.0.1:8200 |
+| transit_engine_path   | Path at whick Transit Secret Engine enabled in OpenBao.                                                                                                                                  | N/A  | /transit               |
+| key_length            | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                                    | 16   | 32                     |
+
+The following example illustrates possible configuration:
+
+<CodeBlock language="hcl">{OpenBao}</CodeBlock>
 
 ## Methods
 
