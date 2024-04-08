@@ -117,13 +117,9 @@ func TestFunctions(t *testing.T) {
 	}
 
 	addr := addrs.NewDefaultProvider("mock")
-	plugins, err := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins := newContextPluginsForTest(map[addrs.Provider]providers.Factory{
 		addr: mockFactory,
-	}, nil)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	}, t)
 
 	t.Run("empty names map", func(t *testing.T) {
 		res := plugins.Functions(map[string]addrs.Provider{})
