@@ -32,7 +32,4 @@ func init() {
 	if err := DefaultRegistry.RegisterKeyProvider(gcp_kms.New()); err != nil {
 		panic(err)
 	}
-	if err := DefaultRegistry.RegisterKeyProvider(azure_kms.New()); err != nil {
-		panic(err)
-	}
 }
