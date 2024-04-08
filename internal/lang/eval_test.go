@@ -920,7 +920,7 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 			body := file.Body
 
 			scope := &Scope{
-				ProviderAliases: map[string]addrs.Provider{
+				ProviderNames: map[string]addrs.Provider{
 					"known": addrs.Provider{
 						Type:      "type",
 						Namespace: "namespace",

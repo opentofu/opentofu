@@ -239,16 +239,16 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 				continue
 			}
 
-			providerAlias := string(match[2])
-			addr, ok := s.ProviderAliases[providerAlias]
+			providerName := string(match[2])
+			addr, ok := s.ProviderNames[providerName]
 			if !ok {
 				// Provider not registered
 				enhanced.Summary = "Unknown function provider"
-				enhanced.Detail = fmt.Sprintf("Provider %q does not exist within the required_providers of this module", providerAlias)
+				enhanced.Detail = fmt.Sprintf("Provider %q does not exist within the required_providers of this module", providerName)
 			} else {
 				// Func not in provider
 				enhanced.Summary = "Function not found in provider"
-				enhanced.Detail = fmt.Sprintf("Function %q was not registered by provider named %q of type %q", funcName, providerAlias, addr)
+				enhanced.Detail = fmt.Sprintf("Function %q was not registered by provider named %q of type %q", funcName, providerName, addr)
 			}
 		}
 	}
