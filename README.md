@@ -35,7 +35,7 @@ If you've found a vulnerability or a potential vulnerability in OpenTofu please 
 
 ## Reporting possible copyright issues
 
-If you beleive you have found any possible copyright or intellectual property issues, please contact liaison@opentofu.org. We'll send a confirmation email to acknowledge your report.
+If you believe you have found any possible copyright or intellectual property issues, please contact liaison@opentofu.org. We'll send a confirmation email to acknowledge your report.
 
 ## License
 
