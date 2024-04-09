@@ -1,5 +1,5 @@
 provider "test" {
-  region = var.sample_test_value
+  region = run.setup.sample_test_value
 }
 
 run "setup" {
