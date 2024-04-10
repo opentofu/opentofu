@@ -149,7 +149,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 				return data, nil
 			}
 		}
-		return nil, fmt.Errorf("decrypted payload provided without unencrypted method")
+		return nil, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
 	}
 
 	if es.Version != encryptionVersion {
