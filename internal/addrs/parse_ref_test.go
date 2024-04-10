@@ -116,6 +116,21 @@ func TestParseRefInTestingScope(t *testing.T) {
 			},
 			``,
 		},
+		{
+			`run.setup["foo"]`,
+			nil,
+			`The "run" block output values must be followed by two attribute names: the resource type and the property. For example: run.resource_type.property.`,
+		},
+		{
+			`run.setup.foo.bar`,
+			nil,
+			`The "run" block output values must be followed by two attribute names: the resource type and the property. For example: run.resource_type.property.`,
+		},
+		{
+			`run.setup`,
+			nil,
+			`The "run" block output values must be followed by two attribute names: the resource type and the property. For example: run.resource_type.property.`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.Input, func(t *testing.T) {

@@ -290,7 +290,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	countAttrs := map[string]cty.Value{}
 	forEachAttrs := map[string]cty.Value{}
 	checkBlocks := map[string]cty.Value{}
-	runBlockValue := map[string]map[string]cty.Value{}
+	runBlockValues := map[string]map[string]cty.Value{}
 	var self cty.Value
 
 	for _, ref := range refs {
@@ -416,7 +416,12 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			diags = diags.Append(valDiags)
 			outputValues[subj.Name] = val
 			if len(ref.Remaining) > 0 {
-				getRunBlockValue(ref, val, runBlockValue)
+				// The values for runBlockValues should be stored in same nested structure as it was referenced in the test file.
+				block, outputVariable := getRunBlockValue(ref)
+				if runBlockValues[block] == nil {
+					runBlockValues[block] = make(map[string]cty.Value)
+				}
+				runBlockValues[block][outputVariable] = val
 			}
 
 		case addrs.Check:
@@ -459,8 +464,8 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 		vals["output"] = cty.ObjectVal(outputValues)
 	}
 
-	if len(runBlockValue) > 0 {
-		vals["run"] = cty.ObjectVal(buildResourceObjects(runBlockValue))
+	if len(runBlockValues) > 0 {
+		vals["run"] = cty.ObjectVal(buildResourceObjects(runBlockValues))
 	}
 
 	if self != cty.NilVal {
@@ -470,7 +475,8 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	return ctx, diags
 }
 
-func getRunBlockValue(ref *addrs.Reference, value cty.Value, runBlockValue map[string]map[string]cty.Value) {
+// getRunBlockValue gets the block
+func getRunBlockValue(ref *addrs.Reference) (string, string) {
 	var block, outputVariable string
 	if attrTrav, ok := ref.Remaining[0].(hcl.TraverseAttr); ok {
 		block = attrTrav.Name
@@ -478,10 +484,7 @@ func getRunBlockValue(ref *addrs.Reference, value cty.Value, runBlockValue map[s
 	if attrTrav, ok := ref.Remaining[1].(hcl.TraverseAttr); ok {
 		outputVariable = attrTrav.Name
 	}
-	if runBlockValue[block] == nil {
-		runBlockValue[block] = make(map[string]cty.Value)
-	}
-	runBlockValue[block][outputVariable] = value
+	return block, outputVariable
 }
 
 func buildResourceObjects(resources map[string]map[string]cty.Value) map[string]cty.Value {
