@@ -10,6 +10,8 @@ STATE ENCRYPTION
 * Available key providers:
   * Passphrase, via pbkdf2 ([#1310](https://github.com/opentofu/opentofu/pull/1310))
   * AWS KMS ([#1349](https://github.com/opentofu/opentofu/pull/1349))
+  * GCP KMS ([#1392](https://github.com/opentofu/opentofu/pull/1392))
+  * OpenBao ([#1436](https://github.com/opentofu/opentofu/pull/1436))
 
 NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
