@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -57,9 +58,9 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 	signatures := newFunctions()
 
 	for name, v := range f {
-		if name == "can" {
+		if name == "can" || name == lang.CoreNamespace+"can" {
 			signatures.Signatures[name] = marshalCan(v)
-		} else if name == "try" {
+		} else if name == "try" || name == lang.CoreNamespace+"try" {
 			signatures.Signatures[name] = marshalTry(v)
 		} else {
 			signature, err := marshalFunction(v)

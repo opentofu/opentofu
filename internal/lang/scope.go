@@ -71,6 +71,9 @@ type Scope struct {
 	// PlanTimestamp is a timestamp representing when the plan was made. It will
 	// either have been generated during this operation or read from the plan.
 	PlanTimestamp time.Time
+
+	ProviderFunctions map[string]function.Function
+	ProviderNames     map[string]addrs.Provider
 }
 
 // SetActiveExperiments allows a caller to declare that a set of experiments

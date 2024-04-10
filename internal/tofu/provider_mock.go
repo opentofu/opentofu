@@ -87,6 +87,11 @@ type MockProvider struct {
 	ReadDataSourceRequest  providers.ReadDataSourceRequest
 	ReadDataSourceFn       func(providers.ReadDataSourceRequest) providers.ReadDataSourceResponse
 
+	CallFunctionCalled   bool
+	CallFunctionResponse *providers.CallFunctionResponse
+	CallFunctionRequest  providers.CallFunctionRequest
+	CallFunctionFn       func(providers.CallFunctionRequest) providers.CallFunctionResponse
+
 	CloseCalled bool
 	CloseError  error
 }
@@ -516,8 +521,21 @@ func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
-func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	panic("Not Implemented")
+func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.CallFunctionCalled = true
+	p.CallFunctionRequest = r
+
+	if p.CallFunctionFn != nil {
+		return p.CallFunctionFn(r)
+	}
+
+	if p.CallFunctionResponse != nil {
+		resp = *p.CallFunctionResponse
+	}
+	return resp
 }
 
 func (p *MockProvider) Close() error {

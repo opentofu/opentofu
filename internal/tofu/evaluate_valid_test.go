@@ -114,7 +114,7 @@ For example, to correlate with indices of a referring resource, use:
 					},
 				},
 			},
-		}),
+		}, t),
 	}
 
 	for _, test := range tests {
