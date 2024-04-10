@@ -21,6 +21,7 @@ func TestFunctionDescriptions(t *testing.T) {
 	allFunctions := scope.Functions()
 
 	// plantimestamp isn't available with ConsoleMode: true
+	// THis also includes the core:: prefixed functions
 	expectedFunctionCount := (len(funcs.DescriptionList) - 1) * 2
 
 	if len(allFunctions) != expectedFunctionCount {
@@ -28,7 +29,7 @@ func TestFunctionDescriptions(t *testing.T) {
 	}
 
 	for name := range allFunctions {
-		_, ok := funcs.DescriptionList[strings.TrimPrefix(name, "core::")]
+		_, ok := funcs.DescriptionList[strings.TrimPrefix(name, CoreNamespace)]
 		if !ok {
 			t.Errorf("missing DescriptionList entry for function %q", name)
 		}

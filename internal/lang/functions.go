@@ -24,6 +24,8 @@ var impureFunctions = []string{
 	"uuid",
 }
 
+const CoreNamespace = "core::"
+
 // Functions returns the set of functions that should be used to when evaluating
 // expressions in the receiving scope.
 func (s *Scope) Functions() map[string]function.Function {
@@ -200,7 +202,7 @@ func (s *Scope) Functions() map[string]function.Function {
 		}
 		// Copy all stdlib funcs into core:: namespace
 		for _, name := range coreNames {
-			s.funcs["core::"+name] = s.funcs[name]
+			s.funcs[CoreNamespace+name] = s.funcs[name]
 		}
 
 		for name, f := range s.ProviderFunctions {
