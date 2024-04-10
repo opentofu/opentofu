@@ -90,12 +90,14 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 }
 
 func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
+	// buildTargetMethods above guarantees that there will be at least one encryption method.  They are not optional in the common target
+	// block, which is required to get to this code.
 	encryptor := s.encMethods[0]
 
 	if unencrypted.Is(encryptor) {
 		// ensure that the method is defined when Enforced is true
 		if s.enforced {
-			return nil, fmt.Errorf("encryption of %q is enforced, and therefore requires a encryption method to be provided", s.name)
+			return nil, fmt.Errorf("encryption of %q is enforced, and therefore requires an encryption method to be provided", s.name)
 		}
 		return data, nil
 	}
