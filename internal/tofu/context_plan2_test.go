@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -4309,7 +4310,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[var.index]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4330,7 +4331,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[local.index]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4347,7 +4348,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[ true ? "zero" : "one"]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4373,7 +4374,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[var.one == 1 ? local.one : local.zero]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4394,7 +4395,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[test_object.reference.test_string]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4414,17 +4415,27 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[data.test_object.reference.test_string]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
 		},
 	}
 
+	const importId = 123
+
 	for _, configuration := range configurations {
 		t.Run(configuration.Description, func(t *testing.T) {
+
+			// Format the configuration with the import ID
+			formattedConfiguration := make(map[string]string)
+			for configFileName, configFileContent := range configuration.inlineConfiguration {
+				formattedConfigFileContent := fmt.Sprintf(configFileContent, importId)
+				formattedConfiguration[configFileName] = formattedConfigFileContent
+			}
+
 			addr := mustResourceInstanceAddr(configuration.ResolvedAddress)
-			m := testModuleInline(t, configuration.inlineConfiguration)
+			m := testModuleInline(t, formattedConfiguration)
 
 			p := &MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -4500,8 +4511,8 @@ import {
 				if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 				}
-				if instPlan.Importing.ID != "123" {
-					t.Errorf("expected import change from \"123\", got non-import change")
+				if instPlan.Importing.ID != strconv.Itoa(importId) {
+					t.Errorf("expected import change from \"%d\", got non-import change", importId)
 				}
 
 				if !hook.PrePlanImportCalled {
