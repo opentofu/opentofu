@@ -231,9 +231,9 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			}
 		case "provider":
 			provider, providerDiags := decodeProviderBlock(block)
-			provider.ParseRef = addrs.ParseRefFromTestingScope
 			diags = append(diags, providerDiags...)
 			if provider != nil {
+				provider.ParseRef = addrs.ParseRefFromTestingScope
 				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
 		}
