@@ -10,13 +10,18 @@ terraform {
     method "aes_gcm" "example" {
       keys = key_provider.pbkdf2.basic
     }
+    method "unencrypted" "fallback" {}
     state {
       method = method.aes_gcm.example
-      fallback {}
+      fallback {
+        method = method.unencrypted.fallback
+      }
     }
     plan {
       method = method.aes_gcm.example
-      fallback {}
+      fallback {
+        method = method.unencrypted.fallback
+      }
     }
   }
 }

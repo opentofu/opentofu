@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 
 	"github.com/hashicorp/hcl/v2"
 )
@@ -67,6 +68,7 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	//
 	methods, diags := base.buildTargetMethods(base.encMeta)
 	base.encMethods = methods
+
 	return base, diags
 }
 
@@ -88,21 +90,14 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 }
 
 func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
-	// No configuration provided, don't do anything
-	if s.target == nil {
-		return data, nil
-	}
+	// buildTargetMethods above guarantees that there will be at least one encryption method.  They are not optional in the common target
+	// block, which is required to get to this code.
+	encryptor := s.encMethods[0]
 
-	var encryptor method.Method = nil
-	if len(s.encMethods) != 0 {
-		// Use the pre-configured encryption method
-		encryptor = s.encMethods[0]
-	}
-
-	if encryptor == nil {
+	if unencrypted.Is(encryptor) {
 		// ensure that the method is defined when Enforced is true
 		if s.enforced {
-			return nil, fmt.Errorf("encryption of %q is enforced, and therefore requires a method to be provided", s.name)
+			return nil, fmt.Errorf("unable to use unencrypted method for %q when enforced = true", s.name)
 		}
 		return data, nil
 	}
@@ -127,10 +122,6 @@ func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}
 
 // TODO Find a way to make these errors actionable / clear
 func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
-	if s.target == nil {
-		return data, nil
-	}
-
 	es := basedata{}
 	err := json.Unmarshal(data, &es)
 
@@ -149,20 +140,16 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 
-		methods, diags := s.buildTargetMethods(make(map[keyprovider.Addr][]byte))
-		if diags.HasErrors() {
-			// This cast to error here is safe as we know that at least one error exists
-			// This is also quite unlikely to happen as the constructor already has checked this code path
-			return nil, diags
-		}
 		// Yep, it's already decrypted
-		for _, method := range methods {
-			if method == nil {
-				// fallback allowed
+		for _, method := range s.encMethods {
+			if unencrypted.Is(method) {
+				if s.enforced {
+					return nil, fmt.Errorf("unable to use unencrypted method when enforced = true")
+				}
 				return data, nil
 			}
 		}
-		return data, fmt.Errorf("decrypted payload provided without fallback specified")
+		return nil, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
 	}
 
 	if es.Version != encryptionVersion {
@@ -177,26 +164,10 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		return nil, diags
 	}
 
-	if len(methods) == 0 {
-		err = validator(data)
-		if err != nil {
-			// TODO improve this error message
-			return nil, err
-		}
-		// No methods/fallbacks specified and data is valid payload
-		return data, nil
-	}
-
 	errs := make([]error, 0)
 	for _, method := range methods {
-		if method == nil {
-			// No method specified for this target
-			err = validator(data)
-			if err == nil {
-				return data, nil
-			}
-			// TODO improve this error message
-			errs = append(errs, fmt.Errorf("payload is not already decrypted: %w", err))
+		if unencrypted.Is(method) {
+			// Not applicable
 			continue
 		}
 		uncd, err := method.Decrypt(es.Data)
