@@ -163,6 +163,10 @@ AES-GCM is a secure, industry-standard encryption algorithm, but suffers from "k
 
 :::
 
+### Unencrypted
+
+The `unencrypted` method is used to provide an explicit migration path to and from encryption.  It takes no configuration and can be see in use below in the [Initial Setup](#initial-setup) block.
+
 ## Key and method rollover
 
 In some cases, you may want to change your encryption configuration. This can include renaming a key provider or method, changing a passphrase for a key provider, or switching key-management systems. OpenTofu supports an automatic rollover of your encryption configuration if you provide your old configuration in a `fallback` block:
@@ -173,13 +177,13 @@ If OpenTofu fails to **read** your state or plan file with the new method, it wi
 
 ## Initial setup
 
-When you first configure encryption, your state and plan files are unencrypted. OpenTofu, by default, refuses to read them because they could have been manipulated. To enable reading unencrypted data, you will have to specify an empty fallback block:
+When you first configure encryption, your state and plan files are unencrypted. OpenTofu, by default, refuses to read them because they could have been manipulated. To enable reading unencrypted data, you will have to specify an `unencrypted` method:
 
 <CodeBlock language="hcl">{FallbackFromUnencrypted}</CodeBlock>
 
 ## Rolling back encryption
 
-Similar to the initial setup above, migrating to unencrypted state and plan files is also possible in a similar manner. You simply have to specify no method in the target block as follows:
+Similar to the initial setup above, migrating to unencrypted state and plan files is also possible in a similar manner. You simply have to specify an `unencrypted` method in the target block as follows:
 
 <CodeBlock language="hcl">{FallbackToUnencrypted}</CodeBlock>
 
