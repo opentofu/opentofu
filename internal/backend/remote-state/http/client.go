@@ -36,6 +36,7 @@ type httpClient struct {
 	Client   *retryablehttp.Client
 	Username string
 	Password string
+	Header   http.Header
 
 	lockID       string
 	jsonLockInfo []byte
@@ -53,8 +54,14 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
-	// Set up basic auth
-	if c.Username != "" {
+
+	// Baseline with custom headers if we have any
+	if c.Header != nil {
+		req.Header = c.Header
+	}
+
+	// Set up basic auth if we do not have an authorization header present
+	if c.Username != "" && req.Header.Get("Authorization") == "" {
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 

@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -119,6 +120,12 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.EnvDefaultFunc("TF_HTTP_CLIENT_PRIVATE_KEY_PEM", ""),
 				Description: "A PEM-encoded private key, required if client_certificate_pem is specified.",
 			},
+			"headers": &schema.Schema{
+				Type:        schema.TypeMap,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Description: "A map of headers, when set will be included with HTTP requests sent to the remote HTTP backend",
+			},
 		},
 	}
 
@@ -220,6 +227,16 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	unlockMethod := data.Get("unlock_method").(string)
 
+	var header http.Header
+	if dv, ok := data.GetOk("headers"); ok {
+		dh := dv.(map[string]interface{})
+
+		header = make(http.Header, len(dh))
+		for k, v := range dh {
+			header.Set(strings.TrimSpace(k), strings.TrimSpace(v.(string)))
+		}
+	}
+
 	rClient := retryablehttp.NewClient()
 	rClient.RetryMax = data.Get("retry_max").(int)
 	rClient.RetryWaitMin = time.Duration(data.Get("retry_wait_min").(int)) * time.Second
@@ -240,6 +257,8 @@ func (b *Backend) configure(ctx context.Context) error {
 
 		Username: data.Get("username").(string),
 		Password: data.Get("password").(string),
+
+		Header: header,
 
 		// accessible only for testing use
 		Client: rClient,
