@@ -97,7 +97,7 @@ func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}
 	if unencrypted.Is(encryptor) {
 		// ensure that the method is defined when Enforced is true
 		if s.enforced {
-			return nil, fmt.Errorf("encryption of %q is enforced, and therefore requires an encryption method to be provided", s.name)
+			return nil, fmt.Errorf("unable to use unencrypted method for %q when enforced = true", s.name)
 		}
 		return data, nil
 	}
