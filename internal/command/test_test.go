@@ -1196,3 +1196,63 @@ Success! 2 passed, 0 failed.
 		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
 	}
 }
+
+func TestTest_RunBlock(t *testing.T) {
+	tcs := map[string]struct {
+		expected string
+		code     int
+		skip     bool
+	}{
+		"invalid_run_block_name": {
+			expected: `
+Error: Invalid run block name
+
+  on tests/main.tftest.hcl line 1, in run "sample run":
+   1: run "sample run" {
+
+A name must start with a letter or underscore and may contain only letters,
+digits, underscores, and dashes.
+`,
+			code: 1,
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
+
+			provider := testing_command.NewProvider(nil)
+			providerSource, close := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer close()
+
+			streams, _ := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			if code := init.Run(nil); code != tc.code {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+		})
+	}
+}
