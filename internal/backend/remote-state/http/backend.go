@@ -14,7 +14,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -121,10 +121,26 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Description: "A PEM-encoded private key, required if client_certificate_pem is specified.",
 			},
 			"headers": &schema.Schema{
-				Type:        schema.TypeMap,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Optional:    true,
-				Description: "A map of headers, when set will be included with HTTP requests sent to the remote HTTP backend",
+				Type:     schema.TypeMap,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Optional: true,
+				ValidateFunc: func(cv interface{}, ck string) ([]string, []error) {
+					rk := regexp.MustCompile("[^a-zA-Z0-9-_]")
+					rv := regexp.MustCompile("[^[:ascii:]]")
+
+					ch := cv.(map[string]interface{})
+					err := make([]error, 0, len(ch))
+					for k, v := range ch {
+						if rk.MatchString(k) {
+							err = append(err, fmt.Errorf("%s name '%s' must only contain 'A-Za-z0-9-_' characters", ck, k))
+						}
+						if rv.MatchString(v.(string)) {
+							err = append(err, fmt.Errorf("%s value '%s' must only contain ascii characters", ck, k))
+						}
+					}
+					return nil, err
+				},
+				Description: "A map of headers, when set will be included with HTTP requests sent to the HTTP backend",
 			},
 		},
 	}
@@ -227,13 +243,13 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	unlockMethod := data.Get("unlock_method").(string)
 
-	var header http.Header
+	var headers map[string]string
 	if dv, ok := data.GetOk("headers"); ok {
 		dh := dv.(map[string]interface{})
+		headers = make(map[string]string, len(dh))
 
-		header = make(http.Header, len(dh))
 		for k, v := range dh {
-			header.Set(strings.TrimSpace(k), strings.TrimSpace(v.(string)))
+			headers[k] = v.(string)
 		}
 	}
 
@@ -255,10 +271,9 @@ func (b *Backend) configure(ctx context.Context) error {
 		UnlockURL:    unlockURL,
 		UnlockMethod: unlockMethod,
 
+		Headers:  headers,
 		Username: data.Get("username").(string),
 		Password: data.Get("password").(string),
-
-		Header: header,
 
 		// accessible only for testing use
 		Client: rClient,

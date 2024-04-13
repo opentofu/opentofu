@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -34,9 +35,9 @@ type httpClient struct {
 
 	// HTTP
 	Client   *retryablehttp.Client
+	Headers  map[string]string
 	Username string
 	Password string
-	Header   http.Header
 
 	lockID       string
 	jsonLockInfo []byte
@@ -55,9 +56,9 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
 
-	// Baseline with custom headers if we have any
-	if c.Header != nil {
-		req.Header = c.Header
+	// Add user-defined headers first
+	for k, v := range c.Headers {
+		req.Header.Set(strings.TrimSpace(k), strings.TrimSpace(v))
 	}
 
 	// Set up basic auth if we do not have an authorization header present
