@@ -132,12 +132,14 @@ func New(enc encryption.StateEncryption) backend.Backend {
 					err := make([]error, 0, len(ch))
 					for hk, hv := range ch {
 						if len(hk) == 0 || rk.MatchString(hk) {
-							err = append(err, fmt.Errorf("%s name '%s' must be contain 'A-Za-z0-9-_' characters", ck, hk))
+							err = append(err, fmt.Errorf(
+								"%s name '%s' must not be empty and only contain 'A-Za-z0-9-_' characters", ck, hk))
 						}
 
 						v := hv.(string)
 						if len(v) == 0 || rv.MatchString(v) {
-							err = append(err, fmt.Errorf("%s value '%s' must only contain ascii characters", ck, hk))
+							err = append(err, fmt.Errorf(
+								"%s value '%s' must not be empty and only contain ascii characters", ck, hk))
 						}
 					}
 					return nil, err
