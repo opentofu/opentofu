@@ -161,12 +161,45 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// Direct references need the provider configured as well as initialized
 			needConfigured[absPc.String()] = absPc
 		}
+		// Provider function references
+		if nr, ok := v.(GraphNodeReferencer); ok {
+			for _, ref := range nr.References() {
+				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
+					fmt.Printf("REFERENCE: %#v\n", pf)
+
+					requested[v] = make(map[string]ProviderRequest)
+
+					absPc := addrs.AbsProviderConfig{
+						Provider: addrs.NewLegacyProvider(pf.Name),
+						Module:   nr.ModulePath(),
+						Alias:    pf.Alias,
+					}
+
+					if t.Config != nil {
+						println("Checking mod config...")
+						modConfig := t.Config.Descendent(absPc.Module)
+						if modConfig != nil {
+							println("Found mod config")
+							absPc.Provider = modConfig.Module.ImpliedProviderForUnqualifiedType(pf.Name)
+						}
+					}
+
+					println(absPc.String())
+
+					requested[v][absPc.String()] = ProviderRequest{
+						Addr:  absPc,
+						Exact: true,
+					}
+					//needConfigured[absPc.String()] = absPc
+				}
+			}
+		}
 	}
 
+	m := providerVertexMap(g)
 	// Now we'll go through all the requested addresses we just collected and
 	// figure out which _actual_ config address each belongs to, after resolving
 	// for provider inheritance and passing.
-	m := providerVertexMap(g)
 	for v, reqs := range requested {
 		for key, req := range reqs {
 			p := req.Addr
@@ -279,6 +312,8 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 		for _, s := range g.UpEdges(p) {
 			if _, ok := s.(GraphNodeProviderConsumer); ok {
 				g.Connect(dag.BasicEdge(closer, s))
+			} else if _, ok := s.(GraphNodeReferencer); ok {
+				g.Connect(dag.BasicEdge(closer, s))
 			}
 		}
 	}
@@ -319,6 +354,7 @@ func (t *MissingProviderTransformer) Transform(g *Graph) error {
 	var err error
 	m := providerVertexMap(g)
 	for _, v := range g.Vertices() {
+		// TODO references
 		pv, ok := v.(GraphNodeProviderConsumer)
 		if !ok {
 			continue

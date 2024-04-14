@@ -6,7 +6,11 @@
 package lang
 
 import (
+	"strings"
+
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -72,7 +76,43 @@ func ReferencesInBlock(parseRef ParseRef, body hcl.Body, schema *configschema.Bl
 	// in a better position to test this due to having mock providers etc
 	// available.
 	traversals := blocktoattr.ExpandedVariables(body, schema)
-	return References(parseRef, traversals)
+
+	funcs, funcDiags := FunctionsInBlock(body, schema)
+	traversals = append(traversals, filterFuncTraversals(funcs)...)
+
+	refs, diags := References(parseRef, traversals)
+	return refs, diags.Append(funcDiags)
+}
+
+func FunctionsInBlock(body hcl.Body, schema *configschema.Block) (funcs []hcl.Traversal, diags tfdiags.Diagnostics) {
+	// TODO this might not properly handle dynamic blocks!
+
+	givenRawSchema := hcldec.ImpliedSchema(schema.DecoderSpec())
+	content, _, cDiags := body.PartialContent(givenRawSchema)
+	diags = diags.Append(cDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	for _, attr := range content.Attributes {
+		aFns, aDiags := FunctionsInExpr(attr.Expr)
+		diags = diags.Append(aDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		funcs = append(funcs, aFns...)
+	}
+
+	for _, block := range content.Blocks {
+		aFns, aDiags := FunctionsInBlock(block.Body, &schema.BlockTypes[block.Type].Block)
+		diags = diags.Append(aDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		funcs = append(funcs, aFns...)
+	}
+
+	return funcs, diags
 }
 
 // ReferencesInExpr is a helper wrapper around References that first searches
@@ -83,5 +123,55 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 		return nil, nil
 	}
 	traversals := expr.Variables()
-	return References(parseRef, traversals)
+
+	funcs, funcDiags := FunctionsInExpr(expr)
+	traversals = append(traversals, filterFuncTraversals(funcs)...)
+
+	refs, diags := References(parseRef, traversals)
+	return refs, diags.Append(funcDiags)
+}
+
+func FunctionsInExpr(expr hcl.Expression) ([]hcl.Traversal, tfdiags.Diagnostics) {
+	if expr == nil {
+		return nil, nil
+	}
+
+	var diags tfdiags.Diagnostics
+	walker := make(fnWalker, 0)
+	diags = diags.Append(hclsyntax.Walk(expr.(hclsyntax.Expression), &walker))
+	return walker, diags
+}
+
+type fnWalker []hcl.Traversal
+
+func (w *fnWalker) Enter(node hclsyntax.Node) hcl.Diagnostics {
+	if fn, ok := node.(*hclsyntax.FunctionCallExpr); ok {
+		sp := strings.Split(fn.Name, "::")
+
+		t := hcl.Traversal{hcl.TraverseRoot{
+			Name:     sp[0],
+			SrcRange: fn.NameRange,
+		}}
+		for _, part := range sp[1:] {
+			t = append(t, hcl.TraverseAttr{
+				Name:     part,
+				SrcRange: fn.NameRange,
+			})
+		}
+
+		*w = append(*w, t)
+	}
+	return nil
+}
+func (w *fnWalker) Exit(node hclsyntax.Node) hcl.Diagnostics {
+	return nil
+}
+
+func filterFuncTraversals(fns []hcl.Traversal) (traversals []hcl.Traversal) {
+	for _, fn := range fns {
+		if len(fn) == 3 || len(fn) == 4 {
+			traversals = append(traversals, fn)
+		}
+	}
+	return traversals
 }

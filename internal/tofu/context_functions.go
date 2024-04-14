@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,6 +21,8 @@ func lazyProviderInstance(addr addrs.Provider, factory providers.Factory) provid
 	var err error
 
 	return func() (providers.Interface, error) {
+		debug.PrintStack()
+		println("INIT PROVIDER")
 		providerLock.Lock()
 		defer providerLock.Unlock()
 

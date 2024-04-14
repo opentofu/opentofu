@@ -340,7 +340,43 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			SourceRange: tfdiags.SourceRangeFromHCL(rng),
 			Remaining:   remain,
 		}, diags
+	case "provider":
+		var rng hcl.Range
+		var name string
+		var alias string
+		var function string
 
+		if len(traversal) == 3 || len(traversal) == 4 {
+			if attrTrav, ok := traversal[1].(hcl.TraverseAttr); ok {
+				name = attrTrav.Name
+				rng = attrTrav.SrcRange
+			} else {
+				panic("HERE")
+			}
+			if len(traversal) == 4 {
+				if attrTrav, ok := traversal[2].(hcl.TraverseAttr); ok {
+					alias = attrTrav.Name
+				} else {
+					panic("HERE")
+				}
+			}
+			if attrTrav, ok := traversal[len(traversal)-1].(hcl.TraverseAttr); ok {
+				function = attrTrav.Name
+			} else {
+				panic("HERE")
+			}
+		}
+
+		//name, rng, remain, diags := parseSingleAttrRef(traversal)
+		/*
+			var aDiags tfdiags.Diagnostics
+			alias, _, remain, aDiags = parseSingleAttrRef(remain)
+			diags = diags.Append(aDiags)*/
+		return &Reference{
+			Subject:     ProviderFunction{Name: name, Alias: alias, Function: function},
+			SourceRange: tfdiags.SourceRangeFromHCL(rng),
+			//Remaining:   remain,
+		}, diags
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing
 		// some version of "template values" or "lazy expressions" feature

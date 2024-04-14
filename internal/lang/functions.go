@@ -205,9 +205,9 @@ func (s *Scope) Functions() map[string]function.Function {
 			s.funcs[CoreNamespace+name] = s.funcs[name]
 		}
 
-		for name, f := range s.ProviderFunctions {
+		/*for name, f := range s.ProviderFunctions {
 			s.funcs[name] = f
-		}
+		}*/
 	}
 	s.funcsLock.Unlock()
 
