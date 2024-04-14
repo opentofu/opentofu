@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // contextPlugins represents a library of available plugins (providers and
@@ -21,15 +22,50 @@ import (
 // about the providers for performance reasons.
 type contextPlugins struct {
 	providerFactories    map[addrs.Provider]providers.Factory
+	providerFunctions    map[addrs.Provider]map[string]function.Function
 	provisionerFactories map[string]provisioners.Factory
 }
 
-func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
+func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) (*contextPlugins, error) {
 	ret := &contextPlugins{
 		providerFactories:    providerFactories,
 		provisionerFactories: provisionerFactories,
 	}
-	return ret
+
+	// This is a bit convoluted as we need to use the ProviderSchema function call below to
+	// validate and initialize the provider schemas.  Long term the whole provider abstraction
+	// needs to be re-thought.
+	var err error
+	ret.providerFunctions, err = ret.buildProviderFunctions()
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+// Loop through all of the providerFactories and build a map of addr -> functions
+// As a side effect, this initialzes the schema cache if not already initialized, with the proper validation path.
+func (cp *contextPlugins) buildProviderFunctions() (map[addrs.Provider]map[string]function.Function, error) {
+	funcs := make(map[addrs.Provider]map[string]function.Function)
+
+	// Pull all functions out of given providers
+	for addr, factory := range cp.providerFactories {
+		addr := addr
+		factory := factory
+
+		// Before functions, the provider schemas were already pre-loaded and cached.  That initial caching
+		// has been moved here.  When the provider abstraction layers are refactored, this could instead
+		// expose and use provider.GetFunctions instead of needing to load and cache the whole schema.
+		// However, at the time of writing there is no benefit to defer caching these schemas in code
+		// paths which build a tofu.Context.
+		schema, err := cp.ProviderSchema(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		funcs[addr] = providerFunctions(addr, schema.Functions, factory)
+	}
+	return funcs, nil
 }
 
 func (cp *contextPlugins) HasProvider(addr addrs.Provider) bool {
@@ -77,6 +113,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 	// That is because we're checking *prior* to the provider's instantiation.
 	// GetProviderSchemaOptional only says that *if we instantiate a provider*,
 	// then we need to run the get schema call at least once.
+	// BUG This SHORT CIRCUITS the logic below and is not the only code which inserts provider schemas into the cache!!
 	schemas, ok := providers.SchemaCache.Get(addr)
 	if ok {
 		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
@@ -178,4 +215,27 @@ func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, er
 	}
 
 	return resp.Provisioner, nil
+}
+
+type ProviderFunctions struct {
+	ProviderNames map[string]addrs.Provider
+	Functions     map[string]function.Function
+}
+
+// Functions provides a map of provider::<provider_name>::<function> for a given provider type.
+// All providers of a given type use the same functions and provider instance and
+// additional names do not incur any performance penalty.
+func (cp *contextPlugins) Functions(names map[string]addrs.Provider) *ProviderFunctions {
+	providerFuncs := &ProviderFunctions{
+		ProviderNames: names,
+		Functions:     make(map[string]function.Function),
+	}
+
+	for name, addr := range names {
+		funcs := cp.providerFunctions[addr]
+		for fn_name, fn := range funcs {
+			providerFuncs.Functions[fmt.Sprintf("provider::%s::%s", name, fn_name)] = fn
+		}
+	}
+	return providerFuncs
 }
