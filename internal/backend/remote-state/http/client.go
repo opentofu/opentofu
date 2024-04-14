@@ -58,7 +58,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 
 	// Add user-defined headers first
 	for k, v := range c.Headers {
-		req.Header.Set(strings.TrimSpace(k), strings.TrimSpace(v))
+		req.Header.Set(strings.ReplaceAll(k, " ", ""), strings.TrimSpace(v))
 	}
 
 	// Set up basic auth if we do not have an authorization header present
