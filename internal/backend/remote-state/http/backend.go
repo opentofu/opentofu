@@ -133,13 +133,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 					for hk, hv := range ch {
 						if len(hk) == 0 || rk.MatchString(hk) {
 							err = append(err, fmt.Errorf(
-								"%s name '%s' must not be empty and only contain 'A-Za-z0-9-_' characters", ck, hk))
+								"%s '%s' name must not be empty and only contain 'A-Za-z0-9-_' characters", ck, hk))
 						}
 
 						v := hv.(string)
 						if len(v) == 0 || rv.MatchString(v) {
 							err = append(err, fmt.Errorf(
-								"%s value '%s' must not be empty and only contain ascii characters", ck, hk))
+								"%s '%s' value must not be empty and only contain ascii characters", ck, hk))
 						}
 					}
 					return nil, err
