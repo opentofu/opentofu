@@ -7,6 +7,8 @@ package tofu
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/zclconf/go-cty/cty"
 	"log"
 	"sync"
 
@@ -107,12 +109,13 @@ func NewImportResolver() *ImportResolver {
 	return &ImportResolver{imports: make(map[string]EvaluatedConfigImportTarget)}
 }
 
-// ResolveImport resolves the ID and address (soon, when it will be necessary) of an ImportTarget originating
-// from an import block, when we have the context necessary to resolve them. The resolved import target would be an
-// EvaluatedConfigImportTarget.
-// This function mutates the EvalContext's ImportResolver, adding the resolved import target
-// The function errors if we failed to evaluate the ID or the address (soon)
-func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalContext) tfdiags.Diagnostics {
+// ExpandAndResolveImport is responsible for two operations:
+// 1. Expands the ImportTarget (originating from an import block) if it contains a 'for_each' attribute.
+// 2. Goes over the expanded imports and resolves the ID and address, when we have the context necessary to resolve
+// them. The resolved import target would be an EvaluatedConfigImportTarget.
+// This function mutates the EvalContext's ImportResolver, adding the resolved import target.
+// The function errors if we failed to evaluate the ID or the address.
+func (ri *ImportResolver) ExpandAndResolveImport(importTarget *ImportTarget, ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// The import block expressions are declared within the root module.
@@ -120,13 +123,59 @@ func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalCont
 	// relative to the root module
 	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
 
-	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx)
+	if importTarget.Config.ForEach != nil {
+		// The import target has a for_each attribute, so we need to expand it
+
+		// Ronny TODO - are we OK with this validation? This is the regular validation for for_each ins resources.
+		// Do we want specific errors regarding import for_each?
+		forEachVal, evalDiags := evaluateForEachExpressionValue(importTarget.Config.ForEach, rootCtx, false)
+		diags = diags.Append(evalDiags)
+		if diags.HasErrors() {
+			return diags
+		}
+
+		//_, _ = spew.Printf("evaluateForEachExpressionValue:")
+		//spew.Dump(forEachVal)
+		//_, _ = spew.Printf("\n")
+
+		// We are building an instances.RepetitionData based on each for_each key and val combination
+		var repetitions []instances.RepetitionData
+
+		it := forEachVal.ElementIterator()
+		for it.Next() {
+			k, v := it.Element()
+			repetitions = append(repetitions, instances.RepetitionData{
+				EachKey:   k,
+				EachValue: v,
+			})
+		}
+
+		for _, keyData := range repetitions {
+			diags = diags.Append(ri.resolveImport(importTarget, rootCtx, keyData))
+		}
+	} else {
+		// The import target is singular, no need to expand
+		diags = diags.Append(ri.resolveImport(importTarget, rootCtx, EvalDataForNoInstanceKey))
+	}
+
+	return diags
+}
+
+// resolveImport resolves the ID and address of an ImportTarget originating from an import block,
+// when we have the context necessary to resolve them. The resolved import target would be an
+// EvaluatedConfigImportTarget.
+// This function mutates the EvalContext's ImportResolver, adding the resolved import target.
+// The function errors if we failed to evaluate the ID or the address.
+func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx, keyData)
 	diags = diags.Append(evalDiags)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To)
+	importAddress, addressDiags := ctx.EvaluateImportAddress(importTarget.Config.To, keyData)
 	diags = diags.Append(addressDiags)
 	if diags.HasErrors() {
 		return diags
@@ -152,7 +201,19 @@ func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalCont
 		ID:     importId,
 	}
 
+	if keyData == EvalDataForNoInstanceKey {
+		log.Printf("[TRACE] importResolver: resolved an expanded import target %s", importAddress)
+	} else {
+		log.Printf("[TRACE] importResolver: resolved a singular import target %s", importAddress)
+
+	}
+
 	return diags
+}
+
+func (ri *ImportResolver) ExpandImport(importTarget *ImportTarget, ctx EvalContext) (map[string]cty.Value, tfdiags.Diagnostics) {
+	forEach, diags := evaluateForEachExpression(importTarget.Config.ForEach, ctx)
+	return forEach, diags
 }
 
 // GetAllImports returns all resolved imports

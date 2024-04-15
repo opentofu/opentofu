@@ -7,7 +7,6 @@ package lang
 
 import (
 	"fmt"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"

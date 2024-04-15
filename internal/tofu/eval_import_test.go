@@ -53,7 +53,7 @@ func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, diags := evaluateImportIdExpression(tc.expr, ctx)
+			_, diags := evaluateImportIdExpression(tc.expr, ctx, EvalDataForNoInstanceKey)
 
 			if tc.wantErr != "" {
 				if len(diags) != 1 {

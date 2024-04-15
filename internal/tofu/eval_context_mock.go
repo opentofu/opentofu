@@ -275,7 +275,7 @@ func (c *MockEvalContext) EvaluateReplaceTriggeredBy(hcl.Expression, instances.R
 	return nil, false, nil
 }
 
-func (c *MockEvalContext) EvaluateImportAddress(expression hcl.Expression) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateImportAddress(expression hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	return addrs.AbsResourceInstance{}, nil
 }
 

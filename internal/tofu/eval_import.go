@@ -7,15 +7,15 @@ package tofu
 
 import (
 	"fmt"
-
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, tfdiags.Diagnostics) {
+func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
@@ -27,7 +27,9 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 		})
 	}
 
-	importIdVal, evalDiags := ctx.EvaluateExpr(expr, cty.String, nil)
+	// evaluate the import ID and take into consideration the for_each key (if exists)
+	scope := ctx.EvaluationScope(nil, nil, keyData)
+	importIdVal, evalDiags := scope.EvalExpr(expr, cty.String)
 	diags = diags.Append(evalDiags)
 
 	if importIdVal.IsNull() {
