@@ -80,6 +80,7 @@ type Interface interface {
 	// GetFunctions not yet implemented or used at this stage as it is not required.
 	// tofu queries a full set of provider schemas early on in the process which contain
 	// the required information.
+	GetFunctions() GetFunctionsResponse
 
 	// CallFunction requests that the given function is called and response returned.
 	CallFunction(CallFunctionRequest) CallFunctionResponse
@@ -472,6 +473,12 @@ type ReadDataSourceResponse struct {
 	State cty.Value
 
 	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type GetFunctionsResponse struct {
+	Functions map[string]FunctionSpec
+
 	Diagnostics tfdiags.Diagnostics
 }
 

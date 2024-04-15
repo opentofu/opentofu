@@ -693,6 +693,26 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
+func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
+	logger.Trace("GRPCProvider: GetFunctions")
+
+	protoReq := &proto.GetFunctions_Request{}
+
+	protoResp, err := p.client.GetFunctions(p.ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	resp.Functions = make(map[string]providers.FunctionSpec)
+
+	for name, fn := range protoResp.Functions {
+		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
+	}
+
+	return resp
+}
+
 func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
 	logger.Trace("GRPCProvider: CallFunction")
 

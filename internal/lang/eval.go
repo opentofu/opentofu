@@ -478,8 +478,9 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			outputValues[subj.Name] = val
 		case addrs.ProviderFunction:
 			println("Injecting provider function directly into context!")
-			println("Legacy...")
-			ctx.Functions[subj.String()] = s.ProviderFunctions[fmt.Sprintf("provider::%s::%s", subj.Name, subj.Function)]
+			//println("Legacy...")
+			//ctx.Functions[subj.String()] = s.ProviderFunctions[fmt.Sprintf("provider::%s::%s", subj.Name, subj.Function)]
+			ctx.Functions[subj.String()] = s.ProviderFunky(subj)
 		default:
 			// Should never happen
 			panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))

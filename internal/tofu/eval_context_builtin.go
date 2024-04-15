@@ -13,6 +13,9 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -27,7 +30,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // BuiltinEvalContext is an EvalContext implementation that is used by
@@ -66,6 +68,7 @@ type BuiltinEvalContext struct {
 	Hooks                 []Hook
 	InputValue            UIInput
 	ProviderCache         map[string]providers.Interface
+	ProviderAddrs         map[string]addrs.AbsProviderConfig
 	ProviderInputConfig   map[string]map[string]cty.Value
 	ProviderLock          *sync.Mutex
 	ProvisionerCache      map[string]provisioners.Interface
@@ -148,6 +151,11 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 
 	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
 	ctx.ProviderCache[key] = p
+	if ctx.ProviderAddrs == nil {
+		// HACK
+		ctx.ProviderAddrs = make(map[string]addrs.AbsProviderConfig)
+	}
+	ctx.ProviderAddrs[key] = addr
 
 	return p, nil
 }
@@ -524,20 +532,49 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
 
-	ctx.FunctionLock.Lock()
-	defer ctx.FunctionLock.Unlock()
-	if ctx.FunctionCache == nil {
-		names := make(map[string]addrs.Provider)
+	/*
+		ctx.FunctionLock.Lock()
+		defer ctx.FunctionLock.Unlock()
+		if ctx.FunctionCache == nil {
+			names := make(map[string]addrs.Provider)
 
-		// Providers must exist within required_providers to register their functions
-		for name, provider := range mc.Module.ProviderRequirements.RequiredProviders {
-			// Functions are only registered under their name, not their type name
-			names[name] = provider.Type
+			// Providers must exist within required_providers to register their functions
+			for name, provider := range mc.Module.ProviderRequirements.RequiredProviders {
+				// Functions are only registered under their name, not their type name
+				names[name] = provider.Type
+			}
+
+			ctx.FunctionCache = ctx.Plugins.Functions(names)
+		}
+	*/
+	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction) function.Function {
+		var spec providers.FunctionSpec // TODO
+
+		absPc := addrs.AbsProviderConfig{
+			Provider: mc.Module.ImpliedProviderForUnqualifiedType(pf.Name),
+			Module:   mc.Path,
+			Alias:    pf.Alias,
 		}
 
-		ctx.FunctionCache = ctx.Plugins.Functions(names)
-	}
-	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
+		println(absPc.String())
+
+		provider := ctx.Provider(absPc)
+
+		specs := provider.GetFunctions()
+		if specs.Diagnostics.HasErrors() {
+			panic(specs.Diagnostics.Err())
+		}
+		println(len(specs.Functions))
+		for name, spec := range specs.Functions {
+			fmt.Printf("%s = %#v\n", name, spec)
+		}
+		spec, ok := specs.Functions[pf.Function]
+		if !ok {
+			panic(pf.Function)
+		}
+
+		return providerFunction(pf.Function, spec, func() (providers.Interface, error) { return provider, nil })
+	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 
 	return scope

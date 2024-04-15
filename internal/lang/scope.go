@@ -72,9 +72,12 @@ type Scope struct {
 	// either have been generated during this operation or read from the plan.
 	PlanTimestamp time.Time
 
+	ProviderFunky     ProviderFunky
 	ProviderFunctions map[string]function.Function
 	ProviderNames     map[string]addrs.Provider
 }
+
+type ProviderFunky func(addrs.ProviderFunction) function.Function
 
 // SetActiveExperiments allows a caller to declare that a set of experiments
 // is active for the module that the receiving Scope belongs to, which might
