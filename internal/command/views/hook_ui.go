@@ -38,13 +38,13 @@ func NewUiHook(view *View) *UiHook {
 type UiHook struct {
 	tofu.NilHook
 
-	view     *View
 	viewLock sync.Mutex
+	view     *View
 
 	periodicUiTimer time.Duration
 
-	resources     map[string]uiResourceState
 	resourcesLock sync.Mutex
+	resources     map[string]uiResourceState
 }
 
 var _ tofu.Hook = (*UiHook)(nil)
