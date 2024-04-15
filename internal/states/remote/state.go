@@ -26,8 +26,6 @@ import (
 // local caching so every persist will go to the remote storage and local
 // writes will go to memory.
 type State struct {
-	mu sync.Mutex
-
 	Client Client
 
 	encryption encryption.StateEncryption
@@ -43,6 +41,7 @@ type State struct {
 	// state has changed from an existing state we read in.
 	lineage, readLineage string
 	serial, readSerial   uint64
+	mu                   sync.Mutex
 	state, readState     *states.State
 	disableLocks         bool
 
