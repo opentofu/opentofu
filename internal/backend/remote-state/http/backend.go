@@ -134,13 +134,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 					for name, value := range headers {
 						if len(name) == 0 || nameRegex.MatchString(name) {
 							err = append(err, fmt.Errorf(
-								"%s '%s' name must not be empty and only contain 'A-Za-z0-9-_' characters", ck, name))
+								"%s \"%s\" name must not be empty and only contain \"A-Za-z0-9-_\" characters", ck, name))
 						}
 
 						v := value.(string)
 						if len(v) == 0 || valueRegex.MatchString(v) {
 							err = append(err, fmt.Errorf(
-								"%s '%s' value must not be empty and only contain ascii characters", ck, name))
+								"%s \"%s\" value must not be empty and only contain ascii characters", ck, name))
 						}
 					}
 					return nil, err
@@ -260,10 +260,10 @@ func (b *Backend) configure(ctx context.Context) error {
 			switch strings.ToLower(k) {
 			case "authorization":
 				if username != "" {
-					return fmt.Errorf("%s header cannot be set when providing username", k)
+					return fmt.Errorf("header \"%s\" cannot be set when providing username", k)
 				}
 			case "content-type", "content-md5":
-				return fmt.Errorf("%s header is reserved", k)
+				return fmt.Errorf("header \"%s\" is reserved", k)
 			default:
 				headers[k] = v.(string)
 			}
