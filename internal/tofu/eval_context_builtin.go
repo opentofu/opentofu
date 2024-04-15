@@ -68,13 +68,10 @@ type BuiltinEvalContext struct {
 	Hooks                 []Hook
 	InputValue            UIInput
 	ProviderCache         map[string]providers.Interface
-	ProviderAddrs         map[string]addrs.AbsProviderConfig
 	ProviderInputConfig   map[string]map[string]cty.Value
 	ProviderLock          *sync.Mutex
 	ProvisionerCache      map[string]provisioners.Interface
 	ProvisionerLock       *sync.Mutex
-	FunctionCache         *ProviderFunctions
-	FunctionLock          sync.Mutex
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -93,8 +90,6 @@ func (ctx *BuiltinEvalContext) WithPath(path addrs.ModuleInstance) EvalContext {
 	newCtx := *ctx
 	newCtx.pathSet = true
 	newCtx.PathValue = path
-	newCtx.FunctionCache = nil
-	newCtx.FunctionLock = sync.Mutex{}
 	return &newCtx
 }
 
@@ -131,18 +126,16 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
-func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
-	// If we already initialized, it is an error
-	if p := ctx.Provider(addr); p != nil {
-		return nil, fmt.Errorf("%s is already initialized", addr)
-	}
-
-	// Warning: make sure to acquire these locks AFTER the call to Provider
-	// above, since it also acquires locks.
+func (ctx *BuiltinEvalContext) GetOrInitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
 	key := addr.String()
+
+	// If we already initialized, it is an error
+	if p, ok := ctx.ProviderCache[key]; ok {
+		return p, nil
+	}
 
 	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
 	if err != nil {
@@ -151,11 +144,28 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 
 	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
 	ctx.ProviderCache[key] = p
-	if ctx.ProviderAddrs == nil {
-		// HACK
-		ctx.ProviderAddrs = make(map[string]addrs.AbsProviderConfig)
+
+	return p, nil
+}
+
+func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+	ctx.ProviderLock.Lock()
+	defer ctx.ProviderLock.Unlock()
+
+	key := addr.String()
+
+	// If we already initialized, it is an error
+	if _, ok := ctx.ProviderCache[key]; ok {
+		return nil, fmt.Errorf("%s is already initialized", addr)
 	}
-	ctx.ProviderAddrs[key] = addr
+
+	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
+	ctx.ProviderCache[key] = p
 
 	return p, nil
 }
@@ -532,48 +542,50 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
 
-	/*
-		ctx.FunctionLock.Lock()
-		defer ctx.FunctionLock.Unlock()
-		if ctx.FunctionCache == nil {
-			names := make(map[string]addrs.Provider)
+	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
 
-			// Providers must exist within required_providers to register their functions
-			for name, provider := range mc.Module.ProviderRequirements.RequiredProviders {
-				// Functions are only registered under their name, not their type name
-				names[name] = provider.Type
-			}
-
-			ctx.FunctionCache = ctx.Plugins.Functions(names)
+		pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
+		if !ok {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unknown function provider",
+				Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.Name),
+				Subject:  rng.ToHCL().Ptr(),
+			})
 		}
-	*/
-	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction) function.Function {
-		var spec providers.FunctionSpec // TODO
 
+		// Very similar to transform_provider.go
 		absPc := addrs.AbsProviderConfig{
-			Provider: mc.Module.ImpliedProviderForUnqualifiedType(pf.Name),
+			Provider: pr.Type,
 			Module:   mc.Path,
 			Alias:    pf.Alias,
 		}
 
-		println(absPc.String())
-
-		provider := ctx.Provider(absPc)
+		// Unconfigured providers may not yet be initialized
+		provider, err := ctx.GetOrInitProvider(absPc)
+		if err != nil {
+			return nil, diags.Append(err)
+		}
 
 		specs := provider.GetFunctions()
 		if specs.Diagnostics.HasErrors() {
-			panic(specs.Diagnostics.Err())
-		}
-		println(len(specs.Functions))
-		for name, spec := range specs.Functions {
-			fmt.Printf("%s = %#v\n", name, spec)
-		}
-		spec, ok := specs.Functions[pf.Function]
-		if !ok {
-			panic(pf.Function)
+			return nil, specs.Diagnostics
 		}
 
-		return providerFunction(pf.Function, spec, func() (providers.Interface, error) { return provider, nil })
+		spec, ok := specs.Functions[pf.Function]
+		if !ok {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Function not found in provider",
+				Detail:   fmt.Sprintf("Function %q was not registered by provider%q", pf.Function, absPc.String()),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+
+		fn := providerFunction(pf.Function, spec, provider)
+
+		return &fn, nil
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

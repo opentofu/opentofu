@@ -105,8 +105,6 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider providers.Interface, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
 	config := n.ProviderConfig()
 
-	println("CONFIGURE PROVIDER " + n.Addr.String())
-
 	configBody := buildProviderConfig(ctx, n.Addr, config)
 
 	resp := provider.GetProviderSchema()

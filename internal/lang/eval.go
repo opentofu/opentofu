@@ -477,10 +477,13 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			diags = diags.Append(valDiags)
 			outputValues[subj.Name] = val
 		case addrs.ProviderFunction:
-			println("Injecting provider function directly into context!")
-			//println("Legacy...")
-			//ctx.Functions[subj.String()] = s.ProviderFunctions[fmt.Sprintf("provider::%s::%s", subj.Name, subj.Function)]
-			ctx.Functions[subj.String()] = s.ProviderFunky(subj)
+			// Inject function directly into context
+			fn, fnDiags := s.ProviderFunky(subj, rng)
+			diags = diags.Append(fnDiags)
+
+			if !fnDiags.HasErrors() {
+				ctx.Functions[subj.String()] = *fn
+			}
 		default:
 			// Should never happen
 			panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))

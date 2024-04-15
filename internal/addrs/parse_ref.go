@@ -346,36 +346,32 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		var alias string
 		var function string
 
+		// This makes strong assumptions about internal/lang/references.go and should be kept in sync
+		// See also the FUTURE comment in that file
 		if len(traversal) == 3 || len(traversal) == 4 {
 			if attrTrav, ok := traversal[1].(hcl.TraverseAttr); ok {
 				name = attrTrav.Name
 				rng = attrTrav.SrcRange
 			} else {
-				panic("HERE")
+				panic("BUG: Invalid provider function traversal")
 			}
 			if len(traversal) == 4 {
 				if attrTrav, ok := traversal[2].(hcl.TraverseAttr); ok {
 					alias = attrTrav.Name
 				} else {
-					panic("HERE")
+					panic("BUG: Invalid provider function traversal")
 				}
 			}
 			if attrTrav, ok := traversal[len(traversal)-1].(hcl.TraverseAttr); ok {
 				function = attrTrav.Name
 			} else {
-				panic("HERE")
+				panic("BUG: Invalid provider function traversal")
 			}
 		}
 
-		//name, rng, remain, diags := parseSingleAttrRef(traversal)
-		/*
-			var aDiags tfdiags.Diagnostics
-			alias, _, remain, aDiags = parseSingleAttrRef(remain)
-			diags = diags.Append(aDiags)*/
 		return &Reference{
 			Subject:     ProviderFunction{Name: name, Alias: alias, Function: function},
 			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			//Remaining:   remain,
 		}, diags
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing

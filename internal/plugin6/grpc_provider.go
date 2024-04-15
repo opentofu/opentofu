@@ -714,9 +714,13 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 
 	spec, ok := schema.Functions[r.Name]
 	if !ok {
-
-		q := p.GetFunctions()
-		spec, ok = q.Functions[r.Name]
+		funcs := p.GetFunctions()
+		if funcs.Diagnostics.HasErrors() {
+			// This should be unreachable
+			resp.Error = funcs.Diagnostics.Err()
+			return resp
+		}
+		spec, ok = funcs.Functions[r.Name]
 		if !ok {
 			// This should be unreachable
 			resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s not defined in provider schema", r.Name)

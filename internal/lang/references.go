@@ -138,6 +138,7 @@ func FunctionsInExpr(expr hcl.Expression) ([]hcl.Traversal, tfdiags.Diagnostics)
 
 	var diags tfdiags.Diagnostics
 	walker := make(fnWalker, 0)
+	// TODO this cast may not work with some dynamic attributes, this needs to be validated
 	diags = diags.Append(hclsyntax.Walk(expr.(hclsyntax.Expression), &walker))
 	return walker, diags
 }
@@ -148,6 +149,9 @@ func (w *fnWalker) Enter(node hclsyntax.Node) hcl.Diagnostics {
 	if fn, ok := node.(*hclsyntax.FunctionCallExpr); ok {
 		sp := strings.Split(fn.Name, "::")
 
+		// Build a hcl traversal representing the function call
+		// FUTURE: We may *not* want to do the split/parsing here and instead do it in the consumers
+		//   That way they would understand that they have a explicit function reference and not just some provider.field.field which may or not be valid
 		t := hcl.Traversal{hcl.TraverseRoot{
 			Name:     sp[0],
 			SrcRange: fn.NameRange,
@@ -169,7 +173,8 @@ func (w *fnWalker) Exit(node hclsyntax.Node) hcl.Diagnostics {
 
 func filterFuncTraversals(fns []hcl.Traversal) (traversals []hcl.Traversal) {
 	for _, fn := range fns {
-		if len(fn) == 3 || len(fn) == 4 {
+		// Only provider::name::function and provider::name::alias::function
+		if (len(fn) == 3 || len(fn) == 4) && fn[0].(hcl.TraverseRoot).Name == "provider" {
 			traversals = append(traversals, fn)
 		}
 	}

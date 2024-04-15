@@ -162,44 +162,57 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			needConfigured[absPc.String()] = absPc
 		}
 		// Provider function references
-		if nr, ok := v.(GraphNodeReferencer); ok {
+		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					fmt.Printf("REFERENCE: %#v\n", pf)
+					mc := t.Config.Descendent(nr.ModulePath())
+					if mc == nil {
+						// I don't think this is possible
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown Descendent Module",
+							Detail:   nr.ModulePath().String(),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
 
-					requested[v] = make(map[string]ProviderRequest)
+					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
+					if !ok {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown function provider",
+							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.Name),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
 
 					absPc := addrs.AbsProviderConfig{
-						Provider: addrs.NewLegacyProvider(pf.Name),
+						Provider: pr.Type,
 						Module:   nr.ModulePath(),
 						Alias:    pf.Alias,
 					}
 
-					if t.Config != nil {
-						println("Checking mod config...")
-						modConfig := t.Config.Descendent(absPc.Module)
-						if modConfig != nil {
-							println("Found mod config")
-							absPc.Provider = modConfig.Module.ImpliedProviderForUnqualifiedType(pf.Name)
-						}
+					if _, ok := requested[v]; !ok {
+						requested[v] = make(map[string]ProviderRequest)
 					}
-
-					println(absPc.String())
 
 					requested[v][absPc.String()] = ProviderRequest{
 						Addr:  absPc,
 						Exact: true,
 					}
-					//needConfigured[absPc.String()] = absPc
+
+					log.Printf("[TRACE] ProviderTransformer: %s in %s is provided by %s exactly", pf, dag.VertexName(v), absPc)
 				}
 			}
 		}
 	}
 
-	m := providerVertexMap(g)
 	// Now we'll go through all the requested addresses we just collected and
 	// figure out which _actual_ config address each belongs to, after resolving
 	// for provider inheritance and passing.
+	m := providerVertexMap(g)
 	for v, reqs := range requested {
 		for key, req := range reqs {
 			p := req.Addr

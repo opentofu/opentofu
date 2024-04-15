@@ -77,9 +77,8 @@ type Interface interface {
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
 
-	// GetFunctions not yet implemented or used at this stage as it is not required.
-	// tofu queries a full set of provider schemas early on in the process which contain
-	// the required information.
+	// GetFunctions returns a full list of functions defined in this provider.  It should be a super
+	// set of the functions returned in GetProviderSchema()
 	GetFunctions() GetFunctionsResponse
 
 	// CallFunction requests that the given function is called and response returned.

@@ -158,7 +158,6 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 
 		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Count)
 		result = append(result, refs...)
-
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.ForEach)
 		result = append(result, refs...)
 

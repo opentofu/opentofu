@@ -139,8 +139,6 @@ func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Di
 	expr := n.Config.Expr
 	addr := n.Addr.LocalValue
 
-	println("EXEC NODE LOCAL")
-
 	// We ignore diags here because any problems we might find will be found
 	// again in EvaluateExpr below.
 	refs, _ := lang.ReferencesInExpr(addrs.ParseRef, expr)
