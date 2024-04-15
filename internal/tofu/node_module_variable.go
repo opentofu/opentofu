@@ -240,8 +240,7 @@ func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bo
 			moduleInstanceRepetitionData = ctx.InstanceExpander().GetModuleInstanceRepetitionData(n.ModuleInstance)
 		}
 
-		scope := ctx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
-		val, moreDiags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+		val, moreDiags := ctx.EvaluateExprWithRepetitionData(expr, cty.DynamicPseudoType, moduleInstanceRepetitionData)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.DynamicVal, diags.ErrWithWarnings()

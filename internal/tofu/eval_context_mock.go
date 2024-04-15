@@ -110,6 +110,18 @@ type MockEvalContext struct {
 	EvaluateExprResult cty.Value
 	EvaluateExprDiags  tfdiags.Diagnostics
 
+	EvaluateExprWithRepetitionDataCalled   bool
+	EvaluateExprWithRepetitionDataExpr     hcl.Expression
+	EvaluateExprWithRepetitionDataWantType cty.Type
+	EvaluateExprWithRepetitionDataKeyData  instances.RepetitionData
+	EvaluateExprWithRepetitionDataFunc     func(
+		expr hcl.Expression,
+		wantType cty.Type,
+		keyData instances.RepetitionData,
+	) (cty.Value, tfdiags.Diagnostics) // overrides the other values below, if set
+	EvaluateExprWithRepetitionDataResult cty.Value
+	EvaluateExprWithRepetitionDataDiags  tfdiags.Diagnostics
+
 	EvaluationScopeCalled  bool
 	EvaluationScopeSelf    addrs.Referenceable
 	EvaluationScopeKeyData InstanceKeyEvalData
@@ -271,6 +283,17 @@ func (c *MockEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, s
 	return c.EvaluateExprResult, c.EvaluateExprDiags
 }
 
+func (c *MockEvalContext) EvaluateExprWithRepetitionData(expr hcl.Expression, wantType cty.Type, keyData InstanceKeyEvalData) (cty.Value, tfdiags.Diagnostics) {
+	c.EvaluateExprWithRepetitionDataCalled = true
+	c.EvaluateExprWithRepetitionDataExpr = expr
+	c.EvaluateExprWithRepetitionDataWantType = wantType
+	c.EvaluateExprWithRepetitionDataKeyData = keyData
+	if c.EvaluateExprResultFunc != nil {
+		return c.EvaluateExprWithRepetitionDataFunc(expr, wantType, keyData)
+	}
+	return c.EvaluateExprWithRepetitionDataResult, c.EvaluateExprWithRepetitionDataDiags
+}
+
 func (c *MockEvalContext) EvaluateReplaceTriggeredBy(hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 	return nil, false, nil
 }
@@ -310,6 +333,28 @@ func (c *MockEvalContext) installSimpleEval() {
 		return val, body, tfdiags.Diagnostics(nil).Append(hclDiags)
 	}
 	c.EvaluateExprResultFunc = func(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
+		if scope := c.EvaluationScopeScope; scope != nil {
+			// Fully-functional codepath.
+			return scope.EvalExpr(expr, wantType)
+		}
+
+		// Fallback codepath supporting constant values only.
+		var diags tfdiags.Diagnostics
+		val, hclDiags := expr.Value(nil)
+		diags = diags.Append(hclDiags)
+		if hclDiags.HasErrors() {
+			return cty.DynamicVal, diags
+		}
+		var err error
+		val, err = convert.Convert(val, wantType)
+		if err != nil {
+			diags = diags.Append(err)
+			return cty.DynamicVal, diags
+		}
+		return val, diags
+	}
+
+	c.EvaluateExprWithRepetitionDataFunc = func(expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
 			return scope.EvalExpr(expr, wantType)

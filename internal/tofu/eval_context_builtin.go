@@ -297,6 +297,11 @@ func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Ty
 	return scope.EvalExpr(expr, wantType)
 }
 
+func (ctx *BuiltinEvalContext) EvaluateExprWithRepetitionData(expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+	scope := ctx.EvaluationScope(nil, nil, keyData)
+	return scope.EvalExpr(expr, wantType)
+}
+
 func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 
 	// get the reference to lookup changes in the plan
@@ -465,9 +470,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyD
 	}
 
 	// evaluate and take into consideration the for_each key (if exists)
-	scope := ctx.EvaluationScope(nil, nil, keyData)
-	val, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
-
+	val, diags := ctx.EvaluateExprWithRepetitionData(expr, cty.DynamicPseudoType, keyData)
 	if diags.HasErrors() {
 		return idx, diags
 	}

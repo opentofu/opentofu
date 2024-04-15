@@ -28,8 +28,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 	}
 
 	// evaluate the import ID and take into consideration the for_each key (if exists)
-	scope := ctx.EvaluationScope(nil, nil, keyData)
-	importIdVal, evalDiags := scope.EvalExpr(expr, cty.String)
+	importIdVal, evalDiags := ctx.EvaluateExprWithRepetitionData(expr, cty.String, keyData)
 	diags = diags.Append(evalDiags)
 
 	if importIdVal.IsNull() {
