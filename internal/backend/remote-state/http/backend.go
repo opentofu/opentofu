@@ -127,7 +127,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional: true,
 				ValidateFunc: func(cv interface{}, ck string) ([]string, []error) {
 					nameRegex := regexp.MustCompile("[^a-zA-Z0-9-_]")
-					valueRegex := regexp.MustCompile("[^[:ascii:]]")
+					valueRegex := regexp.MustCompile("[^\\x00-\\x7F]")
 
 					headers := cv.(map[string]interface{})
 					err := make([]error, 0, len(headers))
