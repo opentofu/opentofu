@@ -254,7 +254,7 @@ func TestTest_Full_Output(t *testing.T) {
 			code:     1,
 		},
 		"is_sorted": {
-			expected: "1.tftest.hcl... pass\n  run \"1\"... pass\n2.tftest.hcl... pass\n  run \"2\"... pass\n3.tftest.hcl... pass\n  run \"3\"... pass",
+			expected: "1.tftest.hcl... pass\n  run \"a\"... pass\n2.tftest.hcl... pass\n  run \"b\"... pass\n3.tftest.hcl... pass\n  run \"c\"... pass",
 			code:     0,
 			args:     []string{"-no-color"},
 		},
