@@ -78,7 +78,7 @@ func ReferencesInBlock(parseRef ParseRef, body hcl.Body, schema *configschema.Bl
 	traversals := blocktoattr.ExpandedVariables(body, schema)
 
 	funcs, funcDiags := FunctionsInBlock(body, schema)
-	traversals = append(traversals, filterFuncTraversals(funcs)...)
+	traversals = append(traversals, funcs...)
 
 	refs, diags := References(parseRef, traversals)
 	return refs, diags.Append(funcDiags)
@@ -125,7 +125,7 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 	traversals := expr.Variables()
 
 	funcs, funcDiags := FunctionsInExpr(expr)
-	traversals = append(traversals, filterFuncTraversals(funcs)...)
+	traversals = append(traversals, funcs...)
 
 	refs, diags := References(parseRef, traversals)
 	return refs, diags.Append(funcDiags)
@@ -139,7 +139,9 @@ func FunctionsInExpr(expr hcl.Expression) ([]hcl.Traversal, tfdiags.Diagnostics)
 	var diags tfdiags.Diagnostics
 	walker := make(fnWalker, 0)
 	// TODO this cast may not work with some dynamic attributes, this needs to be validated
-	diags = diags.Append(hclsyntax.Walk(expr.(hclsyntax.Expression), &walker))
+	if hexpr, ok := expr.(hclsyntax.Expression); ok {
+		diags = diags.Append(hclsyntax.Walk(hexpr, &walker))
+	}
 	return walker, diags
 }
 
@@ -148,35 +150,16 @@ type fnWalker []hcl.Traversal
 func (w *fnWalker) Enter(node hclsyntax.Node) hcl.Diagnostics {
 	if fn, ok := node.(*hclsyntax.FunctionCallExpr); ok {
 		sp := strings.Split(fn.Name, "::")
-
-		// Build a hcl traversal representing the function call
-		// FUTURE: We may *not* want to do the split/parsing here and instead do it in the consumers
-		//   That way they would understand that they have a explicit function reference and not just some provider.field.field which may or not be valid
-		t := hcl.Traversal{hcl.TraverseRoot{
-			Name:     sp[0],
-			SrcRange: fn.NameRange,
-		}}
-		for _, part := range sp[1:] {
-			t = append(t, hcl.TraverseAttr{
-				Name:     part,
+		// Only provider::name::function and provider::name::alias::function
+		if (len(sp) == 3 || len(sp) == 4) && sp[0] == "provider" {
+			*w = append(*w, hcl.Traversal{hcl.TraverseRoot{
+				Name:     fn.Name,
 				SrcRange: fn.NameRange,
-			})
+			}})
 		}
-
-		*w = append(*w, t)
 	}
 	return nil
 }
 func (w *fnWalker) Exit(node hclsyntax.Node) hcl.Diagnostics {
 	return nil
-}
-
-func filterFuncTraversals(fns []hcl.Traversal) (traversals []hcl.Traversal) {
-	for _, fn := range fns {
-		// Only provider::name::function and provider::name::alias::function
-		if (len(fn) == 3 || len(fn) == 4) && fn[0].(hcl.TraverseRoot).Name == "provider" {
-			traversals = append(traversals, fn)
-		}
-	}
-	return traversals
 }

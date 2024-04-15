@@ -340,39 +340,6 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			SourceRange: tfdiags.SourceRangeFromHCL(rng),
 			Remaining:   remain,
 		}, diags
-	case "provider":
-		var rng hcl.Range
-		var name string
-		var alias string
-		var function string
-
-		// This makes strong assumptions about internal/lang/references.go and should be kept in sync
-		// See also the FUTURE comment in that file
-		if len(traversal) == 3 || len(traversal) == 4 {
-			if attrTrav, ok := traversal[1].(hcl.TraverseAttr); ok {
-				name = attrTrav.Name
-				rng = attrTrav.SrcRange
-			} else {
-				panic("BUG: Invalid provider function traversal")
-			}
-			if len(traversal) == 4 {
-				if attrTrav, ok := traversal[2].(hcl.TraverseAttr); ok {
-					alias = attrTrav.Name
-				} else {
-					panic("BUG: Invalid provider function traversal")
-				}
-			}
-			if attrTrav, ok := traversal[len(traversal)-1].(hcl.TraverseAttr); ok {
-				function = attrTrav.Name
-			} else {
-				panic("BUG: Invalid provider function traversal")
-			}
-		}
-
-		return &Reference{
-			Subject:     ProviderFunction{Name: name, Alias: alias, Function: function},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-		}, diags
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing
 		// some version of "template values" or "lazy expressions" feature
@@ -386,6 +353,32 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		return nil, diags
 
 	default:
+		if strings.HasPrefix(root, "provider::") {
+			// This makes some strong assumptions based on internal/lang/references.go
+			sp := strings.Split(root, "::")
+
+			var pf ProviderFunction
+
+			if len(sp) == 3 {
+				pf = ProviderFunction{
+					Name:     sp[1],
+					Function: sp[2],
+				}
+			} else if len(sp) == 4 {
+				pf = ProviderFunction{
+					Name:     sp[1],
+					Alias:    sp[2],
+					Function: sp[3],
+				}
+			} else {
+				panic(root)
+			}
+
+			return &Reference{
+				Subject:     pf,
+				SourceRange: tfdiags.SourceRangeFromHCL(rootRange),
+			}, diags
+		}
 		return parseResourceRef(ManagedResourceMode, rootRange, traversal)
 	}
 }

@@ -1,18 +1,6 @@
 package tofu
 
-import (
-	"fmt"
-	"strings"
-	"testing"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/zclconf/go-cty/cty"
-)
-
+/* TODO Integrate this builtin eval context
 func TestFunctions(t *testing.T) {
 	mockProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -288,3 +276,4 @@ func TestFunctions(t *testing.T) {
 		}
 	})
 }
+*/

@@ -561,6 +561,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 			Module:   mc.Path,
 			Alias:    pf.Alias,
 		}
+		// TODO check if alias is valid!
 
 		// Unconfigured providers may not yet be initialized
 		provider, err := ctx.GetOrInitProvider(absPc)
