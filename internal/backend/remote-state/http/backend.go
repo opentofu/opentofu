@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -247,12 +248,19 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	unlockMethod := data.Get("unlock_method").(string)
 
+	username := data.Get("username").(string)
+	password := data.Get("password").(string)
+
 	var headers map[string]string
 	if dv, ok := data.GetOk("headers"); ok {
 		dh := dv.(map[string]interface{})
 		headers = make(map[string]string, len(dh))
 
 		for k, v := range dh {
+			if strings.ToLower(k) == "authorization" && username != "" {
+				return fmt.Errorf("authorization header cannot be set when providing a username")
+			}
+
 			headers[k] = v.(string)
 		}
 	}
@@ -276,8 +284,8 @@ func (b *Backend) configure(ctx context.Context) error {
 		UnlockMethod: unlockMethod,
 
 		Headers:  headers,
-		Username: data.Get("username").(string),
-		Password: data.Get("password").(string),
+		Username: username,
+		Password: password,
 
 		// accessible only for testing use
 		Client: rClient,

@@ -66,8 +66,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 		req.Header.Set(n, strings.TrimSpace(v))
 	}
 
-	// Set up basic auth if we do not have an authorization header present
-	if c.Username != "" && req.Header.Get("Authorization") == "" {
+	if c.Username != "" {
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 
