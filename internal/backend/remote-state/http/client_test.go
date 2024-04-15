@@ -66,7 +66,6 @@ func TestHTTPClient(t *testing.T) {
 		Headers: map[string]string{
 			"user-defined": "test",
 			"content-type": "application/xml",
-			"content-md5":  "md5",
 		},
 		Client: c,
 	}
