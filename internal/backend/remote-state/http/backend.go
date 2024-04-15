@@ -140,7 +140,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 						v := value.(string)
 						if len(v) == 0 || valueRegex.MatchString(v) {
 							err = append(err, fmt.Errorf(
-								"%s \"%s\" value must not be empty and only contain ascii characters", ck, name))
+								"%s \"%s\" value must not be empty and only contain us-ascii characters", ck, name))
 						}
 					}
 					return nil, err
