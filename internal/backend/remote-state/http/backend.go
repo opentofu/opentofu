@@ -125,21 +125,21 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Optional: true,
 				ValidateFunc: func(cv interface{}, ck string) ([]string, []error) {
-					rk := regexp.MustCompile("[^a-zA-Z0-9-_]")
-					rv := regexp.MustCompile("[^[:ascii:]]")
+					nameRegex := regexp.MustCompile("[^a-zA-Z0-9-_]")
+					valueRegex := regexp.MustCompile("[^[:ascii:]]")
 
-					ch := cv.(map[string]interface{})
-					err := make([]error, 0, len(ch))
-					for hk, hv := range ch {
-						if len(hk) == 0 || rk.MatchString(hk) {
+					headers := cv.(map[string]interface{})
+					err := make([]error, 0, len(headers))
+					for name, value := range headers {
+						if len(name) == 0 || nameRegex.MatchString(name) {
 							err = append(err, fmt.Errorf(
-								"%s '%s' name must not be empty and only contain 'A-Za-z0-9-_' characters", ck, hk))
+								"%s '%s' name must not be empty and only contain 'A-Za-z0-9-_' characters", ck, name))
 						}
 
-						v := hv.(string)
-						if len(v) == 0 || rv.MatchString(v) {
+						v := value.(string)
+						if len(v) == 0 || valueRegex.MatchString(v) {
 							err = append(err, fmt.Errorf(
-								"%s '%s' value must not be empty and only contain ascii characters", ck, hk))
+								"%s '%s' value must not be empty and only contain ascii characters", ck, name))
 						}
 					}
 					return nil, err
