@@ -260,10 +260,10 @@ func (b *Backend) configure(ctx context.Context) error {
 			switch strings.ToLower(k) {
 			case "authorization":
 				if username != "" {
-					return fmt.Errorf("header \"%s\" cannot be set when providing username", k)
+					return fmt.Errorf("headers \"%s\" cannot be set when providing username", k)
 				}
 			case "content-type", "content-md5":
-				return fmt.Errorf("header \"%s\" is reserved", k)
+				return fmt.Errorf("headers \"%s\" is reserved", k)
 			default:
 				headers[k] = v.(string)
 			}
