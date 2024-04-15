@@ -55,7 +55,7 @@ func TestHTTPClient(t *testing.T) {
 			t.Fatalf("Expected header \"user-defined\" with value \"test\", got \"%s\"", v)
 		}
 
-		// Test the content-type header was not overridden (set when sending a request with data)
+		// Test the content-type header was not overridden
 		v = req.Header.Get("content-type")
 		if req.Method == "PUT" && v != "application/json" {
 			t.Fatalf("Expected header \"content-type\" with value \"application/json\", got \"%s\"", v)

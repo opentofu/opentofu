@@ -56,9 +56,14 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
 
-	// Add user-defined headers first
+	// Add user-defined headers
 	for k, v := range c.Headers {
-		req.Header.Set(strings.ReplaceAll(k, " ", ""), strings.TrimSpace(v))
+		n := strings.ToLower(strings.ReplaceAll(k, " ", ""))
+		if n == "content-type" || n == "content-md5" {
+			// We don't allow content-type or content-md5 to be set by the user
+			continue
+		}
+		req.Header.Set(n, strings.TrimSpace(v))
 	}
 
 	// Set up basic auth if we do not have an authorization header present
