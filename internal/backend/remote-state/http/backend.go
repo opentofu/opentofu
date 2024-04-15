@@ -257,11 +257,18 @@ func (b *Backend) configure(ctx context.Context) error {
 		headers = make(map[string]string, len(dh))
 
 		for k, v := range dh {
-			if strings.ToLower(k) == "authorization" && username != "" {
-				return fmt.Errorf("authorization header cannot be set when providing a username")
+			switch strings.ToLower(k) {
+			case "authorization":
+				if username != "" {
+					return fmt.Errorf("authorization header cannot be set when providing username")
+				}
+			case "content-type":
+				return fmt.Errorf("content-type header is reserved")
+			case "content-md5":
+				return fmt.Errorf("content-md5 header is reserved")
+			default:
+				headers[k] = v.(string)
 			}
-
-			headers[k] = v.(string)
 		}
 	}
 

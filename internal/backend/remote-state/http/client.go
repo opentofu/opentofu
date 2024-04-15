@@ -11,14 +11,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
-
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"io"
+	"net/http"
+	"net/url"
 )
 
 // httpClient is a remote client that stores data in Consul or HTTP REST.
@@ -58,12 +56,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 
 	// Add user-defined headers
 	for k, v := range c.Headers {
-		n := strings.ToLower(k)
-		if n == "content-type" || n == "content-md5" {
-			// We don't allow content-type or content-md5 to be set by the user
-			continue
-		}
-		req.Header.Set(k, strings.TrimSpace(v))
+		req.Header.Set(k, v)
 	}
 
 	if c.Username != "" {
