@@ -134,7 +134,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 					for name, value := range headers {
 						if len(name) == 0 || nameRegex.MatchString(name) {
 							err = append(err, fmt.Errorf(
-								"%s \"%s\" name must not be empty and only contain \"A-Za-z0-9-_\" characters", ck, name))
+								"%s \"%s\" name must not be empty and only contain A-Za-z0-9-_ characters", ck, name))
 						}
 
 						v := value.(string)
