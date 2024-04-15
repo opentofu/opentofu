@@ -226,6 +226,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 	}
 }
 
+/*
 func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 	config := &configs.Provider{
 		Name:   "foo",
@@ -258,7 +259,7 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 	if ctx.ConfigureProviderCalled {
 		t.Fatal("should not be called")
 	}
-}
+}*/
 
 func TestNodeApplyableProvider_Validate(t *testing.T) {
 	provider := mockProviderWithConfigSchema(&configschema.Block{

@@ -42,6 +42,9 @@ func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diag
 	case walkValidate:
 		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
 		diags = diags.Append(n.ValidateProvider(ctx, provider))
+		if diags.HasErrors() {
+			return diags
+		}
 		fallthrough
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
