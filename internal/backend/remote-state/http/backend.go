@@ -127,7 +127,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional: true,
 				ValidateFunc: func(cv interface{}, ck string) ([]string, []error) {
 					nameRegex := regexp.MustCompile("[^a-zA-Z0-9-_]")
-					valueRegex := regexp.MustCompile("[^\\x00-\\x7F]")
+					valueRegex := regexp.MustCompile("[^[:ascii:]]")
 
 					headers := cv.(map[string]interface{})
 					err := make([]error, 0, len(headers))
@@ -140,7 +140,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 						v := value.(string)
 						if len(strings.TrimSpace(v)) == 0 || valueRegex.MatchString(v) {
 							err = append(err, fmt.Errorf(
-								"%s \"%s\" value must not be empty and only contain us-ascii characters", ck, name))
+								"%s \"%s\" value must not be empty and only contain ascii characters", ck, name))
 						}
 					}
 					return nil, err
