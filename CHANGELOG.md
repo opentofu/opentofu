@@ -45,6 +45,7 @@ BUG FIXES:
 * Fix `tofu show` and `tofu state show` not working with state files referencing Terraform registry providers in some instances ([#1141](https://github.com/opentofu/opentofu/pull/1141))
 * Improved stability on 32-bit architectures ([#1154](https://github.com/opentofu/opentofu/pull/1154))
 * Fix panic when provisioner source and content are both null ([#1376](https://github.com/opentofu/opentofu/pull/1376))
+* Fix for `tofu test` when the module has no resources, its outputs become unusable. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 
 ## Previous Releases
 
