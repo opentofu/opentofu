@@ -127,7 +127,6 @@ func PluginPanics() []string {
 // happened when a plugin suddenly terminates.
 type panicRecorder struct {
 	sync.Mutex
-
 	// panics maps the plugin name to the panic output lines received from
 	// the logger.
 	panics map[string][]string

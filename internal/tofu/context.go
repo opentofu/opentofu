@@ -85,8 +85,8 @@ type Context struct {
 	sh      *stopHook
 	uiInput UIInput
 
-	l                   sync.Mutex // Lock acquired during any task
 	parallelSem         Semaphore
+	l                   sync.Mutex // Lock acquired during any task
 	providerInputConfig map[string]map[string]cty.Value
 	runCond             *sync.Cond
 	runContext          context.Context

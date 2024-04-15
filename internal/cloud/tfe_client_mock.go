@@ -1052,7 +1052,6 @@ func (m *MockProjects) Delete(ctx context.Context, projectID string) error {
 
 type MockRuns struct {
 	sync.Mutex
-
 	client     *MockClient
 	Runs       map[string]*tfe.Run
 	workspaces map[string][]*tfe.Run
