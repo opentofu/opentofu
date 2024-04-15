@@ -465,7 +465,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			outputValues[subj.Name] = val
 		case addrs.ProviderFunction:
 			// Inject function directly into context
-			fn, fnDiags := s.ProviderFunky(subj, rng)
+			fn, fnDiags := s.ProviderFunctions(subj, rng)
 			diags = diags.Append(fnDiags)
 
 			if !fnDiags.HasErrors() {
