@@ -66,7 +66,7 @@ func TestHTTPClientFactory(t *testing.T) {
 		"retry_wait_min": cty.StringVal("15"),
 		"retry_wait_max": cty.StringVal("150"),
 		"headers": cty.MapVal(map[string]cty.Value{
-			"authorization": cty.StringVal("auth"),
+			"user-defined": cty.StringVal("test"),
 		}),
 	}
 
@@ -101,8 +101,8 @@ func TestHTTPClientFactory(t *testing.T) {
 		t.Fatalf("Expected retry_wait_max \"%s\", got \"%s\"", 150*time.Second, client.Client.RetryWaitMax)
 	}
 
-	if len(client.Headers) != 1 || client.Headers["authorization"] != "auth" {
-		t.Fatalf("Expected headers['auth'], got \"%s\"", client.Headers)
+	if len(client.Headers) != 1 || client.Headers["user-defined"] != "test" {
+		t.Fatalf("Expected headers \"user-defined\" to be \"test\", got \"%s\"", client.Headers)
 	}
 }
 
