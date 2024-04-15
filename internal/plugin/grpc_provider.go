@@ -70,9 +70,9 @@ type GRPCProvider struct {
 	// plugin process ends.
 	ctx context.Context
 
+	mu sync.Mutex
 	// schema stores the schema for this provider. This is used to properly
 	// serialize the requests for schemas.
-	mu     sync.Mutex
 	schema providers.GetProviderSchemaResponse
 }
 
