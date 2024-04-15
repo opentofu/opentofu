@@ -58,12 +58,12 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 
 	// Add user-defined headers
 	for k, v := range c.Headers {
-		n := strings.ToLower(strings.ReplaceAll(k, " ", ""))
+		n := strings.ToLower(k)
 		if n == "content-type" || n == "content-md5" {
 			// We don't allow content-type or content-md5 to be set by the user
 			continue
 		}
-		req.Header.Set(n, strings.TrimSpace(v))
+		req.Header.Set(k, strings.TrimSpace(v))
 	}
 
 	if c.Username != "" {
