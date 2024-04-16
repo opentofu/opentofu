@@ -11,8 +11,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -207,11 +205,6 @@ func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalCont
 	}
 
 	return diags
-}
-
-func (ri *ImportResolver) ExpandImport(importTarget *ImportTarget, ctx EvalContext) (map[string]cty.Value, tfdiags.Diagnostics) {
-	forEach, diags := evaluateForEachExpression(importTarget.Config.ForEach, ctx)
-	return forEach, diags
 }
 
 // GetAllImports returns all resolved imports
