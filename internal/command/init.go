@@ -26,6 +26,7 @@ import (
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -67,9 +68,21 @@ func (c *InitCommand) Run(args []string) int {
 	cmdFlags.StringVar(&flagLockfile, "lockfile", "", "Set a dependency lockfile mode")
 	cmdFlags.BoolVar(&c.Meta.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
+	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
+	}
+
+	if c.outputInJSON {
+		c.Meta.color = false
+		c.Meta.Color = false
+		c.oldUi = c.Ui
+		c.Ui = &WrappedUi{
+			cliUi:        c.oldUi,
+			jsonView:     views.NewJSONView(c.View),
+			outputInJSON: true,
+		}
 	}
 
 	backendFlagSet := arguments.FlagIsSet(cmdFlags, "backend")
@@ -1232,6 +1245,10 @@ Options:
   -test-directory=path    Set the OpenTofu test directory, defaults to "tests". When set, the
                           test command will search for test files in the current directory and
                           in the one specified by the flag.
+
+  -json                   Produce output in a machine-readable JSON format, 
+                          suitable for use in text editor integrations and other 
+                          automated systems. Always disables color.
 
 `
 	return strings.TrimSpace(helpText)

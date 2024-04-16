@@ -10,11 +10,15 @@ STATE ENCRYPTION
 * Available key providers:
   * Passphrase, via pbkdf2 ([#1310](https://github.com/opentofu/opentofu/pull/1310))
   * AWS KMS ([#1349](https://github.com/opentofu/opentofu/pull/1349))
+  * GCP KMS ([#1392](https://github.com/opentofu/opentofu/pull/1392))
+  * OpenBao ([#1436](https://github.com/opentofu/opentofu/pull/1436))
 
 NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
+* Provider-defined functions are now available.  They may be referenced via `provider::<provider_name>::<funcname>(args)`.  ([#1439](https://github.com/opentofu/opentofu/pull/1439))
 
 ENHANCEMENTS:
+* Added support to use `.tfvars` files from tests folder. ([#1386](https://github.com/opentofu/opentofu/pull/1386))
 * Added `templatestring` function that takes a string and renders it as a template using a supplied set of template variables. ([#1223](https://github.com/opentofu/opentofu/pull/1223))
 * Added `base64gunzip` function that takes a base64 encoded gzip string and returns the decompressed data as a string. ([#800](https://github.com/opentofu/opentofu/issues/800))
 * Added `cidrcontains` function that determines if an address belongs to a certain prefix. ([#366](https://github.com/opentofu/opentofu/issues/366))
@@ -33,6 +37,9 @@ ENHANCEMENTS:
 * Allow for templatefile function recursion (up to 1024 call depth default). ([#1250](https://github.com/opentofu/opentofu/pull/1250))
 * Dump state file when `tofu test` fails to clean up resources. ([#1243](https://github.com/opentofu/opentofu/pull/1243))
 * Added aliases for `state list` (`state ls`), `state mv` (`state move`), and `state rm` (`state remove`) ([#1220](https://github.com/opentofu/opentofu/pull/1220))
+* Added mechanism to introduce automatic retries for provider installations, specifically targeting transient errors ([#1233](https://github.com/opentofu/opentofu/issues/1233))
+* Added `-json` flag to `tofu init` and `tofu get` to support output in json format. ([#1453](https://github.com/opentofu/opentofu/pull/1453))
+* `import` blocks `to` address can now support dynamic values (like variables, locals, conditions, and references to resources or data blocks) in index keys. ([#1270](https://github.com/opentofu/opentofu/pull/1270))
 
 BUG FIXES:
 * Fix view hooks unit test flakiness by deterministically waiting for heartbeats to execute ([$1153](https://github.com/opentofu/opentofu/issues/1153))
@@ -47,6 +54,8 @@ BUG FIXES:
 * Don't show false update action when import resource with sensitive datasource([#1220](https://github.com/opentofu/opentofu/pull/1220))
 * Fix panic when provisioner source and content are both null ([#1376](https://github.com/opentofu/opentofu/pull/1376))
 * Fix large number will be truncated in plan ([#1382](https://github.com/opentofu/opentofu/pull/1382))
+* S3 backend no longer requires to have permissions to use the default 'env:' workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
+* Fixed a crash when using a conditional with Twingate resource ([1446](https://github.com/opentofu/opentofu/pull/1446))
 
 ## Previous Releases
 

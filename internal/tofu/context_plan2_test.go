@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -4309,7 +4310,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[var.index]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4330,7 +4331,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[local.index]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4347,7 +4348,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[ true ? "zero" : "one"]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4373,7 +4374,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[var.one == 1 ? local.one : local.zero]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4394,7 +4395,7 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[test_object.reference.test_string]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
@@ -4414,17 +4415,27 @@ resource "test_object" "a" {
 
 import {
   to   = test_object.a[data.test_object.reference.test_string]
-  id   = "123"
+  id   = "%d"
 }
 `,
 			},
 		},
 	}
 
+	const importId = 123
+
 	for _, configuration := range configurations {
 		t.Run(configuration.Description, func(t *testing.T) {
+
+			// Format the configuration with the import ID
+			formattedConfiguration := make(map[string]string)
+			for configFileName, configFileContent := range configuration.inlineConfiguration {
+				formattedConfigFileContent := fmt.Sprintf(configFileContent, importId)
+				formattedConfiguration[configFileName] = formattedConfigFileContent
+			}
+
 			addr := mustResourceInstanceAddr(configuration.ResolvedAddress)
-			m := testModuleInline(t, configuration.inlineConfiguration)
+			m := testModuleInline(t, formattedConfiguration)
 
 			p := &MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -4500,8 +4511,8 @@ import {
 				if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 					t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 				}
-				if instPlan.Importing.ID != "123" {
-					t.Errorf("expected import change from \"123\", got non-import change")
+				if instPlan.Importing.ID != strconv.Itoa(importId) {
+					t.Errorf("expected import change from \"%d\", got non-import change", importId)
 				}
 
 				if !hook.PrePlanImportCalled {
@@ -4531,7 +4542,7 @@ func TestContext2Plan_importToInvalidDynamicAddress(t *testing.T) {
 	configurations := []TestConfiguration{
 		{
 			Description:   "To address index value is null",
-			expectedError: "Import block 'to' address contains invalid key: Import block contained a resource address using an index which is null. Please make sure the expression for the index is not null",
+			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is null. Please ensure the expression for the index is not null",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 variable "index" {
@@ -4552,7 +4563,7 @@ import {
 		},
 		{
 			Description:   "To address index is not a number or a string",
-			expectedError: "Import block 'to' address contains invalid key: Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please make sure the expression for the index is correct, and returns either a string or a number",
+			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please ensure the expression for the index is correct, and returns either a string or a number",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -4573,7 +4584,7 @@ import {
 		},
 		{
 			Description:   "To address index value is sensitive",
-			expectedError: "Import block 'to' address contains invalid key: Import block contained a resource address using an index which is sensitive. Please make sure indexes used in the resource address of an import target are not sensitive",
+			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -4594,7 +4605,7 @@ import {
 		},
 		{
 			Description:   "To address index value will only be known after apply",
-			expectedError: "Import block contained a resource address using an index will only be known after apply. Please make sure to use expressions that are known at plan time for the index of an import target address",
+			expectedError: "Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {

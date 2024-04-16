@@ -11,18 +11,15 @@ import (
 	"log"
 	"sync"
 
-	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/lang/marks"
-
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
-
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -30,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/version"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // BuiltinEvalContext is an EvalContext implementation that is used by
@@ -72,6 +70,8 @@ type BuiltinEvalContext struct {
 	ProviderLock          *sync.Mutex
 	ProvisionerCache      map[string]provisioners.Interface
 	ProvisionerLock       *sync.Mutex
+	FunctionCache         *ProviderFunctions
+	FunctionLock          sync.Mutex
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -90,6 +90,8 @@ func (ctx *BuiltinEvalContext) WithPath(path addrs.ModuleInstance) EvalContext {
 	newCtx := *ctx
 	newCtx.pathSet = true
 	newCtx.PathValue = path
+	newCtx.FunctionCache = nil
+	newCtx.FunctionLock = sync.Mutex{}
 	return &newCtx
 }
 
@@ -158,21 +160,6 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	// first see if we have already have an initialized provider to avoid
-	// re-loading it only for the schema
-	p := ctx.Provider(addr)
-	if p != nil {
-		resp := p.GetProviderSchema()
-		// convert any diagnostics here in case this is the first call
-		// FIXME: better control provider instantiation so we can be sure this
-		// won't be the first call to ProviderSchema
-		var err error
-		if resp.Diagnostics.HasErrors() {
-			err = resp.Diagnostics.ErrWithWarnings()
-		}
-		return resp, err
-	}
-
 	return ctx.Plugins.ProviderSchema(addr.Provider)
 }
 
@@ -529,7 +516,6 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		InstanceKeyData: keyData,
 		Operation:       ctx.Evaluator.Operation,
 	}
-	scope := ctx.Evaluator.Scope(data, self, source)
 
 	// ctx.PathValue is the path of the module that contains whatever
 	// expression the caller will be trying to evaluate, so this will
@@ -538,9 +524,28 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	// package itself works. The nil check here is for robustness in
 	// incompletely-mocked testing situations; mc should never be nil in
 	// real situations.
-	if mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue); mc != nil {
-		scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+	mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue)
+
+	if mc == nil || mc.Module.ProviderRequirements == nil {
+		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
+
+	ctx.FunctionLock.Lock()
+	defer ctx.FunctionLock.Unlock()
+	if ctx.FunctionCache == nil {
+		names := make(map[string]addrs.Provider)
+
+		// Providers must exist within required_providers to register their functions
+		for name, provider := range mc.Module.ProviderRequirements.RequiredProviders {
+			// Functions are only registered under their name, not their type name
+			names[name] = provider.Type
+		}
+
+		ctx.FunctionCache = ctx.Plugins.Functions(names)
+	}
+	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
+	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+
 	return scope
 }
 

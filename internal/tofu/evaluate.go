@@ -76,7 +76,10 @@ type Evaluator struct {
 // If the "self" argument is nil then the "self" object is not available
 // in evaluated expressions. Otherwise, it behaves as an alias for the given
 // address.
-func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable) *lang.Scope {
+func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs.Referenceable, functions *ProviderFunctions) *lang.Scope {
+	if functions == nil {
+		functions = new(ProviderFunctions)
+	}
 	return &lang.Scope{
 		Data:          data,
 		ParseRef:      addrs.ParseRef,
@@ -85,6 +88,9 @@ func (e *Evaluator) Scope(data lang.Data, self addrs.Referenceable, source addrs
 		PureOnly:      e.Operation != walkApply && e.Operation != walkDestroy && e.Operation != walkEval,
 		BaseDir:       ".", // Always current working directory for now.
 		PlanTimestamp: e.PlanTimestamp,
+		// Can't pass the object directly as it would cause an import loop
+		ProviderNames:     functions.ProviderNames,
+		ProviderFunctions: functions.Functions,
 	}
 }
 

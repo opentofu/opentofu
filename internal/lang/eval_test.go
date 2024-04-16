@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/zclconf/go-cty/cty"
@@ -847,6 +848,105 @@ func TestScopeEvalSelfBlock(t *testing.T) {
 					test.Config, gotVal, wantVal,
 				)
 			}
+		})
+	}
+}
+
+func Test_enhanceFunctionDiags(t *testing.T) {
+	tests := []struct {
+		Name    string
+		Config  string
+		Summary string
+		Detail  string
+	}{
+		{
+			"Missing builtin function",
+			"attr = missing_function(54)",
+			"Call to unknown function",
+			"There is no function named \"missing_function\".",
+		},
+		{
+			"Missing core function",
+			"attr = core::missing_function(54)",
+			"Call to unknown function",
+			"There is no builtin (core::) function named \"missing_function\".",
+		},
+		{
+			"Invalid prefix",
+			"attr = magic::missing_function(54)",
+			"Invalid function format",
+			"Expected provider::<provider_name>::<function_name>, instead found \"magic::missing_function\"",
+		},
+		{
+			"Broken prefix",
+			"attr = magic::foo::bar::extra::missing_function(54)",
+			"Invalid function format",
+			"Expected provider::<provider_name>::<function_name>, instead found \"magic::foo::bar::extra::missing_function\"",
+		},
+		{
+			"Missing provider",
+			"attr = provider::unknown::func(54)",
+			"Unknown function provider",
+			"Provider \"unknown\" does not exist within the required_providers of this module",
+		},
+		{
+			"Missing function",
+			"attr = provider::known::func(54)",
+			"Function not found in provider",
+			"Function \"func\" was not registered by provider named \"known\" of type \"hostname/namespace/type\"",
+		},
+	}
+
+	schema := &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"attr": {
+				Type: cty.String,
+			},
+		},
+	}
+	spec := schema.DecoderSpec()
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			file, parseDiags := hclsyntax.ParseConfig([]byte(test.Config), "", hcl.Pos{Line: 1, Column: 1})
+			if len(parseDiags) != 0 {
+				t.Errorf("unexpected diagnostics during parse")
+				for _, diag := range parseDiags {
+					t.Errorf("- %s", diag)
+				}
+				return
+			}
+
+			body := file.Body
+
+			scope := &Scope{
+				ProviderNames: map[string]addrs.Provider{
+					"known": addrs.Provider{
+						Type:      "type",
+						Namespace: "namespace",
+						Hostname:  "hostname",
+					},
+				},
+			}
+
+			ctx, ctxDiags := scope.EvalContext(nil)
+			if ctxDiags.HasErrors() {
+				t.Fatalf("Unexpected ctxDiags, %#v", ctxDiags)
+			}
+
+			_, evalDiags := hcldec.Decode(body, spec, ctx)
+			diags := scope.enhanceFunctionDiags(evalDiags)
+			if len(diags) != 1 {
+				t.Fatalf("Expected 1 diag, got %d", len(diags))
+			}
+			diag := diags[0]
+			if diag.Summary != test.Summary {
+				t.Fatalf("Expected Summary %q, got %q", test.Summary, diag.Summary)
+			}
+			if diag.Detail != test.Detail {
+				t.Fatalf("Expected Detail %q, got %q", test.Detail, diag.Detail)
+			}
+
 		})
 	}
 }

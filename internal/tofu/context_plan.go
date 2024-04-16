@@ -311,7 +311,7 @@ func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts 
 		panic(fmt.Sprintf("called Context.plan with %s", opts.Mode))
 	}
 
-	opts.ImportTargets = c.findImportTargets(config, prevRunState)
+	opts.ImportTargets = c.findImportTargets(config)
 	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets, opts.GenerateConfigPath)
 	diags = diags.Append(importTargetDiags)
 	if diags.HasErrors() {
@@ -558,9 +558,9 @@ func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allIns
 	return diags
 }
 
-// findImportTargets builds a list of import targets by taking the import blocks
-// in the config and filtering out any that target a resource already in state.
-func (c *Context) findImportTargets(config *configs.Config, priorState *states.State) []*ImportTarget {
+// findImportTargets builds a list of import targets by going over the import
+// blocks in the config.
+func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
 	var importTargets []*ImportTarget
 	for _, ic := range config.Module.Import {
 		importTargets = append(importTargets, &ImportTarget{
@@ -571,7 +571,7 @@ func (c *Context) findImportTargets(config *configs.Config, priorState *states.S
 }
 
 // validateImportTargets makes sure all import targets are not breaking the following rules:
-//  1. Imports are attempted to resources that do not exist (if config generation is not enabled).
+//  1. Imports are attempted into resources that do not exist (if config generation is not enabled).
 //  2. Config generation is not attempted for resources inside sub-modules
 //  3. Config generation is not attempted for resources with indexes (for_each/count) - This will always include
 //     resources for which we could not yet resolve the address

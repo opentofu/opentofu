@@ -169,13 +169,18 @@ func (ri *ImportResolver) ExpandAndResolveImport(importTarget *ImportTarget, ctx
 func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx, keyData)
+	// The import block expressions are declared within the root module.
+	// We need to explicitly use the context with the path of the root module, so that all references will be
+	// relative to the root module
+	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
+
+	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx, keyData)
 	diags = diags.Append(evalDiags)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	importAddress, addressDiags := ctx.EvaluateImportAddress(importTarget.Config.To, keyData)
+	importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To, keyData)
 	diags = diags.Append(addressDiags)
 	if diags.HasErrors() {
 		return diags

@@ -206,10 +206,13 @@ snapcrafts:
       OpenTofu is an OSS tool for building, changing, and versioning infrastructure
       safely and efficiently. OpenTofu can manage existing and popular service
       providers as well as custom in-house solutions.
-    base: core22
-    grade: "{{ .Env.SNAPCRAFT_CHANNEL }}"
+    disable: '{{ if eq .Env.RELEASE_FLAG_LATEST "false" }}true{{ else }}false{{ end }}'
+    channel_templates:
+      - '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}latest/edge{{ else }}latest/stable{{ end }}'
+    grade: '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}devel{{ else }}stable{{ end }}'
     confinement: classic
     license: MPL-2.0
+    base: core22
     apps:
       tofu:
         command: tofu
