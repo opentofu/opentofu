@@ -321,7 +321,6 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 	for v, reqs := range requested {
 		for key, p := range reqs {
 			target := m[key]
-			exact := true // TODO
 
 			_, ok := v.(GraphNodeModulePath)
 			if !ok && target == nil {
@@ -332,20 +331,6 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 			if target != nil {
 				log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", p, dag.VertexName(v))
-			}
-
-			// if we don't have a provider at this level, walk up the path looking for one,
-			// unless we were told to be exact.
-			if target == nil && !exact {
-				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
-					key := pp.String()
-					target = m[key]
-					if target != nil {
-						log.Printf("[TRACE] ProviderFunctionTransformer: %s uses inherited configuration %s", dag.VertexName(v), pp)
-						break
-					}
-					log.Printf("[TRACE] ProviderFunctionTransformer: looking for %s to serve %s", pp, dag.VertexName(v))
-				}
 			}
 
 			// If this provider doesn't need to be configured then we can just
@@ -459,7 +444,6 @@ func (t *MissingProviderTransformer) Transform(g *Graph) error {
 	var err error
 	m := providerVertexMap(g)
 	for _, v := range g.Vertices() {
-		// TODO references
 		pv, ok := v.(GraphNodeProviderConsumer)
 		if !ok {
 			continue
