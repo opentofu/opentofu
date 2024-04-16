@@ -353,27 +353,17 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		return nil, diags
 
 	default:
-		if strings.HasPrefix(root, "provider::") {
-			// This makes some strong assumptions based on internal/lang/references.go
-			sp := strings.Split(root, "::")
-
-			var pf ProviderFunction
-
-			if len(sp) == 3 {
-				pf = ProviderFunction{
-					Name:     sp[1],
-					Function: sp[2],
-				}
-			} else if len(sp) == 4 {
-				pf = ProviderFunction{
-					Name:     sp[1],
-					Alias:    sp[2],
-					Function: sp[3],
-				}
-			} else {
-				panic(root)
+		function := ParseFunction(root)
+		if function.IsNamespace(FunctionNamespaceProvider) {
+			pf, err := function.AsProviderFunction()
+			if err != nil {
+				return nil, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unable to parse provider function",
+					Detail:   err.Error(),
+					Subject:  rootRange.Ptr(),
+				})
 			}
-
 			return &Reference{
 				Subject:     pf,
 				SourceRange: tfdiags.SourceRangeFromHCL(rootRange),

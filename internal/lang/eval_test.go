@@ -874,14 +874,14 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 		{
 			"Invalid prefix",
 			"attr = magic::missing_function(54)",
-			"Invalid function format",
-			"Expected provider::<provider_name>::<function_name>, instead found \"magic::missing_function\"",
+			"Unknown function namespace",
+			"Function \"magic::missing_function\" does not exist within any known namespace",
 		},
 		{
-			"Broken prefix",
-			"attr = magic::foo::bar::extra::extra2::missing_function(54)",
+			"Too many namespaces",
+			"attr = provider::foo::bar::extra::extra2::missing_function(54)",
 			"Invalid function format",
-			"Expected provider::<provider_name>::<function_name>, instead found \"magic::foo::bar::extra::extra2::missing_function\"",
+			"invalid provider function \"provider::foo::bar::extra::extra2::missing_function\": expected provider::<name>::<function> or provider::<name>::<alias>::<function>",
 		},
 	}
 

@@ -6,8 +6,6 @@
 package lang
 
 import (
-	"strings"
-
 	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -99,7 +97,7 @@ func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
 	for _, fn := range funcs {
 		if len(fn) > 0 {
 			if root, ok := fn[0].(hcl.TraverseRoot); ok {
-				if strings.HasPrefix(root.Name, "provider::") {
+				if addrs.ParseFunction(root.Name).IsNamespace(addrs.FunctionNamespaceProvider) {
 					pfuncs = append(pfuncs, fn)
 				}
 			}

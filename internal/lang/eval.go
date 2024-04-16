@@ -7,7 +7,6 @@ package lang
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
@@ -209,8 +208,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 			// prefix::stuff::
 			fullNamespace := funcExtra.CalledFunctionNamespace()
 
-			sp := strings.Split(fullNamespace, "::")
-			if len(sp) == 1 {
+			if len(fullNamespace) == 0 {
 				// Not a namespaced function, no enhancements nessesary
 				continue
 			}
@@ -221,18 +219,21 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 
 			// Update enhanced with additional details
 
-			if fullNamespace == CoreNamespace {
+			fn := addrs.ParseFunction(fullNamespace + funcName)
+
+			if fn.IsNamespace(addrs.FunctionNamespaceCore) {
 				// Error is in core namespace, mirror non-core equivalent
 				enhanced.Summary = "Call to unknown function"
-				enhanced.Detail = fmt.Sprintf("There is no builtin (%s) function named %q.", CoreNamespace, funcName)
-				continue
-			}
-
-			if (len(sp) != 3 && len(sp) != 4) || sp[0] != "provider" {
-				// complete mismatch or invalid prefix
-				enhanced.Summary = "Invalid function format"
-				enhanced.Detail = fmt.Sprintf("Expected provider::<provider_name>::<function_name>, instead found \"%s%s\"", fullNamespace, funcName)
-				continue
+				enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
+			} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
+				if _, err := fn.AsProviderFunction(); err != nil {
+					// complete mismatch or invalid prefix
+					enhanced.Summary = "Invalid function format"
+					enhanced.Detail = err.Error()
+				}
+			} else {
+				enhanced.Summary = "Unknown function namespace"
+				enhanced.Detail = fmt.Sprintf("Function %q does not exist within any known namespace", fn)
 			}
 			// Function / Provider not found handled by eval_context_builtin.go
 		}
