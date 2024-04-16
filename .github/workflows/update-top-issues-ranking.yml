@@ -1,0 +1,27 @@
+name: update-top-issues-ranking
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 10 * * *'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.22
+    - name: Update top issues ranking
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        cd .github/scripts/update_top_issues_ranking
+        go mod download
+        go run main.go opentofu opentofu 1496
