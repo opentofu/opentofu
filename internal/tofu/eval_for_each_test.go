@@ -145,7 +145,7 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 		"set containing booleans": {
 			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.BoolVal(true)})),
 			"Invalid for_each set argument",
-			"supports maps and sets of strings, but you have provided a set containing type bool",
+			"supports sets of strings, but you have provided a set containing type bool",
 			false, false,
 		},
 		"set containing null": {
