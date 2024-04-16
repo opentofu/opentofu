@@ -43,6 +43,8 @@ type Import struct {
 	// import blocks targeting the same resource
 	ResolvedTo *addrs.AbsResourceInstance
 
+	ForEach hcl.Expression
+
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
 

@@ -485,15 +485,6 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		return state, false
 	}
 
-	variables, resetVariables, variableDiags := runner.prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
-	defer resetVariables()
-
-	run.Diagnostics = run.Diagnostics.Append(variableDiags)
-	if variableDiags.HasErrors() {
-		run.Status = moduletest.Error
-		return state, false
-	}
-
 	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config)
 	defer resetConfig()
 
@@ -516,6 +507,15 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		planDiags = run.ValidateExpectedFailures(planDiags)
 		run.Diagnostics = run.Diagnostics.Append(planDiags)
 		if planDiags.HasErrors() {
+			run.Status = moduletest.Error
+			return state, false
+		}
+
+		variables, resetVariables, variableDiags := runner.prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
+		defer resetVariables()
+
+		run.Diagnostics = run.Diagnostics.Append(variableDiags)
+		if variableDiags.HasErrors() {
 			run.Status = moduletest.Error
 			return state, false
 		}
@@ -584,7 +584,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		return updated, true
 	}
 
-	variables, resetVariables, variableDiags = runner.prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
+	variables, resetVariables, variableDiags := runner.prepareInputVariablesForAssertions(config, run, file, runner.Suite.GlobalVariables)
 	defer resetVariables()
 
 	run.Diagnostics = run.Diagnostics.Append(variableDiags)
