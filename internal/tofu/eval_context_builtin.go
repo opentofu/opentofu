@@ -521,6 +521,25 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+		if ctx.Evaluator.Operation == walkValidate {
+			// Custom provider functions are not available during validate
+			fn := function.New(&function.Spec{
+				Description: "Validate Placeholder",
+				VarParam: &function.Parameter{
+					Type:             cty.DynamicPseudoType,
+					AllowNull:        true,
+					AllowUnknown:     true,
+					AllowDynamicType: true,
+					AllowMarked:      false,
+				},
+				Type: function.StaticReturnType(cty.DynamicPseudoType),
+				Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+					return cty.UnknownVal(cty.DynamicPseudoType), nil
+				},
+			})
+			return &fn, nil
+		}
+
 		var diags tfdiags.Diagnostics
 
 		pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
