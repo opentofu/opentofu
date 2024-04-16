@@ -8,6 +8,9 @@ package addrs
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Resource is an address for a resource block within configuration, which
@@ -389,6 +392,33 @@ type ConfigResource struct {
 	targetable
 	Module   Module
 	Resource Resource
+}
+
+// ParseConfigResource parses the module address from the given traversal
+// and then parses the resource address from the leftover. Returning ConfigResource
+// contains both module and resource addresses. ParseConfigResource doesn't support
+// instance keys and will return an error if it encounters one.
+func ParseConfigResource(traversal hcl.Traversal) (*ConfigResource, tfdiags.Diagnostics) {
+	modulePath, remainTraversal, diags := parseModulePrefix(traversal)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	if len(remainTraversal) == 0 {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Module address is not allowed",
+			Detail:   "Expected reference to either resource or data block. Provided reference appears to be a module.",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
+	}
+
+	configRes, moreDiags := parseResourceUnderModule(modulePath, remainTraversal)
+	if moreDiags.HasErrors() {
+		return nil, diags.Append(moreDiags)
+	}
+
+	return &configRes, nil
 }
 
 // Resource returns the address of a particular resource within the module.
