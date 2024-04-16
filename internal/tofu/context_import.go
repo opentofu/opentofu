@@ -125,18 +125,11 @@ func (ri *ImportResolver) ExpandAndResolveImport(importTarget *ImportTarget, ctx
 
 	if importTarget.Config.ForEach != nil {
 		// The import target has a for_each attribute, so we need to expand it
-
-		// Ronny TODO - are we OK with this validation? This is the regular validation for for_each ins resources.
-		// Do we want specific errors regarding import for_each?
-		forEachVal, evalDiags := evaluateForEachExpressionValue(importTarget.Config.ForEach, rootCtx, false)
+		forEachVal, evalDiags := evaluateForEachExpressionValue(importTarget.Config.ForEach, rootCtx, false, true)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			return diags
 		}
-
-		//_, _ = spew.Printf("evaluateForEachExpressionValue:")
-		//spew.Dump(forEachVal)
-		//_, _ = spew.Printf("\n")
 
 		// We are building an instances.RepetitionData based on each for_each key and val combination
 		var repetitions []instances.RepetitionData
