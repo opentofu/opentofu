@@ -7,15 +7,15 @@ package tofu
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/zclconf/go-cty/cty"
 	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
