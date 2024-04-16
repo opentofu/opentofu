@@ -56,6 +56,7 @@ BUG FIXES:
 * Fix large number will be truncated in plan ([#1382](https://github.com/opentofu/opentofu/pull/1382))
 * S3 backend no longer requires to have permissions to use the default 'env:' workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
 * Fixed a crash when using a conditional with Twingate resource ([1446](https://github.com/opentofu/opentofu/pull/1446))
+* Added support for user-defined headers when configuring the HTTP backend ([1427](https://github.com/opentofu/opentofu/pull/1487))
 
 ## Previous Releases
 
