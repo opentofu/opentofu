@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang"
@@ -48,6 +49,13 @@ type Resource struct {
 	//
 	// If this is nil, then this resource is essentially public.
 	Container Container
+
+	// IsOverriden indicates if the resource is being overriden. It's used in
+	// Testing Framework to not call the underlying provider.
+	IsOverriden bool
+	// OverrideValues are only valid if IsOverriden is set to true. The values
+	// should be used to compose mock provider response.
+	OverrideValues map[string]cty.Value
 
 	DeclRange hcl.Range
 	TypeRange hcl.Range

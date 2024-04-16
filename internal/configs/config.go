@@ -880,7 +880,7 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	// Currently, we only need to override the provider settings.
+	// We need to override the provider settings, resources and data blocks.
 	//
 	// We can have a set of providers defined within the config, we can also
 	// have a set of providers defined within the test file. Then the run can
@@ -955,8 +955,62 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 	}
 
 	c.Module.ProviderConfigs = next
+
+	// Now we want to pass override values to resources being overriden.
+	for _, overrideRes := range run.OverrideResources {
+		targetConfig := c.Root.Descendent(overrideRes.TargetParsed.Module)
+		if targetConfig == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Module not found: %v", overrideRes.TargetParsed.Module),
+				Detail:   "Target points to resource in undefined module. Please, ensure module exists.",
+				Subject:  overrideRes.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		res := targetConfig.Module.ResourceByAddr(overrideRes.TargetParsed.Resource)
+		if res == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Resource %v not found in module %v", overrideRes.TargetParsed.Resource, overrideRes.TargetParsed.Module),
+				Detail:   "Target points to undefined resource. Please, ensure resource exists.",
+				Subject:  overrideRes.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		if res.Mode != overrideRes.Mode {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  fmt.Sprintf("Resource mode mismatch: %v targets %v", overrideRes.Mode, res.Mode),
+				Detail:   "`override_resource` shouldn't target data blocks and `override_data` shouldn't target resource blocks.",
+				Subject:  overrideRes.Target.SourceRange().Ptr(),
+			})
+		}
+
+		res.IsOverriden = true
+		res.OverrideValues = overrideRes.Values
+	}
+
 	return func() {
 		// Reset the original config within the returned function.
 		c.Module.ProviderConfigs = previous
+
+		// Reset all the resource overrides.
+		for _, o := range run.OverrideResources {
+			m := c.Root.Descendent(o.TargetParsed.Module)
+			if m == nil {
+				continue
+			}
+
+			res := m.Module.ResourceByAddr(o.TargetParsed.Resource)
+			if res == nil {
+				continue
+			}
+
+			res.IsOverriden = false
+			res.OverrideValues = nil
+		}
 	}, diags
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -124,6 +125,10 @@ type TestRun struct {
 	// run.
 	ExpectFailures []hcl.Traversal
 
+	// OverrideResources is a list of resources to be overriden with static values.
+	// Underlying providers shouldn't be called for overriden resources.
+	OverrideResources []*OverrideResource
+
 	NameDeclRange      hcl.Range
 	VariablesDeclRange hcl.Range
 	DeclRange          hcl.Range
@@ -134,8 +139,8 @@ type TestRun struct {
 func (run *TestRun) Validate() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// For now, we only want to make sure all the ExpectFailure references are
-	// the correct kind of reference.
+	// We want to make sure all the ExpectFailure references
+	// are the correct kind of reference.
 	for _, traversal := range run.ExpectFailures {
 
 		reference, refDiags := addrs.ParseRefFromTestingScope(traversal)
@@ -157,6 +162,17 @@ func (run *TestRun) Validate() tfdiags.Diagnostics {
 			})
 		}
 
+	}
+
+	// We want to validate OverrideResource Targets point to data/resource only.
+	for _, overrideRes := range run.OverrideResources {
+		parsedTarget, parseDiags := addrs.ParseConfigResource(overrideRes.Target)
+		diags = append(diags, parseDiags...)
+		if parseDiags.HasErrors() {
+			continue
+		}
+
+		overrideRes.TargetParsed = parsedTarget
 	}
 
 	return diags
@@ -190,6 +206,20 @@ type TestRunOptions struct {
 	Target []hcl.Traversal
 
 	DeclRange hcl.Range
+}
+
+// OverrideResource contains information about a resource or data block to be overriden.
+type OverrideResource struct {
+	// Target references resource or data block to override.
+	Target       hcl.Traversal
+	TargetParsed *addrs.ConfigResource
+
+	// Mode indicates if the Target is resource or data block.
+	Mode addrs.ResourceMode
+
+	// Values represents fields to use as defaults
+	// if they are not present in configuration.
+	Values map[string]cty.Value
 }
 
 func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
@@ -309,6 +339,20 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 			diags = append(diags, moduleDiags...)
 			if !moduleDiags.HasErrors() {
 				r.Module = module
+			}
+
+		case "override_resource":
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+			diags = append(diags, overrideResDiags...)
+			if !overrideResDiags.HasErrors() {
+				r.OverrideResources = append(r.OverrideResources, overrideRes)
+			}
+
+		case "override_data":
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
+			diags = append(diags, overrideResDiags...)
+			if !overrideResDiags.HasErrors() {
+				r.OverrideResources = append(r.OverrideResources, overrideRes)
 			}
 		}
 	}
@@ -526,6 +570,52 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 	return &opts, diags
 }
 
+func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*OverrideResource, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	content, moreDiags := block.Body.Content(overrideResourceBlockSchema)
+	diags = append(diags, moreDiags...)
+
+	res := &OverrideResource{
+		Mode: mode,
+	}
+
+	if attr, exists := content.Attributes["target"]; exists {
+		res.Target, moreDiags = hcl.AbsTraversalForExpr(attr.Expr)
+		diags = append(diags, moreDiags...)
+	}
+
+	if attr, exists := content.Attributes["values"]; exists {
+		if vars := attr.Expr.Variables(); len(vars) != 0 {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Override values must be static",
+				Detail:   "Values in override block cannot have variables and must be static.",
+				Subject:  attr.Range.Ptr(),
+			})
+		}
+
+		attrVal, moreDiags := attr.Expr.Value(nil)
+		if moreDiags.HasErrors() {
+			diags = append(diags, moreDiags...)
+			return res, diags
+		}
+
+		if !attrVal.Type().IsObjectType() {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Override values must be an object",
+				Detail:   "Values in override block must be an object with inner fields to use.",
+				Subject:  attr.Range.Ptr(),
+			})
+		}
+
+		res.Values = attrVal.AsValueMap()
+	}
+
+	return res, diags
+}
+
 var testFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
@@ -561,6 +651,12 @@ var testRunBlockSchema = &hcl.BodySchema{
 		{
 			Type: "module",
 		},
+		{
+			Type: "override_resource",
+		},
+		{
+			Type: "override_data",
+		},
 	},
 }
 
@@ -577,5 +673,18 @@ var testRunModuleBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{Name: "source"},
 		{Name: "version"},
+	},
+}
+
+var overrideResourceBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name:     "target",
+			Required: true,
+		},
+		{
+			Name:     "values",
+			Required: false,
+		},
 	},
 }

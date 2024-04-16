@@ -427,16 +427,25 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 		return plan, diags
 	}
 
-	// Allow the provider to check the destroy plan, and insert any necessary
-	// private data.
-	resp := provider.PlanResourceChange(providers.PlanResourceChangeRequest{
-		TypeName:         n.Addr.Resource.Resource.Type,
-		Config:           nullVal,
-		PriorState:       unmarkedPriorVal,
-		ProposedNewState: nullVal,
-		PriorPrivate:     currentState.Private,
-		ProviderMeta:     metaConfigVal,
-	})
+	var resp providers.PlanResourceChangeResponse
+
+	if !n.Config.IsOverriden {
+		// Allow the provider to check the destroy plan, and insert any necessary
+		// private data.
+		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+			TypeName:         n.Addr.Resource.Resource.Type,
+			Config:           nullVal,
+			PriorState:       unmarkedPriorVal,
+			ProposedNewState: nullVal,
+			PriorPrivate:     currentState.Private,
+			ProviderMeta:     metaConfigVal,
+		})
+	} else {
+		// If the resource is overriden we don't want to call the underlying provider.
+		resp = providers.PlanResourceChangeResponse{
+			PlannedState: nullVal,
+		}
+	}
 
 	// We may not have a config for all destroys, but we want to reference it in
 	// the diagnostics if we do.
@@ -598,7 +607,15 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 		ProviderMeta: metaConfigVal,
 	}
 
-	resp := provider.ReadResource(providerReq)
+	var resp providers.ReadResourceResponse
+
+	if n.Config == nil || !n.Config.IsOverriden {
+		resp = provider.ReadResource(providerReq)
+	} else {
+		// If the resource is overriden we don't want to call the underlying provider.
+		resp.NewState, resp.Diagnostics = composeMockValueBySchema(schema, metaConfigVal, n.Config.OverrideValues)
+	}
+
 	if n.Config != nil {
 		resp.Diagnostics = resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String())
 	}
@@ -826,14 +843,27 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
-	resp := provider.PlanResourceChange(providers.PlanResourceChangeRequest{
-		TypeName:         n.Addr.Resource.Resource.Type,
-		Config:           unmarkedConfigVal,
-		PriorState:       unmarkedPriorVal,
-		ProposedNewState: proposedNewVal,
-		PriorPrivate:     priorPrivate,
-		ProviderMeta:     metaConfigVal,
-	})
+	var resp providers.PlanResourceChangeResponse
+
+	if !config.IsOverriden {
+		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+			TypeName:         n.Addr.Resource.Resource.Type,
+			Config:           unmarkedConfigVal,
+			PriorState:       unmarkedPriorVal,
+			ProposedNewState: proposedNewVal,
+			PriorPrivate:     priorPrivate,
+			ProviderMeta:     metaConfigVal,
+		})
+	} else {
+		if plannedChange == nil {
+			// If the resource is overriden we don't want to call the underlying provider.
+			resp.PlannedState, resp.Diagnostics = composeMockValueBySchema(schema, unmarkedConfigVal, config.OverrideValues)
+		} else {
+			// We already composed mock value previously, so we can just use it.
+			resp.PlannedState = plannedChange.After
+		}
+	}
+
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -1060,14 +1090,19 @@ func (n *NodeAbstractResourceInstance) plan(
 		// create a new proposed value from the null state and the config
 		proposedNewVal = objchange.ProposedNew(schema, nullPriorVal, unmarkedConfigVal)
 
-		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
-			TypeName:         n.Addr.Resource.Resource.Type,
-			Config:           unmarkedConfigVal,
-			PriorState:       nullPriorVal,
-			ProposedNewState: proposedNewVal,
-			PriorPrivate:     plannedPrivate,
-			ProviderMeta:     metaConfigVal,
-		})
+		if !config.IsOverriden {
+			resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+				TypeName:         n.Addr.Resource.Resource.Type,
+				Config:           unmarkedConfigVal,
+				PriorState:       nullPriorVal,
+				ProposedNewState: proposedNewVal,
+				PriorPrivate:     plannedPrivate,
+				ProviderMeta:     metaConfigVal,
+			})
+		} else {
+			// If the resource is overriden we don't want to call the underlying provider.
+			resp.PlannedState, resp.Diagnostics = composeMockValueBySchema(schema, unmarkedConfigVal, config.OverrideValues)
+		}
 		// We need to tread carefully here, since if there are any warnings
 		// in here they probably also came out of our previous call to
 		// PlanResourceChange above, and so we don't want to repeat them.
@@ -1488,8 +1523,11 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 	if tfp, ok := provider.(ProviderWithEncryption); ok {
 		// Special case for terraform_remote_state
 		resp = tfp.ReadDataSourceEncrypted(req, n.Addr, ctx.GetEncryption())
-	} else {
+	} else if !n.Config.IsOverriden {
 		resp = provider.ReadDataSource(req)
+	} else {
+		// If the resource is overriden we don't want to call the underlying provider.
+		resp.State, resp.Diagnostics = composeMockValueBySchema(schema, configVal, n.Config.OverrideValues)
 	}
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
@@ -2332,14 +2370,22 @@ func (n *NodeAbstractResourceInstance) apply(
 		return newState, diags
 	}
 
-	resp := provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
-		TypeName:       n.Addr.Resource.Resource.Type,
-		PriorState:     unmarkedBefore,
-		Config:         unmarkedConfigVal,
-		PlannedState:   unmarkedAfter,
-		PlannedPrivate: change.Private,
-		ProviderMeta:   metaConfigVal,
-	})
+	var resp providers.ApplyResourceChangeResponse
+
+	if !n.Config.IsOverriden {
+		resp = provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+			TypeName:       n.Addr.Resource.Resource.Type,
+			PriorState:     unmarkedBefore,
+			Config:         unmarkedConfigVal,
+			PlannedState:   unmarkedAfter,
+			PlannedPrivate: change.Private,
+			ProviderMeta:   metaConfigVal,
+		})
+	} else {
+		// If the resource is overriden we don't want to call the underlying provider.
+		resp.NewState = unmarkedAfter
+	}
+
 	applyDiags := resp.Diagnostics
 	if applyConfig != nil {
 		applyDiags = applyDiags.InConfigBody(applyConfig.Config, n.Addr.String())
