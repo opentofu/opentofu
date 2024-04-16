@@ -4712,17 +4712,8 @@ import {
 					if !hook.PostPlanImportCalled {
 						t.Fatalf("PostPlanImport hook not called")
 					}
-
-					// TODO: understand what happens to hooks values in code when we are running for_each
-					//if addr, wantAddr := hook.PrePlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
-					//	t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
-					//}
-					//if addr, wantAddr := hook.PostPlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
-					//	t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
-					//}
 				})
 			}
-
 		})
 	}
 }
