@@ -5,6 +5,16 @@
 
 package tofu
 
+import (
+	"fmt"
+	"math/rand"
+	"strings"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+)
+
 // Semaphore is a wrapper around a channel to provide
 // utility methods to clarify that we are treating the
 // channel as a semaphore
@@ -45,4 +55,112 @@ func (s Semaphore) Release() {
 	default:
 		panic("release without an acquire")
 	}
+}
+
+// composeMockValueBySchema composes mock value based on schema configuration. It uses
+// configuration value as a baseline and populates null values with provided defaults.
+// If the provided defaults doesn't contain needed fields, composeMockValueBySchema uses
+// its own defaults. composeMockValueBySchema fails if schema contains dynamic types.
+func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (
+	cty.Value, tfdiags.Diagnostics) {
+
+	mockValue := make(map[string]cty.Value)
+
+	var configMap map[string]cty.Value
+	var diags tfdiags.Diagnostics
+
+	if !config.IsNull() {
+		configMap = config.AsValueMap()
+	}
+
+	for k, attr := range schema.Attributes {
+		// If the value present in configuration - just use it.
+		if cv, ok := configMap[k]; ok && !cv.IsNull() {
+			mockValue[k] = cv
+			continue
+		}
+
+		// Computed attributes can't be generated
+		// so we set them from configuration only.
+		if !attr.Computed {
+			mockValue[k] = cty.NullVal(attr.Type)
+			continue
+		}
+
+		// If the attribute is computed and not configured,
+		// we use provided value from defaults.
+		if ov, ok := defaults[k]; ok {
+			mockValue[k] = ov
+			continue
+		}
+
+		// If there's no value in defaults, we generate our own.
+		v, ok := getMockValueByType(attr.Type)
+		if !ok {
+			return v, diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to generate mock value",
+				fmt.Sprintf("Mock value cannot be generated for dynamic type %v. Please, specify %v field explicitly in configuration.",
+					attr.Type, k),
+			))
+		}
+
+		mockValue[k] = v
+	}
+
+	return cty.ObjectVal(mockValue), nil
+}
+
+// getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
+// It will return non-ok response if it encounters dynamic type.
+func getMockValueByType(t cty.Type) (cty.Value, bool) {
+	var v cty.Value
+
+	// just to be sure for cases when the logic below misses something
+	if t.HasDynamicTypes() {
+		return v, false
+	}
+
+	switch {
+	// primitives
+	case t.Equals(cty.Number):
+		v = cty.Zero
+	case t.Equals(cty.Bool):
+		v = cty.False
+	case t.Equals(cty.String):
+		v = cty.StringVal(getRandomAlphaNumString(8))
+
+	// collections
+	case t.ListElementType() != nil:
+		v = cty.ListValEmpty(*t.ListElementType())
+	case t.MapElementType() != nil:
+		v = cty.MapValEmpty(*t.MapElementType())
+	case t.SetElementType() != nil:
+		v = cty.SetValEmpty(*t.SetElementType())
+
+	// structural
+	case t.IsObjectType():
+		v = cty.EmptyObjectVal
+	case t.IsTupleType():
+		v = cty.EmptyTupleVal
+
+	// dynamically typed values are not supported
+	default:
+		return v, false
+	}
+
+	return v, true
+}
+
+func getRandomAlphaNumString(length int) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+	b := strings.Builder{}
+	b.Grow(length)
+
+	for i := 0; i < length; i++ {
+		b.WriteByte(chars[rand.Intn(len(chars))])
+	}
+
+	return b.String()
 }
