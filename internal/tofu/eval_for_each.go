@@ -89,10 +89,14 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 	ty := forEachVal.Type()
 
 	var isAllowedType bool
+	var allowedTypesMessage string
 	if allowTuple {
 		isAllowedType = ty.IsMapType() || ty.IsSetType() || ty.IsObjectType() || ty.IsTupleType()
+		allowedTypesMessage = "map, set of strings, or a tuple"
 	} else {
 		isAllowedType = ty.IsMapType() || ty.IsSetType() || ty.IsObjectType()
+		allowedTypesMessage = "map, or set of strings"
+
 	}
 
 	const errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\nAlternatively, you could use the -target planning option to first apply only the resources that the for_each value depends on, and then apply a second time to fully converge."
@@ -103,7 +107,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      `The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A map, or set of strings is allowed.`,
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A %s is allowed.`, allowedTypesMessage),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
@@ -136,7 +140,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the "for_each" argument must be a map, or set of strings, and you have provided a value of type %s.`, ty.FriendlyName()),
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the "for_each" argument must be a %s, and you have provided a value of type %s.`, allowedTypesMessage, ty.FriendlyName()),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
@@ -172,7 +176,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
 				Summary:     "Invalid for_each set argument",
-				Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports maps and sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
+				Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
 				EvalContext: hclCtx,
