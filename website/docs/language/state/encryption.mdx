@@ -45,7 +45,11 @@ Finally, before enabling encryption, please exercise your disaster recovery plan
 
 ### Migrating from an unencrypted state/plan
 
-If you have a pre-existing state file and want to enable encryption, simply enabling encryption is not enough as OpenTofu will refuse to read plain text data. This is a protection mechanism to prevent OpenTofu from reading manipulated, unencrypted data. Please see the [initial setup](#initial-setup) section below for detailed migration instructions
+If you have a pre-existing state file and want to enable encryption, simply enabling encryption is not enough as OpenTofu will refuse to read plain text data. This is a protection mechanism to prevent OpenTofu from reading manipulated, unencrypted data. Please see the [initial setup](#initial-setup) section below for detailed migration instructions.
+
+### Compatibility guarantee
+
+Research in cryptography can change the state of the art quickly. We will support all key providers and methods as documented for +1 minor version, but may introduce new versions of the same key providers and methods (e.g. `aes_gcm_v2`), or new key providers and methods in any minor version. If we deprecate a key provider or method, you will receive a warning on the console when running `tofu plan` or `tofu apply`. If you receive such a warning, please switch before upgrading to the next version.
 
 ## Configuration
 
@@ -68,7 +72,6 @@ The basic configuration structure looks as follows:
 :::warning
 
 Once your data is encrypted, do not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead, use a [fallback block](#key-and-method-rollover) to handle changes to key providers.
-
 
 :::
 
@@ -174,7 +177,7 @@ The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
 
-### OpenBao
+### OpenBao (experimental)
 
 This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/docs/secrets/transit) to generate data keys. You can configure it as follows:
 
@@ -189,6 +192,16 @@ This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/d
 The following example illustrates a possible configuration:
 
 <CodeBlock language="hcl">{OpenBao}</CodeBlock>
+
+:::warning
+
+The OpenBao key provider is currently experimental because there was no stable release of OpenBao available at the time the OpenTofu release was made.
+
+:::
+
+:::info
+
+The OpenBao key provider is compatible with the last MPL-licensed version of HashiCorp Vault (1.14) but does not support the subsequent BUSL-licensed versions.
 
 ## Methods
 
