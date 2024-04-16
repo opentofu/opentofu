@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -88,8 +87,8 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 		return nil, nil
 	}
 	traversals := expr.Variables()
-	if hexpr, ok := expr.(hclsyntax.Expression); ok {
-		funcs := filterProviderFunctions(hclsyntax.Functions(hexpr))
+	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
+		funcs := filterProviderFunctions(fexpr.Functions())
 		traversals = append(traversals, funcs...)
 	}
 	return References(parseRef, traversals)
@@ -98,9 +97,12 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
 	pfuncs := make([]hcl.Traversal, 0, len(funcs))
 	for _, fn := range funcs {
-		// TODO safer cast
-		if strings.HasPrefix(fn[0].(hcl.TraverseRoot).Name, "provider::") {
-			pfuncs = append(pfuncs, fn)
+		if len(fn) > 0 {
+			if root, ok := fn[0].(hcl.TraverseRoot); ok {
+				if strings.HasPrefix(root.Name, "provider::") {
+					pfuncs = append(pfuncs, fn)
+				}
+			}
 		}
 	}
 	return pfuncs
