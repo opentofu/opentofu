@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/lang/funcs"
 )
@@ -24,7 +25,8 @@ var impureFunctions = []string{
 	"uuid",
 }
 
-const CoreNamespace = "core::"
+// This should probably be replaced with addrs.Function everywhere
+const CoreNamespace = addrs.FunctionNamespaceCore + "::"
 
 // Functions returns the set of functions that should be used to when evaluating
 // expressions in the receiving scope.

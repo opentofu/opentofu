@@ -31,7 +31,7 @@ type Function struct {
 	Name       string
 }
 
-var (
+const (
 	FunctionNamespaceProvider = "provider"
 	FunctionNamespaceCore     = "core"
 )
