@@ -126,28 +126,6 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
-func (ctx *BuiltinEvalContext) GetOrInitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
-	ctx.ProviderLock.Lock()
-	defer ctx.ProviderLock.Unlock()
-
-	key := addr.String()
-
-	// If we already initialized, it is an error
-	if p, ok := ctx.ProviderCache[key]; ok {
-		return p, nil
-	}
-
-	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
-	ctx.ProviderCache[key] = p
-
-	return p, nil
-}
-
 func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
@@ -561,12 +539,42 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 			Module:   mc.Path,
 			Alias:    pf.Alias,
 		}
-		// TODO check if alias is valid!
 
-		// Unconfigured providers may not yet be initialized
-		provider, err := ctx.GetOrInitProvider(absPc)
-		if err != nil {
-			return nil, diags.Append(err)
+		provider := ctx.Provider(absPc)
+
+		if provider == nil {
+			// Configured provider (NodeApplyableProvider) not required via transform_provider.go.  Instead we should use the unconfigured instance (NodeEvalableProvider) in the root.
+
+			// Make sure the alias is valid
+			validAlias := pf.Alias == ""
+			if !validAlias {
+				for _, alias := range pr.Aliases {
+					println(alias.Alias)
+					if alias.Alias == pf.Alias {
+						validAlias = true
+						break
+					}
+				}
+				if !validAlias {
+					return nil, diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Unknown function provider",
+						Detail:   fmt.Sprintf("Provider %q does not have alias %q", pf.Name, pf.Alias),
+						Subject:  rng.ToHCL().Ptr(),
+					})
+				}
+			}
+
+			provider = ctx.Provider(addrs.AbsProviderConfig{Provider: pr.Type})
+			if provider == nil {
+				// This should not be possible
+				return nil, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Uninitialized function provider",
+					Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
+					Subject:  rng.ToHCL().Ptr(),
+				})
+			}
 		}
 
 		specs := provider.GetFunctions()
