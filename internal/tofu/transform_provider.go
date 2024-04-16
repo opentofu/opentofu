@@ -32,8 +32,10 @@ func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Confi
 		&ProviderTransformer{
 			Config: config,
 		},
+		// After schema transformer, we can add function references
+		//  &ProviderFunctionTransformer{Config: config},
 		// Remove unused providers and proxies
-		&PruneProviderTransformer{},
+		//  &PruneProviderTransformer{},
 	)
 }
 
@@ -161,52 +163,6 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// Direct references need the provider configured as well as initialized
 			needConfigured[absPc.String()] = absPc
 		}
-		// Provider function references
-		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
-			for _, ref := range nr.References() {
-				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					mc := t.Config.Descendent(nr.ModulePath())
-					if mc == nil {
-						// I don't think this is possible
-						diags = diags.Append(&hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Unknown Descendent Module",
-							Detail:   nr.ModulePath().String(),
-							Subject:  ref.SourceRange.ToHCL().Ptr(),
-						})
-						continue
-					}
-
-					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
-					if !ok {
-						diags = diags.Append(&hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Unknown function provider",
-							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.Name),
-							Subject:  ref.SourceRange.ToHCL().Ptr(),
-						})
-						continue
-					}
-
-					absPc := addrs.AbsProviderConfig{
-						Provider: pr.Type,
-						Module:   nr.ModulePath(),
-						Alias:    pf.Alias,
-					}
-
-					if _, ok := requested[v]; !ok {
-						requested[v] = make(map[string]ProviderRequest)
-					}
-
-					requested[v][absPc.String()] = ProviderRequest{
-						Addr:  absPc,
-						Exact: true,
-					}
-
-					log.Printf("[TRACE] ProviderTransformer: %s in %s is provided by %s exactly", pf, dag.VertexName(v), absPc)
-				}
-			}
-		}
 	}
 
 	// Now we'll go through all the requested addresses we just collected and
@@ -284,6 +240,142 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			if pv, ok := v.(GraphNodeProviderConsumer); ok {
 				pv.SetProvider(target.ProviderAddr())
 			}
+			g.Connect(dag.BasicEdge(v, target))
+		}
+	}
+
+	return diags.Err()
+}
+
+// ProviderFunctionTransformer is a GraphTransformer that maps resources to providers
+// within the graph. This will error if there are any resources that don't map
+// to proper resources.
+type ProviderFunctionTransformer struct {
+	Config *configs.Config
+}
+
+func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
+	// We need to find a provider configuration address for each resource
+	// either directly represented by a node or referenced by a node in
+	// the graph, and then create graph edges from provider to provider user
+	// so that the providers will get initialized first.
+
+	var diags tfdiags.Diagnostics
+
+	// To start, we'll collect the _requested_ provider addresses for each
+	// node, which we'll then resolve (handling provider inheritence, etc) in
+	// the next step.
+	// Our "requested" map is from graph vertices to string representations of
+	// provider config addresses (for deduping) to requests.
+	requested := make(map[dag.Vertex]map[string]addrs.AbsProviderConfig)
+	for _, v := range g.Vertices() {
+		// Provider function references
+		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
+			for _, ref := range nr.References() {
+				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
+					mc := t.Config.Descendent(nr.ModulePath())
+					if mc == nil {
+						// I don't think this is possible
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown Descendent Module",
+							Detail:   nr.ModulePath().String(),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
+					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
+					if !ok {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown function provider",
+							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.Name),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
+					absPc := addrs.AbsProviderConfig{
+						Provider: pr.Type,
+						Module:   nr.ModulePath(),
+						Alias:    pf.Alias,
+					}
+
+					if _, ok := requested[v]; !ok {
+						requested[v] = make(map[string]addrs.AbsProviderConfig)
+					}
+
+					requested[v][absPc.String()] = absPc
+
+					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
+				}
+			}
+		}
+	}
+
+	// Now we'll go through all the requested addresses we just collected and
+	// figure out which _actual_ config address each belongs to, after resolving
+	// for provider inheritance and passing.
+	m := providerVertexMap(g)
+	for v, reqs := range requested {
+		for key, p := range reqs {
+			target := m[key]
+			exact := true // TODO
+
+			_, ok := v.(GraphNodeModulePath)
+			if !ok && target == nil {
+				// No target and no path to traverse up from
+				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), p))
+				continue
+			}
+
+			if target != nil {
+				log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", p, dag.VertexName(v))
+			}
+
+			// if we don't have a provider at this level, walk up the path looking for one,
+			// unless we were told to be exact.
+			if target == nil && !exact {
+				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
+					key := pp.String()
+					target = m[key]
+					if target != nil {
+						log.Printf("[TRACE] ProviderFunctionTransformer: %s uses inherited configuration %s", dag.VertexName(v), pp)
+						break
+					}
+					log.Printf("[TRACE] ProviderFunctionTransformer: looking for %s to serve %s", pp, dag.VertexName(v))
+				}
+			}
+
+			// If this provider doesn't need to be configured then we can just
+			// stub it out with an init-only provider node, which will just
+			// start up the provider and fetch its schema.
+			if target == nil {
+				stubAddr := addrs.AbsProviderConfig{
+					Module:   addrs.RootModule,
+					Provider: p.Provider,
+				}
+				if target, ok = m[stubAddr.String()]; !ok {
+					stub := &NodeEvalableProvider{
+						&NodeAbstractProvider{
+							Addr: stubAddr,
+						},
+					}
+					m[stubAddr.String()] = stub
+					log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+					target = stub
+					g.Add(target)
+				}
+			}
+
+			// see if this is a proxy provider pointing to another concrete config
+			if p, ok := target.(*graphNodeProxyProvider); ok {
+				g.Remove(p)
+				target = p.Target()
+			}
+
+			log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			g.Connect(dag.BasicEdge(v, target))
 		}
 	}
