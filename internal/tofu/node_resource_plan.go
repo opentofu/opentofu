@@ -150,6 +150,17 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		}
 	}
 
+	// Resolve addresses and IDs of all import targets that originate from import blocks
+	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
+	importResolver := ctx.ImportResolver()
+	var diags tfdiags.Diagnostics
+	for _, importTarget := range n.importTargets {
+		if importTarget.IsFromImportBlock() {
+			err := importResolver.ResolveImport(importTarget, ctx)
+			diags = diags.Append(err)
+		}
+	}
+
 	// The above dealt with the expansion of the containing module, so now
 	// we need to deal with the expansion of the resource itself across all
 	// instances of the module.
@@ -157,7 +168,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	// We'll gather up all of the leaf instances we learn about along the way
 	// so that we can inform the checks subsystem of which instances it should
 	// be expecting check results for, below.
-	var diags tfdiags.Diagnostics
 	instAddrs := addrs.MakeSet[addrs.Checkable]()
 	for _, module := range moduleInstances {
 		resAddr := n.Addr.Resource.Absolute(module)
@@ -303,17 +313,10 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	var diags tfdiags.Diagnostics
 
 	var commandLineImportTargets []CommandLineImportTarget
-	importResolver := ctx.ImportResolver()
-	// FIXME - Deal with cases of duplicate addresses
 
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportCommandLine() {
 			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
-		} else {
-			err := importResolver.ResolveImport(importTarget, ctx)
-			if err != nil {
-				return nil, err
-			}
 		}
 	}
 
@@ -364,14 +367,9 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		for _, evaluatedConfigImportTarget := range ctx.ImportResolver().GetAllImports() {
-			// TODO - Change this code once Config.To is not a static address, to actually evaluate it
-			if evaluatedConfigImportTarget.Config.To.Equal(a.Addr) {
-				// If we get here, we're definitely not in legacy import mode,
-				// so go ahead and plan the resource changes including import.
-				m.importTarget = evaluatedConfigImportTarget
-				break
-			}
+		resolvedImportTarget := ctx.ImportResolver().GetImport(a.Addr)
+		if resolvedImportTarget != nil {
+			m.importTarget = *resolvedImportTarget
 		}
 
 		return m

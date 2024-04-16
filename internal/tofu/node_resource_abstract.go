@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -211,6 +213,41 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 	return result
 }
 
+// referencesInImportAddress find all references relevant to the node in an import target address expression.
+// The only references we care about here are the references that exist in the keys of hclsyntax.IndexExpr.
+// For example, if the address is module.my_module1[expression1].aws_s3_bucket.bucket[expression2], then we would only
+// consider references in expression1 and expression2, as the rest of the expression is the static part of the current
+// resource's address
+func referencesInImportAddress(expr hcl.Expression) (refs []*addrs.Reference, diags tfdiags.Diagnostics) {
+	switch e := expr.(type) {
+	case *hclsyntax.IndexExpr:
+		r, d := referencesInImportAddress(e.Collection)
+		diags = diags.Append(d)
+		refs = append(refs, r...)
+
+		r, _ = lang.ReferencesInExpr(addrs.ParseRef, e.Key)
+		refs = append(refs, r...)
+	case *hclsyntax.RelativeTraversalExpr:
+		r, d := referencesInImportAddress(e.Source)
+		refs = append(refs, r...)
+		diags = diags.Append(d)
+
+		// We don't care about the traversal part of the relative expression
+		// as it should not contain any references in the index keys
+	case *hclsyntax.ScopeTraversalExpr:
+		// Static traversals should not contain any references in the index keys
+	default:
+		//  This should not happen, as it should have failed validation earlier, in config.absTraversalForImportToExpr
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import address expression",
+			Detail:   "Import address must be a reference to a resource's address, and only allows for indexing with dynamic keys. For example: module.my_module[expression1].aws_s3_bucket.my_buckets[expression2] for resources inside of modules, or simply aws_s3_bucket.my_bucket for a resource in the root module",
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+	return
+}
+
 func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 	var root []*addrs.Reference
 
@@ -220,7 +257,12 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 			continue
 		}
 
-		refs, _ := lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
+		refs, _ := referencesInImportAddress(importTarget.Config.To)
+
+		// TODO - Add RootReferences of ForEach here later one, once for_each is added
+		root = append(root, refs...)
+
+		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)
 		root = append(root, refs...)
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -56,24 +57,25 @@ func (e *targetBuilder) setupMethod(cfg config.MethodConfig) hcl.Diagnostics {
 		// Handle if the method was not found
 		var notFoundError *registry.MethodNotFoundError
 		if errors.Is(err, notFoundError) {
-			return hcl.Diagnostics{&hcl.Diagnostic{
+			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unknown encryption method type",
 				Detail:   fmt.Sprintf("Can not find %q", cfg.Type),
-			}}
+			})
 		}
 
 		// Or, we don't know the error type, so we'll just return it as a generic error
-		return hcl.Diagnostics{&hcl.Diagnostic{
+		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Error fetching encryption method %q", cfg.Type),
 			Detail:   err.Error(),
-		}}
+		})
 	}
 
 	// TODO: we could use varhcl here to provider better error messages
 	methodConfig := encryptionMethod.ConfigStruct()
-	diags = gohcl.DecodeBody(cfg.Body, e.ctx, methodConfig)
+	methodDiags := gohcl.DecodeBody(cfg.Body, e.ctx, methodConfig)
+	diags = append(diags, methodDiags...)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -82,12 +84,21 @@ func (e *targetBuilder) setupMethod(cfg config.MethodConfig) hcl.Diagnostics {
 	m, err := methodConfig.Build()
 	if err != nil {
 		// TODO this error handling could use some work
-		return hcl.Diagnostics{&hcl.Diagnostic{
+		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Encryption method configuration failed",
 			Detail:   err.Error(),
-		}}
+		})
 	}
 	e.methods[addr] = m
-	return nil
+
+	if unencrypted.Is(m) {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Unencrypted method configured",
+			Detail:   "Method unencrypted is present in configuration. This is a security risk and should only be enabled during migrations.",
+		})
+	}
+
+	return diags
 }

@@ -169,7 +169,7 @@ type FunctionParameterSpec struct {
 	Type cty.Type
 	// Null values alowed for the parameter
 	AllowNullValue bool
-	// Unknown Values allowd for the parameter
+	// Unknown Values allowed for the parameter
 	// Implies the Return type of the function is also Unknown
 	AllowUnknownValues bool
 	// Human-readable documentation for the parameter

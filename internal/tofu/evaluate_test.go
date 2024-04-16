@@ -338,7 +338,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 					},
 				},
 			},
-		}),
+		}, t),
 	}
 
 	data := &evaluationStateData{
@@ -504,7 +504,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 			},
 		},
 		State:   stateSync,
-		Plugins: schemaOnlyProvidersForTesting(schemas.Providers),
+		Plugins: schemaOnlyProvidersForTesting(schemas.Providers, t),
 	}
 
 	data := &evaluationStateData{

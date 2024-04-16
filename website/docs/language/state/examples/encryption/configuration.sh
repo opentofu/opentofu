@@ -1,4 +1,4 @@
-read -d '' TF_ENCRYPTION << EOF
+TF_ENCRYPTION=$(cat <<EOF
 terraform {
   encryption {
     key_provider "some_key_provider" "some_name" {
@@ -25,4 +25,4 @@ terraform {
     }
   }
 }
-EOF
+EOF)

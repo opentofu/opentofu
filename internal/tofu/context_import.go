@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -71,50 +72,39 @@ func (i *ImportTarget) IsFromImportCommandLine() bool {
 // and could only be evaluated down the line. Here, we create a static representation for the address.
 // This is useful so that we could have information on the ImportTarget early on, such as the Module and Resource of it
 func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
-	if i.CommandLineImportTarget != nil {
+	if i.IsFromImportCommandLine() {
 		return i.CommandLineImportTarget.Addr.ConfigResource()
 	}
 
-	// TODO change this later, once we change Config.To to not be a static address
-	return i.Config.To.ConfigResource()
+	return i.Config.StaticTo
 }
 
-// ResolvedAddr returns the resolved address of an import target, if possible. If not possible, returns an HCL diag
+// ResolvedAddr returns a reference to the resolved address of an import target, if possible. If not possible, it
+// returns nil.
 // For an ImportTarget originating from the command line, the address is already known
 // However for an ImportTarget originating from an import block, the full address might not be known initially,
-// and could only be evaluated down the line. Here, we attempt to resolve the address as though it is a static absolute
-// traversal, if that's possible
-func (i *ImportTarget) ResolvedAddr() (address addrs.AbsResourceInstance, evaluationDiags hcl.Diagnostics) {
-	if i.CommandLineImportTarget != nil {
-		address = i.CommandLineImportTarget.Addr
+// and could only be evaluated down the line.
+func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
+	if i.IsFromImportCommandLine() {
+		return &i.CommandLineImportTarget.Addr
 	} else {
-		// TODO change this later, when Config.To is not a static address
-		address = i.Config.To
+		return i.Config.ResolvedTo
 	}
-	return
-}
-
-// ResolvedConfigImportsKey is a key for a map of ImportTargets originating from the configuration
-// It is used as a one-to-one representation of an EvaluatedConfigImportTarget.
-// Used in ImportResolver to maintain a map of all resolved imports when walking the graph
-type ResolvedConfigImportsKey struct {
-	// An address string is one-to-one with addrs.AbsResourceInstance
-	AddrStr string
-	ID      string
 }
 
 // ImportResolver is a struct that maintains a map of all imports as they are being resolved.
 // This is specifically for imports originating from configuration.
 // Import targets' addresses are not fully known from the get-go, and could only be resolved later when walking
 // the graph. This struct helps keep track of the resolved imports, mostly for validation that all imports
-// have been addressed and point to an actual configuration
+// have been addressed and point to an actual configuration.
+// The key of the map is a string representation of the address, and the value is an EvaluatedConfigImportTarget.
 type ImportResolver struct {
 	mu      sync.RWMutex
-	imports map[ResolvedConfigImportsKey]EvaluatedConfigImportTarget
+	imports map[string]EvaluatedConfigImportTarget
 }
 
 func NewImportResolver() *ImportResolver {
-	return &ImportResolver{imports: make(map[ResolvedConfigImportsKey]EvaluatedConfigImportTarget)}
+	return &ImportResolver{imports: make(map[string]EvaluatedConfigImportTarget)}
 }
 
 // ResolveImport resolves the ID and address (soon, when it will be necessary) of an ImportTarget originating
@@ -122,29 +112,47 @@ func NewImportResolver() *ImportResolver {
 // EvaluatedConfigImportTarget.
 // This function mutates the EvalContext's ImportResolver, adding the resolved import target
 // The function errors if we failed to evaluate the ID or the address (soon)
-func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalContext) error {
-	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx)
-	if evalDiags.HasErrors() {
-		return evalDiags.Err()
+func (ri *ImportResolver) ResolveImport(importTarget *ImportTarget, ctx EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// The import block expressions are declared within the root module.
+	// We need to explicitly use the context with the path of the root module, so that all references will be
+	// relative to the root module
+	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
+
+	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, rootCtx)
+	diags = diags.Append(evalDiags)
+	if diags.HasErrors() {
+		return diags
 	}
 
-	// TODO - Change once an import target's address is more dynamic
-	importAddress := importTarget.Config.To
+	importAddress, addressDiags := rootCtx.EvaluateImportAddress(importTarget.Config.To)
+	diags = diags.Append(addressDiags)
+	if diags.HasErrors() {
+		return diags
+	}
 
 	ri.mu.Lock()
 	defer ri.mu.Unlock()
 
-	resolvedImportKey := ResolvedConfigImportsKey{
-		AddrStr: importAddress.String(),
-		ID:      importId,
+	resolvedImportKey := importAddress.String()
+
+	if importTarget, exists := ri.imports[resolvedImportKey]; exists {
+		return diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Duplicate import configuration for %q", importAddress),
+			Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", importAddress, importTarget.Config.DeclRange),
+			Subject:  importTarget.Config.DeclRange.Ptr(),
+		})
 	}
 
 	ri.imports[resolvedImportKey] = EvaluatedConfigImportTarget{
 		Config: importTarget.Config,
+		Addr:   importAddress,
 		ID:     importId,
 	}
 
-	return nil
+	return diags
 }
 
 // GetAllImports returns all resolved imports
@@ -157,6 +165,18 @@ func (ri *ImportResolver) GetAllImports() []EvaluatedConfigImportTarget {
 		allImports = append(allImports, importTarget)
 	}
 	return allImports
+}
+
+func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *EvaluatedConfigImportTarget {
+	ri.mu.RLock()
+	defer ri.mu.RUnlock()
+
+	for _, importTarget := range ri.imports {
+		if importTarget.Addr.Equal(address) {
+			return &importTarget
+		}
+	}
+	return nil
 }
 
 // Import takes already-created external resources and brings them
