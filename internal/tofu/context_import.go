@@ -193,10 +193,9 @@ func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalCont
 	}
 
 	if keyData == EvalDataForNoInstanceKey {
-		log.Printf("[TRACE] importResolver: resolved an expanded import target %s", importAddress)
-	} else {
 		log.Printf("[TRACE] importResolver: resolved a singular import target %s", importAddress)
-
+	} else {
+		log.Printf("[TRACE] importResolver: resolved an expanded import target %s", importAddress)
 	}
 
 	return diags
