@@ -429,7 +429,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 
 	var resp providers.PlanResourceChangeResponse
 
-	if !n.Config.IsOverriden {
+	if n.Config == nil || !n.Config.IsOverriden {
 		// Allow the provider to check the destroy plan, and insert any necessary
 		// private data.
 		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
@@ -1523,7 +1523,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 	if tfp, ok := provider.(ProviderWithEncryption); ok {
 		// Special case for terraform_remote_state
 		resp = tfp.ReadDataSourceEncrypted(req, n.Addr, ctx.GetEncryption())
-	} else if !n.Config.IsOverriden {
+	} else if !config.IsOverriden {
 		resp = provider.ReadDataSource(req)
 	} else {
 		// If the resource is overriden we don't want to call the underlying provider.
@@ -2372,7 +2372,7 @@ func (n *NodeAbstractResourceInstance) apply(
 
 	var resp providers.ApplyResourceChangeResponse
 
-	if !n.Config.IsOverriden {
+	if n.Config == nil || !n.Config.IsOverriden {
 		resp = provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
 			TypeName:       n.Addr.Resource.Resource.Type,
 			PriorState:     unmarkedBefore,
