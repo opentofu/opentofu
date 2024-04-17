@@ -467,11 +467,13 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			outputValues[subj.Name] = val
 		case addrs.ProviderFunction:
 			// Inject function directly into context
-			fn, fnDiags := s.ProviderFunctions(subj, rng)
-			diags = diags.Append(fnDiags)
+			if _, ok := ctx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.ProviderFunctions(subj, rng)
+				diags = diags.Append(fnDiags)
 
-			if !fnDiags.HasErrors() {
-				ctx.Functions[subj.String()] = *fn
+				if !fnDiags.HasErrors() {
+					ctx.Functions[subj.String()] = *fn
+				}
 			}
 		default:
 			// Should never happen
