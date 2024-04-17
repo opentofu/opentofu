@@ -1,5 +1,22 @@
 # Weekly Updates
 
+## 2024-04-17
+
+Hey there! First, apologies for the lack of updates over the last two weeks, we've been a bit busy with the [Cease and Desist Letter we got](https://opentofu.org/blog/our-response-to-hashicorps-cease-and-desist/). That's fortunately all sorted now, and we're fully back to engineering work this week! All of this delayed 1.7 by around a week, but this delay also gave us some additional time to add cool unique features to provider-defined functions in OpenTofu!
+
+Importantly, we're planning to get a 1.7.0-beta1 release out tomorrow!
+
+Additionally, we'll have a [livestream to showcase some cool stuff](https://youtube.com/live/6OXBv0MYalY) next week on Wednesday!
+
+- Current Status:
+  - More work on Provider-defined Functions has been happening. Importantly, we have a [bunch of OpenTofu-exclusive improvements](https://github.com/opentofu/opentofu/pull/1491) that will allow us to create providers that will let you have e.g. Lua files with custom functions side-by-side with your OpenTofu configuration. We will have a [livestream on Wednesday next week](https://youtube.com/live/6OXBv0MYalY) to showcase some of this functionality!
+  - The final [PR functionality-wise for for_each in import blocks](https://github.com/opentofu/opentofu/pull/1492) has now been merged. There's still some cleanup left, but the hard part is done!
+  - We've [improved the migration flow to encrypted state-files](https://github.com/opentofu/opentofu/pull/1458) that are coming in 1.7. It's now safer and easier to understand. This feature is of course - and will be - optional.
+  - Work is happening on multiple `tofu test`-related issues, though it might not make it's way into 1.7.
+  - We've added a [public ranking of issues by vote count](https://github.com/opentofu/opentofu/issues/1496), updated daily. This way, issues important for the community will be clearly visible!
+- How can I help?
+  - Please test the 1.7.0-beta1 release once it's out and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
 ## 2024-03-27
 
 Hello there!  We've had a fairly quiet couple days after KubeCon last week, but still managed to make progress in some key areas!
