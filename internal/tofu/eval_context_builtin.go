@@ -404,6 +404,7 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 // The implementation is inspired by config.AbsTraversalForImportToExpr, but this time we can evaluate the expression
 // in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
 // an Index Traversal, adding it to the Traverser
+// TODO move this function into eval_import.go
 func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	traversal, diags := ctx.traversalForImportExpr(expr, keyData)
 	if diags.HasErrors() {
@@ -442,7 +443,6 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression, keyDa
 	return
 }
 
-// TODO move this function into eval_import.go
 // parseImportIndexKeyExpr parses an expression that is used as a key in an index, of an HCL expression representing an
 // import target address, into a traversal of type hcl.TraverseIndex.
 // After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
