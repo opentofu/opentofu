@@ -124,12 +124,6 @@ type EvalContext interface {
 	// evaluating. Set this to nil if the "self" object should not be available.
 	EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics)
 
-	// EvaluateExprWithRepetitionData takes the given HCL expression and evaluates it
-	// to produce a value. it's different from EvaluateExpr as it takes into
-	// consideration any repetition key (a single combination of each.key and
-	// each.value of a for_each argument) that should be a part of the scope.
-	EvaluateExprWithRepetitionData(expr hcl.Expression, wantType cty.Type, keyData InstanceKeyEvalData) (cty.Value, tfdiags.Diagnostics)
-
 	// EvaluateReplaceTriggeredBy takes the raw reference expression from the
 	// config, and returns the evaluated *addrs.Reference along with a boolean
 	// indicating if that reference forces replacement.

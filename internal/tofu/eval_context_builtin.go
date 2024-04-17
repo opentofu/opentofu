@@ -284,11 +284,6 @@ func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Ty
 	return scope.EvalExpr(expr, wantType)
 }
 
-func (ctx *BuiltinEvalContext) EvaluateExprWithRepetitionData(expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
-	scope := ctx.EvaluationScope(nil, nil, keyData)
-	return scope.EvalExpr(expr, wantType)
-}
-
 func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 
 	// get the reference to lookup changes in the plan
@@ -447,6 +442,7 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression, keyDa
 	return
 }
 
+// TODO move this function into eval_import.go
 // parseImportIndexKeyExpr parses an expression that is used as a key in an index, of an HCL expression representing an
 // import target address, into a traversal of type hcl.TraverseIndex.
 // After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
@@ -457,7 +453,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyD
 	}
 
 	// evaluate and take into consideration the for_each key (if exists)
-	val, diags := ctx.EvaluateExprWithRepetitionData(expr, cty.DynamicPseudoType, keyData)
+	val, diags := evaluateExprWithRepetitionData(ctx, expr, cty.DynamicPseudoType, keyData)
 	if diags.HasErrors() {
 		return idx, diags
 	}

@@ -29,7 +29,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 	}
 
 	// evaluate the import ID and take into consideration the for_each key (if exists)
-	importIdVal, evalDiags := ctx.EvaluateExprWithRepetitionData(expr, cty.String, keyData)
+	importIdVal, evalDiags := evaluateExprWithRepetitionData(ctx, expr, cty.String, keyData)
 	diags = diags.Append(evalDiags)
 
 	if importIdVal.IsNull() {
@@ -74,4 +74,13 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 	}
 
 	return importId, diags
+}
+
+// evaluateExprWithRepetitionData takes the given HCL expression and evaluates
+// it to produce a value, while taking into consideration any repetition key
+// (a single combination of each.key and each.value of a for_each argument)
+// that should be a part of the scope.
+func evaluateExprWithRepetitionData(ctx EvalContext, expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+	scope := ctx.EvaluationScope(nil, nil, keyData)
+	return scope.EvalExpr(expr, wantType)
 }

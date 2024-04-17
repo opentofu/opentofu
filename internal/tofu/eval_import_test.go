@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"github.com/opentofu/opentofu/internal/lang"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
@@ -18,6 +19,7 @@ import (
 func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
+	ctx.EvaluationScopeScope = &lang.Scope{}
 
 	testCases := []struct {
 		name    string
