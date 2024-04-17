@@ -8,5 +8,5 @@ terraform {
 }
 
 output "dummy" {
-	value = provider::example::echo("Hello Functions")
+	value = provider::example::error()
 }

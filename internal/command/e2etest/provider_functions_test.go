@@ -8,9 +8,9 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
-func TestSimpleFunction(t *testing.T) {
+func TestFunction_Simple(t *testing.T) {
 	// This test reaches out to registry.opentofu.org to download the
-	// helper function provider, so it can only run if network access is allowed
+	// test functions provider, so it can only run if network access is allowed
 	skipIfCannotAccessNetwork(t)
 
 	fixturePath := filepath.Join("testdata", "functions")
@@ -46,5 +46,30 @@ func TestSimpleFunction(t *testing.T) {
 			t.Fatalf("unexpected plan output: %s", string(out.After))
 		}
 	}
+}
 
+func TestFunction_Error(t *testing.T) {
+	// This test reaches out to registry.opentofu.org to download the
+	// test functions provider, so it can only run if network access is allowed
+	skipIfCannotAccessNetwork(t)
+	fixturePath := filepath.Join("testdata", "functions-error")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	// tofu init
+	_, stderr, err := tf.Run("init")
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	if stderr != "" {
+		t.Errorf("unexpected stderr output:\n%s", stderr)
+	}
+
+	// tofu plan -out=fnplan
+	_, stderr, err = tf.Run("plan", "-out=fnplan")
+	if err == nil {
+		t.Errorf("expected error: %s", err)
+	}
+	if !strings.Contains(stderr, "Call to function \"provider::example::error\" failed") {
+		t.Errorf("unexpected stderr output:\n%s", stderr)
+	}
 }
