@@ -73,7 +73,7 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 		configMap = config.AsValueMap()
 	}
 
-	for k, attr := range schema.Attributes {
+	for k, t := range schema.ImpliedType().AttributeTypes() {
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
 			mockValue[k] = cv
@@ -82,8 +82,14 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 
 		// Computed attributes can't be generated
 		// so we set them from configuration only.
-		if !attr.Computed {
+		if attr, ok := schema.Attributes[k]; ok && !attr.Computed {
 			mockValue[k] = cty.NullVal(attr.Type)
+			continue
+		}
+
+		// Optional blocks shouldn't be populated with mock values.
+		if block, ok := schema.BlockTypes[k]; ok && block.MinItems == 0 && block.MaxItems == 0 {
+			mockValue[k] = block.EmptyValue()
 			continue
 		}
 
@@ -95,13 +101,13 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 		}
 
 		// If there's no value in defaults, we generate our own.
-		v, ok := getMockValueByType(attr.Type)
+		v, ok := getMockValueByType(t)
 		if !ok {
 			return v, diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to generate mock value",
 				fmt.Sprintf("Mock value cannot be generated for dynamic type %v. Please, specify %v field explicitly in configuration.",
-					attr.Type, k),
+					t, k),
 			))
 		}
 
@@ -118,7 +124,7 @@ func getMockValueByType(t cty.Type) (cty.Value, bool) {
 
 	// just to be sure for cases when the logic below misses something
 	if t.HasDynamicTypes() {
-		return v, false
+		return cty.Value{}, false
 	}
 
 	switch {
@@ -140,13 +146,29 @@ func getMockValueByType(t cty.Type) (cty.Value, bool) {
 
 	// structural
 	case t.IsObjectType():
-		v = cty.EmptyObjectVal
+		objVals := make(map[string]cty.Value)
+
+		// populate the object with mock values
+		for k, at := range t.AttributeTypes() {
+			if t.AttributeOptional(k) {
+				continue
+			}
+
+			v, ok := getMockValueByType(at)
+			if !ok {
+				return cty.Value{}, false
+			}
+
+			objVals[k] = v
+		}
+
+		v = cty.ObjectVal(objVals)
 	case t.IsTupleType():
 		v = cty.EmptyTupleVal
 
 	// dynamically typed values are not supported
 	default:
-		return v, false
+		return cty.Value{}, false
 	}
 
 	return v, true
