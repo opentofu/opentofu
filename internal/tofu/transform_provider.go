@@ -32,6 +32,7 @@ func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Confi
 		&ProviderTransformer{
 			Config: config,
 		},
+		// The following comment shows what must be added to the transformer list after the schema transformer
 		// After schema transformer, we can add function references
 		//  &ProviderFunctionTransformer{Config: config},
 		// Remove unused providers and proxies
@@ -247,9 +248,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	return diags.Err()
 }
 
-// ProviderFunctionTransformer is a GraphTransformer that maps resources to providers
-// within the graph. This will error if there are any resources that don't map
-// to proper resources.
+// ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
+// within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {
 	Config *configs.Config
 }
@@ -285,12 +285,12 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						continue
 					}
 
-					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
+					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
 					if !ok {
 						diags = diags.Append(&hcl.Diagnostic{
 							Severity: hcl.DiagError,
 							Summary:  "Unknown function provider",
-							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.Name),
+							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
 							Subject:  ref.SourceRange.ToHCL().Ptr(),
 						})
 						continue
@@ -299,7 +299,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					absPc := addrs.AbsProviderConfig{
 						Provider: pr.Type,
 						Module:   nr.ModulePath(),
-						Alias:    pf.Alias,
+						Alias:    pf.ProviderAlias,
 					}
 
 					if _, ok := requested[v]; !ok {

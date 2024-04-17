@@ -8,16 +8,16 @@ import (
 // ProviderFunction is the address of a provider defined function.
 type ProviderFunction struct {
 	referenceable
-	Name     string
-	Alias    string
-	Function string
+	ProviderName  string
+	ProviderAlias string
+	Function      string
 }
 
 func (v ProviderFunction) String() string {
-	if v.Alias != "" {
-		return fmt.Sprintf("provider::%s::%s::%s", v.Name, v.Alias, v.Function)
+	if v.ProviderAlias != "" {
+		return fmt.Sprintf("provider::%s::%s::%s", v.ProviderName, v.ProviderAlias, v.Function)
 	}
-	return fmt.Sprintf("provider::%s::%s", v.Name, v.Function)
+	return fmt.Sprintf("provider::%s::%s", v.ProviderName, v.Function)
 }
 
 func (v ProviderFunction) UniqueKey() UniqueKey {
@@ -35,6 +35,11 @@ const (
 	FunctionNamespaceProvider = "provider"
 	FunctionNamespaceCore     = "core"
 )
+
+var FunctionNamespaces = []string{
+	FunctionNamespaceProvider,
+	FunctionNamespaceCore,
+}
 
 func ParseFunction(input string) Function {
 	parts := strings.Split(input, "::")
@@ -55,16 +60,16 @@ func (f Function) IsNamespace(namespace string) bool {
 func (f Function) AsProviderFunction() (pf ProviderFunction, err error) {
 	if !f.IsNamespace(FunctionNamespaceProvider) {
 		// Should always be checked ahead of time!
-		panic(f.String())
+		panic("BUG: non-provider function " + f.String())
 	}
 
 	if len(f.Namespaces) == 2 {
 		// provider::<name>::<function>
-		pf.Name = f.Namespaces[1]
+		pf.ProviderName = f.Namespaces[1]
 	} else if len(f.Namespaces) == 3 {
 		// provider::<name>::<alias>::<function>
-		pf.Name = f.Namespaces[1]
-		pf.Alias = f.Namespaces[2]
+		pf.ProviderName = f.Namespaces[1]
+		pf.ProviderAlias = f.Namespaces[2]
 	} else {
 		return pf, fmt.Errorf("invalid provider function %q: expected provider::<name>::<function> or provider::<name>::<alias>::<function>", f)
 	}

@@ -132,7 +132,7 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 
 	key := addr.String()
 
-	// If we already initialized, it is an error
+	// If we have already initialized, it is an error
 	if _, ok := ctx.ProviderCache[key]; ok {
 		return nil, fmt.Errorf("%s is already initialized", addr)
 	}

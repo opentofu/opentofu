@@ -18,12 +18,12 @@ import (
 func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.Name]
+	pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
 	if !ok {
 		return nil, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unknown function provider",
-			Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.Name),
+			Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 	}
@@ -32,7 +32,7 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 	absPc := addrs.AbsProviderConfig{
 		Provider: pr.Type,
 		Module:   mc.Path,
-		Alias:    pf.Alias,
+		Alias:    pf.ProviderAlias,
 	}
 
 	provider := ctx.Provider(absPc)
@@ -41,11 +41,10 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 		// Configured provider (NodeApplyableProvider) not required via transform_provider.go.  Instead we should use the unconfigured instance (NodeEvalableProvider) in the root.
 
 		// Make sure the alias is valid
-		validAlias := pf.Alias == ""
+		validAlias := pf.ProviderAlias == ""
 		if !validAlias {
 			for _, alias := range pr.Aliases {
-				println(alias.Alias)
-				if alias.Alias == pf.Alias {
+				if alias.Alias == pf.ProviderAlias {
 					validAlias = true
 					break
 				}
@@ -54,7 +53,7 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 				return nil, diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Unknown function provider",
-					Detail:   fmt.Sprintf("Provider %q does not have alias %q", pf.Name, pf.Alias),
+					Detail:   fmt.Sprintf("No provider instance %q with alias %q", pf.ProviderName, pf.ProviderAlias),
 					Subject:  rng.ToHCL().Ptr(),
 				})
 			}
@@ -65,7 +64,7 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 			// This should not be possible
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Uninitialized function provider",
+				Summary:  "BUG: Uninitialized function provider",
 				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
 				Subject:  rng.ToHCL().Ptr(),
 			})
@@ -113,7 +112,7 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Function not found in provider",
-				Detail:   fmt.Sprintf("Function %q was not registered by provider%q", pf.Function, absPc.String()),
+				Detail:   fmt.Sprintf("Function %q was not registered by provider %q", pf.Function, absPc.String()),
 				Subject:  rng.ToHCL().Ptr(),
 			})
 		}

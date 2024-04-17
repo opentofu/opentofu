@@ -875,7 +875,7 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 			"Invalid prefix",
 			"attr = magic::missing_function(54)",
 			"Unknown function namespace",
-			"Function \"magic::missing_function\" does not exist within any known namespace",
+			"Function \"magic::missing_function\" does not exist within a valid namespace (provider,core)",
 		},
 		{
 			"Too many namespaces",

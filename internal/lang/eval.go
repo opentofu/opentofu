@@ -7,6 +7,7 @@ package lang
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
@@ -233,7 +234,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 				}
 			} else {
 				enhanced.Summary = "Unknown function namespace"
-				enhanced.Detail = fmt.Sprintf("Function %q does not exist within any known namespace", fn)
+				enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
 			}
 			// Function / Provider not found handled by eval_context_builtin.go
 		}

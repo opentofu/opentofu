@@ -147,7 +147,7 @@ func TestFunctions(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function provider")
 	}
-	if diags.Err().Error() != `Uninitialized function provider: Provider "provider[\"registry.opentofu.org/hashicorp/mock\"]" has not yet been initialized` {
+	if diags.Err().Error() != `BUG: Uninitialized function provider: Provider "provider[\"registry.opentofu.org/hashicorp/mock\"]" has not yet been initialized` {
 		t.Fatal(diags.Err())
 	}
 
@@ -170,7 +170,7 @@ func TestFunctions(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function")
 	}
-	if diags.Err().Error() != `Function not found in provider: Function "missing" was not registered by provider"provider[\"registry.opentofu.org/hashicorp/mock\"]"` {
+	if diags.Err().Error() != `Function not found in provider: Function "missing" was not registered by provider "provider[\"registry.opentofu.org/hashicorp/mock\"]"` {
 		t.Fatal(diags.Err())
 	}
 	if !mockProvider.GetFunctionsCalled {

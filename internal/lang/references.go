@@ -95,11 +95,12 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
 	pfuncs := make([]hcl.Traversal, 0, len(funcs))
 	for _, fn := range funcs {
-		if len(fn) > 0 {
-			if root, ok := fn[0].(hcl.TraverseRoot); ok {
-				if addrs.ParseFunction(root.Name).IsNamespace(addrs.FunctionNamespaceProvider) {
-					pfuncs = append(pfuncs, fn)
-				}
+		if len(fn) == 0 {
+			continue
+		}
+		if root, ok := fn[0].(hcl.TraverseRoot); ok {
+			if addrs.ParseFunction(root.Name).IsNamespace(addrs.FunctionNamespaceProvider) {
+				pfuncs = append(pfuncs, fn)
 			}
 		}
 	}
