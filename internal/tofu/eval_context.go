@@ -129,6 +129,10 @@ type EvalContext interface {
 	// indicating if that reference forces replacement.
 	EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics)
 
+	// EvaluateImportAddress takes the raw reference expression of the import address
+	// from the config, and returns the evaluated address addrs.AbsResourceInstance
+	EvaluateImportAddress(expr hcl.Expression) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
+
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.
 	EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope
@@ -204,8 +208,8 @@ type EvalContext interface {
 	// objects accessible through it.
 	MoveResults() refactoring.MoveResults
 
-	// ImportResolver returns a map describing the resolved imports
-	// after evaluating the dynamic address of the import targets
+	// ImportResolver returns a helper object for tracking the resolution of
+	// imports, after evaluating the dynamic address and ID of the import targets
 	//
 	// This data is created during the graph walk, as import target addresses are being resolved
 	// Its primary use is for validation at the end of a plan - To make sure all imports have been satisfied

@@ -6,8 +6,10 @@
 package configs
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
@@ -17,8 +19,9 @@ import (
 )
 
 var (
-	typeComparer  = cmp.Comparer(cty.Type.Equals)
-	valueComparer = cmp.Comparer(cty.Value.RawEquals)
+	typeComparer      = cmp.Comparer(cty.Type.Equals)
+	valueComparer     = cmp.Comparer(cty.Value.RawEquals)
+	traversalComparer = cmp.Comparer(traversalsAreEquivalent)
 )
 
 func TestImportBlock_decode(t *testing.T) {
@@ -27,13 +30,42 @@ func TestImportBlock_decode(t *testing.T) {
 		Start:    hcl.Pos{Line: 3, Column: 12, Byte: 27},
 		End:      hcl.Pos{Line: 3, Column: 19, Byte: 34},
 	}
+	pos := hcl.Pos{Line: 1, Column: 1}
 
-	foo_str_expr := hcltest.MockExprLiteral(cty.StringVal("foo"))
-	bar_expr := hcltest.MockExprTraversalSrc("test_instance.bar")
+	fooStrExpr, hclDiags := hclsyntax.ParseExpression([]byte("\"foo\""), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+	barExpr, hclDiags := hclsyntax.ParseExpression([]byte("test_instance.bar"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
 
-	bar_index_expr := hcltest.MockExprTraversalSrc("test_instance.bar[\"one\"]")
+	barIndexExpr, hclDiags := hclsyntax.ParseExpression([]byte("test_instance.bar[\"one\"]"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
 
-	mod_bar_expr := hcltest.MockExprTraversalSrc("module.bar.test_instance.bar")
+	modBarExpr, hclDiags := hclsyntax.ParseExpression([]byte("module.bar.test_instance.bar"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+
+	dynamicBarExpr, hclDiags := hclsyntax.ParseExpression([]byte("test_instance.bar[var.var1]"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+
+	invalidExpr, hclDiags := hclsyntax.ParseExpression([]byte("var.var1 ? test_instance.bar : test_instance.foo"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+
+	barResource := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_instance",
+		Name: "bar",
+	}
 
 	tests := map[string]struct {
 		input *hcl.Block
@@ -47,19 +79,25 @@ func TestImportBlock_decode(t *testing.T) {
 					Attributes: hcl.Attributes{
 						"id": {
 							Name: "id",
-							Expr: foo_str_expr,
+							Expr: fooStrExpr,
 						},
 						"to": {
 							Name: "to",
-							Expr: bar_expr,
+							Expr: barExpr,
 						},
 					},
 				}),
 				DefRange: blockRange,
 			},
 			&Import{
-				To:        mustAbsResourceInstanceAddr("test_instance.bar"),
-				ID:        foo_str_expr,
+				To: barExpr,
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{Resource: barResource},
+				},
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
+				ID:        fooStrExpr,
 				DeclRange: blockRange,
 			},
 			``,
@@ -71,19 +109,28 @@ func TestImportBlock_decode(t *testing.T) {
 					Attributes: hcl.Attributes{
 						"id": {
 							Name: "id",
-							Expr: foo_str_expr,
+							Expr: fooStrExpr,
 						},
 						"to": {
 							Name: "to",
-							Expr: bar_index_expr,
+							Expr: barIndexExpr,
 						},
 					},
 				}),
 				DefRange: blockRange,
 			},
 			&Import{
-				To:        mustAbsResourceInstanceAddr("test_instance.bar[\"one\"]"),
-				ID:        foo_str_expr,
+				To: barIndexExpr,
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{
+						Resource: barResource,
+						Key:      addrs.StringKey("one"),
+					},
+				},
+				ID:        fooStrExpr,
 				DeclRange: blockRange,
 			},
 			``,
@@ -95,19 +142,58 @@ func TestImportBlock_decode(t *testing.T) {
 					Attributes: hcl.Attributes{
 						"id": {
 							Name: "id",
-							Expr: foo_str_expr,
+							Expr: fooStrExpr,
 						},
 						"to": {
 							Name: "to",
-							Expr: mod_bar_expr,
+							Expr: modBarExpr,
 						},
 					},
 				}),
 				DefRange: blockRange,
 			},
 			&Import{
-				To:        mustAbsResourceInstanceAddr("module.bar.test_instance.bar"),
-				ID:        foo_str_expr,
+				To: modBarExpr,
+				StaticTo: addrs.ConfigResource{
+					Module:   addrs.Module{"bar"},
+					Resource: barResource,
+				},
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Module: addrs.ModuleInstance{addrs.ModuleInstanceStep{
+						Name: "bar",
+					}},
+					Resource: addrs.ResourceInstance{
+						Resource: barResource,
+					},
+				},
+				ID:        fooStrExpr,
+				DeclRange: blockRange,
+			},
+			``,
+		},
+		"dynamic resource index": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: dynamicBarExpr,
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Import{
+				To: dynamicBarExpr,
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
+				ID:        fooStrExpr,
 				DeclRange: blockRange,
 			},
 			``,
@@ -119,14 +205,20 @@ func TestImportBlock_decode(t *testing.T) {
 					Attributes: hcl.Attributes{
 						"to": {
 							Name: "to",
-							Expr: bar_expr,
+							Expr: barExpr,
 						},
 					},
 				}),
 				DefRange: blockRange,
 			},
 			&Import{
-				To:        mustAbsResourceInstanceAddr("test_instance.bar"),
+				To: barExpr,
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{Resource: barResource},
+				},
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
 				DeclRange: blockRange,
 			},
 			"Missing required argument",
@@ -138,17 +230,41 @@ func TestImportBlock_decode(t *testing.T) {
 					Attributes: hcl.Attributes{
 						"id": {
 							Name: "id",
-							Expr: foo_str_expr,
+							Expr: fooStrExpr,
 						},
 					},
 				}),
 				DefRange: blockRange,
 			},
 			&Import{
-				ID:        foo_str_expr,
+				ID:        fooStrExpr,
 				DeclRange: blockRange,
 			},
 			"Missing required argument",
+		},
+		"error: invalid import address": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: invalidExpr,
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Import{
+				To:        invalidExpr,
+				ID:        fooStrExpr,
+				DeclRange: blockRange,
+			},
+			"Invalid import address expression",
 		},
 	}
 
@@ -167,17 +283,47 @@ func TestImportBlock_decode(t *testing.T) {
 				t.Fatal("expected error")
 			}
 
-			if !cmp.Equal(got, test.want, typeComparer, valueComparer) {
-				t.Fatalf("wrong result: %s", cmp.Diff(got, test.want))
+			if !cmp.Equal(got, test.want, typeComparer, valueComparer, traversalComparer) {
+				t.Fatalf("wrong result: %s", cmp.Diff(got, test.want, typeComparer, valueComparer, traversalComparer))
 			}
 		})
 	}
 }
 
-func mustAbsResourceInstanceAddr(str string) addrs.AbsResourceInstance {
-	addr, diags := addrs.ParseAbsResourceInstanceStr(str)
-	if diags.HasErrors() {
-		panic(fmt.Sprintf("invalid absolute resource instance address: %s", diags.Err()))
+// Taken from traversalsAreEquivalent of hcl/v2
+func traversalsAreEquivalent(a, b hcl.Traversal) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	return addr
+	for i := range a {
+		aStep := a[i]
+		bStep := b[i]
+
+		if reflect.TypeOf(aStep) != reflect.TypeOf(bStep) {
+			return false
+		}
+
+		// We can now assume that both are of the same type.
+		switch ts := aStep.(type) {
+
+		case hcl.TraverseRoot:
+			if bStep.(hcl.TraverseRoot).Name != ts.Name {
+				return false
+			}
+
+		case hcl.TraverseAttr:
+			if bStep.(hcl.TraverseAttr).Name != ts.Name {
+				return false
+			}
+
+		case hcl.TraverseIndex:
+			if !bStep.(hcl.TraverseIndex).Key.RawEquals(ts.Key) {
+				return false
+			}
+
+		default:
+			return false
+		}
+	}
+	return true
 }

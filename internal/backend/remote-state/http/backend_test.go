@@ -48,6 +48,10 @@ func TestHTTPClientFactory(t *testing.T) {
 		t.Fatal("Unexpected username or password")
 	}
 
+	if client.Headers != nil {
+		t.Fatal("Unexpected headers")
+	}
+
 	// custom
 	conf = map[string]cty.Value{
 		"address":        cty.StringVal("http://127.0.0.1:8888/foo"),
@@ -61,6 +65,9 @@ func TestHTTPClientFactory(t *testing.T) {
 		"retry_max":      cty.StringVal("999"),
 		"retry_wait_min": cty.StringVal("15"),
 		"retry_wait_max": cty.StringVal("150"),
+		"headers": cty.MapVal(map[string]cty.Value{
+			"user-defined": cty.StringVal("test"),
+		}),
 	}
 
 	b = backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
@@ -92,6 +99,10 @@ func TestHTTPClientFactory(t *testing.T) {
 	}
 	if client.Client.RetryWaitMax != 150*time.Second {
 		t.Fatalf("Expected retry_wait_max \"%s\", got \"%s\"", 150*time.Second, client.Client.RetryWaitMax)
+	}
+
+	if len(client.Headers) != 1 || client.Headers["user-defined"] != "test" {
+		t.Fatalf("Expected headers \"user-defined\" to be \"test\", got \"%s\"", client.Headers)
 	}
 }
 

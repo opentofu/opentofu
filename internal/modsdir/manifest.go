@@ -135,6 +135,7 @@ func ReadManifestSnapshotForDir(dir string) (Manifest, error) {
 		}
 		return nil, err
 	}
+	defer r.Close()
 	return ReadManifestSnapshot(r)
 }
 
