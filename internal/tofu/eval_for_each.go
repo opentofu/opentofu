@@ -96,7 +96,6 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 	} else {
 		isAllowedType = ty.IsMapType() || ty.IsSetType() || ty.IsObjectType()
 		allowedTypesMessage = "map, or set of strings"
-
 	}
 
 	const errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\nAlternatively, you could use the -target planning option to first apply only the resources that the for_each value depends on, and then apply a second time to fully converge."
