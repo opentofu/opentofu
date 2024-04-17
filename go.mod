@@ -268,4 +268,4 @@ require (
 
 go 1.21
 
-replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/cam72cam/hcl/v2 v2.0.0-20240416130056-03228b26f391
+replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.0.0-20240416130056-03228b26f391
