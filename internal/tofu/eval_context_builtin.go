@@ -404,8 +404,9 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 // The implementation is inspired by config.AbsTraversalForImportToExpr, but this time we can evaluate the expression
 // in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
 // an Index Traversal, adding it to the Traverser
-func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	traversal, diags := ctx.traversalForImportExpr(expr)
+// TODO move this function into eval_import.go
+func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	traversal, diags := ctx.traversalForImportExpr(expr, keyData)
 	if diags.HasErrors() {
 		return addrs.AbsResourceInstance{}, diags
 	}
@@ -413,18 +414,18 @@ func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression) (addrs
 	return addrs.ParseAbsResourceInstance(traversal)
 }
 
-func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression, keyData instances.RepetitionData) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
 	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
-		t, d := ctx.traversalForImportExpr(e.Collection)
+		t, d := ctx.traversalForImportExpr(e.Collection, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 
-		tIndex, dIndex := ctx.parseImportIndexKeyExpr(e.Key)
+		tIndex, dIndex := ctx.parseImportIndexKeyExpr(e.Key, keyData)
 		diags = diags.Append(dIndex)
 		traversal = append(traversal, tIndex)
 	case *hclsyntax.RelativeTraversalExpr:
-		t, d := ctx.traversalForImportExpr(e.Source)
+		t, d := ctx.traversalForImportExpr(e.Source, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 		traversal = append(traversal, e.Traversal...)
@@ -446,12 +447,13 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression) (trav
 // import target address, into a traversal of type hcl.TraverseIndex.
 // After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
 // (count)
-func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl.TraverseIndex, tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
 	idx := hcl.TraverseIndex{
 		SrcRange: expr.Range(),
 	}
 
-	val, diags := ctx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
+	// evaluate and take into consideration the for_each key (if exists)
+	val, diags := evaluateExprWithRepetitionData(ctx, expr, cty.DynamicPseudoType, keyData)
 	if diags.HasErrors() {
 		return idx, diags
 	}

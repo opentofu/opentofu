@@ -243,7 +243,7 @@ func (n *nodeValidateModule) Execute(ctx EvalContext, op walkOperation) (diags t
 			diags = diags.Append(countDiags)
 
 		case n.ModuleCall.ForEach != nil:
-			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx, true)
+			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx, true, false)
 			diags = diags.Append(forEachDiags)
 		}
 
