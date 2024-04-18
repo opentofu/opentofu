@@ -274,7 +274,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					key := nr.ModulePath().String() + pf.ProviderName
+					key := fmt.Sprintf("path:%s,name:%s,type:%s", nr.ModulePath().String(), pf.ProviderName, pf.ProviderAlias)
 
 					// We already know about this provider and can link directly
 					if provider, ok := providerReferences[key]; ok {
