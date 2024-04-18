@@ -40,7 +40,8 @@ execution.
 
 OpenTofu iterates through the [required_providers](/docs/language/providers/requirements/) block
 and queries the specified providers for any functions they wish to register. Functions are
-added to the current module's context under `provider::<provider_name>::<function_name>`.
+added to the current module's context under `provider::<provider_name>::<function_name>`.  Provider
+aliases are also supported under `provider::<provider_name>::<provider_alias>::<function_name>`.
 Functions are scoped to the module that requires the provider and are not inherited by child modules.
 
 ### Example:
@@ -62,6 +63,7 @@ locals {
 
 
 ### Notes for Provider Authors:
-* Support for functions was added in protocol version 5.5 and 6.5
-* OpenTofu's provider protocol is compatible with Terraform's provider protocol
-* CallFunction is executed on an *Unconfigured* instance of the provider
+* Support for functions was added in protocol version 5.5 and 6.5.
+* OpenTofu's provider protocol is compatible with Terraform's provider protocol.
+* `GetProviderSchema()` is used to initially query the functions available in a given provider.
+* Providers which supply functions may be configured and may supply additional functions via `GetFunctions()`.
