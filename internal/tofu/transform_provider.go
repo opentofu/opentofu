@@ -266,15 +266,24 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 	// Locate all providers in the graph
 	providers := providerVertexMap(g)
 
-	// LuT of (modulepath, providername) -> provider vertex
-	providerReferences := make(map[string]dag.Vertex)
+	type providerReference struct {
+		path  string
+		name  string
+		alias string
+	}
+	// LuT of provider reference -> provider vertex
+	providerReferences := make(map[providerReference]dag.Vertex)
 
 	for _, v := range g.Vertices() {
 		// Provider function references
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					key := fmt.Sprintf("path:%s,name:%s,type:%s", nr.ModulePath().String(), pf.ProviderName, pf.ProviderAlias)
+					key := providerReference{
+						path:  nr.ModulePath().String(),
+						name:  pf.ProviderName,
+						alias: pf.ProviderAlias,
+					}
 
 					// We already know about this provider and can link directly
 					if provider, ok := providerReferences[key]; ok {
