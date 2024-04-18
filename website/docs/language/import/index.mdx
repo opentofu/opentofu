@@ -37,6 +37,7 @@ The `import` block has the following arguments:
 - `to` - The instance address this resource will have in your state file.
 - `id` - A string with the [import ID](#import-id) of the resource.
 - `provider` (optional) - An optional custom resource provider, see [The Resource provider Meta-Argument](/docs/language/meta-arguments/resource-provider) for details.
+- `for_each` (optional) - Import several resources by iterating over a map or a set. See [Importing multiple resources](#importing-multiple-resources) below.
 
 If you do not set the `provider` argument, OpenTofu attempts to import from the default provider.
 
@@ -131,3 +132,38 @@ import {
   id = "i-abcd1234"
 }
 ```
+
+### Importing multiple resources
+
+You can import multiple resources with one import block by using a `for_each` expression. This expression accepts [a set, a tuple or a map](/docs/language/expressions/types/) and provides the `each.key` and `each.value` variables to access the individual elements.
+
+In the example below, you can specify a list of server IDs to be imported. If you specify an empty list, the `random_id` resource will generate all IDs randomly. If you specify some IDs, the import block will import the specified IDs and the resource will randomly generate the rest. Note, the `random_id` resource requires the IDs to be in base64 format.
+
+```
+variable "server_ids" {
+  type = list(string)
+}
+
+resource "random_id" "test_id" {
+  byte_length = 8
+  count = 2
+}
+
+import {
+  to = random_id.test_id[tonumber(each.key)]
+  id = each.value
+  for_each = {
+    for idx, item in var.server_ids: idx => item
+  }
+}
+
+output "id" {
+  value = random_id.test_id.*.b64_url
+}
+```
+
+:::note
+
+[Generating configuration](/docs/language/import/generating-configuration/) is currently not possible when using `for_each` on `import blocks.
+
+:::
