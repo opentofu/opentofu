@@ -153,6 +153,7 @@ body:
       value: |
         ## CLI changes
         
+        - `tofu init` now supports the -json flag for JSON output.
         - `tofu plan` now has a `-concise` flag to shorten the plan output.
         - `tofu console` now works on Solaris and AIX.
         - The CLI now supports the XDG directory specification.
