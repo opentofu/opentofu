@@ -46,13 +46,28 @@ body:
         - Tested, did not work / had problems
     validations:
       required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the provider-defined functions
 
   - type: markdown
     attributes:
       value: |
         ## Loopable import blocks
         
-        - [Documentation](https://1-7-0-beta1.opentofu.pages.dev/docs/language/state/encryption/)
+        - [Documentation](https://1-7-0-beta1.opentofu.pages.dev/docs/language/import/#importing-multiple-resources)
+  - type: dropdown
+    attributes:
+      label: Did you test the `for_each` on the import block?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the import block
 
   - type: markdown
     attributes:
