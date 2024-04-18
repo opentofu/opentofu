@@ -292,18 +292,27 @@ func (h *MockHook) PostImportState(addr addrs.AbsResourceInstance, imported []pr
 }
 
 func (h *MockHook) PrePlanImport(addr addrs.AbsResourceInstance, importID string) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
 	h.PrePlanImportCalled = true
 	h.PrePlanImportAddr = addr
 	return h.PrePlanImportReturn, h.PrePlanImportError
 }
 
 func (h *MockHook) PostPlanImport(addr addrs.AbsResourceInstance, imported []providers.ImportedResource) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
 	h.PostPlanImportCalled = true
 	h.PostPlanImportAddr = addr
 	return h.PostPlanImportReturn, h.PostPlanImportError
 }
 
 func (h *MockHook) PreApplyImport(addr addrs.AbsResourceInstance, importing plans.ImportingSrc) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
 	h.PreApplyImportCalled = true
 	h.PreApplyImportAddr = addr
 	return h.PreApplyImportReturn, h.PreApplyImportError
