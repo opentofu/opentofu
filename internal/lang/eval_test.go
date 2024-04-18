@@ -874,26 +874,14 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 		{
 			"Invalid prefix",
 			"attr = magic::missing_function(54)",
+			"Unknown function namespace",
+			"Function \"magic::missing_function\" does not exist within a valid namespace (provider,core)",
+		},
+		{
+			"Too many namespaces",
+			"attr = provider::foo::bar::extra::extra2::missing_function(54)",
 			"Invalid function format",
-			"Expected provider::<provider_name>::<function_name>, instead found \"magic::missing_function\"",
-		},
-		{
-			"Broken prefix",
-			"attr = magic::foo::bar::extra::missing_function(54)",
-			"Invalid function format",
-			"Expected provider::<provider_name>::<function_name>, instead found \"magic::foo::bar::extra::missing_function\"",
-		},
-		{
-			"Missing provider",
-			"attr = provider::unknown::func(54)",
-			"Unknown function provider",
-			"Provider \"unknown\" does not exist within the required_providers of this module",
-		},
-		{
-			"Missing function",
-			"attr = provider::known::func(54)",
-			"Function not found in provider",
-			"Function \"func\" was not registered by provider named \"known\" of type \"hostname/namespace/type\"",
+			"invalid provider function \"provider::foo::bar::extra::extra2::missing_function\": expected provider::<name>::<function> or provider::<name>::<alias>::<function>",
 		},
 	}
 
@@ -919,15 +907,7 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 
 			body := file.Body
 
-			scope := &Scope{
-				ProviderNames: map[string]addrs.Provider{
-					"known": addrs.Provider{
-						Type:      "type",
-						Namespace: "namespace",
-						Hostname:  "hostname",
-					},
-				},
-			}
+			scope := &Scope{}
 
 			ctx, ctxDiags := scope.EvalContext(nil)
 			if ctxDiags.HasErrors() {

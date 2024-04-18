@@ -179,6 +179,10 @@ func (f fakeHCLExpressionFunc) Variables() []hcl.Traversal {
 	return nil
 }
 
+func (f fakeHCLExpressionFunc) Functions() []hcl.Traversal {
+	return nil
+}
+
 func (f fakeHCLExpressionFunc) Range() hcl.Range {
 	return hcl.Range{
 		Filename: "fake",
