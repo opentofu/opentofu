@@ -183,6 +183,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			}
 
 			if target != nil {
+				// Providers with configuration will already exist within the graph and can be directly referenced
 				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
 			}
 
@@ -330,6 +331,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					provider := providers[absPc.String()]
 
 					if provider != nil {
+						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
 					} else {
 						// If this provider doesn't need to be configured then we can just
