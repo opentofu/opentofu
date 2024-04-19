@@ -589,10 +589,11 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		if vars := attr.Expr.Variables(); len(vars) != 0 {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Override values must be static",
-				Detail:   "Values in override block cannot have variables and must be static.",
+				Summary:  "Variables not allowed",
+				Detail:   "Variables may not be used in `values` of override blocks.",
 				Subject:  attr.Range.Ptr(),
 			})
+			return res, diags
 		}
 
 		attrVal, moreDiags := attr.Expr.Value(nil)
@@ -604,10 +605,11 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		if !attrVal.Type().IsObjectType() {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Override values must be an object",
-				Detail:   "Values in override block must be an object with inner fields to use.",
+				Summary:  "Object expected",
+				Detail:   "Attribute `values` in override block must be an object.",
 				Subject:  attr.Range.Ptr(),
 			})
+			return res, diags
 		}
 
 		res.Values = attrVal.AsValueMap()

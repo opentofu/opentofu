@@ -973,7 +973,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		if res == nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Resource %v not found in module %v", overrideRes.TargetParsed.Resource, overrideRes.TargetParsed.Module),
+				Summary:  fmt.Sprintf("Resource not found: %v", overrideRes.TargetParsed),
 				Detail:   "Target points to undefined resource. Please, ensure resource exists.",
 				Subject:  overrideRes.Target.SourceRange().Ptr(),
 			})
@@ -981,11 +981,16 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		}
 
 		if res.Mode != overrideRes.Mode {
+			blockName, targetMode := "override_resource", "data"
+			if overrideRes.Mode == addrs.DataResourceMode {
+				blockName, targetMode = "override_data", "resource"
+			}
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  fmt.Sprintf("Resource mode mismatch: %v targets %v", overrideRes.Mode, res.Mode),
-				Detail:   "`override_resource` shouldn't target data blocks and `override_data` shouldn't target resource blocks.",
-				Subject:  overrideRes.Target.SourceRange().Ptr(),
+				Summary:  fmt.Sprintf("Unsupported `%v` target in `%v` block", targetMode, blockName),
+				Detail: fmt.Sprintf("Target `%v` is `%v` block itself and cannot be overriden with `%v`.",
+					overrideRes.TargetParsed, targetMode, blockName),
+				Subject: overrideRes.Target.SourceRange().Ptr(),
 			})
 		}
 

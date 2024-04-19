@@ -73,10 +73,24 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 		configMap = config.AsValueMap()
 	}
 
-	for k, t := range schema.ImpliedType().AttributeTypes() {
+	addPotentialDefaultsWarning := func(key, description string) {
+		if _, ok := defaults[key]; ok {
+			diags = diags.Append(tfdiags.WholeContainingBody(
+				tfdiags.Warning,
+				fmt.Sprintf("Ignored mock/override field `%v`", key),
+				description,
+			))
+		}
+
+	}
+
+	attributeTypes := schema.ImpliedType().AttributeTypes()
+
+	for k, t := range attributeTypes {
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
 			mockValue[k] = cv
+			addPotentialDefaultsWarning(k, "The field is ignored since overriding configuration values not allowed.")
 			continue
 		}
 
@@ -84,12 +98,14 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 		// so we set them from configuration only.
 		if attr, ok := schema.Attributes[k]; ok && !attr.Computed {
 			mockValue[k] = cty.NullVal(attr.Type)
+			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields not allowed.")
 			continue
 		}
 
 		// Optional blocks shouldn't be populated with mock values.
 		if block, ok := schema.BlockTypes[k]; ok && block.MinItems == 0 && block.MaxItems == 0 {
 			mockValue[k] = block.EmptyValue()
+			addPotentialDefaultsWarning(k, "The field is ignored since overriding optional blocks not allowed.")
 			continue
 		}
 
@@ -103,18 +119,28 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 		// If there's no value in defaults, we generate our own.
 		v, ok := getMockValueByType(t)
 		if !ok {
-			return v, diags.Append(tfdiags.Sourceless(
+			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
 				"Failed to generate mock value",
-				fmt.Sprintf("Mock value cannot be generated for dynamic type %v. Please, specify %v field explicitly in configuration.",
-					t, k),
+				fmt.Sprintf("Mock value cannot be generated for dynamic type. Please, specify `%v` field explicitly in configuration.", k),
 			))
+			continue
 		}
 
 		mockValue[k] = v
 	}
 
-	return cty.ObjectVal(mockValue), nil
+	for k := range defaults {
+		if _, ok := attributeTypes[k]; !ok {
+			diags = diags.Append(tfdiags.WholeContainingBody(
+				tfdiags.Warning,
+				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				"The field is unknown. Please, ensure it's a part of resource definition.",
+			))
+		}
+	}
+
+	return cty.ObjectVal(mockValue), diags
 }
 
 // getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
