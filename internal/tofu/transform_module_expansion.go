@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -31,7 +32,7 @@ type ModuleExpansionTransformer struct {
 	closers map[string]*nodeCloseModule
 }
 
-func (t *ModuleExpansionTransformer) Transform(g *Graph) error {
+func (t *ModuleExpansionTransformer) Transform(ctx context.Context, g *Graph) error {
 	t.closers = make(map[string]*nodeCloseModule)
 	// The root module is always a singleton and so does not need expansion
 	// processing, but any descendent modules do. We'll process them

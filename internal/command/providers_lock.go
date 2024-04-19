@@ -123,7 +123,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 	config, confDiags := c.loadConfig(".")
 	diags = diags.Append(confDiags)
-	reqs, hclDiags := config.ProviderRequirements()
+	reqs, hclDiags := config.ProviderRequirements(ctx)
 	diags = diags.Append(hclDiags)
 
 	// If we have explicit provider selections on the command line then

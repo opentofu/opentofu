@@ -51,15 +51,15 @@ func (n *NodePlanDestroyableResourceInstance) Execute(traceCtx context.Context, 
 
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx, op)
+		return n.managedResourceExecute(traceCtx, ctx, op)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx, op)
+		return n.dataResourceExecute(traceCtx, ctx, op)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
 }
 
-func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(traceCtx context.Context, ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Declare a bunch of variables that are used for state during
@@ -68,7 +68,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	var change *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	state, err := n.readResourceInstanceState(ctx, addr)
+	state, err := n.readResourceInstanceState(traceCtx, ctx, addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -84,23 +84,23 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	// conditionals must agree (be exactly opposite) in order to get the
 	// correct behavior in both cases.
 	if n.skipRefresh {
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, prevRunState))
+		diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, state, prevRunState))
 		if diags.HasErrors() {
 			return diags
 		}
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, refreshState))
+		diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, state, refreshState))
 		if diags.HasErrors() {
 			return diags
 		}
 	}
 
-	change, destroyPlanDiags := n.planDestroy(ctx, state, "")
+	change, destroyPlanDiags := n.planDestroy(traceCtx, ctx, state, "")
 	diags = diags.Append(destroyPlanDiags)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.writeChange(ctx, change, ""))
+	diags = diags.Append(n.writeChange(traceCtx, ctx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -109,7 +109,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(traceCtx context.Context, ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 
 	// We may not be able to read a prior data source from the state if the
 	// schema was upgraded and we are destroying before ever refreshing that
@@ -125,5 +125,5 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 		},
 		ProviderAddr: n.ResolvedProvider,
 	}
-	return diags.Append(n.writeChange(ctx, change, ""))
+	return diags.Append(n.writeChange(traceCtx, ctx, change, ""))
 }

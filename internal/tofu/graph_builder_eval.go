@@ -6,6 +6,10 @@
 package tofu
 
 import (
+	"context"
+
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -46,11 +50,15 @@ type EvalGraphBuilder struct {
 }
 
 // See GraphBuilder
-func (b *EvalGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *EvalGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "EvalGraphBuilder.Build")
+	defer span.End()
+
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "EvalGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder

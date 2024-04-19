@@ -6,6 +6,8 @@
 package lang
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -27,7 +29,7 @@ type dataForTests struct {
 
 var _ Data = &dataForTests{}
 
-func (d *dataForTests) StaticValidateReferences(refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
+func (d *dataForTests) StaticValidateReferences(ctx context.Context, refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
 	return nil // does nothing in this stub implementation
 }
 
@@ -39,7 +41,7 @@ func (d *dataForTests) GetForEachAttr(addr addrs.ForEachAttr, rng tfdiags.Source
 	return d.ForEachAttrs[addr.Name], nil
 }
 
-func (d *dataForTests) GetResource(addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *dataForTests) GetResource(ctx context.Context, addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	return d.Resources[addr.String()], nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -46,6 +47,10 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	// (Hopefully in future the remaining functionality here can move to the
 	// CLI layer too in order to avoid this odd situation where core code
 	// produces UI input prompts.)
+
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Context.Input")
+	defer span.End()
 
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("input")()

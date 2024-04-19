@@ -56,7 +56,7 @@ func (n *NodeForgetResourceInstance) Execute(traceCtx context.Context, ctx EvalC
 
 	var state *states.ResourceInstanceObject
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr)
+	state, readDiags := n.readResourceInstanceState(traceCtx, ctx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags

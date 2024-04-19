@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -199,7 +200,7 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 // This must be used only after any side-effects that make the value of the
 // variable available for use in expression evaluation, such as
 // EvalModuleCallArgument for variables in descendent modules.
-func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) (diags tfdiags.Diagnostics) {
+func evalVariableValidations(traceCtx context.Context, addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) (diags tfdiags.Diagnostics) {
 	if config == nil || len(config.Validations) == 0 {
 		log.Printf("[TRACE] evalVariableValidations: no validation rules declared for %s, so skipping", addr)
 		return nil
@@ -240,7 +241,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 				config.Name: val,
 			}),
 		},
-		Functions: ctx.EvaluationScope(nil, nil, nil, EvalDataForNoInstanceKey).Functions(),
+		Functions: ctx.EvaluationScope(traceCtx, nil, nil, EvalDataForNoInstanceKey).Functions(),
 	}
 
 	for ix, validation := range config.Validations {

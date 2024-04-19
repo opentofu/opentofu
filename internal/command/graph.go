@@ -84,8 +84,11 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
+	// TODO: Fetch the context from the executable, propagate it here
+	ctx := context.Background()
+
 	// Load the backend
-	b, backendDiags := c.Backend(context.TODO(), &BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -118,7 +121,7 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(context.TODO(), opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -138,11 +141,11 @@ func (c *GraphCommand) Run(args []string) int {
 	var graphDiags tfdiags.Diagnostics
 	switch graphTypeStr {
 	case "plan":
-		g, graphDiags = lr.Core.PlanGraphForUI(lr.Config, lr.InputState, plans.NormalMode)
+		g, graphDiags = lr.Core.PlanGraphForUI(ctx, lr.Config, lr.InputState, plans.NormalMode)
 	case "plan-refresh-only":
-		g, graphDiags = lr.Core.PlanGraphForUI(lr.Config, lr.InputState, plans.RefreshOnlyMode)
+		g, graphDiags = lr.Core.PlanGraphForUI(ctx, lr.Config, lr.InputState, plans.RefreshOnlyMode)
 	case "plan-destroy":
-		g, graphDiags = lr.Core.PlanGraphForUI(lr.Config, lr.InputState, plans.DestroyMode)
+		g, graphDiags = lr.Core.PlanGraphForUI(ctx, lr.Config, lr.InputState, plans.DestroyMode)
 	case "apply":
 		plan := lr.Plan
 

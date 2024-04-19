@@ -29,12 +29,13 @@ var (
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(traceCtx context.Context, ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	_, err := ctx.InitProvider(n.Addr)
+
+	_, err := ctx.InitProvider(traceCtx, n.Addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
-	provider, _, err := getProvider(ctx, n.Addr)
+	provider, _, err := getProvider(traceCtx, ctx, n.Addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -79,7 +80,7 @@ func (n *NodeApplyableProvider) ValidateProvider(traceCtx context.Context, ctx E
 		configSchema = &configschema.Block{}
 	}
 
-	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
+	configVal, _, evalDiags := ctx.EvaluateBlock(traceCtx, configBody, configSchema, nil, EvalDataForNoInstanceKey)
 	if evalDiags.HasErrors() {
 		return diags.Append(evalDiags)
 	}
@@ -114,7 +115,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(traceCtx context.Context, ctx 
 	}
 
 	configSchema := resp.Provider.Block
-	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
+	configVal, configBody, evalDiags := ctx.EvaluateBlock(traceCtx, configBody, configSchema, nil, EvalDataForNoInstanceKey)
 	diags = diags.Append(evalDiags)
 	if evalDiags.HasErrors() {
 		return diags

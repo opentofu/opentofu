@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -32,7 +33,7 @@ import (
 //
 // If any of the rules do not pass, the returned diagnostics will contain
 // errors. Otherwise, it will either be empty or contain only warnings.
-func evalCheckRules(typ addrs.CheckRuleType, rules []*configs.CheckRule, ctx EvalContext, self addrs.Checkable, keyData instances.RepetitionData, diagSeverity tfdiags.Severity) tfdiags.Diagnostics {
+func evalCheckRules(traceCtx context.Context, typ addrs.CheckRuleType, rules []*configs.CheckRule, ctx EvalContext, self addrs.Checkable, keyData instances.RepetitionData, diagSeverity tfdiags.Severity) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	checkState := ctx.Checks()
@@ -53,7 +54,7 @@ func evalCheckRules(typ addrs.CheckRuleType, rules []*configs.CheckRule, ctx Eva
 	severity := diagSeverity.ToHCL()
 
 	for i, rule := range rules {
-		result, ruleDiags := evalCheckRule(addrs.NewCheckRule(self, typ, i), rule, ctx, keyData, severity)
+		result, ruleDiags := evalCheckRule(traceCtx, addrs.NewCheckRule(self, typ, i), rule, ctx, keyData, severity)
 		diags = diags.Append(ruleDiags)
 
 		log.Printf("[TRACE] evalCheckRules: %s status is now %s", self, result.Status)
@@ -72,7 +73,7 @@ type checkResult struct {
 	FailureMessage string
 }
 
-func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalContext, keyData instances.RepetitionData) (string, *hcl.EvalContext, tfdiags.Diagnostics) {
+func validateCheckRule(traceCtx context.Context, addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalContext, keyData instances.RepetitionData) (string, *hcl.EvalContext, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, rule.Condition)
@@ -101,7 +102,7 @@ func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalCo
 			panic(fmt.Sprintf("Invalid source reference type %t", addr.Container))
 		}
 	}
-	scope := ctx.EvaluationScope(nil, selfReference, sourceReference, keyData)
+	scope := ctx.EvaluationScope(traceCtx, selfReference, sourceReference, keyData)
 
 	hclCtx, moreDiags := scope.EvalContext(refs)
 	diags = diags.Append(moreDiags)
@@ -112,11 +113,11 @@ func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalCo
 	return errorMessage, hclCtx, diags
 }
 
-func evalCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalContext, keyData instances.RepetitionData, severity hcl.DiagnosticSeverity) (checkResult, tfdiags.Diagnostics) {
+func evalCheckRule(traceCtx context.Context, addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalContext, keyData instances.RepetitionData, severity hcl.DiagnosticSeverity) (checkResult, tfdiags.Diagnostics) {
 	// NOTE: Intentionally not passing the caller's selected severity in here,
 	// because this reports errors in the configuration itself, not the failure
 	// of an otherwise-valid condition.
-	errorMessage, hclCtx, diags := validateCheckRule(addr, rule, ctx, keyData)
+	errorMessage, hclCtx, diags := validateCheckRule(traceCtx, addr, rule, ctx, keyData)
 
 	const errInvalidCondition = "Invalid condition result"
 

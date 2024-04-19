@@ -59,7 +59,7 @@ func TestApplyGraphBuilder(t *testing.T) {
 		Plugins: simpleMockPluginLibrary(),
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -122,7 +122,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -194,7 +194,7 @@ func TestApplyGraphBuilder_doubleCBD(t *testing.T) {
 		Plugins: simpleMockPluginLibrary(),
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -288,7 +288,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 		Plugins: simpleMockPluginLibrary(),
 	}
 
-	g, diags := b.Build(addrs.RootModuleInstance)
+	g, diags := b.Build(nil, addrs.RootModuleInstance)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -350,7 +350,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -412,7 +412,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -451,7 +451,7 @@ func TestApplyGraphBuilder_targetModule(t *testing.T) {
 		},
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -545,7 +545,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -645,7 +645,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -695,7 +695,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -744,7 +744,7 @@ func TestApplyGraphBuilder_withChecks(t *testing.T) {
 		Operation: walkApply,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -19,7 +20,7 @@ import (
 // a Context. This information is used for debugging.
 type contextComponentFactory interface {
 	// ResourceProvider creates a new ResourceProvider with the given type.
-	ResourceProvider(typ addrs.Provider) (providers.Interface, error)
+	ResourceProvider(ctx context.Context, typ addrs.Provider) (providers.Interface, error)
 	ResourceProviders() []string
 
 	// ResourceProvisioner creates a new ResourceProvisioner with the given
@@ -51,13 +52,13 @@ func (c *basicComponentFactory) ResourceProvisioners() []string {
 	return result
 }
 
-func (c *basicComponentFactory) ResourceProvider(typ addrs.Provider) (providers.Interface, error) {
+func (c *basicComponentFactory) ResourceProvider(ctx context.Context, typ addrs.Provider) (providers.Interface, error) {
 	f, ok := c.providers[typ]
 	if !ok {
 		return nil, fmt.Errorf("unknown provider %q", typ.String())
 	}
 
-	return f()
+	return f(ctx)
 }
 
 func (c *basicComponentFactory) ResourceProvisioner(typ string) (provisioners.Interface, error) {

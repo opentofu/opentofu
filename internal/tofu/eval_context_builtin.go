@@ -130,7 +130,7 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
-func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+func (ctx *BuiltinEvalContext) InitProvider(traceCtx context.Context, addr addrs.AbsProviderConfig) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
@@ -141,7 +141,7 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 		return nil, fmt.Errorf("%s is already initialized", addr)
 	}
 
-	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
+	p, err := ctx.Plugins.NewProviderInstance(traceCtx, addr.Provider)
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +159,12 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.
 	return ctx.ProviderCache[addr.String()]
 }
 
-func (ctx *BuiltinEvalContext) ProviderSchema(c context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return ctx.Plugins.ProviderSchema(c, addr.Provider)
+func (ctx *BuiltinEvalContext) ProviderSchema(traceCtx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "BuiltinEvalContext.ProviderSchema")
+	defer span.End()
+
+	return ctx.Plugins.ProviderSchema(traceCtx, addr.Provider)
 }
 
 func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
@@ -269,9 +273,9 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 	return diags.Err()
 }
 
-func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) EvaluateBlock(traceCtx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	scope := ctx.EvaluationScope(nil, self, nil, keyData)
+	scope := ctx.EvaluationScope(traceCtx, self, nil, keyData)
 	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
@@ -288,8 +292,7 @@ func (ctx *BuiltinEvalContext) EvaluateExpr(traceCtx context.Context, expr hcl.E
 	return scope.EvalExpr(expr, wantType)
 }
 
-func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
-
+func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(traceCtx context.Context, expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 	// get the reference to lookup changes in the plan
 	ref, diags := evalReplaceTriggeredByExpr(expr, repData)
 	if diags.HasErrors() {
@@ -366,7 +369,7 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	// Since we have a traversal after the resource reference, we will need to
 	// decode the changes, which means we need a schema.
 	providerAddr := change.ProviderAddr
-	schema, err := ctx.ProviderSchema(context.TODO(), providerAddr)
+	schema, err := ctx.ProviderSchema(traceCtx, providerAddr)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, false, diags
@@ -409,8 +412,8 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 // in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
 // an Index Traversal, adding it to the Traverser
 // TODO move this function into eval_import.go
-func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	traversal, diags := ctx.traversalForImportExpr(expr, keyData)
+func (ctx *BuiltinEvalContext) EvaluateImportAddress(traceCtx context.Context, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	traversal, diags := ctx.traversalForImportExpr(traceCtx, expr, keyData)
 	if diags.HasErrors() {
 		return addrs.AbsResourceInstance{}, diags
 	}
@@ -418,18 +421,18 @@ func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression, keyDat
 	return addrs.ParseAbsResourceInstance(traversal)
 }
 
-func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression, keyData instances.RepetitionData) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) traversalForImportExpr(traceCtx context.Context, expr hcl.Expression, keyData instances.RepetitionData) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
 	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
-		t, d := ctx.traversalForImportExpr(e.Collection, keyData)
+		t, d := ctx.traversalForImportExpr(traceCtx, e.Collection, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 
-		tIndex, dIndex := ctx.parseImportIndexKeyExpr(e.Key, keyData)
+		tIndex, dIndex := ctx.parseImportIndexKeyExpr(traceCtx, e.Key, keyData)
 		diags = diags.Append(dIndex)
 		traversal = append(traversal, tIndex)
 	case *hclsyntax.RelativeTraversalExpr:
-		t, d := ctx.traversalForImportExpr(e.Source, keyData)
+		t, d := ctx.traversalForImportExpr(traceCtx, e.Source, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 		traversal = append(traversal, e.Traversal...)
@@ -451,13 +454,13 @@ func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression, keyDa
 // import target address, into a traversal of type hcl.TraverseIndex.
 // After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
 // (count)
-func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(traceCtx context.Context, expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
 	idx := hcl.TraverseIndex{
 		SrcRange: expr.Range(),
 	}
 
 	// evaluate and take into consideration the for_each key (if exists)
-	val, diags := evaluateExprWithRepetitionData(ctx, expr, cty.DynamicPseudoType, keyData)
+	val, diags := evaluateExprWithRepetitionData(traceCtx, ctx, expr, cty.DynamicPseudoType, keyData)
 	if diags.HasErrors() {
 		return idx, diags
 	}
@@ -507,6 +510,10 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyD
 }
 
 func (ctx *BuiltinEvalContext) EvaluationScope(traceCtx context.Context, self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
+	// TODO: REMOVE BEFORE MERGING
+	if traceCtx == nil {
+		panic("JAMES")
+	}
 	var span trace.Span
 	traceCtx, span = tracer.Start(traceCtx, "BuiltinEvalContext.EvaluationScope")
 	defer span.End()

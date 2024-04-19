@@ -47,7 +47,7 @@ type EvalContext interface {
 	// It is an error to initialize the same provider more than once. This
 	// method will panic if the module instance address of the given provider
 	// configuration does not match the Path() of the EvalContext.
-	InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error)
+	InitProvider(ctx context.Context, addr addrs.AbsProviderConfig) (providers.Interface, error)
 
 	// Provider gets the provider instance with the given address (already
 	// initialized) or returns nil if the provider isn't initialized.
@@ -117,7 +117,7 @@ type EvalContext interface {
 	// "dynamic" blocks replaced with zero or more static blocks. This can be
 	// used to extract correct source location information about attributes of
 	// the returned object value.
-	EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics)
+	EvaluateBlock(traceCtx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics)
 
 	// EvaluateExpr takes the given HCL expression and evaluates it to produce
 	// a value.
@@ -130,11 +130,11 @@ type EvalContext interface {
 	// EvaluateReplaceTriggeredBy takes the raw reference expression from the
 	// config, and returns the evaluated *addrs.Reference along with a boolean
 	// indicating if that reference forces replacement.
-	EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics)
+	EvaluateReplaceTriggeredBy(ctx context.Context, expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics)
 
 	// EvaluateImportAddress takes the raw reference expression of the import address
 	// from the config, and returns the evaluated address addrs.AbsResourceInstance
-	EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
+	EvaluateImportAddress(traceCtx context.Context, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
 
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.

@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -29,11 +30,15 @@ import (
 // all of the same checks as Validate, in addition to the other work it does
 // to consider the previous run state and the planning options.
 func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.Diagnostics {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Context.Validate")
+	defer span.End()
+
 	defer c.acquireRun("validate")()
 
 	var diags tfdiags.Diagnostics
 
-	moreDiags := c.checkConfigDependencies(config)
+	moreDiags := c.checkConfigDependencies(ctx, config)
 	diags = diags.Append(moreDiags)
 	// If required dependencies are not available then we'll bail early since
 	// otherwise we're likely to just see a bunch of other errors related to
@@ -68,7 +73,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		State:              states.NewState(),
 		RootVariableValues: varValues,
 		Operation:          walkValidate,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags

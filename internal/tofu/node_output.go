@@ -57,7 +57,7 @@ func (n *nodeExpandOutput) temporaryValue() bool {
 	return !n.Module.IsRoot()
 }
 
-func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandOutput) DynamicExpand(traceCtx context.Context, ctx EvalContext) (*Graph, error) {
 	expander := ctx.InstanceExpander()
 	changes := ctx.Changes()
 
@@ -331,6 +331,7 @@ func (n *NodeApplyableOutput) Execute(traceCtx context.Context, ctx EvalContext,
 			checkRuleSeverity = tfdiags.Warning
 		}
 		checkDiags := evalCheckRules(
+			traceCtx,
 			addrs.OutputPrecondition,
 			n.Config.Preconditions,
 			ctx, n.Addr, EvalDataForNoInstanceKey,
@@ -354,7 +355,7 @@ func (n *NodeApplyableOutput) Execute(traceCtx context.Context, ctx EvalContext,
 		// We'll handle errors below, after we have loaded the module.
 		// Outputs don't have a separate mode for validation, so validate
 		// depends_on expressions here too
-		diags = diags.Append(validateDependsOn(ctx, n.Config.DependsOn))
+		diags = diags.Append(validateDependsOn(traceCtx, ctx, n.Config.DependsOn))
 
 		// For root module outputs in particular, an output value must be
 		// statically declared as sensitive in order to dynamically return

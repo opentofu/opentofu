@@ -145,16 +145,16 @@ func (n *NodeApplyableResourceInstance) Execute(traceCtx context.Context, ctx Ev
 	// Eval info is different depending on what kind of resource this is
 	switch n.Config.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx)
+		return n.managedResourceExecute(traceCtx, ctx)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx)
+		return n.dataResourceExecute(traceCtx, ctx)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
 }
 
-func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+func (n *NodeApplyableResourceInstance) dataResourceExecute(traceCtx context.Context, ctx EvalContext) (diags tfdiags.Diagnostics) {
+	_, providerSchema, err := getProvider(traceCtx, ctx, n.ResolvedProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -176,7 +176,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 	// In this particular call to applyDataSource we include our planned
 	// change, which signals that we expect this read to complete fully
 	// with no unknown values; it'll produce an error if not.
-	state, repeatData, applyDiags := n.applyDataSource(ctx, change)
+	state, repeatData, applyDiags := n.applyDataSource(traceCtx, ctx, change)
 	diags = diags.Append(applyDiags)
 	if diags.HasErrors() {
 		return diags
@@ -188,13 +188,13 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 		// actually reading the data (e.g. because it was already read during
 		// the plan phase) and so we're only running through here to get the
 		// extra details like precondition/postcondition checks.
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, workingState))
+		diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, state, workingState))
 		if diags.HasErrors() {
 			return diags
 		}
 	}
 
-	diags = diags.Append(n.writeChange(ctx, nil, ""))
+	diags = diags.Append(n.writeChange(traceCtx, ctx, nil, ""))
 
 	diags = diags.Append(updateStateHook(ctx))
 
@@ -203,6 +203,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
+		traceCtx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		ctx, n.ResourceInstanceAddr(),
@@ -214,7 +215,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 	return diags
 }
 
-func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableResourceInstance) managedResourceExecute(traceCtx context.Context, ctx EvalContext) (diags tfdiags.Diagnostics) {
 	// Declare a bunch of variables that are used for state during
 	// evaluation. Most of this are written to by-address below.
 	var state *states.ResourceInstanceObject
@@ -222,7 +223,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	var deposedKey states.DeposedKey
 
 	addr := n.ResourceInstanceAddr().Resource
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(traceCtx, ctx, n.ResolvedProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -263,7 +264,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		log.Printf("[TRACE] managedResourceExecute: prior object for %s now deposed with key %s", n.Addr, deposedKey)
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, n.ResourceInstanceAddr())
+	state, readDiags := n.readResourceInstanceState(traceCtx, ctx, n.ResourceInstanceAddr())
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -278,7 +279,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 
 	// Make a new diff, in case we've learned new values in the state
 	// during apply which we can now incorporate.
-	diffApply, _, repeatData, planDiags := n.plan(ctx, diff, state, false, n.forceReplace)
+	diffApply, _, repeatData, planDiags := n.plan(traceCtx, ctx, diff, state, false, n.forceReplace)
 	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
 		return diags
@@ -306,15 +307,15 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// If there is no change, there was nothing to apply, and we don't need to
 	// re-write the state, but we do need to re-evaluate postconditions.
 	if diffApply.Action == plans.NoOp {
-		return diags.Append(n.managedResourcePostconditions(ctx, repeatData))
+		return diags.Append(n.managedResourcePostconditions(traceCtx, ctx, repeatData))
 	}
 
-	state, applyDiags := n.apply(ctx, state, diffApply, n.Config, repeatData, n.CreateBeforeDestroy())
+	state, applyDiags := n.apply(traceCtx, ctx, state, diffApply, n.Config, repeatData, n.CreateBeforeDestroy())
 	diags = diags.Append(applyDiags)
 
 	// We clear the change out here so that future nodes don't see a change
 	// that is already complete.
-	err = n.writeChange(ctx, nil, "")
+	err = n.writeChange(traceCtx, ctx, nil, "")
 	if err != nil {
 		return diags.Append(err)
 	}
@@ -325,20 +326,20 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// dependencies are always updated to match the configuration during apply
 		state.Dependencies = n.Dependencies
 	}
-	err = n.writeResourceInstanceState(ctx, state, workingState)
+	err = n.writeResourceInstanceState(traceCtx, ctx, state, workingState)
 	if err != nil {
 		return diags.Append(err)
 	}
 
 	// Run Provisioners
 	createNew := (diffApply.Action == plans.Create || diffApply.Action.IsReplace())
-	applyProvisionersDiags := n.evalApplyProvisioners(ctx, state, createNew, configs.ProvisionerWhenCreate)
+	applyProvisionersDiags := n.evalApplyProvisioners(traceCtx, ctx, state, createNew, configs.ProvisionerWhenCreate)
 	// the provisioner errors count as port of the apply error, so we can bundle the diags
 	diags = diags.Append(applyProvisionersDiags)
 
 	state = maybeTainted(addr.Absolute(ctx.Path()), state, diffApply, diags.Err())
 
-	err = n.writeResourceInstanceState(ctx, state, workingState)
+	err = n.writeResourceInstanceState(traceCtx, ctx, state, workingState)
 	if err != nil {
 		return diags.Append(err)
 	}
@@ -384,12 +385,13 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// _after_ writing the state because we want to check against
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
-	return diags.Append(n.managedResourcePostconditions(ctx, repeatData))
+	return diags.Append(n.managedResourcePostconditions(traceCtx, ctx, repeatData))
 }
 
-func (n *NodeApplyableResourceInstance) managedResourcePostconditions(ctx EvalContext, repeatData instances.RepetitionData) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableResourceInstance) managedResourcePostconditions(traceCtx context.Context, ctx EvalContext, repeatData instances.RepetitionData) (diags tfdiags.Diagnostics) {
 
 	checkDiags := evalCheckRules(
+		traceCtx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		ctx, n.ResourceInstanceAddr(), repeatData,

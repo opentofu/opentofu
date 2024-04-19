@@ -90,21 +90,21 @@ func (n *NodePlannableResourceInstance) Execute(traceCtx context.Context, ctx Ev
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx)
+		return n.managedResourceExecute(traceCtx, ctx)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx)
+		return n.dataResourceExecute(traceCtx, ctx)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
 }
 
-func (n *NodePlannableResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstance) dataResourceExecute(traceCtx context.Context, ctx EvalContext) (diags tfdiags.Diagnostics) {
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 
 	var change *plans.ResourceInstanceChange
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(traceCtx, ctx, n.ResolvedProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -120,7 +120,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 		checkRuleSeverity = tfdiags.Warning
 	}
 
-	change, state, repeatData, planDiags := n.planDataSource(ctx, checkRuleSeverity, n.skipPlanChanges)
+	change, state, repeatData, planDiags := n.planDataSource(traceCtx, ctx, checkRuleSeverity, n.skipPlanChanges)
 	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
 		return diags
@@ -128,22 +128,23 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 
 	// write the data source into both the refresh state and the
 	// working state
-	diags = diags.Append(n.writeResourceInstanceState(ctx, state, refreshState))
+	diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, state, refreshState))
 	if diags.HasErrors() {
 		return diags
 	}
-	diags = diags.Append(n.writeResourceInstanceState(ctx, state, workingState))
+	diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, state, workingState))
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.writeChange(ctx, change, ""))
+	diags = diags.Append(n.writeChange(traceCtx, ctx, change, ""))
 
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state/diff because we want to check against
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
+		traceCtx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		ctx, addr, repeatData,
@@ -154,7 +155,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 	return diags
 }
 
-func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstance) managedResourceExecute(traceCtx context.Context, ctx EvalContext) (diags tfdiags.Diagnostics) {
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 
@@ -165,7 +166,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		checkRuleSeverity = tfdiags.Warning
 	}
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(traceCtx, ctx, n.ResolvedProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -201,10 +202,10 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// If the resource is to be imported, we now ask the provider for an Import
 	// and a Refresh, and save the resulting state to instanceRefreshState.
 	if importing {
-		instanceRefreshState, diags = n.importState(ctx, addr, n.importTarget.ID, provider, providerSchema)
+		instanceRefreshState, diags = n.importState(traceCtx, ctx, addr, n.importTarget.ID, provider, providerSchema)
 	} else {
 		var readDiags tfdiags.Diagnostics
-		instanceRefreshState, readDiags = n.readResourceInstanceState(ctx, addr)
+		instanceRefreshState, readDiags = n.readResourceInstanceState(traceCtx, ctx, addr)
 		diags = diags.Append(readDiags)
 		if diags.HasErrors() {
 			return diags
@@ -216,13 +217,13 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// result of any schema upgrading that readResourceInstanceState just did,
 	// but not include any out-of-band changes we might detect in in the
 	// refresh step below.
-	diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, prevRunState))
+	diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, instanceRefreshState, prevRunState))
 	if diags.HasErrors() {
 		return diags
 	}
 	// Also the refreshState, because that should still reflect schema upgrades
 	// even if it doesn't reflect upstream changes.
-	diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+	diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, instanceRefreshState, refreshState))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -240,7 +241,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// Refresh, maybe
 	// The import process handles its own refresh
 	if !n.skipRefresh && !importing {
-		s, refreshDiags := n.refresh(ctx, states.NotDeposed, instanceRefreshState)
+		s, refreshDiags := n.refresh(traceCtx, ctx, states.NotDeposed, instanceRefreshState)
 		diags = diags.Append(refreshDiags)
 		if diags.HasErrors() {
 			return diags
@@ -257,7 +258,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			instanceRefreshState.Dependencies = mergeDeps(n.Dependencies, instanceRefreshState.Dependencies)
 		}
 
-		diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+		diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, instanceRefreshState, refreshState))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -277,13 +278,13 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			repData.EachValue = cty.DynamicVal
 		}
 
-		diags = diags.Append(n.replaceTriggered(ctx, repData))
+		diags = diags.Append(n.replaceTriggered(traceCtx, ctx, repData))
 		if diags.HasErrors() {
 			return diags
 		}
 
 		change, instancePlanState, repeatData, planDiags := n.plan(
-			ctx, nil, instanceRefreshState, n.ForceCreateBeforeDestroy, n.forceReplace,
+			traceCtx, ctx, nil, instanceRefreshState, n.ForceCreateBeforeDestroy, n.forceReplace,
 		)
 		diags = diags.Append(planDiags)
 		if diags.HasErrors() {
@@ -304,7 +305,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 						GeneratedConfig: n.generatedConfigHCL,
 					},
 				}
-				diags = diags.Append(n.writeChange(ctx, change, ""))
+				diags = diags.Append(n.writeChange(traceCtx, ctx, change, ""))
 			}
 
 			return diags
@@ -335,7 +336,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// Future work should adjust these APIs such that it is impossible to
 		// update these two data structures incorrectly through any objects
 		// reachable via the tofu.EvalContext API.
-		diags = diags.Append(n.writeChange(ctx, change, ""))
+		diags = diags.Append(n.writeChange(traceCtx, ctx, change, ""))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -344,7 +345,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			return diags
 		}
 
-		diags = diags.Append(n.writeResourceInstanceState(ctx, instancePlanState, workingState))
+		diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, instancePlanState, workingState))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -357,7 +358,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			// the refresh state will be the final state for this resource, so
 			// finalize the dependencies here if they need to be updated.
 			instanceRefreshState.Dependencies = n.Dependencies
-			diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+			diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, instanceRefreshState, refreshState))
 			if diags.HasErrors() {
 				return diags
 			}
@@ -370,6 +371,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// (Note that some preconditions will end up being skipped during
 		// planning, because their conditions depend on values not yet known.)
 		checkDiags := evalCheckRules(
+			traceCtx,
 			addrs.ResourcePostcondition,
 			n.Config.Postconditions,
 			ctx, n.ResourceInstanceAddr(), repeatData,
@@ -384,10 +386,11 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// values, which could result in a post-condition check relying on that
 		// value being inaccurate. Unless we decide to store the value of the
 		// for-each expression in state, this is unavoidable.
-		forEach, _ := evaluateForEachExpression(n.Config.ForEach, ctx)
+		forEach, _ := evaluateForEachExpression(traceCtx, n.Config.ForEach, ctx)
 		repeatData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 		checkDiags := evalCheckRules(
+			traceCtx,
 			addrs.ResourcePrecondition,
 			n.Config.Preconditions,
 			ctx, addr, repeatData,
@@ -400,7 +403,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// any output values refering to this will not react to the drift.
 		// (Even if we didn't actually refresh above, this will still save
 		// the result of any schema upgrading we did in readResourceInstanceState.)
-		diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, workingState))
+		diags = diags.Append(n.writeResourceInstanceState(traceCtx, ctx, instanceRefreshState, workingState))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -411,6 +414,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// even if pre-conditions generated diagnostics, because we have no
 		// planned changes to block.
 		checkDiags = evalCheckRules(
+			traceCtx,
 			addrs.ResourcePostcondition,
 			n.Config.Postconditions,
 			ctx, addr, repeatData,
@@ -425,14 +429,14 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 // replaceTriggered checks if this instance needs to be replace due to a change
 // in a replace_triggered_by reference. If replacement is required, the
 // instance address is added to forceReplace
-func (n *NodePlannableResourceInstance) replaceTriggered(ctx EvalContext, repData instances.RepetitionData) tfdiags.Diagnostics {
+func (n *NodePlannableResourceInstance) replaceTriggered(traceCtx context.Context, ctx EvalContext, repData instances.RepetitionData) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if n.Config == nil {
 		return diags
 	}
 
 	for _, expr := range n.Config.TriggersReplacement {
-		ref, replace, evalDiags := ctx.EvaluateReplaceTriggeredBy(expr, repData)
+		ref, replace, evalDiags := ctx.EvaluateReplaceTriggeredBy(traceCtx, expr, repData)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			continue
@@ -455,7 +459,7 @@ func (n *NodePlannableResourceInstance) replaceTriggered(ctx EvalContext, repDat
 	return diags
 }
 
-func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.AbsResourceInstance, importId string, provider providers.Interface, providerSchema providers.ProviderSchema) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstance) importState(traceCtx context.Context, ctx EvalContext, addr addrs.AbsResourceInstance, importId string, provider providers.Interface, providerSchema providers.ProviderSchema) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	absAddr := addr.Resource.Absolute(ctx.Path())
 
@@ -534,7 +538,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 			ResolvedProvider: n.ResolvedProvider,
 		},
 	}
-	instanceRefreshState, refreshDiags := riNode.refresh(ctx, states.NotDeposed, importedState)
+	instanceRefreshState, refreshDiags := riNode.refresh(traceCtx, ctx, states.NotDeposed, importedState)
 	diags = diags.Append(refreshDiags)
 	if diags.HasErrors() {
 		return instanceRefreshState, diags
@@ -561,6 +565,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	// Insert marks from configuration
 	if n.Config != nil {
+
 		keyData := EvalDataForNoInstanceKey
 
 		switch {
@@ -575,7 +580,8 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 			}
 		}
 
-		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, keyData)
+		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(traceCtx, n.Config.Config, n.Schema, nil, keyData)
+
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return instanceRefreshState, diags
@@ -632,7 +638,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		}
 	}
 
-	diags = diags.Append(riNode.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+	diags = diags.Append(riNode.writeResourceInstanceState(traceCtx, ctx, instanceRefreshState, refreshState))
 	return instanceRefreshState, diags
 }
 

@@ -9,6 +9,8 @@ import (
 	"context"
 	"log"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
@@ -43,6 +45,10 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
 
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Context.Eval")
+	defer span.End()
+
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("eval")()
 
@@ -60,7 +66,7 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// user-friendly error messages if they are not all present, and so
 	// the error message from checkInputVariables should never be seen and
 	// includes language asking the user to report a bug.
-	varDiags := checkInputVariables(config.Module.Variables, variables)
+	varDiags := checkInputVariables(ctx, config.Module.Variables, variables)
 	diags = diags.Append(varDiags)
 
 	log.Printf("[DEBUG] Building and walking 'eval' graph")
@@ -70,7 +76,7 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 		State:              state,
 		RootVariableValues: variables,
 		Plugins:            c.plugins,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(nil, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -98,5 +104,5 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// caches its contexts, so we should get hold of the context that was
 	// previously used for evaluation here, unless we skipped walking.
 	evalCtx := walker.EnterPath(moduleAddr)
-	return evalCtx.EvaluationScope(nil, nil, nil, EvalDataForNoInstanceKey), diags
+	return evalCtx.EvaluationScope(ctx, nil, nil, EvalDataForNoInstanceKey), diags
 }

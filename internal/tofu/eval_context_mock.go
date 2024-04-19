@@ -186,7 +186,7 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+func (c *MockEvalContext) InitProvider(ctx context.Context, addr addrs.AbsProviderConfig) (providers.Interface, error) {
 	c.InitProviderCalled = true
 	c.InitProviderType = addr.String()
 	c.InitProviderAddr = addr
@@ -251,7 +251,7 @@ func (c *MockEvalContext) CloseProvisioners() error {
 	return nil
 }
 
-func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateBlock(traceCtx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	c.EvaluateBlockCalled = true
 	c.EvaluateBlockBody = body
 	c.EvaluateBlockSchema = schema
@@ -274,11 +274,11 @@ func (c *MockEvalContext) EvaluateExpr(ctx context.Context, expr hcl.Expression,
 	return c.EvaluateExprResult, c.EvaluateExprDiags
 }
 
-func (c *MockEvalContext) EvaluateReplaceTriggeredBy(hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateReplaceTriggeredBy(context.Context, hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 	return nil, false, nil
 }
 
-func (c *MockEvalContext) EvaluateImportAddress(expression hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateImportAddress(traceCtx context.Context, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
 	return addrs.AbsResourceInstance{}, nil
 }
 

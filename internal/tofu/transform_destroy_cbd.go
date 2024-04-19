@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -39,7 +40,7 @@ type GraphNodeDestroyerCBD interface {
 type ForcedCBDTransformer struct {
 }
 
-func (t *ForcedCBDTransformer) Transform(g *Graph) error {
+func (t *ForcedCBDTransformer) Transform(ctx context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		dn, ok := v.(GraphNodeDestroyerCBD)
 		if !ok {
@@ -122,7 +123,7 @@ type CBDEdgeTransformer struct {
 	State  *states.State
 }
 
-func (t *CBDEdgeTransformer) Transform(g *Graph) error {
+func (t *CBDEdgeTransformer) Transform(ctx context.Context, g *Graph) error {
 	// Go through and reverse any destroy edges
 	for _, v := range g.Vertices() {
 		dn, ok := v.(GraphNodeDestroyerCBD)

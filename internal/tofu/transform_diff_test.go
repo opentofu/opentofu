@@ -18,7 +18,7 @@ import (
 func TestDiffTransformer_nilDiff(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	tf := &DiffTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -61,7 +61,7 @@ func TestDiffTransformer(t *testing.T) {
 			},
 		},
 	}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -156,7 +156,7 @@ resource "aws_instance" "foo" {
 			},
 		},
 	}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

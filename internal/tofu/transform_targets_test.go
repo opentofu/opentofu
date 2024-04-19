@@ -18,21 +18,21 @@ func TestTargetsTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &AttachResourceConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ReferenceTransformer{}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -45,7 +45,7 @@ func TestTargetsTransformer(t *testing.T) {
 				),
 			},
 		}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -69,35 +69,35 @@ func TestTargetsTransformer_downstream(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		transform := &ConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &AttachResourceConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &AttachResourceConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &OutputTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &ReferenceTransformer{}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -113,7 +113,7 @@ func TestTargetsTransformer_downstream(t *testing.T) {
 					),
 			},
 		}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
@@ -143,35 +143,35 @@ func TestTargetsTransformer_wholeModule(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		transform := &ConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &AttachResourceConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &AttachResourceConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &OutputTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}
 
 	{
 		transform := &ReferenceTransformer{}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -184,7 +184,7 @@ func TestTargetsTransformer_wholeModule(t *testing.T) {
 					Child("grandchild"),
 			},
 		}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(; err != nil {
 			t.Fatalf("%T failed: %s", transform, err)
 		}
 	}

@@ -43,12 +43,12 @@ func TestDestroyEdgeTransformer_basic(t *testing.T) {
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -97,12 +97,12 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -117,7 +117,7 @@ func TestDestroyEdgeTransformer_selfRef(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	g.Add(testDestroyNode("test_object.A"))
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -153,12 +153,12 @@ func TestDestroyEdgeTransformer_module(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -212,12 +212,12 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 		)
 	}
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -280,12 +280,12 @@ func TestDestroyEdgeTransformer_destroyThenUpdate(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -401,7 +401,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 			&CloseRootModuleTransformer{},
 		},
 	}
-	graph, diags := builder.Build(addrs.RootModuleInstance)
+	graph, diags := builder.Build(nil, addrs.RootModuleInstance)
 	assertNoDiagnostics(t, diags)
 
 	// At this point, thanks to pruneUnusedNodesTransformer, we should still
@@ -482,7 +482,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
@@ -498,7 +498,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			},
 		},
 	}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -542,12 +542,12 @@ func TestDestroyEdgeTransformer_dataDependsOn(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(; err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(; err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

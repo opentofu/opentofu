@@ -281,7 +281,7 @@ func (c *InitCommand) Run(args []string) int {
 	// the configuration declare that they don't support this OpenTofu
 	// version, so we can produce a version-related error message rather than
 	// potentially-confusing downstream errors.
-	versionDiags := tofu.CheckCoreVersionRequirements(config)
+	versionDiags := tofu.CheckCoreVersionRequirements(ctx, config)
 	if versionDiags.HasErrors() {
 		c.showDiagnostics(versionDiags)
 		return 1
@@ -330,7 +330,7 @@ func (c *InitCommand) Run(args []string) int {
 	if state != nil {
 		// Since we now have the full configuration loaded, we can use it to migrate the in-memory state view
 		// prior to fetching providers.
-		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
+		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(ctx, config, state)
 		diags = diags.Append(migrateDiags)
 		if migrateDiags.HasErrors() {
 			c.showDiagnostics(diags)
@@ -560,7 +560,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 	// First we'll collect all the provider dependencies we can see in the
 	// configuration and the state.
-	reqs, hclDiags := config.ProviderRequirements()
+	reqs, hclDiags := config.ProviderRequirements(ctx)
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return false, true, diags

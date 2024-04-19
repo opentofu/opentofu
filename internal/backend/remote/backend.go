@@ -23,6 +23,8 @@ import (
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -33,7 +35,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	tfversion "github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
 
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
@@ -839,7 +840,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 		if opErr != nil && opErr != context.Canceled {
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(opErr)
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(ctx, runningOp, diags)
 			return
 		}
 
@@ -854,7 +855,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 			if err != nil {
 				var diags tfdiags.Diagnostics
 				diags = diags.Append(generalError("Failed to retrieve run", err))
-				op.ReportResult(runningOp, diags)
+				op.ReportResult(ctx, runningOp, diags)
 				return
 			}
 
@@ -865,7 +866,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 				if err := b.cancel(cancelCtx, op, r); err != nil {
 					var diags tfdiags.Diagnostics
 					diags = diags.Append(generalError("Failed to retrieve run", err))
-					op.ReportResult(runningOp, diags)
+					op.ReportResult(ctx, runningOp, diags)
 					return
 				}
 			}

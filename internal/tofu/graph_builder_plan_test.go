@@ -44,7 +44,7 @@ func TestPlanGraphBuilder(t *testing.T) {
 		Operation: walkPlan,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -87,7 +87,7 @@ func TestPlanGraphBuilder_dynamicBlock(t *testing.T) {
 		Operation: walkPlan,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -143,7 +143,7 @@ func TestPlanGraphBuilder_attrAsBlocks(t *testing.T) {
 		Operation: walkPlan,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -184,7 +184,7 @@ func TestPlanGraphBuilder_targetModule(t *testing.T) {
 		Operation: walkPlan,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -208,7 +208,7 @@ func TestPlanGraphBuilder_forEach(t *testing.T) {
 		Operation: walkPlan,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(nil, addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

@@ -47,7 +47,7 @@ func (b *Local) opApply(
 				"would mark everything for destruction, which is normally not what is desired. "+
 				"If you would like to destroy everything, run 'tofu destroy' instead.",
 		))
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -58,7 +58,7 @@ func (b *Local) opApply(
 	lr, _, opState, contextDiags := b.localRun(traceCtx, op)
 	diags = diags.Append(contextDiags)
 	if contextDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 	// the state was locked during successful context creation; unlock the state
@@ -79,7 +79,7 @@ func (b *Local) opApply(
 	schemas, moreDiags := lr.Core.Schemas(traceCtx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 	// stateHook uses schemas for when it periodically persists state to the
@@ -105,7 +105,7 @@ func (b *Local) opApply(
 			if plan != nil && (len(plan.Changes.Resources) != 0 || len(plan.Changes.Outputs) != 0) {
 				op.View.Plan(plan, schemas)
 			}
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 
@@ -126,7 +126,7 @@ func (b *Local) opApply(
 		if stopCtx.Err() != nil {
 			diags = diags.Append(errors.New("execution halted"))
 			runningOp.Result = backend.OperationFailure
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 
@@ -173,7 +173,7 @@ func (b *Local) opApply(
 			})
 			if err != nil {
 				diags = diags.Append(fmt.Errorf("error asking for approval: %w", err))
-				op.ReportResult(runningOp, diags)
+				op.ReportResult(traceCtx, runningOp, diags)
 				return
 			}
 			if v != "yes" {
@@ -217,7 +217,7 @@ func (b *Local) opApply(
 				"Cannot apply incomplete plan",
 				"OpenTofu encountered an error when generating this plan, so it cannot be applied.",
 			))
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 		for _, change := range plan.Changes.Resources {
@@ -251,7 +251,7 @@ func (b *Local) opApply(
 	// Return early here to prevent corrupting any existing state.
 	if diags.HasErrors() && applyState == nil {
 		log.Printf("[ERROR] backend/local: apply returned nil state")
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -268,12 +268,12 @@ func (b *Local) opApply(
 		stateFile.State = applyState
 
 		diags = diags.Append(b.backupStateForError(stateFile, err, op.View))
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
 	if applyDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 

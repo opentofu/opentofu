@@ -311,7 +311,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	// First we'll do static validation of the references. This catches things
 	// early that might otherwise not get caught due to unknown values being
 	// present in the scope during planning.
-	staticDiags := s.Data.StaticValidateReferences(refs, selfAddr, s.SourceAddr)
+	staticDiags := s.Data.StaticValidateReferences(nil, refs, selfAddr, s.SourceAddr)
 	diags = diags.Append(staticDiags)
 	if staticDiags.HasErrors() {
 		return ctx, diags
@@ -365,7 +365,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			// self can only be used within a resource instance
 			subj := selfAddr.(addrs.ResourceInstance)
 
-			val, valDiags := normalizeRefValue(s.Data.GetResource(subj.ContainingResource(), rng))
+			val, valDiags := normalizeRefValue(s.Data.GetResource(nil, subj.ContainingResource(), rng))
 
 			diags = diags.Append(valDiags)
 
@@ -412,7 +412,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 				panic(fmt.Errorf("unsupported ResourceMode %s", subj.Mode))
 			}
 
-			val, valDiags := normalizeRefValue(s.Data.GetResource(subj, rng))
+			val, valDiags := normalizeRefValue(s.Data.GetResource(nil, subj, rng))
 			diags = diags.Append(valDiags)
 
 			r := subj

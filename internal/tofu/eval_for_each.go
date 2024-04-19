@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -25,8 +26,8 @@ import (
 // evaluateForEachExpression differs from evaluateForEachExpressionValue by
 // returning an error if the count value is not known, and converting the
 // cty.Value to a map[string]cty.Value for compatibility with other calls.
-func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (forEach map[string]cty.Value, diags tfdiags.Diagnostics) {
-	forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, false, false)
+func evaluateForEachExpression(traceCtx context.Context, expr hcl.Expression, ctx EvalContext) (forEach map[string]cty.Value, diags tfdiags.Diagnostics) {
+	forEachVal, diags := evaluateForEachExpressionValue(traceCtx, expr, ctx, false, false)
 	// forEachVal might be unknown, but if it is then there should already
 	// be an error about it in diags, which we'll return below.
 
@@ -42,7 +43,7 @@ func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (forEach ma
 // except that it returns a cty.Value map or set which can be unknown.
 // The 'allowTuple' argument is used to support evaluating for_each from tuple
 // values, and is currently supported when using for_each in import blocks.
-func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowUnknown bool, allowTuple bool) (cty.Value, tfdiags.Diagnostics) {
+func evaluateForEachExpressionValue(traceCtx context.Context, expr hcl.Expression, ctx EvalContext, allowUnknown bool, allowTuple bool) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 
@@ -52,7 +53,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 
 	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	diags = diags.Append(moreDiags)
-	scope := ctx.EvaluationScope(nil, nil, nil, EvalDataForNoInstanceKey)
+	scope := ctx.EvaluationScope(traceCtx, nil, nil, EvalDataForNoInstanceKey)
 	var hclCtx *hcl.EvalContext
 	if scope != nil {
 		hclCtx, moreDiags = scope.EvalContext(refs)

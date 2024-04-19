@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -79,14 +80,14 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // either misbehavior on the part of one of the providers or of the provider
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
-func LoadSchemas(config *configs.Config, state *states.State, components contextComponentFactory) (*Schemas, error) {
+func LoadSchemas(ctx context.Context, config *configs.Config, state *states.State, components contextComponentFactory) (*Schemas, error) {
 	schemas := &Schemas{
 		Providers:    map[addrs.Provider]*ProviderSchema{},
 		Provisioners: map[string]*configschema.Block{},
 	}
 	var diags tfdiags.Diagnostics
 
-	newDiags := loadProviderSchemas(schemas.Providers, config, state, components)
+	newDiags := loadProviderSchemas(ctx, schemas.Providers, config, state, components)
 	diags = diags.Append(newDiags)
 	newDiags = loadProvisionerSchemas(schemas.Provisioners, config, components)
 	diags = diags.Append(newDiags)
@@ -94,7 +95,7 @@ func LoadSchemas(config *configs.Config, state *states.State, components context
 	return schemas, diags.Err()
 }
 
-func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *configs.Config, state *states.State, components contextComponentFactory) tfdiags.Diagnostics {
+func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]*ProviderSchema, config *configs.Config, state *states.State, components contextComponentFactory) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	ensure := func(fqn addrs.Provider) {
@@ -105,7 +106,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 		}
 
 		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
-		provider, err := components.ResourceProvider(fqn)
+		provider, err := components.ResourceProvider(ctx, fqn)
 		if err != nil {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls.
@@ -175,7 +176,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 	}
 
 	if config != nil {
-		for _, fqn := range config.ProviderTypes() {
+		for _, fqn := range config.ProviderTypes(ctx) {
 			ensure(fqn)
 		}
 	}

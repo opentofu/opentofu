@@ -137,7 +137,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		c.Streams.Eprintln(errStateNotFound)
 		return 1
 	}
-	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(lr.Config, state)
+	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(ctx, lr.Config, state)
 	diags = diags.Append(migrateDiags)
 	if migrateDiags.HasErrors() {
 		c.View.Diagnostics(diags)

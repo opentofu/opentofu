@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -31,7 +32,7 @@ type AttachResourceConfigTransformer struct {
 	Config *configs.Config // Config is the root node in the config tree
 }
 
-func (t *AttachResourceConfigTransformer) Transform(g *Graph) error {
+func (t *AttachResourceConfigTransformer) Transform(ctx context.Context, g *Graph) error {
 
 	// Go through and find GraphNodeAttachResource
 	for _, v := range g.Vertices() {

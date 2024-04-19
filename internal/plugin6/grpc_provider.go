@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/zclconf/go-cty/cty"
@@ -82,16 +81,16 @@ type GRPCProvider struct {
 var _ providers.Interface = new(GRPCProvider)
 
 func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
-	var span trace.Span
-	_, span = tracer.Start(ctx, "GRPCProvider6 GetProviderSchema")
-	defer span.End()
-
-	span.SetAttributes(attribute.String("provider", p.Addr.String()))
-
 	// TODO: Remove this later, for now if the context is TODO or nil, panic
 	if ctx == nil {
 		panic("GRPCProvider.GetProviderSchema: nil context")
 	}
+
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "GRPCProvider6 GetProviderSchema")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("provider", p.Addr.String()))
 
 	logger.Trace("GRPCProvider.v6: GetProviderSchema")
 	p.mu.Lock()
@@ -193,6 +192,10 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 }
 
 func (p *GRPCProvider) ValidateProviderConfig(ctx context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "GRPCProvider6 ValidateProviderConfig")
+	defer span.End()
+
 	logger.Trace("GRPCProvider.v6: ValidateProviderConfig")
 
 	schema := p.GetProviderSchema(ctx)
@@ -342,6 +345,10 @@ func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 }
 
 func (p *GRPCProvider) ConfigureProvider(ctx context.Context, r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "GRPCProvider6 ConfigureProvider")
+	defer span.End()
+
 	logger.Trace("GRPCProvider.v6: ConfigureProvider")
 
 	schema := p.GetProviderSchema(ctx)
@@ -706,10 +713,7 @@ func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
 	span.SetAttributes(attribute.String("provider", p.Addr.String()))
 
 	logger.Trace("GRPCProvider6: GetFunctions")
-
-	// print JAMES to stderr
-	os.Stderr.Write([]byte("JAMES\n"))
-
+	
 	protoReq := &proto6.GetFunctions_Request{}
 
 	protoResp, err := p.client.GetFunctions(ctx, protoReq)
@@ -728,6 +732,10 @@ func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
 }
 
 func (p *GRPCProvider) CallFunction(ctx context.Context, r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	var span trace.Span
+	ctx, span = tracer.Start(p.ctx, "GRPCProvider6 CallFunction")
+	defer span.End()
+
 	logger.Trace("GRPCProvider6: CallFunction")
 
 	schema := p.GetProviderSchema(ctx)
@@ -827,7 +835,7 @@ func (p *GRPCProvider) CallFunction(ctx context.Context, r providers.CallFunctio
 	return
 }
 
-// closing the grpc connection is final, and tofu will call it at the end of every phase.
+// Close closing the grpc connection is final, and tofu will call it at the end of every phase.
 func (p *GRPCProvider) Close() error {
 	logger.Trace("GRPCProvider.v6: Close")
 

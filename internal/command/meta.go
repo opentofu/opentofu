@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -472,6 +473,10 @@ func (m *Meta) CommandContext() context.Context {
 // operation itself is unsuccessful. Use the "Result" field of the
 // returned operation object to recognize operation-level failure.
 func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Meta.RunOperation")
+	defer span.End()
+
 	if opReq.View == nil {
 		panic("RunOperation called with nil View")
 	}
@@ -822,7 +827,7 @@ func (m *Meta) applyStateArguments(args *arguments.State) {
 
 // checkRequiredVersion loads the config and check if the
 // core version requirements are satisfied.
-func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
+func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	loader, err := m.initConfigLoader()
@@ -843,7 +848,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 		return diags
 	}
 
-	versionDiags := tofu.CheckCoreVersionRequirements(config)
+	versionDiags := tofu.CheckCoreVersionRequirements(ctx, config)
 	if versionDiags.HasErrors() {
 		diags = diags.Append(versionDiags)
 		return diags

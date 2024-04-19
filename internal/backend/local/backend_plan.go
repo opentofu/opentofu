@@ -11,6 +11,8 @@ import (
 	"io"
 	"log"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/logging"
@@ -29,6 +31,10 @@ func (b *Local) opPlan(
 	op *backend.Operation,
 	runningOp *backend.RunningOperation) {
 
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "Local.Plan")
+	defer span.End()
+
 	log.Printf("[INFO] backend/local: starting Plan operation")
 
 	var diags tfdiags.Diagnostics
@@ -40,7 +46,7 @@ func (b *Local) opPlan(
 			"The plan command was given a saved plan file as its input. This command generates "+
 				"a new plan, and so it requires a configuration directory as its argument.",
 		))
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -54,7 +60,7 @@ func (b *Local) opPlan(
 				"would like to destroy everything, run plan with the -destroy option. Otherwise, "+
 				"create a OpenTofu configuration file (.tf file) and try again.",
 		))
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -64,13 +70,13 @@ func (b *Local) opPlan(
 				tfdiags.Error,
 				"Invalid generate-config-out flag",
 				"Config can only be generated during a normal plan operation, and not during a refresh-only or destroy plan."))
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 
 		diags = diags.Append(genconfig.ValidateTargetFile(op.GenerateConfigOut))
 		if diags.HasErrors() {
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 	}
@@ -83,10 +89,10 @@ func (b *Local) opPlan(
 	lr, configSnap, opState, ctxDiags := b.localRun(traceCtx, op)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
-	// the state was locked during succesfull context creation; unlock the state
+	// the state was locked during successful context creation; unlock the state
 	// when the operation completes
 	defer func() {
 		diags := op.StateLocker.Unlock()
@@ -130,7 +136,7 @@ func (b *Local) opPlan(
 	// contained within the plan, so only exit if there is no data at all.
 	if plan == nil {
 		runningOp.PlanEmpty = true
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -145,7 +151,7 @@ func (b *Local) opPlan(
 			diags = diags.Append(fmt.Errorf(
 				"PlanOutPath set without also setting PlanOutBackend (this is a bug in OpenTofu)"),
 			)
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 		plan.Backend = *op.PlanOutBackend
@@ -181,7 +187,7 @@ func (b *Local) opPlan(
 				"Failed to write plan file",
 				fmt.Sprintf("The plan file could not be written: %s.", err),
 			))
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(traceCtx, runningOp, diags)
 			return
 		}
 	}
@@ -191,7 +197,7 @@ func (b *Local) opPlan(
 	schemas, moreDiags := lr.Core.Schemas(traceCtx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -199,7 +205,7 @@ func (b *Local) opPlan(
 	wroteConfig, moreDiags := maybeWriteGeneratedConfig(plan, op.GenerateConfigOut)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -210,7 +216,7 @@ func (b *Local) opPlan(
 	// include errors, because we intentionally try to show a partial plan
 	// above even if OpenTofu Core encountered an error partway through
 	// creating it.
-	op.ReportResult(runningOp, diags)
+	op.ReportResult(traceCtx, runningOp, diags)
 
 	if !runningOp.PlanEmpty {
 		if wroteConfig {

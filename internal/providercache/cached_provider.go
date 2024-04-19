@@ -6,10 +6,13 @@
 package providercache
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -105,7 +108,11 @@ func (cp *CachedProvider) HashV1() (getproviders.Hash, error) {
 // so that the results are consistent between platforms. Windows accepts both
 // slashes and backslashes as long as the separators are consistent within a
 // particular path string.
-func (cp *CachedProvider) ExecutableFile() (string, error) {
+func (cp *CachedProvider) ExecutableFile(ctx context.Context) (string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "CachedProvider.ExecutableFile")
+	defer span.End()
+
 	infos, err := os.ReadDir(cp.PackageDir)
 	if err != nil {
 		// If the directory itself doesn't exist or isn't readable then we

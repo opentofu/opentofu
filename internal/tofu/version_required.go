@@ -6,6 +6,10 @@
 package tofu
 
 import (
+	"context"
+
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -18,7 +22,11 @@ import (
 // The returned diagnostics will contain errors if any constraints do not match.
 // The returned diagnostics might also return warnings, which should be
 // displayed to the user.
-func CheckCoreVersionRequirements(config *configs.Config) tfdiags.Diagnostics {
+func CheckCoreVersionRequirements(ctx context.Context, config *configs.Config) tfdiags.Diagnostics {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "CheckCoreVersionRequirements")
+	defer span.End()
+
 	if config == nil {
 		return nil
 	}

@@ -147,7 +147,8 @@ func providerFunction(ctx context.Context, name string, spec providers.FunctionS
 	}
 
 	impl := func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		// TODO: Nicely propagate the ctx, dont grab it from the parent function
+		// TODO: Nicely pass the the ctx into this function call, don't grab it from the parent function
+		// this causes separated traces right now but we're backed into a corner with the impl type coming from go-cty
 		resp := provider.CallFunction(ctx, providers.CallFunctionRequest{
 			Name:      name,
 			Arguments: args,

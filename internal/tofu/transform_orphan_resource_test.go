@@ -80,7 +80,7 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -91,7 +91,7 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -146,7 +146,7 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -157,7 +157,7 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -211,7 +211,7 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -222,7 +222,7 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -276,7 +276,7 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -287,7 +287,7 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

@@ -6,9 +6,11 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -284,8 +286,12 @@ func (vv InputValues) Identical(other InputValues) bool {
 // The set of values is considered valid only if the returned diagnostics
 // does not contain errors. A valid set of values may still produce warnings,
 // which should be returned to the user.
-func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdiags.Diagnostics {
+func checkInputVariables(ctx context.Context, vcs map[string]*configs.Variable, vs InputValues) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
+
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "checkInputVariables")
+	defer span.End()
 
 	for name := range vcs {
 		_, isSet := vs[name]

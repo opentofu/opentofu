@@ -46,7 +46,7 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 }
 
 // getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
+func getProvider(traceCtx context.Context, ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
 	if addr.Provider.Type == "" {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
@@ -57,7 +57,7 @@ func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Inter
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.
-	schema, err := ctx.ProviderSchema(context.TODO(), addr)
+	schema, err := ctx.ProviderSchema(traceCtx, addr)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", addr, err)
 	}

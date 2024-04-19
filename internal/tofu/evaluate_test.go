@@ -381,7 +381,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 		Type: "test_resource",
 		Name: "foo",
 	}
-	got, diags := scope.Data.GetResource(addr, tfdiags.SourceRange{})
+	got, diags := scope.Data.GetResource(nil, addr, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -521,7 +521,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 		}).Mark(marks.Sensitive),
 	})
 
-	got, diags := scope.Data.GetResource(addr, tfdiags.SourceRange{})
+	got, diags := scope.Data.GetResource(nil, addr, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))

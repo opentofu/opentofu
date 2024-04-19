@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -42,6 +43,10 @@ func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.L
 
 func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Local.localRun")
+	defer span.End()
 
 	// Get the latest state.
 	log.Printf("[TRACE] backend/local: requesting state manager for workspace %q", op.Workspace)
@@ -97,7 +102,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 			stateMeta = &m
 		}
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun from plan file")
-		ret, configSnap, ctxDiags = b.localRunForPlanFile(op, lp, ret, &coreOpts, stateMeta)
+		ret, configSnap, ctxDiags = b.localRunForPlanFile(ctx, op, lp, ret, &coreOpts, stateMeta)
 		if ctxDiags.HasErrors() {
 			diags = diags.Append(ctxDiags)
 			return nil, nil, nil, diags
@@ -108,7 +113,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 		op.ConfigLoader.ImportSourcesFromSnapshot(configSnap)
 	} else {
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun for current working directory")
-		ret, configSnap, ctxDiags = b.localRunDirect(op, ret, &coreOpts, s)
+		ret, configSnap, ctxDiags = b.localRunDirect(ctx, op, ret, &coreOpts, s)
 	}
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
@@ -141,7 +146,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	return ret, configSnap, s, diags
 }
 
-func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the configuration using the caller-provided configuration loader.
@@ -152,7 +157,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	}
 	run.Config = config
 
-	if errs := config.VerifyDependencySelections(op.DependencyLocks); len(errs) > 0 {
+	if errs := config.VerifyDependencySelections(ctx, op.DependencyLocks); len(errs) > 0 {
 		var buf strings.Builder
 		for _, err := range errs {
 			fmt.Fprintf(&buf, "\n  - %s", err.Error())
@@ -213,7 +218,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	// snapshot, from the previous run.
 	state := s.State()
 	if state != nil {
-		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
+		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(ctx, config, state)
 		diags = diags.Append(migrateDiags)
 		if migrateDiags.HasErrors() {
 			return nil, nil, diags
@@ -231,7 +236,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	return run, configSnap, diags
 }
 
-func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *tofu.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *tofu.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	const errSummary = "Invalid plan file"
@@ -262,7 +267,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	// in coreOpts below. However, we'll also separately check that the
 	// plan file has identical locked plugins below, and thus we're effectively
 	// checking consistency with both here.
-	if errs := config.VerifyDependencySelections(op.DependencyLocks); len(errs) > 0 {
+	if errs := config.VerifyDependencySelections(ctx, op.DependencyLocks); len(errs) > 0 {
 		var buf strings.Builder
 		for _, err := range errs {
 			fmt.Fprintf(&buf, "\n  - %s", err.Error())

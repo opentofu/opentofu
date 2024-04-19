@@ -124,7 +124,7 @@ func (n *nodeExpandModule) Execute(traceCtx context.Context, ctx EvalContext, op
 			expander.SetModuleCount(module, call, count)
 
 		case n.ModuleCall.ForEach != nil:
-			forEach, feDiags := evaluateForEachExpression(n.ModuleCall.ForEach, ctx)
+			forEach, feDiags := evaluateForEachExpression(traceCtx, n.ModuleCall.ForEach, ctx)
 			diags = diags.Append(feDiags)
 			if diags.HasErrors() {
 				return diags
@@ -244,11 +244,11 @@ func (n *nodeValidateModule) Execute(traceCtx context.Context, ctx EvalContext, 
 			diags = diags.Append(countDiags)
 
 		case n.ModuleCall.ForEach != nil:
-			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx, true, false)
+			_, forEachDiags := evaluateForEachExpressionValue(traceCtx, n.ModuleCall.ForEach, ctx, true, false)
 			diags = diags.Append(forEachDiags)
 		}
 
-		diags = diags.Append(validateDependsOn(ctx, n.ModuleCall.DependsOn))
+		diags = diags.Append(validateDependsOn(traceCtx, ctx, n.ModuleCall.DependsOn))
 
 		// now set our own mode to single
 		expander.SetModuleSingle(module, call)

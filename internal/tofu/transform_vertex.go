@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/dag"
@@ -19,7 +20,7 @@ type VertexTransformer struct {
 	Transforms []GraphVertexTransformer
 }
 
-func (t *VertexTransformer) Transform(g *Graph) error {
+func (t *VertexTransformer) Transform(ctx context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		for _, vt := range t.Transforms {
 			newV, err := vt.Transform(v)

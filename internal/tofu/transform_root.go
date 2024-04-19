@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
@@ -14,7 +16,7 @@ const rootNodeName = "root"
 // RootTransformer is a GraphTransformer that adds a root to the graph.
 type RootTransformer struct{}
 
-func (t *RootTransformer) Transform(g *Graph) error {
+func (t *RootTransformer) Transform(ctx context.Context, g *Graph) error {
 	addRootNodeToGraph(g)
 	return nil
 }
@@ -64,7 +66,7 @@ func (n graphNodeRoot) Name() string {
 // CloseRootModuleTransformer is a GraphTransformer that adds a root to the graph.
 type CloseRootModuleTransformer struct{}
 
-func (t *CloseRootModuleTransformer) Transform(g *Graph) error {
+func (t *CloseRootModuleTransformer) Transform(ctx context.Context, g *Graph) error {
 	// close the root module
 	closeRoot := &nodeCloseModule{}
 	g.Add(closeRoot)

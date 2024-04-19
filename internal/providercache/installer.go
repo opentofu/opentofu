@@ -468,7 +468,7 @@ NeedProvider:
 					if cb := evts.LinkFromCacheBegin; cb != nil {
 						cb(provider, version, i.globalCacheDir.baseDir)
 					}
-					if _, err := cached.ExecutableFile(); err != nil {
+					if _, err := cached.ExecutableFile(ctx); err != nil {
 						err := fmt.Errorf("provider binary not found: %w", err)
 						errs[provider] = err
 						if cb := evts.LinkFromCacheFailure; cb != nil {
@@ -625,7 +625,7 @@ NeedProvider:
 			providerSpan.End()
 			continue
 		}
-		if _, err := new.ExecutableFile(); err != nil {
+		if _, err := new.ExecutableFile(ctx); err != nil {
 			err := fmt.Errorf("provider binary not found: %w", err)
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
@@ -665,7 +665,7 @@ NeedProvider:
 				providerSpan.End()
 				continue
 			}
-			if _, err := new.ExecutableFile(); err != nil {
+			if _, err := new.ExecutableFile(ctx); err != nil {
 				err := fmt.Errorf("provider binary not found: %w", err)
 				errs[provider] = err
 				if cb := evts.FetchPackageFailure; cb != nil {

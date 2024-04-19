@@ -70,7 +70,7 @@ func (n *nodeExpandLocal) References() []*addrs.Reference {
 	return refs
 }
 
-func (n *nodeExpandLocal) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandLocal) DynamicExpand(traceCtx context.Context, ctx EvalContext) (*Graph, error) {
 	var g Graph
 	expander := ctx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
@@ -141,7 +141,7 @@ func (n *NodeLocal) Execute(traceCtx context.Context, ctx EvalContext, op walkOp
 	var span trace.Span
 	traceCtx, span = tracer.Start(traceCtx, "NodeLocal.Execute")
 	defer span.End()
-	
+
 	expr := n.Config.Expr
 	addr := n.Addr.LocalValue
 

@@ -111,7 +111,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	view.Diagnostics(diags)
 	diags = nil
 
-	// TODO: Propagate the context from the main.go nicely to here
+	// TODO: Propagate the context from the main entrypoint nicely to here
 	var ctx context.Context
 	var otelSpan trace.Span
 	{

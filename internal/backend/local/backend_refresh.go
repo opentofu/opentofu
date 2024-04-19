@@ -41,7 +41,7 @@ func (b *Local) opRefresh(
 					"Cannot read state file",
 					fmt.Sprintf("Failed to read %s: %s", b.StatePath, err),
 				))
-				op.ReportResult(runningOp, diags)
+				op.ReportResult(traceCtx, runningOp, diags)
 				return
 			}
 		}
@@ -54,7 +54,7 @@ func (b *Local) opRefresh(
 	lr, _, opState, contextDiags := b.localRun(traceCtx, op)
 	diags = diags.Append(contextDiags)
 	if contextDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (b *Local) opRefresh(
 	schemas, moreDiags := lr.Core.Schemas(traceCtx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
@@ -107,17 +107,17 @@ func (b *Local) opRefresh(
 	runningOp.State = newState
 	diags = diags.Append(refreshDiags)
 	if refreshDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
 	err := statemgr.WriteAndPersist(opState, newState, schemas)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("failed to write state: %w", err))
-		op.ReportResult(runningOp, diags)
+		op.ReportResult(traceCtx, runningOp, diags)
 		return
 	}
 
 	// Show any remaining warnings before exiting
-	op.ReportResult(runningOp, diags)
+	op.ReportResult(traceCtx, runningOp, diags)
 }

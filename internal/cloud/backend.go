@@ -867,7 +867,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 		if opErr != nil && opErr != context.Canceled {
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(opErr)
-			op.ReportResult(runningOp, diags)
+			op.ReportResult(ctx, runningOp, diags)
 			return
 		}
 
@@ -882,7 +882,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 			if err != nil {
 				var diags tfdiags.Diagnostics
 				diags = diags.Append(generalError("Failed to retrieve run", err))
-				op.ReportResult(runningOp, diags)
+				op.ReportResult(ctx, runningOp, diags)
 				return
 			}
 
@@ -893,7 +893,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 				if err := b.cancel(cancelCtx, op, r); err != nil {
 					var diags tfdiags.Diagnostics
 					diags = diags.Append(generalError("Failed to retrieve run", err))
-					op.ReportResult(runningOp, diags)
+					op.ReportResult(ctx, runningOp, diags)
 					return
 				}
 			}

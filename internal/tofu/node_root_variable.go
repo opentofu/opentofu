@@ -107,6 +107,7 @@ func (n *NodeRootVariable) Execute(traceCtx context.Context, ctx EvalContext, op
 	ctx.SetRootModuleArgument(addr.Variable, finalVal)
 
 	moreDiags = evalVariableValidations(
+		traceCtx,
 		addrs.RootModuleInstance.InputVariable(n.Addr.Name),
 		n.Config,
 		nil, // not set for root module variables

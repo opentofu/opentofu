@@ -82,7 +82,7 @@ func (n *nodeExpandCheck) ModulePath() addrs.Module {
 	return n.addr.Module
 }
 
-func (n *nodeExpandCheck) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandCheck) DynamicExpand(traceCtx context.Context, ctx EvalContext) (*Graph, error) {
 	exp := ctx.InstanceExpander()
 	modInsts := exp.ExpandModule(n.ModulePath())
 
@@ -164,6 +164,7 @@ func (n *nodeCheckAssert) Execute(traceCtx context.Context, ctx EvalContext, _ w
 		}
 
 		return evalCheckRules(
+			traceCtx,
 			addrs.CheckAssertion,
 			n.config.Asserts,
 			ctx,
@@ -177,7 +178,7 @@ func (n *nodeCheckAssert) Execute(traceCtx context.Context, ctx EvalContext, _ w
 	// diagnostics if references do not exist etc.
 	var diags tfdiags.Diagnostics
 	for ix, assert := range n.config.Asserts {
-		_, _, moreDiags := validateCheckRule(addrs.NewCheckRule(n.addr, addrs.CheckAssertion, ix), assert, ctx, EvalDataForNoInstanceKey)
+		_, _, moreDiags := validateCheckRule(traceCtx, addrs.NewCheckRule(n.addr, addrs.CheckAssertion, ix), assert, ctx, EvalDataForNoInstanceKey)
 		diags = diags.Append(moreDiags)
 	}
 	return diags

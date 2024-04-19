@@ -50,7 +50,10 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	// TODO: Pull the context from the parent application, and propagate it here
+	ctx := context.Background()
+
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}

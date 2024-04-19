@@ -162,7 +162,8 @@ func (p *provider6) UpgradeResourceState(_ context.Context, req *tfplugin6.Upgra
 	return resp, nil
 }
 
-func (p *provider6) ConfigureProvider(_ context.Context, req *tfplugin6.ConfigureProvider_Request) (*tfplugin6.ConfigureProvider_Response, error) {
+func (p *provider6) ConfigureProvider(ctx context.Context, req *tfplugin6.ConfigureProvider_Request) (*tfplugin6.ConfigureProvider_Response, error) {
+	ConfigureProvider
 	resp := &tfplugin6.ConfigureProvider_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -172,7 +173,7 @@ func (p *provider6) ConfigureProvider(_ context.Context, req *tfplugin6.Configur
 		return resp, nil
 	}
 
-	configureResp := p.provider.ConfigureProvider(nil, providers.ConfigureProviderRequest{
+	configureResp := p.provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
 		TerraformVersion: req.TerraformVersion,
 		Config:           configVal,
 	})

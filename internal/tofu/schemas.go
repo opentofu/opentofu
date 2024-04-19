@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"log"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -74,6 +77,10 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
 func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "loadSchemas")
+	defer span.End()
+
 	schemas := &Schemas{
 		Providers:    map[addrs.Provider]providers.ProviderSchema{},
 		Provisioners: map[string]*configschema.Block{},
@@ -82,7 +89,7 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 
 	newDiags := loadProviderSchemas(ctx, schemas.Providers, config, state, plugins)
 	diags = diags.Append(newDiags)
-	newDiags = loadProvisionerSchemas(schemas.Provisioners, config, plugins)
+	newDiags = loadProvisionerSchemas(ctx, schemas.Provisioners, config, plugins)
 	diags = diags.Append(newDiags)
 
 	return schemas, diags.Err()
@@ -91,7 +98,15 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	ensure := func(fqn addrs.Provider) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "loadProviderSchemas")
+	defer span.End()
+
+	ensure := func(innerCtx context.Context, fqn addrs.Provider) {
+		var innerSpan trace.Span
+		innerCtx, innerSpan = tracer.Start(innerCtx, "loadProviderSchema", trace.WithAttributes(attribute.String("provider", fqn.String())))
+		defer innerSpan.End()
+
 		name := fqn.String()
 
 		if _, exists := schemas[fqn]; exists {
@@ -99,7 +114,7 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 		}
 
 		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
-		schema, err := plugins.ProviderSchema(ctx, fqn)
+		schema, err := plugins.ProviderSchema(innerCtx, fqn)
 		if err != nil {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls, which would then repeat the same error message
@@ -119,23 +134,26 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 	}
 
 	if config != nil {
-		for _, fqn := range config.ProviderTypes() {
-			ensure(fqn)
+		for _, fqn := range config.ProviderTypes(ctx) {
+			ensure(ctx, fqn)
 		}
 	}
 
 	if state != nil {
 		needed := providers.AddressedTypesAbs(state.ProviderAddrs())
 		for _, typeAddr := range needed {
-			ensure(typeAddr)
+			ensure(ctx, typeAddr)
 		}
 	}
 
 	return diags
 }
 
-func loadProvisionerSchemas(schemas map[string]*configschema.Block, config *configs.Config, plugins *contextPlugins) tfdiags.Diagnostics {
+func loadProvisionerSchemas(ctx context.Context, schemas map[string]*configschema.Block, config *configs.Config, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "loadProvisionerSchemas")
+	defer span.End()
 
 	ensure := func(name string) {
 		if _, exists := schemas[name]; exists {
@@ -171,7 +189,7 @@ func loadProvisionerSchemas(schemas map[string]*configschema.Block, config *conf
 
 		// Must also visit our child modules, recursively.
 		for _, cc := range config.Children {
-			childDiags := loadProvisionerSchemas(schemas, cc, plugins)
+			childDiags := loadProvisionerSchemas(ctx, schemas, cc, plugins)
 			diags = diags.Append(childDiags)
 		}
 	}

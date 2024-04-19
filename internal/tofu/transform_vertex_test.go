@@ -30,7 +30,7 @@ func TestVertexTransformer(t *testing.T) {
 				&testVertexTransform{Source: 2, Target: 42},
 			},
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(; err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

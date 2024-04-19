@@ -86,8 +86,11 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// TODO: Get a context from the main application and propagate it here
+	ctx := context.Background()
+
 	// Get the data we need to display
-	plan, jsonPlan, stateFile, config, schemas, showDiags := c.show(args.Path, enc)
+	plan, jsonPlan, stateFile, config, schemas, showDiags := c.show(ctx, args.Path, enc)
 	diags = diags.Append(showDiags)
 	if showDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -119,7 +122,7 @@ func (c *ShowCommand) Synopsis() string {
 	return "Show the current state or a saved plan"
 }
 
-func (c *ShowCommand) show(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
+func (c *ShowCommand) show(ctx context.Context, path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
 	var diags, showDiags, migrateDiags tfdiags.Diagnostics
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
@@ -149,7 +152,7 @@ func (c *ShowCommand) show(path string, enc encryption.Encryption) (*plans.Plan,
 	}
 
 	if stateFile != nil {
-		stateFile.State, migrateDiags = tofumigrate.MigrateStateProviderAddresses(config, stateFile.State)
+		stateFile.State, migrateDiags = tofumigrate.MigrateStateProviderAddresses(ctx, config, stateFile.State)
 		diags = diags.Append(migrateDiags)
 		if migrateDiags.HasErrors() {
 			return plan, jsonPlan, stateFile, config, schemas, diags

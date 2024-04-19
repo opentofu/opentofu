@@ -82,7 +82,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 	config, confDiags := c.loadConfig(".")
 	diags = diags.Append(confDiags)
-	reqs, moreDiags := config.ProviderRequirements()
+	reqs, moreDiags := config.ProviderRequirements(ctx)
 	diags = diags.Append(moreDiags)
 
 	// Read lock file
@@ -97,7 +97,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 	// If lock file is present, validate it against configuration
 	if !lockedDeps.Empty() {
-		if errs := config.VerifyDependencySelections(lockedDeps); len(errs) > 0 {
+		if errs := config.VerifyDependencySelections(ctx, lockedDeps); len(errs) > 0 {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Inconsistent dependency lock file",

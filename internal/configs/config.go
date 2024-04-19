@@ -6,12 +6,14 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -227,10 +229,10 @@ func (c *Config) EntersNewPackage() bool {
 // it's up to the caller to decide how to advise users recover from these
 // errors, because the advise can vary depending on what operation the user
 // is attempting.
-func (c *Config) VerifyDependencySelections(depLocks *depsfile.Locks) []error {
+func (c *Config) VerifyDependencySelections(ctx context.Context, depLocks *depsfile.Locks) []error {
 	var errs []error
 
-	reqs, diags := c.ProviderRequirements()
+	reqs, diags := c.ProviderRequirements(ctx)
 	if diags.HasErrors() {
 		// It should be very unusual to get here, but unfortunately we can
 		// end up here in some edge cases where the config loader doesn't
@@ -301,7 +303,11 @@ func (c *Config) VerifyDependencySelections(depLocks *depsfile.Locks) []error {
 //
 // If the returned diagnostics includes errors then the resulting Requirements
 // may be incomplete.
-func (c *Config) ProviderRequirements() (getproviders.Requirements, hcl.Diagnostics) {
+func (c *Config) ProviderRequirements(ctx context.Context) (getproviders.Requirements, hcl.Diagnostics) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Config.ProviderRequirements")
+	defer span.End()
+
 	reqs := make(getproviders.Requirements)
 	diags := c.addProviderRequirements(reqs, true, true)
 
@@ -789,9 +795,13 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 // information and so callers are expected to have already dealt with
 // provider version selection in an earlier step and have identified suitable
 // versions for each provider.
-func (c *Config) ProviderTypes() []addrs.Provider {
+func (c *Config) ProviderTypes(ctx context.Context) []addrs.Provider {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Config.ProviderTypes")
+	defer span.End()
+
 	// Ignore diagnostics here because they relate to version constraints
-	reqs, _ := c.ProviderRequirements()
+	reqs, _ := c.ProviderRequirements(ctx)
 
 	ret := make([]addrs.Provider, 0, len(reqs))
 	for k := range reqs {

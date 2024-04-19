@@ -6,6 +6,7 @@
 package tofumigrate
 
 import (
+	"context"
 	"os"
 
 	"github.com/hashicorp/hcl/v2"
@@ -39,7 +40,7 @@ import (
 //	}
 //
 // then we keep the old address.
-func MigrateStateProviderAddresses(config *configs.Config, state *states.State) (*states.State, tfdiags.Diagnostics) {
+func MigrateStateProviderAddresses(ctx context.Context, config *configs.Config, state *states.State) (*states.State, tfdiags.Diagnostics) {
 	if os.Getenv("OPENTOFU_STATEFILE_PROVIDER_ADDRESS_TRANSLATION") == "0" {
 		return state, nil
 	}
@@ -56,7 +57,7 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 	// config could be nil when we're e.g. showing a statefile without the configuration present
 	if config != nil {
 		var hclDiags hcl.Diagnostics
-		providers, hclDiags = config.ProviderRequirements()
+		providers, hclDiags = config.ProviderRequirements(ctx)
 		diags = diags.Append(hclDiags)
 		if hclDiags.HasErrors() {
 			return nil, diags
