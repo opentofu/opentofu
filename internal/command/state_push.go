@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -87,7 +88,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(context.TODO(), nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -147,7 +148,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	var diags tfdiags.Diagnostics
 	if isCloudMode(b) {
-		schemas, diags = c.MaybeGetSchemas(srcStateFile.State, nil)
+		schemas, diags = c.MaybeGetSchemas(context.TODO(), srcStateFile.State, nil)
 	}
 
 	if err := stateMgr.WriteState(srcStateFile.State); err != nil {

@@ -62,7 +62,7 @@ func (c *UnlockCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(context.TODO(), &BackendOpts{
 		Config: backendConfig,
 	}, nil) // Should not be needed for an unlock
 	diags = diags.Append(backendDiags)

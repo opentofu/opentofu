@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -58,7 +59,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(context.TODO(), nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -99,15 +100,17 @@ func (c *StateShowCommand) Run(args []string) int {
 		return 1
 	}
 
+	ctx := context.TODO()
+
 	// Get the context (required to get the schemas)
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	if ctxDiags.HasErrors() {
 		c.View.Diagnostics(ctxDiags)
 		return 1
 	}
 
 	// Get the schemas from the context
-	schemas, diags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, diags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		return 1

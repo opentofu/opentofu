@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -81,7 +82,7 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
 			providerAddr := tv.ProviderAddr()
-			schema, err := t.Plugins.ProviderConfigSchema(providerAddr.Provider)
+			schema, err := t.Plugins.ProviderConfigSchema(context.TODO(), providerAddr.Provider)
 			if err != nil {
 				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
 			}

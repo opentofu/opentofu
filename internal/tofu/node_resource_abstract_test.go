@@ -232,7 +232,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			ctx := new(MockEvalContext)
 			ctx.StateState = test.State.SyncWrapper()
 			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+			ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema(nil)
 
 			ctx.ProviderProvider = providers.Interface(mockProvider)
 
@@ -297,7 +297,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 			ctx := new(MockEvalContext)
 			ctx.StateState = test.State.SyncWrapper()
 			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+			ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema(nil)
 			ctx.ProviderProvider = providers.Interface(mockProvider)
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key

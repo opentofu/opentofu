@@ -158,7 +158,7 @@ func (c *ShowCommand) show(path string, enc encryption.Encryption) (*plans.Plan,
 
 	// Get schemas, if possible
 	if config != nil || stateFile != nil {
-		schemas, diags = c.MaybeGetSchemas(stateFile.State, config)
+		schemas, diags = c.MaybeGetSchemas(context.TODO(), stateFile.State, config)
 		if diags.HasErrors() {
 			return plan, jsonPlan, stateFile, config, schemas, diags
 		}
@@ -170,7 +170,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (*s
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(context.TODO(), nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
@@ -298,7 +298,7 @@ func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption) (*
 
 func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(context.TODO(), nil, enc.State())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")
 	}

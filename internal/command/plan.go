@@ -6,8 +6,13 @@
 package command
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/apparentlymart/go-shquot/shquot"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -106,8 +111,18 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	view.Diagnostics(diags)
 	diags = nil
 
+	// TODO: Propagate the context from the main.go nicely to here
+	var ctx context.Context
+	var otelSpan trace.Span
+	{
+		// This will need to be refactored, but for now it acts as a nice span for the internal of planning
+		_, displayArgs := shquot.POSIXShellSplit(os.Args)
+		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("tofu %s", displayArgs))
+		defer otelSpan.End()
+	}
+
 	// Perform the operation
-	op, err := c.RunOperation(be, opReq)
+	op, err := c.RunOperation(ctx, be, opReq)
 	if err != nil {
 		diags = diags.Append(err)
 		view.Diagnostics(diags)
@@ -137,7 +152,7 @@ func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.V
 	}
 
 	// Load the backend
-	be, beDiags := c.Backend(&BackendOpts{
+	be, beDiags := c.Backend(context.TODO(), &BackendOpts{
 		Config:   backendConfig,
 		ViewType: viewType,
 	}, enc.State())

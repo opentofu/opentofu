@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -158,8 +159,8 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.
 	return ctx.ProviderCache[addr.String()]
 }
 
-func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return ctx.Plugins.ProviderSchema(addr.Provider)
+func (ctx *BuiltinEvalContext) ProviderSchema(c context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
+	return ctx.Plugins.ProviderSchema(c, addr.Provider)
 }
 
 func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
@@ -176,7 +177,7 @@ func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error
 	return nil
 }
 
-func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, cfg cty.Value) tfdiags.Diagnostics {
+func (ctx *BuiltinEvalContext) ConfigureProvider(traceCtx context.Context, addr addrs.AbsProviderConfig, cfg cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if !addr.Module.Equal(ctx.Path().Module()) {
 		// This indicates incorrect use of ConfigureProvider: it should be used
@@ -195,7 +196,7 @@ func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, c
 		Config:           cfg,
 	}
 
-	resp := p.ConfigureProvider(req)
+	resp := p.ConfigureProvider(traceCtx, req)
 	return resp.Diagnostics
 }
 
@@ -270,7 +271,7 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 
 func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	scope := ctx.EvaluationScope(self, nil, keyData)
+	scope := ctx.EvaluationScope(nil, self, nil, keyData)
 	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
@@ -278,8 +279,12 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 	return val, body, diags
 }
 
-func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
-	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
+func (ctx *BuiltinEvalContext) EvaluateExpr(traceCtx context.Context, expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "BuiltinEvalContext.EvaluateExpr")
+	defer span.End()
+
+	scope := ctx.EvaluationScope(traceCtx, self, nil, EvalDataForNoInstanceKey)
 	return scope.EvalExpr(expr, wantType)
 }
 
@@ -361,7 +366,7 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	// Since we have a traversal after the resource reference, we will need to
 	// decode the changes, which means we need a schema.
 	providerAddr := change.ProviderAddr
-	schema, err := ctx.ProviderSchema(providerAddr)
+	schema, err := ctx.ProviderSchema(context.TODO(), providerAddr)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, false, diags
@@ -501,7 +506,11 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyD
 	return idx, diags
 }
 
-func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
+func (ctx *BuiltinEvalContext) EvaluationScope(traceCtx context.Context, self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "BuiltinEvalContext.EvaluationScope")
+	defer span.End()
+
 	if !ctx.pathSet {
 		panic("context path not set")
 	}
@@ -526,7 +535,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		return evalContextProviderFunction(ctx, mc, ctx.Evaluator.Operation, pf, rng)
+		return evalContextProviderFunction(traceCtx, ctx, mc, ctx.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

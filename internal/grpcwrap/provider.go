@@ -8,21 +8,22 @@ package grpcwrap
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/plugin/convert"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfplugin5"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
+
+	"github.com/opentofu/opentofu/internal/plugin/convert"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfplugin5"
 )
 
-// New wraps a providers.Interface to implement a grpc ProviderServer.
+// Provider wraps a providers.Interface to implement a grpc ProviderServer.
 // This is useful for creating a test binary out of an internal provider
 // implementation.
 func Provider(p providers.Interface) tfplugin5.ProviderServer {
 	return &provider{
 		provider: p,
-		schema:   p.GetProviderSchema(),
+		schema:   p.GetProviderSchema(nil),
 	}
 }
 
@@ -78,7 +79,7 @@ func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema
 	return resp, nil
 }
 
-func (p *provider) PrepareProviderConfig(_ context.Context, req *tfplugin5.PrepareProviderConfig_Request) (*tfplugin5.PrepareProviderConfig_Response, error) {
+func (p *provider) PrepareProviderConfig(ctx context.Context, req *tfplugin5.PrepareProviderConfig_Request) (*tfplugin5.PrepareProviderConfig_Response, error) {
 	resp := &tfplugin5.PrepareProviderConfig_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -88,7 +89,7 @@ func (p *provider) PrepareProviderConfig(_ context.Context, req *tfplugin5.Prepa
 		return resp, nil
 	}
 
-	prepareResp := p.provider.ValidateProviderConfig(providers.ValidateProviderConfigRequest{
+	prepareResp := p.provider.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{
 		Config: configVal,
 	})
 
@@ -161,7 +162,7 @@ func (p *provider) UpgradeResourceState(_ context.Context, req *tfplugin5.Upgrad
 	return resp, nil
 }
 
-func (p *provider) Configure(_ context.Context, req *tfplugin5.Configure_Request) (*tfplugin5.Configure_Response, error) {
+func (p *provider) Configure(ctx context.Context, req *tfplugin5.Configure_Request) (*tfplugin5.Configure_Response, error) {
 	resp := &tfplugin5.Configure_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -171,7 +172,7 @@ func (p *provider) Configure(_ context.Context, req *tfplugin5.Configure_Request
 		return resp, nil
 	}
 
-	configureResp := p.provider.ConfigureProvider(providers.ConfigureProviderRequest{
+	configureResp := p.provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
 		TerraformVersion: req.TerraformVersion,
 		Config:           configVal,
 	})

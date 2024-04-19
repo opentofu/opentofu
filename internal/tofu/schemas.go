@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -72,14 +73,14 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // either misbehavior on the part of one of the providers or of the provider
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
-func loadSchemas(config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
+func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
 	schemas := &Schemas{
 		Providers:    map[addrs.Provider]providers.ProviderSchema{},
 		Provisioners: map[string]*configschema.Block{},
 	}
 	var diags tfdiags.Diagnostics
 
-	newDiags := loadProviderSchemas(schemas.Providers, config, state, plugins)
+	newDiags := loadProviderSchemas(ctx, schemas.Providers, config, state, plugins)
 	diags = diags.Append(newDiags)
 	newDiags = loadProvisionerSchemas(schemas.Provisioners, config, plugins)
 	diags = diags.Append(newDiags)
@@ -87,7 +88,7 @@ func loadSchemas(config *configs.Config, state *states.State, plugins *contextPl
 	return schemas, diags.Err()
 }
 
-func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
+func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	ensure := func(fqn addrs.Provider) {
@@ -98,7 +99,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, co
 		}
 
 		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
-		schema, err := plugins.ProviderSchema(fqn)
+		schema, err := plugins.ProviderSchema(ctx, fqn)
 		if err != nil {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls, which would then repeat the same error message

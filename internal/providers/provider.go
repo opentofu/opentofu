@@ -6,6 +6,8 @@
 package providers
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -21,14 +23,14 @@ type Interface interface {
 	// for initial validation.  This could result in some potential
 	// memory savings.
 
-	// GetSchema returns the complete schema for the provider.
-	GetProviderSchema() GetProviderSchemaResponse
+	// GetProviderSchema returns the complete schema for the provider.
+	GetProviderSchema(traceCtx context.Context) GetProviderSchemaResponse
 
 	// ValidateProviderConfig allows the provider to validate the configuration.
 	// The ValidateProviderConfigResponse.PreparedConfig field is unused. The
 	// final configuration is not stored in the state, and any modifications
 	// that need to be made must be made during the Configure method call.
-	ValidateProviderConfig(ValidateProviderConfigRequest) ValidateProviderConfigResponse
+	ValidateProviderConfig(context.Context, ValidateProviderConfigRequest) ValidateProviderConfigResponse
 
 	// ValidateResourceConfig allows the provider to validate the resource
 	// configuration values.
@@ -44,8 +46,8 @@ type Interface interface {
 	// result is used for any further processing.
 	UpgradeResourceState(UpgradeResourceStateRequest) UpgradeResourceStateResponse
 
-	// Configure configures and initialized the provider.
-	ConfigureProvider(ConfigureProviderRequest) ConfigureProviderResponse
+	// ConfigureProvider configures and initialized the provider.
+	ConfigureProvider(context.Context, ConfigureProviderRequest) ConfigureProviderResponse
 
 	// Stop is called when the provider should halt any in-flight actions.
 	//
@@ -82,7 +84,7 @@ type Interface interface {
 	GetFunctions() GetFunctionsResponse
 
 	// CallFunction requests that the given function is called and response returned.
-	CallFunction(CallFunctionRequest) CallFunctionResponse
+	CallFunction(context.Context, CallFunctionRequest) CallFunctionResponse
 
 	// Close shuts down the plugin process if applicable.
 	Close() error

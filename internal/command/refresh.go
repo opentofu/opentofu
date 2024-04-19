@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -107,7 +108,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Perform the operation
-	op, err := c.RunOperation(be, opReq)
+	op, err := c.RunOperation(context.TODO(), be, opReq)
 	if err != nil {
 		diags = diags.Append(err)
 		view.Diagnostics(diags)
@@ -134,7 +135,7 @@ func (c *RefreshCommand) PrepareBackend(args *arguments.State, viewType argument
 	}
 
 	// Load the backend
-	be, beDiags := c.Backend(&BackendOpts{
+	be, beDiags := c.Backend(context.TODO(), &BackendOpts{
 		Config:   backendConfig,
 		ViewType: viewType,
 	}, enc.State())

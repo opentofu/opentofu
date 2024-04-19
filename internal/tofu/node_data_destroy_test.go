@@ -41,7 +41,7 @@ func TestNodeDataDestroyExecute(t *testing.T) {
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 	}}
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(nil, ctx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %v", diags.Err())
 	}

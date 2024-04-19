@@ -7,6 +7,7 @@ package plugin6
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
@@ -15,10 +16,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
@@ -88,7 +90,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 					},
 				},
 			},
-		},
+			grpc_provider.go:93		},
 		DataSourceSchemas: map[string]*proto.Schema{
 			"data": {
 				Version: 1,
@@ -130,7 +132,7 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 		client: mockProviderClient(t),
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(nil)
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -150,7 +152,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(nil)
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -181,7 +183,7 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(nil)
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -214,7 +216,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(nil)
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -225,7 +227,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(nil)
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -261,7 +263,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(nil)
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -272,7 +274,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(nil)
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -292,7 +294,7 @@ func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 	).Return(&proto.ValidateProviderConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateProviderConfig(providers.ValidateProviderConfigRequest{Config: cfg})
+	resp := p.ValidateProviderConfig(context.Background(), providers.ValidateProviderConfigRequest{Config: cfg})
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -407,7 +409,7 @@ func TestGRPCProvider_Configure(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ConfigureProvider_Response{}, nil)
 
-	resp := p.ConfigureProvider(providers.ConfigureProviderRequest{
+	resp := p.ConfigureProvider(nil, providers.ConfigureProviderRequest{
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
 		}),
@@ -916,7 +918,7 @@ func TestGRPCProvider_CallFunction(t *testing.T) {
 		Result: &proto.DynamicValue{Json: []byte(`"foo"`)},
 	}, nil)
 
-	resp := p.CallFunction(providers.CallFunctionRequest{
+	resp := p.CallFunction(context.Background(), providers.CallFunctionRequest{
 		Name:      "fn",
 		Arguments: []cty.Value{cty.StringVal("bar"), cty.NilVal},
 	})

@@ -62,7 +62,7 @@ func TestNodeLocalExecute(t *testing.T) {
 				EvaluateExprResult: hcl2shim.HCL2ValueFromConfigValue(test.Want),
 			}
 
-			err := n.Execute(ctx, walkApply)
+			err := n.Execute(nil, ctx, walkApply)
 			if (err != nil) != test.Err {
 				if err != nil {
 					t.Errorf("unexpected error: %s", err)

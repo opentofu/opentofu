@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -58,7 +59,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, nil) // Encryption not needed here
+	b, backendDiags := c.Backend(context.TODO(), nil, nil) // Encryption not needed here
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -95,14 +96,14 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(context.TODO(), opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(context.TODO(), lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		c.showDiagnostics(diags)

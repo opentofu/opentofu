@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNodeExpandModuleExecute(t *testing.T) {
@@ -29,7 +30,7 @@ func TestNodeExpandModuleExecute(t *testing.T) {
 		},
 	}
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -47,7 +48,7 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 			StateState: state.SyncWrapper(),
 		}
 		node := nodeCloseModule{addrs.Module{"child"}}
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(nil, ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -59,7 +60,7 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 
 		// the root module should do all the module cleanup
 		node = nodeCloseModule{addrs.RootModule}
-		diags = node.Execute(ctx, walkApply)
+		diags = node.Execute(nil, ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -79,7 +80,7 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 		}
 		node := nodeCloseModule{addrs.Module{"child"}}
 
-		diags := node.Execute(ctx, walkImport)
+		diags := node.Execute(nil, ctx, walkImport)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -104,7 +105,7 @@ func TestNodeValidateModuleExecute(t *testing.T) {
 			},
 		}
 
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(nil, ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %v", diags.Err())
 		}
@@ -124,7 +125,7 @@ func TestNodeValidateModuleExecute(t *testing.T) {
 			},
 		}
 
-		err := node.Execute(ctx, walkApply)
+		err := node.Execute(nil, ctx, walkApply)
 		if err == nil {
 			t.Fatal("expected error, got success")
 		}

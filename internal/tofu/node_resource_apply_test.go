@@ -28,7 +28,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 				Config: nil,
 			},
 		}
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(nil, ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -59,7 +59,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 				},
 			},
 		}
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(nil, ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}

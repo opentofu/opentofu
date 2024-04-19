@@ -6,11 +6,13 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -135,7 +137,11 @@ func (n *NodeLocal) References() []*addrs.Reference {
 // NodeLocal.Execute is an Execute implementation that evaluates the
 // expression for a local value and writes it into a transient part of
 // the state.
-func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeLocal) Execute(traceCtx context.Context, ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "NodeLocal.Execute")
+	defer span.End()
+	
 	expr := n.Config.Expr
 	addr := n.Addr.LocalValue
 
@@ -157,7 +163,7 @@ func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Di
 		return diags
 	}
 
-	val, moreDiags := ctx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
+	val, moreDiags := ctx.EvaluateExpr(traceCtx, expr, cty.DynamicPseudoType, nil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags

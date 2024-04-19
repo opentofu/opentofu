@@ -6,6 +6,8 @@
 package command
 
 import (
+	"context"
+
 	"github.com/posener/complete"
 )
 
@@ -55,7 +57,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 			return nil
 		}
 
-		b, diags := m.Backend(&BackendOpts{
+		b, diags := m.Backend(context.TODO(), &BackendOpts{
 			Config: backendConfig,
 		}, nil) // Don't need state encryption here.
 		if diags.HasErrors() {

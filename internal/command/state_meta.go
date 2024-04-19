@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -38,7 +39,7 @@ func (c *StateMeta) State(enc encryption.Encryption) (statemgr.Full, error) {
 		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
 	} else {
 		// Load the backend
-		b, backendDiags := c.Backend(nil, enc.State())
+		b, backendDiags := c.Backend(context.TODO(), nil, enc.State())
 		if backendDiags.HasErrors() {
 			return nil, backendDiags.Err()
 		}
@@ -62,7 +63,7 @@ func (c *StateMeta) State(enc encryption.Encryption) (statemgr.Full, error) {
 		}
 
 		// Get a local backend
-		localRaw, backendDiags := c.Backend(&BackendOpts{ForceLocal: true}, enc.State())
+		localRaw, backendDiags := c.Backend(context.TODO(), &BackendOpts{ForceLocal: true}, enc.State())
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

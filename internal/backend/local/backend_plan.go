@@ -23,6 +23,7 @@ import (
 )
 
 func (b *Local) opPlan(
+	traceCtx context.Context,
 	stopCtx context.Context,
 	cancelCtx context.Context,
 	op *backend.Operation,
@@ -79,7 +80,7 @@ func (b *Local) opPlan(
 	}
 
 	// Get our context
-	lr, configSnap, opState, ctxDiags := b.localRun(op)
+	lr, configSnap, opState, ctxDiags := b.localRun(traceCtx, op)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -108,7 +109,7 @@ func (b *Local) opPlan(
 		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: plan calling Plan")
-		plan, planDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
+		plan, planDiags = lr.Core.Plan(traceCtx, lr.Config, lr.InputState, lr.PlanOpts)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {
@@ -187,7 +188,7 @@ func (b *Local) opPlan(
 
 	// Render the plan, if we produced one.
 	// (This might potentially be a partial plan with Errored set to true)
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(traceCtx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)

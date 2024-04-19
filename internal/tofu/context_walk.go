@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -46,16 +47,16 @@ type graphWalkOpts struct {
 	MoveResults refactoring.MoveResults
 }
 
-func (c *Context) walk(graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
+func (c *Context) walk(traceCtx context.Context, graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
 	log.Printf("[DEBUG] Starting graph walk: %s", operation.String())
 
 	walker := c.graphWalker(operation, opts)
 
-	// Watch for a stop so we can call the provider Stop() API.
+	// Watch for a stop, so we can call the provider Stop() API.
 	watchStop, watchWait := c.watchStop(walker)
 
 	// Walk the real graph, this will block until it completes
-	diags := graph.Walk(walker)
+	diags := graph.Walk(traceCtx, walker)
 
 	// Close the channel so the watcher stops, and wait for it to return.
 	close(watchStop)

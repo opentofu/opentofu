@@ -9,9 +9,10 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // evaluateCountExpression is our standard mechanism for interpreting an
@@ -63,7 +64,7 @@ func evaluateCountExpressionValue(expr hcl.Expression, ctx EvalContext) (cty.Val
 		return nullCount, nil
 	}
 
-	countVal, countDiags := ctx.EvaluateExpr(expr, cty.Number, nil)
+	countVal, countDiags := ctx.EvaluateExpr(nil, expr, cty.Number, nil)
 	diags = diags.Append(countDiags)
 	if diags.HasErrors() {
 		return nullCount, diags

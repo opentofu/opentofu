@@ -9,11 +9,12 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
+
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
@@ -81,6 +82,6 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 // (a single combination of each.key and each.value of a for_each argument)
 // that should be a part of the scope.
 func evaluateExprWithRepetitionData(ctx EvalContext, expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
-	scope := ctx.EvaluationScope(nil, nil, keyData)
+	scope := ctx.EvaluationScope(nil, nil, nil, keyData)
 	return scope.EvalExpr(expr, wantType)
 }

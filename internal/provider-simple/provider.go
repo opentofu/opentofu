@@ -7,13 +7,15 @@
 package simple
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 )
 
 type simple struct {
@@ -54,11 +56,11 @@ func Provider() providers.Interface {
 	}
 }
 
-func (s simple) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (s simple) GetProviderSchema(context.Context) providers.GetProviderSchemaResponse {
 	return s.schema
 }
 
-func (s simple) ValidateProviderConfig(req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
+func (s simple) ValidateProviderConfig(ctx context.Context, req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	return resp
 }
 
@@ -78,7 +80,7 @@ func (p simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) 
 	return resp
 }
 
-func (s simple) ConfigureProvider(providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+func (s simple) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 	return resp
 }
 
@@ -142,7 +144,7 @@ func (s simple) GetFunctions() providers.GetFunctionsResponse {
 	panic("Not Implemented")
 }
 
-func (s simple) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+func (s simple) CallFunction(ctx context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
 	panic("Not Implemented")
 }
 

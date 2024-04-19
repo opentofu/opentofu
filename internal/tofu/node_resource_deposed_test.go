@@ -8,12 +8,13 @@ package tofu
 import (
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
@@ -103,7 +104,7 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			EndpointsToRemove: test.nodeEndpointsToRemove,
 		}
 
-		err := node.Execute(ctx, walkPlan)
+		err := node.Execute(nil, ctx, walkPlan)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -138,7 +139,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 		},
 		DeposedKey: deposedKey,
 	}
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -163,7 +164,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 		},
 	})
 	ctx.ProviderProvider = mockProvider
-	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema(nil)
 
 	obj := &states.ResourceInstanceObject{
 		Value: cty.ObjectVal(map[string]cty.Value{
@@ -198,7 +199,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 	ctx := &MockEvalContext{
 		StateState:           states.NewState().SyncWrapper(),
 		ProviderProvider:     simpleMockProvider(),
-		ProviderSchemaSchema: p.GetProviderSchema(),
+		ProviderSchemaSchema: p.GetProviderSchema(nil),
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}
 
@@ -211,7 +212,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 		},
 		DeposedKey: states.NewDeposedKey(),
 	}
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 
 	if err == nil {
 		t.Fatal("expected error")
@@ -234,7 +235,7 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 		},
 		DeposedKey: deposedKey,
 	}
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -279,7 +280,7 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 	}
 
 	p := testProvider("test")
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(nil, providers.ConfigureProviderRequest{})
 	p.GetProviderSchemaResponse = &schema
 
 	p.UpgradeResourceStateResponse = &providers.UpgradeResourceStateResponse{

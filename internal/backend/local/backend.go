@@ -15,6 +15,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -23,7 +25,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -289,7 +290,7 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	}
 
 	// Determine the function to call for our operation
-	var f func(context.Context, context.Context, *backend.Operation, *backend.RunningOperation)
+	var f func(context.Context, context.Context, context.Context, *backend.Operation, *backend.RunningOperation)
 	switch op.Type {
 	case backend.OperationTypeRefresh:
 		f = b.opRefresh
@@ -336,7 +337,7 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 		defer cancel()
 
 		defer b.opLock.Unlock()
-		f(stopCtx, cancelCtx, op, runningOp)
+		f(ctx, stopCtx, cancelCtx, op, runningOp)
 	}()
 
 	// Return

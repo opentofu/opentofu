@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -56,7 +57,10 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 		return view.Results(diags)
 	}
 
-	validateDiags := c.validate(dir, args.TestDirectory, args.NoTests)
+	// TODO: propagate the context from the entry point to here
+	ctx := context.Background()
+
+	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
 
 	// Validating with dev overrides in effect means that the result might
@@ -68,7 +72,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	return view.Results(diags)
 }
 
-func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Diagnostics {
+func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	var cfg *configs.Config
 
@@ -96,7 +100,7 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 			return diags
 		}
 
-		return diags.Append(tfCtx.Validate(cfg))
+		return diags.Append(tfCtx.Validate(ctx, cfg))
 	}
 
 	diags = diags.Append(validate(cfg))

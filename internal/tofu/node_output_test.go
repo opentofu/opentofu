@@ -33,7 +33,7 @@ func TestNodeApplyableOutputExecute_knownValue(t *testing.T) {
 	})
 	ctx.EvaluateExprResult = val
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %s", err)
 	}
@@ -63,7 +63,7 @@ func TestNodeApplyableOutputExecute_noState(t *testing.T) {
 	})
 	ctx.EvaluateExprResult = val
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %s", err)
 	}
@@ -91,7 +91,7 @@ func TestNodeApplyableOutputExecute_invalidDependsOn(t *testing.T) {
 	})
 	ctx.EvaluateExprResult = val
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(nil, ctx, walkApply)
 	if !diags.HasErrors() {
 		t.Fatal("expected execute error, but there was none")
 	}
@@ -113,7 +113,7 @@ func TestNodeApplyableOutputExecute_sensitiveValueNotOutput(t *testing.T) {
 	})
 	ctx.EvaluateExprResult = val
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(nil, ctx, walkApply)
 	if !diags.HasErrors() {
 		t.Fatal("expected execute error, but there was none")
 	}
@@ -138,7 +138,7 @@ func TestNodeApplyableOutputExecute_sensitiveValueAndOutput(t *testing.T) {
 	})
 	ctx.EvaluateExprResult = val
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(nil, ctx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %s", err)
 	}
@@ -163,7 +163,7 @@ func TestNodeDestroyableOutputExecute(t *testing.T) {
 	}
 	node := NodeDestroyableOutput{Addr: outputAddr}
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(nil, ctx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}
@@ -182,7 +182,7 @@ func TestNodeDestroyableOutputExecute_notInState(t *testing.T) {
 	}
 	node := NodeDestroyableOutput{Addr: outputAddr}
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(nil, ctx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}

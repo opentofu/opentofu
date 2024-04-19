@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -37,7 +38,7 @@ type EvalOpts struct {
 // the returned scope may be nil. If it is not nil then it may still be used
 // to attempt expression evaluation or other analysis, but some expressions
 // may not behave as expected.
-func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) Eval(ctx context.Context, config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
 	// This is intended for external callers such as the "tofu console"
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
@@ -80,7 +81,7 @@ func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr a
 		Config:     config,
 	}
 
-	walker, moreDiags = c.walk(graph, walkEval, walkOpts)
+	walker, moreDiags = c.walk(ctx, graph, walkEval, walkOpts)
 	diags = diags.Append(moreDiags)
 	if walker != nil {
 		diags = diags.Append(walker.NonFatalDiagnostics)
@@ -97,5 +98,5 @@ func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr a
 	// caches its contexts, so we should get hold of the context that was
 	// previously used for evaluation here, unless we skipped walking.
 	evalCtx := walker.EnterPath(moduleAddr)
-	return evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey), diags
+	return evalCtx.EvaluationScope(nil, nil, nil, EvalDataForNoInstanceKey), diags
 }

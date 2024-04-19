@@ -6,6 +6,7 @@
 package tf
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -24,7 +25,7 @@ func NewProvider() providers.Interface {
 }
 
 // GetSchema returns the complete schema for the provider.
-func (p *Provider) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (p *Provider) GetProviderSchema(context.Context) providers.GetProviderSchemaResponse {
 	return providers.GetProviderSchemaResponse{
 		DataSources: map[string]providers.Schema{
 			"terraform_remote_state": dataSourceRemoteStateGetSchema(),
@@ -36,7 +37,7 @@ func (p *Provider) GetProviderSchema() providers.GetProviderSchemaResponse {
 }
 
 // ValidateProviderConfig is used to validate the configuration values.
-func (p *Provider) ValidateProviderConfig(req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+func (p *Provider) ValidateProviderConfig(ctx context.Context, req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
 	// At this moment there is nothing to configure for the tofu provider,
 	// so we will happily return without taking any action
 	var res providers.ValidateProviderConfigResponse
@@ -64,7 +65,7 @@ func (p *Provider) ValidateDataResourceConfig(req providers.ValidateDataResource
 }
 
 // Configure configures and initializes the provider.
-func (p *Provider) ConfigureProvider(providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+func (p *Provider) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	// At this moment there is nothing to configure for the terraform provider,
 	// so we will happily return without taking any action
 	var res providers.ConfigureProviderResponse
@@ -164,7 +165,7 @@ func (p *Provider) GetFunctions() providers.GetFunctionsResponse {
 	panic("unimplemented - terraform provider has no functions")
 }
 
-func (p *Provider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+func (p *Provider) CallFunction(ctx context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
 	panic("unimplemented - terraform provider has no functions")
 }
 

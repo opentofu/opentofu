@@ -57,7 +57,7 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		"pw": cty.StringVal("so secret"),
 	}
 
-	if diags := n.Execute(ctx, walkApply); diags.HasErrors() {
+	if diags := n.Execute(nil, ctx, walkApply); diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
@@ -101,7 +101,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 	ctx := &MockEvalContext{ProviderProvider: provider}
 	ctx.installSimpleEval()
 
-	diags := n.Execute(ctx, walkImport)
+	diags := n.Execute(nil, ctx, walkImport)
 	if !diags.HasErrors() {
 		t.Fatal("expected error, got success")
 	}
@@ -135,7 +135,7 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 	ctx := &MockEvalContext{ProviderProvider: provider}
 	ctx.installSimpleEval()
 
-	if err := n.Execute(ctx, walkApply); err != nil {
+	if err := n.Execute(nil, ctx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -172,7 +172,7 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 
 	ctx := &MockEvalContext{ProviderProvider: provider}
 	ctx.installSimpleEval()
-	if err := n.Execute(ctx, walkApply); err != nil {
+	if err := n.Execute(nil, ctx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -209,7 +209,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 
 	ctx := &MockEvalContext{ProviderProvider: provider}
 	ctx.installSimpleEval()
-	if err := n.Execute(ctx, walkValidate); err != nil {
+	if err := n.Execute(nil, ctx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -251,7 +251,7 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 
 	ctx := &MockEvalContext{ProviderProvider: provider}
 	ctx.installSimpleEval()
-	if err := n.Execute(ctx, walkValidate); err != nil {
+	if err := n.Execute(nil, ctx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

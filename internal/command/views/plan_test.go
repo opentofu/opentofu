@@ -136,7 +136,7 @@ func testSchemas() *tofu.Schemas {
 	provider := testProvider()
 	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(nil),
 		},
 	}
 }

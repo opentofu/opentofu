@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 
@@ -48,7 +49,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(context.TODO(), &BackendOpts{
 		Config: backendConfig,
 	}, nil)
 	diags = diags.Append(backendDiags)

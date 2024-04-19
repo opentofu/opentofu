@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestGraphNodeImportStateExecute(t *testing.T) {
@@ -29,7 +30,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 			},
 		},
 	}
-	provider.ConfigureProvider(providers.ConfigureProviderRequest{})
+	provider.ConfigureProvider(nil, providers.ConfigureProviderRequest{})
 
 	ctx := &MockEvalContext{
 		StateState:       state.SyncWrapper(),
@@ -52,7 +53,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 		},
 	}
 
-	diags := node.Execute(ctx, walkImport)
+	diags := node.Execute(nil, ctx, walkImport)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}
@@ -70,7 +71,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	state := states.NewState()
 	provider := testProvider("aws")
-	provider.ConfigureProvider(providers.ConfigureProviderRequest{})
+	provider.ConfigureProvider(nil, providers.ConfigureProviderRequest{})
 	ctx := &MockEvalContext{
 		StateState:       state.SyncWrapper(),
 		ProviderProvider: provider,
@@ -107,7 +108,7 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 			Module:   addrs.RootModule,
 		},
 	}
-	diags := node.Execute(ctx, walkImport)
+	diags := node.Execute(nil, ctx, walkImport)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}
@@ -169,7 +170,7 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 			Module:   addrs.RootModule,
 		},
 	}
-	diags := node.Execute(ctx, walkImport)
+	diags := node.Execute(nil, ctx, walkImport)
 	if !diags.HasErrors() {
 		t.Fatal("expected error for non-existent resource")
 	}

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -40,7 +41,7 @@ func (n *nodeReportCheck) ModulePath() addrs.Module {
 	return n.addr.Module
 }
 
-func (n *nodeReportCheck) Execute(ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+func (n *nodeReportCheck) Execute(traceCtx context.Context, ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
 	exp := ctx.InstanceExpander()
 	modInsts := exp.ExpandModule(n.ModulePath())
 
@@ -150,7 +151,7 @@ func (n *nodeCheckAssert) Path() addrs.ModuleInstance {
 	return n.addr.Module
 }
 
-func (n *nodeCheckAssert) Execute(ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+func (n *nodeCheckAssert) Execute(traceCtx context.Context, ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
 
 	// We only want to actually execute the checks during specific
 	// operations, such as plan and applies.
@@ -195,7 +196,7 @@ var (
 // dependency that can enforce this ordering.
 type nodeCheckStart struct{}
 
-func (n *nodeCheckStart) Execute(context EvalContext, operation walkOperation) tfdiags.Diagnostics {
+func (n *nodeCheckStart) Execute(ctx context.Context, context EvalContext, operation walkOperation) tfdiags.Diagnostics {
 	// This node doesn't actually do anything, except simplify the underlying
 	// graph structure.
 	return nil

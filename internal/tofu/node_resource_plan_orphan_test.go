@@ -10,12 +10,13 @@ import (
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
@@ -126,7 +127,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 		}
 
 		p := simpleMockProvider()
-		p.ConfigureProvider(providers.ConfigureProviderRequest{})
+		p.ConfigureProvider(nil, providers.ConfigureProviderRequest{})
 		p.GetProviderSchemaResponse = &schema
 
 		ctx := &MockEvalContext{
@@ -152,7 +153,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			EndpointsToRemove: test.nodeEndpointsToRemove,
 		}
 
-		err := node.Execute(ctx, walkPlan)
+		err := node.Execute(nil, ctx, walkPlan)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -194,7 +195,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	changes := plans.NewChanges()
 
 	p := simpleMockProvider()
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(nil, providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
 	}
@@ -225,7 +226,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
 	}
-	diags := node.Execute(ctx, walkPlan)
+	diags := node.Execute(nil, ctx, walkPlan)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -276,7 +277,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	changes := plans.NewChanges()
 
 	p := simpleMockProvider()
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(nil, providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
 	}
@@ -307,7 +308,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
 	}
-	diags := node.Execute(ctx, walkPlan)
+	diags := node.Execute(nil, ctx, walkPlan)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}

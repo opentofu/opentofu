@@ -19,6 +19,7 @@ import (
 )
 
 func (b *Local) opRefresh(
+	traceCtx context.Context,
 	stopCtx context.Context,
 	cancelCtx context.Context,
 	op *backend.Operation,
@@ -50,7 +51,7 @@ func (b *Local) opRefresh(
 	op.PlanRefresh = true
 
 	// Get our context
-	lr, _, opState, contextDiags := b.localRun(op)
+	lr, _, opState, contextDiags := b.localRun(traceCtx, op)
 	diags = diags.Append(contextDiags)
 	if contextDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -79,7 +80,7 @@ func (b *Local) opRefresh(
 	}
 
 	// get schemas before writing state
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(traceCtx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -94,7 +95,7 @@ func (b *Local) opRefresh(
 	go func() {
 		defer panicHandler()
 		defer close(doneCh)
-		newState, refreshDiags = lr.Core.Refresh(lr.Config, lr.InputState, lr.PlanOpts)
+		newState, refreshDiags = lr.Core.Refresh(traceCtx, lr.Config, lr.InputState, lr.PlanOpts)
 		log.Printf("[INFO] backend/local: refresh calling Refresh")
 	}()
 

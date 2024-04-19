@@ -6,7 +6,11 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -19,7 +23,6 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // EvalContext is the interface that is given to eval nodes to execute.
@@ -60,7 +63,7 @@ type EvalContext interface {
 	//
 	// This method expects an _absolute_ provider configuration address, since
 	// resources in one module are able to use providers from other modules.
-	ProviderSchema(addrs.AbsProviderConfig) (providers.ProviderSchema, error)
+	ProviderSchema(context.Context, addrs.AbsProviderConfig) (providers.ProviderSchema, error)
 
 	// CloseProvider closes provider connections that aren't needed anymore.
 	//
@@ -75,7 +78,7 @@ type EvalContext interface {
 	//
 	// This method will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	ConfigureProvider(addrs.AbsProviderConfig, cty.Value) tfdiags.Diagnostics
+	ConfigureProvider(context.Context, addrs.AbsProviderConfig, cty.Value) tfdiags.Diagnostics
 
 	// ProviderInput and SetProviderInput are used to configure providers
 	// from user input.
@@ -122,7 +125,7 @@ type EvalContext interface {
 	// The "self" argument is optional. If given, it is the referenceable
 	// address that the name "self" should behave as an alias for when
 	// evaluating. Set this to nil if the "self" object should not be available.
-	EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics)
+	EvaluateExpr(ctx context.Context, expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics)
 
 	// EvaluateReplaceTriggeredBy takes the raw reference expression from the
 	// config, and returns the evaluated *addrs.Reference along with a boolean
@@ -135,7 +138,7 @@ type EvalContext interface {
 
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.
-	EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope
+	EvaluationScope(ctx context.Context, self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope
 
 	// SetRootModuleArgument defines the value for one variable of the root
 	// module. The caller must ensure that given value is a suitable

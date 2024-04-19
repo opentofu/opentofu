@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -302,7 +303,7 @@ func (n *NodeApplyableOutput) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableOutput) Execute(traceCtx context.Context, ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	state := ctx.State()
 	if state == nil {
 		return
@@ -347,7 +348,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 		// This has to run before we have a state lock, since evaluation also
 		// reads the state
 		var evalDiags tfdiags.Diagnostics
-		val, evalDiags = ctx.EvaluateExpr(n.Config.Expr, cty.DynamicPseudoType, nil)
+		val, evalDiags = ctx.EvaluateExpr(nil, n.Config.Expr, cty.DynamicPseudoType, nil)
 		diags = diags.Append(evalDiags)
 
 		// We'll handle errors below, after we have loaded the module.
@@ -451,7 +452,7 @@ func (n *NodeDestroyableOutput) temporaryValue() bool {
 }
 
 // GraphNodeExecutable
-func (n *NodeDestroyableOutput) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *NodeDestroyableOutput) Execute(traceCtx context.Context, ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	state := ctx.State()
 	if state == nil {
 		return nil

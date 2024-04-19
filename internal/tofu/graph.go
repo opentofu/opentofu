@@ -6,9 +6,12 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
+
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -36,11 +39,15 @@ func (g *Graph) DirectedGraph() dag.Grapher {
 // Walk walks the graph with the given walker for callbacks. The graph
 // will be walked with full parallelism, so the walker should expect
 // to be called in concurrently.
-func (g *Graph) Walk(walker GraphWalker) tfdiags.Diagnostics {
-	return g.walk(walker)
+func (g *Graph) Walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostics {
+	return g.walk(ctx, walker)
 }
 
-func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
+func (g *Graph) walk(traceCtx context.Context, walker GraphWalker) tfdiags.Diagnostics {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "Graph.Walk")
+	defer span.End()
+
 	// The callbacks for enter/exiting a graph
 	ctx := walker.EvalContext()
 
@@ -51,7 +58,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 	panicHandler := logging.PanicHandlerWithTraceFn()
 
 	// Walk the graph.
-	walkFn := func(v dag.Vertex) (diags tfdiags.Diagnostics) {
+	walkFn := func(traceCtx context.Context, v dag.Vertex) (diags tfdiags.Diagnostics) {
 		// the walkFn is called asynchronously, and needs to be recovered
 		// separately in the case of a panic.
 		defer panicHandler()
@@ -83,7 +90,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 
 		// If the node is exec-able, then execute it.
 		if ev, ok := v.(GraphNodeExecutable); ok {
-			diags = diags.Append(walker.Execute(vertexCtx, ev))
+			diags = diags.Append(walker.Execute(traceCtx, vertexCtx, ev))
 			if diags.HasErrors() {
 				return
 			}
@@ -124,7 +131,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 
 				// Walk the subgraph
 				log.Printf("[TRACE] vertex %q: entering dynamic subgraph", dag.VertexName(v))
-				subDiags := g.walk(walker)
+				subDiags := g.walk(traceCtx, walker)
 				diags = diags.Append(subDiags)
 				if subDiags.HasErrors() {
 					var errs []string
@@ -142,5 +149,5 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 		return
 	}
 
-	return g.AcyclicGraph.Walk(walkFn)
+	return g.AcyclicGraph.Walk(traceCtx, walkFn)
 }

@@ -8,12 +8,13 @@ package grpcwrap
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/plugin6/convert"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfplugin6"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
+
+	"github.com/opentofu/opentofu/internal/plugin6/convert"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 // New wraps a providers.Interface to implement a grpc ProviderServer using
@@ -22,7 +23,7 @@ import (
 func Provider6(p providers.Interface) tfplugin6.ProviderServer {
 	return &provider6{
 		provider: p,
-		schema:   p.GetProviderSchema(),
+		schema:   p.GetProviderSchema(nil),
 	}
 }
 
@@ -78,7 +79,7 @@ func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProvi
 	return resp, nil
 }
 
-func (p *provider6) ValidateProviderConfig(_ context.Context, req *tfplugin6.ValidateProviderConfig_Request) (*tfplugin6.ValidateProviderConfig_Response, error) {
+func (p *provider6) ValidateProviderConfig(ctx context.Context, req *tfplugin6.ValidateProviderConfig_Request) (*tfplugin6.ValidateProviderConfig_Response, error) {
 	resp := &tfplugin6.ValidateProviderConfig_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -88,7 +89,7 @@ func (p *provider6) ValidateProviderConfig(_ context.Context, req *tfplugin6.Val
 		return resp, nil
 	}
 
-	prepareResp := p.provider.ValidateProviderConfig(providers.ValidateProviderConfigRequest{
+	prepareResp := p.provider.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{
 		Config: configVal,
 	})
 
@@ -171,7 +172,7 @@ func (p *provider6) ConfigureProvider(_ context.Context, req *tfplugin6.Configur
 		return resp, nil
 	}
 
-	configureResp := p.provider.ConfigureProvider(providers.ConfigureProviderRequest{
+	configureResp := p.provider.ConfigureProvider(nil, providers.ConfigureProviderRequest{
 		TerraformVersion: req.TerraformVersion,
 		Config:           configVal,
 	})

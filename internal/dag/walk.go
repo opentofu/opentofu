@@ -6,6 +6,7 @@
 package dag
 
 import (
+	"context"
 	"errors"
 	"log"
 	"sync"
@@ -146,7 +147,7 @@ func (w *Walker) Wait() tfdiags.Diagnostics {
 //
 // Multiple Updates can be called in parallel. Update can be called at any
 // time during a walk.
-func (w *Walker) Update(g *AcyclicGraph) {
+func (w *Walker) Update(ctx context.Context, g *AcyclicGraph) {
 	w.init()
 	v := make(Set)
 	e := make(Set)
@@ -305,7 +306,7 @@ func (w *Walker) Update(g *AcyclicGraph) {
 	// the edge waiters and changes are set up above.
 	for _, raw := range newVerts {
 		v := raw.(Vertex)
-		go w.walkVertex(v, w.vertexMap[v])
+		go w.walkVertex(ctx, v, w.vertexMap[v])
 	}
 }
 
@@ -321,7 +322,7 @@ func (w *Walker) edgeParts(e Edge) (Vertex, Vertex) {
 
 // walkVertex walks a single vertex, waiting for any dependencies before
 // executing the callback.
-func (w *Walker) walkVertex(v Vertex, info *walkerVertex) {
+func (w *Walker) walkVertex(ctx context.Context, v Vertex, info *walkerVertex) {
 	// When we're done executing, lower the waitgroup count
 	defer w.wait.Done()
 
@@ -382,7 +383,7 @@ func (w *Walker) walkVertex(v Vertex, info *walkerVertex) {
 	var diags tfdiags.Diagnostics
 	var upstreamFailed bool
 	if depsSuccess {
-		diags = w.Callback(v)
+		diags = w.Callback(ctx, v)
 	} else {
 		log.Printf("[TRACE] dag/walk: upstream of %q errored, so skipping", VertexName(v))
 		// This won't be displayed to the user because we'll set upstreamFailed,

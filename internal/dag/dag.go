@@ -6,6 +6,7 @@
 package dag
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,7 +22,7 @@ type AcyclicGraph struct {
 }
 
 // WalkFunc is the callback used for walking the graph.
-type WalkFunc func(Vertex) tfdiags.Diagnostics
+type WalkFunc func(context.Context, Vertex) tfdiags.Diagnostics
 
 // DepthWalkFunc is a walk function that also receives the current depth of the
 // walk as an argument
@@ -164,9 +165,9 @@ func (g *AcyclicGraph) Cycles() [][]Vertex {
 // Walk walks the graph, calling your callback as each node is visited.
 // This will walk nodes in parallel if it can. The resulting diagnostics
 // contains problems from all graphs visited, in no particular order.
-func (g *AcyclicGraph) Walk(cb WalkFunc) tfdiags.Diagnostics {
+func (g *AcyclicGraph) Walk(ctx context.Context, cb WalkFunc) tfdiags.Diagnostics {
 	w := &Walker{Callback: cb, Reverse: true}
-	w.Update(g)
+	w.Update(ctx, g)
 	return w.Wait()
 }
 
