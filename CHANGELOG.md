@@ -41,6 +41,8 @@ ENHANCEMENTS:
 * Added mechanism to introduce automatic retries for provider installations, specifically targeting transient errors ([#1233](https://github.com/opentofu/opentofu/issues/1233))
 * Added `-json` flag to `tofu init` and `tofu get` to support output in json format. ([#1453](https://github.com/opentofu/opentofu/pull/1453))
 * `import` blocks `to` address can now support dynamic values (like variables, locals, conditions, and references to resources or data blocks) in index keys. ([#1270](https://github.com/opentofu/opentofu/pull/1270))
+* Added support for user-defined headers when configuring the HTTP backend ([1427](https://github.com/opentofu/opentofu/pull/1487))
+* Added `tofu test -json` types to website Machine-Readable UI documentation ([1408](https://github.com/opentofu/opentofu/issues/1408))
 
 BUG FIXES:
 * Fix view hooks unit test flakiness by deterministically waiting for heartbeats to execute ([$1153](https://github.com/opentofu/opentofu/issues/1153))
@@ -57,7 +59,7 @@ BUG FIXES:
 * Fix large number will be truncated in plan ([#1382](https://github.com/opentofu/opentofu/pull/1382))
 * S3 backend no longer requires to have permissions to use the default 'env:' workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
 * Fixed a crash when using a conditional with Twingate resource ([1446](https://github.com/opentofu/opentofu/pull/1446))
-* Added support for user-defined headers when configuring the HTTP backend ([1427](https://github.com/opentofu/opentofu/pull/1487))
+
 
 ## Previous Releases
 
