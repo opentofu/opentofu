@@ -18,7 +18,7 @@ import (
 	"text/template"
 	"time"
 
-	uuid "github.com/hashicorp/go-uuid"
+	"github.com/google/uuid"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -145,13 +145,7 @@ type LockInfo struct {
 // NewLockInfo creates a LockInfo object and populates many of its fields
 // with suitable default values.
 func NewLockInfo() *LockInfo {
-	// this doesn't need to be cryptographically secure, just unique.
-	// Using math/rand alleviates the need to check handle the read error.
-	// Use a uuid format to match other IDs used throughout OpenTofu.
-	buf := make([]byte, 16)
-	rngSource.Read(buf)
-
-	id, err := uuid.FormatUUID(buf)
+	id, err := uuid.NewRandom()
 	if err != nil {
 		// this of course shouldn't happen
 		panic(err)
@@ -165,7 +159,7 @@ func NewLockInfo() *LockInfo {
 	host, _ := os.Hostname()
 
 	info := &LockInfo{
-		ID:      id,
+		ID:      id.String(),
 		Who:     fmt.Sprintf("%s@%s", userName, host),
 		Version: version.Version,
 		Created: time.Now().UTC(),
