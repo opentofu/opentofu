@@ -6,6 +6,7 @@
 package getproviders
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sort"
@@ -144,15 +145,15 @@ func (p Platform) LessThan(other Platform) bool {
 func ParsePlatform(str string) (Platform, error) {
 	parts := strings.Split(str, "_")
 	if len(parts) != 2 {
-		return Platform{}, fmt.Errorf("must be two words separated by an underscore")
+		return Platform{}, errors.New("must be two words separated by an underscore")
 	}
 
 	os, arch := parts[0], parts[1]
 	if strings.ContainsAny(os, " \t\n\r") {
-		return Platform{}, fmt.Errorf("OS portion must not contain whitespace")
+		return Platform{}, errors.New("OS portion must not contain whitespace")
 	}
 	if strings.ContainsAny(arch, " \t\n\r") {
-		return Platform{}, fmt.Errorf("architecture portion must not contain whitespace")
+		return Platform{}, errors.New("architecture portion must not contain whitespace")
 	}
 
 	return Platform{

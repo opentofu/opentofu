@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"log"
@@ -218,7 +219,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		// Indicates that none of the hashes given to
 		// NewPackageHashAuthentication were considered to be usable by this
 		// version of OpenTofu.
-		return nil, fmt.Errorf("this version of OpenTofu does not support any of the checksum formats given for this provider")
+		return nil, errors.New("this version of OpenTofu does not support any of the checksum formats given for this provider")
 	}
 
 	matches, err := PackageMatchesAnyHash(localLocation, a.RequiredHashes)
@@ -239,7 +240,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 	// above will prevail in that case. Maybe we'll improve on this somehow
 	// if the future introduction of a new hash scheme causes there to more
 	// commonly be multiple hashes.
-	return nil, fmt.Errorf("provider package doesn't match the any of the expected checksums")
+	return nil, errors.New("provider package doesn't match the any of the expected checksums")
 }
 
 func (a packageHashAuthentication) AcceptableHashes() []Hash {
@@ -525,7 +526,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 	// If none of the provided keys issued the signature, this package is
 	// unsigned. This is currently a terminal authentication error.
-	return nil, "", fmt.Errorf("authentication signature from unknown issuer")
+	return nil, "", errors.New("authentication signature from unknown issuer")
 }
 
 // entityString extracts the key ID and identity name(s) from an openpgp.Entity

@@ -288,7 +288,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 	downloadURL = resp.Request.URL.ResolveReference(downloadURL)
 	if downloadURL.Scheme != "http" && downloadURL.Scheme != "https" {
-		return PackageMeta{}, fmt.Errorf("registry response includes invalid download URL: must use http or https scheme")
+		return PackageMeta{}, errors.New("registry response includes invalid download URL: must use http or https scheme")
 	}
 
 	ret := PackageMeta{
@@ -326,7 +326,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 	shasumsURL = resp.Request.URL.ResolveReference(shasumsURL)
 	if shasumsURL.Scheme != "http" && shasumsURL.Scheme != "https" {
-		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS URL: must use http or https scheme")
+		return PackageMeta{}, errors.New("registry response includes invalid SHASUMS URL: must use http or https scheme")
 	}
 	document, err := c.getFile(shasumsURL)
 	if err != nil {
@@ -341,7 +341,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 	signatureURL = resp.Request.URL.ResolveReference(signatureURL)
 	if signatureURL.Scheme != "http" && signatureURL.Scheme != "https" {
-		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS signature URL: must use http or https scheme")
+		return PackageMeta{}, errors.New("registry response includes invalid SHASUMS signature URL: must use http or https scheme")
 	}
 	signature, err := c.getFile(signatureURL)
 	if err != nil {

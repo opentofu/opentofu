@@ -7,6 +7,7 @@ package getproviders
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -53,7 +54,7 @@ const NilHash = Hash("")
 func ParseHash(s string) (Hash, error) {
 	colon := strings.Index(s, ":")
 	if colon < 1 { // 1 because a zero-length scheme is not allowed
-		return NilHash, fmt.Errorf("hash string must start with a scheme keyword followed by a colon")
+		return NilHash, errors.New("hash string must start with a scheme keyword followed by a colon")
 	}
 	return Hash(s), nil
 }
@@ -194,7 +195,7 @@ func PackageMatchesHash(loc PackageLocation, want Hash) (bool, error) {
 	case HashSchemeZip:
 		archiveLoc, ok := loc.(PackageLocalArchive)
 		if !ok {
-			return false, fmt.Errorf(`ziphash scheme ("zh:" prefix) is not supported for unpacked provider packages`)
+			return false, errors.New(`ziphash scheme ("zh:" prefix) is not supported for unpacked provider packages`)
 		}
 		got, err := PackageHashLegacyZipSHA(archiveLoc)
 		if err != nil {
@@ -202,7 +203,7 @@ func PackageMatchesHash(loc PackageLocation, want Hash) (bool, error) {
 		}
 		return got == want, nil
 	default:
-		return false, fmt.Errorf("unsupported hash format (this may require a newer version of OpenTofu)")
+		return false, errors.New("unsupported hash format (this may require a newer version of OpenTofu)")
 	}
 }
 

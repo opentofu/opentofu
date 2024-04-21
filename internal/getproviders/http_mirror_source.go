@@ -8,6 +8,7 @@ package getproviders
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -53,7 +54,7 @@ func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource) *HTT
 		// If we get redirected more than five times we'll assume we're
 		// in a redirect loop and bail out, rather than hanging forever.
 		if len(via) > 5 {
-			return fmt.Errorf("too many redirects")
+			return errors.New("too many redirects")
 		}
 		return nil
 	}
@@ -345,7 +346,7 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 			return 0, nil, finalURL, fmt.Errorf("response has invalid Content-Type: %w", err)
 		}
 		if mt != "application/json" {
-			return 0, nil, finalURL, fmt.Errorf("response has invalid Content-Type: must be application/json")
+			return 0, nil, finalURL, errors.New("response has invalid Content-Type: must be application/json")
 		}
 		for name := range params {
 			// The application/json content-type has no defined parameters,
