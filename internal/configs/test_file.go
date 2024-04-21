@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -40,6 +41,11 @@ const (
 	// plans.RefreshOnlyMode.
 	RefreshOnlyTestMode TestMode = 'R'
 )
+
+type TestProviderConfig struct {
+	hcl.Body
+	Value cty.Value
+}
 
 // TestFile represents a single test file within a `tofu test` execution.
 //
@@ -233,7 +239,6 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
-				provider.ParseRef = addrs.ParseRefFromTestingScope
 				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
 		}

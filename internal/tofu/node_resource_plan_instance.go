@@ -560,7 +560,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	// Insert marks from configuration
 	if n.Config != nil {
-		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey, nil)
+		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return instanceRefreshState, diags

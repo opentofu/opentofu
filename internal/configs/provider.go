@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -29,8 +28,6 @@ type Provider struct {
 	Version VersionConstraint
 
 	Config hcl.Body
-
-	ParseRef lang.ParseRef
 
 	DeclRange hcl.Range
 

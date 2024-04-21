@@ -12,6 +12,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -950,13 +951,39 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		// Otherwise, let's copy over and overwrite all providers specified by
 		// the test file itself.
 		for key, provider := range file.Providers {
-			next[key] = provider
+			next[key] = &Provider{
+				Name:       provider.Name,
+				NameRange:  provider.NameRange,
+				Alias:      provider.Alias,
+				AliasRange: provider.AliasRange,
+				Version:    provider.Version,
+				Config:     &TestProviderConfig{Body: provider.Config, Value: cty.NilVal},
+				DeclRange:  provider.DeclRange,
+			}
 		}
 	}
+
+	variables := getVariablesForTest(file.Variables)
+	c.Module.Variables = variables
 
 	c.Module.ProviderConfigs = next
 	return func() {
 		// Reset the original config within the returned function.
 		c.Module.ProviderConfigs = previous
 	}, diags
+}
+
+func getVariablesForTest(variables map[string]hcl.Expression) map[string]*Variable {
+	configVariables := make(map[string]*Variable)
+	for key, variable := range variables {
+		defaultValue, _ := variable.Value(nil)
+		configVariables[key] = &Variable{
+			Name:           key,
+			Default:        defaultValue,
+			Type:           defaultValue.Type(),
+			ConstraintType: defaultValue.Type(),
+			DeclRange:      variable.Range(),
+		}
+	}
+	return configVariables
 }

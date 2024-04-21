@@ -577,15 +577,11 @@ func NewReferenceMap(vs []dag.Vertex) ReferenceMap {
 
 // ReferencesFromConfig returns the references that a configuration has
 // based on the interpolated variables in a configuration.
-func ReferencesFromConfig(body hcl.Body, schema *configschema.Block, parseRef lang.ParseRef) []*addrs.Reference {
+func ReferencesFromConfig(body hcl.Body, schema *configschema.Block) []*addrs.Reference {
 	if body == nil {
 		return nil
 	}
 
-	if parseRef == nil {
-		parseRef = addrs.ParseRef
-	}
-
-	refs, _ := lang.ReferencesInBlock(parseRef, body, schema)
+	refs, _ := lang.ReferencesInBlock(addrs.ParseRef, body, schema)
 	return refs
 }

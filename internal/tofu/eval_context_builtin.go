@@ -269,9 +269,9 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 	return diags.Err()
 }
 
-func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	scope := ctx.EvaluationScope(self, nil, keyData, parseRef)
+	scope := ctx.EvaluationScope(self, nil, keyData)
 	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
@@ -280,7 +280,7 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 }
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
-	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey, nil)
+	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
 	return scope.EvalExpr(expr, wantType)
 }
 
@@ -500,7 +500,7 @@ func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression) (hcl
 	return idx, diags
 }
 
-func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) *lang.Scope {
+func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
 	if !ctx.pathSet {
 		panic("context path not set")
 	}
@@ -509,10 +509,6 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		ModulePath:      ctx.PathValue,
 		InstanceKeyData: keyData,
 		Operation:       ctx.Evaluator.Operation,
-	}
-
-	if parseRef == nil {
-		parseRef = addrs.ParseRef
 	}
 
 	// ctx.PathValue is the path of the module that contains whatever
@@ -525,7 +521,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue)
 
 	if mc == nil || mc.Module.ProviderRequirements == nil {
-		return ctx.Evaluator.Scope(data, self, source, nil, nil)
+		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
 
 	ctx.FunctionLock.Lock()
@@ -541,7 +537,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 
 		ctx.FunctionCache = ctx.Plugins.Functions(names)
 	}
-	scope := ctx.Evaluator.Scope(data, self, source, parseRef, ctx.FunctionCache)
+	scope := ctx.Evaluator.Scope(data, self, source, ctx.FunctionCache)
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 
 	return scope

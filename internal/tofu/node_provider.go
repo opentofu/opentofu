@@ -10,7 +10,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -57,6 +57,10 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
 
+	if _, ok := configBody.(*configs.TestProviderConfig); ok {
+		return nil
+	}
+
 	// if a provider config is empty (only an alias), return early and don't continue
 	// validation. validate doesn't need to fully configure the provider itself, so
 	// skipping a provider with an implied configuration won't prevent other validation from completing.
@@ -79,12 +83,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 		configSchema = &configschema.Block{}
 	}
 
-	parseRef := addrs.ParseRef
-	if n.ProviderConfig() != nil && n.ProviderConfig().ParseRef != nil {
-		parseRef = n.ProviderConfig().ParseRef
-	}
-
-	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey, parseRef)
+	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
 	if evalDiags.HasErrors() {
 		return diags.Append(evalDiags)
 	}
@@ -120,15 +119,25 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 
 	configSchema := resp.Provider.Block
 
-	parseRef := addrs.ParseRef
-	if n.ProviderConfig() != nil && n.ProviderConfig().ParseRef != nil {
-		parseRef = n.ProviderConfig().ParseRef
-	}
-
-	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey, parseRef)
-	diags = diags.Append(evalDiags)
-	if evalDiags.HasErrors() {
-		return diags
+	var configVal cty.Value
+	var evalDiags tfdiags.Diagnostics
+	if testProviderConfig, ok := configBody.(*configs.TestProviderConfig); ok {
+		if testProviderConfig.Value == cty.NilVal {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Value not found",
+				Detail:   fmt.Sprintf("The test provider does't have run block value."),
+				Subject:  &config.DeclRange,
+			})
+			return diags
+		}
+		configVal = testProviderConfig.Value
+	} else {
+		configVal, configBody, evalDiags = ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
+		diags = diags.Append(evalDiags)
+		if evalDiags.HasErrors() {
+			return diags
+		}
 	}
 
 	if verifyConfigIsKnown && !configVal.IsWhollyKnown() {

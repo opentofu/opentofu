@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
 
@@ -686,6 +687,15 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		return state, diags
 	}
 
+	schemas, schemaDiags := tfCtx.Schemas(config, state)
+	diags = diags.Append(schemaDiags)
+
+	evalDiags := EvaluateBlockForTest(runner.States, schemas, config)
+	diags = diags.Append(evalDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	runningCtx, done := context.WithCancel(context.Background())
 
 	var plan *plans.Plan
@@ -757,6 +767,15 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	schemas, schemaDiags := tfCtx.Schemas(config, state)
+	diags = diags.Append(schemaDiags)
+
+	evalDiags := EvaluateBlockForTest(runner.States, schemas, config)
+	diags = diags.Append(evalDiags)
+	if diags.HasErrors() {
 		return nil, nil, diags
 	}
 
@@ -1002,7 +1021,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 // is defined within the test run block and test file.
 func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue, states map[string]*TestFileState) (tofu.InputValues, tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
-	evalCtx := getEvalContextFromStates(states)
+	evalCtx := getEvalContextFromStates(states, config)
 	for name := range config.Module.Variables {
 		if run != nil {
 			if expr, exists := run.Config.Variables[name]; exists {
@@ -1052,7 +1071,11 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 //
 // Returns:
 //   - *hcl.EvalContext: The constructed HCL evaluation context.
-func getEvalContextFromStates(states map[string]*TestFileState) *hcl.EvalContext {
+func getEvalContextFromStates(states map[string]*TestFileState, config *configs.Config) *hcl.EvalContext {
+	ctx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{},
+	}
+
 	runCtx := make(map[string]cty.Value)
 	for _, state := range states {
 		if state.Run == nil {
@@ -1065,9 +1088,53 @@ func getEvalContextFromStates(states map[string]*TestFileState) *hcl.EvalContext
 		}
 		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
 	}
-	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
+	if len(runCtx) > 0 {
+		ctx.Variables["run"] = cty.ObjectVal(runCtx)
+	}
 
+	varCtx := make(map[string]cty.Value)
+	for _, variable := range config.Module.Variables {
+		varCtx[variable.Name] = variable.Default
+	}
+
+	ctx.Variables["var"] = cty.ObjectVal(varCtx)
+
+	// ctx := &hcl.EvalContext{
+	// 	Variables: map[string]cty.Value{
+	// 		"run": cty.ObjectVal(runCtx),
+	// 		"var": cty.ObjectVal(varCtx),
+	// 	},
+	// }
+
+	//ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
 	return ctx
+}
+
+func EvaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schemas, config *configs.Config) tfdiags.Diagnostics {
+	for _, provider := range config.Module.ProviderConfigs {
+		var diags tfdiags.Diagnostics
+		evalCtx := getEvalContextFromStates(states, config)
+		if evalCtx == nil {
+			continue
+		}
+
+		providerSchema := schemas.ProviderSchema(config.ProviderForConfigAddr(provider.Addr()))
+		spec := providerSchema.Provider.Block.DecoderSpec()
+
+		attributes, _ := provider.Config.JustAttributes()
+		for _, attribute := range attributes {
+			if _, ok := evalCtx.Variables[attribute.Expr.Variables()[0].RootName()]; ok {
+				val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
+				provider.Config = &configs.TestProviderConfig{
+					Body:  provider.Config,
+					Value: val,
+				}
+				diags = diags.Append(decDiags)
+				return diags
+			}
+		}
+	}
+	return nil
 }
 
 type testVariableValueExpression struct {
@@ -1107,7 +1174,7 @@ func (v testVariableValueExpression) ParseVariableValue(mode configs.VariablePar
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
 func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, func(), tfdiags.Diagnostics) {
-	ctx := getEvalContextFromStates(runner.States)
+	ctx := getEvalContextFromStates(runner.States, config)
 
 	variables := make(map[string]backend.UnparsedVariableValue)
 

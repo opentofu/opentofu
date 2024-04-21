@@ -248,7 +248,7 @@ func (c *MockEvalContext) CloseProvisioners() error {
 	return nil
 }
 
-func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	c.EvaluateBlockCalled = true
 	c.EvaluateBlockBody = body
 	c.EvaluateBlockSchema = schema
@@ -332,7 +332,7 @@ func (c *MockEvalContext) installSimpleEval() {
 	}
 }
 
-func (c *MockEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData, parseRef lang.ParseRef) *lang.Scope {
+func (c *MockEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
 	c.EvaluationScopeCalled = true
 	c.EvaluationScopeSelf = self
 	c.EvaluationScopeKeyData = keyData
