@@ -581,7 +581,6 @@ func ReferencesFromConfig(body hcl.Body, schema *configschema.Block) []*addrs.Re
 	if body == nil {
 		return nil
 	}
-
 	refs, _ := lang.ReferencesInBlock(addrs.ParseRef, body, schema)
 	return refs
 }
