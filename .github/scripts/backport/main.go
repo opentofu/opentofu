@@ -42,7 +42,6 @@ type Commit struct {
 }
 
 func main() {
-	// Get the GitHub event JSON from the environment variable
 	githubEvent := os.Getenv("GITHUB_EVENT")
 
 	ctx := context.Background()
@@ -56,13 +55,6 @@ func main() {
 		return
 	}
 
-	// Print pull request number, owner, assignee, branch name, and label name
-	fmt.Println("Pull Request Number:", event.Number)
-	fmt.Println("Owner:", event.PullRequest.User.Login)
-	fmt.Println("Assignee:", event.PullRequest.Assignee.Login)
-	fmt.Println("Branch Name:", event.PullRequest.Head.Ref)
-
-	// Extract repository owner, repository name, and pull request number
 	owner := event.Repository.Owner.Login
 	repo := event.Repository.Name
 	pullNumber := event.Number
@@ -70,6 +62,7 @@ func main() {
 
 	commitIds := getCommitIds(ctx, owner, repo, pullNumber, gitClient)
 
+	// There can be many labels
 	var backportLabel string
 	for _, label := range event.PullRequest.Labels {
 		if strings.Contains(label.Name, "backport") {
@@ -154,11 +147,10 @@ func cherryPickCommit(ctx context.Context, client *github.Client, owner, repo, b
 	return nil
 }
 
+// Cherry-pick each commit onto the target branch
 func cherryPickCommits(ctx context.Context, owner, repo, newBranch, backportBranch string, commitIds []*github.RepositoryCommit, gitClient *github.Client) error {
 	var err error
-	// Cherry-pick each commit onto the target branch
 	for _, commit := range commitIds {
-		// Cherry-pick the commit onto the target branch
 		err = cherryPickCommit(ctx, gitClient, owner, repo, newBranch, *commit.SHA)
 		if err != nil {
 			return fmt.Errorf("error cherry-picking commit %s : %v", *commit.SHA, err)
@@ -195,6 +187,7 @@ func checkoutBranch(ctx context.Context, owner, repo, backportBranch string, iss
 	return newBranch, nil
 }
 
+// label format backport <version_branch>
 func getBranchFromLabel(label string) string {
 	re := regexp.MustCompile(`^backport ([^ ]+)$`)
 	match := re.FindStringSubmatch(label)
@@ -209,8 +202,8 @@ func getBranchFromLabel(label string) string {
 	return ""
 }
 
+// Fetch commits for the pull request
 func getCommitIds(ctx context.Context, owner, repo string, pullNumber int, gitClient *github.Client) []*github.RepositoryCommit {
-	// Fetch commits for the pull request
 	commits, _, err := gitClient.PullRequests.ListCommits(ctx, owner, repo, pullNumber, nil)
 	if err != nil {
 		fmt.Println("Error fetching commits:", err)
@@ -219,8 +212,8 @@ func getCommitIds(ctx context.Context, owner, repo string, pullNumber int, gitCl
 	return commits
 }
 
+// Create a pull request from the test branch to the target branch
 func createPullRequest(ctx context.Context, owner, repo, branch, backportBranch string, issueNumber int, gitClient *github.Client) (string, error) {
-	// Create a pull request from the test branch to the target branch
 	pr, _, err := gitClient.PullRequests.Create(ctx, owner, repo, &github.NewPullRequest{
 		Title: github.String("Backporting changes to " + backportBranch),
 		Head:  github.String(branch),
@@ -234,8 +227,8 @@ func createPullRequest(ctx context.Context, owner, repo, branch, backportBranch 
 	return *pr.HTMLURL, nil
 }
 
+// Add comment to the PR
 func addCommentToPullRequest(ctx context.Context, owner, repo, prLink string, comment *github.IssueComment, prNumber int, gitClient *github.Client) error {
-	// Add comment to the PR
 	_, _, err := gitClient.Issues.CreateComment(ctx, owner, repo, prNumber, comment)
 	if err != nil {
 		return fmt.Errorf("error adding comment to PR: %v", err)
