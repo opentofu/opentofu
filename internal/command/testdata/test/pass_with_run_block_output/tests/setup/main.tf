@@ -1,3 +1,3 @@
-provider "test" {
-  region = "somewhere"
+output "sample_test_value" {
+  value = "somewhere"
 }

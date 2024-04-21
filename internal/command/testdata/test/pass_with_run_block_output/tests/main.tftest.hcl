@@ -1,11 +1,11 @@
-provider "test" {
-  region = run.setup.sample_test_value
-}
-
 run "setup" {
   module {
     source = "./tests/setup"
   }
+}
+
+provider "test" {
+  value = run.setup.sample_test_value
 }
 
 run "test" {

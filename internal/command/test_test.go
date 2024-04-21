@@ -816,7 +816,7 @@ func TestTest_Modules(t *testing.T) {
 			code:     0,
 		},
 		"pass_with_run_block_variable": {
-			expected: "tests/main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"test\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			expected: "tests/main.tftest.hcl... pass\n  run \"test\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
 			code:     0,
 		},
 		"pass_with_run_block_output": {

@@ -1,11 +1,9 @@
-provider "test" {
-  region = var.sample_test_value
+variables {
+  sample_test_value = "us-east-1"
 }
 
-run "setup" {
-  module {
-    source = "./tests/setup"
-  }
+provider "test" {
+  region = var.sample_test_value
 }
 
 run "test" {
