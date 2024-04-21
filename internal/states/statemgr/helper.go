@@ -9,6 +9,7 @@ package statemgr
 // operations done against full state managers.
 
 import (
+	"github.com/google/uuid"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -19,7 +20,7 @@ import (
 // lineage identifier and serial 0, and returns a pointer to it.
 func NewStateFile() *statefile.File {
 	return &statefile.File{
-		Lineage:          NewLineage(),
+		Lineage:          uuid.New().String(),
 		TerraformVersion: version.SemVer,
 		State:            states.NewState(),
 	}
