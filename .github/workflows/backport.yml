@@ -1,31 +1,37 @@
-name: Backport merged pull request
+name: Backport Merged Pull Request
+
 on:
-  pull_request_target:
-    types: [closed]
-  issue_comment:
-    types: [created]
-permissions:
-  contents: write # so it can comment
-  pull-requests: write # so it can create pull requests
+  pull_request:
+    types:
+      - closed
+      - labeled
+
 jobs:
   backport:
     name: Backport pull request
     runs-on: ubuntu-latest
-
     if: >
-      (
-        github.event_name == 'pull_request_target' &&
-        github.event.pull_request.merged
-      ) || (
-        github.event_name == 'issue_comment' &&
-        github.event.issue.pull_request &&
-        github.event.comment.user.id != 97796249 &&
-        startsWith(github.event.comment.body, '/backport')
+      github.event.pull_request.merged
+      && (
+        github.event.action == 'closed'
+        || (
+          github.event.action == 'labeled'
+          && contains(github.event.label.name, 'backport')
+        )
       )
     steps:
-      - uses: actions/checkout@v4
-      - name: Create backport pull requests
-        uses: korthout/backport-action@v2
-        with:
-          copy_assignees: true
-          copy_requested_reviewers: true
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.22
+    - name: Run custom Go script
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_EVENT: ${{ toJson(github.event) }} # Pass the github.event object as a JSON string
+      run: |
+        cd $GITHUB_WORKSPACE  # Move to the root of the repository
+        cd .github/scripts/custom-backport
+        go mod download
+        go run main.go  # Run your Go script
