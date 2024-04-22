@@ -1123,14 +1123,28 @@ func EvaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schema
 
 		attributes, _ := provider.Config.JustAttributes()
 		for _, attribute := range attributes {
-			if _, ok := evalCtx.Variables[attribute.Expr.Variables()[0].RootName()]; ok {
-				val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
+			if len(attribute.Expr.Variables()) > 0 {
+				if _, ok := evalCtx.Variables[attribute.Expr.Variables()[0].RootName()]; ok {
+					val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
+					diags = diags.Append(decDiags)
+					if diags.HasErrors() {
+						return diags
+					}
+					provider.Config = &configs.TestProviderConfig{
+						Body:  provider.Config,
+						Value: val,
+					}
+				}
+			} else {
+				val, valDiags := attribute.Expr.Value(nil)
+				diags.Append(valDiags)
+				if diags.HasErrors() {
+					return diags
+				}
 				provider.Config = &configs.TestProviderConfig{
 					Body:  provider.Config,
 					Value: val,
 				}
-				diags = diags.Append(decDiags)
-				return diags
 			}
 		}
 	}

@@ -963,8 +963,9 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		}
 	}
 
-	variables := getVariablesForTest(file.Variables)
-	c.Module.Variables = variables
+	if len(file.Variables) > 0 {
+		getVariablesForTest(file.Variables, c.Module.Variables)
+	}
 
 	c.Module.ProviderConfigs = next
 	return func() {
@@ -973,17 +974,17 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 	}, diags
 }
 
-func getVariablesForTest(variables map[string]hcl.Expression) map[string]*Variable {
-	configVariables := make(map[string]*Variable)
+func getVariablesForTest(variables map[string]hcl.Expression, configVariables map[string]*Variable) {
 	for key, variable := range variables {
-		defaultValue, _ := variable.Value(nil)
-		configVariables[key] = &Variable{
-			Name:           key,
-			Default:        defaultValue,
-			Type:           defaultValue.Type(),
-			ConstraintType: defaultValue.Type(),
-			DeclRange:      variable.Range(),
+		if _, ok := configVariables[key]; !ok {
+			defaultValue, _ := variable.Value(nil)
+			configVariables[key] = &Variable{
+				Name:           key,
+				Default:        defaultValue,
+				Type:           defaultValue.Type(),
+				ConstraintType: defaultValue.Type(),
+				DeclRange:      variable.Range(),
+			}
 		}
 	}
-	return configVariables
 }
