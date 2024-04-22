@@ -1096,17 +1096,8 @@ func getEvalContextFromStates(states map[string]*TestFileState, config *configs.
 	for _, variable := range config.Module.Variables {
 		varCtx[variable.Name] = variable.Default
 	}
-
 	ctx.Variables["var"] = cty.ObjectVal(varCtx)
 
-	// ctx := &hcl.EvalContext{
-	// 	Variables: map[string]cty.Value{
-	// 		"run": cty.ObjectVal(runCtx),
-	// 		"var": cty.ObjectVal(varCtx),
-	// 	},
-	// }
-
-	//ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
 	return ctx
 }
 
@@ -1134,16 +1125,6 @@ func EvaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schema
 						Body:  provider.Config,
 						Value: val,
 					}
-				}
-			} else {
-				val, valDiags := attribute.Expr.Value(nil)
-				diags.Append(valDiags)
-				if diags.HasErrors() {
-					return diags
-				}
-				provider.Config = &configs.TestProviderConfig{
-					Body:  provider.Config,
-					Value: val,
 				}
 			}
 		}
