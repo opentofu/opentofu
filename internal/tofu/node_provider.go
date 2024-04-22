@@ -121,16 +121,8 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 
 	var configVal cty.Value
 	var evalDiags tfdiags.Diagnostics
-	if testProviderConfig, ok := configBody.(*configs.TestProviderConfig); ok {
-		if testProviderConfig.Value == cty.NilVal {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Value not found",
-				Detail:   fmt.Sprintf("The test provider does't have run block value."),
-				Subject:  &config.DeclRange,
-			})
-			return diags
-		}
+	testProviderConfig, isTestProviderConfig := configBody.(*configs.TestProviderConfig)
+	if isTestProviderConfig && testProviderConfig.Value != cty.NilVal {
 		configVal = testProviderConfig.Value
 	} else {
 		configVal, configBody, evalDiags = ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
