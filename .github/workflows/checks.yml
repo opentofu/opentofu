@@ -33,13 +33,31 @@ permissions:
 
 jobs:
   unit-tests:
-    name: "Unit Tests"
-    runs-on: ubuntu-latest
-
+    name: Unit tests for ${{ matrix.goos }}_${{ matrix.goarch }}
+    runs-on: ${{ matrix.runson }}
     env:
       TF_APPEND_USER_AGENT: Integration-Test
-
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    strategy:
+      matrix:
+        include:
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
+          - { runson: macos-latest, goos: darwin, goarch: "amd64" }
+          # - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          # https://github.com/opentofu/opentofu/issues/1201 if fixed
+          #  ^ un-comment the  windows-latest line
+      fail-fast: false
     steps:
+      # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
+      # for testing on non amd64 envs like 386, arm64 etc...
+      - name: "Set up QEMU"
+        if: matrix.goos == 'linux' && matrix.goarch != 'amd64'
+        uses: docker/setup-qemu-action@v3
+
       - name: "Fetch source code"
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -234,7 +252,6 @@ jobs:
         with:
           path: ".licensei.cache"
           key: licensei-cache-${{ hashFiles('go.sum') }}
-
 #  installation-instructions:
 #    name: "Test Installation Instructions"
 #    runs-on: ubuntu-latest
