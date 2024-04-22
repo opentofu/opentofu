@@ -1,3 +1,3 @@
 output "sample_test_value" {
-  value = "somewhere"
+  value = "data"
 }

@@ -1,9 +1,9 @@
 variables {
-  sample_test_value = "us-east-1"
+  sample_test_value = "data"
 }
 
 provider "test" {
-  region = var.sample_test_value
+  data_prefix = var.sample_test_value
 }
 
 run "test" {
