@@ -963,6 +963,8 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		}
 	}
 
+	// Adds the missing variables in config.Module.Variables from file.Variables to
+	// allow provider blocks in test files to access "var" inputs.
 	if len(file.Variables) > 0 {
 		getVariablesForTest(file.Variables, c.Module.Variables)
 	}

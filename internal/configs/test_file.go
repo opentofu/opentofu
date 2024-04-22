@@ -42,6 +42,10 @@ const (
 	RefreshOnlyTestMode TestMode = 'R'
 )
 
+// TestProviderConfig represents the config for test providers.
+// It includes the provider config body embedded within hcl.Body.
+// Additionally, it contains a Value field which is evaluated before the Plan operation.
+// This field stores the cty.Value for "run" or "var" blocks.
 type TestProviderConfig struct {
 	hcl.Body
 	Value cty.Value

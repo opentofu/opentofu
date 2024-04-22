@@ -113,22 +113,6 @@ func ParseRefFromTestingScope(traversal hcl.Traversal) (*Reference, tfdiags.Diag
 			Remaining:   remain,
 		}
 		diags = checkDiags
-	case "run":
-		if len(traversal) != 3 {
-			return nil, appendRunDiag(traversal.SourceRange().Ptr())
-		}
-
-		remainingRefs := traversal[1:]
-		outputVariable, ok := remainingRefs[len(remainingRefs)-1].(hcl.TraverseAttr)
-		if !ok {
-			return nil, appendRunDiag(outputVariable.SourceRange().Ptr())
-		}
-
-		return &Reference{
-			Subject:     OutputValue{Name: outputVariable.Name},
-			SourceRange: tfdiags.SourceRangeFromHCL(outputVariable.SourceRange()),
-			Remaining:   remainingRefs,
-		}, diags
 	}
 
 	if reference != nil {
@@ -493,14 +477,4 @@ func parseSingleAttrRef(traversal hcl.Traversal) (string, hcl.Range, hcl.Travers
 		Subject:  traversal[1].SourceRange().Ptr(),
 	})
 	return "", hcl.Range{}, nil, diags
-}
-
-func appendRunDiag(subject *hcl.Range) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	return diags.Append(&hcl.Diagnostic{
-		Severity: hcl.DiagError,
-		Summary:  "Invalid reference",
-		Detail:   `The "run" block output values must be followed by two attribute names: the resource type and the property. For example: run.resource_type.property.`,
-		Subject:  subject,
-	})
 }

@@ -690,7 +690,8 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 	schemas, schemaDiags := tfCtx.Schemas(config, state)
 	diags = diags.Append(schemaDiags)
 
-	evalDiags := EvaluateBlockForTest(runner.States, schemas, config)
+	// Evaluates "run" and "var" blocks before Plan operation.
+	evalDiags := evaluateBlockForTest(runner.States, schemas, config)
 	diags = diags.Append(evalDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -773,7 +774,8 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	schemas, schemaDiags := tfCtx.Schemas(config, state)
 	diags = diags.Append(schemaDiags)
 
-	evalDiags := EvaluateBlockForTest(runner.States, schemas, config)
+	// Evaluates "run" and "var" blocks before Plan operation.
+	evalDiags := evaluateBlockForTest(runner.States, schemas, config)
 	diags = diags.Append(evalDiags)
 	if diags.HasErrors() {
 		return nil, nil, diags
@@ -1061,13 +1063,13 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 	return backend.ParseVariableValues(variables, config.Module.Variables)
 }
 
-// getEvalContextFromStates constructs an hcl.EvalContext based on the provided map
-// of TestFileState instances. It extracts the relevant information from the
-// states to create a context suitable for HCL evaluation, including the output
-// values of modules.
+// getEvalContextFromStates constructs an hcl.EvalContext based on the provided map of
+// TestFileState instances and configuration. It extracts the relevant information from
+// the input parameters to create a context suitable for HCL evaluation.
 //
 // Parameters:
 //   - states: A map of TestFileState instances containing the state information.
+//   - config: The config contains the variable information present in the Module.
 //
 // Returns:
 //   - *hcl.EvalContext: The constructed HCL evaluation context.
@@ -1088,6 +1090,9 @@ func getEvalContextFromStates(states map[string]*TestFileState, config *configs.
 		}
 		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
 	}
+	// The output for a run block follows the format "run.<run_name>.<output_name>".
+	// The run block consists of the keyword "run" followed by the name of the run block and the output name.
+	// For example, "run.example_run.output_name".
 	if len(runCtx) > 0 {
 		ctx.Variables["run"] = cty.ObjectVal(runCtx)
 	}
@@ -1101,26 +1106,31 @@ func getEvalContextFromStates(states map[string]*TestFileState, config *configs.
 	return ctx
 }
 
-func EvaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schemas, config *configs.Config) tfdiags.Diagnostics {
+// evaluateBlockForTest evaluates the values of "run" and "var" blocks in test files.
+// It iterates over the provider configurations defined in the given config and evaluates the hcl.Expression
+// found in the attributes of those provider configurations.
+func evaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schemas, config *configs.Config) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
 	for _, provider := range config.Module.ProviderConfigs {
-		var diags tfdiags.Diagnostics
 		evalCtx := getEvalContextFromStates(states, config)
 		if evalCtx == nil {
 			continue
 		}
-
 		providerSchema := schemas.ProviderSchema(config.ProviderForConfigAddr(provider.Addr()))
 		spec := providerSchema.Provider.Block.DecoderSpec()
 
+		// If attributes are nil, then it iterates to the next ProviderConfig.
 		attributes, _ := provider.Config.JustAttributes()
 		for _, attribute := range attributes {
 			if len(attribute.Expr.Variables()) > 0 {
+				// Check if the variable root name exists in the eval context
 				if _, ok := evalCtx.Variables[attribute.Expr.Variables()[0].RootName()]; ok {
 					val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
 					diags = diags.Append(decDiags)
 					if diags.HasErrors() {
 						return diags
 					}
+					// Update the test provider config with the value
 					provider.Config = &configs.TestProviderConfig{
 						Body:  provider.Config,
 						Value: val,
