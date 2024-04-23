@@ -149,6 +149,8 @@ Options:
                      string directly, rather than a human-oriented
                      representation of the value.
 
+  -show-sensitive  If specified, output won't contain any color.
+
   -var 'foo=bar'     Set a value for one of the input variables in the root
                      module of the configuration. Use this option more than
                      once to set more than one variable.

@@ -95,7 +95,7 @@ func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File, enc encry
 }
 
 func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
-	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
+	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas, v.view.showSensitive)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
 		return

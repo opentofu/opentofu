@@ -33,6 +33,8 @@ type View struct {
 	// only the important details.
 	concise bool
 
+	showSensitive bool
+
 	// This unfortunate wart is required to enable rendering of diagnostics which
 	// have associated source code in the configuration. This function pointer
 	// will be dereferenced as late as possible when rendering diagnostics in
@@ -75,6 +77,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
+	v.showSensitive = view.ShowSensitive
 }
 
 // SetConfigSources overrides the default no-op callback with a new function

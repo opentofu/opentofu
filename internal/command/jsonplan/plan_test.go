@@ -447,7 +447,7 @@ func TestOutputs(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			changes, err := MarshalOutputChanges(test.changes)
+			changes, err := MarshalOutputChanges(test.changes, false)
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}

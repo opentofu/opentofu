@@ -179,7 +179,7 @@ func (t *TestHuman) Run(run *moduletest.Run, file *moduletest.File) {
 			}
 		} else {
 			// We'll print the plan.
-			outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(run.Verbose.Plan, schemas)
+			outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(run.Verbose.Plan, schemas, false)
 			if err != nil {
 				run.Diagnostics = run.Diagnostics.Append(tfdiags.Sourceless(
 					tfdiags.Warning,

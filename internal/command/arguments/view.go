@@ -19,6 +19,8 @@ type View struct {
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
 	Concise bool
+
+	ShowSensitive bool
 }
 
 // ParseView processes CLI arguments, returning a View value and a
@@ -38,6 +40,8 @@ func ParseView(args []string) (*View, []string) {
 			common.CompactWarnings = true
 		case "-concise":
 			common.Concise = true
+		case "-show-sensitive":
+			common.ShowSensitive = true
 		default:
 			// Unsupported argument: move left to the current position, and
 			// increment the index.
