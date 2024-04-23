@@ -16,7 +16,7 @@ STATE ENCRYPTION
 NEW FEATURES:
 * Add support for a `removed` block that allows users to remove resources or modules from the state without destroying them. ([#1158](https://github.com/opentofu/opentofu/pull/1158))
 * Provider-defined functions are now available.  They may be referenced via `provider::<provider_name>::<funcname>(args)`.  ([#1439](https://github.com/opentofu/opentofu/pull/1439))
-* Support `for_each` in `import` blocks ([#1492](https://github.com/opentofu/opentofu/pull/1492)
+* Add support for using `for_each` in `import` blocks ([#1492](https://github.com/opentofu/opentofu/pull/1492))
 
 ENHANCEMENTS:
 * Added support to use `.tfvars` files from tests folder. ([#1386](https://github.com/opentofu/opentofu/pull/1386))
@@ -24,7 +24,7 @@ ENHANCEMENTS:
 * Added `base64gunzip` function that takes a base64 encoded gzip string and returns the decompressed data as a string. ([#800](https://github.com/opentofu/opentofu/issues/800))
 * Added `cidrcontains` function that determines if an address belongs to a certain prefix. ([#366](https://github.com/opentofu/opentofu/issues/366))
 * Added `urldecode` function that will decode a url-encoded string. ([#1234](https://github.com/opentofu/opentofu/issues/1234))
-* Added `issensitive` function that returns whether or not a value is sensitive. ([#1370](https://github.com/opentofu/opentofu/issues/1370))
+* Added `issensitive` function that returns whether a value is sensitive. ([#1370](https://github.com/opentofu/opentofu/issues/1370))
 * Added `-concise` flag to omit the refreshing state logs when tofu plan is run. ([#1225](https://github.com/opentofu/opentofu/pull/1225))
 * `nonsensitive` function no longer returns error when applied to values that are not sensitive ([#369](https://github.com/opentofu/opentofu/pull/369))
 * Managing large local terraform.tfstate files is now much faster. ([#579](https://github.com/opentofu/opentofu/pull/579))
@@ -35,7 +35,7 @@ ENHANCEMENTS:
 * Allow test run blocks to reference previous run block's module outputs ([#1129](https://github.com/opentofu/opentofu/pull/1129))
 * Support the XDG Base Directory Specification ([#1200](https://github.com/opentofu/opentofu/pull/1200))
 * Allow referencing the output from a test run in the local variables block of another run (tofu test). ([#1254](https://github.com/opentofu/opentofu/pull/1254))
-* Allow for templatefile function recursion (up to 1024 call depth default). ([#1250](https://github.com/opentofu/opentofu/pull/1250))
+* Allow for `templatefile` function recursion (up to 1024 call depth default). ([#1250](https://github.com/opentofu/opentofu/pull/1250))
 * Dump state file when `tofu test` fails to clean up resources. ([#1243](https://github.com/opentofu/opentofu/pull/1243))
 * Added aliases for `state list` (`state ls`), `state mv` (`state move`), and `state rm` (`state remove`) ([#1220](https://github.com/opentofu/opentofu/pull/1220))
 * Added mechanism to introduce automatic retries for provider installations, specifically targeting transient errors ([#1233](https://github.com/opentofu/opentofu/issues/1233))
@@ -47,7 +47,7 @@ BUG FIXES:
 * `tofu test` resources cleanup at the end of tests changed to use simple reverse run block order. ([#1043](https://github.com/opentofu/opentofu/pull/1043))
 * Fix access to known references when using a import block for module resources ([#1105](https://github.com/opentofu/opentofu/pull/1105))
 * Show resource plan even if it failed plan due to `prevent_destroy` ([#1060](https://github.com/opentofu/opentofu/pull/1060))
-* `tofu login` now can be interrrupted with `Ctrl+C` shortcut. ([#1074](https://github.com/opentofu/opentofu/pull/1074))
+* `tofu login` now can be interrupted with `Ctrl+C` shortcut. ([#1074](https://github.com/opentofu/opentofu/pull/1074))
 * Don't check for version conflicts when doing a force-unlock ([#1123](https://github.com/opentofu/opentofu/pull/1123))
 * Fix Global Schema Cache not working in provider acceptance tests ([#1054](https://github.com/opentofu/opentofu/pull/1054))
 * Fix `tofu show` and `tofu state show` not working with state files referencing Terraform registry providers in some instances ([#1141](https://github.com/opentofu/opentofu/pull/1141))
@@ -55,9 +55,9 @@ BUG FIXES:
 * Don't show false update action when import resource with sensitive datasource([#1220](https://github.com/opentofu/opentofu/pull/1220))
 * Fix panic when provisioner source and content are both null ([#1376](https://github.com/opentofu/opentofu/pull/1376))
 * Fix large number will be truncated in plan ([#1382](https://github.com/opentofu/opentofu/pull/1382))
-* S3 backend no longer requires to have permissions to use the default 'env:' workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
-* Fixed a crash when using a conditional with Twingate resource ([1446](https://github.com/opentofu/opentofu/pull/1446))
-* Added support for user-defined headers when configuring the HTTP backend ([1427](https://github.com/opentofu/opentofu/pull/1487))
+* S3 backend no longer requires to have permissions to use the default `env:` workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
+* Fixed a crash when using a conditional with Twingate resource ([#1446](https://github.com/opentofu/opentofu/pull/1446))
+* Added support for user-defined headers when configuring the HTTP backend ([#1427](https://github.com/opentofu/opentofu/pull/1487))
 
 ## Previous Releases
 
