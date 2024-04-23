@@ -1,23 +1,15 @@
 #!/bin/bash
 
-GITHUB_TOKEN=$GITHUB_TOKEN
+set -e
 
+# Setting up Committer identity.
 git config --global user.email "noreply@github.com"
 git config --global user.name "GitHub Actions"
 
-git config --global credential.helper "store --file=~/.git-credentials"
-git config --global credential.https://github.com.username $GITHUB_TOKEN
-
-echo "Successfully authenticated!"
-
-git checkout $GITHUB_EVENT_BRANCH
-echo "Checked out main"
-
 # Get backport label from all the labels of the PR
-labels=$(jq --raw-output '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")
 backport_label=""
 branch_name=""
-for label in "${labels[@]}"; do
+for label in "${LABELS[@]}"; do
     echo "each label - $label"
     if [[ $label == "backport"* ]]; then
         backport_label=$label
@@ -28,63 +20,47 @@ done
 echo "Label Name: $backport_label"
 
 # Checkout the version branch
-git fetch --all
+git fetch origin $branch_name
 git checkout $branch_name
 echo "Version branch: $branch_name"
 
 # Checkout new backport branch
-ISSUE_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-newBranch="backport/$ISSUE_NUMBER"
-git checkout -b $newBranch
-git push origin $newBranch
-echo "New backport branch: $newBranch"
-
-# Get pull request and repository info.
-pullRequestNumber=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-owner=$(jq -r '.repository.owner.login' "$GITHUB_EVENT_PATH")
-repo=$(jq -r '.repository.name' "$GITHUB_EVENT_PATH")
-echo "Pull Request Number: $pullRequestNumber"
-echo "Owner: $owner"
-echo "Repo: $repo"
+new_branch="backport/$ISSUE_NUMBER"
+git checkout -b $new_branch
+git push origin $new_branch
+echo "New backport branch: $new_branch"
 
 # Get the commit SHAs associated with the pull request
-commit_ids=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+commit_ids=$(curl -sS -H "Authorization: token $GITHUB_TOKEN" \
      -H "Accept: application/vnd.github.v3+json" \
-     "https://api.github.com/repos/$owner/$repo/pulls/$pullRequestNumber/commits" | \
+     "https://api.github.com/repos/$OWNER/$REPO/pulls/$PR_NUMBER/commits" | \
      jq -r '.[].sha')
 
 # Store the commit SHAs in an array
 commit_ids_array=($commit_ids)
-for sha in "${commit_ids_array[@]}"; do
-    echo "Commit SHA: $sha"
-done
-
-# Count the number of commits
-commitCount=$(echo "$commitIDs" | wc -l)
-echo "Number of commits: $commitCount"
-
-# Cherry pick commits
-for commitID in "${commit_ids_array[@]}"; do
-    git fetch origin $commitID
-    git cherry-pick $commitID
-    echo "Cherry-picking commit: $commitID"
+for commit_sha in "${commit_ids_array[@]}"; do
+    git fetch origin $commit_sha
+    git cherry-pick $commit_sha
+    echo "Cherry-picking commit: $commit_sha"
 done
 echo "Cherry Pick done!"
 
-git commit -am "Backport PR #$ISSUE_NUMBER"
-echo "Successfully committed!"
-
-git push origin $newBranch
+git push origin $new_branch
 echo "Successfully pushed!"
 
-head_branch=$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")
-echo "Head branch name: $head_branch"
-
-gh auth login --with-token $GITHUB_TOKEN
-gh pr create \
-  -B "$branch_name" \
-  -H "$newBranch" \
-  -t "Backport PR #$ISSUE_NUMBER" \
-  -b "This pull request backports changes from $head_branch to $branch_name"
+# Create the pull request.
+title="Backport PR #$ISSUE_NUMBER"
+body="This pull request backports changes from $head_branch to $branch_name."
+url=$(curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+  -d "{\"title\":\"$title\",\"body\":\"$body\",\"head\":\"$new_branch\",\"base\":\"$branch_name\"}" \
+  "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls" | jq -r '.html_url')
 
 echo "PR created successfully!"
+
+# Add comment to the original PR.
+comment="This pull request has been successfully backported. Link to the new pull request: $url"
+curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+  -d "{\"body\":\"$comment\"}" \
+  "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" >/dev/null
+
+echo "Added comment to the original PR."

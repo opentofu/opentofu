@@ -22,6 +22,14 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+    - name: Set variables
+      run: |
+        echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+        echo "OWNER=${{ github.event.repository.owner.login }}" >> $GITHUB_ENV
+        echo "REPO=${{ github.event.repository.name }}" >> $GITHUB_ENV
+        echo "ISSUE_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+        echo "HEAD_BRANCH=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
+        echo "LABELS=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH")" >> $GITHUB_ENV
     - name: Run custom bash script for backporting
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
