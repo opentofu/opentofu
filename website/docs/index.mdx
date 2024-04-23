@@ -1,1 +1,45 @@
-../../../docs/index.mdx
+---
+sidebar_position: 1
+sidebar_label: Overview
+title: Documentation
+hide_table_of_contents: true
+---
+
+import DocCardList from "@theme/DocCardList";
+
+### Documentation
+
+The documentation is divided into four main sections, covering CLI-based workflows, internal processes, an introduction to the tool's capabilities, and guidance on using the OpenTofu configuration language for managing infrastructure.
+
+<DocCardList
+  items={[
+    {
+      type: "link",
+      href: "./intro",
+      label: "Intro",
+      description:
+        "OpenTofu is an infrastructure as code tool that lets you build, change, and version cloud and on-prem resources safely and efficiently.",
+    },
+    {
+      type: "link",
+      href: "./cli",
+      label: "CLI Documentation",
+      description:
+        "Learn OpenTofu's CLI-based workflows. You can use the CLI alone or with cloud backends.",
+    },
+    {
+      type: "link",
+      href: "./language",
+      label: "Language",
+      description:
+        "Use the OpenTofu configuration language to describe the infrastructure that OpenTofu manages.",
+    },
+    {
+      type: "link",
+      href: "./internals",
+      label: "Internals",
+      description:
+        "Learn how OpenTofu generates the resource dependency graph and executes other internal processes.",
+    },
+  ]}
+/>

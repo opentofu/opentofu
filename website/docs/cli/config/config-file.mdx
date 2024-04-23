@@ -9,7 +9,7 @@ description: >-
 
 The CLI configuration file configures per-user settings for CLI behaviors,
 which apply across all OpenTofu working directories. This is separate from
-[your infrastructure configuration](/docs/language).
+[your infrastructure configuration](../../language/index.mdx).
 
 ## Locations
 
@@ -38,7 +38,7 @@ as just `tofu.rc`. Use `dir` from PowerShell or Command Prompt to
 confirm the filename.
 
 The location of the OpenTofu CLI configuration file can also be specified
-using the `TF_CLI_CONFIG_FILE` [environment variable](/docs/cli/config/environment-variables).
+using the `TF_CLI_CONFIG_FILE` [environment variable](environment-variables.mdx).
 Any such file should follow the naming pattern `*.tfrc`.
 
 ## Configuration File Syntax
@@ -82,7 +82,7 @@ credentials "app.opentofu.org" {
 }
 ```
 
-If you are running the OpenTofu CLI interactively on a computer with a web browser, you can use [the `tofu login` command](/docs/cli/commands/login)
+If you are running the OpenTofu CLI interactively on a computer with a web browser, you can use [the `tofu login` command](../commands/login.mdx)
 to get credentials and automatically save them in the CLI configuration. If
 not, you can manually write `credentials` blocks.
 
