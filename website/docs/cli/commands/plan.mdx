@@ -27,12 +27,12 @@ to be taken.
 
 If you are using OpenTofu directly in an interactive terminal and you expect
 to apply the changes OpenTofu proposes, you can alternatively run
-[`tofu apply`](/docs/cli/commands/apply) directly. By default, the "apply" command
+[`tofu apply`](../../cli/commands/apply.mdx) directly. By default, the "apply" command
 automatically generates a new plan and prompts for you to approve it.
 
 You can use the optional `-out=FILE` option to save the generated plan to a
 file on disk, which you can later execute by passing the file to
-[`tofu apply`](/docs/cli/commands/apply) as an extra argument. This two-step workflow
+[`tofu apply`](../../cli/commands/apply.mdx) as an extra argument. This two-step workflow
 is primarily intended for when running OpenTofu in automation.
 
 If you run `tofu plan` without the `-out=FILE` option then it will create
@@ -79,10 +79,10 @@ The remaining sections on this page describe the various options:
 
 The previous section describes OpenTofu's default planning behavior, which
 changes the remote system to match the changes you make to
-your configuration. OpenTofu has two alternative planning modes, each of which creates a plan with a different intended outcome. These options are available for  both `tofu plan` and [`tofu apply`](/docs/cli/commands/apply).
+your configuration. OpenTofu has two alternative planning modes, each of which creates a plan with a different intended outcome. These options are available for  both `tofu plan` and [`tofu apply`](../../cli/commands/apply.mdx).
 
 * **Destroy mode:** creates a plan whose goal is to destroy all remote objects
-  that currently exist, leaving an empty OpenTofu state. It is the same as running [`tofu destroy`](/docs/cli/commands/destroy). Destroy mode can be useful for situations like transient development environments, where the managed objects cease to be useful once the development task is complete.
+  that currently exist, leaving an empty OpenTofu state. It is the same as running [`tofu destroy`](../../cli/commands/destroy.mdx). Destroy mode can be useful for situations like transient development environments, where the managed objects cease to be useful once the development task is complete.
 
   Activate destroy mode using the `-destroy` command line option.
 
@@ -107,7 +107,7 @@ one alternative mode at the same time.
 
 ## Planning Options
 
-In addition to alternate [planning modes](#planning-modes), there are several options that can modify planning behavior. These options are available for  both `tofu plan` and [`tofu apply`](/docs/cli/commands/apply).
+In addition to alternate [planning modes](#planning-modes), there are several options that can modify planning behavior. These options are available for  both `tofu plan` and [`tofu apply`](../../cli/commands/apply.mdx).
 
 - `-refresh=false` - Disables the default behavior of synchronizing the
   OpenTofu state with remote objects before checking for configuration changes. This can make the planning operation faster by reducing the number of remote API requests. However, setting `refresh=false` causes OpenTofu to ignore external changes, which could result in an incomplete or incorrect plan. You cannot use `refresh=false` in refresh-only planning mode because it would effectively disable the entirety of the planning operation.
@@ -124,25 +124,25 @@ In addition to alternate [planning modes](#planning-modes), there are several op
   :::
 
 - `-var 'NAME=VALUE'` - Sets a value for a single
-  [input variable](/docs/language/values/variables) declared in the
+  [input variable](../../language/values/variables.mdx) declared in the
   root module of the configuration. Use this option multiple times to set
   more than one variable. Refer to
   [Input Variables on the Command Line](#input-variables-on-the-command-line) for more information.
 
 - `-var-file=FILENAME` - Sets values for potentially many
-  [input variables](/docs/language/values/variables) declared in the
+  [input variables](../../language/values/variables.mdx) declared in the
   root module of the configuration, using definitions from a
-  ["tfvars" file](/docs/language/values/variables#variable-definitions-tfvars-files).
+  ["tfvars" file](../../language/values/variables.mdx#variable-definitions-tfvars-files).
   Use this option multiple times to include values from more than one file.
 
 There are several other ways to set values for input variables in the root
 module, aside from the `-var` and `-var-file` options. Refer to
-[Assigning Values to Root Module Variables](/docs/language/values/variables#assigning-values-to-root-module-variables) for more information.
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 ### Input Variables on the Command Line
 
 You can use the `-var` command line option to specify values for
-[input variables](/docs/language/values/variables) declared in your
+[input variables](../../language/values/variables.mdx) declared in your
 root module.
 
 However, to do so will require writing a command line that is parsable both
@@ -193,7 +193,7 @@ so we do not recommend using OpenTofu with PowerShell when you are on Windows.
 Use Windows Command Prompt instead.
 
 The appropriate syntax for writing the variable value is different depending
-on the variable's [type constraint](/docs/language/expressions/type-constraints).
+on the variable's [type constraint](../../language/expressions/type-constraints.mdx).
 The primitive types `string`, `number`, and `bool` all expect a direct string
 value with no special punctuation except that required by your shell, as
 shown in the above examples. For all other type constraints, including list,
@@ -213,13 +213,13 @@ tofu plan -var "name=[\"a\", \"b\", \"c\"]"
 Similar constraints apply when setting input variables using environment
 variables. For more information on the various methods for setting root module
 input variables, see
-[Assigning Values to Root Module Variables](/docs/language/values/variables#assigning-values-to-root-module-variables).
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables).
 
 ### Resource Targeting
 
 You can use the `-target` option to focus OpenTofu's attention on only a
 subset of resources.
-You can use [resource address syntax](/docs/cli/state/resource-addressing)
+You can use [resource address syntax](../../cli/state/resource-addressing.mdx)
 to specify the constraint. OpenTofu interprets the resource address as follows:
 
 * If the given address identifies one specific resource instance, OpenTofu
@@ -251,7 +251,7 @@ of resources relates to configuration.
 Instead of using `-target` as a means to operate on isolated portions of very
 large configurations, prefer instead to break large configurations into
 several smaller configurations that can each be independently applied.
-[Data sources](/docs/language/data-sources) can be used to access
+[Data sources](../../language/data-sources/index.mdx) can be used to access
 information about resources created in other configurations, allowing
 a complex system architecture to be broken down into more manageable parts
 that can be updated independently.
@@ -327,18 +327,18 @@ The available options are:
   saved plan files as potentially-sensitive artifacts.
 
 * `-parallelism=n` - Limit the number of concurrent operations as OpenTofu
-  [walks the graph](/docs/internals/graph#walking-the-graph). Defaults
+  [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults
   to 10.
 
 For configurations using
-[the `local` backend](/docs/language/settings/backends/local) only,
+[the `local` backend](../../language/settings/backends/local.mdx) only,
 `tofu plan` accepts the legacy command line option
-[`-state`](/docs/language/settings/backends/local#command-line-arguments).
+[`-state`](../../language/settings/backends/local.mdx#command-line-arguments).
 
 ### Passing a Different Configuration Directory
 
 If your workflow relies on overriding the root module directory, use
-[the `-chdir` global option](/docs/cli/commands#switching-working-directory-with-chdir)
+[the `-chdir` global option](../../cli/commands/index.mdx#switching-working-directory-with-chdir)
 instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.

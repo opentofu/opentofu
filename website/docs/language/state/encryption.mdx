@@ -78,7 +78,7 @@ Once your data is encrypted, do not rename key providers and methods in your con
 
 :::tip
 
-You can use the [JSON configuration syntax](/docs/language/syntax/json/) instead of HCL for encryption configuration.
+You can use the [JSON configuration syntax](../../language/syntax/json.mdx) instead of HCL for encryption configuration.
 
 :::
 
@@ -154,7 +154,7 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 
 ### AWS KMS
 
-This key provider uses the [Amazon Web Servers Key Management Service](https://aws.amazon.com/kms/) to generate keys. The authentication options are identical to the [S3 backend](/docs/language/settings/backends/s3/) excluding any deprecated options. In addition, please provide the following options:
+This key provider uses the [Amazon Web Servers Key Management Service](https://aws.amazon.com/kms/) to generate keys. The authentication options are identical to the [S3 backend](../../language/settings/backends/s3.mdx) excluding any deprecated options. In addition, please provide the following options:
 
 | Option     | Description                                                                                                                                                  | Min. | Default |
 |------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
@@ -167,7 +167,7 @@ The following example illustrates a minimal configuration:
 
 ### GCP KMS
 
-This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](/docs/language/settings/backends/gcs/) excluding any deprecated options. In addition, please provide the following options:
+This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](../../language/settings/backends/gcs.mdx) excluding any deprecated options. In addition, please provide the following options:
 
 | Option                                | Description                                                                                                      | Min. | Default |
 |---------------------------------------|------------------------------------------------------------------------------------------------------------------|------|---------|

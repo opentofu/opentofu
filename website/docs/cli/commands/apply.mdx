@@ -17,8 +17,8 @@ Usage: `tofu apply [options] [plan file]`
 
 ### Automatic Plan Mode
 
-When you run `tofu apply` without passing a saved plan file, OpenTofu automatically creates a new execution plan as if you had run [`tofu plan`](/docs/cli/commands/plan), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](/docs/cli/commands/plan#planning-modes) and
-[planning options](/docs/cli/commands/plan#planning-options) to customize how OpenTofu will create the plan.
+When you run `tofu apply` without passing a saved plan file, OpenTofu automatically creates a new execution plan as if you had run [`tofu plan`](plan.mdx), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](plan.mdx#planning-modes) and
+[planning options](plan.mdx#planning-options) to customize how OpenTofu will create the plan.
 
 You can pass the `-auto-approve` option to instruct OpenTofu to apply the plan without asking for confirmation.
 
@@ -28,9 +28,9 @@ If you use `-auto-approve`, we recommend making sure that no one can change your
 
 ### Saved Plan Mode
 
-When you pass a [saved plan file](/docs/cli/commands/plan#out-filename) to `tofu apply`, OpenTofu takes the actions in the saved plan without prompting you for confirmation. You may want to use this two-step workflow when running OpenTofu in automation.
+When you pass a [saved plan file](plan.mdx#out-filename) to `tofu apply`, OpenTofu takes the actions in the saved plan without prompting you for confirmation. You may want to use this two-step workflow when running OpenTofu in automation.
 
-Use [`tofu show`](/docs/cli/commands/show) to inspect a saved plan file before applying it.
+Use [`tofu show`](show.mdx) to inspect a saved plan file before applying it.
 
 When using a saved plan, you cannot specify any additional planning modes or options. These options only affect OpenTofu's decisions about which
 actions to take, and the plan file contains the final results of those
@@ -40,8 +40,8 @@ decisions.
 
 Without a saved plan file, `tofu apply` supports all planning modes and planning options available for `tofu plan`.
 
-- **[Planning Modes](/docs/cli/commands/plan#planning-modes):** These include `-destroy`, which creates a plan to destroy all remote objects, and `-refresh-only`, which creates a plan to update OpenTofu state and root module output values.
-- **[Planning Options](/docs/cli/commands/plan#planning-options):** These include specifying which resource instances OpenTofu should replace, setting OpenTofu input variables, etc.
+- **[Planning Modes](plan.mdx#planning-modes):** These include `-destroy`, which creates a plan to destroy all remote objects, and `-refresh-only`, which creates a plan to update OpenTofu state and root module output values.
+- **[Planning Options](plan.mdx#planning-options):** These include specifying which resource instances OpenTofu should replace, setting OpenTofu input variables, etc.
 
 ### Apply Options
 
@@ -62,12 +62,10 @@ The following options change how the apply command executes and reports on the a
   plan, so OpenTofu will conservatively assume that you do not wish to
   apply the plan, causing the operation to fail.
 
-- `-json` - Enables the [machine readable JSON UI][machine-readable-ui] output.
+- `-json` - Enables the [machine readable JSON UI](../../internals/machine-readable-ui.mdx) output.
   This implies `-input=false`, so the configuration must have no unassigned
   variable values to continue. To enable this flag, you must also either enable
   the `-auto-approve` flag or specify a previously-saved plan.
-
-  [machine-readable-ui]: /docs/internals/machine-readable-ui
 
 - `-lock=false` - Don't hold a state lock during the operation. This is
   dangerous if others might concurrently run commands against the same
@@ -83,22 +81,22 @@ The following options change how the apply command executes and reports on the a
   rendered by a system that cannot interpret terminal formatting.
 
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
-  [walks the graph](/docs/internals/graph#walking-the-graph). Defaults to
+  [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults to
   10\.
 
-- All [planning modes](/docs/cli/commands/plan#planning-modes) and
-[planning options](/docs/cli/commands/plan#planning-options) for
+- All [planning modes](plan.mdx#planning-modes) and
+[planning options](plan.mdx#planning-options) for
 `tofu plan` - Customize how OpenTofu will create the plan. Only available when you run `tofu apply` without a saved plan file.
 
 For configurations using
-[the `local` backend](/docs/language/settings/backends/local) only,
+[the `local` backend](../../language/settings/backends/local.mdx) only,
 `tofu apply` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](../../language/settings/backends/local.mdx#command-line-arguments).
 
 ## Passing a Different Configuration Directory
 
 If your workflow relies on overriding the root module directory, use
-[the `-chdir` global option](/docs/cli/commands#switching-working-directory-with-chdir)
+[the `-chdir` global option](index.mdx#switching-working-directory-with-chdir)
 instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.

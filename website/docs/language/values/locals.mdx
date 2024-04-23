@@ -6,15 +6,15 @@ description: >-
 
 # Local Values
 
-A local value assigns a name to an [expression](/docs/language/expressions),
+A local value assigns a name to an [expression](../../language/expressions/index.mdx),
 so you can use the name multiple times within a module instead of repeating
 the expression.
 
 If you're familiar with traditional programming languages, it can be useful to
 compare modules to function definitions:
 
-- [Input variables](/docs/language/values/variables) are like function arguments.
-- [Output values](/docs/language/values/outputs) are like function return values.
+- [Input variables](../../language/values/variables.mdx) are like function arguments.
+- [Output values](../../language/values/outputs.mdx) are like function return values.
 - Local values are like a function's temporary local variables.
 
 :::note
@@ -56,7 +56,7 @@ locals {
 ## Using Local Values
 
 Once a local value is declared, you can reference it in
-[expressions](/docs/language/expressions) as `local.<NAME>`.
+[expressions](../../language/expressions/index.mdx) as `local.<NAME>`.
 
 :::note
 Local values are _created_ by a `locals` block (plural), but you

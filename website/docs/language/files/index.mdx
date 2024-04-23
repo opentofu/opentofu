@@ -10,7 +10,7 @@ description: >-
 
 Code in the OpenTofu language is stored in plain text files with the `.tf` file
 extension. There is also
-[a JSON-based variant of the language](/docs/language/syntax/json) that is named with
+[a JSON-based variant of the language](../../language/syntax/json.mdx) that is named with
 the `.tf.json` file extension.
 
 Files containing OpenTofu code are often called _configuration files._
@@ -35,7 +35,7 @@ treating the entire module as a single document. Separating various blocks into
 different files is purely for the convenience of readers and maintainers, and
 has no effect on the module's behavior.
 
-An OpenTofu module can use [module calls](/docs/language/modules) to
+An OpenTofu module can use [module calls](../../language/modules/index.mdx) to
 explicitly include other modules into the configuration. These child modules can
 come from local directories (nested in the parent module's directory, or
 anywhere else on disk), or from external sources like the

@@ -11,7 +11,7 @@ This backend also supports state locking and consistency checking via
 [Alibaba Cloud Table Store](https://www.alibabacloud.com/help/doc-detail/27280.htm), which can be enabled by setting
 the `tablestore_table` field to an existing TableStore table name.
 
-This backend supports [state locking](/docs/language/state/locking) via TableStore.
+This backend supports [state locking](../../../language/state/locking.mdx) via TableStore.
 
 ## Example Configuration
 
@@ -37,7 +37,7 @@ OpenTofu state will be written into the file `path/mystate/version-1.tfstate`. T
 
 To make use of the OSS remote state in another configuration, use the
 [`terraform_remote_state` data
-source](/docs/language/state/remote-state-data).
+source](../../../language/state/remote-state-data/index.mdx).
 
 ```hcl
 terraform {
@@ -70,7 +70,7 @@ data "terraform_remote_state" "network" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
