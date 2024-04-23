@@ -157,7 +157,7 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
-    skip_push: auto
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1
 
   - name_template: ghcr.io/opentofu/opentofu:latest
     image_templates:
@@ -165,7 +165,7 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
-    skip_push: auto
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1
 
 nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}'
