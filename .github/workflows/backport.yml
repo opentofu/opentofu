@@ -28,6 +28,6 @@ jobs:
         GITHUB_EVENT: ${{ toJson(github.event) }} # Pass the github.event object as a JSON string
       run: |
         cd $GITHUB_WORKSPACE  # Move to the root of the repository
-        cd .github/scripts/custom-backport
-        go mod download
-        go run main.go  # Run your Go script
+        cd .github/scripts/backport
+        bash main.sh
+      shell: bash
