@@ -10,8 +10,8 @@ description: >-
 _Data sources_ allow OpenTofu to use information defined outside of OpenTofu,
 defined by another separate OpenTofu configuration, or modified by functions.
 
-Each [provider](/docs/language/providers) may offer data sources
-alongside its set of [resource](/docs/language/resources)
+Each [provider](../../language/providers/index.mdx) may offer data sources
+alongside its set of [resource](../../language/resources/index.mdx)
 types.
 
 ## Using Data Sources
@@ -58,14 +58,14 @@ Each data resource is associated with a single data source, which determines
 the kind of object (or objects) it reads and what query constraint arguments
 are available.
 
-Each data source in turn belongs to a [provider](/docs/language/providers),
+Each data source in turn belongs to a [provider](../../language/providers/index.mdx),
 which is a plugin for OpenTofu that offers a collection of resource types and
 data sources that most often belong to a single cloud or on-premises
 infrastructure platform.
 
 Most of the items within the body of a `data` block are defined by and
 specific to the selected data source, and these arguments can make full
-use of [expressions](/docs/language/expressions) and other dynamic
+use of [expressions](../../language/expressions/index.mdx) and other dynamic
 OpenTofu language features.
 
 However, there are some "meta-arguments" that are defined by OpenTofu itself
@@ -112,7 +112,7 @@ operation, and is re-calculated each time a new plan is created.
 ## Data Resource Dependencies
 
 Data resources have the same dependency resolution behavior
-[as defined for managed resources](/docs/language/resources/behavior#resource-dependencies).
+[as defined for managed resources](../../language/resources/behavior.mdx#resource-dependencies).
 Setting the `depends_on` meta-argument within `data` blocks defers reading of
 the data source until after all changes to the dependencies have been applied.
 
@@ -144,13 +144,13 @@ data "aws_ami" "example" {
 
 Custom conditions can help capture assumptions, helping future maintainers understand the configuration design and intent. They also return useful information about errors earlier and in context, helping consumers more easily diagnose issues in their configurations.
 
-Refer to [Custom Condition Checks](/docs/language/expressions/custom-conditions#preconditions-and-postconditions) for more details.
+Refer to [Custom Condition Checks](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions) for more details.
 
 
 ## Multiple Resource Instances
 
-Data resources support [`count`](/docs/language/meta-arguments/count)
-and [`for_each`](/docs/language/meta-arguments/for_each)
+Data resources support [`count`](../../language/meta-arguments/count.mdx)
+and [`for_each`](../../language/meta-arguments/for_each.mdx)
 meta-arguments as defined for managed resources, with the same syntax and behavior.
 
 As with managed resources, when `count` or `for_each` is present it is important to
@@ -160,7 +160,7 @@ own variant of the constraint arguments, producing an indexed result.
 
 ## Selecting a Non-default Provider Configuration
 
-Data resources support [the `provider` meta-argument](/docs/language/meta-arguments/resource-provider)
+Data resources support [the `provider` meta-argument](../../language/meta-arguments/resource-provider.mdx)
 as defined for managed resources, with the same syntax and behavior.
 
 ## Lifecycle Customizations
@@ -197,7 +197,7 @@ and name must be unique.
 
 Within the block (the `{ }`) is configuration for the data instance. The
 configuration is dependent on the type; as with
-[resources](/docs/language/resources), each provider on the
+[resources](../../language/resources/index.mdx), each provider on the
 [Public OpenTofu Registry](https://registry.opentofu.org) has its own
 documentation for configuring and using the data types it provides.
 
@@ -215,13 +215,13 @@ resource "aws_instance" "web" {
 ## Meta-Arguments
 
 As data sources are essentially a read only subset of resources, they also
-support the same [meta-arguments](/docs/language/resources/syntax#meta-arguments) of resources
+support the same [meta-arguments](../../language/resources/syntax.mdx#meta-arguments) of resources
 with the exception of the
-[`lifecycle` configuration block](/docs/language/meta-arguments/lifecycle).
+[`lifecycle` configuration block](../../language/meta-arguments/lifecycle.mdx).
 
 ### Non-Default Provider Configurations
 
-Similarly to [resources](/docs/language/resources), when
+Similarly to [resources](../../language/resources/index.mdx), when
 a module has multiple configurations for the same provider you can specify which
 configuration to use with the `provider` meta-argument:
 
@@ -234,7 +234,7 @@ data "aws_ami" "web" {
 ```
 
 See
-[The Resource `provider` Meta-Argument](/docs/language/meta-arguments/resource-provider)
+[The Resource `provider` Meta-Argument](../../language/meta-arguments/resource-provider.mdx)
 for more information.
 
 ## Data Source Lifecycle

@@ -17,13 +17,13 @@ which can then be shared between all members of a team. OpenTofu supports
 storing state in TACOS (TF Automation and Collaboration Software),
 [HashiCorp Consul](https://www.consul.io/), Amazon S3, Azure Blob Storage, Google Cloud Storage, Alibaba Cloud OSS, and more.
 
-Remote state is implemented by a [backend](/docs/language/settings/backends/configuration) or by
+Remote state is implemented by a [backend](../../language/settings/backends/configuration.mdx) or by
 TACOS (TF Automation and Collaboration Software), both of which you can configure in your configuration's root module.
 
 ## Delegation and Teamwork
 
 Remote state allows you to share
-[output values](/docs/language/values/outputs) with other configurations.
+[output values](../../language/values/outputs.mdx) with other configurations.
 This allows your infrastructure to be decomposed into smaller components.
 
 Put another way, remote state also allows teams to share infrastructure
@@ -37,7 +37,7 @@ you can expose things such as VPC IDs, subnets, NAT instance IDs, etc. through
 remote state and have other OpenTofu states consume that.
 
 For example usage, see
-[the `terraform_remote_state` data source](/docs/language/state/remote-state-data).
+[the `terraform_remote_state` data source](../../language/state/remote-state-data.mdx).
 
 While remote state can be a convenient, built-in mechanism for sharing data
 between configurations, you may prefer to use more general stores to
@@ -51,7 +51,7 @@ another that consumes those values using
 ## Locking and Teamwork
 
 For fully-featured remote backends, OpenTofu can also use
-[state locking](/docs/language/state/locking) to prevent concurrent runs of
+[state locking](../../language/state/locking.mdx) to prevent concurrent runs of
 OpenTofu against the same state.
 
 TACOS (TF Automation and Collaboration Software) is a commercial offering

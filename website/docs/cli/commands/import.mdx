@@ -4,7 +4,7 @@ description: The tofu import command brings existing resources into OpenTofu sta
 
 # Command: import
 
-The `tofu import` command [imports existing resources](/docs/cli/import)
+The `tofu import` command [imports existing resources](../import/index.mdx)
 into OpenTofu.
 
 ## Usage
@@ -14,7 +14,7 @@ Usage: `tofu import [options] ADDRESS ID`
 Import will find the existing resource from ID and import it into your OpenTofu
 state at the given ADDRESS.
 
-ADDRESS must be a valid [resource address](/docs/cli/state/resource-addressing).
+ADDRESS must be a valid [resource address](../state/resource-addressing.mdx).
 Because any resource address is valid, the import command can import resources
 into modules as well as directly into the root of your state.
 
@@ -31,7 +31,7 @@ itself having created all objects. If you import existing objects into OpenTofu,
 be careful to import each remote object to only one OpenTofu resource address.
 If you import the same object multiple times, OpenTofu may exhibit unwanted
 behavior. For more information on this assumption, see
-[the State section](/docs/language/state).
+[the State section](../../language/state/index.mdx).
 :::
 
 The command-line flags are all optional. The following flags are available:
@@ -52,7 +52,7 @@ The command-line flags are all optional. The following flags are available:
 - `-no-color` - If specified, output won't contain any color.
 
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
-  [walks the graph](/docs/internals/graph#walking-the-graph). Defaults
+  [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults
   to 10.
 
 - `-provider=provider` - **Deprecated** Override the provider configuration to
@@ -61,11 +61,11 @@ The command-line flags are all optional. The following flags are available:
 
 - `-var 'foo=bar'` - Set a variable in the OpenTofu configuration. This flag
   can be set multiple times. Variable values are interpreted as
-  [literal expressions](/docs/language/expressions/types) in the
+  [literal expressions](../../language/expressions/types.mdx) in the
   OpenTofu language, so list and map values can be specified via this flag.
 
 - `-var-file=foo` - Set variables in the OpenTofu configuration from
-  a [variable file](/docs/language/values/variables#variable-definitions-tfvars-files). If
+  a [variable file](../../language/values/variables.mdx#variable-definitions-tfvars-files). If
   a `terraform.tfvars` or any `.auto.tfvars` files are present in the current
   directory, they will be automatically loaded. `terraform.tfvars` is loaded
   first and the `.auto.tfvars` files after in alphabetical order. Any files
@@ -73,15 +73,15 @@ The command-line flags are all optional. The following flags are available:
   the working directory. This flag can be used multiple times. This is only
   useful with the `-config` flag.
 
-For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
+For configurations using the [`cloud` backend](../../cli/cloud/index.mdx) or the [`remote` backend](../../language/settings/backends/remote.mdx)
 only, `tofu import`
 also accepts the option
-[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
 
 For configurations using
-[the `local` backend](/docs/language/settings/backends/local) only,
+[the `local` backend](../../language/settings/backends/local.mdx) only,
 `tofu import` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](../../language/settings/backends/local.mdx#command-line-arguments).
 
 ## Provider Configuration
 
@@ -129,7 +129,7 @@ $ tofu import module.foo.aws_instance.bar i-abcd1234
 ## Example: Import into Resource configured with count
 
 The example below will import an AWS instance into the first instance of the `aws_instance` resource named `baz` configured with
-[`count`](/docs/language/meta-arguments/count):
+[`count`](../../language/meta-arguments/count.mdx):
 
 ```shell
 $ tofu import 'aws_instance.baz[0]' i-abcd1234
@@ -138,7 +138,7 @@ $ tofu import 'aws_instance.baz[0]' i-abcd1234
 ## Example: Import into Resource configured with for_each
 
 The example below will import an AWS instance into the `"example"` instance of the `aws_instance` resource named `baz` configured with
-[`for_each`](/docs/language/meta-arguments/for_each):
+[`for_each`](../../language/meta-arguments/for_each.mdx):
 
 Linux, Mac OS, and UNIX:
 
