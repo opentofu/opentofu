@@ -10,14 +10,14 @@ description: >-
 A given resource or module block cannot use both `count` and `for_each`.
 :::
 
-By default, a [resource block](/docs/language/resources/syntax) configures one real
+By default, a [resource block](../../language/resources/syntax.mdx) configures one real
 infrastructure object. (Similarly, a
-[module block](/docs/language/modules/syntax) includes a
+[module block](../../language/modules/syntax.mdx) includes a
 child module's contents into the configuration one time.)
 However, sometimes you want to manage several similar objects (like a fixed
 pool of compute instances) without writing a separate block for each one.
 OpenTofu has two ways to do this:
-`count` and [`for_each`](/docs/language/meta-arguments/for_each).
+`count` and [`for_each`](../../language/meta-arguments/for_each.mdx).
 
 If a resource or module block includes a `count` argument whose value is a whole number,
 OpenTofu will create that many instances.
@@ -56,7 +56,7 @@ This object has one attribute:
 
 ## Using Expressions in `count`
 
-The `count` meta-argument accepts numeric [expressions](/docs/language/expressions).
+The `count` meta-argument accepts numeric [expressions](../../language/expressions/index.mdx).
 However, unlike most arguments, the `count` value must be known
 _before_ OpenTofu performs any remote resource actions. This means `count`
 can't refer to any resource attributes that aren't known until after a

@@ -16,14 +16,14 @@ See below for more information and recommended alternatives.
 :::
 
 This won't modify your real remote objects, but it will modify the
-[OpenTofu state](/docs/language/state).
+[OpenTofu state](../../language/state/index.mdx).
 
 You shouldn't typically need to use this command, because OpenTofu
 automatically performs the same refreshing actions as a part of creating
 a plan in both the
-[`tofu plan`](/docs/cli/commands/plan)
+[`tofu plan`](../../cli/commands/plan.mdx)
 and
-[`tofu apply`](/docs/cli/commands/apply)
+[`tofu apply`](../../cli/commands/apply.mdx)
 commands. This command is here primarily for backward compatibility, but
 we don't recommend using it because it provides no opportunity to review
 the effects of the operation before updating the state.
@@ -39,7 +39,7 @@ tofu apply -refresh-only -auto-approve
 ```
 
 Consequently, it supports all of the same options as
-[`tofu apply`](/docs/cli/commands/apply) except that it does not accept a saved
+[`tofu apply`](../../cli/commands/apply.mdx) except that it does not accept a saved
 plan file, it doesn't allow selecting a planning mode other than "refresh only",
 and `-auto-approve` is always enabled.
 

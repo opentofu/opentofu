@@ -837,6 +837,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 		"client_ca_certificate_pem": cty.NullVal(cty.String),
 		"client_certificate_pem":    cty.NullVal(cty.String),
 		"client_private_key_pem":    cty.NullVal(cty.String),
+		"headers":                   cty.NullVal(cty.String),
 	})
 	backendConfigRaw, err := plans.NewDynamicValue(backendConfig, backendConfig.Type())
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -27,10 +28,21 @@ func (c *GetCommand) Run(args []string) int {
 	cmdFlags := c.Meta.defaultFlagSet("get")
 	cmdFlags.BoolVar(&update, "update", false, "update")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
+	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
 		return 1
+	}
+	if c.outputInJSON {
+		c.Meta.color = false
+		c.Meta.Color = false
+		c.oldUi = c.Ui
+		c.Ui = &WrappedUi{
+			cliUi:        c.oldUi,
+			jsonView:     views.NewJSONView(c.View),
+			outputInJSON: true,
+		}
 	}
 
 	// Initialization can be aborted by interruption signals
@@ -80,6 +92,10 @@ Options:
   -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
                         test command will search for test files in the current directory and
                         in the one specified by the flag.
+
+  -json                 Produce output in a machine-readable JSON format, 
+                        suitable for use in text editor integrations and other 
+                        automated systems. Always disables color.
 
 `
 	return strings.TrimSpace(helpText)

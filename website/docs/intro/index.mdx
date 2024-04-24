@@ -1,5 +1,6 @@
 ---
-sidebar_position: 1
+title: Getting started
+sidebar_position: 2
 description: |-
   OpenTofu is an infrastructure as code tool that lets you build, change, and version cloud and on-prem resources safely and efficiently.
 ---
@@ -32,7 +33,7 @@ Find providers for many of the platforms and services you already use in the [Pu
 
 ### Track your infrastructure
 
-OpenTofu generates a plan and prompts you for your approval before modifying your infrastructure. It also keeps track of your real infrastructure in a [state file](/docs/language/state), which acts as a source of truth for your environment. OpenTofu uses the state file to determine the changes to make to your infrastructure so that it will match your configuration.
+OpenTofu generates a plan and prompts you for your approval before modifying your infrastructure. It also keeps track of your real infrastructure in a [state file](../language/state/index.mdx), which acts as a source of truth for your environment. OpenTofu uses the state file to determine the changes to make to your infrastructure so that it will match your configuration.
 
 ### Automate changes
 
@@ -40,14 +41,14 @@ OpenTofu configuration files are declarative, meaning that they describe the end
 
 ### Standardize configurations
 
-OpenTofu supports reusable configuration components called [modules](/docs/language/modules) that define configurable collections of infrastructure, saving time and encouraging best practices. You can use publicly available modules from the OpenTofu Registry, or write your own.
+OpenTofu supports reusable configuration components called [modules](../language/modules/index.mdx) that define configurable collections of infrastructure, saving time and encouraging best practices. You can use publicly available modules from the OpenTofu Registry, or write your own.
 
 ### Collaborate
 
 Since your configuration is written in a file, you can commit it to a Version Control System (VCS) and use a cloud backend to efficiently manage OpenTofu workflows across teams. A cloud backend runs OpenTofu in a consistent, reliable environment and provides secure access to shared state and secret data, role-based access controls, a private registry for sharing both modules and providers, and more.
 
 :::note Tip
-Learn more about [OpenTofu use cases](/docs/intro/use-cases) and [how OpenTofu compares to alternatives](/docs/intro/vs).
+Learn more about [OpenTofu use cases](use-cases.mdx) and [how OpenTofu compares to alternatives](vs/index.mdx).
 :::
 
 ## Community

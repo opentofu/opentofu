@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"testing"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -84,4 +86,12 @@ func simpleTestSchema() *configschema.Block {
 			},
 		},
 	}
+}
+
+func newContextPluginsForTest(providerFactories map[addrs.Provider]providers.Factory, t *testing.T) *contextPlugins {
+	plugins, err := newContextPlugins(providerFactories, nil)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	return plugins
 }

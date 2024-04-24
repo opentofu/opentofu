@@ -256,8 +256,9 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	view.Abstract(&suite)
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 		defer stop()
 		defer cancel()
@@ -635,8 +636,9 @@ func (runner *TestFileRunner) validate(config *configs.Config, run *moduletest.R
 	runningCtx, done := context.WithCancel(context.Background())
 
 	var validateDiags tfdiags.Diagnostics
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting validate for %s/%s", file.Name, run.Name)
@@ -688,8 +690,9 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting destroy plan for %s/%s", file.Name, run.Name)
@@ -761,8 +764,9 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting plan for %s/%s", file.Name, run.Name)
@@ -816,8 +820,9 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 	var updated *states.State
 	var applyDiags tfdiags.Diagnostics
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
 		updated, applyDiags = tfCtx.Apply(plan, config)

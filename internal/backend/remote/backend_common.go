@@ -467,8 +467,10 @@ func (b *Remote) confirm(stopCtx context.Context, op *backend.Operation, opts *t
 	doneCtx, cancel := context.WithCancel(stopCtx)
 	result := make(chan error, 2)
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
+
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 
 		// Make sure we cancel doneCtx before we return
 		// so the input command is also canceled.

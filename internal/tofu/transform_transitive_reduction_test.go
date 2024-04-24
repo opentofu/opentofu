@@ -55,7 +55,7 @@ func TestTransitiveReductionTransformer(t *testing.T) {
 						},
 					},
 				},
-			}),
+			}, t),
 		}
 		if err := transform.Transform(&g); err != nil {
 			t.Fatalf("err: %s", err)

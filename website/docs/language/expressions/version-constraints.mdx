@@ -10,9 +10,9 @@ Anywhere that OpenTofu lets you specify a range of acceptable versions for
 something, it expects a specially formatted string known as a version
 constraint. Version constraints are used when configuring:
 
-- [Modules](/docs/language/modules)
-- [Provider requirements](/docs/language/providers/requirements)
-- [The `required_version` setting](/docs/language/settings#specifying-a-required-tofu-version) in the `terraform` block.
+- [Modules](../../language/modules/index.mdx)
+- [Provider requirements](../../language/providers/requirements.mdx)
+- [The `required_version` setting](../../language/settings/index.mdx#specifying-a-required-tofu-version) in the `terraform` block.
 
 ## Version Constraint Syntax
 
@@ -23,7 +23,7 @@ other dependency management systems like Bundler and NPM.
 version = ">= 1.2.0, < 2.0.0"
 ```
 
-A version constraint is a [string literal](/docs/language/expressions/strings)
+A version constraint is a [string literal](strings.mdx)
 containing one or more conditions, which are separated by commas.
 
 Each condition consists of an operator and a version number.

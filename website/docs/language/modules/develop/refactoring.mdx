@@ -115,7 +115,7 @@ resource "aws_instance" "a" {
 Applying this configuration would lead to OpenTofu creating an object
 bound to the address `aws_instance.a`.
 
-Later, you use [`for_each`](/docs/language/meta-arguments/for_each) with this
+Later, you use [`for_each`](../../../language/meta-arguments/for_each.mdx) with this
 resource to systematically declare multiple instances. To preserve an object
 that was previously associated with `aws_instance.a` alone, you must add a
 `moved` block to specify which instance key the object will take in the new
@@ -256,7 +256,7 @@ Applying this configuration would cause OpenTofu to create objects whose
 addresses begin with `module.a`.
 
 In later module versions, you may need to use
-[`count`](/docs/language/meta-arguments/count) with this resource to systematically
+[`count`](../../../language/meta-arguments/count.mdx) with this resource to systematically
 declare multiple instances. To preserve an object that was previously associated
 with `aws_instance.a` alone, you can add a `moved` block to specify which
 instance key that object will take in the new configuration:
@@ -393,7 +393,7 @@ typical rule that a parent module sees its child module as a "closed box",
 unaware of exactly which resources are declared inside it. This compromise
 assumes that all three of these modules are maintained by the same people
 and distributed together in a single
-[module package](/docs/language/modules/sources#modules-in-package-sub-directories).
+[module package](../../../language/modules/sources.mdx#modules-in-package-sub-directories).
 
 OpenTofu resolves module references in `moved` blocks relative to the module
 instance they are defined in. For example, if the original module above were

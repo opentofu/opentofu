@@ -134,7 +134,10 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		par = 10
 	}
 
-	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
+	plugins, err := newContextPlugins(opts.Providers, opts.Provisioners)
+	if err != nil {
+		return nil, diags.Append(err)
+	}
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
 
@@ -272,8 +275,9 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 	// write to the runContext field.
 	done := c.runContext.Done()
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 
 		defer close(wait)
 		// Wait for a stop or completion

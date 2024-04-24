@@ -7,7 +7,7 @@ description: >-
 # Command: state replace-provider
 
 The `tofu state replace-provider` command is used to replace the provider
-for resources in a [OpenTofu state](/docs/language/state).
+for resources in a [OpenTofu state](../../../language/state/index.mdx).
 
 ## Usage
 
@@ -31,15 +31,15 @@ This command also accepts the following options:
 
 - `-lock-timeout=0s` - Duration to retry a state lock.
 
-For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
+For configurations using the [`cloud` backend](../../../cli/cloud/index.mdx) or the [`remote` backend](../../../language/settings/backends/remote.mdx)
 only, `tofu state replace-provider`
 also accepts the option
-[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](../../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
 
 For configurations using
-[the `local` state](/docs/language/settings/backends/local) only,
+[the `local` state](../../../language/settings/backends/local.mdx) only,
 `tofu state replace-provider` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](../../../language/settings/backends/local.mdx#command-line-arguments).
 
 ## Example
 

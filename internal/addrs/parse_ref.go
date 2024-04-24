@@ -340,7 +340,6 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			SourceRange: tfdiags.SourceRangeFromHCL(rng),
 			Remaining:   remain,
 		}, diags
-
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing
 		// some version of "template values" or "lazy expressions" feature
@@ -354,6 +353,22 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		return nil, diags
 
 	default:
+		function := ParseFunction(root)
+		if function.IsNamespace(FunctionNamespaceProvider) {
+			pf, err := function.AsProviderFunction()
+			if err != nil {
+				return nil, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unable to parse provider function",
+					Detail:   err.Error(),
+					Subject:  rootRange.Ptr(),
+				})
+			}
+			return &Reference{
+				Subject:     pf,
+				SourceRange: tfdiags.SourceRangeFromHCL(rootRange),
+			}, diags
+		}
 		return parseResourceRef(ManagedResourceMode, rootRange, traversal)
 	}
 }

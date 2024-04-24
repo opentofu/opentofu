@@ -503,7 +503,7 @@ func extractChdirOption(args []string) (string, []string, error) {
 	return argValue, newArgs, nil
 }
 
-// Creates the the configuration directory.
+// Creates the configuration directory.
 // `configDir` should refer to `~/.terraform.d`, `$XDG_CONFIG_HOME/opentofu` or its equivalent
 // on non-UNIX platforms.
 func mkConfigDir(configDir string) error {
