@@ -84,7 +84,7 @@ resource "aws_s3_bucket" "example" {
 }
 ```
 
-The above example uses a [`dynamic` block](dynamic-blocks/index.mdx), which
+The above example uses a [`dynamic` block](dynamic-blocks.mdx), which
 generates zero or more nested blocks based on a collection value. The input
 variable `var.website_setting` is defined as a single object that might be null,
 so the `dynamic` block's `for_each` expression uses `[*]` to ensure that
