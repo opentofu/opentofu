@@ -243,6 +243,10 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				pv.SetProvider(target.ProviderAddr())
 			}
 			g.Connect(dag.BasicEdge(v, target))
+
+			if applyable, ok := target.(NodeApplyableProvider); ok {
+				applyable.ConfigRequired = true
+			}
 		}
 	}
 

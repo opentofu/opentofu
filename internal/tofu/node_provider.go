@@ -19,6 +19,7 @@ import (
 // NodeApplyableProvider represents a provider during an apply.
 type NodeApplyableProvider struct {
 	*NodeAbstractProvider
+	ConfigRequired bool
 }
 
 var (
@@ -53,6 +54,10 @@ func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diag
 }
 
 func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider providers.Interface) (diags tfdiags.Diagnostics) {
+	if !n.ConfigRequired && n.ProviderConfig() == nil {
+		log.Printf("[DEBUG] Skipping Provider Validation as no config was provided and it is not required (functions only)")
+		return nil
+	}
 
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
 
@@ -102,6 +107,11 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 // If verifyConfigIsKnown is true, ConfigureProvider will return an error if the
 // provider configVal is not wholly known and is meant only for use during import.
 func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider providers.Interface, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
+	if !n.ConfigRequired && n.ProviderConfig() == nil {
+		log.Printf("[DEBUG] Skipping Provider Configuration as no config was provided and it is not required (functions only)")
+		return nil
+	}
+
 	config := n.ProviderConfig()
 
 	configBody := buildProviderConfig(ctx, n.Addr, config)
