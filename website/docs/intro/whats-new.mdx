@@ -9,61 +9,14 @@ description: |-
 
 This page will run you through the most important changes in OpenTofu 1.7:
 
-- [Loopable import blocks](#loopable-import-blocks)
 - [State encryption](#state-encryption)
+- [Provider-defined functions](#provider-defined-functions)
 - [Removed block](#removed-block)
-
-## Loopable import blocks
-
-We made several improvements to the declarative import blocks, most prominently you can now use the `for_each` instruction on the block. We have prepared a [full documentation](../language/import/index.mdx#importing-multiple-resources) for this feature.
-
-In previous OpenTofu versions, you could already use the `import` block to declaratively import resources, for example:
-
-```hcl
-resource "random_id" "test_id" {
-  byte_length = 8
-}
-
-import {
-  to = random_id.test_id
-  id = "Y2FpOGV1Mkk"
-}
-
-output "id" {
-  value = random_id.test_id.b64_url
-}
-```
-
-In this new version you can now also declaratively import resources in a loop:
-
-```hcl
-variable "server_ids" {
-  type = list(string)
-}
-
-resource "random_id" "test_id" {
-  byte_length = 8
-  count = 2
-}
-
-import {
-  to = random_id.test_id[tonumber(each.key)]
-  id = each.value
-  for_each = {
-    for idx, item in var.server_ids: idx => item
-  }
-}
-
-output "id" {
-  value = random_id.test_id.*.b64_url
-}
-```
-
-The example above will let you specify some random IDs from a variable, and let others be automatically generated.
+- [Loopable import blocks](#loopable-import-blocks)
 
 ## State encryption
 
-State encryption is one of the flagship features of this release. We have prepared a [full documentation](../language/state/encryption.mdx) for this feature. Since the alpha release we overhauled the migration process from unencrypted to encrypted state files and the rollback mechanism to make the syntax more explicit.
+State encryption is one of the flagship features of this release. We have prepared a [full documentation](../language/state/encryption.mdx) for this feature.
 
 Before you test this feature, please **make a backup** of your state file. You can then add the following block to enable state encryption:
 
@@ -127,6 +80,31 @@ terraform {
 
 If you have access to an AWS, GCP account, or an OpenBao/MPL-licensed HashiCorp Vault installation, you can also [test these key providers](../language/state/encryption.mdx#key-providers).
 
+## Provider-defined functions
+
+The new Terraform Plugin SDK added support for provider-defined functions that you can use directly in OpenTofu. This is a significant improvement over using data sources as provider-defined functions don't increase the size of your state file and require less code to write.
+
+If you want to test provider-defined functions, you can use the [corefunc](https://library.tf/providers/northwood-labs/corefunc/latest) provider by [Ryan Parman](https://github.com/skyzyx):
+
+```hcl
+terraform {
+  required_providers {
+    corefunc = {
+      source = "northwood-labs/corefunc"
+      version = "1.4.0"
+    }
+  }
+}
+
+provider "corefunc" {
+}
+
+output "test" {
+  value = provider::corefunc::str_snake("Hello world!")
+  # Prints: hello_world
+}
+```
+
 ## Removed block
 
 The removed block lets you remove a resource from the state file but keep it on the infrastructure. We have prepared a [full documentation](../language/resources/syntax.mdx#removing-resources) for this feature. You can test it by creating a resource first:
@@ -147,6 +125,54 @@ removed {
 ```
 
 After the next apply, you will see that the `local_file.test` resource no longer exists in your state file, but the `test.txt` file should still exist on your disk. You can now remove the removed block safely.
+
+## Loopable import blocks
+
+We made several improvements to the declarative import blocks, most prominently you can now use the `for_each` instruction on the block. We have prepared a [full documentation](../language/import/index.mdx#importing-multiple-resources) for this feature.
+
+In previous OpenTofu versions, you could already use the `import` block to declaratively import resources, for example:
+
+```hcl
+resource "random_id" "test_id" {
+  byte_length = 8
+}
+
+import {
+  to = random_id.test_id
+  id = "Y2FpOGV1Mkk"
+}
+
+output "id" {
+  value = random_id.test_id.b64_url
+}
+```
+
+In this new version you can now also declaratively import resources in a loop:
+
+```hcl
+variable "server_ids" {
+  type = list(string)
+}
+
+resource "random_id" "test_id" {
+  byte_length = 8
+  count = 2
+}
+
+import {
+  to = random_id.test_id[tonumber(each.key)]
+  id = each.value
+  for_each = {
+    for idx, item in var.server_ids: idx => item
+  }
+}
+
+output "id" {
+  value = random_id.test_id.*.b64_url
+}
+```
+
+The example above will let you specify some random IDs from a variable, and let others be automatically generated.
 
 ## Built-in function changes
 
