@@ -2,7 +2,6 @@
 
 UPGRADE NOTES:
 * Backend/S3: The default of `use_legacy_workflow` changed to `false` and is now deprecated. The S3 backend will follow the same behavior as AWS CLI and SDKs for credential search, preferring backend configuration over environment variables. To support the legacy credential search workflow, you can set this option as `true`. It'll be completely removed in a future minor version.
-* Allow provider blocks in `tofu tests` to access variables and run outputs. ([#1347](https://github.com/opentofu/opentofu/pull/1347))
 
 STATE ENCRYPTION
 * We're introducing optional end-to-end encryption for state files.
@@ -41,6 +40,7 @@ ENHANCEMENTS:
 * Added mechanism to introduce automatic retries for provider installations, specifically targeting transient errors ([#1233](https://github.com/opentofu/opentofu/issues/1233))
 * Added `-json` flag to `tofu init` and `tofu get` to support output in json format. ([#1453](https://github.com/opentofu/opentofu/pull/1453))
 * `import` blocks `to` address can now support dynamic values (like variables, locals, conditions, and references to resources or data blocks) in index keys. ([#1270](https://github.com/opentofu/opentofu/pull/1270))
+* Allow provider blocks in `tofu tests` to access variables and run outputs. ([#1347](https://github.com/opentofu/opentofu/pull/1347))
 
 BUG FIXES:
 * Fix view hooks unit test flakiness by deterministically waiting for heartbeats to execute ([$1153](https://github.com/opentofu/opentofu/issues/1153))

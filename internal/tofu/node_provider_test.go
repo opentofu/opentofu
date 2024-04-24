@@ -326,6 +326,30 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			t.Errorf("unexpected error with empty config: %s", diags.Err())
 		}
 	})
+
+	t.Run("with test provider config", func(t *testing.T) {
+		config := &configs.Provider{
+			Name: "test",
+			Config: &configs.TestProviderConfig{
+				Body: configs.SynthBody("", map[string]cty.Value{
+					"region": cty.MapValEmpty(cty.String),
+				}),
+				Value: nil,
+			},
+		}
+
+		node := NodeApplyableProvider{
+			NodeAbstractProvider: &NodeAbstractProvider{
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Config: config,
+			},
+		}
+
+		diags := node.ValidateProvider(ctx, provider)
+		if diags.HasErrors() {
+			t.Errorf("unexpected error with empty config: %s", diags.Err())
+		}
+	})
 }
 
 // This test specifically tests responses from the
@@ -412,6 +436,56 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 	})
 
+	t.Run("valid with test provider config value", func(t *testing.T) {
+		region := cty.ObjectVal(map[string]cty.Value{
+			"region": cty.StringVal("mars"),
+		})
+		config := &configs.Provider{
+			Name: "test",
+			Config: &configs.TestProviderConfig{
+				Body: configs.SynthBody("", map[string]cty.Value{
+					"region": cty.MapValEmpty(cty.String),
+				}),
+				Value: &region,
+			},
+		}
+
+		node := NodeApplyableProvider{
+			NodeAbstractProvider: &NodeAbstractProvider{
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Config: config,
+			},
+		}
+
+		diags := node.ConfigureProvider(ctx, provider, false)
+		if diags.HasErrors() {
+			t.Errorf("unexpected error with valid config: %s", diags.Err())
+		}
+	})
+
+	t.Run("valid with test provider config nil value", func(t *testing.T) {
+		config := &configs.Provider{
+			Name: "test",
+			Config: &configs.TestProviderConfig{
+				Body: configs.SynthBody("", map[string]cty.Value{
+					"region": cty.StringVal("mars"),
+				}),
+				Value: nil,
+			},
+		}
+
+		node := NodeApplyableProvider{
+			NodeAbstractProvider: &NodeAbstractProvider{
+				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Config: config,
+			},
+		}
+
+		diags := node.ConfigureProvider(ctx, provider, false)
+		if diags.HasErrors() {
+			t.Errorf("unexpected error with valid config: %s", diags.Err())
+		}
+	})
 }
 
 // This test is similar to TestNodeApplyableProvider_ConfigProvider, but tests responses from the providers.ConfigureProviderRequest

@@ -12,7 +12,6 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -957,7 +956,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 				Alias:      provider.Alias,
 				AliasRange: provider.AliasRange,
 				Version:    provider.Version,
-				Config:     &TestProviderConfig{Body: provider.Config, Value: cty.NilVal},
+				Config:     &TestProviderConfig{Body: provider.Config, Value: nil},
 				DeclRange:  provider.DeclRange,
 			}
 		}
@@ -965,9 +964,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 
 	// Adds the missing variables in config.Module.Variables from file.Variables to
 	// allow provider blocks in test files to access "var" inputs.
-	if len(file.Variables) > 0 {
-		getVariablesForTest(file.Variables, c.Module.Variables)
-	}
+	getVariablesForTest(file.Variables, c.Module.Variables)
 
 	c.Module.ProviderConfigs = next
 	return func() {

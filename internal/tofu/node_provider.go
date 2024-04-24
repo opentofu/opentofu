@@ -58,7 +58,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
 
 	// If a provider configuration is of type TestProviderConfig, then skip the validation,
-	// and its value will be evaluated before the Plan operation.
+	// and its value should be evaluated before the Plan operation.
 	if _, ok := configBody.(*configs.TestProviderConfig); ok {
 		return nil
 	}
@@ -127,8 +127,8 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 	// Check if the config body is of type TestProviderConfig.
 	// Use the value directly if available
 	testProviderConfig, isTestProviderConfig := configBody.(*configs.TestProviderConfig)
-	if isTestProviderConfig && testProviderConfig.Value != cty.NilVal {
-		configVal = testProviderConfig.Value
+	if isTestProviderConfig && testProviderConfig.Value != nil {
+		configVal = *testProviderConfig.Value
 	} else {
 		configVal, configBody, evalDiags = ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
 		diags = diags.Append(evalDiags)

@@ -1108,38 +1108,41 @@ func getEvalContextFromStates(states map[string]*TestFileState, config *configs.
 
 // evaluateBlockForTest evaluates the values of "run" and "var" blocks in test files.
 // It iterates over the provider configurations defined in the given config and evaluates the hcl.Expression
-// found in the attributes of those provider configurations.
+// found in the attributes of those provider configurations, which are used to decode the value for the test provider config.
 func evaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schemas, config *configs.Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
+	evalCtx := getEvalContextFromStates(states, config)
+	if evalCtx == nil {
+		return nil
+	}
+
 	for _, provider := range config.Module.ProviderConfigs {
-		evalCtx := getEvalContextFromStates(states, config)
-		if evalCtx == nil {
-			continue
-		}
 		providerSchema := schemas.ProviderSchema(config.ProviderForConfigAddr(provider.Addr()))
 		spec := providerSchema.Provider.Block.DecoderSpec()
 
 		// If attributes are nil, then it iterates to the next ProviderConfig.
 		attributes, _ := provider.Config.JustAttributes()
 		for _, attribute := range attributes {
-			if len(attribute.Expr.Variables()) > 0 {
-				// Check if the variable root name exists in the eval context
-				if _, ok := evalCtx.Variables[attribute.Expr.Variables()[0].RootName()]; ok {
-					val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
-					diags = diags.Append(decDiags)
-					if diags.HasErrors() {
-						return diags
-					}
-					// Update the test provider config with the value
-					provider.Config = &configs.TestProviderConfig{
-						Body:  provider.Config,
-						Value: val,
-					}
-				}
+			if len(attribute.Expr.Variables()) == 0 {
+				continue
+			}
+			rootName := attribute.Expr.Variables()[0].RootName()
+			if _, ok := evalCtx.Variables[rootName]; !ok {
+				continue
+			}
+			val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
+			diags = diags.Append(decDiags)
+			if decDiags.HasErrors() {
+				continue
+			}
+			// Update the test provider config with the value
+			provider.Config = &configs.TestProviderConfig{
+				Body:  provider.Config,
+				Value: &val,
 			}
 		}
 	}
-	return nil
+	return diags
 }
 
 type testVariableValueExpression struct {
