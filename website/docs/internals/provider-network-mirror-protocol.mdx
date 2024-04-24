@@ -13,7 +13,7 @@ implement to provide an alternative installation source for Terraform providers,
 regardless of their origin registries.
 
 OpenTofu uses network mirrors only if you activate them explicitly in
-[the CLI configuration's `provider_installation` block](/docs/cli/config/config-file#provider-installation).
+[the CLI configuration's `provider_installation` block](../cli/config/config-file.mdx#provider-installation).
 When enabled, a network mirror can serve providers belonging to any registry
 hostname, which can allow an organization to serve all of the OpenTofu
 providers they intend to use from an internal server, rather than from each
@@ -23,7 +23,7 @@ This is _not_ the protocol that should be implemented by a host intending to
 serve as an origin registry for OpenTofu Providers. To provide an origin
 registry (whose hostname would then be included in the source addresses of the
 providers it hosts), implement
-[the provider registry protocol](/docs/internals/provider-registry-protocol)
+[the provider registry protocol](../internals/provider-registry-protocol.mdx)
 instead.
 
 ## Provider Addresses
@@ -31,7 +31,7 @@ instead.
 Each OpenTofu provider has an associated address which uniquely identifies it
 within OpenTofu. A provider address has the syntax `hostname/namespace/type`,
 which is described in more detail in
-[the Provider Requirements documentation](/docs/language/providers/requirements).
+[the Provider Requirements documentation](../language/providers/requirements.mdx).
 
 By default, the `hostname` portion of a provider address serves both as part
 of its unique identifier _and_ as the location of the registry to retrieve it
@@ -49,7 +49,7 @@ the hostname where the provider network mirror is deployed.
 ## Protocol Base URL
 
 Most OpenTofu-native services use
-[the remote service discovery protocol](/docs/internals/remote-service-discovery) so
+[the remote service discovery protocol](../internals/remote-service-discovery.mdx) so
 that the physical location of the endpoints can potentially be separated from
 the hostname used in identifiers. The Provider Network Mirror protocol does
 _not_ use the service discovery indirection, because a network mirror location
@@ -91,7 +91,7 @@ base URL from the above CLI configuration example.
 ### Authentication
 
 If the CLI configuration includes
-[credentials](/docs/cli/config/config-file#credentials) for the hostname
+[credentials](../cli/config/config-file.mdx#credentials) for the hostname
 given in the network mirror base URL, OpenTofu will include those credentials
 in its requests for operations described below.
 
@@ -255,7 +255,7 @@ in the appropriate nested subdirectories, and ensure that your system is
 configured to serve `.json` files with the `application/json` media type.
 
 As a convenience, OpenTofu CLI includes
-[the `tofu providers mirror` subcommand](/docs/cli/commands/providers/mirror),
+[the `tofu providers mirror` subcommand](../cli/commands/providers/mirror.mdx),
 which will analyze the current configuration for the providers it requires,
 download the packages for those providers from their origin registries, and
 place them into a local directory suitable for use as a mirror.

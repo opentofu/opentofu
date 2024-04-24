@@ -15,54 +15,54 @@ and a number of built-in functions.
 Expressions can be used in a number of places in the OpenTofu language,
 but some contexts limit which expression constructs are allowed,
 such as requiring a literal value of a particular type or forbidding
-[references to resource attributes](/docs/language/expressions/references#references-to-resource-attributes).
+[references to resource attributes](references.mdx#references-to-resource-attributes).
 Each language feature's documentation describes any restrictions it places on
 expressions.
 
 You can experiment with the behavior of OpenTofu's expressions from
 the OpenTofu expression console, by running
-[the `tofu console` command](/docs/cli/commands/console).
+[the `tofu console` command](../../cli/commands/console.mdx).
 
 The other pages in this section describe the features of OpenTofu's
 expression syntax.
 
-- [Types and Values](/docs/language/expressions/types)
+- [Types and Values](types.mdx)
   documents the data types that OpenTofu expressions can resolve to, and the
   literal syntaxes for values of those types.
 
-- [Strings and Templates](/docs/language/expressions/strings)
+- [Strings and Templates](strings.mdx)
   documents the syntaxes for string literals, including interpolation sequences
   and template directives.
 
-- [References to Values](/docs/language/expressions/references)
+- [References to Values](references.mdx)
   documents how to refer to named values like variables and resource attributes.
 
-- [Operators](/docs/language/expressions/operators)
+- [Operators](operators.mdx)
   documents the arithmetic, comparison, and logical operators.
 
-- [Function Calls](/docs/language/expressions/function-calls)
+- [Function Calls](function-calls.mdx)
   documents the syntax for calling OpenTofu's built-in functions.
 
-- [Conditional Expressions](/docs/language/expressions/conditionals)
+- [Conditional Expressions](conditionals.mdx)
   documents the `<CONDITION> ? <TRUE VAL> : <FALSE VAL>` expression, which
   chooses between two values based on a bool condition.
 
-- [For Expressions](/docs/language/expressions/for)
+- [For Expressions](for.mdx)
   documents expressions like `[for s in var.list : upper(s)]`, which can
   transform a complex type value into another complex type value.
 
-- [Splat Expressions](/docs/language/expressions/splat)
+- [Splat Expressions](splat.mdx)
   documents expressions like `var.list[*].id`, which can extract simpler
   collections from more complicated expressions.
 
-- [Dynamic Blocks](/docs/language/expressions/dynamic-blocks)
+- [Dynamic Blocks](dynamic-blocks.mdx)
   documents a way to create multiple repeatable nested blocks within a resource
   or other construct.
 
-- [Type Constraints](/docs/language/expressions/type-constraints)
+- [Type Constraints](type-constraints.mdx)
   documents the syntax for referring to a type, rather than a value of that
   type. Input variables expect this syntax in their `type` argument.
 
-- [Version Constraints](/docs/language/expressions/version-constraints)
+- [Version Constraints](version-constraints.mdx)
   documents the syntax of special strings that define a set of allowed software
   versions. OpenTofu uses version constraints in several places.

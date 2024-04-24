@@ -7,7 +7,7 @@ description: >-
 # State Storage and Locking
 
 Backends are responsible for storing state and providing an API for
-[state locking](/docs/language/state/locking). State locking is optional.
+[state locking](../../language/state/locking.mdx). State locking is optional.
 
 Despite the state being stored remotely, all OpenTofu commands such
 as `tofu console`, the `tofu state` operations, `tofu taint`,
@@ -62,10 +62,10 @@ prior to forcing the overwrite.
 
 ## State Locking
 
-Backends are responsible for supporting [state locking](/docs/language/state/locking)
+Backends are responsible for supporting [state locking](../../language/state/locking.mdx)
 if possible.
 
-Not all backends support locking. The [documentation for each backend](/docs/language/settings/backends/configuration#available-backends) includes details about whether it supports locking or not.
+Not all backends support locking. The [documentation for each backend](../../language/settings/backends/configuration.mdx#available-backends) includes details about whether it supports locking or not.
 
 For more information on state locking, view the
-[page dedicated to state locking](/docs/language/state/locking).
+[page dedicated to state locking](../../language/state/locking.mdx).

@@ -6,7 +6,7 @@ description: >-
 
 # Manipulating OpenTofu State
 
-OpenTofu uses [state data](/docs/language/state) to remember which
+OpenTofu uses [state data](../../language/state/index.mdx) to remember which
 real-world object corresponds to each resource in the configuration;
 this allows it to modify an existing object when its resource declaration
 changes.
@@ -18,12 +18,12 @@ infrastructure.
 
 OpenTofu CLI supports several workflows for interacting with state:
 
-- [Inspecting State](/docs/cli/state/inspect)
-- [Forcing Re-creation](/docs/cli/state/taint)
-- [Moving Resources](/docs/cli/state/move)
+- [Inspecting State](../../cli/state/inspect.mdx)
+- [Forcing Re-creation](../../cli/state/taint.mdx)
+- [Moving Resources](../../cli/state/move.mdx)
 - Importing Pre-existing Resources (documented in the
-  [Importing Infrastructure](/docs/cli/import) section)
-- [Disaster Recovery](/docs/cli/state/recover)
+  [Importing Infrastructure](../../cli/import/index.mdx) section)
+- [Disaster Recovery](../../cli/state/recover.mdx)
 
 :::warning Important
 Modifying state data outside a normal plan or apply can cause

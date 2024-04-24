@@ -92,7 +92,7 @@ remote access credentials to be provided.
 
 You can add the [`cloudinit_config`](https://registry.terraform.io/providers/hashicorp/cloudinit/latest/docs) data source to your OpenTofu configuration and specify the files you want to provision as `text/cloud-config` content. The `cloudinit_config` data source renders multi-part MIME configurations for use with [cloud-init](https://cloudinit.readthedocs.io/en/latest/). Pass the files in the `content` field as YAML-encoded configurations using the `write_files` block.
 
-In the following example, the `my_cloud_config` data source specifies a `text/cloud-config` MIME part named `cloud.conf`. The `part.content` field is set to [`yamlencode`](/docs/language/functions/yamlencode), which encodes the `write_files` JSON object as YAML so that the system can provision the referenced files.
+In the following example, the `my_cloud_config` data source specifies a `text/cloud-config` MIME part named `cloud.conf`. The `part.content` field is set to [`yamlencode`](../../../language/functions/yamlencode.mdx), which encodes the `write_files` JSON object as YAML so that the system can provision the referenced files.
 
 ```hcl
 data "cloudinit_config" "my_cloud_config" {
@@ -192,7 +192,7 @@ resource "aws_instance" "web" {
 
 The `local-exec` provisioner requires no other configuration, but most other
 provisioners must connect to the remote system using SSH or WinRM.
-You must include [a `connection` block](/docs/language/resources/provisioners/connection) so that OpenTofu knows how to communicate with the server.
+You must include [a `connection` block](../../../language/resources/provisioners/connection.mdx) so that OpenTofu knows how to communicate with the server.
 
 OpenTofu includes several built-in provisioners. You can also use third-party provisioners as plugins, by placing them
 in `%APPDATA%\terraform.d\plugins`, `~/.terraform.d/plugins`, `$XDG_DATA_HOME/opentofu/plugins`, or the same
@@ -222,8 +222,8 @@ block would create a dependency cycle.
 ## Suppressing Provisioner Logs in CLI Output
 
 The configuration for a `provisioner` block may use sensitive values, such as
-[`sensitive` variables](/docs/language/values/variables#suppressing-values-in-cli-output) or
-[`sensitive` output values](/docs/language/values/outputs#sensitive-suppressing-values-in-cli-output).
+[`sensitive` variables](../../../language/values/variables.mdx#suppressing-values-in-cli-output) or
+[`sensitive` output values](../../../language/values/outputs.mdx#sensitive-suppressing-values-in-cli-output).
 In this case, all log output from the provisioner is automatically suppressed to
 prevent the sensitive values from being displayed.
 

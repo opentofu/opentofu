@@ -16,7 +16,7 @@ from provider registries as part of initializing the current working directory.
 Sometimes OpenTofu is running in an environment where that isn't possible,
 such as on an isolated network without access to an OpenTofu Registry. In
 that case,
-[explicit installation method configuration](/docs/cli/config/config-file#explicit-installation-method-configuration)
+[explicit installation method configuration](../../../cli/config/config-file.mdx#explicit-installation-method-configuration)
 allows you to configure OpenTofu, when running on a particular system, to
 consult only a local filesystem directory where you've created a local mirror
 of the necessary plugins, and to skip accessing the upstream registry at all.
@@ -36,7 +36,7 @@ themselves.
 
 OpenTofu will also generate various `.json` index files which contain suitable
 responses to implement
-[the network mirror protocol](/docs/internals/provider-network-mirror-protocol),
+[the network mirror protocol](../../../internals/provider-network-mirror-protocol.mdx),
 if you upload the resulting directory to a static website host. OpenTofu
 ignores those index files when using the directory as a filesystem mirror,
 because the directory entries themselves are authoritative in that case.

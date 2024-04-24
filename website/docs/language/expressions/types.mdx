@@ -29,7 +29,7 @@ The OpenTofu language uses the following types for its values:
 Strings, numbers, and bools are sometimes called _primitive types._ Lists and sets are forms
 of tuples. Maps are a form of objects. Tuples and maps are sometimes called _complex types,_
 _structural types,_ or _collection types._ See
-[Type Constraints](/docs/language/expressions/type-constraints) for a more detailed
+[Type Constraints](type-constraints.mdx) for a more detailed
 description of complex types.
 
 Finally, there is one special value that has _no_ type:
@@ -54,7 +54,7 @@ characters, `"like this"`. There is also a "heredoc" syntax for more complex
 strings.
 
 String literals are the most complex kind of literal expression in
-OpenTofu, and have their own page of documentation. See [Strings](/docs/language/expressions/strings)
+OpenTofu, and have their own page of documentation. See [Strings](strings.mdx)
 for information about escape sequences, the heredoc syntax, interpolation, and
 template directives.
 
@@ -98,7 +98,7 @@ The values in a map
 can be arbitrary expressions.
 
 The keys in a map must be strings; they can be left unquoted if
-they are a valid [identifier](/docs/language/syntax/configuration#identifiers), but must be quoted
+they are a valid [identifier](../../language/syntax/configuration.mdx#identifiers), but must be quoted
 otherwise. You can use a non-literal string expression as a key by wrapping it in
 parentheses, like `(var.business_unit_tag_name) = "SRE"`.
 
@@ -127,7 +127,7 @@ offer different ways to restrict the allowed values for input variables and
 resource arguments.
 
 For complete details about these types (and an explanation of why the difference
-usually doesn't matter), see [Type Constraints](/docs/language/expressions/type-constraints).
+usually doesn't matter), see [Type Constraints](type-constraints.mdx).
 
 ## Type Conversion
 

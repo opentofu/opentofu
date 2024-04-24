@@ -65,35 +65,35 @@ The following top-level blocks and their defined "meta-arguments" (that is,
 arguments defined by OpenTofu Core rather than by external plugins such as
 providers) will retain their current functionality:
 
-* [`resource`](/docs/language/resources) and
-  [`data`](/docs/language/data-sources) blocks to
+* [`resource`](resources/index.mdx) and
+  [`data`](data-sources/index.mdx) blocks to
   declare resources, including their nested block types `lifecycle`,
   `connection`, and `provisioner`, and their meta-argument `provider`.
-* [`module`](/docs/language/modules/syntax) blocks to call other modules,
+* [`module`](modules/syntax.mdx) blocks to call other modules,
   and its meta-argument `providers`.
-* The [`count`](/docs/language/meta-arguments/count),
-  [`for_each`](/docs/language/meta-arguments/for_each), and
-  [`depends_on`](/docs/language/meta-arguments/depends_on) meta-arguments
+* The [`count`](meta-arguments/count.mdx),
+  [`for_each`](meta-arguments/for_each.mdx), and
+  [`depends_on`](meta-arguments/depends_on.mdx) meta-arguments
   in `resource`, `data`, and `module` blocks.
-* [`provider`](/docs/language/providers/configuration) blocks to configure
+* [`provider`](providers/configuration.mdx) blocks to configure
   providers, and the `alias` meta-argument.
-* [`variable`](/docs/language/values/variables#declaring-an-input-variable),
-  [`output`](/docs/language/values/outputs#declaring-an-output-value), and
-  [`locals`](/docs/language/values/locals#declaring-a-local-value) blocks
+* [`variable`](values/variables.mdx#declaring-an-input-variable),
+  [`output`](values/outputs.mdx#declaring-an-output-value), and
+  [`locals`](values/locals.mdx#declaring-a-local-value) blocks
   for declaring the various kinds of named values in a module.
-* [`terraform`](/docs/language/settings) blocks, including the nested
-  [`required_version`](/docs/language/settings#specifying-a-required-tofu-version)
+* [`terraform`](settings/index.mdx) blocks, including the nested
+  [`required_version`](settings/index.mdx#specifying-a-required-tofu-version)
   and
-  [`required_providers`](/docs/language/providers/requirements#requiring-providers)
+  [`required_providers`](providers/requirements.mdx#requiring-providers)
   arguments, and nested
-  [`backend`](/docs/language/settings/backends/configuration#using-a-backend-block)
+  [`backend`](settings/backends/configuration.mdx#using-a-backend-block)
   blocks for backend configuration.
 
 We also intend to keep compatibility with all
-[expression operators](/docs/language/expressions) and
-[built-in functions](/docs/language/functions), with the exception of
+[expression operators](expressions/index.mdx) and
+[built-in functions](functions/index.mdx), with the exception of
 references to
-[`terraform.workspace`](/docs/language/expressions/references#terraform-workspace),
+[`terraform.workspace`](expressions/references.mdx#terraform-workspace),
 whose behavior may change as part of future changes to the workspace model.
 
 We intend to retain broad compatibility with OpenTofu language features, with
@@ -189,18 +189,18 @@ if you are still using an OpenTofu v1.x release.
 ### Provider Installation Methods
 
 OpenTofu normally installs providers from a provider registry implementing
-[the Provider Registry Protocol](/docs/internals/provider-registry-protocol),
+[the Provider Registry Protocol](../internals/provider-registry-protocol.mdx),
 version 1. All OpenTofu v1.x releases will remain compatible with that
 protocol, and so correctly-implemented provider registries will stay compatible.
 
 OpenTofu also supports installation of providers from
-[local filesystem directories](/docs/cli/config/config-file#filesystem_mirror)
+[local filesystem directories](../cli/config/config-file.mdx#filesystem_mirror)
 (filesystem mirrors) and from
-[network mirrors](/docs/cli/config/config-file#network_mirror)
-(implementing [the Provider Mirror Protocol](/docs/internals/provider-network-mirror-protocol).
+[network mirrors](../cli/config/config-file.mdx#network_mirror)
+(implementing [the Provider Mirror Protocol](../internals/provider-network-mirror-protocol.mdx).
 All OpenTofu v1.x releases will remain compatible with those installation
 methods, including
-[the Implied Local Mirror Directories](/docs/cli/config/config-file#implied-local-mirror-directories).
+[the Implied Local Mirror Directories](../cli/config/config-file.mdx#implied-local-mirror-directories).
 
 Specific provider registries or network mirrors are run independently from
 OpenTofu itself and so their own behaviors are not subject to these
@@ -236,11 +236,11 @@ and of OpenTofu itself.
 ### Module Installation Methods
 
 OpenTofu supports installing child modules from a number of different
-[module source types](/docs/language/modules/sources). We will continue
+[module source types](modules/sources.mdx). We will continue
 to support all of the existing source types throughout the v1.x releases.
 
 One of the supported source types is a module registry implementing
-[the Module Registry Protocol](/docs/internals/module-registry-protocol)
+[the Module Registry Protocol](../internals/module-registry-protocol.mdx)
 version 1. All OpenTofu v1.x releases will remain compatible with correct
 implementations of that protocol.
 
@@ -377,7 +377,7 @@ As noted above, compatibility with external software is limited to
 explicitly-machine-readable output (`-json` and `-raw` modes) and exit codes.
 Any natural-language output from these commands might change in later releases.
 
-* [`init`](/docs/cli/commands/init)
+* [`init`](../cli/commands/init.mdx)
   * `-backend=false`
   * `-backend-config=FILE`
   * `-backend-config="KEY=VALUE"`
@@ -389,10 +389,10 @@ Any natural-language output from these commands might change in later releases.
   * `-plugin-dir=DIR`
   * `-reconfigure`
   * `-upgrade`
-* [`validate`](/docs/cli/commands/validate)
+* [`validate`](../cli/commands/validate.mdx)
   * `-json`
   * `-no-color`
-* [`plan`](/docs/cli/commands/plan)
+* [`plan`](../cli/commands/plan.mdx)
   * `-compact-warnings`
   * `-destroy`
   * `-detailed-exitcode`
@@ -409,7 +409,7 @@ Any natural-language output from these commands might change in later releases.
   * `-target=ADDRESS`
   * `-var 'NAME=VALUE'`
   * `-var-file=FILE`
-* [`apply`](/docs/cli/commands/apply)
+* [`apply`](../cli/commands/apply.mdx)
   * `-auto-approve`
   * `-compact-warnings`
   * `-lock=false`
@@ -424,53 +424,53 @@ Any natural-language output from these commands might change in later releases.
   * `-target=ADDRESS`
   * `-var 'NAME=VALUE'`
   * `-var-file=FILE`
-* [`show`](/docs/cli/commands/show)
+* [`show`](../cli/commands/show.mdx)
   * `-no-color`
   * `-json`
   * (both with and without a plan file)
-* [`providers`](/docs/cli/commands/providers) (with no subcommand)
-* [`providers lock`](/docs/cli/commands/providers/lock)
+* [`providers`](../cli/commands/providers/index.mdx) (with no subcommand)
+* [`providers lock`](../cli/commands/providers/lock.mdx)
   * `-fs-mirror=PATH`
   * `-net-mirror=URL`
   * `-platform=OS_ARCH`
-* [`providers mirror`](/docs/cli/commands/providers/mirror)
+* [`providers mirror`](../cli/commands/providers/mirror.mdx)
   * `-platform=OS_ARCH`
-* [`providers schema`](/docs/cli/commands/providers/schema)
+* [`providers schema`](../cli/commands/providers/schema.mdx)
   * `-json`
-* [`fmt`](/docs/cli/commands/fmt)
+* [`fmt`](../cli/commands/fmt.mdx)
   * `-list=false`
   * `-write=false`
   * `-diff`
   * `-recursive`
   * `-check`
-* [`version`](/docs/cli/commands/version)
+* [`version`](../cli/commands/version.mdx)
   * `-json`
-* [`output`](/docs/cli/commands/output)
+* [`output`](../cli/commands/output.mdx)
   * `-no-color`
   * `-json`
   * `-raw`
-* [`taint`](/docs/cli/commands/taint)
+* [`taint`](../cli/commands/taint.mdx)
   * `-allow-missing`
   * `-lock=false`
   * `-lock-timeout=DURATION`
   * `-ignore-remote-version`
-* [`untaint`](/docs/cli/commands/untaint)
+* [`untaint`](../cli/commands/untaint.mdx)
   * `-allow-missing`
   * `-lock=false`
   * `-lock-timeout=DURATION`
   * `-ignore-remote-version`
-* [`force-unlock`](/docs/cli/commands/force-unlock)
+* [`force-unlock`](../cli/commands/force-unlock.mdx)
   * `-force`
-* [`state list`](/docs/cli/commands/state/list)
+* [`state list`](../cli/commands/state/list.mdx)
   * `-id=ID`
-* [`state pull`](/docs/cli/commands/state/pull)
-* [`state push`](/docs/cli/commands/state/push)
+* [`state pull`](../cli/commands/state/pull.mdx)
+* [`state push`](../cli/commands/state/push.mdx)
   * `-force`
   * `-lock=false`
   * `-lock-timeout=DURATION`
-* [`state show`](/docs/cli/commands/state/show)
+* [`state show`](../cli/commands/state/show.mdx)
   * `-ignore-remote-version`
-* [`login`](/docs/cli/commands/login)
+* [`login`](../cli/commands/login.mdx)
 
 For commands or options not in the above list, we will still avoid breaking
 changes where possible, but can't promise full compatibility throughout the
