@@ -9,7 +9,7 @@ description: >-
 The `terraform_remote_state` data source uses the latest state snapshot from a specified state backend to retrieve the root module output values
 from some other OpenTofu configuration.
 
-You can use the `terraform_remote_state` data source without requiring or configuring a provider. It is always available through a built-in provider with the [source address](/docs/language/providers/requirements#source-addresses) `terraform.io/builtin/terraform`. That provider does not include any other resources or data sources.
+You can use the `terraform_remote_state` data source without requiring or configuring a provider. It is always available through a built-in provider with the [source address](../../language/providers/requirements.mdx#source-addresses) `terraform.io/builtin/terraform`. That provider does not include any other resources or data sources.
 
 ## Alternative Ways to Share Data Between Configurations
 
@@ -73,14 +73,14 @@ use of. For example:
 Some of the data stores listed above are specifically designed for storing
 small configuration values, while others are generic blob storage systems. For
 those generic systems, you can use
-[the `jsonencode` function](/docs/language/functions/jsonencode)
+[the `jsonencode` function](../../language/functions/jsonencode.mdx)
 and
-[the `jsondecode` function](/docs/language/functions/jsondecode) respectively
+[the `jsondecode` function](../../language/functions/jsondecode.mdx) respectively
 to store and retrieve structured data.
 
 You can encapsulate the implementation details of retrieving your published
 configuration data by writing a
-[data-only module](/docs/language/modules/develop/composition#data-only-modules)
+[data-only module](../../language/modules/develop/composition.mdx#data-only-modules)
 containing the necessary data source configuration and any necessary
 post-processing such as JSON decoding. You can then change that module later
 if you switch to a different strategy for sharing data between multiple
@@ -136,7 +136,7 @@ The following arguments are supported:
 
   The `config` object can use any arguments that would be valid in the
   equivalent `terraform { backend "<TYPE>" { ... } }` block. See
-  [the documentation of your chosen backend](/docs/language/settings/backends/configuration)
+  [the documentation of your chosen backend](../../language/settings/backends/configuration.mdx)
   for details.
 
   :::note
@@ -152,7 +152,7 @@ The following arguments are supported:
 In addition to the above, the following attributes are exported:
 
 * `outputs` - An object containing every root-level
-  [output](/docs/language/values/outputs) in the remote state.
+  [output](../../language/values/outputs.mdx) in the remote state.
 
 ## Root Outputs Only
 

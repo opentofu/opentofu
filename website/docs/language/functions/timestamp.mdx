@@ -18,7 +18,7 @@ The result of this function will change every second, so using this function
 directly with resource attributes will cause a diff to be detected on every
 OpenTofu run. We do not recommend using this function in resource attributes,
 but in rare cases it can be used in conjunction with
-[the `ignore_changes` lifecycle meta-argument](/docs/language/meta-arguments/lifecycle#ignore_changes)
+[the `ignore_changes` lifecycle meta-argument](../../language/meta-arguments/lifecycle.mdx#ignore_changes)
 to take the timestamp only on initial creation of the resource. For more stable
 time handling, see the [Time Provider](https://registry.terraform.io/providers/hashicorp/time).
 
@@ -35,7 +35,7 @@ taken only once the plan is being applied.
 
 ## Related Functions
 
-* [`formatdate`](/docs/language/functions/formatdate) can convert the resulting timestamp to
+* [`formatdate`](../../language/functions/formatdate.mdx) can convert the resulting timestamp to
   other date and time formats.
-* [`plantimestamp`](/docs/language/functions/plantimestamp) will return a consistent timestamp
+* [`plantimestamp`](../../language/functions/plantimestamp.mdx) will return a consistent timestamp
   representing the date and time during the plan.

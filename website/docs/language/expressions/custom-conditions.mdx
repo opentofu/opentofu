@@ -21,7 +21,7 @@ OpenTofu's different custom conditions are best suited to various situations. Us
 1. [Validation conditions](#input-variable-validation) or [output postconditions](#preconditions-and-postconditions) can ensure your configuration's inputs and outputs meet specific requirements.
 1. Resource [preconditions and postconditions](#preconditions-and-postconditions) can validate that OpenTofu produces your configuration with predictable results.
 
-For more information on when to use certain custom conditions, see [Choosing Between Preconditions and Postconditions](#choosing-between-preconditions-and-postconditions) and [Choosing Checks or Other Custom Conditions](/docs/language/checks#choosing-checks-or-other-custom-conditions).
+For more information on when to use certain custom conditions, see [Choosing Between Preconditions and Postconditions](#choosing-between-preconditions-and-postconditions) and [Choosing Checks or Other Custom Conditions](../../language/checks/index.mdx#choosing-checks-or-other-custom-conditions).
 
 
 ## Input Variable Validation
@@ -44,7 +44,7 @@ variable "image_id" {
 }
 ```
 
-If the failure of an expression determines the validation decision, use the [`can` function](/docs/language/functions/can) as demonstrated in the following example.
+If the failure of an expression determines the validation decision, use the [`can` function](../../language/functions/can.mdx) as demonstrated in the following example.
 
 ```hcl
 variable "image_id" {
@@ -204,7 +204,7 @@ You should also consider the following questions when creating preconditions and
 
 ## Checks with Assertions
 
-[Check blocks](/docs/language/checks) can validate your infrastructure outside the usual resource lifecycle. You can add custom conditions via `assert` blocks, which execute at the end of the plan and apply stages and produce warnings to notify you of problems within your infrastructure.
+[Check blocks](../../language/checks/index.mdx) can validate your infrastructure outside the usual resource lifecycle. You can add custom conditions via `assert` blocks, which execute at the end of the plan and apply stages and produce warnings to notify you of problems within your infrastructure.
 
 You can add one or more `assert` blocks within a `check` block to verify custom conditions. Each assertion requires a [`condition` argument](#condition-expressions), a boolean expression that should return `true` if the intended assumption or guarantee is fulfilled or `false` if it does not. Your `condition` expression can refer to any resource, data source, or variable available to the surrounding `check` block.
 
@@ -244,11 +244,11 @@ Use the logical operators `&&` (AND), `||` (OR), and `!` (NOT) to combine multip
   condition = var.name != "" && lower(var.name) == var.name
 ```
 
-You can also use arithmetic operators (e.g. `a + b`), equality operators (eg., `a == b`) and comparison operators (e.g., `a < b`). Refer to [Arithmetic and Logical Operators](/docs/language/expressions/operators) for details.
+You can also use arithmetic operators (e.g. `a + b`), equality operators (eg., `a == b`) and comparison operators (e.g., `a < b`). Refer to [Arithmetic and Logical Operators](operators.mdx) for details.
 
 ### `contains` Function
 
-Use the [`contains` function](/docs/language/functions/contains) to test whether a given value is one of a set of predefined valid values.
+Use the [`contains` function](../../language/functions/contains.mdx) to test whether a given value is one of a set of predefined valid values.
 
 ```hcl
   condition = contains(["STAGE", "PROD"], var.environment)
@@ -256,7 +256,7 @@ Use the [`contains` function](/docs/language/functions/contains) to test whether
 
 ### `length` Function
 
-Use the [`length` function](/docs/language/functions/length) to test a collection's length and require a non-empty list or map.
+Use the [`length` function](../../language/functions/length.mdx) to test a collection's length and require a non-empty list or map.
 
 ```hcl
   condition = length(var.items) != 0
@@ -265,7 +265,7 @@ This is a better approach than directly comparing with another collection using 
 
 ### `for` Expressions
 
-Use [`for` expressions](/docs/language/expressions/for) in conjunction with the functions `alltrue` and `anytrue` to test whether a condition holds for all or for any elements of a collection.
+Use [`for` expressions](for.mdx) in conjunction with the functions `alltrue` and `anytrue` to test whether a condition holds for all or for any elements of a collection.
 
 ```hcl
   condition = alltrue([
@@ -275,7 +275,7 @@ Use [`for` expressions](/docs/language/expressions/for) in conjunction with the 
 
 ### `can` Function
 
-Use the [`can` function](/docs/language/functions/can) to concisely use the validity of an expression as a condition. It returns `true` if its given expression evaluates successfully and `false` if it returns any error, so you can use various other functions that typically return errors as a part of your condition expressions.
+Use the [`can` function](../../language/functions/can.mdx) to concisely use the validity of an expression as a condition. It returns `true` if its given expression evaluates successfully and `false` if it returns any error, so you can use various other functions that typically return errors as a part of your condition expressions.
 
 For example, you can use `can` with `regex` to test if a string matches a particular pattern because `regex` returns an error when given a non-matching string.
 
@@ -333,7 +333,7 @@ resource "aws_instance" "example" {
 
 ### `each` and `count` Objects
 
-In blocks where [`for_each`](/docs/language/meta-arguments/for_each) or [`count`](/docs/language/meta-arguments/count)  are set, use `each` and `count` objects to refer to other resources that are expanded in a chain.
+In blocks where [`for_each`](../../language/meta-arguments/for_each.mdx) or [`count`](../../language/meta-arguments/count.mdx)  are set, use `each` and `count` objects to refer to other resources that are expanded in a chain.
 
 ```hcl
 variable "vpc_cidrs" {
@@ -379,7 +379,7 @@ The selected AMI must be tagged with the Component value "nomad-server".
 ```
 
 The `error_message` argument can be any expression that evaluates to a string.
-This includes literal strings, heredocs, and template expressions. You can use the [`format` function](/docs/language/functions/format) to convert items of `null`, `list`, or `map` types into a formatted string. Multi-line
+This includes literal strings, heredocs, and template expressions. You can use the [`format` function](../../language/functions/format.mdx) to convert items of `null`, `list`, or `map` types into a formatted string. Multi-line
 error messages are supported, and lines with leading whitespace will not be
 word wrapped.
 

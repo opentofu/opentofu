@@ -79,7 +79,7 @@ the three arguments would typically all be paths within a temporary
 directory used just for one operation.
 
 Because these old workflows predate the introduction of the possibility of
-[multiple workspaces](/docs/language/state/workspaces), setting them
+[multiple workspaces](../../../language/state/workspaces.mdx), setting them
 overrides OpenTofu's usual behavior of selecting a different state filename
 based on the selected workspace. If you use all three of these options then
 the selected workspace has no effect on which filenames OpenTofu will select
@@ -91,7 +91,7 @@ backend type selected.
 
 We do not recommend using these options in new systems, even if you are running
 OpenTofu in automation. Instead,
-[select a different backend which supports remote state](/docs/language/settings/backends/configuration) and configure it
+[select a different backend which supports remote state](../../../language/settings/backends/configuration.mdx) and configure it
 within your root module, which ensures that everyone working on your
 configuration will automatically retrieve and store state in the correct shared
 location without any special command line options.

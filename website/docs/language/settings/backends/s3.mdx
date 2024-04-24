@@ -34,7 +34,7 @@ This assumes we have a bucket created called `mybucket`. The
 OpenTofu state is written to the key `path/to/my/key`.
 
 Note that for the access credentials we recommend using a
-[partial configuration](/docs/language/settings/backends/configuration#partial-configuration).
+[partial configuration](../../../language/settings/backends/configuration.mdx#partial-configuration).
 
 ### S3 Bucket Permissions
 
@@ -108,7 +108,7 @@ This is seen in the following AWS IAM Statement:
 ## Data Source Configuration
 
 To make use of the S3 remote state in another configuration, use the
-[`terraform_remote_state` data source](/docs/language/state/remote-state-data).
+[`terraform_remote_state` data source](../../../language/state/remote-state-data.mdx).
 
 ```hcl
 data "terraform_remote_state" "network" {
@@ -148,7 +148,7 @@ This backend requires the configuration of the AWS Region and S3 state storage. 
 ### Credentials and Shared Configuration
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration is required:
@@ -333,7 +333,7 @@ terraform {
 The following configuration is required:
 
 * `bucket` - (Required) Name of the S3 Bucket.
-* `key` - (Required) Path to the state file inside the S3 Bucket. When using a non-default [workspace](/docs/language/state/workspaces), the state path will be `/workspace_key_prefix/workspace_name/key` (see also the `workspace_key_prefix` configuration).
+* `key` - (Required) Path to the state file inside the S3 Bucket. When using a non-default [workspace](../../../language/state/workspaces.mdx), the state path will be `/workspace_key_prefix/workspace_name/key` (see also the `workspace_key_prefix` configuration).
 
 The following configuration is optional:
 
@@ -366,7 +366,7 @@ The S3 backend can be used in a number of different ways that make different
 tradeoffs between convenience, security, and isolation in such an organization.
 This section describes one such approach that aims to find a good compromise
 between these tradeoffs, allowing use of
-[OpenTofu's workspaces feature](/docs/language/state/workspaces) to switch
+[OpenTofu's workspaces feature](../../../language/state/workspaces.mdx) to switch
 conveniently between multiple isolated deployments of the same configuration.
 
 Use this section as a starting-point for your approach, but note that
@@ -474,7 +474,7 @@ provider "aws" {
 
 If workspace IAM roles are centrally managed and shared across many separate
 OpenTofu configurations, the role ARNs could also be obtained via a data
-source such as [`terraform_remote_state`](/docs/language/state/remote-state-data)
+source such as [`terraform_remote_state`](../../../language/state/remote-state-data.mdx)
 to avoid repeating these values.
 
 ### Creating and Selecting Workspaces
