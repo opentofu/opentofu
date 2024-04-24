@@ -1,16 +1,18 @@
 package tofu
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 func TestFunctions(t *testing.T) {
@@ -105,63 +107,92 @@ func TestFunctions(t *testing.T) {
 		return resp
 	}
 
-	// Initial call to getSchema
-	expectProviderInit := true
-
-	mockFactory := func() (providers.Interface, error) {
-		if !expectProviderInit {
-			return nil, fmt.Errorf("Unexpected call to provider init!")
-		}
-		expectProviderInit = false
-		return mockProvider, nil
+	mockProvider.GetFunctionsFn = func() (resp providers.GetFunctionsResponse) {
+		resp.Functions = mockProvider.GetProviderSchemaResponse.Functions
+		return resp
 	}
 
 	addr := addrs.NewDefaultProvider("mock")
-	plugins := newContextPluginsForTest(map[addrs.Provider]providers.Factory{
-		addr: mockFactory,
-	}, t)
+	rng := tfdiags.SourceRange{}
+	providerFunc := func(fn string) addrs.ProviderFunction {
+		pf, _ := addrs.ParseFunction(fn).AsProviderFunction()
+		return pf
+	}
 
-	t.Run("empty names map", func(t *testing.T) {
-		res := plugins.Functions(map[string]addrs.Provider{})
-		if len(res.ProviderNames) != 0 {
-			t.Error("did not expect any names")
-		}
-		if len(res.Functions) != 0 {
-			t.Error("did not expect any functions")
-		}
-	})
+	mockCtx := new(MockEvalContext)
+	cfg := &configs.Config{
+		Module: &configs.Module{
+			ProviderRequirements: &configs.RequiredProviders{
+				RequiredProviders: map[string]*configs.RequiredProvider{
+					"mockname": &configs.RequiredProvider{
+						Name: "mock",
+						Type: addr,
+					},
+				},
+			},
+		},
+	}
 
-	t.Run("broken names map", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Expected panic due to broken configuration")
-			}
-		}()
+	// Provider missing
+	_, diags := evalContextProviderFunction(mockCtx, cfg, walkValidate, providerFunc("provider::invalid::unknown"), rng)
+	if !diags.HasErrors() {
+		t.Fatal("expected unknown function provider")
+	}
+	if diags.Err().Error() != `Unknown function provider: Provider "invalid" does not exist within the required_providers of this module` {
+		t.Fatal(diags.Err())
+	}
 
-		res := plugins.Functions(map[string]addrs.Provider{
-			"borky": addrs.NewDefaultProvider("my_borky"),
-		})
-		if len(res.ProviderNames) != 0 {
-			t.Error("did not expect any names")
-		}
-		if len(res.Functions) != 0 {
-			t.Error("did not expect any functions")
-		}
-	})
+	// Provider not initialized
+	_, diags = evalContextProviderFunction(mockCtx, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
+	if !diags.HasErrors() {
+		t.Fatal("expected unknown function provider")
+	}
+	if diags.Err().Error() != `BUG: Uninitialized function provider: Provider "provider[\"registry.opentofu.org/hashicorp/mock\"]" has not yet been initialized` {
+		t.Fatal(diags.Err())
+	}
 
-	res := plugins.Functions(map[string]addrs.Provider{
-		"mockname": addr,
-	})
-	if res.ProviderNames["mockname"] != addr {
-		t.Errorf("expected names %q, got %q", addr, res.ProviderNames["mockname"])
+	// "initialize" provider
+	mockCtx.ProviderProvider = mockProvider
+
+	// Function missing (validate)
+	mockProvider.GetFunctionsCalled = false
+	_, diags = evalContextProviderFunction(mockCtx, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if mockProvider.GetFunctionsCalled {
+		t.Fatal("expected GetFunctions NOT to be called since it's not initialized")
+	}
+
+	// Function missing (Non-validate)
+	mockProvider.GetFunctionsCalled = false
+	_, diags = evalContextProviderFunction(mockCtx, cfg, walkPlan, providerFunc("provider::mockname::missing"), rng)
+	if !diags.HasErrors() {
+		t.Fatal("expected unknown function")
+	}
+	if diags.Err().Error() != `Function not found in provider: Function "missing" was not registered by provider "provider[\"registry.opentofu.org/hashicorp/mock\"]"` {
+		t.Fatal(diags.Err())
+	}
+	if !mockProvider.GetFunctionsCalled {
+		t.Fatal("expected GetFunctions to be called")
 	}
 
 	ctx := &hcl.EvalContext{
-		Functions: res.Functions,
+		Functions: map[string]function.Function{},
 		Variables: map[string]cty.Value{
 			"unknown_value":   cty.UnknownVal(cty.String),
 			"sensitive_value": cty.StringVal("sensitive!").Mark(marks.Sensitive),
 		},
+	}
+
+	// Load functions into ctx
+	for _, fn := range []string{"echo", "concat", "coalesce", "unknown_param", "error_param"} {
+		pf := providerFunc("provider::mockname::" + fn)
+		impl, diags := evalContextProviderFunction(mockCtx, cfg, walkPlan, pf, rng)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+		ctx.Functions[pf.String()] = *impl
 	}
 	evaluate := func(exprStr string) (cty.Value, hcl.Diagnostics) {
 		expr, diags := hclsyntax.ParseExpression([]byte(exprStr), "exprtest", hcl.InitialPos)
@@ -203,22 +234,14 @@ func TestFunctions(t *testing.T) {
 
 		// Actually test the function implementation
 
-		// Do this a few times but only expect a single init()
-		expectProviderInit = true
-		for i := 0; i < 5; i++ {
-			t.Log("Checking valid argument")
+		t.Log("Checking valid argument")
 
-			val, diags = evaluate(`provider::mockname::echo("hello functions!")`)
-			if diags.HasErrors() {
-				t.Error(diags.Error())
-			}
-			if !val.RawEquals(cty.StringVal("hello functions!")) {
-				t.Error(val.AsString())
-			}
-
-			if expectProviderInit {
-				t.Error("Expected provider init to have been called")
-			}
+		val, diags = evaluate(`provider::mockname::echo("hello functions!")`)
+		if diags.HasErrors() {
+			t.Error(diags.Error())
+		}
+		if !val.RawEquals(cty.StringVal("hello functions!")) {
+			t.Error(val.AsString())
 		}
 
 		t.Log("Checking sensitive argument")

@@ -1,0 +1,176 @@
+name: 1.7.0-beta1 feedback
+description: Provide feedback for the 1.7.0-beta1 preview release.
+labels: ["preview-release-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Thank you for testing the [1.7.0-beta1](https://github.com/opentofu/opentofu/releases/tag/v1.7.0-beta1) release.
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Provider-defined functions
+        
+        To test, you can use the [corefunc](https://library.tf/providers/northwood-labs/corefunc/latest) provider by [Ryan Parman](https://github.com/skyzyx):
+        
+        ```hcl
+        terraform {
+          required_providers {
+            corefunc = {
+              source = "northwood-labs/corefunc"
+              version = "1.4.0"
+            }
+          }
+        }
+        
+        provider "corefunc" {
+        }
+        
+        output "test" {
+          value = provider::corefunc::str_snake("Hello world!")
+          # Prints: hello_world
+        }
+        ```
+  - type: dropdown
+    attributes:
+      label: Did you test the provider-defined functions?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the provider-defined functions
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Loopable import blocks
+        
+        - [Documentation](https://1-7-0-beta1.opentofu.pages.dev/docs/language/import/#importing-multiple-resources)
+  - type: dropdown
+    attributes:
+      label: Did you test the `for_each` on the import block?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the import block
+
+  - type: markdown
+    attributes:
+      value: |
+        ## State encryption
+        
+        - [Documentation](https://1-7-0-beta1.opentofu.pages.dev/docs/language/state/encryption/)
+  - type: dropdown
+    attributes:
+      label: Did you test the state encryption?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the state encryption
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Removed block
+        
+        - [Documentation](https://1-7-0-beta1.opentofu.pages.dev/docs/language/resources/syntax/#removing-resources)
+  - type: dropdown
+    attributes:
+      label: Did you test the removed block?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the removed block
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Testing feature
+        
+        - `run{}` blocks now allow referencing previous block's module outputs.
+        - `run{}` blocks now allow referencing the output from a previous run in variables. 
+        - `tofu test` now dumps the state file if it fails to clean up test resources.
+  - type: dropdown
+    attributes:
+      label: Did you test the testing feature changes?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the testing feature changes
+
+  - type: markdown
+    attributes:
+      value: |
+        ## Built-in function changes
+        
+        - New function: [templatestring](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/templatestring/)
+        - New function: [base64gunzip](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/base64gunzip/)
+        - New function: [cidrcontains](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/cidrcontains/)
+        - New function: [urldecode](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/urldecode/)
+        - New function: [issensitive](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/issensitive/)
+        - [nonsensitive](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/nonsensitive/) no longer returns an error when the applied values are not sensitive.
+        - [templatefile](https://1-7-0-beta1.opentofu.pages.dev/docs/language/functions/templatefile/) now supports recursion up to a depth of 1024.
+  - type: dropdown
+    attributes:
+      label: Did you test the built-in functions?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the built-in functions
+
+  - type: markdown
+    attributes:
+      value: |
+        ## CLI changes
+        
+        - `tofu init` now supports the -json flag for JSON output.
+        - `tofu plan` now has a `-concise` flag to shorten the plan output.
+        - `tofu console` now works on Solaris and AIX.
+        - The CLI now supports the XDG directory specification.
+        - Aliases for `state list` &rarr; `state ls`, `state mv` &rarr; `state move`, `state rm` &rarr; `state remove`.
+  - type: dropdown
+    attributes:
+      label: Did you test the CLI changes?
+      options:
+        - Did not test
+        - Tested, worked
+        - Tested, did not work / had problems
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional feedback / details on the CLI changes
+
+  - type: textarea
+    attributes:
+      label: Would you like to add anything else?

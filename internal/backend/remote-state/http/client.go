@@ -34,6 +34,7 @@ type httpClient struct {
 
 	// HTTP
 	Client   *retryablehttp.Client
+	Headers  map[string]string
 	Username string
 	Password string
 
@@ -53,7 +54,12 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
-	// Set up basic auth
+
+	// Add user-defined headers
+	for k, v := range c.Headers {
+		req.Header.Set(k, v)
+	}
+
 	if c.Username != "" {
 		req.SetBasicAuth(c.Username, c.Password)
 	}

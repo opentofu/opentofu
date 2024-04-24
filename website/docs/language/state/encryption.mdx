@@ -15,6 +15,7 @@ import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
 import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
+import Sample from '!!raw-loader!./examples/encryption/sample.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
@@ -40,11 +41,16 @@ When you enable encryption, consider who needs access to your state file directl
 
 You will also need to decide what kind of key you would like to use based on your security requirements. You can either opt for a static passphrase or you can choose a key management system. If you opt for a key management system, it is imperative to configure automatic key rotation for some encryption methods. This is particularly crucial if the encryption algorithm you choose has the potential to reach a point of 'key saturation', where the maximum safe usage limit of the key is approached, such as AES-GCM. You can find more information about this in the [encryption methods](#encryption-methods) section below.
 
-Finally, before enabling encryption, please exercise your disaster recovery plan and make a temporary backup of your unencrypted state file. You should also have backups of your keys. Once you enable encryption, OpenTofu cannot read your state file without the correct key.
+Finally, before enabling encryption, please exercise your disaster recovery plan and make a temporary backup of your unencrypted state file. Also, make sure you have backups of your keys. Once you enable encryption, OpenTofu cannot read your state file without the correct key.
+
 
 ### Migrating from an unencrypted state/plan
 
-If you are migrating from an unencrypted state or plan file to an encrypted one, you may be surprised to find OpenTofu refusing to read your old data. This is a protection mechanism to prevent OpenTofu from reading manipulated, unencrypted data. Please see the [initial setup](#initial-setup) section below for details.
+If you have a pre-existing state file and want to enable encryption, simply enabling encryption is not enough as OpenTofu will refuse to read plain text data. This is a protection mechanism to prevent OpenTofu from reading manipulated, unencrypted data. Please see the [initial setup](#initial-setup) section below for detailed migration instructions.
+
+### Compatibility guarantee
+
+Research in cryptography can change the state of the art quickly. We will support all key providers and methods as documented for +1 minor version, but may introduce new versions of the same key providers and methods (e.g. `aes_gcm_v2`), or new key providers and methods in any minor version. If we deprecate a key provider or method, you will receive a warning on the console when running `tofu plan` or `tofu apply`. If you receive such a warning, please switch before upgrading to the next version.
 
 ## Configuration
 
@@ -66,8 +72,7 @@ The basic configuration structure looks as follows:
 
 :::warning
 
-Once your data is encrypted, you should not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead you should use a [fallback block](#key-and-method-rollover) to handled changes to key providers.
-
+Once your data is encrypted, do not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead, use a [fallback block](#key-and-method-rollover) to handle changes to key providers.
 
 :::
 
@@ -84,6 +89,52 @@ If you use environment configuration, you can include the following code configu
 <CodeBlock language="hcl">{Enforce}</CodeBlock>
 
 :::
+
+## Key and method rollover
+
+In some cases, you may want to change your encryption configuration. This can include renaming a key provider or method, changing a passphrase for a key provider, or switching key-management systems. OpenTofu supports an automatic rollover of your encryption configuration if you provide your old configuration in a `fallback` block:
+
+<CodeBlock language="hcl">{Fallback}</CodeBlock>
+
+If OpenTofu fails to **read** your state or plan file with the new method, it will automatically try the fallback method. When OpenTofu **saves** your state or plan file, it will always use the new method and not the fallback.
+
+## Initial setup
+
+### New project
+
+If you are setting up a new project and do not yet have a state file, this sample configuration will get you started with passphrase-based encryption:
+
+<CodeBlock language="hcl">{Sample}</CodeBlock>
+
+### Pre-existing project
+
+When you first configure encryption on an existing project, your state and plan files are unencrypted. OpenTofu, by default, refuses to read them because they could have been manipulated. To enable reading unencrypted data, you have to specify an `unencrypted` method:
+
+<CodeBlock language="hcl">{FallbackFromUnencrypted}</CodeBlock>
+
+## Rolling back encryption
+
+Similar to the initial setup above, migrating to unencrypted state and plan files is also possible by using the `unencrypted` method as follows:
+
+<CodeBlock language="hcl">{FallbackToUnencrypted}</CodeBlock>
+
+:::warning
+
+Do not remove or modify the original encryption method until you have finished the migration.
+
+:::
+
+## Remote state data sources
+
+You can also configure an encryption setup for projects using the `terraform_remote_state` data source. This can be the same encryption setup as your main configuration, but you can also define a separate set of keys and methods. The configuration syntax is as follows:
+
+<CodeBlock language="hcl">{RemoteState}</CodeBlock>
+
+For specific remote states, you can use the following syntax:
+
+- `myname` to target a data source in the main project with the given name.
+- `mymodule.myname` to target a data source in the specified module with the given name.
+- `mymodule.myname[0]` to target the first data source in the specified module with the given name.
 
 ## Key providers
 
@@ -118,32 +169,45 @@ The following example illustrates a minimal configuration:
 
 This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](/docs/language/settings/backends/gcs/) excluding any deprecated options. In addition, please provide the following options:
 
-| Option                          | Description                                                                                                                                                  | Min. | Default |
-|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
-| kms_encryption_key *(required)* | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console).                                             | N/A  | -       |
-| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                                             | 1    | -       |
+| Option                                | Description                                                                                                      | Min. | Default |
+|---------------------------------------|------------------------------------------------------------------------------------------------------------------|------|---------|
+| kms_encryption_key *(required)*       | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console). | N/A  | -       |
+| key_length *(required)*               | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                 | 1    | -       |
 
 The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
 
-### OpenBao
+### OpenBao (experimental)
 
 This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/docs/secrets/transit) to generate data keys. You can configure it as follows:
 
-| Option                | Description                                                                                                                                                                              | Min. | Default                |
-|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------|
-| key_name *(required)* | Name of the transit encryption key to use to encrypt/decrypt the datakey. It should be [pre-configured](https://openbao.org/docs/secrets/transit/#setup) in OpenBao server. | N/A  | -                      |
-| token                 | [Authorization Token](https://openbao.org/docs/concepts/tokens/) to use when accessing OpenBao API. Available as `BAO_TOKEN` environment variable.                           | N/A  | -                      |
-| address               | OpenBao server address to access the API. Available as `BAO_ADDR` environment variable.                                                                                                  | N/A  | https://127.0.0.1:8200 |
-| transit_engine_path   | Path at whick Transit Secret Engine enabled in OpenBao.                                                                                                                                  | N/A  | /transit               |
-| key_length            | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                                    | 16   | 32                     |
+| Option                | Description                                                                                                                                                                 | Min. | Default                |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------|
+| key_name *(required)* | Name of the transit encryption key to use to encrypt/decrypt the datakey. [Pre-configure](https://openbao.org/docs/secrets/transit/#setup) it in your in OpenBao server.    | N/A  | -                      |
+| token                 | [Authorization Token](https://openbao.org/docs/concepts/tokens/) to use when accessing OpenBao API. OpenTofu can read it from the `BAO_TOKEN` environment variable as well. | N/A  | -                      |
+| address               | OpenBao server address to access the API. OpenTofu can read it from the `BAO_ADDR` environment variable as well. Your system must trust the TLS certificate of the server.  | N/A  | https://127.0.0.1:8200 |
+| transit_engine_path   | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit               |
+| key_length            | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                     |
 
-The following example illustrates possible configuration:
+The following example illustrates a possible configuration:
 
 <CodeBlock language="hcl">{OpenBao}</CodeBlock>
 
+:::warning
+
+The OpenBao key provider is currently experimental because there was no stable release of OpenBao available at the time the OpenTofu release was made.
+
+:::
+
+:::info
+
+The OpenBao key provider is compatible with the last MPL-licensed version of HashiCorp Vault (1.14) but does not support the subsequent BUSL-licensed versions.
+
+:::
+
 ## Methods
+
 
 ### AES-GCM
 
@@ -165,36 +229,6 @@ AES-GCM is a secure, industry-standard encryption algorithm, but suffers from "k
 
 ### Unencrypted
 
-The `unencrypted` method is used to provide an explicit migration path to and from encryption.  It takes no configuration and can be see in use below in the [Initial Setup](#initial-setup) block.
+The `unencrypted` method is used to provide an explicit migration path to and from encryption.  It takes no configuration and can be seen in use above in the [Initial Setup](#initial-setup) block.
 
-## Key and method rollover
 
-In some cases, you may want to change your encryption configuration. This can include renaming a key provider or method, changing a passphrase for a key provider, or switching key-management systems. OpenTofu supports an automatic rollover of your encryption configuration if you provide your old configuration in a `fallback` block:
-
-<CodeBlock language="hcl">{Fallback}</CodeBlock>
-
-If OpenTofu fails to **read** your state or plan file with the new method, it will automatically try the fallback method. When OpenTofu **saves** your state or plan file, it will always use the new method and not the fallback.
-
-## Initial setup
-
-When you first configure encryption, your state and plan files are unencrypted. OpenTofu, by default, refuses to read them because they could have been manipulated. To enable reading unencrypted data, you will have to specify an `unencrypted` method:
-
-<CodeBlock language="hcl">{FallbackFromUnencrypted}</CodeBlock>
-
-## Rolling back encryption
-
-Similar to the initial setup above, migrating to unencrypted state and plan files is also possible in a similar manner. You simply have to specify an `unencrypted` method in the target block as follows:
-
-<CodeBlock language="hcl">{FallbackToUnencrypted}</CodeBlock>
-
-## Remote state data sources
-
-You can also configure an encryption setup for projects using the `terraform_remote_state` data source. This can be the same encryption setup as your main configuration, but you can also define a separate set of keys and methods. The configuration syntax looks as follows:
-
-<CodeBlock language="hcl">{RemoteState}</CodeBlock>
-
-For specific remote states, you can use the following syntax:
-
-- `myname` to target a data source in the main project with the given name.
-- `mymodule.myname` to target a data source in the specified module with the given name.
-- `mymodule.myname[0]` to target the first data source in the specified module with the given name.
