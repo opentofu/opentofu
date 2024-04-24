@@ -38,7 +38,7 @@ import {
 
 The import block's `to` argument points to the address a `resource` will have in your state file. If a resource address in your state matches an `import` block's `to` argument, OpenTofu attempts to import into that resource. In future planning, OpenTofu knows it doesn't need to generate configuration for resources that already exist in your state.
 
-The import block's `id` argument uses that resource's [import ID](../../language/import.mdx#import-id).
+The import block's `id` argument uses that resource's [import ID](../../language/import/index.mdx#import-id).
 
 If your configuration does not contain other resources for your selected provider, you must add a `provider` block to inform OpenTofu which provider it should use to generate configuration. Otherwise, OpenTofu displays an error if it can not determine which provider to use.
 If you add a new `provider` block to your configuration, you must run `tofu init` again.

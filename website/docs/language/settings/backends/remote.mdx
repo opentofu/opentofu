@@ -8,7 +8,7 @@ description: >-
 # Backend Type: remote
 
 :::note
-**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings/index.mdx)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of this backend. The `cloud` option includes an improved user experience and more features.
 :::
 
 The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TF Automation and Collaboration Software (TACOS) backends. It used to be called an "enhanced" backend.
@@ -83,7 +83,7 @@ Because of this, the [`terraform.workspace`](../../../language/state/workspaces.
 :::note
 We recommend omitting the token from the configuration, and instead using
 [`tofu login`](../../../cli/commands/login.mdx) or manually configuring
-`credentials` in the [CLI config file](../../../cli/config/config-file/index.mdx#credentials).
+`credentials` in the [CLI config file](../../../cli/config/config-file.mdx#credentials).
 :::
 
 ### Basic Configuration
@@ -171,7 +171,7 @@ The following configuration options are supported:
   We recommend omitting the token from the configuration, and instead using
   [`tofu login`](../../../cli/commands/login.mdx) or manually configuring
   `credentials` in the
-  [CLI config file](../../../cli/config/config-file/index.mdx#credentials).
+  [CLI config file](../../../cli/config/config-file.mdx#credentials).
 - `workspaces` - (Required) A block specifying which remote workspace(s) to use.
   The `workspaces` block supports the following keys:
 

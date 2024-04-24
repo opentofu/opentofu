@@ -17,21 +17,21 @@ module. That module may [call other modules](../../../language/modules/syntax.md
 and connect them together by passing output values from one to input values
 of another.
 
-To learn how to _use_ modules, see [the Modules configuration section](../../../language/modules.mdx).
+To learn how to _use_ modules, see [the Modules configuration section](../../../language/modules/index.mdx).
 This section is about _creating_ re-usable modules that other configurations
 can include using `module` blocks.
 
 ## Module structure
 
 Re-usable modules are defined using all of the same
-[configuration language](../../../language.mdx) concepts we use in root modules.
+[configuration language](../../../language/index.mdx) concepts we use in root modules.
 Most commonly, modules use:
 
 * [Input variables](../../../language/values/variables.mdx) to accept values from
   the calling module.
 * [Output values](../../../language/values/outputs.mdx) to return results to the
   calling module, which it can then use to populate arguments elsewhere.
-* [Resources](../../../language/resources.mdx) to define one or more
+* [Resources](../../../language/resources/index.mdx) to define one or more
   infrastructure objects that the module will manage.
 
 To define a module, create a new directory for it and place one or more `.tf`

@@ -30,14 +30,14 @@ You can use multiple workspaces with the following backends:
 ## Using Workspaces
 
 :::warning Important
-Workspaces are not appropriate for system decomposition or deployments requiring separate credentials and access controls. Refer to [Use Cases](../../cli/workspaces.mdx#use-cases) in the OpenTofu CLI documentation for details and recommended alternatives.
+Workspaces are not appropriate for system decomposition or deployments requiring separate credentials and access controls. Refer to [Use Cases](../../cli/workspaces/index.mdx#use-cases) in the OpenTofu CLI documentation for details and recommended alternatives.
 :::
 
 OpenTofu starts with a single, default workspace named `default` that you cannot delete. If you have not created a new workspace, you are using the default workspace in your OpenTofu working directory.
 
 When you run `tofu plan` in a new workspace, OpenTofu does not access existing resources in other workspaces. These resources still physically exist, but you must switch workspaces to manage them.
 
-Refer to the [OpenTofu CLI workspaces](../../cli/workspaces.mdx) documentation for full details about how to create and use workspaces.
+Refer to the [OpenTofu CLI workspaces](../../cli/workspaces/index.mdx) documentation for full details about how to create and use workspaces.
 
 
 ## Current Workspace Interpolation

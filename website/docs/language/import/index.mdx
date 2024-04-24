@@ -135,7 +135,7 @@ import {
 
 ### Importing multiple resources
 
-You can import multiple resources with one import block by using a `for_each` expression. This expression accepts [a set, a tuple or a map](../../language/expressions/types/.mdx) and provides the `each.key` and `each.value` variables to access the individual elements.
+You can import multiple resources with one import block by using a `for_each` expression. This expression accepts [a set, a tuple or a map](../../language/expressions/types.mdx) and provides the `each.key` and `each.value` variables to access the individual elements.
 
 In the example below, you can specify a list of server IDs to be imported. If you specify an empty list, the `random_id` resource will generate all IDs randomly. If you specify some IDs, the import block will import the specified IDs and the resource will randomly generate the rest. Note, the `random_id` resource requires the IDs to be in base64 format.
 
@@ -164,6 +164,6 @@ output "id" {
 
 :::note
 
-[Generating configuration](../../language/import/generating-configuration/.mdx) is currently not possible when using `for_each` on `import blocks.
+[Generating configuration](../../language/import/generating-configuration.mdx) is currently not possible when using `for_each` on `import blocks.
 
 :::

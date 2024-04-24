@@ -121,7 +121,7 @@ value to pass to  `for_each` with `toset([for k,v in local.map : k])`.
 
 ## Using Expressions in `for_each`
 
-The `for_each` meta-argument accepts map or set [expressions](../../language/expressions.mdx).
+The `for_each` meta-argument accepts map or set [expressions](../../language/expressions/index.mdx).
 However, unlike most arguments, the `for_each` value must be known
 _before_ OpenTofu performs any remote resource actions. This means `for_each`
 can't refer to any resource attributes that aren't known until after a

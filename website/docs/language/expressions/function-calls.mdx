@@ -7,7 +7,7 @@ description: >-
 # Function Calls
 
 The OpenTofu language has a number of
-[built-in functions](../../language/functions.mdx) that can be used
+[built-in functions](../../language/functions/index.mdx) that can be used
 in expressions to transform and combine values. These
 are similar to the operators but all follow a common syntax:
 
@@ -32,7 +32,7 @@ A function call expression evaluates to the function's return value.
 ## Available Functions
 
 For a full list of available functions, see
-[the function reference](../../language/functions.mdx).
+[the function reference](../../language/functions/index.mdx).
 
 ## Expanding Function Arguments
 
@@ -101,7 +101,7 @@ both cause the final configuration during the apply step not to match the
 actions shown in the plan, which violates the OpenTofu execution model.
 
 For that reason, OpenTofu arranges for both of those functions to produce
-[unknown value](references/index.mdx#values-not-yet-known) results during the
+[unknown value](references.mdx#values-not-yet-known) results during the
 plan step, with the real result being decided only during the apply step.
 For `timestamp` in particular, this means that the recorded time will be
 the instant when OpenTofu began applying the change, rather than when
