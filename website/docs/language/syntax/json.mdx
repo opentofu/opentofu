@@ -111,16 +111,14 @@ Since JSON grammar is not able to represent all of the OpenTofu language
 [expression syntax](../../language/expressions/index.mdx), JSON values interpreted as expressions
 are mapped as follows:
 
-| JSON    | OpenTofu Language Interpretation                                                                             |
-| ------- | ------------------------------------------------------------------------------------------------------------- |
-| Boolean | A literal `bool` value.                                                                                       |
-| Number  | A literal `number` value.                                                                                     |
-| String  | Parsed as a [string template][] and then evaluated as described below.                                        |
-| Object  | Each property value is mapped per this table, producing an `object(...)` value with suitable attribute types. |
-| Array   | Each element is mapped per this table, producing a `tuple(...)` value with suitable element types.            |
-| Null    | A literal `null`.                                                                                             |
-
-[string template]: /docs/language/expressions/strings#string-templates
+| JSON    | OpenTofu Language Interpretation                                                                                  |
+|---------|-------------------------------------------------------------------------------------------------------------------|
+| Boolean | A literal `bool` value.                                                                                           |
+| Number  | A literal `number` value.                                                                                         |
+| String  | Parsed as a [string template](../expressions/strings.mdx#string-templates) and then evaluated as described below. |
+| Object  | Each property value is mapped per this table, producing an `object(...)` value with suitable attribute types.     |
+| Array   | Each element is mapped per this table, producing a `tuple(...)` value with suitable element types.                |
+| Null    | A literal `null`.                                                                                                 |
 
 When a JSON string is encountered in a location where arbitrary expressions are
 expected, its value is first parsed as a [string template][]
