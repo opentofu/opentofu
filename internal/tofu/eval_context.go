@@ -131,7 +131,7 @@ type EvalContext interface {
 
 	// EvaluateImportAddress takes the raw reference expression of the import address
 	// from the config, and returns the evaluated address addrs.AbsResourceInstance
-	EvaluateImportAddress(expr hcl.Expression) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
+	EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
 
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.

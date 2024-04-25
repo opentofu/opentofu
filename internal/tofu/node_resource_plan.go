@@ -156,7 +156,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportBlock() {
-			err := importResolver.ResolveImport(importTarget, ctx)
+			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
 			diags = diags.Append(err)
 		}
 	}

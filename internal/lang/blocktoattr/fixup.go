@@ -249,6 +249,16 @@ func (e *fixupBlocksExpr) Variables() []hcl.Traversal {
 	return ret
 }
 
+func (e *fixupBlocksExpr) Functions() []hcl.Traversal {
+	var ret []hcl.Traversal
+	schema := SchemaForCtyElementType(e.ety)
+	spec := schema.DecoderSpec()
+	for _, block := range e.blocks {
+		ret = append(ret, hcldec.Functions(block.Body, spec)...)
+	}
+	return ret
+}
+
 func (e *fixupBlocksExpr) Range() hcl.Range {
 	// This is not really an appropriate range for the expression but it's
 	// the best we can do from here.

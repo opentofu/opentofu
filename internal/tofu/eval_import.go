@@ -9,13 +9,14 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, tfdiags.Diagnostics) {
+func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
@@ -27,7 +28,8 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 		})
 	}
 
-	importIdVal, evalDiags := ctx.EvaluateExpr(expr, cty.String, nil)
+	// evaluate the import ID and take into consideration the for_each key (if exists)
+	importIdVal, evalDiags := evaluateExprWithRepetitionData(ctx, expr, cty.String, keyData)
 	diags = diags.Append(evalDiags)
 
 	if importIdVal.IsNull() {
@@ -72,4 +74,13 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext) (string, t
 	}
 
 	return importId, diags
+}
+
+// evaluateExprWithRepetitionData takes the given HCL expression and evaluates
+// it to produce a value, while taking into consideration any repetition key
+// (a single combination of each.key and each.value of a for_each argument)
+// that should be a part of the scope.
+func evaluateExprWithRepetitionData(ctx EvalContext, expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+	scope := ctx.EvaluationScope(nil, nil, keyData)
+	return scope.EvalExpr(expr, wantType)
 }

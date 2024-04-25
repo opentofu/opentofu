@@ -32,8 +32,11 @@ func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Confi
 		&ProviderTransformer{
 			Config: config,
 		},
+		// The following comment shows what must be added to the transformer list after the schema transformer
+		// After schema transformer, we can add function references
+		//  &ProviderFunctionTransformer{Config: config},
 		// Remove unused providers and proxies
-		&PruneProviderTransformer{},
+		//  &PruneProviderTransformer{},
 	)
 }
 
@@ -180,6 +183,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			}
 
 			if target != nil {
+				// Providers with configuration will already exist within the graph and can be directly referenced
 				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
 			}
 
@@ -245,6 +249,130 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	return diags.Err()
 }
 
+// ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
+// within the graph. This will error if there are any provider functions that don't map to known providers.
+type ProviderFunctionTransformer struct {
+	Config *configs.Config
+}
+
+func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
+	var diags tfdiags.Diagnostics
+
+	if t.Config == nil {
+		// This is probably a test case, inherited from ProviderTransformer
+		log.Printf("[WARN] Skipping provider function transformer due to missing config")
+		return nil
+	}
+
+	// Locate all providers in the graph
+	providers := providerVertexMap(g)
+
+	type providerReference struct {
+		path  string
+		name  string
+		alias string
+	}
+	// LuT of provider reference -> provider vertex
+	providerReferences := make(map[providerReference]dag.Vertex)
+
+	for _, v := range g.Vertices() {
+		// Provider function references
+		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
+			for _, ref := range nr.References() {
+				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
+					key := providerReference{
+						path:  nr.ModulePath().String(),
+						name:  pf.ProviderName,
+						alias: pf.ProviderAlias,
+					}
+
+					// We already know about this provider and can link directly
+					if provider, ok := providerReferences[key]; ok {
+						// Is it worth skipping if we have already connected this provider?
+						g.Connect(dag.BasicEdge(v, provider))
+						continue
+					}
+
+					// Find the config that this node belongs to
+					mc := t.Config.Descendent(nr.ModulePath())
+					if mc == nil {
+						// I don't think this is possible
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown Descendent Module",
+							Detail:   nr.ModulePath().String(),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
+					// Find the provider type from required_providers
+					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
+					if !ok {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown function provider",
+							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
+					// Build fully qualified provider address
+					absPc := addrs.AbsProviderConfig{
+						Provider: pr.Type,
+						Module:   nr.ModulePath(),
+						Alias:    pf.ProviderAlias,
+					}
+
+					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
+
+					// Lookup provider via full address
+					provider := providers[absPc.String()]
+
+					if provider != nil {
+						// Providers with configuration will already exist within the graph and can be directly referenced
+						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
+					} else {
+						// If this provider doesn't need to be configured then we can just
+						// stub it out with an init-only provider node, which will just
+						// start up the provider and fetch its schema.
+						stubAddr := addrs.AbsProviderConfig{
+							Module:   addrs.RootModule,
+							Provider: absPc.Provider,
+						}
+						if provider, ok = providers[stubAddr.String()]; !ok {
+							stub := &NodeEvalableProvider{
+								&NodeAbstractProvider{
+									Addr: stubAddr,
+								},
+							}
+							providers[stubAddr.String()] = stub
+							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+							provider = stub
+							g.Add(provider)
+						}
+					}
+
+					// see if this is a proxy provider pointing to another concrete config
+					if p, ok := provider.(*graphNodeProxyProvider); ok {
+						g.Remove(p)
+						provider = p.Target()
+					}
+
+					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
+					g.Connect(dag.BasicEdge(v, provider))
+
+					// Save for future lookups
+					providerReferences[key] = provider
+				}
+			}
+		}
+	}
+
+	return diags.Err()
+}
+
 // CloseProviderTransformer is a GraphTransformer that adds nodes to the
 // graph that will close open provider connections that aren't needed anymore.
 // A provider connection is not needed anymore once all depended resources
@@ -278,6 +406,8 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 		// connect all the provider's resources to the close node
 		for _, s := range g.UpEdges(p) {
 			if _, ok := s.(GraphNodeProviderConsumer); ok {
+				g.Connect(dag.BasicEdge(closer, s))
+			} else if _, ok := s.(GraphNodeReferencer); ok {
 				g.Connect(dag.BasicEdge(closer, s))
 			}
 		}

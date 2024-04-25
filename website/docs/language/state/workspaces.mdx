@@ -6,7 +6,7 @@ description: >-
 
 # Workspaces
 
-Each OpenTofu configuration has an associated [backend](/docs/language/settings/backends/configuration) that defines how OpenTofu executes operations and where OpenTofu stores persistent data, like [state](/docs/language/state/purpose).
+Each OpenTofu configuration has an associated [backend](../../language/settings/backends/configuration.mdx) that defines how OpenTofu executes operations and where OpenTofu stores persistent data, like [state](../../language/state/purpose.mdx).
 
 The persistent data stored in the backend belongs to a workspace. The backend initially has only one workspace containing one OpenTofu state associated with that configuration. Some backends support multiple named workspaces, allowing multiple states to be associated with a single configuration. The configuration still has only one backend, but you can deploy multiple distinct instances of that configuration without configuring a new backend or changing authentication
 credentials.
@@ -15,29 +15,29 @@ credentials.
 
 You can use multiple workspaces with the following backends:
 
-- [AzureRM](/docs/language/settings/backends/azurerm)
-- [Consul](/docs/language/settings/backends/consul)
-- [COS](/docs/language/settings/backends/cos)
-- [GCS](/docs/language/settings/backends/gcs)
-- [Kubernetes](/docs/language/settings/backends/kubernetes)
-- [Local](/docs/language/settings/backends/local)
-- [OSS](/docs/language/settings/backends/oss)
-- [Postgres](/docs/language/settings/backends/pg)
-- [Remote](/docs/language/settings/backends/remote)
-- [S3](/docs/language/settings/backends/s3)
+- [AzureRM](../../language/settings/backends/azurerm.mdx)
+- [Consul](../../language/settings/backends/consul.mdx)
+- [COS](../../language/settings/backends/cos.mdx)
+- [GCS](../../language/settings/backends/gcs.mdx)
+- [Kubernetes](../../language/settings/backends/kubernetes.mdx)
+- [Local](../../language/settings/backends/local.mdx)
+- [OSS](../../language/settings/backends/oss.mdx)
+- [Postgres](../../language/settings/backends/pg.mdx)
+- [Remote](../../language/settings/backends/remote.mdx)
+- [S3](../../language/settings/backends/s3.mdx)
 
 
 ## Using Workspaces
 
 :::warning Important
-Workspaces are not appropriate for system decomposition or deployments requiring separate credentials and access controls. Refer to [Use Cases](/docs/cli/workspaces#use-cases) in the OpenTofu CLI documentation for details and recommended alternatives.
+Workspaces are not appropriate for system decomposition or deployments requiring separate credentials and access controls. Refer to [Use Cases](../../cli/workspaces/index.mdx#use-cases) in the OpenTofu CLI documentation for details and recommended alternatives.
 :::
 
 OpenTofu starts with a single, default workspace named `default` that you cannot delete. If you have not created a new workspace, you are using the default workspace in your OpenTofu working directory.
 
 When you run `tofu plan` in a new workspace, OpenTofu does not access existing resources in other workspaces. These resources still physically exist, but you must switch workspaces to manage them.
 
-Refer to the [OpenTofu CLI workspaces](/docs/cli/workspaces) documentation for full details about how to create and use workspaces.
+Refer to the [OpenTofu CLI workspaces](../../cli/workspaces/index.mdx) documentation for full details about how to create and use workspaces.
 
 
 ## Current Workspace Interpolation

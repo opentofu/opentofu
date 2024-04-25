@@ -31,6 +31,30 @@ func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
 	return g
 }
 
+// This variant exists purely for testing and can not currently include the ProviderFunctionTransformer
+func testTransformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {
+	return GraphTransformMulti(
+		// Add providers from the config
+		&ProviderConfigTransformer{
+			Config:   config,
+			Concrete: concrete,
+		},
+		// Add any remaining missing providers
+		&MissingProviderTransformer{
+			Config:   config,
+			Concrete: concrete,
+		},
+		// Connect the providers
+		&ProviderTransformer{
+			Config: config,
+		},
+		// After schema transformer, we can add function references
+		//  &ProviderFunctionTransformer{Config: config},
+		// Remove unused providers and proxies
+		&PruneProviderTransformer{},
+	)
+}
+
 func TestProviderTransformer(t *testing.T) {
 	mod := testModule(t, "transform-provider-basic")
 
@@ -181,7 +205,7 @@ func TestMissingProviderTransformer_grandchildMissing(t *testing.T) {
 
 	g := testProviderTransformerGraph(t, mod)
 	{
-		transform := transformProviders(concrete, mod)
+		transform := testTransformProviders(concrete, mod)
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -246,7 +270,7 @@ func TestProviderConfigTransformer_parentProviders(t *testing.T) {
 
 	g := testProviderTransformerGraph(t, mod)
 	{
-		tf := transformProviders(concrete, mod)
+		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -266,7 +290,7 @@ func TestProviderConfigTransformer_grandparentProviders(t *testing.T) {
 
 	g := testProviderTransformerGraph(t, mod)
 	{
-		tf := transformProviders(concrete, mod)
+		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -300,7 +324,7 @@ resource "test_object" "a" {
 
 	g := testProviderTransformerGraph(t, mod)
 	{
-		tf := transformProviders(concrete, mod)
+		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -378,7 +402,7 @@ resource "test_object" "a" {
 
 	g := testProviderTransformerGraph(t, mod)
 	{
-		tf := transformProviders(concrete, mod)
+		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}

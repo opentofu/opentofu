@@ -4533,6 +4533,191 @@ import {
 	}
 }
 
+func TestContext2Plan_importForEach(t *testing.T) {
+	type ImportResult struct {
+		ResolvedAddress string
+		ResolvedId      string
+	}
+	type TestConfiguration struct {
+		Description         string
+		ImportResults       []ImportResult
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description:   "valid map",
+			ImportResults: []ImportResult{{ResolvedAddress: `test_object.a["key1"]`, ResolvedId: "val1"}, {ResolvedAddress: `test_object.a["key2"]`, ResolvedId: "val2"}, {ResolvedAddress: `test_object.a["key3"]`, ResolvedId: "val3"}},
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  map = {
+    "key1" = "val1"
+    "key2" = "val2"
+    "key3" = "val3"
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "valid set",
+			ImportResults: []ImportResult{{ResolvedAddress: `test_object.a["val0"]`, ResolvedId: "val0"}, {ResolvedAddress: `test_object.a["val1"]`, ResolvedId: "val1"}, {ResolvedAddress: `test_object.a["val2"]`, ResolvedId: "val2"}},
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "set" {
+	type = set(string)
+	default = ["val0", "val1", "val2"]
+}
+
+resource "test_object" "a" {
+  for_each = var.set
+}
+
+import {
+  for_each = var.set
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "valid tuple",
+			ImportResults: []ImportResult{{ResolvedAddress: `module.mod[0].test_object.a["resKey1"]`, ResolvedId: "val1"}, {ResolvedAddress: `module.mod[0].test_object.a["resKey2"]`, ResolvedId: "val2"}, {ResolvedAddress: `module.mod[1].test_object.a["resKey1"]`, ResolvedId: "val3"}, {ResolvedAddress: `module.mod[1].test_object.a["resKey2"]`, ResolvedId: "val4"}},
+			inlineConfiguration: map[string]string{
+				"mod/main.tf": `
+variable "set" {
+	type = set(string)
+	default = ["resKey1", "resKey2"]
+}
+
+resource "test_object" "a" {
+  for_each = var.set
+}
+`,
+				"main.tf": `
+locals {
+  tuple = [
+    {
+      moduleKey = 0
+      resourceKey = "resKey1"
+      id = "val1"
+    },
+    {
+      moduleKey = 0
+      resourceKey = "resKey2"
+      id = "val2"
+    },
+    {
+      moduleKey = 1
+      resourceKey = "resKey1"
+      id = "val3"
+    },
+    {
+      moduleKey = 1
+      resourceKey = "resKey2"
+      id = "val4"
+    },
+  ]
+}
+
+module "mod" {
+  count = 2
+  source = "./mod"
+}
+
+import {
+  for_each = local.tuple
+  id = each.value.id
+  to = module.mod[each.value.moduleKey].test_object.a[each.value.resourceKey]
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+			p := simpleMockProvider()
+
+			hook := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{hook},
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{}),
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State:    cty.ObjectVal(map[string]cty.Value{}),
+					},
+				},
+			}
+
+			plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+
+			if len(plan.Changes.Resources) != len(configuration.ImportResults) {
+				t.Fatalf("excpected %d resource chnages in the plan, got %d instead", len(configuration.ImportResults), len(plan.Changes.Resources))
+			}
+
+			for _, importResult := range configuration.ImportResults {
+				addr := mustResourceInstanceAddr(importResult.ResolvedAddress)
+
+				t.Run(addr.String(), func(t *testing.T) {
+					instPlan := plan.Changes.ResourceInstance(addr)
+					if instPlan == nil {
+						t.Fatalf("no plan for %s at all", addr)
+					}
+
+					if got, want := instPlan.Addr, addr; !got.Equal(want) {
+						t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+					}
+					if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
+						t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+					}
+					if got, want := instPlan.Action, plans.NoOp; got != want {
+						t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+					}
+					if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+						t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+					}
+					if instPlan.Importing.ID != importResult.ResolvedId {
+						t.Errorf("expected import change from \"%s\", got non-import change", importResult.ResolvedId)
+					}
+
+					if !hook.PrePlanImportCalled {
+						t.Fatalf("PostPlanImport hook not called")
+					}
+
+					if !hook.PostPlanImportCalled {
+						t.Fatalf("PostPlanImport hook not called")
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestContext2Plan_importToInvalidDynamicAddress(t *testing.T) {
 	type TestConfiguration struct {
 		Description         string

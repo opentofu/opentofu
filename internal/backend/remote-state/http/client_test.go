@@ -46,6 +46,34 @@ func TestHTTPClient(t *testing.T) {
 	}
 	remote.TestClient(t, p)
 
+	// Test headers
+	c := retryablehttp.NewClient()
+	c.RequestLogHook = func(_ retryablehttp.Logger, req *http.Request, _ int) {
+		// Test user defined header is part of the request
+		v := req.Header.Get("user-defined")
+		if v != "test" {
+			t.Fatalf("Expected header \"user-defined\" with value \"test\", got \"%s\"", v)
+		}
+
+		// Test the content-type header was not overridden
+		v = req.Header.Get("content-type")
+		if req.Method == "PUT" && v != "application/json" {
+			t.Fatalf("Expected header \"content-type\" with value \"application/json\", got \"%s\"", v)
+		}
+	}
+
+	p = &httpClient{
+		URL:          url,
+		UpdateMethod: "PUT",
+		Headers: map[string]string{
+			"user-defined": "test",
+			"content-type": "application/xml",
+		},
+		Client: c,
+	}
+
+	remote.TestClient(t, p)
+
 	// Test locking and alternative UpdateMethod
 	a := &httpClient{
 		URL:          url,

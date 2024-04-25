@@ -682,6 +682,26 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
+func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
+	logger.Trace("GRPCProvider6: GetFunctions")
+
+	protoReq := &proto6.GetFunctions_Request{}
+
+	protoResp, err := p.client.GetFunctions(p.ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	resp.Functions = make(map[string]providers.FunctionSpec)
+
+	for name, fn := range protoResp.Functions {
+		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
+	}
+
+	return resp
+}
+
 func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
 	logger.Trace("GRPCProvider6: CallFunction")
 
@@ -694,9 +714,18 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 
 	spec, ok := schema.Functions[r.Name]
 	if !ok {
-		// This should be unreachable
-		resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s not defined in provider schema", r.Name)
-		return resp
+		funcs := p.GetFunctions()
+		if funcs.Diagnostics.HasErrors() {
+			// This should be unreachable
+			resp.Error = funcs.Diagnostics.Err()
+			return resp
+		}
+		spec, ok = funcs.Functions[r.Name]
+		if !ok {
+			// This should be unreachable
+			resp.Error = fmt.Errorf("invalid CallFunctionRequest: function %s not defined in provider schema", r.Name)
+			return resp
+		}
 	}
 
 	protoReq := &proto6.CallFunction_Request{
