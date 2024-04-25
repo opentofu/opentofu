@@ -327,7 +327,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 		}
 	})
 
-	t.Run("with test provider config", func(t *testing.T) {
+	t.Run("valid with test provider config", func(t *testing.T) {
 		config := &configs.Provider{
 			Name: "test",
 			Config: &configs.TestProviderConfig{
@@ -347,7 +347,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		diags := node.ValidateProvider(ctx, provider)
 		if diags.HasErrors() {
-			t.Errorf("unexpected error with empty config: %s", diags.Err())
+			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
 	})
 }
