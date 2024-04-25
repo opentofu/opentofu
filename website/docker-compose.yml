@@ -1,3 +1,8 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 version: '3.8'
 services:
   website:
@@ -5,4 +10,4 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ../:/work/opentofu-repo
+      - ../:/work/opentofu-repo/main
