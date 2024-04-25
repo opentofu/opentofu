@@ -28,6 +28,20 @@ For configurations using
 `tofu console` accepts the legacy command line option
 [`-state`](../../language/settings/backends/local.mdx#command-line-arguments).
 
+This command also accepts the following options for tofu console:
+
+- `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](/docs/language/values/variables) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](#input-variables-on-the-command-line) for more information.
+
+- `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](/docs/language/values/variables) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](/docs/language/values/variables#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
 ## Scripting
 
 The `tofu console` command can be used in non-interactive scripts
