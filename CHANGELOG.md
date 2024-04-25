@@ -7,6 +7,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 
 BUG FIXES:
+* Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))
 
 ## Previous Releases
 
