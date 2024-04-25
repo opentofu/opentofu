@@ -15,8 +15,8 @@ configuration (like endpoint URLs or cloud regions) before they can be used.
 
 ## What Providers Do
 
-Each provider adds a set of [resource types](/docs/language/resources)
-and/or [data sources](/docs/language/data-sources) that OpenTofu can
+Each provider adds a set of [resource types](../../language/resources/index.mdx)
+and/or [data sources](../../language/data-sources/index.mdx) that OpenTofu can
 manage.
 
 Every resource type is implemented by a provider; without providers, OpenTofu
@@ -51,13 +51,13 @@ Providers are released separately from OpenTofu itself and have their own versio
 To use resources from a given provider, you need to include some information
 about it in your configuration. See the following pages for details:
 
-- [Provider Requirements](/docs/language/providers/requirements)
+- [Provider Requirements](../../language/providers/requirements.mdx)
   documents how to declare providers so OpenTofu can install them.
 
-- [Provider Configuration](/docs/language/providers/configuration)
+- [Provider Configuration](../../language/providers/configuration.mdx)
   documents how to configure settings for providers.
 
-- [Dependency Lock File](/docs/language/files/dependency-lock)
+- [Dependency Lock File](../../language/files/dependency-lock.mdx)
   documents an additional HCL file that can be included with a configuration,
   which tells OpenTofu to always use a specific set of provider versions.
 
@@ -66,18 +66,18 @@ about it in your configuration. See the following pages for details:
 - TACOS (TF Automation and Collaboration Software) install providers as part of every run.
 
 - OpenTofu CLI finds and installs providers when
-  [initializing a working directory](/docs/cli/init). It can
+  [initializing a working directory](../../cli/init/index.mdx). It can
   automatically download providers from a provider registry, or load them from
   a local mirror or cache. If you are using a persistent working directory, you
   must reinitialize whenever you change a configuration's providers.
 
   To save time and bandwidth, OpenTofu CLI supports an optional plugin
   cache. You can enable the cache using the `plugin_cache_dir` setting in
-  [the CLI configuration file](/docs/cli/config/config-file).
+  [the CLI configuration file](../../cli/config/config-file.mdx).
 
 To ensure OpenTofu always installs the same provider versions for a given
 configuration, you can use OpenTofu CLI to create a
-[dependency lock file](/docs/language/files/dependency-lock)
+[dependency lock file](../../language/files/dependency-lock.mdx)
 and commit it to version control along with your configuration. If a lock file
 is present, OpenTofu CLI, and TACOS (TF Automation and Collaboration Software) will all obey it when
 installing providers.

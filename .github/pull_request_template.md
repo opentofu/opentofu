@@ -29,4 +29,4 @@ all targeted releases.
 
 -->
 
-1.7.0
+1.8.0

@@ -21,12 +21,11 @@ import (
 type newValueWriter struct {
 	*MapFieldWriter
 
-	// A list of keys that should be marked as computed.
-	computedKeys map[string]bool
-
 	// A lock to prevent races on writes. The underlying writer will have one as
 	// well - this is for computed keys.
 	lock sync.Mutex
+	// A list of keys that should be marked as computed.
+	computedKeys map[string]bool
 
 	// To be used with init.
 	once sync.Once

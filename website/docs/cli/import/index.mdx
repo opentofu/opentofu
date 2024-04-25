@@ -9,16 +9,16 @@ description: >-
 OpenTofu can import existing infrastructure resources. This functionality lets you bring existing resources under OpenTofu management.
 
 :::note
-OpenTofu supports `import` blocks. Unlike the `tofu import` command, you can use `import` blocks to import more than one resource at a time, and you can review imports as part of your normal plan and apply workflow. [Learn more about `import` blocks](/docs/language/import).
+OpenTofu supports `import` blocks. Unlike the `tofu import` command, you can use `import` blocks to import more than one resource at a time, and you can review imports as part of your normal plan and apply workflow. [Learn more about `import` blocks](../../language/import/index.mdx).
 :::
 
 ## State Only
 
 :::warning
-OpenTofu expects that each remote object is bound to a _single_ resource address. You should import each remote object to _one_ OpenTofu resource address. If you import the same object multiple times, OpenTofu may exhibit unwanted behavior. See [State](/docs/language/state) for more details.
+OpenTofu expects that each remote object is bound to a _single_ resource address. You should import each remote object to _one_ OpenTofu resource address. If you import the same object multiple times, OpenTofu may exhibit unwanted behavior. See [State](../../language/state/index.mdx) for more details.
 :::
 
-The `tofu import` CLI command can only import resources into the [state](/docs/language/state). Importing via the CLI does _not_ generate configuration. If you want to generate the accompanying configuration for imported resources, [use the `import` block instead](/docs/language/import).
+The `tofu import` CLI command can only import resources into the [state](../../language/state/index.mdx). Importing via the CLI does _not_ generate configuration. If you want to generate the accompanying configuration for imported resources, [use the `import` block instead](../../language/import/index.mdx).
 
 Before you run `tofu import` you must manually write a `resource` configuration block for the resource. The resource block describes where OpenTofu should map the imported object.
 

@@ -29,8 +29,6 @@ import (
 //
 // The transient storage for Filesystem is always in-memory.
 type Filesystem struct {
-	mu sync.Mutex
-
 	// path is the location where a file will be created or replaced for
 	// each persistent snapshot.
 	path string
@@ -59,10 +57,10 @@ type Filesystem struct {
 	// hurt to remove file we never wrote to.
 	created bool
 
-	file          *statefile.File
-	readFile      *statefile.File
-	backupFile    *statefile.File
-	writtenBackup bool
+	mu             sync.Mutex
+	file, readFile *statefile.File
+	backupFile     *statefile.File
+	writtenBackup  bool
 
 	encryption encryption.StateEncryption
 }

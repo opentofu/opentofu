@@ -17,7 +17,7 @@ to version, encrypt, and securely share it with your team.
 
 OpenTofu uses state to determine which changes to make to your
 infrastructure. Prior to any operation, OpenTofu does a
-[refresh](/docs/cli/commands/refresh) to update the state with the
+[refresh](../../cli/commands/refresh.mdx) to update the state with the
 real infrastructure.
 
 The primary purpose of OpenTofu state is to store bindings between objects in
@@ -28,13 +28,13 @@ resource instance, and then potentially update or delete that object in
 response to future configuration changes.
 
 For more information on why OpenTofu requires state and why OpenTofu cannot
-function without state, please see the page [state purpose](/docs/language/state/purpose).
+function without state, please see the page [state purpose](../../language/state/purpose.mdx).
 
 ## Inspection and Modification
 
 While the format of the state files are just JSON, direct file editing
 of the state is discouraged. OpenTofu provides the
-[tofu state](/docs/cli/commands/state) command to perform
+[tofu state](../../cli/commands/state/index.mdx) command to perform
 basic modifications of the state using the CLI.
 
 The CLI usage and output of the state commands is structured to be
@@ -67,10 +67,10 @@ in new versions.
 Alternatively, there are several integration points which produce JSON output
 that is specifically intended for consumption by external software:
 
-* [The `tofu output` command](/docs/cli/commands/output)
+* [The `tofu output` command](../../cli/commands/output.mdx)
   has a `-json` option, for obtaining either the full set of root module output
   values or a specific named output value from the latest state snapshot.
-* [The `tofu show` command](/docs/cli/commands/show) has a `-json`
+* [The `tofu show` command](../../cli/commands/show.mdx) has a `-json`
   option for inspecting the latest state snapshot in full, and also for
   inspecting saved plan files which include a copy of the prior state at the
   time the plan was made.

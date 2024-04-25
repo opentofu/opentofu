@@ -9,17 +9,17 @@ description: >-
 If you need to run provisioners that aren't directly associated with a specific
 resource, you can associate them with a `terraform_data`.
 
-Instances of [`terraform_data`](/docs/language/resources/tf-data) are treated
+Instances of [`terraform_data`](../../../language/resources/tf-data.mdx) are treated
 like normal resources, but they don't do anything. Like with any other resource
-type, you can configure [provisioners](/docs/language/resources/provisioners/syntax)
-and [connection details](/docs/language/resources/provisioners/connection) on a
+type, you can configure [provisioners](../../../language/resources/provisioners/syntax.mdx)
+and [connection details](../../../language/resources/provisioners/connection.mdx) on a
 `terraform_data` resource. You can also use its `input` argument, `triggers_replace` argument, and any
 meta-arguments to control exactly where in the dependency graph its
 provisioners will run.
 
 :::warning Important
 Use provisioners as a last resort. There are better alternatives for most situations. Refer to
-[Declaring Provisioners](/docs/language/resources/provisioners/syntax) for more details.
+[Declaring Provisioners](../../../language/resources/provisioners/syntax.mdx) for more details.
 :::
 
 ## Example usage

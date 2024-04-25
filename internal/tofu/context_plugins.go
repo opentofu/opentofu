@@ -24,11 +24,11 @@ type contextPlugins struct {
 	provisionerFactories map[string]provisioners.Factory
 }
 
-func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) (*contextPlugins, error) {
+func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
 	return &contextPlugins{
 		providerFactories:    providerFactories,
 		provisionerFactories: provisionerFactories,
-	}, nil // TODO remove error from this function call!
+	}
 }
 
 func (cp *contextPlugins) HasProvider(addr addrs.Provider) bool {

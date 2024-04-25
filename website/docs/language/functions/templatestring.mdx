@@ -12,7 +12,7 @@ description: |-
 templatestring(str, vars)
 ```
 
-The template syntax follows the rules for [string templates](/docs/language/expressions/strings#string-templates) in the main OpenTofu language, employing interpolation sequences delimited with `${ ... }`. This function offers the flexibility to factor out longer template sequences into a separate string for enhanced readability and manageability.
+The template syntax follows the rules for [string templates](../../language/expressions/strings.mdx#string-templates) in the main OpenTofu language, employing interpolation sequences delimited with `${ ... }`. This function offers the flexibility to factor out longer template sequences into a separate string for enhanced readability and manageability.
 
 When using the `templatestring` function, it's important to keep in mind the usage of escape sequences to prevent premature interpolation. To ensure that placeholders are treated as literals until they are converted to template variables, use the escape sequences `$${...}` and `%%{...}` to represent `${...}` and `%{...}` literals, respectively. This approach prevents the template from interpreting the placeholders as interpolation or template directive sequences before they are processed. By following this convention, you can accurately represent template strings without encountering unexpected syntax errors. Remember to apply these escape sequences when defining your template strings to ensure proper handling by the `templatestring` function.
 
@@ -80,8 +80,8 @@ result = "key1:value1 key2:value2 key3:value3 "
 
 ### Generating JSON or YAML
 
-When generating JSON or YAML syntax strings, writing a template with numerous interpolation sequences and directives can be cumbersome. Instead, simplify the process by using a template consisting of a single interpolated call to either [`jsonencode`](/docs/language/functions/jsonencode) or
-[`yamlencode`](/docs/language/functions/yamlencode), specifying the value to encode using [standard OpenTofu expression syntax](/docs/language/expressions) as in the following examples:
+When generating JSON or YAML syntax strings, writing a template with numerous interpolation sequences and directives can be cumbersome. Instead, simplify the process by using a template consisting of a single interpolated call to either [`jsonencode`](../../language/functions/jsonencode.mdx) or
+[`yamlencode`](../../language/functions/yamlencode.mdx), specifying the value to encode using [standard OpenTofu expression syntax](../../language/expressions/index.mdx) as in the following examples:
 
 ```hcl
 locals {
@@ -101,4 +101,4 @@ EOT
 ```
 
 For more information, see the main documentation for
-[`jsonencode`](/docs/language/functions/jsonencode) and [`yamlencode`](/docs/language/functions/yamlencode).
+[`jsonencode`](../../language/functions/jsonencode.mdx) and [`yamlencode`](../../language/functions/yamlencode.mdx).

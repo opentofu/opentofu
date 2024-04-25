@@ -42,12 +42,12 @@ The above expression is equivalent to the following `for` expression:
 
 The splat expression patterns shown above apply only to lists, sets, and
 tuples. To get a similar result with a map or object value you must use
-[`for` expressions](/docs/language/expressions/for).
+[`for` expressions](for.mdx).
 
 Resources that use the `for_each` argument will appear in expressions as a map
 of objects, so you can't use splat expressions with those resources.
 For more information, see
-[Referring to Resource Instances](/docs/language/meta-arguments/for_each#referring-to-instances).
+[Referring to Resource Instances](../../language/meta-arguments/for_each.mdx#referring-to-instances).
 
 ## Single Values as Lists
 
@@ -84,7 +84,7 @@ resource "aws_s3_bucket" "example" {
 }
 ```
 
-The above example uses a [`dynamic` block](/docs/language/expressions/dynamic-blocks), which
+The above example uses a [`dynamic` block](dynamic-blocks.mdx), which
 generates zero or more nested blocks based on a collection value. The input
 variable `var.website_setting` is defined as a single object that might be null,
 so the `dynamic` block's `for_each` expression uses `[*]` to ensure that

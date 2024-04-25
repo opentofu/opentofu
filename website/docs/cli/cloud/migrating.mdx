@@ -5,7 +5,7 @@ description: >-
 
 # Initializing and Migrating
 
-After [configuring cloud backend settings](/docs/cli/cloud/settings) for a working directory, you must run `tofu init` to finish setting up. If the working directory has no existing OpenTofu state, you can start using OpenTofu with a cloud backend right away.
+After [configuring cloud backend settings](settings.mdx) for a working directory, you must run `tofu init` to finish setting up. If the working directory has no existing OpenTofu state, you can start using OpenTofu with a cloud backend right away.
 
 When you run `tofu init` in the following scenarios, OpenTofu will ask you to choose whether or not to migrate state from any existing workspaces.
 
@@ -16,7 +16,7 @@ When you run `tofu init` in the following scenarios, OpenTofu will ask you to ch
 ## Migrating from Local State or State Backends
 
 If the working directory already has state data available (using either local state or a [state
-backend](/docs/language/settings/backends/configuration)), OpenTofu asks your approval to migrate
+backend](../../language/settings/backends/configuration.mdx)), OpenTofu asks your approval to migrate
 that state to the cloud backend. You will need permission to manage workspaces in the destination cloud backend organization. This process is interactive and self-documenting, and resembles
 moving between state backends.
 
@@ -35,7 +35,7 @@ according to a pattern relative to their existing names. This can indicate the f
 
 If the working directory was already connected to a cloud backend with the `remote` backend, OpenTofu can continue using the same cloud backend workspaces. The local names shown for those workspaces will change to match their remote names.
 
-The [`remote` backend](/docs/language/settings/backends/remote) was the primary implementation for cloud backends for Terraform versions 0.11.13 through 1.0.x. We recommend using the native `cloud` integration for OpenTofu and Terraform versions 1.1 or later, as it provides an improved user experience and various enhancements.
+The [`remote` backend](../../language/settings/backends/remote.mdx) was the primary implementation for cloud backends for Terraform versions 0.11.13 through 1.0.x. We recommend using the native `cloud` integration for OpenTofu and Terraform versions 1.1 or later, as it provides an improved user experience and various enhancements.
 
 ### Block Replacement
 

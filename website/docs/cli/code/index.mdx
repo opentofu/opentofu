@@ -6,7 +6,7 @@ description: >-
 
 # Writing and Modifying OpenTofu Code
 
-The [OpenTofu language](/docs/language) is OpenTofu's primary
+The [OpenTofu language](../../language/index.mdx) is OpenTofu's primary
 user interface, and all of OpenTofu's workflows rely on configurations written
 in the OpenTofu language.
 
@@ -14,17 +14,17 @@ OpenTofu CLI includes several commands to make OpenTofu code more convenient
 to work with. Integrating these commands into your editing workflow can
 potentially save you time and effort.
 
-- [The `tofu console` command](/docs/cli/commands/console) starts an
+- [The `tofu console` command](../commands/console.mdx) starts an
   interactive shell for evaluating OpenTofu
-  [expressions](/docs/language/expressions), which can be a faster way
+  [expressions](../../language/expressions/index.mdx), which can be a faster way
   to verify that a particular resource argument results in the value you expect.
 
-- [The `tofu fmt` command](/docs/cli/commands/fmt) rewrites OpenTofu
+- [The `tofu fmt` command](../commands/fmt.mdx) rewrites OpenTofu
   configuration files to a canonical format and style, so you don't have to
   waste time making minor adjustments for readability and consistency. It works
   well as a pre-commit hook in your version control system.
 
-- [The `tofu validate` command](/docs/cli/commands/validate) validates the
+- [The `tofu validate` command](../commands/validate.mdx) validates the
   syntax and arguments of the OpenTofu configuration files in a directory,
   including argument and attribute names and types for resources and modules.
   The `plan` and `apply` commands automatically validate a configuration before
