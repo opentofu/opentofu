@@ -49,15 +49,15 @@ type Walker struct {
 	// changeLock must be held to modify any of the fields below. Only Update
 	// should modify these fields. Modifying them outside of Update can cause
 	// serious problems.
-	changeLock sync.Mutex
-	vertices   Set
-	edges      Set
-	vertexMap  map[Vertex]*walkerVertex
+	changeLock      sync.Mutex
+	vertices, edges Set
+	vertexMap       map[Vertex]*walkerVertex
 
 	// wait is done when all vertices have executed. It may become "undone"
 	// if new vertices are added.
 	wait sync.WaitGroup
 
+	diagsLock sync.Mutex
 	// diagsMap contains the diagnostics recorded so far for execution,
 	// and upstreamFailed contains all the vertices whose problems were
 	// caused by upstream failures, and thus whose diagnostics should be
@@ -66,7 +66,6 @@ type Walker struct {
 	// Readers and writers of either map must hold diagsLock.
 	diagsMap       map[Vertex]tfdiags.Diagnostics
 	upstreamFailed map[Vertex]struct{}
-	diagsLock      sync.Mutex
 }
 
 func (w *Walker) init() {
@@ -92,6 +91,7 @@ type walkerVertex struct {
 	DoneCh   chan struct{}
 	CancelCh chan struct{}
 
+	DepsLock sync.Mutex
 	// Dependency information. Any changes to any of these fields requires
 	// holding DepsLock.
 	//
@@ -102,7 +102,6 @@ type walkerVertex struct {
 	// DepsUpdateCh is closed when there is a new DepsCh set.
 	DepsCh       chan bool
 	DepsUpdateCh chan struct{}
-	DepsLock     sync.Mutex
 
 	// Below is not safe to read/write in parallel. This behavior is
 	// enforced by changes only happening in Update. Nothing else should

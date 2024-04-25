@@ -51,15 +51,18 @@ type ContextGraphWalker struct {
 	// is in progress.
 	NonFatalDiagnostics tfdiags.Diagnostics
 
-	once               sync.Once
-	contexts           map[string]*BuiltinEvalContext
-	contextLock        sync.Mutex
-	variableValues     map[string]map[string]cty.Value
+	once        sync.Once
+	contextLock sync.Mutex
+	contexts    map[string]*BuiltinEvalContext
+
 	variableValuesLock sync.Mutex
-	providerCache      map[string]providers.Interface
-	providerLock       sync.Mutex
-	provisionerCache   map[string]provisioners.Interface
-	provisionerLock    sync.Mutex
+	variableValues     map[string]map[string]cty.Value
+
+	providerLock  sync.Mutex
+	providerCache map[string]providers.Interface
+
+	provisionerLock  sync.Mutex
+	provisionerCache map[string]provisioners.Interface
 }
 
 func (w *ContextGraphWalker) EnterPath(path addrs.ModuleInstance) EvalContext {

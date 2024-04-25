@@ -39,10 +39,10 @@ type jsonHook struct {
 
 	view *JSONView
 
+	applyingLock sync.Mutex
 	// Concurrent map of resource addresses to allow the sequence of pre-apply,
 	// progress, and post-apply messages to share data about the resource
-	applying     map[string]applyProgress
-	applyingLock sync.Mutex
+	applying map[string]applyProgress
 
 	// Mockable functions for testing the progress timer goroutine
 	timeNow   func() time.Time

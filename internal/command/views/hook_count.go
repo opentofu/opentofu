@@ -29,9 +29,9 @@ type countHook struct {
 	ToRemove       int
 	ToRemoveAndAdd int
 
+	sync.Mutex
 	pending map[string]plans.Action
 
-	sync.Mutex
 	tofu.NilHook
 }
 

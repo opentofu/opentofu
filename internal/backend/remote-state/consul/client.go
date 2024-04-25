@@ -42,11 +42,11 @@ var lostLockErr = errors.New("consul lock was lost")
 
 // RemoteClient is a remote client that stores data in Consul.
 type RemoteClient struct {
-	Client *consulapi.Client
-	Path   string
-	GZip   bool
+	Path string
+	GZip bool
 
-	mu sync.Mutex
+	mu     sync.Mutex
+	Client *consulapi.Client
 	// lockState is true if we're using locks
 	lockState bool
 

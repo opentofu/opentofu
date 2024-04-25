@@ -52,26 +52,29 @@ type BuiltinEvalContext struct {
 	// eval context.
 	Evaluator *Evaluator
 
+	VariableValuesLock *sync.Mutex
 	// VariableValues contains the variable values across all modules. This
 	// structure is shared across the entire containing context, and so it
 	// may be accessed only when holding VariableValuesLock.
 	// The keys of the first level of VariableValues are the string
 	// representations of addrs.ModuleInstance values. The second-level keys
 	// are variable names within each module instance.
-	VariableValues     map[string]map[string]cty.Value
-	VariableValuesLock *sync.Mutex
+	VariableValues map[string]map[string]cty.Value
 
 	// Plugins is a library of plugin components (providers and provisioners)
 	// available for use during a graph walk.
 	Plugins *contextPlugins
 
-	Hooks                 []Hook
-	InputValue            UIInput
-	ProviderCache         map[string]providers.Interface
-	ProviderInputConfig   map[string]map[string]cty.Value
-	ProviderLock          *sync.Mutex
-	ProvisionerCache      map[string]provisioners.Interface
-	ProvisionerLock       *sync.Mutex
+	Hooks      []Hook
+	InputValue UIInput
+
+	ProviderLock        *sync.Mutex
+	ProviderCache       map[string]providers.Interface
+	ProviderInputConfig map[string]map[string]cty.Value
+
+	ProvisionerLock  *sync.Mutex
+	ProvisionerCache map[string]provisioners.Interface
+
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
