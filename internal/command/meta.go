@@ -252,6 +252,8 @@ type Meta struct {
 	//
 	// compactWarnings (-compact-warnings) selects a more compact presentation
 	// of warnings in the output when they are not accompanied by errors.
+	//
+	// showSensitive (-show-sensitive) displays the sensitive values.
 	statePath        string
 	stateOutPath     string
 	backupPath       string
@@ -262,6 +264,7 @@ type Meta struct {
 	reconfigure      bool
 	migrateState     bool
 	compactWarnings  bool
+	showSensitive    bool
 
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local OpenTofu versions don't match.

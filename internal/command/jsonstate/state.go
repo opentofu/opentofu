@@ -495,6 +495,10 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 	return ret, nil
 }
 
+func SetSensitive(resources []Resource, val json.RawMessage, index int) {
+	resources[index].SensitiveValues = val
+}
+
 func SensitiveAsBool(val cty.Value) cty.Value {
 	return SensitiveAsBoolWithPathValueMarks(val, nil)
 }

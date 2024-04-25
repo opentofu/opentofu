@@ -34,14 +34,15 @@ func (c *StateShowCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	c.Meta.varFlagSet(cmdFlags)
+	cmdFlags.BoolVar(&c.Meta.showSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
 		return 1
 	}
 	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Streams.Eprint("Exactly one argument expected.\n")
+	if len(args) == 0 {
+		c.Streams.Eprint("Atlest one argument expected.\n")
 		return cli.RunResultHelp
 	}
 
@@ -189,6 +190,16 @@ func (c *StateShowCommand) Run(args []string) int {
 		RunningInAutomation: c.RunningInAutomation,
 	}
 
+	// If the "-show-sensitive" argument is provided, reset the value of
+	// resource.SensitiveValues to display the sensitive values.
+	if c.Meta.showSensitive {
+		for index, resource := range root.Resources {
+			if len(resource.SensitiveValues) > 0 {
+				jsonstate.SetSensitive(root.Resources, nil, index)
+			}
+		}
+	}
+
 	renderer.RenderHumanState(jstate)
 	return 0
 }
@@ -208,6 +219,8 @@ Options:
   -state=statefile    Path to a OpenTofu state file to use to look
                       up OpenTofu-managed resources. By default it will
                       use the state "terraform.tfstate" if it exists.
+
+  -show-sensitive  If specified, sensitive values will be displayed.
 
   -var 'foo=bar'      Set a value for one of the input variables in the root
                       module of the configuration. Use this option more than
