@@ -745,7 +745,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		return plannedChange, currentState.DeepCopy(), keyData, diags
 	}
 
-	origConfigVal, _, configDiags := ctx.EvaluateBlock(nil, config.Config, schema, nil, keyData)
+	origConfigVal, _, configDiags := ctx.EvaluateBlock(traceCtx, config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -1580,7 +1580,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(traceCtx context.Context, c
 				})
 			} else {
 				var configDiags tfdiags.Diagnostics
-				metaConfigVal, _, configDiags = ctx.EvaluateBlock(nil, m.Config, providerSchema.ProviderMeta.Block, nil, EvalDataForNoInstanceKey)
+				metaConfigVal, _, configDiags = ctx.EvaluateBlock(traceCtx, m.Config, providerSchema.ProviderMeta.Block, nil, EvalDataForNoInstanceKey)
 				diags = diags.Append(configDiags)
 			}
 		}
@@ -1634,7 +1634,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(traceCtx context.Context, 
 	}
 
 	var configDiags tfdiags.Diagnostics
-	configVal, _, configDiags = ctx.EvaluateBlock(nil, config.Config, schema, nil, keyData)
+	configVal, _, configDiags = ctx.EvaluateBlock(traceCtx, config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -1924,7 +1924,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(traceCtx context.Context,
 		return nil, keyData, diags
 	}
 
-	configVal, _, configDiags := ctx.EvaluateBlock(nil, config.Config, schema, nil, keyData)
+	configVal, _, configDiags := ctx.EvaluateBlock(traceCtx, config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, keyData, diags
@@ -2273,7 +2273,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	configVal := cty.NullVal(cty.DynamicPseudoType)
 	if applyConfig != nil {
 		var configDiags tfdiags.Diagnostics
-		configVal, _, configDiags = ctx.EvaluateBlock(nil, applyConfig.Config, schema, nil, keyData)
+		configVal, _, configDiags = ctx.EvaluateBlock(traceCtx, applyConfig.Config, schema, nil, keyData)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return nil, diags

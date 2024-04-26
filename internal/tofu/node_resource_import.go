@@ -269,7 +269,7 @@ func (n *graphNodeImportStateSub) Execute(traceCtx context.Context, ctx EvalCont
 	// Insert marks from configuration
 	if n.Config != nil {
 		// Since the import command allow import resource with incomplete configuration, we ignore diagnostics here
-		valueWithConfigurationSchemaMarks, _, _ := ctx.EvaluateBlock(nil, n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
+		valueWithConfigurationSchemaMarks, _, _ := ctx.EvaluateBlock(traceCtx, n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
 		state.Value = copyMarksFromValue(state.Value, valueWithConfigurationSchemaMarks)
 	}
 
