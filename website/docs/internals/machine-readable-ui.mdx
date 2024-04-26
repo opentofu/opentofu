@@ -21,7 +21,7 @@ value `"1.0"`. The semantics of this version are:
   version.
 
 We will introduce new major versions only within the bounds of
-[the OpenTofu 1.0 Compatibility Promises](/docs/language/v1-compatibility-promises).
+[the OpenTofu 1.0 Compatibility Promises](../language/v1-compatibility-promises.mdx).
 
 ## Sample JSON Output
 
@@ -57,7 +57,7 @@ The following message types are supported:
 
 - `version`: information about the OpenTofu version and the version of the schema used for the following messages
 - `log`: unstructured human-readable log lines
-- `diagnostic`: diagnostic warning or error messages; [see the `tofu validate` docs for more details on the format](/docs/cli/commands/validate#json)
+- `diagnostic`: diagnostic warning or error messages; [see the `tofu validate` docs for more details on the format](../cli/commands/validate.mdx#json)
 
 ### Operation Results
 
@@ -100,7 +100,7 @@ If drift is detected during planning, OpenTofu will emit a `resource_drift` mess
 - `resource`: object describing the address of the resource to be changed; see [resource object](#resource-object) below for details
 - `action`: the action planned to be taken for the resource. Values: `update`, `delete`.
 
-This message does not include details about the exact changes which caused the change to be planned. That information is available in [the JSON plan output](/docs/internals/json-format).
+This message does not include details about the exact changes which caused the change to be planned. That information is available in [the JSON plan output](../internals/json-format.mdx).
 
 ### Example
 
@@ -143,7 +143,7 @@ At the end of a plan or before an apply, OpenTofu will emit a `planned_change` m
   - `delete_because_each_key`: resource instance key is not included in the `for_each` argument
   - `delete_because_no_module`: enclosing module instance is not in configuration
 
-This message does not include details about the exact changes which caused the change to be planned. That information is available in [the JSON plan output](/docs/internals/json-format).
+This message does not include details about the exact changes which caused the change to be planned. That information is available in [the JSON plan output](../internals/json-format.mdx).
 
 ### Example
 

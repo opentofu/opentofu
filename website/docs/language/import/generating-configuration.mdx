@@ -9,7 +9,7 @@ description: >-
 Configuration generation is available in OpenTofu v1.6 as an experimental feature. Later minor versions may contain changes to the formatting of generated configuration and behavior of the `tofu plan` command using the `-generate-config-out` flag.
 :::
 
-OpenTofu can generate code for the resources you define in [`import` blocks](/docs/language/import) that do not already exist in your configuration. OpenTofu produces HCL to act as a template that contains OpenTofu's best guess at the appropriate value for each resource argument.
+OpenTofu can generate code for the resources you define in [`import` blocks](../../language/import/index.mdx) that do not already exist in your configuration. OpenTofu produces HCL to act as a template that contains OpenTofu's best guess at the appropriate value for each resource argument.
 
 Starting with OpenTofu's generated HCL, we recommend iterating to find your ideal configuration by removing some attributes, adjusting the value of others, and rearranging `resource` blocks into files and modules as appropriate.
 
@@ -23,7 +23,7 @@ If any resources targeted by an `import` block do not exist in your configuratio
 
 ## Workflow
 
-The workflow for generating configuration is similar to the [`import` block workflow](/docs/language/import#plan-and-apply-an-import), with the extra step of generating configuration during the planning stage. You can then review and modify the generated configuration before applying.
+The workflow for generating configuration is similar to the [`import` block workflow](../../language/import/index.mdx#plan-and-apply-an-import), with the extra step of generating configuration during the planning stage. You can then review and modify the generated configuration before applying.
 
 ### 1. Add the `import` block
 
@@ -38,7 +38,7 @@ import {
 
 The import block's `to` argument points to the address a `resource` will have in your state file. If a resource address in your state matches an `import` block's `to` argument, OpenTofu attempts to import into that resource. In future planning, OpenTofu knows it doesn't need to generate configuration for resources that already exist in your state.
 
-The import block's `id` argument uses that resource's [import ID](/docs/language/import#import-id).
+The import block's `id` argument uses that resource's [import ID](../../language/import/index.mdx#import-id).
 
 If your configuration does not contain other resources for your selected provider, you must add a `provider` block to inform OpenTofu which provider it should use to generate configuration. Otherwise, OpenTofu displays an error if it can not determine which provider to use.
 If you add a new `provider` block to your configuration, you must run `tofu init` again.

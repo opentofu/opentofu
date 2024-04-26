@@ -6,7 +6,7 @@ description: >-
 
 # Managing Workspaces
 
-Workspaces in the OpenTofu CLI refer to separate instances of [state data](/docs/language/state) inside the same OpenTofu working directory. They are distinctly different from workspaces in a cloud backend, which each have their own OpenTofu configuration and function as separate working directories.
+Workspaces in the OpenTofu CLI refer to separate instances of [state data](../../language/state/index.mdx) inside the same OpenTofu working directory. They are distinctly different from workspaces in a cloud backend, which each have their own OpenTofu configuration and function as separate working directories.
 
 OpenTofu relies on state to associate resources with real-world objects. When you run the same configuration multiple times with separate state data, OpenTofu can manage multiple sets of non-overlapping resources.
 
@@ -15,18 +15,18 @@ Workspaces can be helpful for specific [use cases](#use-cases), but they are not
 
 ## Managing CLI Workspaces
 
-Every [initialized working directory](/docs/cli/init) starts with one workspace named `default`.
+Every [initialized working directory](../init/index.mdx) starts with one workspace named `default`.
 
-Use the [`tofu workspace list`](/docs/cli/commands/workspace/list), [`tofu workspace new`](/docs/cli/commands/workspace/new), and [`tofu workspace delete`](/docs/cli/commands/workspace/delete) commands to manage the available workspaces in the current working directory.
+Use the [`tofu workspace list`](../commands/workspace/list.mdx), [`tofu workspace new`](../commands/workspace/new.mdx), and [`tofu workspace delete`](../commands/workspace/delete.mdx) commands to manage the available workspaces in the current working directory.
 
-Use [the `tofu workspace select` command](/docs/cli/commands/workspace/select) to change the currently selected workspace. For a given working directory, you can only select one workspace at a time. Most OpenTofu commands only interact with the currently selected workspace. This includes [provisioning](/docs/cli/run) and [state manipulation](/docs/cli/state).
+Use [the `tofu workspace select` command](../commands/workspace/select.mdx) to change the currently selected workspace. For a given working directory, you can only select one workspace at a time. Most OpenTofu commands only interact with the currently selected workspace. This includes [provisioning](../run/index.mdx) and [state manipulation](../state/index.mdx).
 
-When you provision infrastructure in each workspace, you usually need to manually specify different [input variables](/docs/language/values/variables) to differentiate each collection. For example, you might deploy test infrastructure to a different region.
+When you provision infrastructure in each workspace, you usually need to manually specify different [input variables](../../language/values/variables.mdx) to differentiate each collection. For example, you might deploy test infrastructure to a different region.
 
 
 ## Use Cases
 
-You can create multiple [working directories](/docs/cli/init) to maintain multiple instances of a configuration with completely separate state data. However, OpenTofu installs a separate cache of plugins and modules for each working directory, so maintaining multiple directories can waste bandwidth and disk space. This approach also requires extra tasks like updating configuration from version control for each directory separately and reinitializing each directory when you change the configuration. Workspaces are convenient because they let you create different sets of infrastructure with the same working copy of your configuration and the same plugin and module caches.
+You can create multiple [working directories](../init/index.mdx) to maintain multiple instances of a configuration with completely separate state data. However, OpenTofu installs a separate cache of plugins and modules for each working directory, so maintaining multiple directories can waste bandwidth and disk space. This approach also requires extra tasks like updating configuration from version control for each directory separately and reinitializing each directory when you change the configuration. Workspaces are convenient because they let you create different sets of infrastructure with the same working copy of your configuration and the same plugin and module caches.
 
 A common use for multiple workspaces is to create a parallel, distinct copy of
 a set of infrastructure to test a set of changes before modifying production infrastructure.
@@ -47,7 +47,7 @@ development stages or different internal teams. In this case, the backend for ea
 
 ## Alternatives to Workspaces
 
-Instead of creating CLI workspaces, you can use one or more [re-usable modules](/docs/language/modules/develop) to represent the common elements and then represent each instance as a separate configuration that instantiates those common elements in the context of a different [backend](/docs/language/settings/backends/configuration). The root module of each configuration consists only of a backend configuration and a small number of `module` blocks with arguments describing any small differences between the deployments.
+Instead of creating CLI workspaces, you can use one or more [re-usable modules](../../language/modules/develop/index.mdx) to represent the common elements and then represent each instance as a separate configuration that instantiates those common elements in the context of a different [backend](../../language/settings/backends/configuration.mdx). The root module of each configuration consists only of a backend configuration and a small number of `module` blocks with arguments describing any small differences between the deployments.
 
 When multiple configurations represent distinct system components rather than multiple deployments, you can pass data from one component to another using paired resources types and data sources.
 
@@ -57,7 +57,7 @@ When multiple configurations represent distinct system components rather than mu
 
 - For server addresses, use a provider-specific resource to create a DNS record with a predictable name. Then you can either use that name directly or use [the `dns` provider](https://registry.terraform.io/providers/hashicorp/dns/latest/docs) to retrieve the published addresses in other configurations.
 
-- If you store a OpenTofu state for one configuration in a remote backend that other configurations can access, then the other configurations can use [`terraform_remote_state`](/docs/language/state/remote-state-data) to directly consume its root module outputs. This setup creates a tighter coupling between configurations, and the root configuration does not need to publish its results in a separate system.
+- If you store a OpenTofu state for one configuration in a remote backend that other configurations can access, then the other configurations can use [`terraform_remote_state`](../../language/state/remote-state-data.mdx) to directly consume its root module outputs. This setup creates a tighter coupling between configurations, and the root configuration does not need to publish its results in a separate system.
 
 ## Workspace Internals
 
@@ -67,6 +67,6 @@ Workspaces are also meant to be a shared resource. They are not private, unless 
 
 For local state, OpenTofu stores the workspace states in a directory called `terraform.tfstate.d`. This directory should be treated similarly to local-only `terraform.tfstate`. Some teams commit these files to version control, but we recommend using a remote backend instead when there are multiple collaborators.
 
-For [remote state](/docs/language/state/remote), the workspaces are stored directly in the configured [backend](/docs/language/settings/backends/configuration). For example, if you use [Consul](/docs/language/settings/backends/consul), the workspaces are stored by appending the workspace name to the state path. To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
+For [remote state](../../language/state/remote.mdx), the workspaces are stored directly in the configured [backend](../../language/settings/backends/configuration.mdx). For example, if you use [Consul](../../language/settings/backends/consul.mdx), the workspaces are stored by appending the workspace name to the state path. To ensure that workspace names are stored correctly and safely in all backends, the name must be valid to use in a URL path segment without escaping.
 
-OpenTofu stores the current workspace name locally in the ignored `.terraform` directory. This allows multiple team members to work on different workspaces concurrently. Workspace names are also attached to associated remote workspaces in a cloud backend. For more details about workspace names in cloud backends, refer to the [CLI Integration (recommended)](/docs/cli/cloud/settings#arguments) and [remote backend](/docs/language/settings/backends/remote#workspaces) and  documentation.
+OpenTofu stores the current workspace name locally in the ignored `.terraform` directory. This allows multiple team members to work on different workspaces concurrently. Workspace names are also attached to associated remote workspaces in a cloud backend. For more details about workspace names in cloud backends, refer to the [CLI Integration (recommended)](../../cli/cloud/settings.mdx#arguments) and [remote backend](../../language/settings/backends/remote.mdx#workspaces) and  documentation.

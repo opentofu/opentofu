@@ -13,7 +13,7 @@ so OpenTofu can install them.
 
 Additionally, some providers require configuration (like endpoint URLs or cloud
 regions) before they can be used. The [Provider
-Configuration](/docs/language/providers/configuration) page documents how
+Configuration](../../language/providers/configuration.mdx) page documents how
 to configure settings for providers.
 
 ## Requiring Providers
@@ -37,7 +37,7 @@ terraform {
 ```
 
 The `required_providers` block must be nested inside the top-level
-[`terraform` block](/docs/language/settings) (which can also contain other settings).
+[`terraform` block](../../language/settings/index.mdx) (which can also contain other settings).
 
 Each argument in the `required_providers` block enables one provider. The key
 determines the provider's [local name](#local-names) (its unique identifier
@@ -64,7 +64,7 @@ Local names must be unique per-module.
 Outside of the `required_providers` block, OpenTofu configurations always refer
 to providers by their local names. For example, the following configuration
 declares `mycloud` as the local name for `mycorp/mycloud`, then uses that local
-name when [configuring the provider](/docs/language/providers/configuration):
+name when [configuring the provider](../../language/providers/configuration.mdx):
 
 ```hcl
 terraform {
@@ -191,7 +191,7 @@ avoiding typing.
 
 Each provider plugin has its own set of available versions, allowing the
 functionality of the provider to evolve over time. Each provider dependency you
-declare should have a [version constraint](/docs/language/expressions/version-constraints) given in
+declare should have a [version constraint](../../language/expressions/version-constraints.mdx) given in
 the `version` argument so OpenTofu can select a single version per provider
 that all modules are compatible with.
 
@@ -201,7 +201,7 @@ a version constraint for every provider your module depends on.
 
 To ensure OpenTofu always installs the same provider versions for a given
 configuration, you can use OpenTofu CLI to create a
-[dependency lock file](/docs/language/files/dependency-lock)
+[dependency lock file](../../language/files/dependency-lock.mdx)
 and commit it to version control along with your configuration. If a lock file
 is present, OpenTofu CLI, and TACOS (TF Automation and Collaboration Software) will all obey it when
 installing providers.
@@ -252,7 +252,7 @@ incompatibilities, and let the root module manage the maximum version.
 
 Most providers are distributed separately as plugins, but there
 is one provider that is built into OpenTofu itself. This provider enables the
-[the `terraform_remote_state` data source](/docs/language/state/remote-state-data).
+[the `terraform_remote_state` data source](../../language/state/remote-state-data.mdx).
 
 Because this provider is built in to OpenTofu, you don't need to declare it
 in the `required_providers` block in order to use its features. However, for
@@ -277,11 +277,11 @@ publishing them on a registry.
 
 One option for distributing such a provider is to run an in-house _private_
 registry, by implementing
-[the provider registry protocol](/docs/internals/provider-registry-protocol).
+[the provider registry protocol](../../internals/provider-registry-protocol.mdx).
 
 Running an additional service just to distribute a single provider internally
 may be undesirable, so OpenTofu also supports
-[other provider installation methods](/docs/cli/config/config-file#provider-installation),
+[other provider installation methods](../../cli/config/config-file.mdx#provider-installation),
 including placing provider plugins directly in specific directories in the
 local filesystem, via _filesystem mirrors_.
 
@@ -310,7 +310,7 @@ terraform {
 
 To make version 1.0.0 of this provider available for installation from the
 local filesystem, choose one of the
-[implied local mirror directories](/docs/cli/config/config-file#implied-local-mirror-directories)
+[implied local mirror directories](../../cli/config/config-file.mdx#implied-local-mirror-directories)
 and create a directory structure under it like this:
 
 ```

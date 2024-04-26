@@ -152,7 +152,7 @@ You can specify `assert` blocks inside your `run` block to test the state of you
 
 Each block requires the following two attributes:
 
-1. The `condition` is an [OpenTofu condition](/docs/language/expressions/custom-conditions#condition-expressions) which
+1. The `condition` is an [OpenTofu condition](../../../language/expressions/custom-conditions.mdx#condition-expressions) which
    should return `true` for the test to pass, `false` for the test to fail. The condition **must** reference a
    resource, data source, variable, output or module from the main code, otherwise OpenTofu will refuse to run the test.
 2. The `error_message` is a string explaining what happened when the test fails.
@@ -179,7 +179,7 @@ Please note that conditions only let you perform basic checks on the current Ope
 ### The `run.module` block
 
 In some cases you may find that the tools provided in the
-[condition expression](/docs/language/expressions/custom-conditions#condition-expressions) are not enough to test
+[condition expression](../../../language/expressions/custom-conditions.mdx#condition-expressions) are not enough to test
 if your code created the infrastructure correctly.
 
 You can use the `module` block to override the main module `tofu test` loads. This gives you the opportunity to create
@@ -198,7 +198,7 @@ run "test" {
 The `module` block has the following two attributes:
 
 * The `source` attribute points to the directory of the module to load or any other
-  [module source](/docs/language/modules/sources).
+  [module source](../../../language/modules/sources.mdx).
 * The `version` specifies the version of the module you want to use.
 
 :::warning Note
@@ -279,13 +279,13 @@ negative number:
     </TabItem>
 </Tabs>
 
-You can also use the `expect_failure` clause to check [lifecycle](/docs/language/meta-arguments/lifecycle/) events like
+You can also use the `expect_failure` clause to check [lifecycle](../../../language/meta-arguments/lifecycle.mdx) events like
 pre- or postconditions as well as the results of checks.
 
 :::warning Limitation
 
 The `expect_failure` list currently does not support testing resource creation failures. You must provide a
-[lifecycle](/docs/language/meta-arguments/lifecycle/) event in order to use `expect_failure`.
+[lifecycle](../../../language/meta-arguments/lifecycle.mdx) event in order to use `expect_failure`.
 
 :::
 

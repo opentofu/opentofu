@@ -41,6 +41,7 @@ type Evaluator struct {
 	// Config is the root node in the configuration tree.
 	Config *configs.Config
 
+	VariableValuesLock *sync.Mutex
 	// VariableValues is a map from variable names to their associated values,
 	// within the module indicated by ModulePath. VariableValues is modified
 	// concurrently, and so it must be accessed only while holding
@@ -48,8 +49,7 @@ type Evaluator struct {
 	//
 	// The first map level is string representations of addr.ModuleInstance
 	// values, while the second level is variable names.
-	VariableValues     map[string]map[string]cty.Value
-	VariableValuesLock *sync.Mutex
+	VariableValues map[string]map[string]cty.Value
 
 	// Plugins is the library of available plugin components (providers and
 	// provisioners) that we have available to help us evaluate expressions

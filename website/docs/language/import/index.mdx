@@ -36,7 +36,7 @@ The above `import` block defines an import of the AWS instance with the ID "i-ab
 The `import` block has the following arguments:
 - `to` - The instance address this resource will have in your state file.
 - `id` - A string with the [import ID](#import-id) of the resource.
-- `provider` (optional) - An optional custom resource provider, see [The Resource provider Meta-Argument](/docs/language/meta-arguments/resource-provider) for details.
+- `provider` (optional) - An optional custom resource provider, see [The Resource provider Meta-Argument](../../language/meta-arguments/resource-provider.mdx) for details.
 - `for_each` (optional) - Import several resources by iterating over a map or a set. See [Importing multiple resources](#importing-multiple-resources) below.
 
 If you do not set the `provider` argument, OpenTofu attempts to import from the default provider.
@@ -53,21 +53,21 @@ OpenTofu processes the `import` block during the plan stage. Once a plan is appr
 
 To import a resource using `import` blocks, you must:
 1. Define an `import` block for the resource(s).
-1. Add a corresponding `resource` block to your configuration , or [generate configuration](/docs/language/import/generating-configuration) for that resource.
+1. Add a corresponding `resource` block to your configuration , or [generate configuration](../../language/import/generating-configuration.mdx) for that resource.
 1. Run `tofu plan` to review how OpenTofu will import the resource(s).
 1. Apply the configuration to import the resources and update your OpenTofu state.
 
 The `import` block is [_idempotent_](https://en.wikipedia.org/wiki/Idempotence), meaning that applying an import action and running another plan will not generate another import action as long as that resource remains in your state.
 
-OpenTofu only needs to import a given resource once. Attempting to import a resource into the same address again is a harmless no-op. You can remove `import` blocks after completing the import or safely leave them in your configuration as a record of the resource's origin for future module maintainers. For more information on maintaining configurations over time, see [Refactoring](/docs/language/modules/develop/refactoring).
+OpenTofu only needs to import a given resource once. Attempting to import a resource into the same address again is a harmless no-op. You can remove `import` blocks after completing the import or safely leave them in your configuration as a record of the resource's origin for future module maintainers. For more information on maintaining configurations over time, see [Refactoring](../../language/modules/develop/refactoring.mdx).
 
 ## Resource configuration
 
-Before importing, you must add configuration for every resource you want OpenTofu to import. Otherwise, OpenTofu throws an error during planning, insisting you add resource configuration before it can successfully import. You can create resource configuration manually or [generate it using OpenTofu](/docs/language/import/generating-configuration).
+Before importing, you must add configuration for every resource you want OpenTofu to import. Otherwise, OpenTofu throws an error during planning, insisting you add resource configuration before it can successfully import. You can create resource configuration manually or [generate it using OpenTofu](../../language/import/generating-configuration.mdx).
 
-We recommend writing a `resource` block if you know what most of the [resource's arguments](/docs/language/resources/syntax#resource-arguments) will be. For example, your configuration may already contain a similar resource whose configuration you can copy and modify.
+We recommend writing a `resource` block if you know what most of the [resource's arguments](../../language/resources/syntax.mdx#resource-arguments) will be. For example, your configuration may already contain a similar resource whose configuration you can copy and modify.
 
-We recommend [generating configuration](/docs/language/import/generating-configuration) when importing multiple resources or a single complex resource that you do not already have the configuration for.
+We recommend [generating configuration](../../language/import/generating-configuration.mdx) when importing multiple resources or a single complex resource that you do not already have the configuration for.
 
 ### Add a `resource` block
 
@@ -87,7 +87,7 @@ resource "aws_instance" "example" {
 ### Generate configuration
 
 OpenTofu can generate HCL for resources that do not already exist in configuration.
-For more details, see [Generating Configuration](/docs/language/import/generating-configuration).
+For more details, see [Generating Configuration](../../language/import/generating-configuration.mdx).
 
 ## Examples
 
@@ -100,7 +100,7 @@ import {
 }
 ```
 
-The below example shows how to import a resource that includes [`count`](/docs/language/meta-arguments/count).
+The below example shows how to import a resource that includes [`count`](../../language/meta-arguments/count.mdx).
 
 ```hcl
 import {
@@ -110,7 +110,7 @@ import {
 ```
 
 
-The below example shows how to import a resource that includes [`for_each`](/docs/language/meta-arguments/for_each).
+The below example shows how to import a resource that includes [`for_each`](../../language/meta-arguments/for_each.mdx).
 ```hcl
 import {
   to = aws_instance.example["foo"]
@@ -135,7 +135,7 @@ import {
 
 ### Importing multiple resources
 
-You can import multiple resources with one import block by using a `for_each` expression. This expression accepts [a set, a tuple or a map](/docs/language/expressions/types/) and provides the `each.key` and `each.value` variables to access the individual elements.
+You can import multiple resources with one import block by using a `for_each` expression. This expression accepts [a set, a tuple or a map](../../language/expressions/types.mdx) and provides the `each.key` and `each.value` variables to access the individual elements.
 
 In the example below, you can specify a list of server IDs to be imported. If you specify an empty list, the `random_id` resource will generate all IDs randomly. If you specify some IDs, the import block will import the specified IDs and the resource will randomly generate the rest. Note, the `random_id` resource requires the IDs to be in base64 format.
 
@@ -164,6 +164,6 @@ output "id" {
 
 :::note
 
-[Generating configuration](/docs/language/import/generating-configuration/) is currently not possible when using `for_each` on `import blocks.
+[Generating configuration](../../language/import/generating-configuration.mdx) is currently not possible when using `for_each` on `import blocks.
 
 :::
