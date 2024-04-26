@@ -608,9 +608,9 @@ Running OpenTofu tests will result in several messages being emitted. The messag
 
 ## Test Abstract
 
-The `test_abstract` message `test_abstract` object contains keys composed of test file names:
+The `test_abstract` message `test_abstract` object contains dynamic keys composed of the test file name:
 
-- `test file`: a list of tests contained within the test file
+- `main.tftest.hcl`: list of tests found within the test file
 
 ### Example
 
@@ -633,8 +633,8 @@ The `test_abstract` message `test_abstract` object contains keys composed of tes
 
 The `test_file` message `test_file` object has the following keys:
 
-- `path`: the relative path to the test file executed
-- `status`: the overall status of all tests executed within the test file
+- `path`: the relative path of the test file
+- `status`: the overall test execution status
 
 ### Example
 
@@ -657,9 +657,9 @@ The `test_file` message `test_file` object has the following keys:
 
 The `test_run` message `test_run` object has the following keys:
 
-- `path`: the relative path to the test file executed
-- `run`: the name of the test which was executed
-- `status`: the status of the test execution
+- `path`: the relative path of the test file
+- `run`: name of test that was executed
+- `status`: the overall test execution status
 
 ### Example
 
@@ -685,10 +685,10 @@ The `test_run` message `test_run` object has the following keys:
 The `test_summary` message `test_summary` object has the following keys:
 
 - `status`: the overall status of all tests executed
-- `passed`: the aggregated amount of tests passed
-- `failed`: the aggregated amount of tests failed
-- `errored`: the aggregated amount of tests errored
-- `skipped`: the aggregated amount of tests skipped
+- `passed`: the total number of tests that passed
+- `failed`: the total number of tests that failed
+- `errored`: the total number of tests that errored
+- `skipped`: the total number of tests that skipped
 
 ### Example
 
