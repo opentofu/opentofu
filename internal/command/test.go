@@ -545,7 +545,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 			run.Diagnostics = run.Diagnostics.Append(diags)
 		}
 
-		planCtx.TestContext(config, plan.PlannedState, plan, variables).EvaluateAgainstPlan(run)
+		planCtx.TestContext(config, plan.PlannedState, plan, variables).EvaluateAgainstPlan(ctx, run)
 		return state, false
 	}
 
@@ -618,7 +618,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		run.Diagnostics = run.Diagnostics.Append(diags)
 	}
 
-	applyCtx.TestContext(config, updated, plan, variables).EvaluateAgainstState(run)
+	applyCtx.TestContext(config, updated, plan, variables).EvaluateAgainstState(ctx, run)
 	return updated, true
 }
 

@@ -46,7 +46,7 @@ func (p *Provider) ValidateProviderConfig(ctx context.Context, req providers.Val
 }
 
 // ValidateDataResourceConfig is used to validate the data source configuration values.
-func (p *Provider) ValidateDataResourceConfig(req providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
+func (p *Provider) ValidateDataResourceConfig(ctx context.Context, req providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
 	// FIXME: move the backend configuration validate call that's currently
 	// inside the read method  into here so that we can catch provider configuration
 	// errors in tofu validate as well as during tofu plan.
@@ -73,7 +73,7 @@ func (p *Provider) ConfigureProvider(context.Context, providers.ConfigureProvide
 }
 
 // ReadDataSource returns the data source's current state.
-func (p *Provider) ReadDataSource(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+func (p *Provider) ReadDataSource(ctx context.Context, req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 	panic("Should not be called directly, special case for terraform_remote_state")
 }
 
@@ -125,25 +125,25 @@ func (p *Provider) Stop() error {
 // instance state whose schema version is less than the one reported by the
 // currently-used version of the corresponding provider, and the upgraded
 // result is used for any further processing.
-func (p *Provider) UpgradeResourceState(req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+func (p *Provider) UpgradeResourceState(ctx context.Context, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return upgradeDataStoreResourceState(req)
 }
 
 // ReadResource refreshes a resource and returns its current state.
-func (p *Provider) ReadResource(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+func (p *Provider) ReadResource(ctx context.Context, req providers.ReadResourceRequest) providers.ReadResourceResponse {
 	return readDataStoreResourceState(req)
 }
 
 // PlanResourceChange takes the current state and proposed state of a
 // resource, and returns the planned final state.
-func (p *Provider) PlanResourceChange(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+func (p *Provider) PlanResourceChange(ctx context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
 	return planDataStoreResourceChange(req)
 }
 
 // ApplyResourceChange takes the planned state for a resource, which may
 // yet contain unknown computed values, and applies the changes returning
 // the final state.
-func (p *Provider) ApplyResourceChange(req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+func (p *Provider) ApplyResourceChange(ctx context.Context, req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
 	return applyDataStoreResourceChange(req)
 }
 
@@ -157,7 +157,7 @@ func (p *Provider) ImportResourceState(req providers.ImportResourceStateRequest)
 }
 
 // ValidateResourceConfig is used to to validate the resource configuration values.
-func (p *Provider) ValidateResourceConfig(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+func (p *Provider) ValidateResourceConfig(ctx context.Context, req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 	return validateDataStoreResourceConfig(req)
 }
 

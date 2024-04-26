@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -54,19 +55,19 @@ func (c *Context) TestContext(config *configs.Config, state *states.State, plan 
 // The provided plan is import as it is needed to evaluate the `plantimestamp`
 // function, but no data or changes from the embedded plan is referenced in
 // this function.
-func (ctx *TestContext) EvaluateAgainstState(run *moduletest.Run) {
+func (ctx *TestContext) EvaluateAgainstState(traceCtx context.Context, run *moduletest.Run) {
 	defer ctx.acquireRun("evaluate")()
-	ctx.evaluate(ctx.State.SyncWrapper(), plans.NewChanges().SyncWrapper(), run, walkApply)
+	ctx.evaluate(traceCtx, ctx.State.SyncWrapper(), plans.NewChanges().SyncWrapper(), run, walkApply)
 }
 
 // EvaluateAgainstPlan processes the assertions inside the provided
 // configs.TestRun against the embedded plan and state.
-func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
+func (ctx *TestContext) EvaluateAgainstPlan(traceCtx context.Context, run *moduletest.Run) {
 	defer ctx.acquireRun("evaluate")()
-	ctx.evaluate(ctx.State.SyncWrapper(), ctx.Plan.Changes.SyncWrapper(), run, walkPlan)
+	ctx.evaluate(traceCtx, ctx.State.SyncWrapper(), ctx.Plan.Changes.SyncWrapper(), run, walkPlan)
 }
 
-func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
+func (ctx *TestContext) evaluate(traceCtx context.Context, state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
 	data := &evaluationStateData{
 		Evaluator: &Evaluator{
 			Operation: operation,
@@ -113,7 +114,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		diags = diags.Append(moreDiags)
 		refs = append(refs, moreRefs...)
 
-		hclCtx, moreDiags := scope.EvalContext(refs)
+		hclCtx, moreDiags := scope.EvalContext(traceCtx, refs)
 		diags = diags.Append(moreDiags)
 
 		errorMessage, moreDiags := evalCheckErrorMessage(rule.ErrorMessage, hclCtx)

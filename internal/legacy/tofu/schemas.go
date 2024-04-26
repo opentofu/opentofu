@@ -120,7 +120,7 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]*Provid
 			provider.Close()
 		}()
 
-		resp := provider.GetProviderSchema(nil)
+		resp := provider.GetProviderSchema(ctx)
 		if resp.Diagnostics.HasErrors() {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls.

@@ -74,9 +74,10 @@ func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Inter
 // to repeatedly call this method with the same address if various different
 // parts of OpenTofu all need the same schema information.
 func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provider) (providers.ProviderSchema, error) {
-	var span trace.Span
-	ctx, span = tracer.Start(ctx, "contextPlugins.ProviderSchema")
-	defer span.End()
+	// Commented this out as it's WAY too noisy
+	//var span trace.Span
+	//ctx, span = tracer.Start(ctx, "contextPlugins.ProviderSchema")
+	//defer span.End()
 
 	// Check the global schema cache first.
 	// This cache is only written by the provider client, and transparently
@@ -90,7 +91,7 @@ func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provide
 	// BUG This SHORT CIRCUITS the logic below and is not the only code which inserts provider schemas into the cache!!
 	schemas, ok := providers.SchemaCache.Get(addr)
 	if ok {
-		span.AddEvent("Serving provider schema from global schema cache")
+		//span.AddEvent("Serving provider schema from global schema cache")
 		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
 		return schemas, nil
 	}
@@ -141,9 +142,10 @@ func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provide
 // provider's configuration schema, which defines what's expected in a
 // "provider" block in the configuration when configuring this provider.
 func (cp *contextPlugins) ProviderConfigSchema(ctx context.Context, providerAddr addrs.Provider) (*configschema.Block, error) {
-	var span trace.Span
-	ctx, span = tracer.Start(ctx, "contextPlugins.ProviderConfigSchema")
-	defer span.End()
+	// Commented out as it's WAY too noisy
+	//var span trace.Span
+	//ctx, span = tracer.Start(ctx, "contextPlugins.ProviderConfigSchema")
+	//defer span.End()
 
 	providerSchema, err := cp.ProviderSchema(ctx, providerAddr)
 	if err != nil {
@@ -165,9 +167,13 @@ func (cp *contextPlugins) ProviderConfigSchema(ctx context.Context, providerAddr
 // is the current schema version number for the requested resource. The version
 // is irrelevant for other resource modes.
 func (cp *contextPlugins) ResourceTypeSchema(ctx context.Context, providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (*configschema.Block, uint64, error) {
-	var span trace.Span
-	ctx, span = tracer.Start(ctx, "contextPlugins.ResourceTypeSchema")
-	defer span.End()
+	if ctx == nil {
+		panic("JAMES2")
+	}
+	// commented out as it's WAY too noisy
+	//var span trace.Span
+	//ctx, span = tracer.Start(ctx, "contextPlugins.ResourceTypeSchema")
+	//defer span.End()
 
 	providerSchema, err := cp.ProviderSchema(ctx, providerAddr)
 	if err != nil {

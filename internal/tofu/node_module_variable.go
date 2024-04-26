@@ -242,7 +242,7 @@ func (n *nodeModuleVariable) evalModuleVariable(traceCtx context.Context, ctx Ev
 		}
 
 		scope := ctx.EvaluationScope(traceCtx, nil, nil, moduleInstanceRepetitionData)
-		val, moreDiags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+		val, moreDiags := scope.EvalExpr(traceCtx, expr, cty.DynamicPseudoType)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.DynamicVal, diags.ErrWithWarnings()

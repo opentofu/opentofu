@@ -56,7 +56,7 @@ func evaluateForEachExpressionValue(traceCtx context.Context, expr hcl.Expressio
 	scope := ctx.EvaluationScope(traceCtx, nil, nil, EvalDataForNoInstanceKey)
 	var hclCtx *hcl.EvalContext
 	if scope != nil {
-		hclCtx, moreDiags = scope.EvalContext(refs)
+		hclCtx, moreDiags = scope.EvalContext(traceCtx, refs)
 	} else {
 		// This shouldn't happen in real code, but it can unfortunately arise
 		// in unit tests due to incompletely-implemented mocks. :(

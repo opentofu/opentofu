@@ -330,15 +330,16 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	panicHandler := logging.PanicHandlerWithTraceFn()
 
 	// Do it
-	go func() {
+	go func(ctx context.Context) {
 		defer panicHandler()
 		defer done()
 		defer stop()
 		defer cancel()
 
 		defer b.opLock.Unlock()
+
 		f(ctx, stopCtx, cancelCtx, op, runningOp)
-	}()
+	}(ctx)
 
 	// Return
 	return runningOp, nil

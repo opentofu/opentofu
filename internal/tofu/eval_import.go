@@ -84,5 +84,5 @@ func evaluateImportIdExpression(tracedCtx context.Context, expr hcl.Expression, 
 // that should be a part of the scope.
 func evaluateExprWithRepetitionData(traceCtx context.Context, ctx EvalContext, expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 	scope := ctx.EvaluationScope(traceCtx, nil, nil, keyData)
-	return scope.EvalExpr(expr, wantType)
+	return scope.EvalExpr(traceCtx, expr, wantType)
 }

@@ -291,16 +291,16 @@ func (c *MockEvalContext) EvaluateImportAddress(traceCtx context.Context, expr h
 //
 // This function overwrites any existing functions installed in fields
 // EvaluateBlockResultFunc and EvaluateExprResultFunc.
-func (c *MockEvalContext) installSimpleEval() {
+func (c *MockEvalContext) installSimpleEval(ctx context.Context) {
 	c.EvaluateBlockResultFunc = func(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
 			var diags tfdiags.Diagnostics
-			body, diags = scope.ExpandBlock(body, schema)
+			body, diags = scope.ExpandBlock(ctx, body, schema)
 			if diags.HasErrors() {
 				return cty.DynamicVal, body, diags
 			}
-			val, evalDiags := c.EvaluationScopeScope.EvalBlock(body, schema)
+			val, evalDiags := c.EvaluationScopeScope.EvalBlock(ctx, body, schema)
 			diags = diags.Append(evalDiags)
 			if evalDiags.HasErrors() {
 				return cty.DynamicVal, body, diags
@@ -315,7 +315,7 @@ func (c *MockEvalContext) installSimpleEval() {
 	c.EvaluateExprResultFunc = func(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
-			return scope.EvalExpr(expr, wantType)
+			return scope.EvalExpr(ctx, expr, wantType)
 		}
 
 		// Fallback codepath supporting constant values only.

@@ -6,6 +6,7 @@
 package lang
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -29,13 +30,13 @@ import (
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
+func (s *Scope) ExpandBlock(traceCtx context.Context, body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
 	refs, diags := References(s.ParseRef, traversals)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	ctx, ctxDiags := s.EvalContext(traceCtx, refs)
 	diags = diags.Append(ctxDiags)
 
 	return dynblock.Expand(body, ctx), diags
@@ -51,12 +52,12 @@ func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalBlock(traceCtx context.Context, body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	refs, diags := ReferencesInBlock(s.ParseRef, body, schema)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	ctx, ctxDiags := s.EvalContext(traceCtx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -165,10 +166,10 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalExpr(traceCtx context.Context, expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	refs, diags := ReferencesInExpr(s.ParseRef, expr)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	ctx, ctxDiags := s.EvalContext(traceCtx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -252,13 +253,13 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalReference(traceCtx context.Context, ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// We cheat a bit here and just build an EvalContext for our requested
 	// reference with the "self" address overridden, and then pull the "self"
 	// result out of it to return.
-	ctx, ctxDiags := s.evalContext([]*addrs.Reference{ref}, ref.Subject)
+	ctx, ctxDiags := s.evalContext(traceCtx, []*addrs.Reference{ref}, ref.Subject)
 	diags = diags.Append(ctxDiags)
 	val := ctx.Variables["self"]
 	if val == cty.NilVal {
@@ -286,11 +287,11 @@ func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Valu
 // Most callers should prefer to use the evaluation helper methods that
 // this type offers, but this is here for less common situations where the
 // caller will handle the evaluation calls itself.
-func (s *Scope) EvalContext(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(refs, s.SelfAddr)
+func (s *Scope) EvalContext(ctx context.Context, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, refs, s.SelfAddr)
 }
 
-func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
+func (s *Scope) evalContext(traceCtx context.Context, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	if s == nil {
 		panic("attempt to construct EvalContext for nil Scope")
 	}
@@ -311,7 +312,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	// First we'll do static validation of the references. This catches things
 	// early that might otherwise not get caught due to unknown values being
 	// present in the scope during planning.
-	staticDiags := s.Data.StaticValidateReferences(nil, refs, selfAddr, s.SourceAddr)
+	staticDiags := s.Data.StaticValidateReferences(traceCtx, refs, selfAddr, s.SourceAddr)
 	diags = diags.Append(staticDiags)
 	if staticDiags.HasErrors() {
 		return ctx, diags
@@ -412,7 +413,7 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 				panic(fmt.Errorf("unsupported ResourceMode %s", subj.Mode))
 			}
 
-			val, valDiags := normalizeRefValue(s.Data.GetResource(nil, subj, rng))
+			val, valDiags := normalizeRefValue(s.Data.GetResource(traceCtx, subj, rng))
 			diags = diags.Append(valDiags)
 
 			r := subj

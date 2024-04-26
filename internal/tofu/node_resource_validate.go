@@ -381,7 +381,7 @@ func (n *NodeValidatableResource) validateResource(traceCtx context.Context, ctx
 			return diags
 		}
 
-		configVal, _, valDiags := ctx.EvaluateBlock(nil, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := ctx.EvaluateBlock(traceCtx, n.Config.Config, schema, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -427,7 +427,7 @@ func (n *NodeValidatableResource) validateResource(traceCtx context.Context, ctx
 			Config:   unmarkedConfigVal,
 		}
 
-		resp := provider.ValidateResourceConfig(req)
+		resp := provider.ValidateResourceConfig(traceCtx, req)
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 
 	case addrs.DataResourceMode:
@@ -455,7 +455,7 @@ func (n *NodeValidatableResource) validateResource(traceCtx context.Context, ctx
 			return diags
 		}
 
-		configVal, _, valDiags := ctx.EvaluateBlock(nil, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := ctx.EvaluateBlock(traceCtx, n.Config.Config, schema, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -468,7 +468,7 @@ func (n *NodeValidatableResource) validateResource(traceCtx context.Context, ctx
 			Config:   unmarkedConfigVal,
 		}
 
-		resp := provider.ValidateDataResourceConfig(req)
+		resp := provider.ValidateDataResourceConfig(traceCtx, req)
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 	}
 
@@ -483,7 +483,7 @@ func (n *NodeValidatableResource) evaluateExpr(traceCtx context.Context, ctx Eva
 
 	scope := ctx.EvaluationScope(traceCtx, self, nil, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(refs)
+	hclCtx, moreDiags := scope.EvalContext(traceCtx, refs)
 	diags = diags.Append(moreDiags)
 
 	result, hclDiags := expr.Value(hclCtx)
@@ -599,7 +599,7 @@ func validateDependsOn(traceCtx context.Context, ctx EvalContext, dependsOn []hc
 		if !diags.HasErrors() {
 			scope := ctx.EvaluationScope(traceCtx, nil, nil, EvalDataForNoInstanceKey)
 			if scope != nil { // sometimes nil in tests, due to incomplete mocks
-				_, refDiags = scope.EvalReference(ref, cty.DynamicPseudoType)
+				_, refDiags = scope.EvalReference(traceCtx, ref, cty.DynamicPseudoType)
 				diags = diags.Append(refDiags)
 			}
 		}

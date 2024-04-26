@@ -12,6 +12,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -29,6 +31,9 @@ var (
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(traceCtx context.Context, ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "NodeApplyableProvider.Execute", trace.WithAttributes(attribute.String("addr", n.Addr.String())))
+	defer span.End()
 
 	_, err := ctx.InitProvider(traceCtx, n.Addr)
 	diags = diags.Append(err)
@@ -66,7 +71,7 @@ func (n *NodeApplyableProvider) ValidateProvider(traceCtx context.Context, ctx E
 		return nil
 	}
 
-	schemaResp := provider.GetProviderSchema(nil)
+	schemaResp := provider.GetProviderSchema(traceCtx)
 	diags = diags.Append(schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.String()))
 	if diags.HasErrors() {
 		return diags

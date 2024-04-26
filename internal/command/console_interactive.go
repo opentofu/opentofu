@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +17,7 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
+func (c *ConsoleCommand) modeInteractive(ctx context.Context, session *repl.Session, ui cli.Ui) int {
 	// Configure input
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:            "> ",
@@ -48,7 +49,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 			break
 		}
 
-		out, exit, diags := session.Handle(line)
+		out, exit, diags := session.Handle(ctx, line)
 		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 		}

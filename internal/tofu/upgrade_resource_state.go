@@ -6,16 +6,18 @@
 package tofu
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // upgradeResourceState will, if necessary, run the provider-defined upgrade
@@ -25,7 +27,7 @@ import (
 //
 // If any errors occur during upgrade, error diagnostics are returned. In that
 // case it is not safe to proceed with using the original state object.
-func upgradeResourceState(addr addrs.AbsResourceInstance, provider providers.Interface, src *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
+func upgradeResourceState(ctx context.Context, addr addrs.AbsResourceInstance, provider providers.Interface, src *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
 	if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 		// We only do state upgrading for managed resources.
 		// This was a part of the normal workflow in older versions and
@@ -92,7 +94,7 @@ func upgradeResourceState(addr addrs.AbsResourceInstance, provider providers.Int
 		req.RawStateJSON = src.AttrsJSON
 	}
 
-	resp := provider.UpgradeResourceState(req)
+	resp := provider.UpgradeResourceState(ctx, req)
 	diags := resp.Diagnostics
 	if diags.HasErrors() {
 		return nil, diags

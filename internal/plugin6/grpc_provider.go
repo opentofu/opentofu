@@ -226,10 +226,10 @@ func (p *GRPCProvider) ValidateProviderConfig(ctx context.Context, r providers.V
 	return resp
 }
 
-func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
+func (p *GRPCProvider) ValidateResourceConfig(ctx context.Context, r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
 	logger.Trace("GRPCProvider.v6: ValidateResourceConfig")
 
-	schema := p.GetProviderSchema(nil)
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -262,10 +262,10 @@ func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	return resp
 }
 
-func (p *GRPCProvider) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+func (p *GRPCProvider) ValidateDataResourceConfig(ctx context.Context, r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
 	logger.Trace("GRPCProvider.v6: ValidateDataResourceConfig")
 
-	schema := p.GetProviderSchema(nil)
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -297,10 +297,13 @@ func (p *GRPCProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 	return resp
 }
 
-func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+func (p *GRPCProvider) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
 	logger.Trace("GRPCProvider.v6: UpgradeResourceState")
+	var span trace.Span
+	_, span = tracer.Start(ctx, "GRPCProvider6 UpgradeResourceState")
+	defer span.End()
 
-	schema := p.GetProviderSchema(nil)
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -392,10 +395,14 @@ func (p *GRPCProvider) Stop() error {
 	return nil
 }
 
-func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 	logger.Trace("GRPCProvider.v6: ReadResource")
 
-	schema := p.GetProviderSchema(nil)
+	var span trace.Span
+	_, span = tracer.Start(ctx, "GRPCProvider6 ReadResource")
+	defer span.End()
+
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -448,10 +455,10 @@ func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 	return resp
 }
 
-func (p *GRPCProvider) PlanResourceChange(r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 	logger.Trace("GRPCProvider.v6: PlanResourceChange")
 
-	schema := p.GetProviderSchema(nil)
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -534,7 +541,7 @@ func (p *GRPCProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 	return resp
 }
 
-func (p *GRPCProvider) ApplyResourceChange(r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+func (p *GRPCProvider) ApplyResourceChange(ctx context.Context, r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
 	logger.Trace("GRPCProvider.v6: ApplyResourceChange")
 
 	schema := p.GetProviderSchema(nil)
@@ -650,7 +657,7 @@ func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateReques
 	return resp
 }
 
-func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
+func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 	logger.Trace("GRPCProvider.v6: ReadDataSource")
 
 	schema := p.GetProviderSchema(nil)
@@ -713,7 +720,7 @@ func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
 	span.SetAttributes(attribute.String("provider", p.Addr.String()))
 
 	logger.Trace("GRPCProvider6: GetFunctions")
-	
+
 	protoReq := &proto6.GetFunctions_Request{}
 
 	protoResp, err := p.client.GetFunctions(ctx, protoReq)

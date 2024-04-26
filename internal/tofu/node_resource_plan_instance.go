@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -99,6 +100,10 @@ func (n *NodePlannableResourceInstance) Execute(traceCtx context.Context, ctx Ev
 }
 
 func (n *NodePlannableResourceInstance) dataResourceExecute(traceCtx context.Context, ctx EvalContext) (diags tfdiags.Diagnostics) {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "NodePlannableResourceInstance.dataResourceExecute")
+	defer span.End()
+
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 
@@ -156,6 +161,10 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(traceCtx context.Con
 }
 
 func (n *NodePlannableResourceInstance) managedResourceExecute(traceCtx context.Context, ctx EvalContext) (diags tfdiags.Diagnostics) {
+	var span trace.Span
+	traceCtx, span = tracer.Start(traceCtx, "NodePlannableResourceInstance.managedResourceExecute")
+	defer span.End()
+
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 

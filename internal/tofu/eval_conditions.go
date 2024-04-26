@@ -104,7 +104,7 @@ func validateCheckRule(traceCtx context.Context, addr addrs.CheckRule, rule *con
 	}
 	scope := ctx.EvaluationScope(traceCtx, selfReference, sourceReference, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(refs)
+	hclCtx, moreDiags := scope.EvalContext(traceCtx, refs)
 	diags = diags.Append(moreDiags)
 
 	errorMessage, moreDiags := evalCheckErrorMessage(rule.ErrorMessage, hclCtx)

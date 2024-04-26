@@ -503,7 +503,7 @@ func (n *NodeAbstractResource) readResourceInstanceState(traceCtx context.Contex
 		// Shouldn't happen since we should've failed long ago if no schema is present
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
-	src, upgradeDiags := upgradeResourceState(addr, provider, src, schema, currentVersion)
+	src, upgradeDiags := upgradeResourceState(traceCtx, addr, provider, src, schema, currentVersion)
 	if n.Config != nil {
 		upgradeDiags = upgradeDiags.InConfigBody(n.Config.Config, addr.String())
 	}
@@ -550,7 +550,7 @@ func (n *NodeAbstractResource) readResourceInstanceStateDeposed(traceCtx context
 
 	}
 
-	src, upgradeDiags := upgradeResourceState(addr, provider, src, schema, currentVersion)
+	src, upgradeDiags := upgradeResourceState(traceCtx, addr, provider, src, schema, currentVersion)
 	if n.Config != nil {
 		upgradeDiags = upgradeDiags.InConfigBody(n.Config.Config, addr.String())
 	}

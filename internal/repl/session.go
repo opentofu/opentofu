@@ -6,6 +6,7 @@
 package repl
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/lang/types"
@@ -32,7 +34,7 @@ type Session struct {
 // a variable). This function should not be called in parallel.
 //
 // The return value is the output and the error to show.
-func (s *Session) Handle(line string) (string, bool, tfdiags.Diagnostics) {
+func (s *Session) Handle(ctx context.Context, line string) (string, bool, tfdiags.Diagnostics) {
 	switch {
 	case strings.TrimSpace(line) == "":
 		return "", false, nil
@@ -42,12 +44,12 @@ func (s *Session) Handle(line string) (string, bool, tfdiags.Diagnostics) {
 		ret, diags := s.handleHelp()
 		return ret, false, diags
 	default:
-		ret, diags := s.handleEval(line)
+		ret, diags := s.handleEval(ctx, line)
 		return ret, false, diags
 	}
 }
 
-func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
+func (s *Session) handleEval(ctx context.Context, line string) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Parse the given line as an expression
@@ -57,7 +59,7 @@ func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
 		return "", diags
 	}
 
-	val, valDiags := s.Scope.EvalExpr(expr, cty.DynamicPseudoType)
+	val, valDiags := s.Scope.EvalExpr(ctx, expr, cty.DynamicPseudoType)
 	diags = diags.Append(valDiags)
 	if valDiags.HasErrors() {
 		return "", diags

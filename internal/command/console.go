@@ -174,17 +174,17 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, ui)
+		return c.modePiped(ctx, session, ui)
 	}
 
-	return c.modeInteractive(session, ui)
+	return c.modeInteractive(ctx, session, ui)
 }
 
-func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
+func (c *ConsoleCommand) modePiped(ctx context.Context, session *repl.Session, ui cli.Ui) int {
 	var lastResult string
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		result, exit, diags := session.Handle(strings.TrimSpace(scanner.Text()))
+		result, exit, diags := session.Handle(ctx, strings.TrimSpace(scanner.Text()))
 		if diags.HasErrors() {
 			// In piped mode we'll exit immediately on error.
 			c.showDiagnostics(diags)

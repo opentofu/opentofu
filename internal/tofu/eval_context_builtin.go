@@ -160,9 +160,10 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(traceCtx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	var span trace.Span
-	traceCtx, span = tracer.Start(traceCtx, "BuiltinEvalContext.ProviderSchema")
-	defer span.End()
+	// Commented this out as it's WAY too noisy
+	//var span trace.Span
+	//traceCtx, span = tracer.Start(traceCtx, "BuiltinEvalContext.ProviderSchema")
+	//defer span.End()
 
 	return ctx.Plugins.ProviderSchema(traceCtx, addr.Provider)
 }
@@ -276,9 +277,9 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 func (ctx *BuiltinEvalContext) EvaluateBlock(traceCtx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	scope := ctx.EvaluationScope(traceCtx, self, nil, keyData)
-	body, evalDiags := scope.ExpandBlock(body, schema)
+	body, evalDiags := scope.ExpandBlock(traceCtx, body, schema)
 	diags = diags.Append(evalDiags)
-	val, evalDiags := scope.EvalBlock(body, schema)
+	val, evalDiags := scope.EvalBlock(traceCtx, body, schema)
 	diags = diags.Append(evalDiags)
 	return val, body, diags
 }
@@ -289,7 +290,7 @@ func (ctx *BuiltinEvalContext) EvaluateExpr(traceCtx context.Context, expr hcl.E
 	defer span.End()
 
 	scope := ctx.EvaluationScope(traceCtx, self, nil, EvalDataForNoInstanceKey)
-	return scope.EvalExpr(expr, wantType)
+	return scope.EvalExpr(traceCtx, expr, wantType)
 }
 
 func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(traceCtx context.Context, expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {

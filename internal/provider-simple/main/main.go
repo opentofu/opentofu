@@ -6,6 +6,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/grpcwrap"
 	"github.com/opentofu/opentofu/internal/plugin"
 	simple "github.com/opentofu/opentofu/internal/provider-simple"
@@ -15,7 +17,7 @@ import (
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
 		GRPCProviderFunc: func() tfplugin5.ProviderServer {
-			return grpcwrap.Provider(simple.Provider())
+			return grpcwrap.Provider(context.TODO(), simple.Provider())
 		},
 	})
 }
