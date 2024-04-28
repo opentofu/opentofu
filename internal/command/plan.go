@@ -104,8 +104,6 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	view.Diagnostics(diags)
 	diags = nil
 
-	// bazinga check here args and try to show the variable.
-
 	// Perform the operation
 	op, diags := c.RunOperation(be, opReq)
 	view.Diagnostics(diags)
@@ -292,6 +290,8 @@ Other Options:
   -state=statefile           A legacy option used for the local backend only.
                              See the local backend's documentation for more
                              information.
+
+  -show-sensitive            If specified, sensitive values will be displayed.
 `
 	return strings.TrimSpace(helpText)
 }

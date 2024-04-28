@@ -35,7 +35,7 @@ type Plan struct {
 	// ViewType specifies which output format to use
 	ViewType ViewType
 
-	// showSensitive (-show-sensitive) displays the sensitive values.
+	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
 }
 

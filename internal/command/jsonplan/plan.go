@@ -173,7 +173,10 @@ type Variable struct {
 //
 // This function does a small part of the Marshal function, as it only returns
 // the part of the plan required by the jsonformat.Plan renderer.
-func MarshalForRenderer(p *plans.Plan, schemas *tofu.Schemas) (map[string]Change, []ResourceChange, []ResourceChange, []ResourceAttr, error) {
+func MarshalForRenderer(
+	p *plans.Plan,
+	schemas *tofu.Schemas,
+) (map[string]Change, []ResourceChange, []ResourceChange, []ResourceAttr, error) {
 	output := newPlan()
 
 	var err error

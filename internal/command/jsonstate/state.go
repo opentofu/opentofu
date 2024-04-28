@@ -495,8 +495,11 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 	return ret, nil
 }
 
-func SetSensitive(resources []Resource, val json.RawMessage, index int) {
-	resources[index].SensitiveValues = val
+// SetSensitive marks the SensitiveValues in Resource as nilto display the sensitive values.
+// This function is only used when the -show-sensitive flag is passed as an argument in
+// tofu state show command.
+func (r *Resource) SetSensitive() {
+	r.SensitiveValues = nil
 }
 
 func SensitiveAsBool(val cty.Value) cty.Value {

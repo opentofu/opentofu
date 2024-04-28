@@ -380,6 +380,8 @@ Options:
                          "-state". This can be used to preserve the old
                          state.
 
+  -show-sensitive        If specified, sensitive values will be displayed.
+
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
   For more information on those options, run:
