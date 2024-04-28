@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -1652,6 +1653,86 @@ func planFixtureSchema() *providers.GetProviderSchemaResponse {
 				},
 			},
 		},
+	}
+}
+
+func TestPlan_showSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	expected := `Changes to Outputs:
+  [32m+[0m[0m notsensitive = "Hello world"
+  [32m+[0m[0m sensitive    = "Hello world"
+
+You can apply this plan to save these new output values to the OpenTofu
+state, without changing any real infrastructure.
+[90m
+─────────────────────────────────────────────────────────────────────────────[0m
+
+Note: You didn't use the -out option to save this plan, so OpenTofu can't
+guarantee to take exactly these actions if you run "tofu apply" now.`
+
+	actual := strings.TrimSpace(output.Stdout())
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("got incorrect output\n %v", diff)
+	}
+}
+
+func TestPlan_withoutShowSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	expected := `Changes to Outputs:
+  [32m+[0m[0m notsensitive = "Hello world"
+  [32m+[0m[0m sensitive    = (sensitive value)
+
+You can apply this plan to save these new output values to the OpenTofu
+state, without changing any real infrastructure.
+[90m
+─────────────────────────────────────────────────────────────────────────────[0m
+
+Note: You didn't use the -out option to save this plan, so OpenTofu can't
+guarantee to take exactly these actions if you run "tofu apply" now.`
+
+	actual := strings.TrimSpace(output.Stdout())
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("got incorrect output\n %v", diff)
 	}
 }
 

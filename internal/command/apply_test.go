@@ -2167,6 +2167,90 @@ func TestApply_warnings(t *testing.T) {
 	})
 }
 
+func TestApply_showSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := applyFixtureProvider()
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	expected := `Changes to Outputs:
+  [32m+[0m[0m notsensitive = "Hello world"
+  [32m+[0m[0m sensitive    = "Hello world"
+
+You can apply this plan to save these new output values to the OpenTofu
+state, without changing any real infrastructure.
+[0m[1m[32m
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+[0m[0m[1m[32m
+Outputs:
+
+[0mnotsensitive = "Hello world"
+sensitive = "Hello world"`
+
+	actual := strings.TrimSpace(output.Stdout())
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("got incorrect output\n %v", diff)
+	}
+}
+
+func TestApply_withoutShowSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := applyFixtureProvider()
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	expected := `Changes to Outputs:
+  [32m+[0m[0m notsensitive = "Hello world"
+  [32m+[0m[0m sensitive    = (sensitive value)
+
+You can apply this plan to save these new output values to the OpenTofu
+state, without changing any real infrastructure.
+[0m[1m[32m
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+[0m[0m[1m[32m
+Outputs:
+
+[0mnotsensitive = "Hello world"
+sensitive = <sensitive>`
+
+	actual := strings.TrimSpace(output.Stdout())
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("got incorrect output\n %v", diff)
+	}
+}
+
 // applyFixtureSchema returns a schema suitable for processing the
 // configuration in testdata/apply . This schema should be
 // assigned to a mock provider named "test".
