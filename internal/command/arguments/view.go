@@ -20,6 +20,7 @@ type View struct {
 	// only the important details.
 	Concise bool
 
+	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
 }
 
@@ -40,8 +41,6 @@ func ParseView(args []string) (*View, []string) {
 			common.CompactWarnings = true
 		case "-concise":
 			common.Concise = true
-		case "-show-sensitive":
-			common.ShowSensitive = true
 		default:
 			// Unsupported argument: move left to the current position, and
 			// increment the index.

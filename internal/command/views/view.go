@@ -33,6 +33,7 @@ type View struct {
 	// only the important details.
 	concise bool
 
+	// showSensitive is used to display the value of variables marked as sensitive.
 	showSensitive bool
 
 	// This unfortunate wart is required to enable rendering of diagnostics which
@@ -77,7 +78,6 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
-	v.showSensitive = view.ShowSensitive
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -172,4 +172,8 @@ func (v *View) errorColumns() int {
 // visually de-emphasize it.
 func (v *View) outputHorizRule() {
 	v.streams.Println(format.HorizontalRule(v.colorize, v.outputColumns()))
+}
+
+func (v *View) SetShowSensitive(showSensitive bool) {
+	v.showSensitive = showSensitive
 }

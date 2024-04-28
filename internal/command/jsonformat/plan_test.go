@@ -7324,7 +7324,7 @@ func TestOutputChanges(t *testing.T) {
 				Outputs: tc.changes,
 			}
 
-			outputs, err := jsonplan.MarshalOutputChanges(changes, false)
+			outputs, err := jsonplan.MarshalOutputChanges(changes)
 			if err != nil {
 				t.Fatalf("failed to marshal output changes")
 			}

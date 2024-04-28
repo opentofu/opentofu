@@ -173,11 +173,11 @@ type Variable struct {
 //
 // This function does a small part of the Marshal function, as it only returns
 // the part of the plan required by the jsonformat.Plan renderer.
-func MarshalForRenderer(p *plans.Plan, schemas *tofu.Schemas, showSensitive bool) (map[string]Change, []ResourceChange, []ResourceChange, []ResourceAttr, error) {
+func MarshalForRenderer(p *plans.Plan, schemas *tofu.Schemas) (map[string]Change, []ResourceChange, []ResourceChange, []ResourceAttr, error) {
 	output := newPlan()
 
 	var err error
-	if output.OutputChanges, err = MarshalOutputChanges(p.Changes, showSensitive); err != nil {
+	if output.OutputChanges, err = MarshalOutputChanges(p.Changes); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
@@ -272,7 +272,7 @@ func MarshalForLog(
 	}
 
 	// output.OutputChanges
-	if output.OutputChanges, err = MarshalOutputChanges(p.Changes, false); err != nil {
+	if output.OutputChanges, err = MarshalOutputChanges(p.Changes); err != nil {
 		return nil, fmt.Errorf("error in marshaling output changes: %w", err)
 	}
 
@@ -565,7 +565,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 // This function is referenced directly from the structured renderer tests, to
 // ensure parity between the renderers. It probably shouldn't be used anywhere
 // else.
-func MarshalOutputChanges(changes *plans.Changes, showSensitive bool) (map[string]Change, error) {
+func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 	if changes == nil {
 		// Nothing to do!
 		return nil, nil
@@ -626,7 +626,7 @@ func MarshalOutputChanges(changes *plans.Changes, showSensitive bool) (map[strin
 		// a result, BeforeSensitive and AfterSensitive will be identical, and
 		// either false or true.
 		outputSensitive := cty.False
-		if oc.Sensitive && !showSensitive {
+		if oc.Sensitive {
 			outputSensitive = cty.True
 		}
 		sensitive, err := ctyjson.Marshal(outputSensitive, outputSensitive.Type())
