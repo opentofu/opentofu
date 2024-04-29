@@ -182,7 +182,7 @@ func (n *nodeCloseModule) Name() string {
 }
 
 func (n *nodeCloseModule) isOverriden() bool {
-	return n.Config == nil || n.Config.IsOverriden
+	return n.Config != nil && n.Config.IsOverriden
 }
 
 func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
