@@ -56,17 +56,19 @@ func (t *AttachResourceConfigTransformer) Transform(g *Graph) error {
 			m = config.Module.ManagedResources
 		} else if addr.Resource.Mode == addrs.DataResourceMode {
 			m = config.Module.DataResources
+		} else {
+			panic("unknown resource mode: " + addr.Resource.Mode.String())
 		}
-		if m != nil {
-			coord := addr.Resource.String()
-			if r, ok := m[coord]; ok && r.Addr() == addr.Resource {
-				log.Printf("[TRACE] AttachResourceConfigTransformer: attaching to %q (%T) config from %#v", dag.VertexName(v), v, r.DeclRange)
-				arn.AttachResourceConfig(r)
-				if gnapmc, ok := v.(GraphNodeAttachProviderMetaConfigs); ok {
-					log.Printf("[TRACE] AttachResourceConfigTransformer: attaching provider meta configs to %s", dag.VertexName(v))
-					if config.Module != nil && config.Module.ProviderMetas != nil {
-						gnapmc.AttachProviderMetaConfigs(config.Module.ProviderMetas)
-					}
+		coord := addr.Resource.String()
+		if r, ok := m[coord]; ok && r.Addr() == addr.Resource {
+			log.Printf("[TRACE] AttachResourceConfigTransformer: attaching to %q (%T) config from %#v", dag.VertexName(v), v, r.DeclRange)
+			arn.AttachResourceConfig(r)
+			if gnapmc, ok := v.(GraphNodeAttachProviderMetaConfigs); ok {
+				log.Printf("[TRACE] AttachResourceConfigTransformer: attaching provider meta configs to %s", dag.VertexName(v))
+				if config.Module.ProviderMetas != nil {
+					gnapmc.AttachProviderMetaConfigs(config.Module.ProviderMetas)
+				} else {
+					log.Printf("[TRACE] AttachResourceConfigTransformer: no provider meta configs available to attach to %s", dag.VertexName(v))
 				}
 			}
 		}
