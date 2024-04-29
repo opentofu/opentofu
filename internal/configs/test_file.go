@@ -169,17 +169,6 @@ func (run *TestRun) Validate() tfdiags.Diagnostics {
 
 	}
 
-	// We want to validate OverrideResource Targets point to data/resource only.
-	for _, overrideRes := range run.OverrideResources {
-		parsedTarget, parseDiags := addrs.ParseConfigResource(overrideRes.Target)
-		diags = append(diags, parseDiags...)
-		if parseDiags.HasErrors() {
-			continue
-		}
-
-		overrideRes.TargetParsed = parsedTarget
-	}
-
 	return diags
 }
 
@@ -600,35 +589,38 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 }
 
 func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*OverrideResource, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
+	parseTarget := func(attr *hcl.Attribute) (traversal hcl.Traversal, configRes *addrs.ConfigResource, diags hcl.Diagnostics) {
+		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
+		diags = append(diags, traversalDiags...)
+		if traversalDiags.HasErrors() {
+			return nil, nil, diags
+		}
 
-	content, moreDiags := block.Body.Content(overrideResourceBlockSchema)
-	diags = append(diags, moreDiags...)
+		configRes, configResDiags := addrs.ParseConfigResource(traversal)
+		diags = append(diags, configResDiags.ToHCL()...)
+		if configResDiags.HasErrors() {
+			return nil, nil, diags
+		}
 
-	res := &OverrideResource{
-		Mode: mode,
+		return traversal, configRes, diags
 	}
 
-	if attr, exists := content.Attributes["target"]; exists {
-		res.Target, moreDiags = hcl.AbsTraversalForExpr(attr.Expr)
-		diags = append(diags, moreDiags...)
-	}
-
-	if attr, exists := content.Attributes["values"]; exists {
+	parseValues := func(attr *hcl.Attribute) (values map[string]cty.Value, diags hcl.Diagnostics) {
 		if vars := attr.Expr.Variables(); len(vars) != 0 {
-			diags = append(diags, &hcl.Diagnostic{
+			return nil, hcl.Diagnostics{
+				&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Variables not allowed",
 				Detail:   "Variables may not be used in `values` of override blocks.",
 				Subject:  attr.Range.Ptr(),
-			})
-			return res, diags
+				},
+			}
 		}
 
-		attrVal, moreDiags := attr.Expr.Value(nil)
-		if moreDiags.HasErrors() {
-			diags = append(diags, moreDiags...)
-			return res, diags
+		attrVal, attrValDiags := attr.Expr.Value(nil)
+		diags = append(diags, attrValDiags...)
+		if attrValDiags.HasErrors() {
+			return nil, diags
 		}
 
 		if !attrVal.Type().IsObjectType() {
@@ -638,10 +630,27 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 				Detail:   "Attribute `values` in override block must be an object.",
 				Subject:  attr.Range.Ptr(),
 			})
-			return res, diags
+			return nil, diags
 		}
 
-		res.Values = attrVal.AsValueMap()
+		return attrVal.AsValueMap(), diags
+		}
+
+	res := &OverrideResource{
+		Mode: mode,
+	}
+
+	content, diags := block.Body.Content(overrideResourceBlockSchema)
+
+	if attr, exists := content.Attributes["target"]; exists {
+		target, parsed, moreDiags := parseTarget(attr)
+		res.Target, res.TargetParsed = target, parsed
+		diags = append(diags, moreDiags...)
+	}
+
+	if attr, exists := content.Attributes["values"]; exists {
+		v, moreDiags := parseValues(attr)
+		res.Values, diags = v, append(diags, moreDiags...)
 	}
 
 	return res, diags
