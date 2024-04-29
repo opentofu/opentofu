@@ -63,7 +63,28 @@ type TestFile struct {
 	// order.
 	Runs []*TestRun
 
+	// OverrideResources is a list of resources to be overriden with static values.
+	// Underlying providers shouldn't be called for overriden resources.
+	OverrideResources []*OverrideResource
+
+	// OverrideModules is a list of modules to be overriden with static values.
+	// Underlying modules shouldn't be called.
+	OverrideModules []*OverrideModule
+
 	VariablesDeclRange hcl.Range
+}
+
+// Validate does a very simple and cursory check across the run block to look
+// for simple issues we can highlight early on.
+func (file *TestFile) Validate() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// It's not allowed to have multiple `override_resource`, `override_data` or `override_module`
+	// with the same target address so we want to ensure there's no such cases.
+	diags = diags.Append(checkForDuplicatedOverrideResources(file.OverrideResources))
+	diags = diags.Append(checkForDuplicatedOverrideModules(file.OverrideModules))
+
+	return diags
 }
 
 // TestRun represents a single run block within a test file.
@@ -221,6 +242,18 @@ type OverrideResource struct {
 	Values map[string]cty.Value
 }
 
+func (r OverrideResource) getBlockName() string {
+	switch r.Mode {
+	case addrs.ManagedResourceMode:
+		return "override_resource"
+	case addrs.DataResourceMode:
+		return "override_data"
+	default:
+		// must never happen
+		return "invalid"
+	}
+}
+
 // OverrideModule contains information about a module to be overriden.
 type OverrideModule struct {
 	Target       hcl.Traversal
@@ -246,6 +279,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			if !runDiags.HasErrors() {
 				tf.Runs = append(tf.Runs, run)
 			}
+
 		case "variables":
 			if tf.Variables != nil {
 				diags = append(diags, &hcl.Diagnostic{
@@ -265,12 +299,35 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			for _, v := range vars {
 				tf.Variables[v.Name] = v.Expr
 			}
+
 		case "provider":
 			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
 				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
+
+		case "override_resource":
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+			diags = append(diags, overrideResDiags...)
+			if !overrideResDiags.HasErrors() {
+				tf.OverrideResources = append(tf.OverrideResources, overrideRes)
+			}
+
+		case "override_data":
+			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
+			diags = append(diags, overrideDataDiags...)
+			if !overrideDataDiags.HasErrors() {
+				tf.OverrideResources = append(tf.OverrideResources, overrideData)
+			}
+
+		case "override_module":
+			overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
+			diags = append(diags, overrideModDiags...)
+			if !overrideModDiags.HasErrors() {
+				tf.OverrideModules = append(tf.OverrideModules, overrideMod)
+			}
+
 		}
 	}
 
@@ -614,10 +671,10 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		if vars := attr.Expr.Variables(); len(vars) != 0 {
 			return nil, hcl.Diagnostics{
 				&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Variables not allowed",
-				Detail:   "Variables may not be used in `values` of override blocks.",
-				Subject:  attr.Range.Ptr(),
+					Severity: hcl.DiagError,
+					Summary:  "Variables not allowed",
+					Detail:   "Variables may not be used in `values` of override blocks.",
+					Subject:  attr.Range.Ptr(),
 				},
 			}
 		}
@@ -639,7 +696,7 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		}
 
 		return attrVal.AsValueMap(), diags
-		}
+	}
 
 	res := &OverrideResource{
 		Mode: mode,
@@ -732,15 +789,10 @@ func checkForDuplicatedOverrideResources(resources []*OverrideResource) (diags h
 		k := res.TargetParsed.String()
 
 		if _, ok := overrideResources[k]; ok {
-			modeName := "override_resource"
-			if res.Mode == addrs.DataResourceMode {
-				modeName = "override_data"
-			}
-
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Duplicated `%v` block", modeName),
-				Detail:   fmt.Sprintf("It is not allowed to have multiple `%v` blocks with the same target: `%v`.", modeName, res.TargetParsed),
+				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
+				Detail:   fmt.Sprintf("It is not allowed to have multiple `%v` blocks with the same target: `%v`.", res.getBlockName(), res.TargetParsed),
 				Subject:  res.Target.SourceRange().Ptr(),
 			})
 		}
@@ -783,6 +835,15 @@ var testFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "variables",
+		},
+		{
+			Type: "override_resource",
+		},
+		{
+			Type: "override_data",
+		},
+		{
+			Type: "override_module",
 		},
 	},
 }

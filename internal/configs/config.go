@@ -990,11 +990,11 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	}, diags
 }
 
-func (c *Config) transformOverridenResourcesForTest(run *TestRun, _ *TestFile) (func(), hcl.Diagnostics) {
-	var diags hcl.Diagnostics
+func (c *Config) transformOverridenResourcesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+	resources, diags := mergeOverridenResources(run.OverrideResources, file.OverrideResources)
 
 	// We want to pass override values to resources being overriden.
-	for _, overrideRes := range run.OverrideResources {
+	for _, overrideRes := range resources {
 		targetConfig := c.Root.Descendent(overrideRes.TargetParsed.Module)
 		if targetConfig == nil {
 			diags = append(diags, &hcl.Diagnostic{
@@ -1054,10 +1054,10 @@ func (c *Config) transformOverridenResourcesForTest(run *TestRun, _ *TestFile) (
 	}, diags
 }
 
-func (c *Config) transformOverridenModulesForTest(run *TestRun, _ *TestFile) (func(), hcl.Diagnostics) {
-	var diags hcl.Diagnostics
+func (c *Config) transformOverridenModulesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+	modules, diags := mergeOverridenModules(run.OverrideModules, file.OverrideModules)
 
-	for _, overrideMod := range run.OverrideModules {
+	for _, overrideMod := range modules {
 		targetConfig := c.Root.Descendent(overrideMod.TargetParsed)
 		if targetConfig == nil {
 			diags = append(diags, &hcl.Diagnostic{
@@ -1106,4 +1106,60 @@ func (c *Config) transformOverridenModulesForTest(run *TestRun, _ *TestFile) (fu
 			}
 		}
 	}, diags
+}
+
+func mergeOverridenResources(runResources, fileResources []*OverrideResource) ([]*OverrideResource, hcl.Diagnostics) {
+	runAddrs := make(map[string]struct{})
+	for _, r := range runResources {
+		runAddrs[r.TargetParsed.String()] = struct{}{}
+	}
+
+	var diags hcl.Diagnostics
+
+	resources := runResources
+	for _, r := range fileResources {
+		addr := r.TargetParsed.String()
+
+		if _, ok := runAddrs[addr]; ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  fmt.Sprintf("Multiple `%v` blocks for the same address", r.getBlockName()),
+				Detail:   fmt.Sprintf("`%v` is overriden in both global file and local run blocks. The declaration in global file block will be ignored.", addr),
+				Subject:  r.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		resources = append(resources, r)
+	}
+
+	return resources, diags
+}
+
+func mergeOverridenModules(runModules, fileModules []*OverrideModule) ([]*OverrideModule, hcl.Diagnostics) {
+	runAddrs := make(map[string]struct{})
+	for _, m := range runModules {
+		runAddrs[m.TargetParsed.String()] = struct{}{}
+	}
+
+	var diags hcl.Diagnostics
+
+	modules := runModules
+	for _, m := range fileModules {
+		addr := m.TargetParsed.String()
+
+		if _, ok := runAddrs[addr]; ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Multiple `override_module` blocks for the same address",
+				Detail:   fmt.Sprintf("Module `%v` is overriden in both global file and local run blocks. The declaration in global file block will be ignored.", addr),
+				Subject:  m.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		modules = append(modules, m)
+	}
+
+	return modules, diags
 }
