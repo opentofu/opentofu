@@ -4,21 +4,13 @@ on:
   pull_request:
     types:
       - closed
-      - labeled
 
 jobs:
   backport:
     name: Backport pull request
     runs-on: ubuntu-latest
     if: >
-      github.event.pull_request.merged
-      && (
-        github.event.action == 'closed'
-        || (
-          github.event.action == 'labeled'
-          && contains(github.event.label.name, 'backport')
-        )
-      )
+      github.event.pull_request.merged && ${{contains(github.event.pull_request.labels.*.name, 'backport')}}
     steps:
     - name: Checkout
       uses: actions/checkout@v3

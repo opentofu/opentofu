@@ -17,7 +17,13 @@ for label in "${LABELS[@]}"; do
         break
     fi
 done
+
+# Exit if backport label not found
 echo "Label Name: $backport_label"
+if [ -z "$backport_label" ]; then
+    echo "Backport label not found. Exiting."
+    exit 1
+fi
 
 # Checkout the version branch
 git fetch origin $branch_name
@@ -31,17 +37,23 @@ git push origin $new_branch
 echo "New backport branch: $new_branch"
 
 # Get the commit SHAs associated with the pull request
-commit_ids=$(curl -sS -H "Authorization: token $GITHUB_TOKEN" \
+curl -sS -H "Authorization: token $GITHUB_TOKEN" \
      -H "Accept: application/vnd.github.v3+json" \
      "https://api.github.com/repos/$OWNER/$REPO/pulls/$PR_NUMBER/commits" | \
-     jq -r '.[].sha')
-
-# Store the commit SHAs in an array
-commit_ids_array=($commit_ids)
-for commit_sha in "${commit_ids_array[@]}"; do
-    git fetch origin $commit_sha
-    git cherry-pick $commit_sha
-    echo "Cherry-picking commit: $commit_sha"
+jq -r '.[].sha' |
+while IFS= read -r commit_sha; do
+    git fetch origin "$commit_sha"
+    if git cherry-pick "$commit_sha" ; then
+        echo "Cherry-picking commit: $commit_sha"
+    else
+        # Add a failure comment to the pull request
+        echo "Error: Failed to cherry-pick commit $commit_sha"
+        failureComment="Cherry-picking commit $commit_sha failed during the backport process to $branch_name."
+        curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
+          -d "{\"body\":\"$failureComment\"}" \
+          "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" >/dev/null
+        exit 1
+    fi
 done
 echo "Cherry Pick done!"
 
@@ -50,7 +62,7 @@ echo "Successfully pushed!"
 
 # Create the pull request.
 title="Backport PR #$ISSUE_NUMBER"
-body="This pull request backports changes from $head_branch to $branch_name."
+body="This pull request backports changes from $HEAD_BRANCH to $branch_name."
 url=$(curl -sS -X POST -H "Authorization: token $GITHUB_TOKEN" \
   -d "{\"title\":\"$title\",\"body\":\"$body\",\"head\":\"$new_branch\",\"base\":\"$branch_name\"}" \
   "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls" | jq -r '.html_url')
