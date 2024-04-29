@@ -112,10 +112,9 @@ type State struct {
 	// configuration.
 	Backend *BackendState `json:"backend,omitempty"`
 
+	mu sync.Mutex
 	// Modules contains all the modules in a breadth-first order
 	Modules []*ModuleState `json:"modules"`
-
-	mu sync.Mutex
 }
 
 func (s *State) Lock()   { s.mu.Lock() }
@@ -837,11 +836,10 @@ type RemoteState struct {
 	// Type controls the client we use for the remote state
 	Type string `json:"type"`
 
+	mu sync.Mutex
 	// Config is used to store arbitrary configuration that
 	// is type specific
 	Config map[string]string `json:"config"`
-
-	mu sync.Mutex
 }
 
 func (s *RemoteState) Lock()   { s.mu.Lock() }
@@ -1621,6 +1619,7 @@ type InstanceState struct {
 	// and is only meant as a lookup mechanism for the providers.
 	ID string `json:"id"`
 
+	mu sync.Mutex
 	// Attributes are basic information about the resource. Any keys here
 	// are accessible in variable format within OpenTofu configurations:
 	// ${resourcetype.name.attribute}.
@@ -1641,8 +1640,6 @@ type InstanceState struct {
 
 	// Tainted is used to mark a resource for recreation.
 	Tainted bool `json:"tainted"`
-
-	mu sync.Mutex
 }
 
 func (s *InstanceState) Lock()   { s.mu.Lock() }

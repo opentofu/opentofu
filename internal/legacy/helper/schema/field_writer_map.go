@@ -17,9 +17,8 @@ import (
 
 // MapFieldWriter writes data into a single map[string]string structure.
 type MapFieldWriter struct {
-	Schema map[string]*Schema
-
 	lock   sync.Mutex
+	Schema map[string]*Schema
 	result map[string]string
 }
 

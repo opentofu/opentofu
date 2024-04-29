@@ -8,7 +8,7 @@ description: >-
 # Backend Type: remote
 
 :::note
-**We recommend using the [`cloud` built-in integration](/docs/cli/cloud/settings)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of this backend. The `cloud` option includes an improved user experience and more features.
 :::
 
 The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TF Automation and Collaboration Software (TACOS) backends. It used to be called an "enhanced" backend.
@@ -56,7 +56,7 @@ determines which mode it uses:
   all of the desired remote workspace names. For example, set
   `prefix = "networking-"` to use remote workspaces with
   names like `networking-dev` and `networking-prod`. This is helpful when
-  mapping multiple OpenTofu CLI [workspaces](/docs/language/state/workspaces)
+  mapping multiple OpenTofu CLI [workspaces](../../../language/state/workspaces.mdx)
   used in a single OpenTofu configuration to multiple remote workspaces.
 
 
@@ -73,7 +73,7 @@ running any remote operations against them.
 
 OpenTofu uses shortened names without the common prefix to interact with workspaces on the command line. For example, if `prefix = "networking-"`, use `tofu workspace select prod` to switch to the OpenTofu CLI workspace `prod` within the current configuration. However, remote OpenTofu operations such as `plan` and `apply` for that OpenTofu CLI workspace will take place in the remote workspace `networking-prod`.
 
-Because of this, the [`terraform.workspace`](/docs/language/state/workspaces#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
+Because of this, the [`terraform.workspace`](../../../language/state/workspaces.mdx#current-workspace-interpolation) interpolation expression produces different results depending on whether a remote workspace is configured to perform operations locally or remotely. For example, in a remote workspace called `networking-prod` created with `prefix = "networking-"` the expression produces the following:
 
 - For local operations, `terraform.workspace` = `prod`
 - For remote operations, `terraform.workspace`=  `networking-prod`
@@ -82,8 +82,8 @@ Because of this, the [`terraform.workspace`](/docs/language/state/workspaces#cur
 
 :::note
 We recommend omitting the token from the configuration, and instead using
-[`tofu login`](/docs/cli/commands/login) or manually configuring
-`credentials` in the [CLI config file](/docs/cli/config/config-file#credentials).
+[`tofu login`](../../../cli/commands/login.mdx) or manually configuring
+`credentials` in the [CLI config file](../../../cli/config/config-file.mdx#credentials).
 :::
 
 ### Basic Configuration
@@ -159,7 +159,7 @@ data "terraform_remote_state" "foo" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options are supported:
@@ -169,9 +169,9 @@ The following configuration options are supported:
   targeted workspace(s).
 - `token` - (Optional) The token used to authenticate with the remote backend.
   We recommend omitting the token from the configuration, and instead using
-  [`tofu login`](/docs/cli/commands/login) or manually configuring
+  [`tofu login`](../../../cli/commands/login.mdx) or manually configuring
   `credentials` in the
-  [CLI config file](/docs/cli/config/config-file#credentials).
+  [CLI config file](../../../cli/config/config-file.mdx#credentials).
 - `workspaces` - (Required) A block specifying which remote workspace(s) to use.
   The `workspaces` block supports the following keys:
 

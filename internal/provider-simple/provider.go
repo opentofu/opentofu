@@ -138,6 +138,10 @@ func (s simple) ReadDataSource(req providers.ReadDataSourceRequest) (resp provid
 	return resp
 }
 
+func (s simple) GetFunctions() providers.GetFunctionsResponse {
+	panic("Not Implemented")
+}
+
 func (s simple) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
 	panic("Not Implemented")
 }

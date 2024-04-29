@@ -10,11 +10,11 @@ Use the `depends_on` meta-argument to handle hidden resource or module dependenc
 
 ## Processing and Planning Consequences
 
-The `depends_on` meta-argument instructs OpenTofu to complete all actions on the dependency object (including Read actions) before performing actions on the object declaring the dependency. When the dependency object is an entire module, `depends_on` affects the order in which OpenTofu processes all of the resources and data sources associated with that module. Refer to [Resource Dependencies](/docs/language/resources/behavior#resource-dependencies) and [Data Resource Dependencies](/docs/language/data-sources#data-resource-dependencies) for more details.
+The `depends_on` meta-argument instructs OpenTofu to complete all actions on the dependency object (including Read actions) before performing actions on the object declaring the dependency. When the dependency object is an entire module, `depends_on` affects the order in which OpenTofu processes all of the resources and data sources associated with that module. Refer to [Resource Dependencies](../../language/resources/behavior.mdx#resource-dependencies) and [Data Resource Dependencies](../../language/data-sources/index.mdx#data-resource-dependencies) for more details.
 
 You should use `depends_on` as a last resort because it can cause OpenTofu to create more conservative plans that replace more resources than necessary. For example, OpenTofu may treat more values as unknown “(known after apply)” because it is uncertain what changes will occur on the upstream object. This is especially likely when you use `depends_on` for modules.
 
-Instead of `depends_on`, we recommend using [expression references](/docs/language/expressions/references) to imply dependencies when possible. Expression references let OpenTofu understand which value the reference derives from and avoid planning changes if that particular value hasn’t changed, even if other parts of the upstream object have planned changes.
+Instead of `depends_on`, we recommend using [expression references](../../language/expressions/references.mdx) to imply dependencies when possible. Expression references let OpenTofu understand which value the reference derives from and avoid planning changes if that particular value hasn’t changed, even if other parts of the upstream object have planned changes.
 
 ## Usage
 

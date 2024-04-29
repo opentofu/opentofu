@@ -20,13 +20,13 @@ in separate configurations, allowing resource configurations to be packaged
 and re-used.
 
 This page describes how to call one module from another. For more information
-about creating re-usable child modules, see [Module Development](/docs/language/modules/develop).
+about creating re-usable child modules, see [Module Development](../../language/modules/develop/index.mdx).
 
 ## Calling a Child Module
 
 To _call_ a module means to include the contents of that module into the
 configuration with specific values for its
-[input variables](/docs/language/values/variables). Modules are called
+[input variables](../../language/values/variables.mdx). Modules are called
 from within other modules using `module` blocks:
 
 ```hcl
@@ -50,7 +50,7 @@ Module calls use the following kinds of arguments:
 
 - The `version` argument is recommended for modules from a registry.
 
-- Most other arguments correspond to [input variables](/docs/language/values/variables)
+- Most other arguments correspond to [input variables](../../language/values/variables.mdx)
   defined by the module. (The `servers` argument in the example above is one of
   these.)
 
@@ -64,7 +64,7 @@ OpenTofu. Its value is either the path to a local directory containing the
 module's configuration files, or a remote module source that OpenTofu should
 download and use. This value must be a literal string with no template
 sequences; arbitrary expressions are not allowed. For more information on
-possible values for this argument, see [Module Sources](/docs/language/modules/sources).
+possible values for this argument, see [Module Sources](../../language/modules/sources.mdx).
 
 The same source address can be specified in multiple `module` blocks to create
 multiple copies of the resources defined within, possibly with different
@@ -92,7 +92,7 @@ module "consul" {
 }
 ```
 
-The `version` argument accepts a [version constraint string](/docs/language/expressions/version-constraints).
+The `version` argument accepts a [version constraint string](../../language/expressions/version-constraints.mdx).
 OpenTofu will use the newest installed version of the module that meets the
 constraint; if no acceptable versions are installed, it will download the newest
 version that meets the constraint.
@@ -113,22 +113,22 @@ optional meta-arguments that have special meaning across all modules,
 described in more detail in the following pages:
 
 - `count` - Creates multiple instances of a module from a single `module` block.
-  See [the `count` page](/docs/language/meta-arguments/count)
+  See [the `count` page](../../language/meta-arguments/count.mdx)
   for details.
 
 - `for_each` - Creates multiple instances of a module from a single `module`
   block. See
-  [the `for_each` page](/docs/language/meta-arguments/for_each)
+  [the `for_each` page](../../language/meta-arguments/for_each.mdx)
   for details.
 
 - `providers` - Passes provider configurations to a child module. See
-  [the `providers` page](/docs/language/meta-arguments/module-providers)
+  [the `providers` page](../../language/meta-arguments/module-providers.mdx)
   for details. If not specified, the child module inherits all of the default
   (un-aliased) provider configurations from the calling module.
 
 - `depends_on` - Creates explicit dependencies between the entire
   module and the listed targets. See
-  [the `depends_on` page](/docs/language/meta-arguments/depends_on)
+  [the `depends_on` page](../../language/meta-arguments/depends_on.mdx)
   for details.
 
 OpenTofu does not use the `lifecycle` argument. However, the `lifecycle` block is reserved for future versions.
@@ -137,7 +137,7 @@ OpenTofu does not use the `lifecycle` argument. However, the `lifecycle` block i
 
 The resources defined in a module are encapsulated, so the calling module
 cannot access their attributes directly. However, the child module can
-declare [output values](/docs/language/values/outputs) to selectively
+declare [output values](../../language/values/outputs.mdx) to selectively
 export certain values to be accessed by the calling module.
 
 For example, if the `./app-cluster` module referenced in the example above
@@ -153,7 +153,7 @@ resource "aws_elb" "example" {
 ```
 
 For more information about referring to named values, see
-[Expressions](/docs/language/expressions).
+[Expressions](../../language/expressions/index.mdx).
 
 ## Transferring Resource State Into Modules
 
@@ -163,7 +163,7 @@ result, OpenTofu plans to destroy all resource instances at the old address
 and create new instances at the new address.
 
 To preserve existing objects, you can use
-[refactoring blocks](/docs/language/modules/develop/refactoring) to record the old and new
+[refactoring blocks](../../language/modules/develop/refactoring.mdx) to record the old and new
 addresses for each resource instance. This directs OpenTofu to treat existing
 objects at the old addresses as if they had originally been created at the
 corresponding new addresses.
@@ -173,7 +173,7 @@ corresponding new addresses.
 You may have an object that needs to be replaced with a new object for a reason
 that isn't automatically visible to OpenTofu, such as if a particular virtual
 machine is running on degraded underlying hardware. In this case, you can use
-[the `-replace=...` planning option](/docs/cli/commands/plan#replace-address)
+[the `-replace=...` planning option](../../cli/commands/plan.mdx#replace-address)
 to force OpenTofu to propose replacing that object.
 
 If the object belongs to a resource within a nested module, specify the full

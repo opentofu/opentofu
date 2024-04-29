@@ -10,7 +10,7 @@ If something has gone horribly wrong (possibly due to accidents when performing
 other state manipulation actions), you might need to take drastic actions with
 your state data.
 
-- [The `tofu force-unlock` command](/docs/cli/commands/force-unlock) can
+- [The `tofu force-unlock` command](../commands/force-unlock.mdx) can
   override the protections OpenTofu uses to prevent two processes from
   modifying state at the same time. You might need this if a OpenTofu process
   (like a normal apply) is unexpectedly terminated (like by the complete
@@ -18,7 +18,7 @@ your state data.
   state backend. Do not run this until you are completely certain what happened
   to the process that caused the lock to get stuck.
 
-- [The `tofu state pull` command](/docs/cli/commands/state/pull) and
-  [the `tofu state push` command](/docs/cli/commands/state/push) can
+- [The `tofu state pull` command](../commands/state/pull.mdx) and
+  [the `tofu state push` command](../commands/state/push.mdx) can
   directly read and write entire state files from and to the configured backend.
   You might need this for obtaining or restoring a state backup.

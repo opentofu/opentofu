@@ -250,11 +250,10 @@ type HookRecordApplyOrder struct {
 
 	Active bool
 
+	l      sync.Mutex
 	IDs    []string
 	States []cty.Value
 	Diffs  []*plans.Change
-
-	l sync.Mutex
 }
 
 func (h *HookRecordApplyOrder) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (HookAction, error) {

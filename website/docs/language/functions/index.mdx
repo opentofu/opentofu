@@ -18,12 +18,12 @@ max(5, 12, 9)
 ```
 
 For more details on syntax, see
-[_Function Calls_](/docs/language/expressions/function-calls)
+[_Function Calls_](../../language/expressions/function-calls.mdx)
 in the Expressions section.
 
 You can experiment with the behavior of OpenTofu's built-in functions from
 the OpenTofu expression console, by running
-[the `tofu console` command](/docs/cli/commands/console):
+[the `tofu console` command](../../cli/commands/console.mdx):
 
 ```
 > max(5, 12, 9)
@@ -38,9 +38,10 @@ illustrate the result of calling the function with different parameters.
 As of OpenTofu 1.7.0, providers may define their own functions to be available during
 execution.
 
-OpenTofu iterates through the [required_providers](/docs/language/providers/requirements/) block
+OpenTofu iterates through the [required_providers](../../language/providers/requirements.mdx) block
 and queries the specified providers for any functions they wish to register. Functions are
-added to the current module's context under `provider::<provider_name>::<function_name>`.
+added to the current module's context under `provider::<provider_name>::<function_name>`.  Provider
+aliases are also supported under `provider::<provider_name>::<provider_alias>::<function_name>`.
 Functions are scoped to the module that requires the provider and are not inherited by child modules.
 
 ### Example:
@@ -62,6 +63,7 @@ locals {
 
 
 ### Notes for Provider Authors:
-* Support for functions was added in protocol version 5.5 and 6.5
-* OpenTofu's provider protocol is compatible with Terraform's provider protocol
-* CallFunction is executed on an *Unconfigured* instance of the provider
+* Support for functions was added in protocol version 5.5 and 6.5.
+* OpenTofu's provider protocol is compatible with Terraform's provider protocol.
+* `GetProviderSchema()` is used to initially query the functions available in a given provider.
+* Providers which supply functions may be configured and may supply additional functions via `GetFunctions()`.

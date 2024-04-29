@@ -258,8 +258,9 @@ func (n *NodeAbstractResource) RootReferences() []*addrs.Reference {
 		}
 
 		refs, _ := referencesInImportAddress(importTarget.Config.To)
+		root = append(root, refs...)
 
-		// TODO - Add RootReferences of ForEach here later one, once for_each is added
+		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ForEach)
 		root = append(root, refs...)
 
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, importTarget.Config.ID)

@@ -9,7 +9,7 @@ description: >-
 
 Stores the state as an object in a configurable prefix in a given bucket on [Tencent Cloud Object Storage](https://intl.cloud.tencent.com/product/cos) (COS).
 
-This backend supports [state locking](/docs/language/state/locking). Storing your state in a COS bucket requires the following permissions:
+This backend supports [state locking](../../../language/state/locking.mdx). Storing your state in a COS bucket requires the following permissions:
 
 - `CreateTag`, `DeleteTag`, and `DescribeTags` on the tag key `tencentcloud-terraform-lock`
 - `Put`, `Get`, and `Delete` files for the specified bucket's prefix
@@ -36,7 +36,7 @@ OpenTofu state will be written into the file `tofu/state/terraform.tfstate`.
 
 ## Data Source Configuration
 
-To make use of the COS remote state in another configuration, use the [`terraform_remote_state` data source](/docs/language/state/remote-state-data).
+To make use of the COS remote state in another configuration, use the [`terraform_remote_state` data source](../../../language/state/remote-state-data.mdx).
 
 ```hcl
 data "terraform_remote_state" "foo" {
@@ -53,7 +53,7 @@ data "terraform_remote_state" "foo" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
