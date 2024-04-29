@@ -169,6 +169,11 @@ func (run *TestRun) Validate() tfdiags.Diagnostics {
 
 	}
 
+	// It's not allowed to have multiple `override_resource`, `override_data` or `override_module`
+	// with the same target address so we want to ensure there's no such cases.
+	diags = diags.Append(checkForDuplicatedOverrideResources(run.OverrideResources))
+	diags = diags.Append(checkForDuplicatedOverrideModules(run.OverrideModules))
+
 	return diags
 }
 
@@ -719,6 +724,51 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 	}
 
 	return mod, diags
+}
+
+func checkForDuplicatedOverrideResources(resources []*OverrideResource) (diags hcl.Diagnostics) {
+	overrideResources := make(map[string]struct{}, len(resources))
+	for _, res := range resources {
+		k := res.TargetParsed.String()
+
+		if _, ok := overrideResources[k]; ok {
+			modeName := "override_resource"
+			if res.Mode == addrs.DataResourceMode {
+				modeName = "override_data"
+			}
+
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicated `%v` block", modeName),
+				Detail:   fmt.Sprintf("It is not allowed to have multiple `%v` blocks with the same target: `%v`.", modeName, res.TargetParsed),
+				Subject:  res.Target.SourceRange().Ptr(),
+			})
+		}
+
+		overrideResources[k] = struct{}{}
+	}
+
+	return diags
+}
+
+func checkForDuplicatedOverrideModules(modules []*OverrideModule) (diags hcl.Diagnostics) {
+	overrideModules := make(map[string]struct{}, len(modules))
+	for _, mod := range modules {
+		k := mod.TargetParsed.String()
+
+		if _, ok := overrideModules[k]; ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicated `override_module` block",
+				Detail:   fmt.Sprintf("It is not allowed to have multiple `override_module` blocks with the same target: `%v`.", mod.TargetParsed),
+				Subject:  mod.Target.SourceRange().Ptr(),
+			})
+		}
+
+		overrideModules[k] = struct{}{}
+	}
+
+	return diags
 }
 
 var testFileSchema = &hcl.BodySchema{
