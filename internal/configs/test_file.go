@@ -129,6 +129,10 @@ type TestRun struct {
 	// Underlying providers shouldn't be called for overriden resources.
 	OverrideResources []*OverrideResource
 
+	// OverrideModules is a list of modules to be overriden with static values.
+	// Underlying modules shouldn't be called.
+	OverrideModules []*OverrideModule
+
 	NameDeclRange      hcl.Range
 	VariablesDeclRange hcl.Range
 	DeclRange          hcl.Range
@@ -220,6 +224,13 @@ type OverrideResource struct {
 	// Values represents fields to use as defaults
 	// if they are not present in configuration.
 	Values map[string]cty.Value
+}
+
+// OverrideModule contains information about a module to be overriden.
+type OverrideModule struct {
+	Target       hcl.Traversal
+	TargetParsed addrs.Module
+	Outputs      map[string]cty.Value
 }
 
 func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
@@ -349,10 +360,17 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 			}
 
 		case "override_data":
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
-			diags = append(diags, overrideResDiags...)
-			if !overrideResDiags.HasErrors() {
-				r.OverrideResources = append(r.OverrideResources, overrideRes)
+			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
+			diags = append(diags, overrideDataDiags...)
+			if !overrideDataDiags.HasErrors() {
+				r.OverrideResources = append(r.OverrideResources, overrideData)
+			}
+
+		case "override_module":
+			overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
+			diags = append(diags, overrideModDiags...)
+			if !overrideModDiags.HasErrors() {
+				r.OverrideModules = append(r.OverrideModules, overrideMod)
 			}
 		}
 	}
@@ -618,6 +636,71 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 	return res, diags
 }
 
+func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnostics) {
+	parseTarget := func(attr *hcl.Attribute) (traversal hcl.Traversal, mod addrs.Module, diags hcl.Diagnostics) {
+		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
+		diags = append(diags, traversalDiags...)
+		if traversalDiags.HasErrors() {
+			return nil, nil, diags
+		}
+
+		target, targetDiags := addrs.ParseModule(traversal)
+		diags = append(diags, targetDiags.ToHCL()...)
+		if targetDiags.HasErrors() {
+			return nil, nil, diags
+		}
+
+		return traversal, target, diags
+	}
+
+	parseOutputs := func(attr *hcl.Attribute) (v map[string]cty.Value, diags hcl.Diagnostics) {
+		if vars := attr.Expr.Variables(); len(vars) != 0 {
+			return nil, hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Variables not allowed",
+					Detail:   "Variables may not be used in `values` of override blocks.",
+					Subject:  attr.Range.Ptr(),
+				},
+			}
+		}
+
+		attrVal, valDiags := attr.Expr.Value(nil)
+		diags = append(diags, valDiags...)
+		if valDiags.HasErrors() {
+			return nil, diags
+		}
+
+		if !attrVal.Type().IsObjectType() {
+			return nil, append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Object expected",
+				Detail:   "Attribute `values` in override block must be an object.",
+				Subject:  attr.Range.Ptr(),
+			})
+		}
+
+		return attrVal.AsValueMap(), diags
+	}
+
+	mod := &OverrideModule{}
+
+	content, diags := block.Body.Content(overrideModuleBlockSchema)
+
+	if attr, exists := content.Attributes["target"]; exists {
+		traversal, target, moreDiags := parseTarget(attr)
+		mod.Target, mod.TargetParsed = traversal, target
+		diags = append(diags, moreDiags...)
+	}
+
+	if attr, exists := content.Attributes["outputs"]; exists {
+		outputs, moreDiags := parseOutputs(attr)
+		mod.Outputs, diags = outputs, append(diags, moreDiags...)
+	}
+
+	return mod, diags
+}
+
 var testFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
@@ -659,6 +742,9 @@ var testRunBlockSchema = &hcl.BodySchema{
 		{
 			Type: "override_data",
 		},
+		{
+			Type: "override_module",
+		},
 	},
 }
 
@@ -686,6 +772,19 @@ var overrideResourceBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name:     "values",
+			Required: false,
+		},
+	},
+}
+
+var overrideModuleBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name:     "target",
+			Required: true,
+		},
+		{
+			Name:     "outputs",
 			Required: false,
 		},
 	},

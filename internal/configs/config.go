@@ -880,7 +880,35 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	// We need to override the provider settings, resources and data blocks.
+	// These transformation functions must be in sync of what is being transformed,
+	// currently all the functions operate on different fields of configuration.
+	transformFuncs := []func(*TestRun, *TestFile) (func(), hcl.Diagnostics){
+		c.transformProviderConfigsForTest,
+		c.transformOverridenResourcesForTest,
+		c.transformOverridenModulesForTest,
+	}
+
+	var resetFuncs []func()
+
+	// We call each to transform the configuration and gather transformation diags
+	// as well as reset functions.
+	for _, f := range transformFuncs {
+		resetFunc, moreDiags := f(run, file)
+		diags = append(diags, moreDiags...)
+		resetFuncs = append(resetFuncs, resetFunc)
+	}
+
+	return func() {
+		for _, f := range resetFuncs {
+			f()
+		}
+	}, diags
+}
+
+func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	// We need to override the provider settings.
 	//
 	// We can have a set of providers defined within the config, we can also
 	// have a set of providers defined within the test file. Then the run can
@@ -956,7 +984,16 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 
 	c.Module.ProviderConfigs = next
 
-	// Now we want to pass override values to resources being overriden.
+	return func() {
+		// Reset the original config within the returned function.
+		c.Module.ProviderConfigs = previous
+	}, diags
+}
+
+func (c *Config) transformOverridenResourcesForTest(run *TestRun, _ *TestFile) (func(), hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	// We want to pass override values to resources being overriden.
 	for _, overrideRes := range run.OverrideResources {
 		targetConfig := c.Root.Descendent(overrideRes.TargetParsed.Module)
 		if targetConfig == nil {
@@ -999,10 +1036,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 	}
 
 	return func() {
-		// Reset the original config within the returned function.
-		c.Module.ProviderConfigs = previous
-
-		// Reset all the resource overrides.
+		// Reset all the overriden resources.
 		for _, o := range run.OverrideResources {
 			m := c.Root.Descendent(o.TargetParsed.Module)
 			if m == nil {
@@ -1016,6 +1050,60 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 
 			res.IsOverriden = false
 			res.OverrideValues = nil
+		}
+	}, diags
+}
+
+func (c *Config) transformOverridenModulesForTest(run *TestRun, _ *TestFile) (func(), hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	for _, overrideMod := range run.OverrideModules {
+		targetConfig := c.Root.Descendent(overrideMod.TargetParsed)
+		if targetConfig == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Module not found: %v", overrideMod.TargetParsed),
+				Detail:   "Target points to an undefined module. Please, ensure module exists.",
+				Subject:  overrideMod.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		for overrideKey := range overrideMod.Outputs {
+			if _, ok := targetConfig.Module.Outputs[overrideKey]; !ok {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  fmt.Sprintf("Output not found: %v", overrideKey),
+					Detail:   "Specified output to override is not present in the module and will be ignored.",
+					Subject:  overrideMod.Target.SourceRange().Ptr(),
+				})
+			}
+		}
+
+		targetConfig.Module.IsOverriden = true
+
+		for key, output := range targetConfig.Module.Outputs {
+			output.IsOverriden = true
+
+			if v, ok := overrideMod.Outputs[key]; ok {
+				output.OverrideValue = &v
+			}
+		}
+	}
+
+	return func() {
+		for _, overrideMod := range run.OverrideModules {
+			targetConfig := c.Root.Descendent(overrideMod.TargetParsed)
+			if targetConfig == nil {
+				continue
+			}
+
+			targetConfig.Module.IsOverriden = false
+
+			for _, output := range targetConfig.Module.Outputs {
+				output.IsOverriden = false
+				output.OverrideValue = nil
+			}
 		}
 	}, diags
 }

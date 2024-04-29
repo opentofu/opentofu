@@ -51,7 +51,7 @@ type Resource struct {
 	Container Container
 
 	// IsOverriden indicates if the resource is being overriden. It's used in
-	// Testing Framework to not call the underlying provider.
+	// testing framework to not call the underlying provider.
 	IsOverriden bool
 	// OverrideValues are only valid if IsOverriden is set to true. The values
 	// should be used to compose mock provider response.
