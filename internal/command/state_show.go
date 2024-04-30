@@ -46,7 +46,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 	args = cmdFlags.Args()
 	if len(args) == 0 {
-		c.Streams.Eprint("Atlest one argument expected.\n")
+		c.Streams.Eprint("Atleast one argument expected.\n")
 		return cli.RunResultHelp
 	}
 
