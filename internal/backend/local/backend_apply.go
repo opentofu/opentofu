@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -26,6 +28,22 @@ import (
 
 // test hook called between plan+apply during opApply
 var testHookStopPlanApply func()
+
+var (
+	defaultPersistInterval                 = 20
+	persistIntervalEnvironmentVariableName = "TF_BACKEND_PERSIST_INTERVAL_SECONDS"
+)
+
+func getEnvAsInt(envName string, defaultValue int) int {
+	if val, exists := os.LookupEnv(envName); exists {
+		parsedVal, err := strconv.Atoi(val)
+		if err == nil {
+			return parsedVal
+		}
+		panic(fmt.Sprintf("Can't parse value '%s' of environment variable '%s'", val, envName))
+	}
+	return defaultValue
+}
 
 func (b *Local) opApply(
 	stopCtx context.Context,
@@ -84,7 +102,11 @@ func (b *Local) opApply(
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
 	stateHook.Schemas = schemas
-	stateHook.PersistInterval = 20 * time.Second // arbitrary interval that's hopefully a sweet spot
+	persistInterval := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
+	if persistInterval < 0 {
+		panic(fmt.Sprintf("Can't use negative value for %s: %d", persistIntervalEnvironmentVariableName, persistInterval))
+	}
+	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second // arbitrary interval that's hopefully a sweet spot
 
 	var plan *plans.Plan
 	// If we weren't given a plan, then we refresh/plan
