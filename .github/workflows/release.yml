@@ -18,8 +18,7 @@ on:
 jobs:
   release:
     name: Release
-    runs-on:
-      group: larger-runners
+    runs-on: larger-runners
     environment: gpg
     permissions:
       contents: write
