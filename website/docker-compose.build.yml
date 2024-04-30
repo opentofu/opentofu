@@ -10,7 +10,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ../:/work/opentofu-repo
+      - ../:/work/opentofu-repo/main
     command:
       - npm
       - run
