@@ -74,7 +74,7 @@ activating credentials) before running `tofu init`.
 ## Backend Initialization
 
 During init, the root configuration directory is consulted for
-[backend configuration](/docs/language/settings/backends/configuration) and the chosen backend
+[backend configuration](../../language/settings/backends/configuration.mdx) and the chosen backend
 is initialized using the given configuration settings.
 
 Re-running init with an already-initialized backend will update the working
@@ -96,14 +96,14 @@ when the working directory was already previously initialized for a particular
 backend.
 
 The `-backend-config=...` option can be used for
-[partial backend configuration](/docs/language/settings/backends/configuration#partial-configuration),
+[partial backend configuration](../../language/settings/backends/configuration.mdx#partial-configuration),
 in situations where the backend settings are dynamic or sensitive and so cannot
 be statically specified in the configuration file.
 
 ## Child Module Installation
 
 During init, the configuration is searched for `module` blocks, and the source
-code for referenced [modules](/docs/language/modules/develop) is retrieved from the locations
+code for referenced [modules](../../language/modules/develop/index.mdx) is retrieved from the locations
 given in their `source` arguments.
 
 Re-running init with modules already installed will install the sources for
@@ -128,13 +128,13 @@ third-party provider registry, `tofu init` will automatically find,
 download, and install the necessary provider plugins. If you cannot or do not
 wish to install providers from their origin registries, you can customize how
 OpenTofu installs providers using
-[the provider installation settings in the CLI configuration](/docs/cli/config/config-file#provider-installation).
+[the provider installation settings in the CLI configuration](../../cli/config/config-file.mdx#provider-installation).
 
 For more information about specifying which providers are required for each
-of your modules, see [Provider Requirements](/docs/language/providers/requirements).
+of your modules, see [Provider Requirements](../../language/providers/requirements.mdx).
 
 After successful installation, OpenTofu writes information about the selected
-providers to [the dependency lock file](/docs/language/files/dependency-lock).
+providers to [the dependency lock file](../../language/files/dependency-lock.mdx).
 You should commit this file to your version control system to ensure that
 when you run `tofu init` again in future OpenTofu will select exactly
 the same provider versions. Use the `-upgrade` option if you want OpenTofu
@@ -151,7 +151,7 @@ You can modify `tofu init`'s plugin behavior with the following options:
   the specified directory, as if it had been configured as a `filesystem_mirror`
   in the CLI configuration. If you intend to routinely use a particular
   filesystem mirror then we recommend
-  [configuring OpenTofu's installation methods globally](/docs/cli/config/config-file#provider-installation).
+  [configuring OpenTofu's installation methods globally](../../cli/config/config-file.mdx#provider-installation).
   You can use `-plugin-dir` as a one-time override for exceptional situations,
   such as if you are testing a local build of a provider plugin you are
   currently developing.
@@ -179,7 +179,7 @@ re-installation.
 
 If your workflow relies on overriding
 the root module directory, use
-[the `-chdir` global option](/docs/cli/commands#switching-working-directory-with-chdir)
+[the `-chdir` global option](../../cli/commands/index.mdx#switching-working-directory-with-chdir)
 instead, which works across all commands and makes OpenTofu consistently look
 in the given directory for all files it would normally read or write in the
 current working directory.

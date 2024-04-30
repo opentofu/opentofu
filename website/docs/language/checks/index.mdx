@@ -7,7 +7,7 @@ description: >-
 
 The `check` block can validate your infrastructure outside the usual resource lifecycle. Check blocks address a gap between post-apply and functional validation of infrastructure.
 
-Check blocks allow you to define [custom conditions](/docs/language/expressions/custom-conditions) that execute on every OpenTofu plan or apply operation without affecting the overall status of an operation. Check blocks execute as the last step of a plan or apply after OpenTofu has planned or provisioned your infrastructure.
+Check blocks allow you to define [custom conditions](../../language/expressions/custom-conditions.mdx) that execute on every OpenTofu plan or apply operation without affecting the overall status of an operation. Check blocks execute as the last step of a plan or apply after OpenTofu has planned or provisioned your infrastructure.
 
 ## Syntax
 
@@ -32,13 +32,13 @@ check "health_check" {
 
 You can use any data source from any provider as a scoped data source within a `check` block.
 
-A `check` block can optionally contain a nested (a.k.a. scoped) data source. This `data` block behaves like an external [data source](/docs/language/data-sources), except you can not reference it outside its enclosing `check` block. Additionally, if a scoped data source's provider raises any errors, they are masked as warnings and do not prevent OpenTofu from continuing operation execution.
+A `check` block can optionally contain a nested (a.k.a. scoped) data source. This `data` block behaves like an external [data source](../../language/data-sources/index.mdx), except you can not reference it outside its enclosing `check` block. Additionally, if a scoped data source's provider raises any errors, they are masked as warnings and do not prevent OpenTofu from continuing operation execution.
 
 You can use a scoped data source to validate the status of a piece of infrastructure outside of the usual OpenTofu resource lifecycle. [In the above example](#syntax), if the `opentofu_org` data source fails to load, you receive a warning instead of a blocking error, which would occur if you declared this data source outside of a `check` block.
 
 #### Meta-Arguments
 
-Scoped data sources support the `depends_on` and `provider` [meta-arguments](/docs/language/resources/syntax#meta-arguments). Scoped data sources do not support the `count` or`for_each` meta-arguments.
+Scoped data sources support the `depends_on` and `provider` [meta-arguments](../../language/resources/syntax.mdx#meta-arguments). Scoped data sources do not support the `count` or`for_each` meta-arguments.
 
 ##### `depends_on`
 
@@ -46,7 +46,7 @@ The `depends_on` meta-argument can be particularly powerful when used within sco
 
 The first time OpenTofu creates the _initial_ plan for our [previous example](#syntax), the plan fails because OpenTofu has not applied its configuration yet. Meaning this test fails because OpenTofu must still create the resources to make this website exist. Therefore, the first time OpenTofu runs this check, it always throws a potentially distracting error message.
 
-You can fix this by adding [`depends_on`](/docs/language/meta-arguments/depends_on) to your scoped data source, ensuring it depends on an essential piece of your site's infrastructure, such as the load balancer. The check returns  `known after apply` until that crucial piece of your website is ready. This strategy avoids producing unnecessary warnings during setup, and the check executes during subsequent plans and applies.
+You can fix this by adding [`depends_on`](../../language/meta-arguments/depends_on.mdx) to your scoped data source, ensuring it depends on an essential piece of your site's infrastructure, such as the load balancer. The check returns  `known after apply` until that crucial piece of your website is ready. This strategy avoids producing unnecessary warnings during setup, and the check executes during subsequent plans and applies.
 
 One problem with this strategy is that if the resource your scoped data source `depends_on` changes, the check block returns `known after apply` until OpenTofu has updated that resource. Depending on your use case, this behavior could be acceptable or problematic.
 
@@ -54,17 +54,17 @@ We recommend implementing the `depends_on` meta-argument if your scoped data sou
 
 ### Assertions
 
-Check blocks validate your custom assertions using `assert` blocks. Each `check` block must have at least one, but potentially many, `assert` blocks. Each `assert` block has a [`condition` attribute](/docs/language/expressions/custom-conditions#condition-expressions) and an [`error_message` attribute](/docs/language/expressions/custom-conditions#error-messages).
+Check blocks validate your custom assertions using `assert` blocks. Each `check` block must have at least one, but potentially many, `assert` blocks. Each `assert` block has a [`condition` attribute](../../language/expressions/custom-conditions.mdx#condition-expressions) and an [`error_message` attribute](../../language/expressions/custom-conditions.mdx#error-messages).
 
-Unlike other [custom conditions](/docs/language/expressions/custom-conditions), assertions do not affect OpenTofu's execution of an operation. A failed assertion reports a warning without halting the ongoing operation. This contrasts with other custom conditions, such as a postcondition, where OpenTofu produces an error immediately, halting the operation and blocking the application or planning of future resources.
+Unlike other [custom conditions](../../language/expressions/custom-conditions.mdx), assertions do not affect OpenTofu's execution of an operation. A failed assertion reports a warning without halting the ongoing operation. This contrasts with other custom conditions, such as a postcondition, where OpenTofu produces an error immediately, halting the operation and blocking the application or planning of future resources.
 
 Condition arguments within `assert` blocks can refer to scoped data sources within the enclosing `check` block and any variables, resources, data sources, or module outputs within the current module.
 
-[Learn more about assertions](/docs/language/expressions/custom-conditions#checks-with-assertions).
+[Learn more about assertions](../../language/expressions/custom-conditions.mdx#checks-with-assertions).
 
 ### Meta-Arguments
 
-Check blocks do not currently support [meta-arguments](/docs/language/resources/syntax#meta-arguments). We are still collecting feedback on this feature, so if your use case would benefit from check blocks supporting meta-arguments, please [let us know](https://github.com/opentofu/opentofu/issues/new/choose).
+Check blocks do not currently support [meta-arguments](../../language/resources/syntax.mdx#meta-arguments). We are still collecting feedback on this feature, so if your use case would benefit from check blocks supporting meta-arguments, please [let us know](https://github.com/opentofu/opentofu/issues/new/choose).
 
 ## Continuous validation in TACOS (TF Automation and Collaboration Software)
 
@@ -72,13 +72,13 @@ TACOS (TF Automation and Collaboration Software) can automatically validate whet
 
 ## Choosing Checks or other Custom Conditions
 
-Check blocks offer the most _flexible_ validation solution within OpenTofu. You can reference outputs, variables, resources, and data sources within check assertions. You can also use checks to model every alternate [Custom Condition](/docs/language/expressions/custom-conditions). However, that does not mean you should replace all your custom conditions with check blocks.
+Check blocks offer the most _flexible_ validation solution within OpenTofu. You can reference outputs, variables, resources, and data sources within check assertions. You can also use checks to model every alternate [Custom Condition](../../language/expressions/custom-conditions.mdx). However, that does not mean you should replace all your custom conditions with check blocks.
 
 There are major behavioral differences between check block assertions and other custom conditions, the main one being that check blocks do _not_ affect OpenTofu's execution of an operation. You can use this non-blocking behavior to decide the best type of validation for your use case.
 
 ### Outputs and variables
 
-[Output postconditions](/docs/language/expressions/custom-conditions#outputs) and [variable validations](/docs/language/expressions/custom-conditions#input-variable-validation) both make assertions around inputs and outputs.
+[Output postconditions](../../language/expressions/custom-conditions.mdx#outputs) and [variable validations](../../language/expressions/custom-conditions.mdx#input-variable-validation) both make assertions around inputs and outputs.
 
 This is one of the cases where you might want OpenTofu to block further execution.
 
@@ -86,9 +86,9 @@ For example, it is not helpful for OpenTofu to warn that an input variable is in
 
 ### Resource Preconditions and Postconditions
 
-The difference between [preconditions and postconditions](/docs/language/expressions/custom-conditions#preconditions-and-postconditions) and check blocks is more nuanced.
+The difference between [preconditions and postconditions](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions) and check blocks is more nuanced.
 
-Preconditions are unique amongst the custom conditions in that they execute _before_ a resource change is applied or planned. [Choosing Between Preconditions and Postconditions](/docs/language/expressions/custom-conditions#choosing-between-preconditions-and-postconditions) offers guidance on choosing between a precondition and a postcondition, and the same topics also apply to choosing between a precondition and a check block.
+Preconditions are unique amongst the custom conditions in that they execute _before_ a resource change is applied or planned. [Choosing Between Preconditions and Postconditions](../../language/expressions/custom-conditions.mdx#choosing-between-preconditions-and-postconditions) offers guidance on choosing between a precondition and a postcondition, and the same topics also apply to choosing between a precondition and a check block.
 
 You can often use postconditions interchangeably with check blocks to validate resources and data sources.
 

@@ -71,7 +71,7 @@ blocks have the same source address.
 ## Service Discovery
 
 The module registry protocol begins with OpenTofu CLI using
-[OpenTofu's remote service discovery protocol](/docs/internals/remote-service-discovery),
+[OpenTofu's remote service discovery protocol](remote-service-discovery.mdx),
 with the hostname in the module address acting as the "User-facing Hostname".
 
 The service identifier for the module registry protocol is `modules.v1`.
@@ -213,8 +213,8 @@ OpenTofu will prioritize reading the response body content if both, the body and
 :::
 
 The module location value accepts the same values as the `source` argument in a
-`module` block in OpenTofu configuration, as described in [Module Sources](/docs/language/modules/sources),
+`module` block in OpenTofu configuration, as described in [Module Sources](../language/modules/sources.mdx),
 except that it may not recursively refer to another module registry address.
 The value of the module location may instead be a relative URL, indicated by beginning with `/`, `./` or `../`,
 in which case it is resolved relative to the full URL of the download endpoint to
-produce [an HTTP URL module source](/docs/language/modules/sources#http-urls).
+produce [an HTTP URL module source](../language/modules/sources.mdx#http-urls).

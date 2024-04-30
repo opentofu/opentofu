@@ -22,8 +22,6 @@ import (
 
 // LocalState manages a state storage that is local to the filesystem.
 type LocalState struct {
-	mu sync.Mutex
-
 	// Path is the path to read the state from. PathOut is the path to
 	// write the state to. If PathOut is not specified, Path will be used.
 	// If PathOut already exists, it will be overwritten.
@@ -43,6 +41,7 @@ type LocalState struct {
 	// hurt to remove file we never wrote to.
 	created bool
 
+	mu        sync.Mutex
 	state     *tofu.State
 	readState *tofu.State
 	written   bool

@@ -5,7 +5,7 @@ description: The `tofu state push` command pushes items to the OpenTofu state.
 # Command: state push
 
 The `tofu state push` command is used to manually upload a local
-state file to [remote state](/docs/language/state/remote). This command also
+state file to [remote state](../../../language/state/remote.mdx). This command also
 works with local state.
 
 This command should rarely be used. It is meant only as a utility in case
@@ -16,7 +16,7 @@ manual intervention is necessary with the remote state.
 Usage: `tofu state push [options] PATH`
 
 This command pushes the state specified by PATH to the currently
-configured [backend](/docs/language/settings/backends/configuration).
+configured [backend](../../../language/settings/backends/configuration.mdx).
 
 If PATH is "-" then the state data to push is read from stdin. This data
 is loaded completely into memory and verified prior to being written to
@@ -43,7 +43,22 @@ Both of these safety checks can be disabled with the `-force` flag.
 **This is not recommended.** If you disable the safety checks and are
 pushing state, the destination state will be overwritten.
 
-For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
+For configurations using the [`cloud` backend](../../../cli/cloud/index.mdx) or the [`remote` backend](../../../language/settings/backends/remote.mdx)
 only, `tofu state push`
 also accepts the option
+
 [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+
+This command also accepts the following options for tofu state push:
+
+- `-lock=false` - Don't hold a state lock during the operation. This is
+  dangerous if others might concurrently run commands against the same
+  workspace.
+
+- `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
+  instructs OpenTofu to retry acquiring a lock for a period of time before
+  returning an error. The duration syntax is a number followed by a time
+  unit letter, such as "3s" for three seconds.
+
+[`-ignore-remote-version`](../../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
+

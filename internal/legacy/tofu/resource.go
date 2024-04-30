@@ -68,7 +68,7 @@ func NewResource(addr addrs.ResourceInstance) *Resource {
 	return ret
 }
 
-// ResourceKind specifies what kind of instance we're working with, whether
+// ResourceFlag specifies what kind of instance we're working with, whether
 // its a primary instance, a tainted instance, or an orphan.
 type ResourceFlag byte
 

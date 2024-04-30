@@ -15,7 +15,7 @@ a multi-step "create" action, because OpenTofu can't be sure that the object
 was left in a fully-functional state.
 
 You can also manually mark an object as "tainted" using the deprecated command
-[`tofu taint`](/docs/cli/commands/taint), although we no longer recommend that
+[`tofu taint`](../../cli/commands/taint.mdx), although we no longer recommend that
 workflow.
 
 If OpenTofu currently considers a particular object as tainted but you've
@@ -37,7 +37,7 @@ tofu apply -replace="aws_instance.example[0]"
 
 Usage: `tofu untaint [options] address`
 
-The `address` argument is a [resource address](/docs/cli/state/resource-addressing)
+The `address` argument is a [resource address](../../cli/state/resource-addressing.mdx)
 identifying a particular resource instance which is currently tainted.
 
 This command also accepts the following options:
@@ -60,12 +60,12 @@ This command also accepts the following options:
   if you are running OpenTofu in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
 
-For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote)
+For configurations using the [`cloud` backend](../../cli/cloud/index.mdx) or the [`remote` backend](../../language/settings/backends/remote.mdx)
 only, `tofu untaint`
 also accepts the option
-[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
 
 For configurations using
-[the `local` backend](/docs/language/settings/backends/local) only,
+[the `local` backend](../../language/settings/backends/local.mdx) only,
 `tofu untaint` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](../../language/settings/backends/local.mdx#command-line-arguments).

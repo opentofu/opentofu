@@ -15,7 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ProvidersCommand is a Command implementation that prints out information
+// ProvidersSchemaCommand is a Command implementation that prints out information
 // about the providers used in the current configuration/state.
 type ProvidersSchemaCommand struct {
 	Meta

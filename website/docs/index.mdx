@@ -1,1 +1,46 @@
-../../../docs/index.mdx
+---
+sidebar_position: 1
+sidebar_label: Overview
+title: Documentation
+hide_table_of_contents: true
+---
+
+import DocCardList from "@theme/DocCardList";
+import DocVersionBadge from "@theme/DocVersionBadge";
+
+### OpenTofu Documentation <DocVersionBadge />
+
+Welcome to OpenTofu 1.7! This version brings you a host of new features like state encryption, loop-able import blocks, provider defined functions and more. If you are coming from a previous OpenTofu or Terraform version you can [read the details about the new features here &raquo;](intro/whats-new.mdx)
+
+<DocCardList
+    items={[
+        {
+            type: "link",
+            href: "intro/",
+            label: "Getting started",
+            description:
+                "Get started with OpenTofu or migrate from a previous version. This section has all the info you need.",
+        },
+        {
+            type: "link",
+            href: "language/",
+            label: "Language",
+            description:
+                "Use the OpenTofu configuration language to describe the infrastructure that OpenTofu manages.",
+        },
+        {
+            type: "link",
+            href: "cli/",
+            label: "CLI Documentation",
+            description:
+                "Learn OpenTofu's CLI-based workflows. You can use the CLI alone or with cloud backends.",
+        },
+        {
+            type: "link",
+            href: "internals/",
+            label: "Internals",
+            description:
+                "Learn how OpenTofu generates the resource dependency graph and executes other internal processes.",
+        },
+    ]}
+/>

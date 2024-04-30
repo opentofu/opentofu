@@ -7,7 +7,6 @@ package lang
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -199,9 +198,6 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	return val, diags
 }
 
-// Common provider function namespace form
-var providerFuncNamespace = regexp.MustCompile("^([^:]*)::([^:]*)::$")
-
 // Identify and enhance any function related dialogs produced by a hcl.EvalContext
 func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 	out := make(hcl.Diagnostics, len(diags))
@@ -213,7 +209,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 			// prefix::stuff::
 			fullNamespace := funcExtra.CalledFunctionNamespace()
 
-			if !strings.Contains(fullNamespace, "::") {
+			if len(fullNamespace) == 0 {
 				// Not a namespaced function, no enhancements nessesary
 				continue
 			}
@@ -224,32 +220,23 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 
 			// Update enhanced with additional details
 
-			if fullNamespace == CoreNamespace {
+			fn := addrs.ParseFunction(fullNamespace + funcName)
+
+			if fn.IsNamespace(addrs.FunctionNamespaceCore) {
 				// Error is in core namespace, mirror non-core equivalent
 				enhanced.Summary = "Call to unknown function"
-				enhanced.Detail = fmt.Sprintf("There is no builtin (%s) function named %q.", CoreNamespace, funcName)
-				continue
-			}
-
-			match := providerFuncNamespace.FindSubmatch([]byte(fullNamespace))
-			if match == nil || string(match[1]) != "provider" {
-				// complete mismatch or invalid prefix
-				enhanced.Summary = "Invalid function format"
-				enhanced.Detail = fmt.Sprintf("Expected provider::<provider_name>::<function_name>, instead found \"%s%s\"", fullNamespace, funcName)
-				continue
-			}
-
-			providerName := string(match[2])
-			addr, ok := s.ProviderNames[providerName]
-			if !ok {
-				// Provider not registered
-				enhanced.Summary = "Unknown function provider"
-				enhanced.Detail = fmt.Sprintf("Provider %q does not exist within the required_providers of this module", providerName)
+				enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
+			} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
+				if _, err := fn.AsProviderFunction(); err != nil {
+					// complete mismatch or invalid prefix
+					enhanced.Summary = "Invalid function format"
+					enhanced.Detail = err.Error()
+				}
 			} else {
-				// Func not in provider
-				enhanced.Summary = "Function not found in provider"
-				enhanced.Detail = fmt.Sprintf("Function %q was not registered by provider named %q of type %q", funcName, providerName, addr)
+				enhanced.Summary = "Unknown function namespace"
+				enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
 			}
+			// Function / Provider not found handled by eval_context_builtin.go
 		}
 	}
 	return out
@@ -478,7 +465,16 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			val, valDiags := normalizeRefValue(s.Data.GetCheckBlock(subj, rng))
 			diags = diags.Append(valDiags)
 			outputValues[subj.Name] = val
+		case addrs.ProviderFunction:
+			// Inject function directly into context
+			if _, ok := ctx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.ProviderFunctions(subj, rng)
+				diags = diags.Append(fnDiags)
 
+				if !fnDiags.HasErrors() {
+					ctx.Functions[subj.String()] = *fn
+				}
+			}
 		default:
 			// Should never happen
 			panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))

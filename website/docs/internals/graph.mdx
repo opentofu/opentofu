@@ -111,8 +111,8 @@ The amount of parallelism is limited using a semaphore to prevent too many
 concurrent operations from overwhelming the resources of the machine running
 OpenTofu. By default, up to 10 nodes in the graph will be processed
 concurrently. This number can be set using the `-parallelism` flag on the
-[plan](/docs/cli/commands/plan), [apply](/docs/cli/commands/apply), and
-[destroy](/docs/cli/commands/destroy) commands.
+[plan](../cli/commands/plan.mdx), [apply](../cli/commands/apply.mdx), and
+[destroy](../cli/commands/destroy.mdx) commands.
 
 Setting `-parallelism` is considered an advanced operation and should not be
 necessary for normal usage of OpenTofu. It may be helpful in certain special

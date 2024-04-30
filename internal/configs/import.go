@@ -43,6 +43,8 @@ type Import struct {
 	// import blocks targeting the same resource
 	ResolvedTo *addrs.AbsResourceInstance
 
+	ForEach hcl.Expression
+
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
 
@@ -93,6 +95,10 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		diags = append(diags, providerDiags...)
 	}
 
+	if attr, exists := content.Attributes["for_each"]; exists {
+		imp.ForEach = attr.Expr
+	}
+
 	return imp, diags
 }
 
@@ -108,6 +114,9 @@ var importBlockSchema = &hcl.BodySchema{
 		{
 			Name:     "to",
 			Required: true,
+		},
+		{
+			Name: "for_each",
 		},
 	},
 }

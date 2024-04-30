@@ -340,6 +340,8 @@ func (m ReferenceMap) addReference(path addrs.Module, current dag.Vertex, ref *a
 			subject = ri.ModuleCallOutput()
 		case addrs.ModuleCallInstance:
 			subject = ri.Call
+		case addrs.ProviderFunction:
+			return nil
 		default:
 			log.Printf("[INFO] ReferenceTransformer: reference not found: %q", subject)
 			return nil
@@ -433,6 +435,8 @@ func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Refere
 			case addrs.ResourceInstance:
 				resAddr = s.Resource
 				r.Subject = resAddr
+			case addrs.ProviderFunction:
+				continue
 			}
 
 			if resAddr.Mode != addrs.ManagedResourceMode {
