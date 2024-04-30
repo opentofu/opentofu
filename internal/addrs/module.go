@@ -184,7 +184,7 @@ func (m Module) configRemovableSigil() {
 // error if it encounters one.
 func ParseModule(traversal hcl.Traversal) (Module, tfdiags.Diagnostics) {
 	mod, remain, diags := parseModulePrefix(traversal)
-	if len(remain) != 0 {
+	if !diags.HasErrors() && len(remain) != 0 {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module address expected",
