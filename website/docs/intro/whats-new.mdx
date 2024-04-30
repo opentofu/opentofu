@@ -13,6 +13,9 @@ This page will run you through the most important changes in OpenTofu 1.7:
 - [Provider-defined functions](#provider-defined-functions)
 - [Removed block](#removed-block)
 - [Loopable import blocks](#loopable-import-blocks)
+- [Built-in function changes](#built-in-function-changes)
+- [CLI changes](#cli-changes)
+- [Testing feature changes](#testing-feature-changes)
 
 ## State encryption
 
@@ -104,6 +107,8 @@ output "test" {
   # Prints: hello_world
 }
 ```
+
+What's more, we added an OpenTofu-only feature to let providers dynamically define custom functions based on your configuration. This enhancement allows you to fully integrate other programming languages as [shown in our live stream](https://www.youtube.com/watch?v=6OXBv0MYalY). You can try out this functionality with our experimental [Lua](https://github.com/opentofu/terraform-provider-lua) and [Go](https://github.com/opentofu/terraform-provider-go) providers.
 
 ## Removed block
 
