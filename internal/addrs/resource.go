@@ -414,11 +414,7 @@ func ParseConfigResource(traversal hcl.Traversal) (*ConfigResource, tfdiags.Diag
 	}
 
 	configRes, moreDiags := parseResourceUnderModule(modulePath, remainTraversal)
-	if moreDiags.HasErrors() {
-		return nil, diags.Append(moreDiags)
-	}
-
-	return &configRes, nil
+	return &configRes, diags.Append(moreDiags)
 }
 
 // Resource returns the address of a particular resource within the module.

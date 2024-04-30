@@ -411,7 +411,8 @@ type Output struct {
 	// testing framework to not evaluate expression and use OverrideValue instead.
 	IsOverriden bool
 	// OverrideValue is only valid if IsOverriden is set to true. The value
-	// should be used instead of evaluated expression.
+	// should be used instead of evaluated expression. It's possible to have no
+	// OverrideValue even with IsOverriden is set to true.
 	OverrideValue *cty.Value
 }
 

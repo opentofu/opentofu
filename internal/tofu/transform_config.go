@@ -71,7 +71,8 @@ func (t *ConfigTransformer) transform(g *Graph, config *configs.Config, generate
 		return nil
 	}
 
-	// If the module is being overriden, do nothing
+	// If the module is being overriden, do nothing. We don't want to create anything
+	// from the underlying module.
 	if config.Module.IsOverriden {
 		return nil
 	}

@@ -54,7 +54,8 @@ type Resource struct {
 	// testing framework to not call the underlying provider.
 	IsOverriden bool
 	// OverrideValues are only valid if IsOverriden is set to true. The values
-	// should be used to compose mock provider response.
+	// should be used to compose mock provider response. It is possible to have
+	// zero-length OverrideValues even if IsOverriden is set to true.
 	OverrideValues map[string]cty.Value
 
 	DeclRange hcl.Range

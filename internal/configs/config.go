@@ -890,14 +890,16 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 
 	var resetFuncs []func()
 
-	// We call each to transform the configuration and gather transformation diags
-	// as well as reset functions.
+	// We call each function to transform the configuration
+	// and gather transformation diags as well as reset functions.
 	for _, f := range transformFuncs {
 		resetFunc, moreDiags := f(run, file)
 		diags = append(diags, moreDiags...)
 		resetFuncs = append(resetFuncs, resetFunc)
 	}
 
+	// Order of calls doesn't matter as far as transformation functions
+	// don't operate on the same set of fields.
 	return func() {
 		for _, f := range resetFuncs {
 			f()
@@ -1085,6 +1087,7 @@ func (c *Config) transformOverridenModulesForTest(run *TestRun, file *TestFile) 
 		for key, output := range targetConfig.Module.Outputs {
 			output.IsOverriden = true
 
+			// Override outputs are optional so it's okay to set IsOverriden with no OverrideValue.
 			if v, ok := overrideMod.Outputs[key]; ok {
 				output.OverrideValue = &v
 			}
@@ -1109,6 +1112,8 @@ func (c *Config) transformOverridenModulesForTest(run *TestRun, file *TestFile) 
 }
 
 func mergeOverridenResources(runResources, fileResources []*OverrideResource) ([]*OverrideResource, hcl.Diagnostics) {
+	// runAddrs is a unique set of resource addresses in run block.
+	// It's already validated for duplicates previously.
 	runAddrs := make(map[string]struct{})
 	for _, r := range runResources {
 		runAddrs[r.TargetParsed.String()] = struct{}{}
@@ -1120,6 +1125,8 @@ func mergeOverridenResources(runResources, fileResources []*OverrideResource) ([
 	for _, r := range fileResources {
 		addr := r.TargetParsed.String()
 
+		// Run and file override resources could have overlap
+		// so we warn user and proceed with the definition from the smaller scope.
 		if _, ok := runAddrs[addr]; ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
@@ -1137,6 +1144,8 @@ func mergeOverridenResources(runResources, fileResources []*OverrideResource) ([
 }
 
 func mergeOverridenModules(runModules, fileModules []*OverrideModule) ([]*OverrideModule, hcl.Diagnostics) {
+	// runAddrs is a unique set of module addresses in run block.
+	// It's already validated for duplicates previously.
 	runAddrs := make(map[string]struct{})
 	for _, m := range runModules {
 		runAddrs[m.TargetParsed.String()] = struct{}{}
@@ -1148,6 +1157,8 @@ func mergeOverridenModules(runModules, fileModules []*OverrideModule) ([]*Overri
 	for _, m := range fileModules {
 		addr := m.TargetParsed.String()
 
+		// Run and file override modules could have overlap
+		// so we warn user and proceed with the definition from the smaller scope.
 		if _, ok := runAddrs[addr]; ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,

@@ -74,13 +74,13 @@ type TestFile struct {
 	VariablesDeclRange hcl.Range
 }
 
-// Validate does a very simple and cursory check across the run block to look
-// for simple issues we can highlight early on.
+// Validate does a very simple and cursory check across the file blocks to look
+// for simple issues we can highlight early on. It doesn't validate nested run blocks.
 func (file *TestFile) Validate() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// It's not allowed to have multiple `override_resource`, `override_data` or `override_module`
-	// with the same target address so we want to ensure there's no such cases.
+	// It's not allowed to have multiple `override_resource`, `override_data` or `override_module` blocks
+	// declared globally in a file with the same target address so we want to ensure there's no such cases.
 	diags = diags.Append(checkForDuplicatedOverrideResources(file.OverrideResources))
 	diags = diags.Append(checkForDuplicatedOverrideModules(file.OverrideModules))
 
@@ -190,8 +190,8 @@ func (run *TestRun) Validate() tfdiags.Diagnostics {
 
 	}
 
-	// It's not allowed to have multiple `override_resource`, `override_data` or `override_module`
-	// with the same target address so we want to ensure there's no such cases.
+	// It's not allowed to have multiple `override_resource`, `override_data` or `override_module` blocks
+	// inside a single run block with the same target address so we want to ensure there's no such cases.
 	diags = diags.Append(checkForDuplicatedOverrideResources(run.OverrideResources))
 	diags = diags.Append(checkForDuplicatedOverrideModules(run.OverrideModules))
 
@@ -256,9 +256,13 @@ func (r OverrideResource) getBlockName() string {
 
 // OverrideModule contains information about a module to be overriden.
 type OverrideModule struct {
+	// Target references module call to override.
 	Target       hcl.Traversal
 	TargetParsed addrs.Module
-	Outputs      map[string]cty.Value
+
+	// Outputs represents fields to use instead
+	// of the real module call output.
+	Outputs map[string]cty.Value
 }
 
 func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
@@ -795,6 +799,7 @@ func checkForDuplicatedOverrideResources(resources []*OverrideResource) (diags h
 				Detail:   fmt.Sprintf("It is not allowed to have multiple `%v` blocks with the same target: `%v`.", res.getBlockName(), res.TargetParsed),
 				Subject:  res.Target.SourceRange().Ptr(),
 			})
+			continue
 		}
 
 		overrideResources[k] = struct{}{}
@@ -815,6 +820,7 @@ func checkForDuplicatedOverrideModules(modules []*OverrideModule) (diags hcl.Dia
 				Detail:   fmt.Sprintf("It is not allowed to have multiple `override_module` blocks with the same target: `%v`.", mod.TargetParsed),
 				Subject:  mod.Target.SourceRange().Ptr(),
 			})
+			continue
 		}
 
 		overrideModules[k] = struct{}{}

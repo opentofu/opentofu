@@ -178,7 +178,7 @@ func (m Module) configRemovableSigil() {
 }
 
 // ParseModule parses a module address from the given traversal,
-// which has to contain only the module address with no resources or data.
+// which has to contain only the module address with no resource/data/variable/etc.
 // This function only supports module addresses without instance keys (as the
 // returned Module struct doesn't support instance keys) and will return an
 // error if it encounters one.
