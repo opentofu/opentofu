@@ -149,8 +149,8 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 // The root module instance also closes any remaining provisioner plugins which
 // do not have a lifecycle controlled by individual graph nodes.
 type nodeCloseModule struct {
-	Addr   addrs.Module
-	Config *configs.Module
+	Addr       addrs.Module
+	RootConfig *configs.Config
 }
 
 var (
@@ -181,8 +181,17 @@ func (n *nodeCloseModule) Name() string {
 	return n.Addr.String() + " (close)"
 }
 
-func (n *nodeCloseModule) isOverriden() bool {
-	return n.Config != nil && n.Config.IsOverriden
+func (n *nodeCloseModule) isOverriden(addr addrs.Module) bool {
+	if n.RootConfig == nil {
+		return false
+	}
+
+	modConfig := n.RootConfig.Descendent(addr)
+	if modConfig == nil {
+		return false
+	}
+
+	return modConfig.Module.IsOverriden
 }
 
 func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
@@ -209,7 +218,7 @@ func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdi
 
 			// empty non-root modules are removed normally,
 			// but if the module is being overriden, it should be kept
-			if len(mod.Resources) == 0 && !mod.Addr.IsRoot() && !n.isOverriden() {
+			if len(mod.Resources) == 0 && !mod.Addr.IsRoot() && !n.isOverriden(mod.Addr.Module()) {
 				delete(state.Modules, modKey)
 			}
 		}
