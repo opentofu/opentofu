@@ -898,7 +898,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		resetFuncs = append(resetFuncs, resetFunc)
 	}
 
-	// Order of calls doesn't matter as far as transformation functions
+	// Order of calls doesn't matter as long as transformation functions
 	// don't operate on the same set of fields.
 	return func() {
 		for _, f := range resetFuncs {
