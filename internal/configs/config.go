@@ -1024,8 +1024,9 @@ func (c *Config) transformOverridenResourcesForTest(run *TestRun, file *TestFile
 			if overrideRes.Mode == addrs.DataResourceMode {
 				blockName, targetMode = "override_data", "resource"
 			}
+			// It could be a warning, but for the sake of consistent UX let's make it an error
 			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagWarning,
+				Severity: hcl.DiagError,
 				Summary:  fmt.Sprintf("Unsupported `%v` target in `%v` block", targetMode, blockName),
 				Detail: fmt.Sprintf("Target `%v` is `%v` block itself and cannot be overriden with `%v`.",
 					overrideRes.TargetParsed, targetMode, blockName),
