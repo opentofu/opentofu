@@ -50,12 +50,12 @@ type Resource struct {
 	// If this is nil, then this resource is essentially public.
 	Container Container
 
-	// IsOverriden indicates if the resource is being overriden. It's used in
+	// IsOverridden indicates if the resource is being overriden. It's used in
 	// testing framework to not call the underlying provider.
-	IsOverriden bool
-	// OverrideValues are only valid if IsOverriden is set to true. The values
+	IsOverridden bool
+	// OverrideValues are only valid if IsOverridden is set to true. The values
 	// should be used to compose mock provider response. It is possible to have
-	// zero-length OverrideValues even if IsOverriden is set to true.
+	// zero-length OverrideValues even if IsOverridden is set to true.
 	OverrideValues map[string]cty.Value
 
 	DeclRange hcl.Range

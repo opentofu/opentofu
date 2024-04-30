@@ -346,7 +346,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 	if !changeRecorded || !val.IsWhollyKnown() {
 		switch {
 		// If the module is not being overriden, we proceed normally
-		case !n.Config.IsOverriden:
+		case !n.Config.IsOverridden:
 			// This has to run before we have a state lock, since evaluation also
 			// reads the state
 			var evalDiags tfdiags.Diagnostics

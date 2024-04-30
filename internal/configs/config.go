@@ -1034,7 +1034,7 @@ func (c *Config) transformOverridenResourcesForTest(run *TestRun, file *TestFile
 			})
 		}
 
-		res.IsOverriden = true
+		res.IsOverridden = true
 		res.OverrideValues = overrideRes.Values
 	}
 
@@ -1051,7 +1051,7 @@ func (c *Config) transformOverridenResourcesForTest(run *TestRun, file *TestFile
 				continue
 			}
 
-			res.IsOverriden = false
+			res.IsOverridden = false
 			res.OverrideValues = nil
 		}
 	}, diags
@@ -1083,12 +1083,12 @@ func (c *Config) transformOverridenModulesForTest(run *TestRun, file *TestFile) 
 			}
 		}
 
-		targetConfig.Module.IsOverriden = true
+		targetConfig.Module.IsOverridden = true
 
 		for key, output := range targetConfig.Module.Outputs {
-			output.IsOverriden = true
+			output.IsOverridden = true
 
-			// Override outputs are optional so it's okay to set IsOverriden with no OverrideValue.
+			// Override outputs are optional so it's okay to set IsOverridden with no OverrideValue.
 			if v, ok := overrideMod.Outputs[key]; ok {
 				output.OverrideValue = &v
 			}
@@ -1102,10 +1102,10 @@ func (c *Config) transformOverridenModulesForTest(run *TestRun, file *TestFile) 
 				continue
 			}
 
-			targetConfig.Module.IsOverriden = false
+			targetConfig.Module.IsOverridden = false
 
 			for _, output := range targetConfig.Module.Outputs {
-				output.IsOverriden = false
+				output.IsOverridden = false
 				output.OverrideValue = nil
 			}
 		}

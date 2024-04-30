@@ -181,7 +181,7 @@ func (n *nodeCloseModule) Name() string {
 	return n.Addr.String() + " (close)"
 }
 
-func (n *nodeCloseModule) isOverriden(addr addrs.Module) bool {
+func (n *nodeCloseModule) IsOverridden(addr addrs.Module) bool {
 	if n.RootConfig == nil {
 		return false
 	}
@@ -191,7 +191,7 @@ func (n *nodeCloseModule) isOverriden(addr addrs.Module) bool {
 		return false
 	}
 
-	return modConfig.Module.IsOverriden
+	return modConfig.Module.IsOverridden
 }
 
 func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
@@ -218,7 +218,7 @@ func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdi
 
 			// empty non-root modules are removed normally,
 			// but if the module is being overriden, it should be kept
-			if len(mod.Resources) == 0 && !mod.Addr.IsRoot() && !n.isOverriden(mod.Addr.Module()) {
+			if len(mod.Resources) == 0 && !mod.Addr.IsRoot() && !n.IsOverridden(mod.Addr.Module()) {
 				delete(state.Modules, modKey)
 			}
 		}

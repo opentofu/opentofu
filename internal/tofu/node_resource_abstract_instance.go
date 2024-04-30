@@ -431,7 +431,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 	var resp providers.PlanResourceChangeResponse
 
 	// If the resource is not being overriden, we proceed normally
-	if n.Config == nil || !n.Config.IsOverriden {
+	if n.Config == nil || !n.Config.IsOverridden {
 		// Allow the provider to check the destroy plan, and insert any necessary
 		// private data.
 		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
@@ -612,7 +612,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 	var resp providers.ReadResourceResponse
 
 	// If the resource is not being overriden, we proceed normally
-	if n.Config == nil || !n.Config.IsOverriden {
+	if n.Config == nil || !n.Config.IsOverridden {
 		resp = provider.ReadResource(providerReq)
 	} else {
 		// If the resource is overriden we don't want to call the underlying provider.
@@ -848,7 +848,7 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	var resp providers.PlanResourceChangeResponse
 
-	if !config.IsOverriden {
+	if !config.IsOverridden {
 		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
 			TypeName:         n.Addr.Resource.Resource.Type,
 			Config:           unmarkedConfigVal,
@@ -1094,7 +1094,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		proposedNewVal = objchange.ProposedNew(schema, nullPriorVal, unmarkedConfigVal)
 
 		// If the resource is not being overriden, we proceed normally
-		if !config.IsOverriden {
+		if !config.IsOverridden {
 			resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
 				TypeName:         n.Addr.Resource.Resource.Type,
 				Config:           unmarkedConfigVal,
@@ -1527,7 +1527,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 	if tfp, ok := provider.(ProviderWithEncryption); ok {
 		// Special case for terraform_remote_state
 		resp = tfp.ReadDataSourceEncrypted(req, n.Addr, ctx.GetEncryption())
-	} else if !config.IsOverriden {
+	} else if !config.IsOverridden {
 		resp = provider.ReadDataSource(req)
 	} else {
 		// If the resource is overriden we don't want to call the underlying provider.
@@ -2377,7 +2377,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	var resp providers.ApplyResourceChangeResponse
 
 	// If the resource is not being overriden, we proceed normally
-	if n.Config == nil || !n.Config.IsOverriden {
+	if n.Config == nil || !n.Config.IsOverridden {
 		resp = provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
 			TypeName:       n.Addr.Resource.Resource.Type,
 			PriorState:     unmarkedBefore,
