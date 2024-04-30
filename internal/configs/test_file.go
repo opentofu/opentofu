@@ -671,37 +671,6 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		return traversal, configRes, diags
 	}
 
-	parseValues := func(attr *hcl.Attribute) (values map[string]cty.Value, diags hcl.Diagnostics) {
-		if vars := attr.Expr.Variables(); len(vars) != 0 {
-			return nil, hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Variables not allowed",
-					Detail:   "Variables may not be used in `values` of override blocks.",
-					Subject:  attr.Range.Ptr(),
-				},
-			}
-		}
-
-		attrVal, attrValDiags := attr.Expr.Value(nil)
-		diags = append(diags, attrValDiags...)
-		if attrValDiags.HasErrors() {
-			return nil, diags
-		}
-
-		if !attrVal.Type().IsObjectType() {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Object expected",
-				Detail:   "Attribute `values` in override block must be an object.",
-				Subject:  attr.Range.Ptr(),
-			})
-			return nil, diags
-		}
-
-		return attrVal.AsValueMap(), diags
-	}
-
 	res := &OverrideResource{
 		Mode: mode,
 	}
@@ -715,7 +684,7 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 	}
 
 	if attr, exists := content.Attributes["values"]; exists {
-		v, moreDiags := parseValues(attr)
+		v, moreDiags := parseObjectAttrWithNoVariables(attr)
 		res.Values, diags = v, append(diags, moreDiags...)
 	}
 
@@ -739,36 +708,6 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 		return traversal, target, diags
 	}
 
-	parseOutputs := func(attr *hcl.Attribute) (v map[string]cty.Value, diags hcl.Diagnostics) {
-		if vars := attr.Expr.Variables(); len(vars) != 0 {
-			return nil, hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Variables not allowed",
-					Detail:   "Variables may not be used in `values` of override blocks.",
-					Subject:  attr.Range.Ptr(),
-				},
-			}
-		}
-
-		attrVal, valDiags := attr.Expr.Value(nil)
-		diags = append(diags, valDiags...)
-		if valDiags.HasErrors() {
-			return nil, diags
-		}
-
-		if !attrVal.Type().IsObjectType() {
-			return nil, append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Object expected",
-				Detail:   "Attribute `values` in override block must be an object.",
-				Subject:  attr.Range.Ptr(),
-			})
-		}
-
-		return attrVal.AsValueMap(), diags
-	}
-
 	mod := &OverrideModule{}
 
 	content, diags := block.Body.Content(overrideModuleBlockSchema)
@@ -780,11 +719,41 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 	}
 
 	if attr, exists := content.Attributes["outputs"]; exists {
-		outputs, moreDiags := parseOutputs(attr)
+		outputs, moreDiags := parseObjectAttrWithNoVariables(attr)
 		mod.Outputs, diags = outputs, append(diags, moreDiags...)
 	}
 
 	return mod, diags
+}
+
+func parseObjectAttrWithNoVariables(attr *hcl.Attribute) (v map[string]cty.Value, diags hcl.Diagnostics) {
+	if vars := attr.Expr.Variables(); len(vars) != 0 {
+		return nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Variables not allowed",
+				Detail:   fmt.Sprintf("Variables may not be used in `%v` attribute.", attr.Name),
+				Subject:  attr.Range.Ptr(),
+			},
+		}
+	}
+
+	attrVal, valDiags := attr.Expr.Value(nil)
+	diags = append(diags, valDiags...)
+	if valDiags.HasErrors() {
+		return nil, diags
+	}
+
+	if !attrVal.Type().IsObjectType() {
+		return nil, append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Object expected",
+			Detail:   fmt.Sprintf("The attribute `%v` must be an object.", attr.Name),
+			Subject:  attr.Range.Ptr(),
+		})
+	}
+
+	return attrVal.AsValueMap(), diags
 }
 
 func checkForDuplicatedOverrideResources(resources []*OverrideResource) (diags hcl.Diagnostics) {
