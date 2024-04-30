@@ -51,11 +51,11 @@ The expansion symbol is three periods (`...`), not a Unicode ellipsis character
 
 When using sensitive data, such as [an input variable](../../language/values/variables.mdx#suppressing-values-in-cli-output)
 or [an output defined](../../language/values/outputs.mdx#sensitive-suppressing-values-in-cli-output) as sensitive
-as function arguments, the result of the function call will be marked as sensitive.
+as function arguments, the sensitive information in the arguments will be tracked during the function call.
 
-This is a conservative behavior that is true irrespective of the function being
-called. For example, passing an object containing a sensitive input variable to
-the `keys()` function will result in a list that is sensitive:
+For example, passing an object containing a sensitive input variable to the `keys()` function
+will return a list with all keys we expected, but the `values()` function will result in
+a list with first item as sensitive, because the value of key "a" is sensitive.
 
 ```shell
 > local.baz
@@ -64,7 +64,15 @@ the `keys()` function will result in a list that is sensitive:
   "b" = "dog"
 }
 > keys(local.baz)
-(sensitive value)
+[
+  "a",
+  "b",
+]
+> values(local.baz)
+[
+  (sensitive value),
+  "dog",
+]
 ```
 
 ## When OpenTofu Calls Functions
