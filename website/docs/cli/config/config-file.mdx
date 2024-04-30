@@ -9,7 +9,7 @@ description: >-
 
 The CLI configuration file configures per-user settings for CLI behaviors,
 which apply across all OpenTofu working directories. This is separate from
-[your infrastructure configuration](/docs/language).
+[your infrastructure configuration](../../language/index.mdx).
 
 ## Locations
 
@@ -38,7 +38,7 @@ as just `tofu.rc`. Use `dir` from PowerShell or Command Prompt to
 confirm the filename.
 
 The location of the OpenTofu CLI configuration file can also be specified
-using the `TF_CLI_CONFIG_FILE` [environment variable](/docs/cli/config/environment-variables).
+using the `TF_CLI_CONFIG_FILE` [environment variable](environment-variables.mdx).
 Any such file should follow the naming pattern `*.tfrc`.
 
 ## Configuration File Syntax
@@ -82,7 +82,7 @@ credentials "app.opentofu.org" {
 }
 ```
 
-If you are running the OpenTofu CLI interactively on a computer with a web browser, you can use [the `tofu login` command](/docs/cli/commands/login)
+If you are running the OpenTofu CLI interactively on a computer with a web browser, you can use [the `tofu login` command](../commands/login.mdx)
 to get credentials and automatically save them in the CLI configuration. If
 not, you can manually write `credentials` blocks.
 
@@ -139,7 +139,7 @@ for a specific hostname by writing a `credentials` block alongside the
 OpenTofu does not include any credentials helpers in the main distribution.
 To learn how to write and install your own credentials helpers to integrate
 with existing in-house credentials management systems, see
-[the guide to Credentials Helper internals](/docs/internals/credentials-helpers).
+[the guide to Credentials Helper internals](../../internals/credentials-helpers.mdx).
 
 ### Credentials Source Priority Order
 
@@ -244,7 +244,7 @@ The following are the supported installation method types:
   use the `https:` scheme and end with a trailing slash.
 
   OpenTofu expects the given URL to be a base URL for an implementation of
-  [the provider network mirror protocol](/docs/internals/provider-network-mirror-protocol),
+  [the provider network mirror protocol](../../internals/provider-network-mirror-protocol.mdx),
   which is designed to be relatively easy to implement using typical static
   website hosting mechanisms.
 
@@ -372,7 +372,7 @@ understand the consequences of enabling it.
 
 By default OpenTofu will use packages from the global cache directory only
 if they match at least one of the checksums recorded in the
-[dependency lock file](/docs/language/files/dependency-lock)
+[dependency lock file](../../language/files/dependency-lock.mdx)
 for that provider. This ensures that OpenTofu can always
 generate a complete and correct dependency lock file entry the first time you
 use a new provider in a particular configuration.
@@ -455,7 +455,7 @@ provider_installation {
 With development overrides in effect, the `tofu init` command will still
 attempt to select a suitable published version of your provider to install and
 record in
-[the dependency lock file](/docs/language/files/dependency-lock)
+[the dependency lock file](../../language/files/dependency-lock.mdx)
 for future use, but other commands like
 `tofu apply` will disregard the lock file's entry for `hashicorp/null` and
 will use the given directory instead. Once your new changes are included in a

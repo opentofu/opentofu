@@ -15,7 +15,7 @@ templatefile(path, vars)
 ```
 
 The template syntax is the same as for
-[string templates](/docs/language/expressions/strings#string-templates)
+[string templates](../../language/expressions/strings.mdx#string-templates)
 in the main OpenTofu language, including interpolation sequences delimited with
 `${` ... `}`. This function just allows longer template sequences to be factored
 out into a separate file for readability.
@@ -121,9 +121,9 @@ YAML that will be interpreted correctly when using lots of individual
 interpolation sequences and directives.
 
 Instead, you can write a template that consists only of a single interpolated
-call to either [`jsonencode`](/docs/language/functions/jsonencode) or
-[`yamlencode`](/docs/language/functions/yamlencode), specifying the value to encode using
-[normal OpenTofu expression syntax](/docs/language/expressions)
+call to either [`jsonencode`](../../language/functions/jsonencode.mdx) or
+[`yamlencode`](../../language/functions/yamlencode.mdx), specifying the value to encode using
+[normal OpenTofu expression syntax](../../language/expressions/index.mdx)
 as in the following examples:
 
 ```
@@ -143,9 +143,9 @@ this will produce a valid JSON or YAML representation of the given data
 structure, without the need to manually handle escaping or delimiters.
 In the latest examples above, the repetition based on elements of `ip_addrs` is
 achieved by using a
-[`for` expression](/docs/language/expressions/for)
+[`for` expression](../../language/expressions/for.mdx)
 rather than by using
-[template directives](/docs/language/expressions/strings#directives).
+[template directives](../../language/expressions/strings.mdx#directives).
 
 ```json
 {"backends":["10.0.0.1:8080","10.0.0.2:8080"]}
@@ -164,11 +164,11 @@ locals {
 ```
 
 For more information, see the main documentation for
-[`jsonencode`](/docs/language/functions/jsonencode) and [`yamlencode`](/docs/language/functions/yamlencode).
+[`jsonencode`](../../language/functions/jsonencode.mdx) and [`yamlencode`](../../language/functions/yamlencode.mdx).
 
 ## Related Functions
 
-* [`file`](/docs/language/functions/file) reads a file from disk and returns its literal contents
+* [`file`](../../language/functions/file.mdx) reads a file from disk and returns its literal contents
   without any template interpretation.
-* [`templatestring`](/docs/language/functions/templatestring) takes a string and renders it as a
+* [`templatestring`](../../language/functions/templatestring.mdx) takes a string and renders it as a
   template using a supplied set of template variables.

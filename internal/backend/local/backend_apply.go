@@ -233,8 +233,9 @@ func (b *Local) opApply(
 	var applyState *states.State
 	var applyDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
 		applyState, applyDiags = lr.Core.Apply(plan, lr.Config)

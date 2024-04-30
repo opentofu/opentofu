@@ -12,7 +12,9 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -20,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -49,26 +52,29 @@ type BuiltinEvalContext struct {
 	// eval context.
 	Evaluator *Evaluator
 
+	VariableValuesLock *sync.Mutex
 	// VariableValues contains the variable values across all modules. This
 	// structure is shared across the entire containing context, and so it
 	// may be accessed only when holding VariableValuesLock.
 	// The keys of the first level of VariableValues are the string
 	// representations of addrs.ModuleInstance values. The second-level keys
 	// are variable names within each module instance.
-	VariableValues     map[string]map[string]cty.Value
-	VariableValuesLock *sync.Mutex
+	VariableValues map[string]map[string]cty.Value
 
 	// Plugins is a library of plugin components (providers and provisioners)
 	// available for use during a graph walk.
 	Plugins *contextPlugins
 
-	Hooks                 []Hook
-	InputValue            UIInput
-	ProviderCache         map[string]providers.Interface
-	ProviderInputConfig   map[string]map[string]cty.Value
-	ProviderLock          *sync.Mutex
-	ProvisionerCache      map[string]provisioners.Interface
-	ProvisionerLock       *sync.Mutex
+	Hooks      []Hook
+	InputValue UIInput
+
+	ProviderLock        *sync.Mutex
+	ProviderCache       map[string]providers.Interface
+	ProviderInputConfig map[string]map[string]cty.Value
+
+	ProvisionerLock  *sync.Mutex
+	ProvisionerCache map[string]provisioners.Interface
+
 	ChangesValue          *plans.ChangesSync
 	StateValue            *states.SyncState
 	ChecksValue           *checks.State
@@ -124,17 +130,15 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 }
 
 func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
-	// If we already initialized, it is an error
-	if p := ctx.Provider(addr); p != nil {
-		return nil, fmt.Errorf("%s is already initialized", addr)
-	}
-
-	// Warning: make sure to acquire these locks AFTER the call to Provider
-	// above, since it also acquires locks.
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
 	key := addr.String()
+
+	// If we have already initialized, it is an error
+	if _, ok := ctx.ProviderCache[key]; ok {
+		return nil, fmt.Errorf("%s is already initialized", addr)
+	}
 
 	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
 	if err != nil {
@@ -155,21 +159,6 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	// first see if we have already have an initialized provider to avoid
-	// re-loading it only for the schema
-	p := ctx.Provider(addr)
-	if p != nil {
-		resp := p.GetProviderSchema()
-		// convert any diagnostics here in case this is the first call
-		// FIXME: better control provider instantiation so we can be sure this
-		// won't be the first call to ProviderSchema
-		var err error
-		if resp.Diagnostics.HasErrors() {
-			err = resp.Diagnostics.ErrWithWarnings()
-		}
-		return resp, err
-	}
-
 	return ctx.Plugins.ProviderSchema(addr.Provider)
 }
 
@@ -408,6 +397,110 @@ func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, r
 	return ref, replace, diags
 }
 
+// EvaluateImportAddress takes the raw reference expression of the import address
+// from the config, and returns the evaluated address addrs.AbsResourceInstance
+//
+// The implementation is inspired by config.AbsTraversalForImportToExpr, but this time we can evaluate the expression
+// in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
+// an Index Traversal, adding it to the Traverser
+// TODO move this function into eval_import.go
+func (ctx *BuiltinEvalContext) EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	traversal, diags := ctx.traversalForImportExpr(expr, keyData)
+	if diags.HasErrors() {
+		return addrs.AbsResourceInstance{}, diags
+	}
+
+	return addrs.ParseAbsResourceInstance(traversal)
+}
+
+func (ctx *BuiltinEvalContext) traversalForImportExpr(expr hcl.Expression, keyData instances.RepetitionData) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
+	switch e := expr.(type) {
+	case *hclsyntax.IndexExpr:
+		t, d := ctx.traversalForImportExpr(e.Collection, keyData)
+		diags = diags.Append(d)
+		traversal = append(traversal, t...)
+
+		tIndex, dIndex := ctx.parseImportIndexKeyExpr(e.Key, keyData)
+		diags = diags.Append(dIndex)
+		traversal = append(traversal, tIndex)
+	case *hclsyntax.RelativeTraversalExpr:
+		t, d := ctx.traversalForImportExpr(e.Source, keyData)
+		diags = diags.Append(d)
+		traversal = append(traversal, t...)
+		traversal = append(traversal, e.Traversal...)
+	case *hclsyntax.ScopeTraversalExpr:
+		traversal = append(traversal, e.Traversal...)
+	default:
+		// This should not happen, as it should have failed validation earlier, in config.AbsTraversalForImportToExpr
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import address expression",
+			Detail:   "Import address must be a reference to a resource's address, and only allows for indexing with dynamic keys. For example: module.my_module[expression1].aws_s3_bucket.my_buckets[expression2] for resources inside of modules, or simply aws_s3_bucket.my_bucket for a resource in the root module",
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+	return
+}
+
+// parseImportIndexKeyExpr parses an expression that is used as a key in an index, of an HCL expression representing an
+// import target address, into a traversal of type hcl.TraverseIndex.
+// After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
+// (count)
+func (ctx *BuiltinEvalContext) parseImportIndexKeyExpr(expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
+	idx := hcl.TraverseIndex{
+		SrcRange: expr.Range(),
+	}
+
+	// evaluate and take into consideration the for_each key (if exists)
+	val, diags := evaluateExprWithRepetitionData(ctx, expr, cty.DynamicPseudoType, keyData)
+	if diags.HasErrors() {
+		return idx, diags
+	}
+
+	if !val.IsKnown() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains an invalid key",
+			Detail:   "Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address",
+			Subject:  expr.Range().Ptr(),
+		})
+		return idx, diags
+	}
+
+	if val.IsNull() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains an invalid key",
+			Detail:   "Import block contained a resource address using an index which is null. Please ensure the expression for the index is not null",
+			Subject:  expr.Range().Ptr(),
+		})
+		return idx, diags
+	}
+
+	if val.Type() != cty.String && val.Type() != cty.Number {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains an invalid key",
+			Detail:   "Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please ensure the expression for the index is correct, and returns either a string or a number",
+			Subject:  expr.Range().Ptr(),
+		})
+		return idx, diags
+	}
+
+	unmarkedVal, valMarks := val.Unmark()
+	if _, sensitive := valMarks[marks.Sensitive]; sensitive {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains an invalid key",
+			Detail:   "Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive",
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	idx.Key = unmarkedVal
+	return idx, diags
+}
+
 func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope {
 	if !ctx.pathSet {
 		panic("context path not set")
@@ -418,7 +511,6 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 		InstanceKeyData: keyData,
 		Operation:       ctx.Evaluator.Operation,
 	}
-	scope := ctx.Evaluator.Scope(data, self, source)
 
 	// ctx.PathValue is the path of the module that contains whatever
 	// expression the caller will be trying to evaluate, so this will
@@ -427,9 +519,17 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	// package itself works. The nil check here is for robustness in
 	// incompletely-mocked testing situations; mc should never be nil in
 	// real situations.
-	if mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue); mc != nil {
-		scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+	mc := ctx.Evaluator.Config.DescendentForInstance(ctx.PathValue)
+
+	if mc == nil || mc.Module.ProviderRequirements == nil {
+		return ctx.Evaluator.Scope(data, self, source, nil)
 	}
+
+	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+		return evalContextProviderFunction(ctx, mc, ctx.Evaluator.Operation, pf, rng)
+	})
+	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
+
 	return scope
 }
 

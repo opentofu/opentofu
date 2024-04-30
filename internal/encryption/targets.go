@@ -46,16 +46,19 @@ func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte)
 		keyProviderMetadata: meta,
 	}
 
-	diags = append(diags, builder.setupKeyProviders()...)
+	keyDiags := append(diags, builder.setupKeyProviders()...)
+	diags = append(diags, keyDiags...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	diags = append(diags, builder.setupMethods()...)
+	methodDiags := append(diags, builder.setupMethods()...)
+	diags = append(diags, methodDiags...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	return builder.build(base.target, base.name)
+	methods, targetDiags := builder.build(base.target, base.name)
+	return methods, append(diags, targetDiags...)
 }
 
 // build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
@@ -74,7 +77,6 @@ func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (m
 
 	// Only attempt to fetch the method if the decoding was successful
 	if !decodeDiags.HasErrors() {
-
 		if methodIdent != nil {
 			if method, ok := e.methods[method.Addr(*methodIdent)]; ok {
 				methods = append(methods, method)
@@ -88,8 +90,12 @@ func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (m
 				})
 			}
 		} else {
-			// nil is a nop method
-			methods = append(methods, nil)
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing encryption method",
+				Detail:   fmt.Sprintf("undefined or null method used for %q", targetName),
+				Subject:  target.Method.Range().Ptr(),
+			})
 		}
 	}
 

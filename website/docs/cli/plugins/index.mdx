@@ -8,7 +8,7 @@ description: >-
 
 OpenTofu relies on plugins called "providers" in order to manage various types
 of resources. (For more information about providers, see
-[Providers](/docs/language/providers) in the OpenTofu
+[Providers](../../language/providers/index.mdx) in the OpenTofu
 language docs.)
 
 :::note
@@ -17,8 +17,8 @@ we discourage their use.
 :::
 
 OpenTofu downloads and/or installs any providers
-[required](/docs/language/providers/requirements) by a configuration
-when [initializing](/docs/cli/init) a working directory. By default,
+[required](../../language/providers/requirements.mdx) by a configuration
+when [initializing](../init/index.mdx) a working directory. By default,
 this works without any additional interaction but requires network access to
 download providers from their source registry.
 
@@ -32,29 +32,29 @@ environments.
 
 OpenTofu's configuration file includes options for caching downloaded plugins,
 or explicitly specifying a local or HTTPS mirror to install plugins from. For
-more information, see [CLI Config File](/docs/cli/config/config-file).
+more information, see [CLI Config File](../config/config-file.mdx).
 
 ## Getting Plugin Information
 
-Use the [`tofu providers`](/docs/cli/commands/providers) command to get information
+Use the [`tofu providers`](../commands/providers/index.mdx) command to get information
 about the providers required by the current working directory's configuration.
 
-Use the [`tofu version`](/docs/cli/commands/version) command (or
+Use the [`tofu version`](../commands/version.mdx) command (or
 `tofu -version`) to show the specific provider versions installed for the
 current working directory.
 
-Use the [`tofu providers schema`](/docs/cli/commands/providers/schema) command to
+Use the [`tofu providers schema`](../commands/providers/schema.mdx) command to
 get machine-readable information about the resources and configuration options
 offered by each provider.
 
 ## Managing Plugin Installation
 
-Use the [`tofu providers mirror`](/docs/cli/commands/providers/mirror) command to
+Use the [`tofu providers mirror`](../commands/providers/mirror.mdx) command to
 download local copies of every provider required by the current working
 directory's configuration. This directory will use the nested directory layout
 that OpenTofu expects when installing plugins from a local source, so you can
 transfer it directly to an airgapped system that runs OpenTofu.
 
-Use the [`tofu providers lock`](/docs/cli/commands/providers/lock) command
+Use the [`tofu providers lock`](../commands/providers/lock.mdx) command
 to update the lock file that OpenTofu uses to ensure predictable runs when
 using ambiguous provider version constraints.

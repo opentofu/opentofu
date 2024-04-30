@@ -145,7 +145,7 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 		"set containing booleans": {
 			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.BoolVal(true)})),
 			"Invalid for_each set argument",
-			"supports maps and sets of strings, but you have provided a set containing type bool",
+			"supports sets of strings, but you have provided a set containing type bool",
 			false, false,
 		},
 		"set containing null": {
@@ -217,13 +217,14 @@ func TestEvaluateForEachExpressionKnown(t *testing.T) {
 	tests := map[string]hcl.Expression{
 		"unknown string set": hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
 		"unknown map":        hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
+		"unknown tuple":      hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String, cty.Number, cty.Bool}))),
 	}
 
 	for name, expr := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := &MockEvalContext{}
 			ctx.installSimpleEval()
-			forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, true)
+			forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, true, true)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -232,6 +233,57 @@ func TestEvaluateForEachExpressionKnown(t *testing.T) {
 			if forEachVal.IsKnown() {
 				t.Error("got known, want unknown")
 			}
+		})
+	}
+}
+
+func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
+	tests := map[string]struct {
+		Expr          hcl.Expression
+		AllowTuple    bool
+		ExpectedError string
+	}{
+		"valid tuple": {
+			Expr:       hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")})),
+			AllowTuple: true,
+		},
+		"empty tuple": {
+			Expr:       hcltest.MockExprLiteral(cty.EmptyTupleVal),
+			AllowTuple: true,
+		},
+		"null tuple": {
+			Expr:          hcltest.MockExprLiteral(cty.NullVal(cty.Tuple([]cty.Type{}))),
+			AllowTuple:    true,
+			ExpectedError: "the given \"for_each\" argument value is null",
+		},
+		"sensitive tuple": {
+			Expr:          hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive)),
+			AllowTuple:    true,
+			ExpectedError: "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+		},
+		"allow tuple is off": {
+			Expr:          hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")})),
+			AllowTuple:    false,
+			ExpectedError: "the \"for_each\" argument must be a map, or set of strings, and you have provided a value of type tuple.",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := &MockEvalContext{}
+			ctx.installSimpleEval()
+			_, diags := evaluateForEachExpressionValue(test.Expr, ctx, true, test.AllowTuple)
+
+			if test.ExpectedError == "" {
+				if len(diags) != 0 {
+					t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+				}
+			} else {
+				if got, want := diags[0].Description().Detail, test.ExpectedError; test.ExpectedError != "" && !strings.Contains(got, want) {
+					t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+				}
+			}
+
 		})
 	}
 }

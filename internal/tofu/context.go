@@ -85,8 +85,8 @@ type Context struct {
 	sh      *stopHook
 	uiInput UIInput
 
-	l                   sync.Mutex // Lock acquired during any task
 	parallelSem         Semaphore
+	l                   sync.Mutex // Lock acquired during any task
 	providerInputConfig map[string]map[string]cty.Value
 	runCond             *sync.Cond
 	runContext          context.Context
@@ -272,8 +272,9 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 	// write to the runContext field.
 	done := c.runContext.Done()
 
+	panicHandler := logging.PanicHandlerWithTraceFn()
 	go func() {
-		defer logging.PanicHandler()
+		defer panicHandler()
 
 		defer close(wait)
 		// Wait for a stop or completion

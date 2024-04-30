@@ -99,6 +99,10 @@ func (e *fakeHCLExpression) Variables() []hcl.Traversal {
 	return nil
 }
 
+func (e *fakeHCLExpression) Functions() []hcl.Traversal {
+	return nil
+}
+
 func (e *fakeHCLExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
 	return cty.DynamicVal, nil
 }

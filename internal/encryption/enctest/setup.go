@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
+	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 )
 
@@ -24,6 +25,9 @@ func EncryptionDirect(configData string) encryption.Encryption {
 		panic(err)
 	}
 	if err := reg.RegisterMethod(aesgcm.New()); err != nil {
+		panic(err)
+	}
+	if err := reg.RegisterMethod(unencrypted.New()); err != nil {
 		panic(err)
 	}
 
@@ -67,18 +71,25 @@ func EncryptionWithFallback() encryption.Encryption {
 		method "aes_gcm" "example" {
 			keys = key_provider.static.basic
 		}
+		method "unencrypted" "migration" {}
 		state {
 			method = method.aes_gcm.example
-			fallback {}
+			fallback {
+				method = method.unencrypted.migration
+			}
 		}
 		plan {
 			method = method.aes_gcm.example
-			fallback {}
+			fallback {
+				method = method.unencrypted.migration
+			}
 		}
 		remote_state_data_sources {
 			default {
 				method = method.aes_gcm.example
-				fallback {}
+				fallback {
+					method = method.unencrypted.migration
+				}
 			}
 		}
 	`)
