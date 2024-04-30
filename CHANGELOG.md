@@ -1,4 +1,4 @@
-## 1.7.0 (Unreleased)
+## 1.7.0
 
 UPGRADE NOTES:
 * Backend/S3: The default of `use_legacy_workflow` changed to `false` and is now deprecated. The S3 backend will follow the same behavior as AWS CLI and SDKs for credential search, preferring backend configuration over environment variables. To support the legacy credential search workflow, you can set this option as `true`. It'll be completely removed in a future minor version.
