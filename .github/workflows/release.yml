@@ -18,7 +18,8 @@ on:
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on:
+      group: larger-runners
     environment: gpg
     permissions:
       contents: write
