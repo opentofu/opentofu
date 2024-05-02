@@ -8,7 +8,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 * Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))
-* Fix for `tofu test` when the module has no resources, its outputs become unusable. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
+* `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 
 ## Previous Releases
 
