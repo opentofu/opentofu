@@ -5,6 +5,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 ENHANCEMENTS:
+* Made `tofu plan` with `generate-config-out` flag replace JSON strings with `jsonencode` functions calls. ([#1595](https://github.com/opentofu/opentofu/pull/1595))
 
 BUG FIXES:
 * Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))

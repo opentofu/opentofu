@@ -425,6 +425,53 @@ resource "tfcoremock_simple_resource" "empty" {
   single = null
 }`,
 		},
+		"jsonencode_wrapping": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"juststr": {
+						Type:     cty.String,
+						Optional: true,
+					},
+					"jsonobj": {
+						Type:     cty.String,
+						Optional: true,
+					},
+					"jsonarr": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"juststr": cty.StringVal("{a=b}"),
+				"jsonobj": cty.StringVal(`{"SomeDate":"2012-10-17"}`),
+				"jsonarr": cty.StringVal(`[{"a": 1}]`),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  jsonarr = jsonencode([{
+    a = 1
+  }])
+  jsonobj = jsonencode({
+    SomeDate = "2012-10-17"
+  })
+  juststr = "{a=b}"
+}`,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
