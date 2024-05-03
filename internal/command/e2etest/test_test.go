@@ -51,3 +51,29 @@ func TestMultipleRunBlocks(t *testing.T) {
 		}
 	}
 }
+
+func TestOverrides(t *testing.T) {
+	tf := e2e.NewBinary(t, tofuBin, filepath.Join("testdata", "overrides-in-tests"))
+
+	stdout, stderr, err := tf.Run("init")
+	if err != nil {
+		t.Errorf("unexpected error on 'init': %v", err)
+	}
+	if stderr != "" {
+		t.Errorf("unexpected stderr output on 'init':\n%s", stderr)
+	}
+	if stdout == "" {
+		t.Errorf("expected some output on 'init', got nothing")
+	}
+
+	stdout, stderr, err = tf.Run("test", "-json")
+	if err != nil {
+		t.Errorf("unexpected error on 'test': %v", err)
+	}
+	if stderr != "" {
+		t.Errorf("unexpected stderr output on 'test':\n%s", stderr)
+	}
+	if !strings.Contains(stdout, `"test_summary":{"status":"pass","passed":9,"failed":0,"errored":0,"skipped":0}`) {
+		t.Errorf("output doesn't have expected success string:\n%s", stdout)
+	}
+}
