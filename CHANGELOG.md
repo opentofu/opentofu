@@ -5,6 +5,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 ENHANCEMENTS:
+* Added `tofu test -json` types to website Machine-Readable UI documentation ([1408](https://github.com/opentofu/opentofu/issues/1408))
 * Made `tofu plan` with `generate-config-out` flag replace JSON strings with `jsonencode` functions calls. ([#1595](https://github.com/opentofu/opentofu/pull/1595))
 
 BUG FIXES:
