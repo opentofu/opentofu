@@ -26,14 +26,14 @@ if [ -z "$backport_label" ]; then
 fi
 
 # Checkout the version branch
-git fetch origin $branch_name
-git checkout $branch_name
+git fetch origin "$branch_name"
+git checkout "$branch_name"
 echo "Version branch: $branch_name"
 
 # Checkout new backport branch
 new_branch="backport/$ISSUE_NUMBER"
-git checkout -b $new_branch
-git push origin $new_branch
+git checkout -b "$new_branch"
+git push origin "$new_branch"
 echo "New backport branch: $new_branch"
 
 # Get the commit SHAs associated with the pull request
@@ -57,7 +57,7 @@ while IFS= read -r commit_sha; do
 done
 echo "Cherry Pick done!"
 
-git push origin $new_branch
+git push origin "$new_branch"
 echo "Successfully pushed!"
 
 # Create the pull request.
