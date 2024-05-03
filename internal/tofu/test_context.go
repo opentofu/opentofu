@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
@@ -19,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -106,12 +108,19 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: ctx.Plan.Timestamp,
 		ProviderFunctions: func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-			return nil, tfdiags.Diagnostics(nil).Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Provider functions not available",
-				Detail:   fmt.Sprintf("Providers are unable to supply functions within the test context (%s)", pf),
-				Subject:  rng.ToHCL().Ptr(),
-			})
+			return evalContextProviderFunction(func(addr addrs.AbsProviderConfig) providers.Interface {
+				factory, ok := ctx.plugins.providerFactories[addr.Provider]
+				if !ok {
+					log.Printf("[WARN] Unable to find provider %s in test context", addr)
+					return nil
+				}
+				inst, err := factory()
+				if err != nil {
+					log.Printf("[WARN] Unable to start provider %s in test context", addr)
+					return nil
+				}
+				return inst
+			}, ctx.Config, walkPlan, pf, rng)
 		},
 	}
 
