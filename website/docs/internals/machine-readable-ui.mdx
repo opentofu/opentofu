@@ -8,7 +8,7 @@ description: >-
 
 By default, many OpenTofu commands display UI output as unstructured text, intended to be read by a user via a terminal emulator. This text stream is not a stable interface for integrations. Some commands support a `-json` flag, which enables a structured JSON output mode with a defined interface.
 
-For long-running commands such as `plan`, `apply`, and `refresh`, the `-json` flag outputs a stream of JSON UI messages, one per line. These can be processed one message at a time, with integrating software filtering, combining, or modifying the output as desired.
+For long-running commands such as `plan`, `apply`, and `refresh` the `-json` flag outputs a stream of JSON UI messages, one per line. These can be processed one message at a time, with integrating software filtering, combining, or modifying the output as desired.
 
 The first message output has type `version`, and includes a `ui` key, which has
 value `"1.0"`. The semantics of this version are:
@@ -594,5 +594,117 @@ The `resource` object is a decomposed structure representing a resource address 
   "resource_type": "random_pet",
   "resource_name": "pet",
   "resource_key": "friend"
+}
+```
+
+## Test Messages
+
+Running OpenTofu tests will result in several messages being emitted. The message types include:
+
+- `test_abstract`: Summary of test files and tests found
+- `test_file`: Summary of test file execution
+- `test_run`: Summary of test execution
+- `test_summary`: Summary of overall test file execution status and statistics
+
+## Test Abstract
+
+The `test_abstract` message `test_abstract` object contains dynamic keys composed of the test file name:
+
+- `main.tftest.hcl`: list of tests found within the test file
+
+### Example
+
+```json
+{
+    "@level": "info",
+    "@message": "Found 1 file and 1 run block",
+    "@module": "tofu.ui",
+    "@timestamp": "2024-04-20T17:24:48.418126+10:00",
+    "test_abstract": {
+        "main.tftest.hcl": [
+            "test"
+        ]
+    },
+    "type": "test_abstract"
+}
+```
+
+## Test File
+
+The `test_file` message `test_file` object has the following keys:
+
+- `path`: the relative path of the test file
+- `status`: the overall test execution status
+
+### Example
+
+```json
+{
+    "@level": "info",
+    "@message": "main.tftest.hcl... pass",
+    "@module": "tofu.ui",
+    "@testfile": "main.tftest.hcl",
+    "@timestamp": "2024-04-20T17:24:48.588473+10:00",
+    "test_file": {
+        "path": "main.tftest.hcl",
+        "status": "pass"
+    },
+    "type": "test_file"
+}
+```
+
+## Test Run
+
+The `test_run` message `test_run` object has the following keys:
+
+- `path`: the relative path of the test file
+- `run`: name of test that was executed
+- `status`: the overall test execution status
+
+### Example
+
+```json
+{
+    "@level": "info",
+    "@message": "  \"test\"... pass",
+    "@module": "tofu.ui",
+    "@testfile": "main.tftest.hcl",
+    "@testrun": "test",
+    "@timestamp": "2024-04-20T17:24:48.588519+10:00",
+    "test_run": {
+        "path": "main.tftest.hcl",
+        "run": "test",
+        "status": "pass"
+    },
+    "type": "test_run"
+}
+```
+
+## Test Summary
+
+The `test_summary` message `test_summary` object has the following keys:
+
+- `status`: the overall status of all tests executed
+- `passed`: the total number of tests that passed
+- `failed`: the total number of tests that failed
+- `errored`: the total number of tests that errored
+- `skipped`: the total number of tests that skipped
+
+### Example
+
+```json
+{
+    "@level": "info",
+    "@message": "Success! 1 passed, 0 failed.",
+    "@module": "tofu.ui",
+    "@timestamp": "2024-04-20T17:24:48.716977+10:00",
+    "test_summary": {
+        "status": "pass",
+        "passed": 1,
+        "failed": 0,
+        "errored": 0,
+        "skipped": 0
+    },
+    "type": "test_summary"
 }
 ```
