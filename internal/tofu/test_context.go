@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -97,6 +98,14 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		BaseDir:       ".",
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: ctx.Plan.Timestamp,
+		ProviderFunctions: func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+			return nil, tfdiags.Diagnostics(nil).Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Provider functions not available",
+				Detail:   fmt.Sprintf("Providers are unable to supply functions within the test context (%s)", pf),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		},
 	}
 
 	// We're going to assume the run has passed, and then if anything fails this
