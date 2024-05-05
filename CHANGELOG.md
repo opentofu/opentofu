@@ -6,6 +6,7 @@ NEW FEATURES:
 
 ENHANCEMENTS:
 * Added `tofu test -json` types to website Machine-Readable UI documentation ([1408](https://github.com/opentofu/opentofu/issues/1408))
+* Added `pedantic` flag which enables warnings to be treated as errors ([757](https://github.com/opentofu/opentofu/issues/757))
 
 BUG FIXES:
 * Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))
