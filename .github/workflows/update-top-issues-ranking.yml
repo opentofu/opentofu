@@ -8,6 +8,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'opentofu'
     permissions:
       contents: read
       issues: write
