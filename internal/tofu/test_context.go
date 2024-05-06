@@ -67,6 +67,13 @@ func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
 }
 
 func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
+	// The state does not include the module that has no resources, making its outputs unusable.
+	// synchronizeStates function synchronizes the state with the planned state, ensuring inclusion of all modules.
+	if ctx.Plan != nil && ctx.Plan.PlannedState != nil &&
+		len(ctx.State.Modules) != len(ctx.Plan.PlannedState.Modules) {
+		state = synchronizeStates(ctx.State, ctx.Plan.PlannedState)
+	}
+
 	data := &evaluationStateData{
 		Evaluator: &Evaluator{
 			Operation: operation,
@@ -185,4 +192,18 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			continue
 		}
 	}
+}
+
+// synchronizeStates compares the planned state to the current state and incorporates any missing modules
+// from the planned state into the current state.
+//
+// If a module has no resources, it is included in the current state to ensure that its output variables are usable.
+func synchronizeStates(state, plannedState *states.State) *states.SyncState {
+	newState := state.DeepCopy()
+	for key, value := range plannedState.Modules {
+		if _, exists := newState.Modules[key]; !exists {
+			newState.Modules[key] = value
+		}
+	}
+	return newState.SyncWrapper()
 }
