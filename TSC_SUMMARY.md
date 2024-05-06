@@ -3,11 +3,10 @@
 The Technical Steering Committee is a group comprised of people from companies and projects backing OpenTofu. Its purpose is to have the final decision on any technical matters concerning the OpenTofu project, providing a model of governance that benefits the community as a whole, as opposed to being guided by any single company. The current members of the steering committee are:
 
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) representing Scalr Inc.
-- Marcin Wyszynski ([@marcinwyszynski](https://github.com/marcinwyszynski)) representing Spacelift Inc.
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) representing Harness Inc.
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi)) representing env0
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Yevgeniy Brikman ([@brikis98](https://github.com/brikis98)) representing Gruntwork, Inc.
-- Omry Hay ([@omry-hay](https://github.com/omry-hay)) representing env0
-- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi)) temporarily filling in for Omry Hay at env0
 
 
 ## 2024-02-17
