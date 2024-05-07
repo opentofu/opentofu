@@ -133,6 +133,12 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 			"map includes keys derived from resource attributes that cannot be determined until apply",
 			true, false,
 		},
+		"unknown pseudo-type": {
+			hcltest.MockExprLiteral(cty.UnknownVal(cty.DynamicPseudoType)),
+			"Invalid for_each argument",
+			"map includes keys derived from resource attributes that cannot be determined until apply",
+			true, false,
+		},
 		"marked map": {
 			hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{
 				"a": cty.BoolVal(true),
@@ -321,9 +327,10 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 
 func TestEvaluateForEachExpressionKnown(t *testing.T) {
 	tests := map[string]hcl.Expression{
-		"unknown string set": hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
-		"unknown map":        hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
-		"unknown tuple":      hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String, cty.Number, cty.Bool}))),
+		"unknown string set":  hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
+		"unknown map":         hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
+		"unknown tuple":       hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String, cty.Number, cty.Bool}))),
+		"unknown pseudo-type": hcltest.MockExprLiteral(cty.UnknownVal(cty.DynamicPseudoType)),
 	}
 
 	for name, expr := range tests {

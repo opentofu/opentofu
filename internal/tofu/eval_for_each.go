@@ -96,7 +96,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 	}
 
 	// Check if the type is allowed whether the value is marked or not
-	if !(isAllowedType) {
+	if forEachVal.IsKnown() && !isAllowedType {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
