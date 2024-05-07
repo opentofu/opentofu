@@ -245,11 +245,24 @@ func GoBuild(pkgPath, tmpPrefix string) string {
 		panic(err)
 	}
 
-	cmd := exec.Command(
-		"go", "build",
+	args := []string{
+		"go",
+		"build",
+	}
+
+	if len(os.Getenv("GOCOVERDIR")) != 0 {
+		args = append(args,
+			"-cover",
+			"-coverpkg=github.com/opentofu/opentofu/...",
+		)
+	}
+
+	args = append(args,
 		"-o", tmpFilename,
 		pkgPath,
 	)
+
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
