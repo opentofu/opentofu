@@ -15,7 +15,7 @@ import (
 
 // This builds a provider function using an EvalContext and some additional information
 // This is split out of BuiltinEvalContext for testing
-func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+func evalContextProviderFunction(providers func(addrs.AbsProviderConfig) providers.Interface, mc *configs.Config, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
@@ -35,7 +35,7 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 		Alias:    pf.ProviderAlias,
 	}
 
-	provider := ctx.Provider(absPc)
+	provider := providers(absPc)
 
 	if provider == nil {
 		// Configured provider (NodeApplyableProvider) not required via transform_provider.go.  Instead we should use the unconfigured instance (NodeEvalableProvider) in the root.
@@ -59,7 +59,7 @@ func evalContextProviderFunction(ctx EvalContext, mc *configs.Config, op walkOpe
 			}
 		}
 
-		provider = ctx.Provider(addrs.AbsProviderConfig{Provider: pr.Type})
+		provider = providers(addrs.AbsProviderConfig{Provider: pr.Type})
 		if provider == nil {
 			// This should not be possible
 			return nil, diags.Append(&hcl.Diagnostic{
