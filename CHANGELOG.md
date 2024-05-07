@@ -5,6 +5,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 
 BUG FIXES:
+* Fix inmem backend crash due to missing struct field ([#1619](https://github.com/opentofu/opentofu/pull/1619))
 
 ## 1.7.0
 
