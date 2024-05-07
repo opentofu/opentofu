@@ -3,8 +3,8 @@
 set -e
 
 # Setting up Committer identity.
-git config --global user.email "noreply@github.com"
-git config --global user.name "GitHub Actions"
+git config user.email "noreply@github.com"
+git config user.name "GitHub Actions"
 
 # Get backport label from all the labels of the PR
 backport_label=""
@@ -31,7 +31,7 @@ git checkout "$branch_name"
 echo "Version branch: $branch_name"
 
 # Checkout new backport branch
-new_branch="backport/$ISSUE_NUMBER"
+new_branch="backport/$branch_name/$ISSUE_NUMBER"
 git checkout -b "$new_branch"
 git push origin "$new_branch"
 echo "New backport branch: $new_branch"

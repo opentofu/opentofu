@@ -27,7 +27,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_EVENT: ${{ toJson(github.event) }} # Pass the github.event object as a JSON string
       run: |
-        cd $GITHUB_WORKSPACE  # Move to the root of the repository
-        cd .github/scripts/backport
-        bash main.sh
+        bash ./.github/scripts/backport/main.sh
       shell: bash
