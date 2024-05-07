@@ -5,6 +5,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 
 BUG FIXES:
+* Fixed support for provider functions in tests ([#1603](https://github.com/opentofu/opentofu/pull/1603))
 * Fixed crash in gcs backend when using certain commands ([#1618](https://github.com/opentofu/opentofu/pull/1618))
 * Fix inmem backend crash due to missing struct field ([#1619](https://github.com/opentofu/opentofu/pull/1619))
 
