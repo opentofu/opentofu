@@ -1,3 +1,13 @@
+## 1.7.1
+
+NEW FEATURES:
+
+ENHANCEMENTS:
+
+BUG FIXES:
+* Fixed crash in gcs backend when using certain commands ([#1618](https://github.com/opentofu/opentofu/pull/1618))
+* Fix inmem backend crash due to missing struct field ([#1619](https://github.com/opentofu/opentofu/pull/1619))
+
 ## 1.7.0
 
 UPGRADE NOTES:

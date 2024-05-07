@@ -57,8 +57,15 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
+	enc, encDiags := c.Encryption()
+	diags = diags.Append(encDiags)
+	if encDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	// Load the backend
-	b, backendDiags := c.Backend(nil, nil) // Encryption not needed here
+	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -84,7 +91,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewJSON, nil) // Encryption not needed here
+	opReq := c.Operation(b, arguments.ViewJSON, enc)
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.AllowUnsetVariables = true
