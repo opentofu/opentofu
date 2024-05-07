@@ -22,7 +22,7 @@ done
 echo "Label Name: $backport_label"
 if [ -z "$backport_label" ]; then
     echo "Backport label not found. Exiting."
-    exit 1
+    exit 0
 fi
 
 # Checkout the version branch
