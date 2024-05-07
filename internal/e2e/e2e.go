@@ -247,7 +247,9 @@ func GoBuild(pkgPath, tmpPrefix string) string {
 
 	cmd := exec.Command(
 		"go", "build",
+		"-cover",
 		"-o", tmpFilename,
+		"-coverpkg=github.com/opentofu/opentofu/...",
 		pkgPath,
 	)
 	cmd.Stderr = os.Stderr
