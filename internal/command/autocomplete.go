@@ -55,9 +55,16 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 			return nil
 		}
 
+		// Load the encryption configuration
+		enc, encDiags := m.Encryption()
+		if encDiags.HasErrors() {
+			m.showDiagnostics(encDiags)
+			return nil
+		}
+
 		b, diags := m.Backend(&BackendOpts{
 			Config: backendConfig,
-		}, nil) // Don't need state encryption here.
+		}, enc.State())
 		if diags.HasErrors() {
 			return nil
 		}
