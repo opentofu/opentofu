@@ -8,6 +8,8 @@ BUG FIXES:
 * Fixed support for provider functions in tests ([#1603](https://github.com/opentofu/opentofu/pull/1603))
 * Fixed crash in gcs backend when using certain commands ([#1618](https://github.com/opentofu/opentofu/pull/1618))
 * Fix inmem backend crash due to missing struct field ([#1619](https://github.com/opentofu/opentofu/pull/1619))
+* Fix for `tofu init` failure when test have spaces in their name. ([1489](https://github.com/opentofu/opentofu/pull/1489))
+* `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 
 ## 1.7.0
 
@@ -69,8 +71,6 @@ BUG FIXES:
 * S3 backend no longer requires to have permissions to use the default `env:` workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
 * Fixed a crash when using a conditional with Twingate resource ([#1446](https://github.com/opentofu/opentofu/pull/1446))
 * Added support for user-defined headers when configuring the HTTP backend ([#1427](https://github.com/opentofu/opentofu/pull/1487))
-* Fix for `tofu init` failure when test have spaces in their name. ([1489](https://github.com/opentofu/opentofu/pull/1489))
-* `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 
 ## Previous Releases
 
