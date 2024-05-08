@@ -69,6 +69,7 @@ BUG FIXES:
 * S3 backend no longer requires to have permissions to use the default `env:` workspace prefix ([#1445](https://github.com/opentofu/opentofu/pull/1445))
 * Fixed a crash when using a conditional with Twingate resource ([#1446](https://github.com/opentofu/opentofu/pull/1446))
 * Added support for user-defined headers when configuring the HTTP backend ([#1427](https://github.com/opentofu/opentofu/pull/1487))
+* Fix for `tofu init` failure when test have spaces in their name. ([1489](https://github.com/opentofu/opentofu/pull/1489))
 
 ## Previous Releases
 
