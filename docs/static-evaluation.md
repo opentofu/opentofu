@@ -121,7 +121,9 @@ module "test" {
 variable "key" {}
 variable "value" {}
 resource "tfcoremock_resource" { string = var.key, other = var.value }
+```
 #### configs.Config
+```
 root = {
   Root = root
   Parent = nil
@@ -134,7 +136,9 @@ root = {
     Path = addrs.Module["test"]
   }}
 }
+```
 #### tofu.Graph (simplified)
+```
 rootExpand = NodeExpandModule {
   Addr = addrs.Module[]
   Config = root
@@ -144,7 +148,7 @@ testExpand = NodeExpandModule {
   Addr = addrs.Module["test"]
   
 }
-
+```
 ## Solutions
 ### Module Sources
 ### Module Provider Mappings
