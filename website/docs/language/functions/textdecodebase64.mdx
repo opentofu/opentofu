@@ -13,6 +13,10 @@ description: >-
 `textdecodebase64` function decodes a string that was previously Base64-encoded,
 and then interprets the result as characters in a specified character encoding.
 
+```hcl
+textdecodebase64(string, encoding_name)
+```
+
 OpenTofu uses the "standard" Base64 alphabet as defined in
 [RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
 
