@@ -216,26 +216,26 @@ Approaches:
 This approach may be the simplest, but could cause some confusion when inspecting paths. In practice nil would represent both NoKey and NotYetExpanded.  In the rough prototype this was not an immediate problem, but could easily be a tripping hazard.
 
 Before:
-* `addrs.Module["test", "resource"]`
+`addrs.Module["test", "resource"]`
 
 After:
-* `addrs.ModuleInstance[{"test", nil}, {"resource", NoKey}`
+`addrs.ModuleInstance[{"test", nil}, {"resource", NoKey}`
 
 Indistinguishable from:
-* `addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
+`addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
 
 #### Replace addrs.Module with addrs.ModuleInstance with additional keys types
 
 DeferredCount and DeferredForEach could be introduced as a placeholder for expansion that is yet to happen.  This would clearly differentiate between NoKey and not yet expanded.
 
 Before:
-* `addrs.Module["test", "resource"]`
+`addrs.Module["test", "resource"]`
 
 After:
-* `addrs.ModuleInstance[{"test", DeferredForEach}, {"resource", NoKey}`
+`addrs.ModuleInstance[{"test", DeferredForEach}, {"resource", NoKey}`
 
 Clearly distinguishable from:
-* `addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
+`addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
 
 #### Modify addrs.Module to be similar to addrs.ModuleInstance with limited keys
 
