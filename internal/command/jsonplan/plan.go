@@ -176,15 +176,16 @@ type Variable struct {
 func MarshalForRenderer(
 	p *plans.Plan,
 	schemas *tofu.Schemas,
+	showSensitive bool,
 ) (map[string]Change, []ResourceChange, []ResourceChange, []ResourceAttr, error) {
 	output := newPlan()
 
 	var err error
-	if output.OutputChanges, err = MarshalOutputChanges(p.Changes); err != nil {
+	if output.OutputChanges, err = MarshalOutputChanges(p.Changes, showSensitive); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
-	if output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas); err != nil {
+	if output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas, showSensitive); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
@@ -203,7 +204,7 @@ func MarshalForRenderer(
 				}
 			}
 		}
-		output.ResourceDrift, err = MarshalResourceChanges(driftedResources, schemas)
+		output.ResourceDrift, err = MarshalResourceChanges(driftedResources, schemas, showSensitive)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -256,7 +257,7 @@ func MarshalForLog(
 				}
 			}
 		}
-		output.ResourceDrift, err = MarshalResourceChanges(driftedResources, schemas)
+		output.ResourceDrift, err = MarshalResourceChanges(driftedResources, schemas, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in marshaling resource drift: %w", err)
 		}
@@ -268,14 +269,14 @@ func MarshalForLog(
 
 	// output.ResourceChanges
 	if p.Changes != nil {
-		output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas)
+		output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas, false)
 		if err != nil {
 			return nil, fmt.Errorf("error in marshaling resource changes: %w", err)
 		}
 	}
 
 	// output.OutputChanges
-	if output.OutputChanges, err = MarshalOutputChanges(p.Changes); err != nil {
+	if output.OutputChanges, err = MarshalOutputChanges(p.Changes, false); err != nil {
 		return nil, fmt.Errorf("error in marshaling output changes: %w", err)
 	}
 
@@ -376,7 +377,7 @@ func (p *Plan) marshalPlanVariables(vars map[string]plans.DynamicValue, decls ma
 // This function is referenced directly from the structured renderer tests, to
 // ensure parity between the renderers. It probably shouldn't be used anywhere
 // else.
-func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schemas *tofu.Schemas) ([]ResourceChange, error) {
+func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schemas *tofu.Schemas, showSensitive bool) ([]ResourceChange, error) {
 	var ret []ResourceChange
 
 	var sortedResources []*plans.ResourceInstanceChangeSrc
@@ -432,7 +433,9 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				return nil, err
 			}
 			marks := rc.BeforeValMarks
-			if schema.ContainsSensitive() {
+			// showSensitive is set to true only when -show-sensitive flag is passed
+			// as an argument to display sensitive values.
+			if schema.ContainsSensitive() && !showSensitive {
 				marks = append(marks, schema.ValueMarks(changeV.Before, nil)...)
 			}
 			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, marks)
@@ -461,7 +464,9 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				afterUnknown = unknownAsBool(changeV.After)
 			}
 			marks := rc.AfterValMarks
-			if schema.ContainsSensitive() {
+			// showSensitive is set to true only when -show-sensitive flag is passed
+			// as an argument to display sensitive values.
+			if schema.ContainsSensitive() && !showSensitive {
 				marks = append(marks, schema.ValueMarks(changeV.After, nil)...)
 			}
 			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, marks)
@@ -568,7 +573,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 // This function is referenced directly from the structured renderer tests, to
 // ensure parity between the renderers. It probably shouldn't be used anywhere
 // else.
-func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
+func MarshalOutputChanges(changes *plans.Changes, showSensitive bool) (map[string]Change, error) {
 	if changes == nil {
 		// Nothing to do!
 		return nil, nil
@@ -628,8 +633,10 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 		// a boolean which is true if the output was or is marked sensitive. As
 		// a result, BeforeSensitive and AfterSensitive will be identical, and
 		// either false or true.
+		// showSensitive is set to true only when -show-sensitive flag is passed
+		// as an argument to display sensitive values.
 		outputSensitive := cty.False
-		if oc.Sensitive {
+		if oc.Sensitive && !showSensitive {
 			outputSensitive = cty.True
 		}
 		sensitive, err := ctyjson.Marshal(outputSensitive, outputSensitive.Type())

@@ -199,7 +199,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	if showSensitive {
 		for i, resource := range root.Resources {
 			if len(resource.SensitiveValues) > 0 {
-				resource.SetSensitive()
+				resource.MakeAllValuesNonsensitive()
 				root.Resources[i] = resource
 			}
 		}

@@ -95,13 +95,7 @@ func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File, enc encry
 }
 
 func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
-	// If the -show-sensitive argument is provided in the tofu plan/apply command,
-	// then mark the sensitive variable in plan.Changes.Outputs as false.
-	if v.view.showSensitive && plan.Changes != nil {
-		resetSensitiveVariables(plan.Changes.Outputs)
-	}
-
-	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
+	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas, v.view.showSensitive)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
 		return
@@ -288,14 +282,6 @@ func (v *OperationJSON) PlanNextStep(planPath string, genConfigPath string) {
 
 func (v *OperationJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
-}
-
-func resetSensitiveVariables(outputs []*plans.OutputChangeSrc) {
-	for _, output := range outputs {
-		if output.Sensitive {
-			output.ResetSensitiveVariable()
-		}
-	}
 }
 
 const fatalInterrupt = `

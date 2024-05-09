@@ -187,13 +187,6 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 	return &ret
 }
 
-// ResetSensitiveVariable marks the sensitive flag as false, displaying sensitive values.
-// This function is only used when the -show-sensitive flag is passed as an argument in
-// tofu plan/apply commands.
-func (ocs *OutputChangeSrc) ResetSensitiveVariable() {
-	ocs.Sensitive = false
-}
-
 // ImportingSrc is the part of a ChangeSrc that describes the embedded import
 // action.
 //

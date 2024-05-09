@@ -7202,7 +7202,7 @@ func runTestCases(t *testing.T, testCases map[string]testCase) {
 					},
 				},
 			}
-			jsonchanges, err := jsonplan.MarshalResourceChanges([]*plans.ResourceInstanceChangeSrc{src}, tfschemas)
+			jsonchanges, err := jsonplan.MarshalResourceChanges([]*plans.ResourceInstanceChangeSrc{src}, tfschemas, false)
 			if err != nil {
 				t.Errorf("failed to marshal resource changes: " + err.Error())
 				return
@@ -7324,7 +7324,7 @@ func TestOutputChanges(t *testing.T) {
 				Outputs: tc.changes,
 			}
 
-			outputs, err := jsonplan.MarshalOutputChanges(changes)
+			outputs, err := jsonplan.MarshalOutputChanges(changes, false)
 			if err != nil {
 				t.Fatalf("failed to marshal output changes")
 			}
