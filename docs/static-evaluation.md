@@ -4,10 +4,24 @@ This is based on the prototyping done while evaluating RFC #1042 and references 
 
 ## Progress Overview:
 - [ ] Core Implementation
+  - [ ] Define Static Evaluator Interface
+  - [ ] Pick Static Evaluator Approach
+  - [ ] Implement Static Evaluator
+  - [ ] Wire Static Evaluator throught the config package
+  - [ ] Implement one of the simple solutions to validate
 - [ ] Module Iteration
+  - [ ] Decide on addressing approach (Module vs ModuleInstance)
+  - [ ] Apply addressing approach to different components
+    - [ ] Setup code to support translating between current and new approach
+    - [ ] Refactor Expander
+    - [ ] Refactor Graph/Nodes (and dependencies)
+    - [ ] Refactor Configs
+  - [ ] Wire in module for_each and count static expansion
 - [ ] Solutions
   - [ ] Module Sources
+  - [ ] Module Sources with Iteration
   - [ ] Module Provider Mappings
+  - [ ] Module Provider Mappings with Iteration
   - [ ] Provider Iteration
   - [ ] Backend Configuration
   - [ ] Lifecycle Attributes
@@ -48,8 +62,8 @@ Performing an action in OpenTofu (init/plan/apply/etc...) takes the following st
 ### Config processing
 
 The config loading process for a given module above will need to be broken into two stages:
-* Parse and load the configuration into configs.ModuleFiles without doing any evaluation
-* Setup a static evalation context based on the current configs.ModuleFiles
+* Parse and load the configuration into configs.Module without doing any evaluation
+* Setup a static evalation context based on the current configs.Module
 
 Additionally, variables passed in from the given module's parent will need to be tracked and known if they are static or dynamic.
 
@@ -203,8 +217,10 @@ This approach may be the simplest, but could cause some confusion when inspectin
 
 Before:
 * `addrs.Module["test", "resource"]`
+
 After:
 * `addrs.ModuleInstance[{"test", nil}, {"resource", NoKey}`
+
 Indistinguishable from:
 * `addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
 
@@ -214,8 +230,10 @@ DeferredCount and DeferredForEach could be introduced as a placeholder for expan
 
 Before:
 * `addrs.Module["test", "resource"]`
+
 After:
 * `addrs.ModuleInstance[{"test", DeferredForEach}, {"resource", NoKey}`
+
 Clearly distinguishable from:
 * `addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
 
