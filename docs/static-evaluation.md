@@ -24,9 +24,12 @@ Code coverage should be inspected before refactoring of a component is undertake
 
 A comprehensive guide on e2e testing should be written, see #1536.
 
+## Common Conceptual Mistakes
+* Modules are "namespaces" not "objects" and can circularly reference each other's vars/outputs as long as there is no loop.
+
 ## Core Implementation:
 
-## Overview of original process and structures
+### Overview of original process and structures
 
 Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplifed):
 * A command in the command package parses the configuration in the current directory
@@ -41,8 +44,6 @@ Performing an action in OpenTofu (init/plan/apply/etc...) takes the following st
   - The configs.Config module tree is walked and used to build a basic graph
   - The graph is transformed and linked based on references detected between nodes
   - The graph is evaluated by walking each node after it's dependencies have been evaluated.
-
-## Core changes
 
 ### Config processing
 
@@ -129,15 +130,21 @@ root = {
   Parent = nil
   Module = { ModuleCalls = { "test" = { source = "./mod", for_each = hcl.Expression, ... } }, ... }
   Path = addrs.Module[]
-  Children = { "test" =  {
-    Root = root
-    Parent = root
-    Module = { ... }
-    Path = addrs.Module["test"]
-  }}
+  Children = { "test" = test }
+}
+test = {
+  Root = root
+  Parent = root
+  Module = { ... }
+  Path = addrs.Module["test"]
+  Children = {}
 }
 ```
 #### tofu.Graph (simplified)
+
+Variables and providers have been excluded for the moment.
+
+Before Expansion:
 ```
 rootExpand = NodeExpandModule {
   Addr = addrs.Module[]
@@ -146,18 +153,217 @@ rootExpand = NodeExpandModule {
 }
 testExpand = NodeExpandModule {
   Addr = addrs.Module["test"]
-  
+  Config = test
+  ModuleCall = root.Module.ModuleCalls["test"]  
+}
+testExpandResource = NodeExpandResource {
+  NodeResource {
+    Addr = addrs.Module["test", "resource"]
+    Config = test.Module.Resources["resource"]
+  }
+}
+
+testExpand -> rootExpand
+testExpandResource -> testExpand
+```
+
+With Expansion:
+```
+testExpandResourceA = NodeResourceInstance {
+  NodeResource = testExpandResource.NodeResource
+  Addr = addrs.ModuleInstance[{"test", Key{"a"}, {"resource", NoKey}]
+}
+testExpandResourceB = NodeResourceInstance {
+  NodeResource = testExpandResource.NodeResource
+  Addr = addrs.ModuleInstance[{"test", Key{"b"}, {"resource", NoKey}]
 }
 ```
+
+#### Expander structure
+
+The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree.  It is built differently during validate vs plan/apply (validate does not expand).
+
+TODO detailed explanation
+
+### Proposed structure and paths
+
+To implement a fully fledged static evaluator which supports for_each and count on modules/providers, the concept of module instances must be brought to all components in the previous section.
+
+In the prototype, I removed the concept of a "non-instanced" module path and simply deleted addrs.Module entirely and changed all references to addrs.ModuleInstance (among a number of other changes).  This worked for the prototype, but the ramifications must be fully considered before implementation starts in earnest.
+
+addrs.Module is simply a []string, while addrs.ModuleInstance is a pair of {string, key} where key is:
+* nil/NoKey representing no instances
+* CountKey for int count
+* ForEachKey for string for_each
+
+Approaches:
+#### Replace addrs.Module with addrs.ModuleInstance directly
+
+This approach may be the simplest, but could cause some confusion when inspecting paths. In practice nil would represent both NoKey and NotYetExpanded.  In the rough prototype this was not an immediate problem, but could easily be a tripping hazard.
+
+Before:
+* `addrs.Module["test", "resource"]`
+After:
+* `addrs.ModuleInstance[{"test", nil}, {"resource", NoKey}`
+Indistinguishable from:
+* `addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
+
+#### Replace addrs.Module with addrs.ModuleInstance with additional keys types
+
+DeferredCount and DeferredForEach could be introduced as a placeholder for expansion that is yet to happen.  This would clearly differentiate between NoKey and not yet expanded.
+
+Before:
+* `addrs.Module["test", "resource"]`
+After:
+* `addrs.ModuleInstance[{"test", DeferredForEach}, {"resource", NoKey}`
+Clearly distinguishable from:
+* `addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
+
+#### Modify addrs.Module to be similar to addrs.ModuleInstance with limited keys
+
+Alternatively, addrs.Module could be kept distinct from addrs.ModuleInstance, but follow a nearly identical structure.
+
+TODO pros/cons...
+
+### Example represenations for Module -> ModuleInstance:
+#### HCL (identical):
+```hcl
+# main.tf
+module "test" {
+  for_each = {"a": "first", "b": "second" }
+  source = "./mod"
+  key = each.key
+  value = each.value
+}
+# mod/mod.tf
+variable "key" {}
+variable "value" {}
+resource "tfcoremock_resource" { string = var.key, other = var.value }
+```
+#### configs.Config
+```
+root = {
+  Root = root
+  Parent = nil
+  Module = {
+    ModuleCalls = {
+      "test" = { source = "./mod", for_each = hcl.Expression, ... }
+    }
+    ExpandedModuleCalls = {
+      {"test", Key{"a"}} = { source = "./mod", for_each = nil, ... }
+      {"test", Key{"b"}} = { source = "./mod", for_each = nil, ... }
+    }
+  }
+  Path = addrs.ModuleInstance[]
+  Children = { "test" = { "a": testA, "b": testB } }
+}
+testA = {
+  Root = root
+  Parent = root
+  Module = { ... }
+  Path = addrs.ModuleInstance[{"test", "a"}]
+  Children = {}
+}
+testB = {
+  Root = root
+  Parent = root
+  Module = { ... }
+  Path = addrs.ModuleInstance[{"test", "a"}]
+  Children = {}
+}
+```
+#### tofu.Graph (simplified)
+
+Variables and providers have been excluded for the moment.
+
+Before Expansion:
+```
+rootExpand = NodeExpandModule {
+  Addr = addrs.ModuleInstance[]
+  Config = root
+  ModuleCall = nil?
+}
+testExpandA = NodeExpandModule {
+  Addr = addrs.ModuleInstance[{"test", Key{"a"}}]
+  Config = testA
+  ModuleCall = root.Module.ExpandedModuleCalls["test"]["a"]
+}
+testExpandB = NodeExpandModule {
+  Addr = addrs.ModuleInstance[{"test", Key{"b"}}]
+  Config = testB
+  ModuleCall = root.Module.ExpandedModuleCalls["test"]["b"]
+}
+testExpandResourceA = NodeExpandResource {
+  NodeResource {
+    Addr = addrs.ModuleInstance[{"test", Key{"a"}}, {"resource", NoKey}]
+    Config = testA.Module.Resources["resource"]
+  }
+}
+testExpandResourceB = NodeExpandResource {
+  NodeResource {
+    Addr = addrs.ModuleInstance[{"test", Key{"b"}}, {"resource", NoKey}]
+    Config = testB.Module.Resources["resource"]
+  }
+}
+
+testExpandA -> rootExpand
+testExpandB -> rootExpand
+testExpandResourceA -> testExpandA
+testExpandResourceB -> testExpandB
+```
+
+With Expansion:
+```
+testExpandResourceA = NodeResourceInstance {
+  NodeResource = testExpandResourceA.NodeResource
+  Addr = addrs.ModuleInstance[{"test", Key{"a"}, {"resource", NoKey}]
+}
+testExpandResourceB = NodeResourceInstance {
+  NodeResource = testExpandResourceB.NodeResource
+  Addr = addrs.ModuleInstance[{"test", Key{"b"}, {"resource", NoKey}]
+}
+```
+
+#### Expander structure
+
+The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree.  It is built differently during validate vs plan/apply (validate does not expand).
+
+TODO detailed explanation
+
+
 ## Solutions
 ### Module Sources
+Module sources must be known at init time as they are downloaded and coalated into .terraform/modules. This can be implemented by inspecting the source hcl.Expression using the static evaluator scoped to the current module.
+
+This is relatively straight forward once the core is implemented, but will require some more in-depth changes to support for_each/count later on.  TODO more details from the later prototypes.
+
 ### Module Provider Mappings
+
+Not yet investigated in depth.  Syntax is up for debate.
+
 ### Provider Iteration
+
+Should be fairly straight forward to implement once the core is in, but is linked to module provider mappings in deciding the syntax.
+
 ### Backend Configuration
+
+Once the core is implemented, this is probably the easiest solution to implement.  TODO more details from initial prototype.
+
 ### Lifecycle Attributes
+
+Not yet investigated in depth.
+
 ### Variable defaults/validation?
+
+Not sure we are doing this one at this juncture. It may have been passed on before due to complexity around providers, or simply that coalesce + locals exists.
+
 ### Provisioners
+
+Not yet investigated in depth.
+
 ### Moved blocks
+
+Not yet investigated in depth.
 
 ## Unknowns:
 ### Providers variables
