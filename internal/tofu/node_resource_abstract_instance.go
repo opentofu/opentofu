@@ -2627,6 +2627,25 @@ func resourceInstancePrevRunAddr(ctx EvalContext, currentAddr addrs.AbsResourceI
 // its own defaults. composeMockValueBySchema fails if schema contains dynamic types.
 func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (
 	cty.Value, tfdiags.Diagnostics) {
+	return mockValueComposer{}.composeMockValueBySchema(schema, config, defaults)
+}
+
+type mockValueComposer struct {
+	getMockStringOverride func(length int) string
+}
+
+func (mvc mockValueComposer) getMockString(length int) string {
+	f := getRandomAlphaNumString
+
+	if mvc.getMockStringOverride != nil {
+		f = mvc.getMockStringOverride
+	}
+
+	return f(length)
+}
+
+func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (
+	cty.Value, tfdiags.Diagnostics) {
 
 	mockValue := make(map[string]cty.Value)
 
@@ -2682,7 +2701,7 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 		}
 
 		// If there's no value in defaults, we generate our own.
-		v, ok := getMockValueByType(t)
+		v, ok := mvc.getMockValueByType(t)
 		if !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
@@ -2710,7 +2729,7 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 
 // getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
 // It will return non-ok response if it encounters dynamic type.
-func getMockValueByType(t cty.Type) (cty.Value, bool) {
+func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	var v cty.Value
 
 	// just to be sure for cases when the logic below misses something
@@ -2725,7 +2744,7 @@ func getMockValueByType(t cty.Type) (cty.Value, bool) {
 	case t.Equals(cty.Bool):
 		v = cty.False
 	case t.Equals(cty.String):
-		v = cty.StringVal(getRandomAlphaNumString(8))
+		v = cty.StringVal(mvc.getMockString(8))
 
 	// collections
 	case t.ListElementType() != nil:
@@ -2745,7 +2764,7 @@ func getMockValueByType(t cty.Type) (cty.Value, bool) {
 				continue
 			}
 
-			v, ok := getMockValueByType(at)
+			v, ok := mvc.getMockValueByType(at)
 			if !ok {
 				return cty.Value{}, false
 			}
