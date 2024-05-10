@@ -662,12 +662,63 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 		return ret, diags
 	}
 
-	// Mark the value if necessary
-	if len(priorPaths) > 0 {
-		ret.Value = ret.Value.MarkWithPaths(priorPaths)
+	// Bring in the marks from the schema for the value, this will be merged with the marks from the
+	// previous value to preserve user-marked values, for example: someone passing a sensitive arg to a non-sensitive
+	// prop on a resource
+	marks := combinePathValueMarks(priorPaths, schema.ValueMarks(ret.Value, nil))
+
+	// we only want to mark the value if it has marks
+	if len(marks) > 0 {
+		ret.Value = ret.Value.MarkWithPaths(marks)
 	}
 
 	return ret, diags
+}
+
+// combinePathValueMarks will combine the marks from two sets of marks with paths, ensuring that we don't duplicate marks
+// for the same path, but instead combine the marks for the same path
+// This ensures that we don't lose user marks when combining 2 different sets of marks for the same path
+func combinePathValueMarks(marks []cty.PathValueMarks, other []cty.PathValueMarks) []cty.PathValueMarks {
+	// TODO: Find a nice home for this method so it can be used in other places too
+
+	// skip some work if we don't have any marks in either of the lists
+	if len(marks) == 0 {
+		return other
+	}
+	if len(other) == 0 {
+		return marks
+	}
+
+	combined := make([]cty.PathValueMarks, 0, len(marks))
+	// construct the initial set of marks
+	combined = append(combined, marks...)
+
+	// check if we've already inserted this by looping over and calling .Equals().
+	// This isn't so nice but there is no nice comparison for cty.PathValueMarks
+	// so we have to do it this way
+	for _, mark := range other {
+		exists := false
+		for i, existing := range combined {
+			if mark.Path.Equals(existing.Path) {
+				// if we found a matching path, we should combine the marks and update the existing item
+				dupe := existing
+				for k, v := range mark.Marks {
+					dupe.Marks[k] = v
+				}
+				combined[i] = dupe
+				exists = true
+				break
+			}
+
+		}
+		// Otherwise we haven't seen this path before, so we should add it to the list
+		// no merging required
+		if !exists {
+			combined = append(combined, mark)
+		}
+	}
+
+	return combined
 }
 
 func (n *NodeAbstractResourceInstance) plan(
@@ -814,7 +865,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	// Store the paths for the config val to re-mark after we've sent things
 	// over the wire.
 	unmarkedConfigVal, unmarkedPaths := configValIgnored.UnmarkDeepWithPaths()
-	unmarkedPriorVal, priorPaths := priorVal.UnmarkDeepWithPaths()
+	unmarkedPriorVal, _ := priorVal.UnmarkDeepWithPaths()
 
 	proposedNewVal := objchange.ProposedNew(schema, unmarkedPriorVal, unmarkedConfigVal)
 
@@ -922,8 +973,9 @@ func (n *NodeAbstractResourceInstance) plan(
 	// Add the marks back to the planned new value -- this must happen after ignore changes
 	// have been processed
 	unmarkedPlannedNewVal := plannedNewVal
-	if len(unmarkedPaths) > 0 {
-		plannedNewVal = plannedNewVal.MarkWithPaths(unmarkedPaths)
+	marks := combinePathValueMarks(unmarkedPaths, schema.ValueMarks(plannedNewVal, nil))
+	if len(marks) > 0 {
+		plannedNewVal = plannedNewVal.MarkWithPaths(marks)
 	}
 
 	// The provider produces a list of paths to attributes whose changes mean
@@ -1113,16 +1165,16 @@ func (n *NodeAbstractResourceInstance) plan(
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
-	// If we plan to write or delete sensitive paths from state,
-	// this is an Update action.
-	//
-	// We need to filter out any marks which may not apply to the new planned
-	// value before comparison. The one case where a provider is allowed to
-	// return a different value from the configuration is when a config change
-	// is not functionally significant and the prior state can be returned. If a
-	// new mark was also discarded from that config change, it needs to be
-	// ignored here to prevent an errant update action.
-	if action == plans.NoOp && !marksEqual(filterMarks(plannedNewVal, unmarkedPaths), priorPaths) {
+	// compare the marks between the prior and the new value, there may have been a change of sensitivity
+	// in the new value that requires an update
+	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
+	_, priorValMarks := priorVal.UnmarkDeepWithPaths()
+
+	marksAreEqual := marksEqual(plannedNewValMarks, priorValMarks)
+
+	// If we plan to update sensitive paths from state,
+	// this is an Update action instead of a NoOp.
+	if action == plans.NoOp && !marksAreEqual {
 		action = plans.Update
 	}
 
