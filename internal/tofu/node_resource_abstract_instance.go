@@ -2650,6 +2650,7 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 
 	attributeTypes := schema.ImpliedType().AttributeTypes()
 
+	// We are iterating over provided schema types to populate resulting value.
 	for k, t := range attributeTypes {
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
@@ -2658,7 +2659,7 @@ func composeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 			continue
 		}
 
-		// Computed attributes can't be generated
+		// Non-computed attributes can't be generated
 		// so we set them from configuration only.
 		if attr, ok := schema.Attributes[k]; ok && !attr.Computed {
 			mockValue[k] = cty.NullVal(attr.Type)
