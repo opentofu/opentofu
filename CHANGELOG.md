@@ -1,8 +1,7 @@
 ## 1.7.4 (unreleased)
 
-NEW FEATURES:
-
 ENHANCEMENTS:
+* Made `tofu plan` with `generate-config-out` flag replace JSON strings with `jsonencode` functions calls. ([#1595](https://github.com/opentofu/opentofu/pull/1595))
 
 BUG FIXES:
 * Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
