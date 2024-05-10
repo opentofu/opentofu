@@ -445,6 +445,14 @@ resource "tfcoremock_simple_resource" "empty" {
 						Optional:  true,
 						Sensitive: true,
 					},
+					"secrets": {
+						Type: cty.Object(map[string]cty.Type{
+							"main":      cty.String,
+							"secondary": cty.String,
+						}),
+						Optional:  true,
+						Sensitive: true,
+					},
 				},
 			},
 			addr: addrs.AbsResourceInstance{
@@ -466,6 +474,10 @@ resource "tfcoremock_simple_resource" "empty" {
 				"jsonobj":          cty.StringVal(`{"SomeDate":"2012-10-17"}`),
 				"jsonarr":          cty.StringVal(`[{"a": 1}]`),
 				"sensitivejsonobj": cty.StringVal(`{"SomePassword":"dontstealplease"}`),
+				"secrets": cty.ObjectVal(map[string]cty.Value{
+					"main":      cty.StringVal(`{"v":"mypass"}`),
+					"secondary": cty.StringVal(`{"v":"mybackup"}`),
+				}),
 			}),
 			expected: `
 resource "tfcoremock_simple_resource" "example" {
@@ -476,6 +488,7 @@ resource "tfcoremock_simple_resource" "example" {
     SomeDate = "2012-10-17"
   })
   juststr          = "{a=b}"
+  secrets          = null # sensitive
   sensitivejsonobj = null # sensitive
 }`,
 		},
