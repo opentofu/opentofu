@@ -799,6 +799,10 @@ func TestTest_Modules(t *testing.T) {
 		code     int
 		skip     bool
 	}{
+		"pass_module_with_no_resource": {
+			expected: "main.tftest.hcl... pass\n  run \"run\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
+			code:     0,
+		},
 		"with_nested_setup_modules": {
 			expected: "main.tftest.hcl... pass\n  run \"load_module\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
 			code:     0,

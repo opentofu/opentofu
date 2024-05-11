@@ -7,17 +7,20 @@ package tofu
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -67,6 +70,13 @@ func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
 }
 
 func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
+	// The state does not include the module that has no resources, making its outputs unusable.
+	// synchronizeStates function synchronizes the state with the planned state, ensuring inclusion of all modules.
+	if ctx.Plan != nil && ctx.Plan.PlannedState != nil &&
+		len(ctx.State.Modules) != len(ctx.Plan.PlannedState.Modules) {
+		state = synchronizeStates(ctx.State, ctx.Plan.PlannedState)
+	}
+
 	data := &evaluationStateData{
 		Evaluator: &Evaluator{
 			Operation: operation,
@@ -92,11 +102,50 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		Operation:       operation,
 	}
 
+	var providerInstanceLock sync.Mutex
+	providerInstances := make(map[addrs.Provider]providers.Interface)
+	defer func() {
+		for addr, inst := range providerInstances {
+			log.Printf("[INFO] Shutting down test provider %s", addr)
+			inst.Close()
+		}
+	}()
+
+	providerSupplier := func(addr addrs.AbsProviderConfig) providers.Interface {
+		providerInstanceLock.Lock()
+		defer providerInstanceLock.Unlock()
+
+		if inst, ok := providerInstances[addr.Provider]; ok {
+			return inst
+		}
+
+		factory, ok := ctx.plugins.providerFactories[addr.Provider]
+		if !ok {
+			log.Printf("[WARN] Unable to find provider %s in test context", addr)
+			providerInstances[addr.Provider] = nil
+			return nil
+		}
+		log.Printf("[INFO] Starting test provider %s", addr)
+		inst, err := factory()
+		if err != nil {
+			log.Printf("[WARN] Unable to start provider %s in test context", addr)
+			providerInstances[addr.Provider] = nil
+			return nil
+		} else {
+			log.Printf("[INFO] Shutting down test provider %s", addr)
+			providerInstances[addr.Provider] = inst
+			return inst
+		}
+	}
+
 	scope := &lang.Scope{
 		Data:          data,
 		BaseDir:       ".",
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: ctx.Plan.Timestamp,
+		ProviderFunctions: func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+			return evalContextProviderFunction(providerSupplier, ctx.Config, walkPlan, pf, rng)
+		},
 	}
 
 	// We're going to assume the run has passed, and then if anything fails this
@@ -185,4 +234,18 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			continue
 		}
 	}
+}
+
+// synchronizeStates compares the planned state to the current state and incorporates any missing modules
+// from the planned state into the current state.
+//
+// If a module has no resources, it is included in the current state to ensure that its output variables are usable.
+func synchronizeStates(state, plannedState *states.State) *states.SyncState {
+	newState := state.DeepCopy()
+	for key, value := range plannedState.Modules {
+		if _, exists := newState.Modules[key]; !exists {
+			newState.Modules[key] = value
+		}
+	}
+	return newState.SyncWrapper()
 }
