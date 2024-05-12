@@ -169,7 +169,7 @@ func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalCont
 		return diags
 	}
 
-	importAddress, addressDiags := ctx.EvaluateImportAddress(importTarget.Config.To, keyData)
+	importAddress, addressDiags := evaluateImportAddress(ctx, importTarget.Config.To, keyData)
 	diags = diags.Append(addressDiags)
 	if diags.HasErrors() {
 		return diags
