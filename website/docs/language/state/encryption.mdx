@@ -54,7 +54,7 @@ Research in cryptography can change the state of the art quickly. We will suppor
 
 ## Configuration
 
-You can configure encryption in OpenTofu either by specifying the configuration in the OpenTofu code, or using the `TF_ENCRYPTION` environment variable. Both solutions are equivalent and if you use both, OpenTofu will merge the two configurations, overriding any code-based settings with the environment ones.
+You can configure encryption in OpenTofu either by specifying the configuration in the OpenTofu code, or using the `TF_ENCRYPTION` environment variable. Both solutions are equivalent and if you use both, OpenTofu will merge the two configurations at the **block level**, overriding any code-based settings with blocks (e.g. `key_provider "pbkdf2" "main" { ... }`) defined in `TF_ENCRYPTION`.
 
 The basic configuration structure looks as follows:
 
