@@ -26,7 +26,9 @@ import (
 // returning an error if the count value is not known, and converting the
 // cty.Value to a map[string]cty.Value for compatibility with other calls.
 func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (forEach map[string]cty.Value, diags tfdiags.Diagnostics) {
-	forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, false, false)
+	const unknownsNotAllowed = false
+	const tupleNotAllowed = false
+	forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed)
 	// forEachVal might be unknown, but if it is then there should already
 	// be an error about it in diags, which we'll return below.
 
