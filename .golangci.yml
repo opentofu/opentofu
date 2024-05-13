@@ -1,5 +1,5 @@
 run:
-  timeout: 1m
+  timeout: 30m
 
 linters-settings:
   errcheck:
