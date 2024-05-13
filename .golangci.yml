@@ -37,7 +37,6 @@ linters:
     - errcheck
     - errname
     - errorlint
-    - execinquery
     - exhaustive
     - exportloopref
     - forbidigo
@@ -50,7 +49,6 @@ linters:
     - gocritic
     - gocyclo
     - goimports
-    - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
@@ -61,6 +59,7 @@ linters:
     - loggercheck
     - makezero
     - mirror
+    - mnd
     - musttag
     - nakedret
     - nestif
