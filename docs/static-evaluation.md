@@ -1,5 +1,12 @@
 # Implementing Init-time static evaluation of constant variables and locals
 
+TODO ABSTRACT GOES HERE summarizing 1042
+TODO talk about existing evaluation methods in tofu
+TODO `package.Structure` should be a link
+TODO explain for_each static vs dynamic
+TODO explain partial approach
+TODO 
+
 This is based on the prototyping done while evaluating RFC #1042 and references work done in [branch] and [branch]
 
 ## Progress Overview:
@@ -7,7 +14,7 @@ This is based on the prototyping done while evaluating RFC #1042 and references 
   - [ ] Define Static Evaluator Interface
   - [ ] Pick Static Evaluator Approach
   - [ ] Implement Static Evaluator
-  - [ ] Wire Static Evaluator throught the config package
+  - [ ] Wire Static Evaluator through the config package
   - [ ] Implement one of the simple solutions to validate
 - [ ] Module Iteration
   - [ ] Decide on addressing approach (Module vs ModuleInstance)
@@ -28,56 +35,46 @@ This is based on the prototyping done while evaluating RFC #1042 and references 
   - [ ] Variable defaults/validation?
   - [ ] Provisioners
   - [ ] Moved blocks
-
-## Blockers:
-### Testing
-
-Existing testing within OpenTofu is fragmented and more sparse than we would like. Additional test coverage will be needed before, during and after many of the following items.
-
-Code coverage should be inspected before refactoring of a component is undertaken to guide the additional test coverage required. We are not aiming for 100%, but should use it as a tool to understand our current testing.
-
-A comprehensive guide on e2e testing should be written, see #1536.
-
-## Common Conceptual Mistakes
-* Modules are "namespaces" not "objects" and can circularly reference each other's vars/outputs as long as there is no loop.
+  - [ ] Variables/locals in encryption
 
 ## Core Implementation:
 
 ### Overview of original process and structures
 
-Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplifed):
-* A command in the command package parses the configuration in the current directory
-  - The module's configuration is loaded into configs.ModuleFile structures
-    - hcl fields like module.source and backend.configuration are evaluated without any eval context (no vars, funcs)
+Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified):
+* Step 1: A command in the command package parses the configuration in the current directory
+  - The module's configuration is loaded into `configs.ModuleFile` structures
+    - hcl fields like `module.source` and `backend.configuration` are evaluated without any eval context (no vars, funcs)
     - config items are validated (which should not be done here, see #1467)
-  - configs.ModuleFile structures are merged into configs.Module using various rules
-  - configs.Module is used to build config.Config which represents the module and it's location within the module config tree
-  - configs.Module.ModuleCalls are iterated through to recursively pull in modules using the same procedure.
+  - `configs.ModuleFile` structures are merged into configs.Module using various rules
+  - `configs.Module` is used to build config.Config which represents the module and it's location within the module config tree
+  - `configs.Module.ModuleCalls` are iterated through to recursively pull in modules using the same procedure.
 * The command constructs a backend from the configuration
-* The command excutes the operation using the backend and the configuration
-  - The configs.Config module tree is walked and used to build a basic graph
+* The command executes the operation using the backend and the configuration
+  - The `configs.Config` module tree is walked and used to build a basic graph
   - The graph is transformed and linked based on references detected between nodes
   - The graph is evaluated by walking each node after it's dependencies have been evaluated.
 
-### Config processing
+### Config loading
 
-The config loading process for a given module above will need to be broken into two stages:
+The config loading process in Step 1 above for a given module above will need to be broken into two stages:
 * Parse and load the configuration into configs.Module without doing any evaluation
 * Setup a static evalation context based on the current configs.Module
 
-Additionally, variables passed in from the given module's parent will need to be tracked and known if they are static or dynamic.
+Additionally, variables passed in from the given module's parent will need to be tracked and known if they are static or dynamic.  TODO expand, reference `config.Config` tree building.
 
 ### Static Evaluation
-At the heart of this project lies a simplified evaluator and evaluation scope, similar to what currently exist in the tofu and lang package.
+At the heart of this (What is this???) project lies a simplified evaluator and evaluation scope, similar to what currently exist in the tofu and lang package. (Why simplified? What's the difference to the normal one?)
 
 Any static evaluator must be able to:
 * Evaluate a hcl expression or block into a single cty value
-* Provide detailed insight into why a given expression or block can not be turned into a cty value
+  - Provide detailed insight into why a given expression or block can not be turned into a cty value
 * Be scoped to a given context
 * Be easily cloned to support for_each/count iterations
+  - TODO expand on for_each / count requirements
 
 There are three potential paths in implementing a static evaluator:
-* Build a custom streamlined solution for this specific problem and it's current use cases
+* Build a custom streamlined (?) solution for this specific problem and it's current use cases
   - This approach was taken in the prototypes
   - Can be flexible during development
   - Does not break other packages
@@ -118,26 +115,37 @@ To solve this, modules which have static for_each and count expressions must be 
 
 ### Current structure and paths
 
+TODO expound on what the below concepts are and link to the above docs.
+
 As specified above, the configs.Config struct is a tree linking config.Modules.  The nodes in that tree are referenced via addr.Module paths (non-instanced).  The whole process of turning Modules and ModuleCalls into a config tree uses those non-instanced paths.
 
 The configs.Config tree is then walked and added into a tofu.Graph. The nodes in this graph have two different addresses: addr.Module and addr.ModuleInstance.  The addr.Module paths of the graph nodes are used to look up the corresponding config structures and other operations on the "unexpanded" view of the world.  The addrs.ModuleInstance paths are built by the module expansion process and are used when operating on the "expanded" view of the world.
 
 ### Example represenations:
-#### HCL:
+
+**HCL:**
+
 ```hcl
 # main.tf
 module "test" {
   for_each = {"a": "first", "b": "second" }
   source = "./mod"
-  key = each.key
-  value = each.value
+  name = each.key
+  description = each.value
 }
-# mod/mod.tf
-variable "key" {}
-variable "value" {}
-resource "tfcoremock_resource" { string = var.key, other = var.value }
 ```
-#### configs.Config
+
+```hcl
+# mod/mod.tf
+variable "name" {}
+variable "description" {}
+resource "tfcoremock_resource" { string = var.name, other = var.description }
+```
+
+**configs.Config**:
+
+TODO Given the above HCL ... (this is how it is transformed/loaded)
+
 ```
 root = {
   Root = root
@@ -154,7 +162,8 @@ test = {
   Children = {}
 }
 ```
-#### tofu.Graph (simplified)
+
+**tofu.Graph (simplified)**
 
 Variables and providers have been excluded for the moment.
 
@@ -193,7 +202,7 @@ testExpandResourceB = NodeResourceInstance {
 }
 ```
 
-#### Expander structure
+**Expander structure**
 
 The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree.  It is built differently during validate vs plan/apply (validate does not expand).
 
@@ -210,7 +219,7 @@ addrs.Module is simply a []string, while addrs.ModuleInstance is a pair of {stri
 * CountKey for int count
 * ForEachKey for string for_each
 
-Approaches:
+### Approaches:
 #### Replace addrs.Module with addrs.ModuleInstance directly
 
 This approach may be the simplest, but could cause some confusion when inspecting paths. In practice nil would represent both NoKey and NotYetExpanded.  In the rough prototype this was not an immediate problem, but could easily be a tripping hazard.
@@ -244,7 +253,8 @@ Alternatively, addrs.Module could be kept distinct from addrs.ModuleInstance, bu
 TODO pros/cons...
 
 ### Example represenations for Module -> ModuleInstance:
-#### HCL (identical):
+**HCL (identical):**
+
 ```hcl
 # main.tf
 module "test" {
@@ -253,12 +263,19 @@ module "test" {
   key = each.key
   value = each.value
 }
+```
+
+```hcl
 # mod/mod.tf
 variable "key" {}
 variable "value" {}
 resource "tfcoremock_resource" { string = var.key, other = var.value }
 ```
-#### configs.Config
+
+**configs.Config**
+
+TODO explain HOW this is different than before
+
 ```
 root = {
   Root = root
@@ -290,9 +307,11 @@ testB = {
   Children = {}
 }
 ```
-#### tofu.Graph (simplified)
+**tofu.Graph (simplified)**
 
 Variables and providers have been excluded for the moment.
+
+TODO explain HOW this is different than before
 
 Before Expansion:
 ```
@@ -342,7 +361,7 @@ testExpandResourceB = NodeResourceInstance {
 }
 ```
 
-#### Expander structure
+**Expander structure**
 
 The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree.  It is built differently during validate vs plan/apply (validate does not expand).
 
@@ -382,6 +401,19 @@ Not yet investigated in depth.
 ### Moved blocks
 
 Not yet investigated in depth.
+
+
+## Blockers:
+### Testing
+
+Existing testing within OpenTofu is fragmented and more sparse than we would like. Additional test coverage will be needed before, during and after many of the following items.
+
+Code coverage should be inspected before refactoring of a component is undertaken to guide the additional test coverage required. We are not aiming for 100%, but should use it as a tool to understand our current testing.
+
+A comprehensive guide on e2e testing should be written, see #1536.
+
+## Common Conceptual Mistakes
+* Modules are "namespaces" not "objects" and can circularly reference each other's vars/outputs as long as there is no loop.
 
 ## Unknowns:
 ### Providers variables
@@ -423,3 +455,4 @@ module "other_capability" {
 All modules referenced by a parent module are downloaded and added to the config graph without any understanding of inter dependencies. To implement this, we would need to rewrite the config builder to be aware of the state evaluator and increase the complexity of that component.
 
 I am not sure the engineering effort here is warranted, but it should at least be investigated
+
