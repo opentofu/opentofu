@@ -5127,7 +5127,7 @@ import {
 		if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
 			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
 		}
-		if got, want := instPlan.Action, plans.Update; got != want {
+		if got, want := instPlan.Action, plans.NoOp; got != want {
 			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
 		}
 		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
