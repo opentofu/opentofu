@@ -581,7 +581,10 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		}
 
 		_, marks := instanceRefreshState.Value.UnmarkDeepWithPaths()
-		instanceRefreshState.Value = valueWithConfigurationSchemaMarks.MarkWithPaths(marks)
+		_, configSchemaMarks := valueWithConfigurationSchemaMarks.UnmarkDeepWithPaths()
+		merged := combinePathValueMarks(marks, configSchemaMarks)
+
+		instanceRefreshState.Value = instanceRefreshState.Value.MarkWithPaths(merged)
 	}
 
 	// If we're importing and generating config, generate it now.
