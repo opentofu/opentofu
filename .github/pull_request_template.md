@@ -13,7 +13,7 @@ Resolves #
 
 ## Target Release
 
-1.7.0
+1.8.0
 
 ## Checklist
 

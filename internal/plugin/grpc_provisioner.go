@@ -48,8 +48,8 @@ type GRPCProvisioner struct {
 	client proto.ProvisionerClient
 	ctx    context.Context
 
+	mu sync.Mutex
 	// Cache the schema since we need it for serialization in each method call.
-	mu     sync.Mutex
 	schema *configschema.Block
 }
 

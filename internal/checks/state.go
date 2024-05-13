@@ -14,7 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
-// State is a container for state tracking of all of the the checks declared in
+// State is a container for state tracking of all of the checks declared in
 // a particular OpenTofu configuration and their current statuses.
 //
 // A State object is mutable during plan and apply operations but should
@@ -35,8 +35,7 @@ import (
 // This container type is concurrency-safe for both reads and writes through
 // its various methods.
 type State struct {
-	mu sync.Mutex
-
+	mu          sync.Mutex
 	statuses    addrs.Map[addrs.ConfigCheckable, *configCheckableState]
 	failureMsgs addrs.Map[addrs.CheckRule, string]
 }

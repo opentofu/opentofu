@@ -34,6 +34,7 @@ type httpClient struct {
 
 	// HTTP
 	Client   *retryablehttp.Client
+	Headers  map[string]string
 	Username string
 	Password string
 
@@ -41,30 +42,33 @@ type httpClient struct {
 	jsonLockInfo []byte
 }
 
-func (c *httpClient) httpRequest(method string, url *url.URL, data *[]byte, what string) (*http.Response, error) {
-	// If we have data we need a reader
-	var reader io.Reader = nil
-	if data != nil {
-		reader = bytes.NewReader(*data)
+func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what string) (*http.Response, error) {
+	var body interface{}
+	if len(data) > 0 {
+		body = data
 	}
 
 	// Create the request
-	req, err := retryablehttp.NewRequest(method, url.String(), reader)
+	req, err := retryablehttp.NewRequest(method, url.String(), body)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
-	// Set up basic auth
+
+	// Add user-defined headers
+	for k, v := range c.Headers {
+		req.Header.Set(k, v)
+	}
+
 	if c.Username != "" {
 		req.SetBasicAuth(c.Username, c.Password)
 	}
 
 	// Work with data/body
-	if data != nil {
+	if len(data) > 0 {
 		req.Header.Set("Content-Type", "application/json")
-		req.ContentLength = int64(len(*data))
 
 		// Generate the MD5
-		hash := md5.Sum(*data)
+		hash := md5.Sum(data)
 		b64 := base64.StdEncoding.EncodeToString(hash[:])
 		req.Header.Set("Content-MD5", b64)
 	}
@@ -85,7 +89,7 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 	c.lockID = ""
 
 	jsonLockInfo := info.Marshal()
-	resp, err := c.httpRequest(c.LockMethod, c.LockURL, &jsonLockInfo, "lock")
+	resp, err := c.httpRequest(c.LockMethod, c.LockURL, jsonLockInfo, "lock")
 	if err != nil {
 		return "", err
 	}
@@ -101,7 +105,6 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 	case http.StatusForbidden:
 		return "", fmt.Errorf("HTTP remote state endpoint invalid auth")
 	case http.StatusConflict, http.StatusLocked:
-		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return "", &statemgr.LockError{
@@ -131,7 +134,7 @@ func (c *httpClient) Unlock(id string) error {
 		return nil
 	}
 
-	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, &c.jsonLockInfo, "unlock")
+	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, c.jsonLockInfo, "unlock")
 	if err != nil {
 		return err
 	}
@@ -146,7 +149,7 @@ func (c *httpClient) Unlock(id string) error {
 }
 
 func (c *httpClient) Get() (*remote.Payload, error) {
-	resp, err := c.httpRequest("GET", c.URL, nil, "get state")
+	resp, err := c.httpRequest(http.MethodGet, c.URL, nil, "get state")
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +230,7 @@ func (c *httpClient) Put(data []byte) error {
 	if c.UpdateMethod != "" {
 		method = c.UpdateMethod
 	}
-	resp, err := c.httpRequest(method, &base, &data, "upload state")
+	resp, err := c.httpRequest(method, &base, data, "upload state")
 	if err != nil {
 		return err
 	}
@@ -244,7 +247,7 @@ func (c *httpClient) Put(data []byte) error {
 
 func (c *httpClient) Delete() error {
 	// Make the request
-	resp, err := c.httpRequest("DELETE", c.URL, nil, "delete state")
+	resp, err := c.httpRequest(http.MethodDelete, c.URL, nil, "delete state")
 	if err != nil {
 		return err
 	}

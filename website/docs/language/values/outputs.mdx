@@ -14,9 +14,9 @@ Output values have several uses:
   to a parent module.
 - A root module can use outputs to print certain values in the CLI output after
   running `tofu apply`.
-- When using [remote state](/docs/language/state/remote), root module outputs can be
+- When using [remote state](../../language/state/remote.mdx), root module outputs can be
   accessed by other configurations via a
-  [`terraform_remote_state` data source](/docs/language/state/remote-state-data).
+  [`terraform_remote_state` data source](../../language/state/remote-state-data.mdx).
 
 Resource instances managed by OpenTofu each export attributes whose values
 can be used elsewhere in configuration. Output values are a way to expose some
@@ -39,11 +39,11 @@ output "instance_ip_addr" {
 ```
 
 The label immediately after the `output` keyword is the name, which must be a
-valid [identifier](/docs/language/syntax/configuration#identifiers). In a root module, this name is
+valid [identifier](../../language/syntax/configuration.mdx#identifiers). In a root module, this name is
 displayed to the user; in a child module, it can be used to access the output's
 value.
 
-The `value` argument takes an [expression](/docs/language/expressions)
+The `value` argument takes an [expression](../../language/expressions/index.mdx)
 whose result is to be returned to the user. In this example, the expression
 refers to the `private_ip` attribute exposed by an `aws_instance` resource
 defined elsewhere in this module (not shown). Any valid expression is allowed
@@ -80,7 +80,7 @@ output "api_base_url" {
 
 Custom conditions can help capture assumptions, helping future maintainers understand the configuration design and intent. They also return useful information about errors earlier and in context, helping consumers more easily diagnose issues in their configurations.
 
-Refer to [Custom Condition Checks](/docs/language/expressions/custom-conditions#preconditions-and-postconditions) for more details.
+Refer to [Custom Condition Checks](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions) for more details.
 
 ## Optional Arguments
 
@@ -167,10 +167,10 @@ Changes to Outputs:
   + out = (sensitive value)
 ```
 
-OpenTofu will still record sensitive values in the [state](/docs/language/state),
+OpenTofu will still record sensitive values in the [state](../../language/state/index.mdx),
 and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
-[_Sensitive Data in State_](/docs/language/state/sensitive-data).
+[_Sensitive Data in State_](../../language/state/sensitive-data.mdx).
 
 <a id="depends_on"></a>
 
@@ -186,7 +186,7 @@ correctly determine the dependencies between resources defined in different
 modules.
 
 Just as with
-[resource dependencies](/docs/language/resources/behavior#resource-dependencies),
+[resource dependencies](../../language/resources/behavior.mdx#resource-dependencies),
 OpenTofu analyzes the `value` expression for an output value and automatically
 determines a set of dependencies, but in less-common cases there are
 dependencies that cannot be recognized implicitly. In these rare cases, the

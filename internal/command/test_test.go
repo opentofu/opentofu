@@ -161,6 +161,14 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		"pass_with_tests_dir_variables": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
+		"override_with_tests_dir_variables": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -246,7 +254,7 @@ func TestTest_Full_Output(t *testing.T) {
 			code:     1,
 		},
 		"is_sorted": {
-			expected: "1.tftest.hcl... pass\n  run \"1\"... pass\n2.tftest.hcl... pass\n  run \"2\"... pass\n3.tftest.hcl... pass\n  run \"3\"... pass",
+			expected: "1.tftest.hcl... pass\n  run \"a\"... pass\n2.tftest.hcl... pass\n  run \"b\"... pass\n3.tftest.hcl... pass\n  run \"c\"... pass",
 			code:     0,
 			args:     []string{"-no-color"},
 		},
@@ -791,6 +799,10 @@ func TestTest_Modules(t *testing.T) {
 		code     int
 		skip     bool
 	}{
+		"pass_module_with_no_resource": {
+			expected: "main.tftest.hcl... pass\n  run \"run\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
+			code:     0,
+		},
 		"with_nested_setup_modules": {
 			expected: "main.tftest.hcl... pass\n  run \"load_module\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
 			code:     0,
@@ -1186,5 +1198,65 @@ Success! 2 passed, 0 failed.
 
 	if provider.ResourceCount() > 0 {
 		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+	}
+}
+
+func TestTest_RunBlock(t *testing.T) {
+	tcs := map[string]struct {
+		expected string
+		code     int
+		skip     bool
+	}{
+		"invalid_run_block_name": {
+			expected: `
+Error: Invalid run block name
+
+  on tests/main.tftest.hcl line 1, in run "sample run":
+   1: run "sample run" {
+
+A name must start with a letter or underscore and may contain only letters,
+digits, underscores, and dashes.
+`,
+			code: 1,
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
+
+			provider := testing_command.NewProvider(nil)
+			providerSource, close := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer close()
+
+			streams, _ := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			if code := init.Run(nil); code != tc.code {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+		})
 	}
 }

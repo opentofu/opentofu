@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/lang/funcs"
 )
@@ -23,6 +24,9 @@ var impureFunctions = []string{
 	"timestamp",
 	"uuid",
 }
+
+// This should probably be replaced with addrs.Function everywhere
+const CoreNamespace = addrs.FunctionNamespaceCore + "::"
 
 // Functions returns the set of functions that should be used to when evaluating
 // expressions in the receiving scope.
@@ -189,12 +193,18 @@ func (s *Scope) Functions() map[string]function.Function {
 			}
 		}
 
+		coreNames := make([]string, 0)
 		// Add a description to each function and parameter based on the
 		// contents of descriptionList.
 		// One must create a matching description entry whenever a new
 		// function is introduced.
 		for name, f := range s.funcs {
 			s.funcs[name] = funcs.WithDescription(name, f)
+			coreNames = append(coreNames, name)
+		}
+		// Copy all stdlib funcs into core:: namespace
+		for _, name := range coreNames {
+			s.funcs[CoreNamespace+name] = s.funcs[name]
 		}
 	}
 	s.funcsLock.Unlock()

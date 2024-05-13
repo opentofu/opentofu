@@ -56,8 +56,8 @@ type Scope struct {
 	// then differ during apply.
 	PureOnly bool
 
-	funcs     map[string]function.Function
 	funcsLock sync.Mutex
+	funcs     map[string]function.Function
 
 	// activeExperiments is an optional set of experiments that should be
 	// considered as active in the module that this scope will be used for.
@@ -71,7 +71,11 @@ type Scope struct {
 	// PlanTimestamp is a timestamp representing when the plan was made. It will
 	// either have been generated during this operation or read from the plan.
 	PlanTimestamp time.Time
+
+	ProviderFunctions ProviderFunction
 }
+
+type ProviderFunction func(addrs.ProviderFunction, tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics)
 
 // SetActiveExperiments allows a caller to declare that a set of experiments
 // is active for the module that the receiving Scope belongs to, which might

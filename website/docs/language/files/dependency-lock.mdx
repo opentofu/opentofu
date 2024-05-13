@@ -10,9 +10,9 @@ description: >-
 An OpenTofu configuration may refer to two different kinds of external
 dependency that come from outside of its own codebase:
 
-- [Providers](/docs/language/providers/requirements), which are plugins for OpenTofu
+- [Providers](../../language/providers/requirements.mdx), which are plugins for OpenTofu
   that extend it with support for interacting with various external systems.
-- [Modules](/docs/language/modules), which allow
+- [Modules](../../language/modules/index.mdx), which allow
   splitting out groups of OpenTofu configuration constructs (written in the
   OpenTofu language) into reusable abstractions.
 
@@ -22,7 +22,7 @@ reason, OpenTofu must determine which versions of those dependencies are
 potentially compatible with the current configuration and which versions are
 currently selected for use.
 
-[Version constraints](/docs/language/expressions/version-constraints) within the configuration
+[Version constraints](../../language/expressions/version-constraints.mdx) within the configuration
 itself determine which versions of dependencies are _potentially_ compatible,
 but after selecting a specific version of each dependency OpenTofu remembers
 the decisions it made in a _dependency lock file_ so that it can (by default)
@@ -47,7 +47,7 @@ to signify that it is a lock file for various items that OpenTofu caches in
 the `.terraform` subdirectory of your working directory.
 
 OpenTofu automatically creates or updates the dependency lock file each time
-you run [the `tofu init` command](/docs/cli/commands/init). You should
+you run [the `tofu init` command](../../cli/commands/init.mdx). You should
 include this file in your version control repository so that you can discuss
 potential changes to your external dependencies via code review, just as you
 would discuss potential changes to your configuration itself.
@@ -135,7 +135,7 @@ There are two special considerations with the "trust on first use" model:
 
   To avoid this problem you can pre-populate checksums for a variety of
   different platforms in your lock file using
-  [the `tofu providers lock` command](/docs/cli/commands/providers/lock),
+  [the `tofu providers lock` command](../../cli/commands/providers/lock.mdx),
   which will then allow future calls to `tofu init` to verify that the
   packages available in your chosen mirror match the official packages from
   the provider's origin registry.
@@ -153,7 +153,7 @@ proposed changes. The following sections will describe these common situations.
 ### Dependency on a new provider
 
 If you add a new entry to the
-[provider requirements](/docs/language/providers/requirements) for any module in your
+[provider requirements](../../language/providers/requirements.mdx) for any module in your
 configuration, or if you add an external module that includes a new provider
 dependency itself, `tofu init` will respond to that by selecting the
 newest version of that provider which meets all of the version constraints
@@ -300,7 +300,7 @@ The two hashing schemes currently supported are:
   packages indexed in the origin registry. This is an effective scheme for
   verifying the official release packages when installed from a registry, but
   it's not suitable for verifying packages that come from other
-  [provider installation methods](/docs/cli/config/config-file#provider-installation),
+  [provider installation methods](../../cli/config/config-file.mdx#provider-installation),
   such as filesystem mirrors using the unpacked directory layout.
 
 - `h1:`: a mnemonic for "hash scheme 1", which is the current preferred hashing
@@ -341,7 +341,7 @@ your configuration on new target platforms, or if you are installing providers
 from a mirror that therefore can't provide official signed checksums, you
 can ask OpenTofu to pre-populate hashes for a chosen set of platforms
 using
-[the `tofu providers lock` command](/docs/cli/commands/providers/lock):
+[the `tofu providers lock` command](../../cli/commands/providers/lock.mdx):
 
 ```
 tofu providers lock \

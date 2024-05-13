@@ -52,7 +52,7 @@ attributes the resource supports.
 
 ### Providers
 
-Each resource type is implemented by a [provider](/docs/language/providers/requirements),
+Each resource type is implemented by a [provider](../../language/providers/requirements.mdx),
 which is a plugin for OpenTofu that offers a collection of resource types. A
 provider usually provides resources to manage a single cloud or on-premises
 infrastructure platform. Providers are distributed separately from OpenTofu
@@ -65,16 +65,16 @@ access their remote APIs, and the root module must provide that configuration.
 
 For more information, see:
 
-- [Provider Requirements](/docs/language/providers/requirements), for declaring which
+- [Provider Requirements](../../language/providers/requirements.mdx), for declaring which
   providers a module uses.
-- [Provider Configuration](/docs/language/providers/configuration), for configuring provider settings.
+- [Provider Configuration](../../language/providers/configuration.mdx), for configuring provider settings.
 
 OpenTofu usually automatically determines which provider to use based on a
 resource type's name. (By convention, resource type names start with their
 provider's preferred local name.) When using multiple configurations of a
 provider (or non-preferred local provider names), you must use the `provider`
 meta-argument to manually choose an alternate provider configuration. See
-[the `provider` meta-argument](/docs/language/meta-arguments/resource-provider) for more details.
+[the `provider` meta-argument](../../language/meta-arguments/resource-provider.mdx) for more details.
 
 ### Resource Arguments
 
@@ -83,7 +83,7 @@ selected resource type. The resource type's documentation lists which arguments
 are available and how their values should be formatted.
 
 The values for resource arguments can make full use of
-[expressions](/docs/language/expressions) and other dynamic OpenTofu
+[expressions](../../language/expressions/index.mdx) and other dynamic OpenTofu
 language features.
 
 There are also some _meta-arguments_ that are defined by OpenTofu itself
@@ -115,14 +115,14 @@ public provider docs.
 
 For more information about how OpenTofu manages resources when applying a
 configuration, see
-[Resource Behavior](/docs/language/resources/behavior).
+[Resource Behavior](../../language/resources/behavior.mdx).
 
 ## Removing Resources
 
 If you remove a resource block from your configuration, OpenTofu will destroy it as a default behavior.
 
 However, there are instances when you want to remove a resource from your configuration without destroying the
-corresponding infrastructure object. In such cases, you can remove it from the [OpenTofu state](/docs/language/state)
+corresponding infrastructure object. In such cases, you can remove it from the [OpenTofu state](../../language/state/index.mdx)
 while allowing it to persist in the remote system.
 
 To achieve this, follow these steps:
@@ -159,12 +159,12 @@ any resource type to change the behavior of resources.
 
 The following meta-arguments are documented on separate pages:
 
-- [`depends_on`, for specifying hidden dependencies](/docs/language/meta-arguments/depends_on)
-- [`count`, for creating multiple resource instances according to a count](/docs/language/meta-arguments/count)
-- [`for_each`, to create multiple instances according to a map, or set of strings](/docs/language/meta-arguments/for_each)
-- [`provider`, for selecting a non-default provider configuration](/docs/language/meta-arguments/resource-provider)
-- [`lifecycle`, for lifecycle customizations](/docs/language/meta-arguments/lifecycle)
-- [`provisioner`, for taking extra actions after resource creation](/docs/language/resources/provisioners/syntax)
+- [`depends_on`, for specifying hidden dependencies](../../language/meta-arguments/depends_on.mdx)
+- [`count`, for creating multiple resource instances according to a count](../../language/meta-arguments/count.mdx)
+- [`for_each`, to create multiple instances according to a map, or set of strings](../../language/meta-arguments/for_each.mdx)
+- [`provider`, for selecting a non-default provider configuration](../../language/meta-arguments/resource-provider.mdx)
+- [`lifecycle`, for lifecycle customizations](../../language/meta-arguments/lifecycle.mdx)
+- [`provisioner`, for taking extra actions after resource creation](../../language/resources/provisioners/syntax.mdx)
 
 ## Custom Condition Checks
 
@@ -188,7 +188,7 @@ resource "aws_instance" "example" {
 
 Custom conditions can help capture assumptions, helping future maintainers understand the configuration design and intent. They also return useful information about errors earlier and in context, helping consumers more easily diagnose issues in their configurations.
 
-Refer to [Custom Condition Checks](/docs/language/expressions/custom-conditions#preconditions-and-postconditions) for more details.
+Refer to [Custom Condition Checks](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions) for more details.
 
 ## Operation Timeouts
 

@@ -23,7 +23,7 @@ value is therefore a list with one element per `newbits` argument, each
 a string containing an address range in CIDR notation.
 
 For more information on IP addressing concepts, see the documentation for the
-related function [`cidrsubnet`](/docs/language/functions/cidrsubnet). `cidrsubnet` calculates
+related function [`cidrsubnet`](../../language/functions/cidrsubnet.mdx). `cidrsubnet` calculates
 a single subnet address within a prefix while allowing you to specify its
 subnet number, while `cidrsubnets` can calculate many at once, potentially of
 different sizes, and assigns subnet numbers automatically.
@@ -73,7 +73,7 @@ platforms.
 ```
 
 You can use nested `cidrsubnets` calls with
-[`for` expressions](/docs/language/expressions/for)
+[`for` expressions](../../language/expressions/for.mdx)
 to concisely allocate groups of network address blocks:
 
 ```
@@ -100,9 +100,9 @@ to concisely allocate groups of network address blocks:
 
 ## Related Functions
 
-* [`cidrhost`](/docs/language/functions/cidrhost) calculates the IP address for a single host
+* [`cidrhost`](../../language/functions/cidrhost.mdx) calculates the IP address for a single host
   within a given network address prefix.
-* [`cidrnetmask`](/docs/language/functions/cidrnetmask) converts an IPv4 network prefix in CIDR
+* [`cidrnetmask`](../../language/functions/cidrnetmask.mdx) converts an IPv4 network prefix in CIDR
   notation into netmask notation.
-* [`cidrsubnet`](/docs/language/functions/cidrsubnet) calculates a single subnet address, allowing
+* [`cidrsubnet`](../../language/functions/cidrsubnet.mdx) calculates a single subnet address, allowing
   you to specify its network number.

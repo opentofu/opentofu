@@ -8,15 +8,19 @@ package providercache
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	getter "github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-retryablehttp"
 
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from
@@ -25,6 +29,39 @@ import (
 // providers _always_ come from provider registries, which have a very
 // specific protocol and set of expectations.)
 var unzip = getter.ZipDecompressor{}
+
+const (
+	// httpClientRetryCountEnvName is the environment variable name used to customize
+	// the HTTP retry count for module downloads.
+	httpClientRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
+
+	defaultRetry = 2
+)
+
+func init() {
+	configureProviderDownloadRetry()
+}
+
+var (
+	maxRetryCount int
+)
+
+// will attempt for requests with retryable errors, like 502 status codes
+func configureProviderDownloadRetry() {
+	maxRetryCount = defaultRetry
+	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
+		retry, err := strconv.Atoi(v)
+		if err == nil && retry > 0 {
+			maxRetryCount = retry
+		}
+	}
+}
+
+func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
+	if i > 0 {
+		logger.Printf("[INFO] Previous request to the provider install failed, attempting retry.")
+	}
+}
 
 func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targetDir string, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
 	url := meta.Location.String()
@@ -37,19 +74,24 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	// through X-Terraform-Get header, attempting partial fetches for
 	// files that already exist, etc.)
 
-	httpClient := httpclient.New()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	retryableClient := retryablehttp.NewClient()
+	retryableClient.HTTPClient = httpclient.New()
+	retryableClient.RetryMax = maxRetryCount
+	retryableClient.RequestLogHook = requestLogHook
+	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
+
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider download request: %w", err)
 	}
-	resp, err := httpClient.Do(req)
+	resp, err := retryableClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.Canceled {
 			// "context canceled" is not a user-friendly error message,
 			// so we'll return a more appropriate one here.
 			return nil, fmt.Errorf("provider download was interrupted")
 		}
-		return nil, fmt.Errorf("%s: %w", getproviders.HostFromRequest(req), err)
+		return nil, fmt.Errorf("%s: %w", getproviders.HostFromRequest(req.Request), err)
 	}
 	defer resp.Body.Close()
 

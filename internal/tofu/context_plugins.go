@@ -25,11 +25,10 @@ type contextPlugins struct {
 }
 
 func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
-	ret := &contextPlugins{
+	return &contextPlugins{
 		providerFactories:    providerFactories,
 		provisionerFactories: provisionerFactories,
 	}
-	return ret
 }
 
 func (cp *contextPlugins) HasProvider(addr addrs.Provider) bool {
@@ -77,6 +76,7 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 	// That is because we're checking *prior* to the provider's instantiation.
 	// GetProviderSchemaOptional only says that *if we instantiate a provider*,
 	// then we need to run the get schema call at least once.
+	// BUG This SHORT CIRCUITS the logic below and is not the only code which inserts provider schemas into the cache!!
 	schemas, ok := providers.SchemaCache.Get(addr)
 	if ok {
 		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)

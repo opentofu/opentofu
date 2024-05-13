@@ -6,10 +6,7 @@
 package tofu
 
 import (
-	"fmt"
 	"log"
-
-	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -164,35 +161,18 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// If any import targets were not claimed by resources, then let's add them
 	// into the graph now.
 	//
-	// We actually know that if any of the resources aren't claimed and
-	// generateConfig is false, then we have a problem. But, we can't raise a
-	// nice error message from this function.
+	// We should only reach this point if config generation is enabled, since we validate that all import targets have
+	// a resource in validateImportTargets when config generation is disabled
 	//
 	// We'll add the nodes that we know will fail, and catch them again later
 	// in the processing when we are in a position to raise a much more helpful
 	// error message.
-	//
-	// TODO: We could actually catch and process these kind of problems earlier,
-	//   this is something that could be done during the Validate process.
 	for _, i := range importTargets {
-		// We should only allow config generation for static addresses
-		// If config generation has been attempted for a non static address - we will fail here
-		address, evaluationDiags := i.ResolvedAddr()
-		if evaluationDiags.HasErrors() {
-			return evaluationDiags
-		}
-
-		// In case of config generation - We can error early here in two cases:
-		// 1. When attempting to import a resource with a key (Config generation for count / for_each resources)
-		// 2. When attempting to import a resource inside a module.
 		if len(generateConfigPath) > 0 {
-			if address.Resource.Key != addrs.NoKey {
-				return fmt.Errorf("Config generation for count and for_each resources not supported.\n\nYour configuration contains an import block with a \"to\" address of %s. This resource instance does not exist in configuration.\n\nIf you intended to target a resource that exists in configuration, please double-check the address. Otherwise, please remove this import block or re-run the plan without the -generate-config-out flag to ignore the import block.", address)
-			}
-
 			// Create a node with the resource and import target. This node will take care of the config generation
 			abstract := &NodeAbstractResource{
-				Addr:               address.ConfigResource(),
+				// We've already validated in validateImportTargets that the address is fully resolvable
+				Addr:               i.ResolvedAddr().ConfigResource(),
 				importTargets:      []*ImportTarget{i},
 				generateConfigPath: generateConfigPath,
 			}
@@ -204,24 +184,11 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 			g.Add(node)
 		} else {
-			return importResourceWithoutConfigDiags(address, i.Config)
+			// Technically we shouldn't reach this point, as we've already validated that a resource exists
+			// in validateImportTargets
+			return importResourceWithoutConfigDiags(i.StaticAddr().String(), i.Config)
 		}
 	}
 
 	return nil
-}
-
-// importResourceWithoutConfigDiags creates the common HCL error of an attempted import for a non-existent configuration
-func importResourceWithoutConfigDiags(address addrs.AbsResourceInstance, config *configs.Import) *hcl.Diagnostic {
-	diag := hcl.Diagnostic{
-		Severity: hcl.DiagError,
-		Summary:  "Configuration for import target does not exist",
-		Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. All target instances must have an associated configuration to be imported.", address),
-	}
-
-	if config != nil {
-		diag.Subject = config.DeclRange.Ptr()
-	}
-
-	return &diag
 }

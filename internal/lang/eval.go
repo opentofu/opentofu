@@ -7,10 +7,12 @@ package lang
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -71,7 +73,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	body = blocktoattr.FixUpBlockAttrs(body, schema)
 
 	val, evalDiags := hcldec.Decode(body, spec, ctx)
-	diags = diags.Append(evalDiags)
+	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
 
 	return val, diags
 }
@@ -149,7 +151,7 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 	}
 
 	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), ctx)
-	diags = diags.Append(decDiags)
+	diags = diags.Append(s.enhanceFunctionDiags(decDiags))
 	return val, diags
 }
 
@@ -175,7 +177,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	}
 
 	val, evalDiags := expr.Value(ctx)
-	diags = diags.Append(evalDiags)
+	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
 
 	if wantType != cty.DynamicPseudoType {
 		var convErr error
@@ -194,6 +196,50 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	}
 
 	return val, diags
+}
+
+// Identify and enhance any function related dialogs produced by a hcl.EvalContext
+func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
+	out := make(hcl.Diagnostics, len(diags))
+	for i, diag := range diags {
+		out[i] = diag
+
+		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallUnknownDiagExtra); ok {
+			funcName := funcExtra.CalledFunctionName()
+			// prefix::stuff::
+			fullNamespace := funcExtra.CalledFunctionNamespace()
+
+			if len(fullNamespace) == 0 {
+				// Not a namespaced function, no enhancements nessesary
+				continue
+			}
+
+			// Insert the enhanced copy of diag into diags
+			enhanced := *diag
+			out[i] = &enhanced
+
+			// Update enhanced with additional details
+
+			fn := addrs.ParseFunction(fullNamespace + funcName)
+
+			if fn.IsNamespace(addrs.FunctionNamespaceCore) {
+				// Error is in core namespace, mirror non-core equivalent
+				enhanced.Summary = "Call to unknown function"
+				enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
+			} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
+				if _, err := fn.AsProviderFunction(); err != nil {
+					// complete mismatch or invalid prefix
+					enhanced.Summary = "Invalid function format"
+					enhanced.Detail = err.Error()
+				}
+			} else {
+				enhanced.Summary = "Unknown function namespace"
+				enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
+			}
+			// Function / Provider not found handled by eval_context_builtin.go
+		}
+	}
+	return out
 }
 
 // EvalReference evaluates the given reference in the receiving scope and
@@ -419,7 +465,16 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 			val, valDiags := normalizeRefValue(s.Data.GetCheckBlock(subj, rng))
 			diags = diags.Append(valDiags)
 			outputValues[subj.Name] = val
+		case addrs.ProviderFunction:
+			// Inject function directly into context
+			if _, ok := ctx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.ProviderFunctions(subj, rng)
+				diags = diags.Append(fnDiags)
 
+				if !fnDiags.HasErrors() {
+					ctx.Functions[subj.String()] = *fn
+				}
+			}
 		default:
 			// Should never happen
 			panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))

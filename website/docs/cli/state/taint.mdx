@@ -17,7 +17,7 @@ to the problem, because OpenTofu only directly manages the machine as a whole.
 
 If you know that an object is damaged, or if you want to force OpenTofu to
 replace it for any other reason, you can override OpenTofu's default behavior
-using [the `-replace=...` planning option](/docs/cli/commands/plan#replace-address)
+using [the `-replace=...` planning option](../commands/plan.mdx#replace-address)
 when you run either `tofu plan` or `tofu apply`:
 
 ```shellsession
@@ -52,11 +52,11 @@ address using `-replace=...` as described above.
 
 If OpenTofu has marked an object as tainted but you consider it to be working
 correctly and do not want to replace it, you can override OpenTofu's
-determination using [the `tofu untaint` command](/docs/cli/commands/untaint),
+determination using [the `tofu untaint` command](../commands/untaint.mdx),
 after which OpenTofu will consider the object to be ready for use by any
 downstream resource declarations.
 
 You can also _force_ OpenTofu to mark a particular object as tainted using
-[the `tofu taint` command](/docs/cli/commands/taint), but that approach is
+[the `tofu taint` command](../commands/taint.mdx), but that approach is
 deprecated in favor of the `-replace=...` option, which avoids the need to
 create an interim state snapshot with a tainted object.

@@ -6,6 +6,7 @@
 package genconfig
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -160,7 +162,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 			if attrS.Sensitive || val.IsMarked() {
 				buf.WriteString("null # sensitive")
 			} else {
-				tok := hclwrite.TokensForValue(val)
+				tok := tryWrapAsJsonEncodeFunctionCall(val)
 				if _, err := tok.WriteTo(buf); err != nil {
 					diags = diags.Append(&hcl.Diagnostic{
 						Severity: hcl.DiagWarning,
@@ -591,4 +593,41 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// Should never happen, since the above should cover all types
 		panic(fmt.Sprintf("omitUnknowns cannot handle %#v", val))
 	}
+}
+
+func tryWrapAsJsonEncodeFunctionCall(v cty.Value) hclwrite.Tokens {
+	tokens, err := wrapAsJSONEncodeFunctionCall(v)
+	if err != nil {
+		return hclwrite.TokensForValue(v)
+	}
+	return tokens
+}
+
+func wrapAsJSONEncodeFunctionCall(v cty.Value) (hclwrite.Tokens, error) {
+	if v.IsNull() || v.Type() != cty.String || !v.IsKnown() {
+		return nil, errors.New("value cannot be treated as JSON string")
+	}
+
+	s := []byte(strings.TrimSpace(v.AsString()))
+	if len(s) == 0 {
+		return nil, errors.New("empty value")
+	}
+
+	if s[0] != '{' && s[0] != '[' {
+		return nil, errors.New("value is not a JSON object, nor a JSON array")
+	}
+
+	t, err := json.ImpliedType(s)
+	if err != nil {
+		return nil, fmt.Errorf("cannot define implied cty type (possibly not a JSON string): %w", err)
+	}
+
+	v, err = json.Unmarshal(s, t)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal using implied type (possible not a JSON string): %w", err)
+	}
+
+	tokens := hclwrite.TokensForFunctionCall("jsonencode", hclwrite.TokensForValue(v))
+
+	return tokens, nil
 }

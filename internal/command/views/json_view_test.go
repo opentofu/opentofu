@@ -44,20 +44,44 @@ func TestNewJSONView(t *testing.T) {
 }
 
 func TestJSONView_Log(t *testing.T) {
-	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
-
-	jv.Log("hello, world")
-
-	want := []map[string]interface{}{
+	testCases := []struct {
+		caseName string
+		input    string
+		want     []map[string]interface{}
+	}{
 		{
-			"@level":   "info",
-			"@message": "hello, world",
-			"@module":  "tofu.ui",
-			"type":     "log",
+			"log with regular character",
+			"hello, world",
+			[]map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "hello, world",
+					"@module":  "tofu.ui",
+					"type":     "log",
+				},
+			},
+		},
+		{
+			"log with special character",
+			"hello, special char, <>&",
+			[]map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "hello, special char, <>&",
+					"@module":  "tofu.ui",
+					"type":     "log",
+				},
+			},
 		},
 	}
-	testJSONViewOutputEquals(t, done(t).Stdout(), want)
+	for _, tc := range testCases {
+		t.Run(tc.caseName, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			jv := NewJSONView(NewView(streams))
+			jv.Log(tc.input)
+			testJSONViewOutputEquals(t, done(t).Stdout(), tc.want)
+		})
+	}
 }
 
 // This test covers only the basics of JSON diagnostic rendering, as more

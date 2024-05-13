@@ -6,8 +6,12 @@ on:
       tag:
         description: "Git tag (leave empty for dry run)"
         required: false
+      latest:
+        description: "Release as latest?"
+        required: true
+        type: boolean
       prerelease:
-        description: "Is this a pre-release?"
+        description: "Release as prerelease?"
         required: true
         type: boolean
 
@@ -36,7 +40,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag }}
@@ -129,7 +133,8 @@ jobs:
           # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
-          SNAPCRAFT_CHANNEL: ${{ inputs.prerelease &&  'edge' || 'stable' }}
+          RELEASE_FLAG_PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_FLAG_LATEST: ${{ inputs.latest }}
 
       - name: Remove GPG key
         if: always()

@@ -160,6 +160,14 @@ func (p *Provider) ValidateResourceConfig(req providers.ValidateResourceConfigRe
 	return validateDataStoreResourceConfig(req)
 }
 
+func (p *Provider) GetFunctions() providers.GetFunctionsResponse {
+	panic("unimplemented - terraform provider has no functions")
+}
+
+func (p *Provider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	panic("unimplemented - terraform provider has no functions")
+}
+
 // Close is a noop for this provider, since it's run in-process.
 func (p *Provider) Close() error {
 	return nil

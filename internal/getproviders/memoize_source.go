@@ -25,9 +25,9 @@ import (
 // sequentially.
 type MemoizeSource struct {
 	underlying        Source
+	mu                sync.Mutex
 	availableVersions map[addrs.Provider]memoizeAvailableVersionsRet
 	packageMetas      map[memoizePackageMetaCall]memoizePackageMetaRet
-	mu                sync.Mutex
 }
 
 type memoizeAvailableVersionsRet struct {
