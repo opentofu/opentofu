@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 
 	version "github.com/hashicorp/go-version"
@@ -424,7 +425,13 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 
 	sV4.normalize()
 
-	src, err := json.MarshalIndent(sV4, "", "  ")
+	var src []byte
+	var err error
+	if _, exists := os.LookupEnv("TF_USE_COMPACT_STATE_FORMAT"); exists {
+		src, err = json.Marshal(sV4)
+	} else {
+		src, err = json.MarshalIndent(sV4, "", "  ")
+	}
 	if err != nil {
 		// Shouldn't happen if we do our conversion to *stateV4 correctly above.
 		diags = diags.Append(tfdiags.Sourceless(
