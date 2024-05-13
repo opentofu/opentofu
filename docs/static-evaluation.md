@@ -66,10 +66,22 @@ As the provider requirements are baked into the module itself, the multiple "ins
 
 The logical next step is to perform the module expansion during the config process if the references in the expansion expression are known at that time. This is easier said than done as will be expanded upon below, particularly due to the fact that not all expansion expressions can be evaluated statically and that must continue to be supported.
 
-## Document TODO
-* `package.Structure` should be a link
-* explain partial approach
-* Link solutions in Progress Overview below
+
+## Plan of Attack
+
+Between the initial implementation, the solutions, and the expansion, we are talking about a significant amount of work likely spread across multiple releases.
+
+We can not take the approach of hacking on a feature branch for months or frezing all related code. It's unrealistic and unfair to other developers.
+
+Instead, we can break this work into smaller discrete and testable components, some of which may be easy to work on in parallel.
+
+If we design an interface for the static evaluator and wire a noop implementation through the config package, work on all of the major solutions can be started. Those solutions will then become functional as pieces of the static evaluator are implemented.
+
+Additionally, the module iteration work can likely be broken into stages, implementing changes package by package and keeping around an address translation layer (detailed below).
+
+With this piece by piece approach, we can also add testing before, during, and after each component is added/modified.
+
+The OpenTofu core team should be the ones to do the majority of the core implementation and the module expansion work.  If community members are interested, many of the solutions are isolated and well defined enough for them to be worked on indepdently of the core team.
 
 ## Progress Overview:
 - [ ] Core Implementation
@@ -98,6 +110,12 @@ The logical next step is to perform the module expansion during the config proce
   - [ ] Provisioners
   - [ ] Moved blocks
   - [ ] Variables/locals in encryption
+
+
+## Document TODO
+* `package.Structure` should be a link
+* Link solutions in Progress Overview below
+
 
 ## Core Implementation:
 
