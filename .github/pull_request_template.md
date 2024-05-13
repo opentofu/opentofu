@@ -25,7 +25,7 @@ Resolves #
 
 ### Go checklist
 
-<-- If your PR contains Go code, please make sure you check off all items on this list: --> 
+<!-- If your PR contains Go code, please make sure you check off all items on this list: --> 
 
 - [ ] I have run golangci-lint on my change and receive no errors relevant to my code.
 - [ ] I have run existing tests to ensure my code doesn't break anything.
