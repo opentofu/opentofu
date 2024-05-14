@@ -66,6 +66,8 @@ As the provider requirements are baked into the module itself, the multiple "ins
 
 The solution proposed is to perform the module expansion during the config process, if the references in the expansion expression are known at that time. This is easier said than done as will be expanded upon below, particularly due to the fact that not all expansion expressions can be evaluated due to references that are not known at config time and that must continue to be supported.
 
+Note: There is a case to not implement this complexity. It *may* be possible to work around the provider scenario explicitly and forbid the use of any values derived from a count/for_each in a static context.  Given the required effort to introduce this complexity, this should be seriously considered.
+
 
 ## Plan of Attack
 
@@ -136,23 +138,51 @@ Performing an action in OpenTofu (init/plan/apply/etc...) takes the following st
       - The blocks and attributes are are [turned into references](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/lang/references.go#L56) in the lang package
   - The graph is [evaluated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L86) by [walking each node](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L43) after it's dependencies have been evaluated.
 
-### Config loading
+### Proposed Design Changes
 
-The config loading process for a given module above will need to be broken into two stages:
-* Parse and load the configuration into configs.Module without doing any evaluation
-* Setup a static evalation context based on the current configs.Module
+As explained in [Initial implementation](#Initial-implementation), we will need to modify the above workflow to track references/values in different scopes during the config loading process. This will be called a [Static Context](#Static-Context), with the requirements and potential implementation paths below.
 
-Additionally, variables passed in from the given module's parent will need to be tracked and known if they are static or dynamic.  TODO expand, reference `config.Config` tree building.
+When loading a module, a static context must be supplied. When called from an external package like command, the static context will contain tfvars from both cli options and .tfvars files. When called from within the `configs.Config` tree building process, it will pass static references to values from the `config.ModuleCall` in as supplied variables.
 
-### Static Evaluation
-At the heart of this (What is this???) project lies a simplified evaluator and evaluation scope, similar to what currently exist in the tofu and lang package. (Why simplified? What's the difference to the normal one?)
+Example:
+
+main.tf
+```hcl
+variable "input_value" {}
+locals {
+  hash = md5sum(var.input_value)
+}
+module "mod" {
+  source = "./some-source"
+  value = local.hash
+}
+```
+
+pseudocode
+```go
+buildConfig(path = ".", ctx = StaticContextFromTFVars(command.TFVars))
+  config = Config{}
+
+  config.Module = loadModule(path, ctx)
+    module = localModuleFiles(".")
+    ctx.AddVariables(module.Variables)
+    ctx.AddLocals(module.Locals)
+    return module
+
+  for call in config.Module.ModuleCalls {
+    args = ctx.Evaluate(call.Arguments)
+    subCtx := ctx.SubContext(call.Source, args)
+    buildConfig(call.Source, subCtx)
+  }
+```
+
+### Static Context Design
+At the heart of the project lies an evaluation context, similar to what currently exist in the tofu and lang package. It must serve a similar purpose, but has some differing requirements.
 
 Any static evaluator must be able to:
 * Evaluate a hcl expression or block into a single cty value
   - Provide detailed insight into why a given expression or block can not be turned into a cty value
-* Be scoped to a given context
-* Be easily cloned to support for_each/count iterations
-  - TODO expand on for_each / count requirements
+* Be scoped to a given path
 
 There are three potential paths in implementing a static evaluator:
 * Build a custom streamlined (?) solution for this specific problem and it's current use cases
