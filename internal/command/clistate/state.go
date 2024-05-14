@@ -70,9 +70,9 @@ type Locker interface {
 }
 
 type locker struct {
-	mu      sync.Mutex
 	ctx     context.Context
 	timeout time.Duration
+	mu      sync.Mutex
 	state   statemgr.Locker
 	view    views.StateLocker
 	lockID  string

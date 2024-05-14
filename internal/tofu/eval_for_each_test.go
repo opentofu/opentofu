@@ -133,6 +133,12 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 			"map includes keys derived from resource attributes that cannot be determined until apply",
 			true, false,
 		},
+		"unknown pseudo-type": {
+			hcltest.MockExprLiteral(cty.UnknownVal(cty.DynamicPseudoType)),
+			"Invalid for_each argument",
+			"map includes keys derived from resource attributes that cannot be determined until apply",
+			true, false,
+		},
 		"marked map": {
 			hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{
 				"a": cty.BoolVal(true),
@@ -145,7 +151,7 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 		"set containing booleans": {
 			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.BoolVal(true)})),
 			"Invalid for_each set argument",
-			"supports maps and sets of strings, but you have provided a set containing type bool",
+			"supports sets of strings, but you have provided a set containing type bool",
 			false, false,
 		},
 		"set containing null": {
@@ -213,17 +219,125 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 	}
 }
 
+func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
+	tests := map[string]struct {
+		Expr   hcl.Expression
+		Wanted []struct {
+			Summary           string
+			DetailSubstring   string
+			CausedBySensitive bool
+		}
+	}{
+		"marked list": {
+			hcltest.MockExprLiteral(cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type list",
+					false,
+				},
+			},
+		},
+		"marked tuple": {
+			hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type tuple",
+					false,
+				},
+			},
+		},
+		"marked string": {
+			hcltest.MockExprLiteral(cty.StringVal("a").Mark(marks.Sensitive)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type string",
+					false,
+				},
+			},
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := &MockEvalContext{}
+			ctx.installSimpleEval()
+			_, diags := evaluateForEachExpression(test.Expr, ctx)
+			if len(diags) != len(test.Wanted) {
+				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+			}
+			for idx := range test.Wanted {
+				if got, want := diags[idx].Severity(), tfdiags.Error; got != want {
+					t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+				}
+				if got, want := diags[idx].Description().Summary, test.Wanted[idx].Summary; got != want {
+					t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+				}
+				if got, want := diags[idx].Description().Detail, test.Wanted[idx].DetailSubstring; !strings.Contains(got, want) {
+					t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+				}
+				if fromExpr := diags[idx].FromExpr(); fromExpr != nil {
+					if fromExpr.Expression == nil {
+						t.Errorf("diagnostic does not refer to an expression")
+					}
+					if fromExpr.EvalContext == nil {
+						t.Errorf("diagnostic does not refer to an EvalContext")
+					}
+				} else {
+					t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[idx]))
+				}
+
+				if got, want := tfdiags.DiagnosticCausedBySensitive(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
+					t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+				}
+			}
+
+		})
+	}
+}
+
 func TestEvaluateForEachExpressionKnown(t *testing.T) {
 	tests := map[string]hcl.Expression{
-		"unknown string set": hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
-		"unknown map":        hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
+		"unknown string set":  hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
+		"unknown map":         hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
+		"unknown tuple":       hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String, cty.Number, cty.Bool}))),
+		"unknown pseudo-type": hcltest.MockExprLiteral(cty.UnknownVal(cty.DynamicPseudoType)),
 	}
 
 	for name, expr := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := &MockEvalContext{}
 			ctx.installSimpleEval()
-			forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, true)
+			forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, true, true)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -232,6 +346,57 @@ func TestEvaluateForEachExpressionKnown(t *testing.T) {
 			if forEachVal.IsKnown() {
 				t.Error("got known, want unknown")
 			}
+		})
+	}
+}
+
+func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
+	tests := map[string]struct {
+		Expr          hcl.Expression
+		AllowTuple    bool
+		ExpectedError string
+	}{
+		"valid tuple": {
+			Expr:       hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")})),
+			AllowTuple: true,
+		},
+		"empty tuple": {
+			Expr:       hcltest.MockExprLiteral(cty.EmptyTupleVal),
+			AllowTuple: true,
+		},
+		"null tuple": {
+			Expr:          hcltest.MockExprLiteral(cty.NullVal(cty.Tuple([]cty.Type{}))),
+			AllowTuple:    true,
+			ExpectedError: "the given \"for_each\" argument value is null",
+		},
+		"sensitive tuple": {
+			Expr:          hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive)),
+			AllowTuple:    true,
+			ExpectedError: "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+		},
+		"allow tuple is off": {
+			Expr:          hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")})),
+			AllowTuple:    false,
+			ExpectedError: "the \"for_each\" argument must be a map, or set of strings, and you have provided a value of type tuple.",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctx := &MockEvalContext{}
+			ctx.installSimpleEval()
+			_, diags := evaluateForEachExpressionValue(test.Expr, ctx, true, test.AllowTuple)
+
+			if test.ExpectedError == "" {
+				if len(diags) != 0 {
+					t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+				}
+			} else {
+				if got, want := diags[0].Description().Detail, test.ExpectedError; test.ExpectedError != "" && !strings.Contains(got, want) {
+					t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+				}
+			}
+
 		})
 	}
 }

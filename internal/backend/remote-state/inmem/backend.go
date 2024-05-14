@@ -76,9 +76,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		Name: backend.DefaultStateName,
 	}
 
-	states.m[backend.DefaultStateName] = &remote.State{
-		Client: defaultClient,
-	}
+	states.m[backend.DefaultStateName] = remote.NewState(defaultClient, b.encryption)
 
 	// set the default client lock info per the test config
 	data := schema.FromContextBackendConfig(ctx)

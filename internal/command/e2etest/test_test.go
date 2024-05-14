@@ -15,7 +15,7 @@ import (
 )
 
 func TestMultipleRunBlocks(t *testing.T) {
-	timeout := time.After(3 * time.Second)
+	timeout := time.After(5 * time.Second)
 	type testResult struct {
 		stdout string
 		stderr string

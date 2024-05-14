@@ -33,10 +33,10 @@ func TestPlanGraphBuilder(t *testing.T) {
 		},
 	}
 	openstackProvider := mockProviderWithResourceTypeSchema("openstack_floating_ip", simpleTestSchema())
-	plugins := newContextPluginsForTest(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"):       providers.FactoryFixed(awsProvider),
 		addrs.NewDefaultProvider("openstack"): providers.FactoryFixed(openstackProvider),
-	}, t)
+	}, nil)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-basic"),
@@ -77,9 +77,9 @@ func TestPlanGraphBuilder_dynamicBlock(t *testing.T) {
 			},
 		},
 	})
-	plugins := newContextPluginsForTest(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
-	}, t)
+	}, nil)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-dynblock"),
@@ -133,9 +133,9 @@ func TestPlanGraphBuilder_attrAsBlocks(t *testing.T) {
 			},
 		},
 	})
-	plugins := newContextPluginsForTest(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
-	}, t)
+	}, nil)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-attr-as-blocks"),
@@ -198,9 +198,9 @@ func TestPlanGraphBuilder_targetModule(t *testing.T) {
 func TestPlanGraphBuilder_forEach(t *testing.T) {
 	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", simpleTestSchema())
 
-	plugins := newContextPluginsForTest(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
-	}, t)
+	}, nil)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "plan-for-each"),

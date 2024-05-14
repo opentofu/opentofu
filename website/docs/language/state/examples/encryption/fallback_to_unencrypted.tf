@@ -1,15 +1,30 @@
 terraform {
   encryption {
-    # Methods and key providers here.
+    ## Step 1: Leave the original encryption method unchanged:
+    method "some_method" "old_method" {
+      ## Parameters for the old method here.
+    }
+
+    # Step 2: Add the unencrypted method here:
     method "unencrypted" "migrate" {}
 
     state {
-      # The unencrypted method allows writing unencrypted state files.
-      # unless the enforced setting is set to true.
-      method = method.unencrypted.migrate
+      ## Step 3: Disable or remove the "enforced" option:
+      enforced = false
+
+      ## Step 4: Move the original encryption method into the "fallback" block:
       fallback {
         method = method.some_method.old_method
       }
+
+      ## Step 5: Reference the unencrypted method as your primary "encryption" method.
+      method = method.unencrypted.migrate
     }
+
+    ## Step 6: Run "tofu apply".
+
+    ## Step 7: Remove the "state" block once the migration is complete.
+
+    ## Step 8: Repeat steps 3-7 for plan{} if needed.
   }
 }

@@ -118,7 +118,7 @@ terraform {
 ```
 
 :::note
-When using a Service Principal or an Access Key - we recommend using a [Partial Configuration](/docs/language/settings/backends/configuration#partial-configuration) for the credentials.
+When using a Service Principal or an Access Key - we recommend using a [Partial Configuration](../../../language/settings/backends/configuration.mdx#partial-configuration) for the credentials.
 :::
 
 ## Data Source Configuration
@@ -237,7 +237,7 @@ data "terraform_remote_state" "foo" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](/docs/language/settings/backends/configuration#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options are supported:

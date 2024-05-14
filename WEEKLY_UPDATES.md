@@ -1,5 +1,43 @@
 # Weekly Updates
 
+## 2024-05-10
+
+Hello there! Again after a break in updates, since most weeks we've had preview or stable releases, which summed up most of what happened.
+
+We haven't slowed down, and managed to get the stable release out according to schedule, before the end of April! Since then, we've got a few bug reports and already released a follow-up 1.7.1 release. Now, we're primarily working towards the 1.8 release.
+
+- Current Status
+  - State Encryption
+    - We've fixed some issues as part of 1.7.1, and have [one more important usability issue](https://github.com/opentofu/opentofu/issues/1605) that we'd like to improve on in the not-too-distant future.
+  - [Init-time constant evaluation](https://github.com/opentofu/opentofu/issues/1042)
+    - Got accepted by the TSC and will be the flagship feature of 1.8.
+    - We're currently planning and splitting up the work to be done.
+    - We'll most likely deliver it in parts, with the foundation and first features in 1.8, and later more features built on top of it in 1.9.
+  - [Registry UI](https://github.com/opentofu/registry/issues/450)
+    - We've been asked about this a lot, and have now started working on it.
+  - A lot of smaller tickets are being worked on, you can take a look at the [1.7.2 and 1.8.0 milestones](https://github.com/opentofu/opentofu/milestones) for details.
+  - Additionally, we're working on improved developer documentation on how to author end-to-end tests in OpenTofu as we hope to increase the end-to-end test coverage. We'll be opening a bunch of related issues, most of which should be open to external contribution! 
+- How can I help?
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
+## 2024-04-17
+
+Hey there! First, apologies for the lack of updates over the last two weeks, we've been a bit busy with the [Cease and Desist Letter we got](https://opentofu.org/blog/our-response-to-hashicorps-cease-and-desist/). That's fortunately all sorted now, and we're fully back to engineering work this week! All of this delayed 1.7 by around a week, but this delay also gave us some additional time to add cool unique features to provider-defined functions in OpenTofu!
+
+Importantly, we're planning to get a 1.7.0-beta1 release out tomorrow!
+
+Additionally, we'll have a [livestream to showcase some cool stuff](https://youtube.com/live/6OXBv0MYalY) next week on Wednesday!
+
+- Current Status:
+  - More work on Provider-defined Functions has been happening. Importantly, we have a [bunch of OpenTofu-exclusive improvements](https://github.com/opentofu/opentofu/pull/1491) that will allow us to create providers that will let you have e.g. Lua files with custom functions side-by-side with your OpenTofu configuration. We will have a [livestream on Wednesday next week](https://youtube.com/live/6OXBv0MYalY) to showcase some of this functionality!
+  - The final [PR functionality-wise for for_each in import blocks](https://github.com/opentofu/opentofu/pull/1492) has now been merged. There's still some cleanup left, but the hard part is done!
+  - We've [improved the migration flow to encrypted state-files](https://github.com/opentofu/opentofu/pull/1458) that are coming in 1.7. It's now safer and easier to understand. This feature is of course - and will be - optional.
+  - Work is happening on multiple `tofu test`-related issues, though it might not make it's way into 1.7.
+  - We've added a [public ranking of issues by vote count](https://github.com/opentofu/opentofu/issues/1496), updated daily. This way, issues important for the community will be clearly visible!
+- How can I help?
+  - Please test the 1.7.0-beta1 release once it's out and [give us feedback](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=preview-release-feedback&projects=&template=1_7_0_alpha1_feedback.yml)! This is right now the highest priority item you can help with.
+
 ## 2024-03-27
 
 Hello there!  We've had a fairly quiet couple days after KubeCon last week, but still managed to make progress in some key areas!

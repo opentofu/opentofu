@@ -33,22 +33,40 @@ permissions:
 
 jobs:
   unit-tests:
-    name: "Unit Tests"
-    runs-on: ubuntu-latest
-
+    name: Unit tests for ${{ matrix.goos }}_${{ matrix.goarch }}
+    runs-on: ${{ matrix.runson }}
     env:
       TF_APPEND_USER_AGENT: Integration-Test
-
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    strategy:
+      matrix:
+        include:
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
+          - { runson: macos-latest, goos: darwin, goarch: "amd64" }
+          # - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          # https://github.com/opentofu/opentofu/issues/1201 if fixed
+          #  ^ un-comment the  windows-latest line
+      fail-fast: false
     steps:
+      # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
+      # for testing on non amd64 envs like 386, arm64 etc...
+      - name: "Set up QEMU"
+        if: matrix.goos == 'linux' && matrix.goarch != 'amd64'
+        uses: docker/setup-qemu-action@v3
+
       - name: "Fetch source code"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -73,14 +91,14 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -111,14 +129,14 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -143,7 +161,7 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0 # We need to do comparisons against the main branch.
 
@@ -152,7 +170,7 @@ jobs:
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -185,12 +203,17 @@ jobs:
 
       - name: "Code consistency checks"
         run: |
-          make fmtcheck importscheck generate staticcheck exhaustive protobuf
+          make generate protobuf
           if [[ -n "$(git status --porcelain)" ]]; then
             echo >&2 "ERROR: Generated files are inconsistent. Run 'make generate' and 'make protobuf' locally and then commit the updated files."
             git >&2 status --porcelain
             exit 1
           fi
+      - name: "Code linting"
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.58
+          only-new-issues: true
 
   license-checks:
     name: "License Checks"
@@ -198,7 +221,7 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - name: Install licensei
         run: |
@@ -217,7 +240,7 @@ jobs:
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -234,14 +257,13 @@ jobs:
         with:
           path: ".licensei.cache"
           key: licensei-cache-${{ hashFiles('go.sum') }}
-
 #  installation-instructions:
 #    name: "Test Installation Instructions"
 #    runs-on: ubuntu-latest
 #
 #    steps:
 #      - name: "Fetch source code"
-#        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+#        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 #
 #      - name: "Run Installation Instructions Test"
 #        run: make test-linux-install-instructions

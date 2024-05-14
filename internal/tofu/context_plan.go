@@ -311,9 +311,12 @@ func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts 
 		panic(fmt.Sprintf("called Context.plan with %s", opts.Mode))
 	}
 
-	opts.ImportTargets = c.findImportTargets(config, prevRunState)
-	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets)
+	opts.ImportTargets = c.findImportTargets(config)
+	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets, opts.GenerateConfigPath)
 	diags = diags.Append(importTargetDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	var endpointsToRemoveDiags tfdiags.Diagnostics
 	opts.EndpointsToRemove, endpointsToRemoveDiags = refactoring.GetEndpointsToRemove(config)
@@ -547,51 +550,111 @@ func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactor
 // relaxed.
 func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allInst instances.Set) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for resolvedImport := range importResolver.imports {
-		// We only care about import target addresses that have a key.
-		// If the address does not have a key, we don't need it to be in config
-		// because are able to generate config.
-		address, addrParseDiags := addrs.ParseAbsResourceInstanceStr(resolvedImport.AddrStr)
-		if addrParseDiags.HasErrors() {
-			return addrParseDiags
-		}
-
-		if !allInst.HasResourceInstance(address) {
-			diags = diags.Append(importResourceWithoutConfigDiags(address, nil))
+	for _, importTarget := range importResolver.GetAllImports() {
+		if !allInst.HasResourceInstance(importTarget.Addr) {
+			diags = diags.Append(importResourceWithoutConfigDiags(importTarget.Addr.String(), nil))
 		}
 	}
 	return diags
 }
 
-// findImportTargets builds a list of import targets by taking the import blocks
-// in the config and filtering out any that target a resource already in state.
-func (c *Context) findImportTargets(config *configs.Config, priorState *states.State) []*ImportTarget {
+// findImportTargets builds a list of import targets by going over the import
+// blocks in the config.
+func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
 	var importTargets []*ImportTarget
 	for _, ic := range config.Module.Import {
-		if priorState.ResourceInstance(ic.To) == nil {
-			importTargets = append(importTargets, &ImportTarget{
-				Config: ic,
-			})
-		}
+		importTargets = append(importTargets, &ImportTarget{
+			Config: ic,
+		})
 	}
 	return importTargets
 }
 
-func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget) (diags tfdiags.Diagnostics) {
+// validateImportTargets makes sure all import targets are not breaking the following rules:
+//  1. Imports are attempted into resources that do not exist (if config generation is not enabled).
+//  2. Config generation is not attempted for resources inside sub-modules
+//  3. Config generation is not attempted for resources with indexes (for_each/count) - This will always include
+//     resources for which we could not yet resolve the address
+func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget, generateConfigPath string) (diags tfdiags.Diagnostics) {
+	configGeneration := len(generateConfigPath) > 0
 	for _, imp := range importTargets {
 		staticAddress := imp.StaticAddr()
 		descendantConfig := config.Descendent(staticAddress.Module)
+
+		// If import target's module does not exist
 		if descendantConfig == nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Cannot import to non-existent resource address",
-				Detail:   fmt.Sprintf("Importing to resource address '%s' is not possible, because that address does not exist in configuration. Please ensure that the resource key is correct, or remove this import block.", staticAddress),
-				Subject:  imp.Config.DeclRange.Ptr(),
-			})
-			return
+			if configGeneration {
+				// Attempted config generation for resource in non-existing module. So error because resource generation
+				// is not allowed in a sub-module
+				diags = diags.Append(importConfigGenerationInModuleDiags(staticAddress.String(), imp.Config))
+			} else {
+				diags = diags.Append(importResourceWithoutConfigDiags(staticAddress.String(), imp.Config))
+			}
+			continue
+		}
+
+		if _, exists := descendantConfig.Module.ManagedResources[staticAddress.Resource.String()]; !exists {
+			if configGeneration {
+				if imp.ResolvedAddr() == nil {
+					// If we could not resolve the address of the import target, the address must have contained indexes
+					diags = diags.Append(importConfigGenerationWithIndexDiags(staticAddress.String(), imp.Config))
+					continue
+				} else if !imp.ResolvedAddr().Module.IsRoot() {
+					diags = diags.Append(importConfigGenerationInModuleDiags(imp.ResolvedAddr().String(), imp.Config))
+					continue
+				} else if imp.ResolvedAddr().Resource.Key != addrs.NoKey {
+					diags = diags.Append(importConfigGenerationWithIndexDiags(imp.ResolvedAddr().String(), imp.Config))
+					continue
+				}
+			} else {
+				diags = diags.Append(importResourceWithoutConfigDiags(staticAddress.String(), imp.Config))
+				continue
+			}
 		}
 	}
 	return
+}
+
+func importConfigGenerationInModuleDiags(addressStr string, config *configs.Import) *hcl.Diagnostic {
+	diag := hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Cannot generate configuration for resource inside sub-module",
+		Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. Configuration generation is only possible for resources in the root module, and not possible for resources in sub-modules.", addressStr),
+	}
+
+	if config != nil {
+		diag.Subject = config.DeclRange.Ptr()
+	}
+
+	return &diag
+}
+
+func importConfigGenerationWithIndexDiags(addressStr string, config *configs.Import) *hcl.Diagnostic {
+	diag := hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Configuration generation for count and for_each resources not supported",
+		Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. Configuration generation is only possible for resources that do not use count or for_each", addressStr),
+	}
+
+	if config != nil {
+		diag.Subject = config.DeclRange.Ptr()
+	}
+
+	return &diag
+}
+
+func importResourceWithoutConfigDiags(addressStr string, config *configs.Import) *hcl.Diagnostic {
+	diag := hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Configuration for import target does not exist",
+		Detail:   fmt.Sprintf("The configuration for the given import %s does not exist. All target instances must have an associated configuration to be imported.", addressStr),
+	}
+
+	if config != nil {
+		diag.Subject = config.DeclRange.Ptr()
+	}
+
+	return &diag
 }
 
 func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {

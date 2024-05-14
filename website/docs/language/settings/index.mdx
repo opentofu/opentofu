@@ -12,7 +12,7 @@ behaviors of OpenTofu itself, such as requiring a minimum OpenTofu version to
 apply your configuration.
 
 :::note
-As a part of [OpenTofu v1.x Compatibility Promises](/docs/language/v1-compatibility-promises),
+As a part of [OpenTofu v1.x Compatibility Promises](../../language/v1-compatibility-promises.mdx),
 the `terraform` block stays as-is. A `tofu` block may be introduced in the future, but it doesn't
 exist yet.
 :::
@@ -41,18 +41,18 @@ following sections.
 The nested `backend` block configures which state backend OpenTofu should use.
 
 The syntax and behavior of the `backend` block is described in [Backend
-Configuration](/docs/language/settings/backends/configuration).
+Configuration](../../language/settings/backends/configuration.mdx).
 
 ## Specifying a Required OpenTofu Version
 
 The `required_version` setting accepts a [version constraint
-string,](/docs/language/expressions/version-constraints) which specifies which versions of OpenTofu
+string,](../../language/expressions/version-constraints.mdx) which specifies which versions of OpenTofu
 can be used with your configuration.
 
 If the running version of OpenTofu doesn't match the constraints specified,
 OpenTofu will produce an error and exit without taking any further actions.
 
-When you use [child modules](/docs/language/modules), each module can specify its own
+When you use [child modules](../../language/modules/index.mdx), each module can specify its own
 version requirements. The requirements of all modules in the tree must be
 satisfied.
 
@@ -63,7 +63,7 @@ a minimum OpenTofu version that has behavior expected by the configuration.
 The `required_version` setting applies only to the version of OpenTofu CLI.
 OpenTofu's resource types are implemented by provider plugins,
 whose release cycles are independent of OpenTofu CLI and of each other.
-Use [the `required_providers` block](/docs/language/providers/requirements) to manage
+Use [the `required_providers` block](../../language/providers/requirements.mdx) to manage
 the expected versions for each provider you use.
 
 ## Specifying Provider Requirements
@@ -83,7 +83,7 @@ terraform {
 }
 ```
 
-For more information, see [Provider Requirements](/docs/language/providers/requirements).
+For more information, see [Provider Requirements](../../language/providers/requirements.mdx).
 
 ## Experimental Language Features
 
@@ -128,4 +128,4 @@ provider a module is using, if the provider defines a schema for it. This
 allows the provider to receive module-specific information, and is primarily
 intended for modules distributed by the same vendor as the associated provider.
 
-For more information, see [Provider Metadata](/docs/internals/provider-meta).
+For more information, see [Provider Metadata](../../internals/provider-meta.mdx).

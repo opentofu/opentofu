@@ -17,7 +17,7 @@ This command is deprecated, we recommend using the `-replace` option with `tofu 
 
 ## Recommended Alternative
 
-We recommend using the [`-replace` option](/docs/cli/commands/plan#replace-address) with `tofu apply` to force OpenTofu to replace an object even though there are no configuration changes that would require it.
+We recommend using the [`-replace` option](../../cli/commands/plan.mdx#replace-address) with `tofu apply` to force OpenTofu to replace an object even though there are no configuration changes that would require it.
 
 ```
 $ tofu apply -replace="aws_instance.example[0]"
@@ -33,7 +33,7 @@ $ tofu taint [options] <address>
 
 The `address` argument is the address of the resource to mark as tainted.
 The address is in
-[the resource address syntax](/docs/cli/state/resource-addressing),
+[the resource address syntax](../../cli/state/resource-addressing.mdx),
 as shown in the output from other commands, such as:
 
 - `aws_instance.foo`
@@ -56,11 +56,11 @@ This command accepts the following options:
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
-For configurations using the [`cloud` backend](/docs/cli/cloud) or the [`remote` backend](/docs/language/settings/backends/remote) only, `tofu taint`
+For configurations using the [`cloud` backend](../../cli/cloud/index.mdx) or the [`remote` backend](../../language/settings/backends/remote.mdx) only, `tofu taint`
 also accepts the option
-[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+[`-ignore-remote-version`](../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
 
 For configurations using
-[the `local` backend](/docs/language/settings/backends/local) only,
+[the `local` backend](../../language/settings/backends/local.mdx) only,
 `tofu taint` also accepts the legacy options
-[`-state`, `-state-out`, and `-backup`](/docs/language/settings/backends/local#command-line-arguments).
+[`-state`, `-state-out`, and `-backup`](../../language/settings/backends/local.mdx#command-line-arguments).

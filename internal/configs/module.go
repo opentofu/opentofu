@@ -442,11 +442,11 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 
 	for _, i := range file.Import {
 		for _, mi := range m.Import {
-			if i.To.Equal(mi.To) {
+			if i.ResolvedTo != nil && mi.ResolvedTo != nil && (*i.ResolvedTo).Equal(*mi.ResolvedTo) {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Duplicate import configuration for %q", i.To),
-					Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", i.To, mi.DeclRange),
+					Summary:  fmt.Sprintf("Duplicate import configuration for %q", *i.ResolvedTo),
+					Detail:   fmt.Sprintf("An import block for the resource %q was already declared at %s. A resource can have only one import block.", *i.ResolvedTo, mi.DeclRange),
 					Subject:  &i.DeclRange,
 				})
 				continue
@@ -459,28 +459,12 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 				Alias:     i.ProviderConfigRef.Alias,
 			})
 		} else {
-			implied, err := addrs.ParseProviderPart(i.To.Resource.Resource.ImpliedProvider())
+			implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
 			if err == nil {
 				i.Provider = m.ImpliedProviderForUnqualifiedType(implied)
 			}
 			// We don't return a diagnostic because the invalid resource name
 			// will already have been caught.
-		}
-
-		// It is invalid for any import block to have a "to" argument matching
-		// any moved block's "from" argument.
-		for _, mb := range m.Moved {
-			// Comparing string serialisations is good enough here, because we
-			// only care about equality in the case that both addresses are
-			// AbsResourceInstances.
-			if mb.From.String() == i.To.String() {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Cannot import to a move source",
-					Detail:   fmt.Sprintf("An import block for ID %q targets resource address %s, but this address appears in the \"from\" argument of a moved block, which is invalid. Please change the import target to a different address, such as the move target.", i.ID, i.To),
-					Subject:  &i.DeclRange,
-				})
-			}
 		}
 
 		m.Import = append(m.Import, i)
