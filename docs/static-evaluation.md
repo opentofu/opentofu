@@ -31,7 +31,7 @@ These Blocks and Attributes are abstract representations of the configuration wh
 
 As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and therefore are stored as an expression for later evaluation.
 
-No evaluation context is built or provided during the entire config loading process.  **Therefore, no functions, locals, or variables may be used when during config loading due to the lack of context.  This limitation is what we wish to resolve**.
+No evaluation context is built or provided during the entire config loading process.  **Therefore, no functions, locals, or variables may be used during config loading due to the lack of context.  This limitation is what we wish to resolve**.
 
 ## Graph Reference Evaluation
 
