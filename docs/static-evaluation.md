@@ -14,32 +14,32 @@ Expression evaluation is currently split up into two stages: config loading and 
 
 During configuration loading, the hcl or json config is pulled apart into Blocks and Attributes. A Block contains Attributes and nested Blocks. Attributes are simply named expressions (`foo = 1 + var.bar` for example).
 
-These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. Depending on the handing of the given block/attribute, either the abstract representation is kept or it is evaluated during the produce a real value for use.
+These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. Depending on the handing of the given block/attribute, either the abstract representation is kept or it is evaluated into a real value for use.
 
-As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and therefore stored as an expression for later evaluation.
+As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and therefore are stored as an expression for later evaluation.
 
 No evaluation context is built or provided during the entire config loading process.  **Therefore, no functions, locals, or variables may be used when during config loading due to the lack of context.  This limitation is what we wish to resolve**.
 
 ## Graph Reference Evaluation
 
-After the config is fully loaded, it is transformed and processed into nodes in a graph. These nodes use the "OpenTofu References" present in their blocks/attributes (which have not yet been evaluated) to build both the dependency edges in the graph, and eventually an evaluation context once those references are available.
+After the config is fully loaded, it is transformed and processed into nodes in a graph. These nodes use the "OpenTofu References" present in their blocks/attributes (the ones not evaluated in config loading) to build both the dependency edges in the graph, and eventually an evaluation context once those references are available.
 
 This theortically simple process is deeply complicated by the module dependency tree and expansion therein. The graph is dynamically modified due to `for_each` and `count` being evaluated as their required references are made available. The majority of the logic in this process exists within the `tofu` and `lang` package and are somewhat tightly coupled.
 
 For example, a module's `for_each` statement may require data from a resource: `for_each = resource.aws_s3_bucket.foo.tags`. Before it could be evaluated, the module must wait for "OpenTofu Resource Reference aws_s3_bucket.foo" to be available. This would be represented as a dependency edge between the module node and the specific resource node. The evaluation context would then include `{"resource": {"aws_s3_bucket": {"foo": {"tags": <provided value>}}}}`.
 
-Note: A common misconception is that modules are "objects". Modules more closely resemble "namespaces" and can circularly reference each other's vars/outputs as long as there is no reference loop.
+Note: A common misconception is that modules are "objects". Modules more closely resemble "namespaces" and can cross reference each other's vars/outputs as long as there is no reference loop.
 
 
 ## Initial implementation
 
-As you can see above: the lack of a building and mananging evaluation contexts during the config loading stage prevents any expressions with references from being evaluation. All that is allowed are primitive types and expressions.
+As you can see above, the lack of a building and mananging evaluation contexts during the config loading stage prevents any expressions with references from being evaluation. Only primitive types and expressions are allowed during that stage.
 
-By introducing the ability to build and manage a evaluation contexts during config loading, we would open up the ability for *certain* references to be evaluated during the config loading process.
+By introducing the ability to build and manage evaluation contexts during config loading, we would open up the ability for *certain* references to be evaluated during the config loading process.
 
 For example, many users expect to be able to use `local` values within `module -> source` to simplify upgrades and DRY up their configuration. This is not currently possible as the value of `module -> source` *must* be known during the config loading stage and can not be deferred until graph evaluation.
 
-By utilizing Traversals/References, we can track what locals and variables are available throughout the config loading process. This will follow a similar patter to the graph reference evaluation (with limitations) and may or may not re-use much of it's code.
+By utilizing Traversals/References, we can track what values are statically known throughout the config loading process. This will follow a similar pattern to the graph reference evaluation (with limitations) and may or may not re-use much of it's code.
 
 When evaluating an Attribute/Block into a value, any missing reference must be properly reported in a way that the user can easily debug and understand. For example, a user may try to use a local that depends on a resource's value in a module's source. The user must then be told that the local can not be used in the module source field as it depends on a resource which is not yet available.  Variables used through the module tree must also be passed with their associated information. In practice this is fairly easy to track and has been prototyped during the exploration of [#1042](https://github.com/opentofu/opentofu/issues/1042).
 
@@ -64,7 +64,7 @@ module "mod" {
 
 As the provider requirements are baked into the module itself, the multiple "instances" don't have any concept of providers per instance. This becomes even more compex when you consider that these providers might be passed through a compex tree of modules before they are directly used.
 
-The logical next step is to perform the module expansion during the config process if the references in the expansion expression are known at that time. This is easier said than done as will be expanded upon below, particularly due to the fact that not all expansion expressions can be evaluated statically and that must continue to be supported.
+The solution proposed is to perform the module expansion during the config process, if the references in the expansion expression are known at that time. This is easier said than done as will be expanded upon below, particularly due to the fact that not all expansion expressions can be evaluated due to references that are not known at config time and that must continue to be supported.
 
 
 ## Plan of Attack
@@ -84,6 +84,7 @@ With this piece by piece approach, we can also add testing before, during, and a
 The OpenTofu core team should be the ones to do the majority of the core implementation and the module expansion work.  If community members are interested, many of the solutions are isolated and well defined enough for them to be worked on indepdently of the core team.
 
 ## Progress Overview:
+- [ ] Plan Approved by Core Team
 - [ ] Core Implementation
   - [ ] Define Static Evaluator Interface
   - [ ] Pick Static Evaluator Approach
@@ -111,11 +112,7 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
   - [ ] Moved blocks
   - [ ] Variables/locals in encryption
 
-
-## Document TODO
-* `package.Structure` should be a link
-* Link solutions in Progress Overview below
-
+(TODO link solutions to lower in the document)
 
 ## Core Implementation:
 
