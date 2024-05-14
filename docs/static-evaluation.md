@@ -41,7 +41,8 @@ This theoretically simple process is deeply complicated by the module dependency
 
 For example, a module's `for_each` statement may require data from a resource: `for_each = resource.aws_s3_bucket.foo.tags`. Before it could be evaluated, the module must wait for "OpenTofu Resource Reference aws_s3_bucket.foo" to be available. This would be represented as a dependency edge between the module node and the specific resource node. The evaluation context would then include `{"resource": {"aws_s3_bucket": {"foo": {"tags": <provided value>}}}}`.
 
-Note: A common misconception is that modules are "objects". Modules more closely resemble "namespaces" and can cross reference each other's vars/outputs as long as there is no reference loop.
+> [!NOTE]
+> A common misconception is that modules are "objects". However, modules more closely resemble "namespaces" and can cross reference each other's vars/outputs as long as there is no reference loop.
 
 
 ## Initial implementation
