@@ -1049,14 +1049,6 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 // getEvalContextFromStates constructs an hcl.EvalContext based on the provided map of
 // TestFileState instances and configuration. It extracts the relevant information from
 // the input parameters to create a context suitable for HCL evaluation.
-//
-// Parameters:
-//   - states: A map of TestFileState instances containing the state information.
-//   - config: The config contains the variable information present in the Module.
-//   - globals: It contains a map of unparsed variable values.
-//
-// Returns:
-//   - *hcl.EvalContext: The constructed HCL evaluation context.
 func getEvalContextFromStates(states map[string]*TestFileState, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	runCtx := make(map[string]cty.Value)

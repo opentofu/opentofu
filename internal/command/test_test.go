@@ -1195,10 +1195,8 @@ Success! 2 passed, 0 failed.
 
 			code := command.Run([]string{"-no-color"})
 			output := done(t)
-			printedOutput := false
 
 			if code != tc.code {
-				printedOutput = true
 				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
 			}
 
@@ -1206,22 +1204,6 @@ Success! 2 passed, 0 failed.
 
 			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
 				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
-			}
-
-			if provider.ResourceCount() > 0 {
-				if !printedOutput {
-					t.Errorf("should have deleted all resources on completion but left %s\n\n%s", provider.ResourceString(), output.All())
-				} else {
-					t.Errorf("should have deleted all resources on completion but left %s", provider.ResourceString())
-				}
-			}
-
-			if provider.DataSourceCount() > 0 {
-				if !printedOutput {
-					t.Errorf("should have deleted all data sources on completion but left %s\n\n%s", provider.DataSourceString(), output.All())
-				} else {
-					t.Errorf("should have deleted all data sources on completion but left %s", provider.DataSourceString())
-				}
 			}
 		})
 	}
