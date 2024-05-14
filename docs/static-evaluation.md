@@ -1,6 +1,19 @@
 # Implementing Init-time static evaluation of constant variables and locals
 
-As initially described in https://github.com/opentofu/opentofu/issues/1042, many users of OpenTofu are expect to be able to use variables and locals in a variety of locations that are currently not supported. To understand why this is, we need to peek under the hood and understand how and why OpenTofu evaluates expressions in configuration.
+As initially described in https://github.com/opentofu/opentofu/issues/1042, many users of OpenTofu expect to be able to use variables and locals in a variety of locations that are currently not supported.
+
+```hcl
+variable "accesskey" {
+}
+
+terraform {
+  backend "somebackend" {
+    accesskey = var.accesskey
+  }
+}
+```
+
+To understand why this is, we need to peek under the hood and understand how and why OpenTofu evaluates expressions in configuration.
 
 ## Expressions
 
