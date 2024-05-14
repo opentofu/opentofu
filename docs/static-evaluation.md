@@ -85,7 +85,7 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
 
 ## Progress Overview:
 - [ ] Plan Approved by Core Team
-- [ ] Core Implementation
+- [ ] [Core Implementation](#core-implementation)
   - [ ] Define Static Evaluator Interface
   - [ ] Pick Static Evaluator Approach
   - [ ] Implement Static Evaluator
@@ -116,20 +116,20 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
 
 ## Core Implementation:
 
-### Overview of original process and structures
+Before implementation starts, the current config loading / graph process must be well understood by all developers working on it.
 
-Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified):
-* A command in the command package parses the configuration in the current directory
-  - The module's configuration is loaded into `configs.ModuleFile` structures
-    - hcl fields like `module.source` and `backend.configuration` are evaluated without any eval context (no vars, funcs)
-    - config items are validated (which should not be done here, see #1467)
-  - `configs.ModuleFile` structures are merged into configs.Module using various rules
-  - `configs.Module` is used to build config.Config which represents the module and it's location within the module config tree
-  - `configs.Module.ModuleCalls` are iterated through to recursively pull in modules using the same procedure.
-* The command constructs a backend from the configuration
-* The command executes the operation using the backend and the configuration
-  - The `configs.Config` module tree is walked and used to build a basic graph
-  - The graph is transformed and linked based on references detected between nodes
+Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified pseudocode):
+* A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/init.go#L193) in the command package [parses the configuration in the current directory](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config_dir.go#L41-L58)
+  - [The module's configuration is loaded](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config.go#L54) into [configs.File](https://github.com/opentofu/opentofu/blob/290fbd6/internal/configs/module.go#L76) structures
+    - Fields like [module -> source](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L79) are evaluated without a evaluation context (nil)
+    - config items are [validated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L145-L150) (which should not be done here, see [#1467](https://github.com/opentofu/opentofu/issues/#1467))
+  - `configs.File` [structures used to create](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L122) a [configs.Module](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L22) using [various rules](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L205)
+  - `configs.Module` is [used to build](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L173) a [config.Config](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L30) which represents the [module](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L57) and it's [location](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L48) within the module [config tree](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L53)
+  - [configs.Module.ModuleCalls](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L20) are iterated through to [recursively pull in modules using the same procedure](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L118)
+* The command [constructs a backend](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L111) from the configuration
+* The command executes the [operation](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L119) using the (backend and the configuration)[https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L135]
+  - The `configs.Config` module tree is [walked and used to populate a basic graph](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_config.go#L16-L27)
+  - The graph is [transformed and linked based on references detected between nodes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L119)
   - The graph is evaluated by walking each node after it's dependencies have been evaluated.
 
 ### Config loading
