@@ -47,7 +47,7 @@ For example, a module's `for_each` statement may require data from a resource: `
 
 ## Initial implementation
 
-As you can see above, the lack of a building and managing evaluation contexts during the config loading stage prevents any expressions with references from being evaluation. Only primitive types and expressions are allowed during that stage.
+As you can see above, the lack of a building and managing evaluation contexts during the config loading stage prevents any expressions with references from being evaluated. Only primitive types and expressions are allowed during that stage.
 
 By introducing the ability to build and manage evaluation contexts during config loading, we would open up the ability for *certain* references to be evaluated during the config loading process.
 
