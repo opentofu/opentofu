@@ -33,7 +33,7 @@ Note: A common misconception is that modules are "objects". Modules more closely
 
 ## Initial implementation
 
-As you can see above, the lack of a building and mananging evaluation contexts during the config loading stage prevents any expressions with references from being evaluation. Only primitive types and expressions are allowed during that stage.
+As you can see above, the lack of a building and managing evaluation contexts during the config loading stage prevents any expressions with references from being evaluation. Only primitive types and expressions are allowed during that stage.
 
 By introducing the ability to build and manage evaluation contexts during config loading, we would open up the ability for *certain* references to be evaluated during the config loading process.
 
@@ -62,7 +62,7 @@ module "mod" {
 }
 ```
 
-As the provider requirements are baked into the module itself, the multiple "instances" don't have any concept of providers per instance. This becomes even more compex when you consider that these providers might be passed through a compex tree of modules before they are directly used.
+As the provider requirements are baked into the module itself, the multiple "instances" don't have any concept of providers per instance. This becomes even more complex when you consider that these providers might be passed through a complex tree of modules before they are directly used.
 
 The solution proposed is to perform the module expansion during the config process, if the references in the expansion expression are known at that time. This is easier said than done as will be expanded upon below, particularly due to the fact that not all expansion expressions can be evaluated due to references that are not known at config time and that must continue to be supported.
 
@@ -71,7 +71,7 @@ The solution proposed is to perform the module expansion during the config proce
 
 Between the initial implementation, the solutions, and the expansion, we are talking about a significant amount of work likely spread across multiple releases.
 
-We can not take the approach of hacking on a feature branch for months or frezing all related code. It's unrealistic and unfair to other developers.
+We can not take the approach of hacking on a feature branch for months or freezing all related code. It's unrealistic and unfair to other developers.
 
 Instead, we can break this work into smaller discrete and testable components, some of which may be easy to work on in parallel.
 
@@ -81,7 +81,7 @@ Additionally, the module iteration work can likely be broken into stages, implem
 
 With this piece by piece approach, we can also add testing before, during, and after each component is added/modified.
 
-The OpenTofu core team should be the ones to do the majority of the core implementation and the module expansion work.  If community members are interested, many of the solutions are isolated and well defined enough for them to be worked on indepdently of the core team.
+The OpenTofu core team should be the ones to do the majority of the core implementation and the module expansion work.  If community members are interested, many of the solutions are isolated and well defined enough for them to be worked on independently of the core team.
 
 ## Progress Overview:
 - [ ] Plan Approved by Core Team
@@ -116,9 +116,11 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
 
 ## Core Implementation:
 
-Before implementation starts, the current config loading / graph process must be well understood by all developers working on it.
+Before implementation starts, the relevant parts of the current config loading / graph process must be well understood by all developers working on it.
 
-Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified pseudocode):
+### Current Design / Workflow
+
+Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified):
 * A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/init.go#L193) in the command package [parses the configuration in the current directory](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config_dir.go#L41-L58)
   - [The module's configuration is loaded](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config.go#L54) into [configs.File](https://github.com/opentofu/opentofu/blob/290fbd6/internal/configs/module.go#L76) structures
     - Fields like [module -> source](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L79) are evaluated without a evaluation context (nil)
@@ -130,7 +132,9 @@ Performing an action in OpenTofu (init/plan/apply/etc...) takes the following st
 * The command executes the [operation](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L119) using the (backend and the configuration)[https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L135]
   - The `configs.Config` module tree is [walked and used to populate a basic graph](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_config.go#L16-L27)
   - The graph is [transformed and linked based on references detected between nodes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L119)
-  - The graph is evaluated by walking each node after it's dependencies have been evaluated.
+    - Node dependencies are determined by inspecting [blocks](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L584) and [attributes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/node_resource_abstract.go#L159)
+      - The blocks and attributes are are [turned into references](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/lang/references.go#L56) in the lang package
+  - The graph is [evaluated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L86) by [walking each node](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L43) after it's dependencies have been evaluated.
 
 ### Config loading
 
