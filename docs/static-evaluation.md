@@ -63,7 +63,7 @@ Implementing this initial concept will allow many of the Solutions below to be f
 
 The concepts of `for_each` and `count` were grafted on to the codebase in a way that has added significant complexity and limitations. When a module block contains a `for_each` or `count` all of the nodes (resources/variables/locals/etc...) will be created multiple times, one copy per "instance".
 
-One common example is using different providers for different module instances:
+One common example of a limitation would be to use different providers for different module instances:
 ```hcl
 # main.tf
 module "mod" {
