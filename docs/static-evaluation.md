@@ -110,7 +110,9 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
   - [ ] Implement Static Evaluator
   - [ ] Wire Static Evaluator through the config package
   - [ ] Implement one of the simple solutions to validate
-- [ ] [Module Iteration](static-module-expansion.md)
+- [ ] [Static Module Expansion](static-module-expansion.md)
+  - [ ] Figure out if we need static module expansion
+  - [ ] If so, decide on when we would plan on implementing it
   - [ ] Decide on addressing approach (Module vs ModuleInstance)
   - [ ] Apply addressing approach to different components
     - [ ] Setup code to support translating between current and new approach
@@ -223,17 +225,142 @@ This will need to be investigated and roughly prototyped, but all solutions shou
 
 ## Solutions
 ### Module Sources
-Module sources must be known at init time as they are downloaded and coalated into .terraform/modules. This can be implemented by inspecting the source hcl.Expression using the static evaluator scoped to the current module.
+Module sources must be known at init time as they are downloaded and collated into .terraform/modules. This can be implemented by inspecting the source hcl.Expression using the static evaluator scoped to the current module.
 
-This is relatively straight forward once the core is implemented, but will require some more in-depth changes to support for_each/count later on.  TODO more details from the later prototypes.
+This is relatively straight forward once the core is implemented, but will require some more in-depth changes to support for_each/count later on.
 
-### Module Provider Mappings
-
-Not yet investigated in depth.  Syntax is up for debate.
+**TODO more details from the later prototypes.**
 
 ### Provider Iteration
 
-Should be fairly straight forward to implement once the core is in, but is linked to module provider mappings in deciding the syntax.
+In [#300](https://github.com/opentofu/opentofu/issues/300), users describe how supporting for_each for configuring providers will allow much DRYer and simpler configurations.
+
+#### Provider Addresses and Configuration
+
+Providers may be required two different ways:
+* Defining required_providers in the terraform {} block (current way)
+* Adding a provider "provider name" {} block (legacy, does not support namespaces / hosts)
+
+Providers may also have configured instances with optional aliases.
+
+Example:
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+provider "aws" {
+  alias = "us"
+  region = "us-east-1"
+}
+provider "aws" {
+  alias = "eu"
+  region = "eu-west-1"
+}
+```
+
+This technically defines three provider addresses that may be used in the configuration:
+* `aws` - the unconfigured aws provider, not really useful
+* `aws.us` - a configured aws provider with an alias of `us`
+* `aws.eu` - a configured aws provider with an alias of `eu`
+
+All of these identifiers are valid entries in the `resource -> provider` field and the `module -> providers` mapping.
+
+Providers also may supply functions, either unconfigured or configured.
+* `providers::aws::arn_parse(var.arn)`
+* `providers::aws::us::arn_parse(var.arn)`
+
+Also worth noting is that `addrs.Provider` should probably be named `addrs.ProviderSource` as it contains type, namespace, and hostname only.
+
+#### Provider Workflow
+
+When `config.Module` is built from `config.Files`, each module maintains:
+* ProviderConfigs: map of `provider_name.provider_alias -> config.Provider` from `provider blocks` in the parsed config
+* ProviderRequirements: map of `provider_name -> config.RequiredProvider` from `terraform -> required_providers`
+* ProviderLocalNames: map of `addrs.Provider -> provider_name`
+* ProviderMetas: Explanation TODO
+
+The full list of required provider types is collated, downloaded and cached in the .terraform directory during init.
+
+Providers are then added to the graph in a few transformers:
+* ProviderConfigTransformer: Adds configured providers to the graph
+* MissingProviderTransformer: Adds unconfigured but required providers to the graph
+* ProviderTransformer: Links provider nodes to self reported nodes that require them
+* ProviderFunctionTransformer: Links provider nodes to other nodes by inspecting their "OpenTofu Function References"
+* ProviderPruneTransformer: Removes provider nodes that are not in use by other nodes
+
+Providers are then managed and scoped by the EvalContextBuiltin where the actual `provider.Interface`s are created and attached to resources.
+
+
+#### Proposed Changes
+
+The first change is to support static variables in the provider config block.  This can then be extended to support for_each/count and be expanded at the end of the `config.NewModule()` function, similar to how module.ProviderLocalNames is generated.  This piece is fairly straightforward and can be done relatively easily.
+
+The next step is to support provider aliases indexed by an expression, which is quite a bit trickier.
+Example:
+```hcl
+locals {
+  regions = {"us": "us-east-1", "eu": "eu-west-1"}
+}
+
+
+provider "aws" {
+  for_each = local.regions
+  alias = each.key
+  region = each.value
+}
+
+resource "aws_s3_bucket" "primary" {
+  for_each = local.regions
+  provider = provider.aws[each.key]
+}
+
+module "mod" {
+  source = "./mod"
+  providers {
+    aws = provider.aws[each.key]
+  }
+}
+```
+
+As you can see, the `provider.name[alias]` form is introduced in that example.  This allows providers named "local" or other conflicting names, and clearly shows that it's referencing a particular instance of a given type.
+
+At this point, we don't have a clear path to implementation, but we can enumerate some of the challenges that are faced:
+
+* Introducing an alternate provider address method and updating documentation
+* Provider mappings are hard-coded at config load time on an *unexpanded* view of the config/graph structures
+* Provider configurations are pruned during graph processing
+
+
+There are two main approaches that come to mind here:
+* Go the route of expanded modules/resources as detailed in [Static Module Expansion](static-module-expansion.md)
+  - Concept has been explored for modules
+  - Not yet explored for resources
+* Make the provider reference system a bit looser until the point in which it's actually needed
+  - The main challenge is the convoluted reference system and graph transforms built around it.
+  - An *unexpanded* module or resource could depend on a set of providers
+    - The for_each/count values would be known and could be used to determine the configured instances required
+  - Expanded modules/resources could then refer to individual instances of the providers required by the unexpanded parent.
+
+
+
+#### Questions
+
+Is there a scenario in which it would make sense to pass a map of providers into a module?  Is that worth considering as part of this work?
+
+Should variables be allowed in required_providers now or in the future?  Could help with versioning / swapping out for testing?
+
+In #300, there's also a discussion on allowing variable names in provider aliases.
+Example:
+```
+# Why would you want to do this?  It looks like terraform deprecated this some time after 0.11.
+provider "aws" {
+  alias = var.foo
+}
+```
 
 ### Backend Configuration
 
