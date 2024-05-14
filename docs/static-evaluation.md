@@ -21,7 +21,7 @@ The evaluation of expressions (`1 + var.bar` for example) depends on required va
 
 Once you know what the requirements are for an expression (`hcl.Expression`), you can build up an evaluation context (`hcl.EvalContext`) to provide those requirements or return an error.  In the above example, the evaluation context would include `{"var": {"bar": <somevalue>}`.
 
-Expression evaluation is currently split up into two stages: config loading and reference evaluation
+Expression evaluation is currently split up into two stages: config loading and graph reference evaluation
 
 ## Config Loading
 
