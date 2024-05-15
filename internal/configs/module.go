@@ -61,7 +61,7 @@ type Module struct {
 
 	Tests map[string]*TestFile
 
-	// IsOverridden indicates if the module is being overriden. It's used in
+	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
 	IsOverridden bool
 }

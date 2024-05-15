@@ -63,11 +63,11 @@ type TestFile struct {
 	// order.
 	Runs []*TestRun
 
-	// OverrideResources is a list of resources to be overriden with static values.
-	// Underlying providers shouldn't be called for overriden resources.
+	// OverrideResources is a list of resources to be overridden with static values.
+	// Underlying providers shouldn't be called for overridden resources.
 	OverrideResources []*OverrideResource
 
-	// OverrideModules is a list of modules to be overriden with static values.
+	// OverrideModules is a list of modules to be overridden with static values.
 	// Underlying modules shouldn't be called.
 	OverrideModules []*OverrideModule
 
@@ -147,11 +147,11 @@ type TestRun struct {
 	// run.
 	ExpectFailures []hcl.Traversal
 
-	// OverrideResources is a list of resources to be overriden with static values.
-	// Underlying providers shouldn't be called for overriden resources.
+	// OverrideResources is a list of resources to be overridden with static values.
+	// Underlying providers shouldn't be called for overridden resources.
 	OverrideResources []*OverrideResource
 
-	// OverrideModules is a list of modules to be overriden with static values.
+	// OverrideModules is a list of modules to be overridden with static values.
 	// Underlying modules shouldn't be called.
 	OverrideModules []*OverrideModule
 
@@ -228,7 +228,7 @@ type TestRunOptions struct {
 	DeclRange hcl.Range
 }
 
-// OverrideResource contains information about a resource or data block to be overriden.
+// OverrideResource contains information about a resource or data block to be overridden.
 type OverrideResource struct {
 	// Target references resource or data block to override.
 	Target       hcl.Traversal
@@ -254,7 +254,7 @@ func (r OverrideResource) getBlockName() string {
 	}
 }
 
-// OverrideModule contains information about a module to be overriden.
+// OverrideModule contains information about a module to be overridden.
 type OverrideModule struct {
 	// Target references module call to override.
 	Target       hcl.Traversal

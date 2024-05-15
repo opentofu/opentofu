@@ -407,7 +407,7 @@ type Output struct {
 
 	DeclRange hcl.Range
 
-	// IsOverridden indicates if the output is being overriden. It's used in
+	// IsOverridden indicates if the output is being overridden. It's used in
 	// testing framework to not evaluate expression and use OverrideValue instead.
 	IsOverridden bool
 	// OverrideValue is only valid if IsOverridden is set to true. The value

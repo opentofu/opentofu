@@ -217,7 +217,7 @@ func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdi
 			}
 
 			// empty non-root modules are removed normally,
-			// but if the module is being overriden, it should be kept
+			// but if the module is being overridden, it should be kept
 			if len(mod.Resources) == 0 && !mod.Addr.IsRoot() && !n.IsOverridden(mod.Addr.Module()) {
 				delete(state.Modules, modKey)
 			}

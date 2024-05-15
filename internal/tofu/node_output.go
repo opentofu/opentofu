@@ -345,7 +345,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 	// known, then we need to re-evaluate the output
 	if !changeRecorded || !val.IsWhollyKnown() {
 		switch {
-		// If the module is not being overriden, we proceed normally
+		// If the module is not being overridden, we proceed normally
 		case !n.Config.IsOverridden:
 			// This has to run before we have a state lock, since evaluation also
 			// reads the state
@@ -353,12 +353,12 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 			val, evalDiags = ctx.EvaluateExpr(n.Config.Expr, cty.DynamicPseudoType, nil)
 			diags = diags.Append(evalDiags)
 
-		// If the module is being overriden and we have a value to use,
+		// If the module is being overridden and we have a value to use,
 		// we just use it
 		case n.Config.OverrideValue != nil:
 			val = *n.Config.OverrideValue
 
-		// If the module is being overriden, but we don't have any value to use,
+		// If the module is being overridden, but we don't have any value to use,
 		// we just set it to null
 		default:
 			val = cty.NilVal

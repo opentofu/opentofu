@@ -430,7 +430,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 
 	var resp providers.PlanResourceChangeResponse
 
-	// If the resource is not being overriden, we proceed normally
+	// If the resource is not being overridden, we proceed normally
 	if n.Config == nil || !n.Config.IsOverridden {
 		// Allow the provider to check the destroy plan, and insert any necessary
 		// private data.
@@ -443,7 +443,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 			ProviderMeta:     metaConfigVal,
 		})
 	} else {
-		// If the resource is overriden we don't want to call the underlying provider.
+		// If the resource is overridden we don't want to call the underlying provider.
 		resp = providers.PlanResourceChangeResponse{
 			PlannedState: nullVal,
 		}
@@ -611,11 +611,11 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 
 	var resp providers.ReadResourceResponse
 
-	// If the resource is not being overriden, we proceed normally
+	// If the resource is not being overridden, we proceed normally
 	if n.Config == nil || !n.Config.IsOverridden {
 		resp = provider.ReadResource(providerReq)
 	} else {
-		// If the resource is overriden we don't want to call the underlying provider.
+		// If the resource is overridden we don't want to call the underlying provider.
 		resp.NewState, resp.Diagnostics = composeMockValueBySchema(schema, metaConfigVal, n.Config.OverrideValues)
 	}
 
@@ -859,7 +859,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		})
 	} else {
 		if plannedChange == nil {
-			// If the resource is overriden we don't want to call the underlying provider.
+			// If the resource is overridden we don't want to call the underlying provider.
 			resp.PlannedState, resp.Diagnostics = composeMockValueBySchema(schema, unmarkedConfigVal, config.OverrideValues)
 		} else {
 			// We already composed mock value previously, so we can just use it.
@@ -1093,7 +1093,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		// create a new proposed value from the null state and the config
 		proposedNewVal = objchange.ProposedNew(schema, nullPriorVal, unmarkedConfigVal)
 
-		// If the resource is not being overriden, we proceed normally
+		// If the resource is not being overridden, we proceed normally
 		if !config.IsOverridden {
 			resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
 				TypeName:         n.Addr.Resource.Resource.Type,
@@ -1104,7 +1104,7 @@ func (n *NodeAbstractResourceInstance) plan(
 				ProviderMeta:     metaConfigVal,
 			})
 		} else {
-			// If the resource is overriden we don't want to call the underlying provider.
+			// If the resource is overridden we don't want to call the underlying provider.
 			resp.PlannedState, resp.Diagnostics = composeMockValueBySchema(schema, unmarkedConfigVal, config.OverrideValues)
 		}
 		// We need to tread carefully here, since if there are any warnings
@@ -1530,7 +1530,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 	} else if !config.IsOverridden {
 		resp = provider.ReadDataSource(req)
 	} else {
-		// If the resource is overriden we don't want to call the underlying provider.
+		// If the resource is overridden we don't want to call the underlying provider.
 		resp.State, resp.Diagnostics = composeMockValueBySchema(schema, configVal, n.Config.OverrideValues)
 	}
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
@@ -2376,7 +2376,7 @@ func (n *NodeAbstractResourceInstance) apply(
 
 	var resp providers.ApplyResourceChangeResponse
 
-	// If the resource is not being overriden, we proceed normally
+	// If the resource is not being overridden, we proceed normally
 	if n.Config == nil || !n.Config.IsOverridden {
 		resp = provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
 			TypeName:       n.Addr.Resource.Resource.Type,
@@ -2387,7 +2387,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			ProviderMeta:   metaConfigVal,
 		})
 	} else {
-		// If the resource is overriden we don't want to call the underlying provider.
+		// If the resource is overridden we don't want to call the underlying provider.
 		resp.NewState = unmarkedAfter
 	}
 
