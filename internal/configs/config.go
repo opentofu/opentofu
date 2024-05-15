@@ -1113,11 +1113,11 @@ func (c *Config) transformOverriddenModulesForTest(run *TestRun, file *TestFile)
 }
 
 func mergeOverriddenResources(runResources, fileResources []*OverrideResource) ([]*OverrideResource, hcl.Diagnostics) {
-	// runAddrs is a unique set of resource addresses in run block.
+	// resAddrsInRun is a unique set of resource addresses in run block.
 	// It's already validated for duplicates previously.
-	runAddrs := make(map[string]struct{})
+	resAddrsInRun := make(map[string]struct{})
 	for _, r := range runResources {
-		runAddrs[r.TargetParsed.String()] = struct{}{}
+		resAddrsInRun[r.TargetParsed.String()] = struct{}{}
 	}
 
 	var diags hcl.Diagnostics
@@ -1128,7 +1128,7 @@ func mergeOverriddenResources(runResources, fileResources []*OverrideResource) (
 
 		// Run and file override resources could have overlap
 		// so we warn user and proceed with the definition from the smaller scope.
-		if _, ok := runAddrs[addr]; ok {
+		if _, ok := resAddrsInRun[addr]; ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  fmt.Sprintf("Multiple `%v` blocks for the same address", r.getBlockName()),
@@ -1145,11 +1145,11 @@ func mergeOverriddenResources(runResources, fileResources []*OverrideResource) (
 }
 
 func mergeOverriddenModules(runModules, fileModules []*OverrideModule) ([]*OverrideModule, hcl.Diagnostics) {
-	// runAddrs is a unique set of module addresses in run block.
+	// modAddrsInRun is a unique set of module addresses in run block.
 	// It's already validated for duplicates previously.
-	runAddrs := make(map[string]struct{})
+	modAddrsInRun := make(map[string]struct{})
 	for _, m := range runModules {
-		runAddrs[m.TargetParsed.String()] = struct{}{}
+		modAddrsInRun[m.TargetParsed.String()] = struct{}{}
 	}
 
 	var diags hcl.Diagnostics
@@ -1160,7 +1160,7 @@ func mergeOverriddenModules(runModules, fileModules []*OverrideModule) ([]*Overr
 
 		// Run and file override modules could have overlap
 		// so we warn user and proceed with the definition from the smaller scope.
-		if _, ok := runAddrs[addr]; ok {
+		if _, ok := modAddrsInRun[addr]; ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  "Multiple `override_module` blocks for the same address",
