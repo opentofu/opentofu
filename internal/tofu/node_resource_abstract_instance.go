@@ -2723,17 +2723,6 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 			hasConfigVal = false
 		}
 
-		// I may be wrong but I think there is no need to generate mock value
-		// for optional blocks that are not present in user configuration.
-		// It could be the case for required (by the provider logic) computed fields
-		// inside such optional blocks, but for mocking purposes it's unnecessary.
-		// So we provide an empty value if it's not present in configuration instead
-		// of generating a mocked one.
-		if !hasConfigVal {
-			mockValue[k] = block.EmptyValue()
-			continue
-		}
-
 		defaultVal, hasDefaultVal := defaults[k]
 		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
 			hasDefaultVal = false
@@ -2742,6 +2731,22 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 				fmt.Sprintf("Ignored mock/override field `%v`", k),
 				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
 			))
+		}
+
+		// We must keep blocks the same as it defined in configuration,
+		// so provider response validation succeeds later.
+		if !hasConfigVal {
+			mockValue[k] = block.EmptyValue()
+
+			if hasDefaultVal {
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Warning,
+					fmt.Sprintf("Ignored mock/override field `%v`", k),
+					"Cannot overridde block value, because it's not present in configuration.",
+				))
+			}
+
+			continue
 		}
 
 		// Code below uses an object from the defaults (overrides)
