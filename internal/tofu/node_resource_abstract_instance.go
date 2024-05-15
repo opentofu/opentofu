@@ -2667,10 +2667,9 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 
 	}
 
-	attributeTypes := schema.ImpliedType().AttributeTypes()
+	impliedTypes := schema.ImpliedType().AttributeTypes()
 
-	// We are iterating over provided schema types to populate resulting value.
-	for k, t := range attributeTypes {
+	for k, attr := range schema.Attributes {
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
 			mockValue[k] = cv
@@ -2680,16 +2679,9 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 
 		// Non-computed attributes can't be generated
 		// so we set them from configuration only.
-		if attr, ok := schema.Attributes[k]; ok && !attr.Computed {
+		if !attr.Computed {
 			mockValue[k] = cty.NullVal(attr.Type)
 			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields not allowed.")
-			continue
-		}
-
-		// Optional blocks shouldn't be populated with mock values.
-		if block, ok := schema.BlockTypes[k]; ok && block.MinItems == 0 && block.MaxItems == 0 {
-			mockValue[k] = block.EmptyValue()
-			addPotentialDefaultsWarning(k, "The field is ignored since overriding optional blocks not allowed.")
 			continue
 		}
 
@@ -2701,7 +2693,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		}
 
 		// If there's no value in defaults, we generate our own.
-		v, ok := mvc.getMockValueByType(t)
+		v, ok := mvc.getMockValueByType(impliedTypes[k])
 		if !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
@@ -2714,8 +2706,108 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		mockValue[k] = v
 	}
 
+	for k, block := range schema.BlockTypes {
+		// Checking if the config value really present for the block.
+		// It should be non-null and non-empty collection.
+
+		configVal, hasConfigVal := configMap[k]
+		if hasConfigVal && configVal.IsNull() {
+			hasConfigVal = false
+		}
+
+		if hasConfigVal && !configVal.IsKnown() {
+			hasConfigVal = false
+		}
+
+		if hasConfigVal && (!configVal.Type().IsCollectionType() || configVal.LengthInt() == 0) {
+			hasConfigVal = false
+		}
+
+		// I may be wrong but I think there is no need to generate mock value
+		// for optional blocks that are not present in user configuration.
+		// It could be the case for required (by the provider logic) computed fields
+		// inside such optional blocks, but for mocking purposes it's unnecessary.
+		// So we provide an empty value if it's not present in configuration instead
+		// of generating a mocked one.
+		if !hasConfigVal {
+			mockValue[k] = block.EmptyValue()
+			continue
+		}
+
+		defaultVal, hasDefaultVal := defaults[k]
+		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
+			hasDefaultVal = false
+			diags = diags.Append(tfdiags.WholeContainingBody(
+				tfdiags.Warning,
+				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
+			))
+		}
+
+		// Code below uses an object from the defaults (overrides)
+		// to compose each value from the block's inner collection. It recursevily calls
+		// composeMockValueBySchema to proceed with all the inner attributes and blocks
+		// the same way so all the nested blocks follow the same logic.
+
+		var blockDefaults map[string]cty.Value
+
+		if hasDefaultVal {
+			blockDefaults = defaultVal.AsValueMap()
+		}
+
+		var iterator = configVal.ElementIterator()
+
+		switch t := impliedTypes[k]; {
+		case t.ListElementType() != nil || t.SetElementType() != nil:
+			var mockBlockVals []cty.Value
+
+			for iterator.Next() {
+				_, blockConfigV := iterator.Element()
+
+				mockBlockVal, moreDiags := mvc.composeMockValueBySchema(&block.Block, blockConfigV, blockDefaults)
+				diags = diags.Append(moreDiags)
+				if moreDiags.HasErrors() {
+					return cty.NilVal, diags
+				}
+
+				mockBlockVals = append(mockBlockVals, mockBlockVal)
+			}
+
+			if t.ListElementType() != nil {
+				mockValue[k] = cty.ListVal(mockBlockVals)
+			} else {
+				mockValue[k] = cty.SetVal(mockBlockVals)
+			}
+
+		case t.MapElementType() != nil:
+			var mockBlockVals = make(map[string]cty.Value)
+
+			for iterator.Next() {
+				blockConfigK, blockConfigV := iterator.Element()
+
+				mockBlockVal, moreDiags := mvc.composeMockValueBySchema(&block.Block, blockConfigV, blockDefaults)
+				diags = diags.Append(moreDiags)
+				if moreDiags.HasErrors() {
+					return cty.NilVal, diags
+				}
+
+				mockBlockVals[blockConfigK.AsString()] = mockBlockVal
+			}
+
+			mockValue[k] = cty.MapVal(mockBlockVals)
+
+		default:
+			// Shouldn't happen as long as blocks are represented by lists / maps / sets only.
+			return cty.NilVal, diags.Append(tfdiags.WholeContainingBody,
+				tfdiags.Error,
+				fmt.Sprintf("Unexpected block type: %v", t.FriendlyName()),
+				"Failed to generate mock value for this block type. Please, report it as an issue at OpenTofu repository, since it's not expected.",
+			)
+		}
+	}
+
 	for k := range defaults {
-		if _, ok := attributeTypes[k]; !ok {
+		if _, ok := impliedTypes[k]; !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Warning,
 				fmt.Sprintf("Ignored mock/override field `%v`", k),
