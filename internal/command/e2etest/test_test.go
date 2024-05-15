@@ -53,6 +53,10 @@ func TestMultipleRunBlocks(t *testing.T) {
 }
 
 func TestOverrides(t *testing.T) {
+
+	// This test fetches local provider for creating files.
+	skipIfCannotAccessNetwork(t)
+
 	tf := e2e.NewBinary(t, tofuBin, filepath.Join("testdata", "overrides-in-tests"))
 
 	stdout, stderr, err := tf.Run("init")
