@@ -2719,7 +2719,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 			hasConfigVal = false
 		}
 
-		if hasConfigVal && (!configVal.Type().IsCollectionType() || configVal.LengthInt() == 0) {
+		if hasConfigVal && configVal.Type().IsCollectionType() && configVal.LengthInt() == 0 {
 			hasConfigVal = false
 		}
 
@@ -2755,11 +2755,20 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 			blockDefaults = defaultVal.AsValueMap()
 		}
 
-		var iterator = configVal.ElementIterator()
-
 		switch t := impliedTypes[k]; {
+		case t.IsObjectType():
+			mockBlockVal, moreDiags := mvc.composeMockValueBySchema(&block.Block, configVal, blockDefaults)
+			diags = diags.Append(moreDiags)
+			if moreDiags.HasErrors() {
+				return cty.NilVal, diags
+			}
+
+			mockValue[k] = mockBlockVal
+
 		case t.ListElementType() != nil || t.SetElementType() != nil:
 			var mockBlockVals []cty.Value
+
+			var iterator = configVal.ElementIterator()
 
 			for iterator.Next() {
 				_, blockConfigV := iterator.Element()
@@ -2782,6 +2791,8 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		case t.MapElementType() != nil:
 			var mockBlockVals = make(map[string]cty.Value)
 
+			var iterator = configVal.ElementIterator()
+
 			for iterator.Next() {
 				blockConfigK, blockConfigV := iterator.Element()
 
@@ -2797,12 +2808,12 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 			mockValue[k] = cty.MapVal(mockBlockVals)
 
 		default:
-			// Shouldn't happen as long as blocks are represented by lists / maps / sets only.
-			return cty.NilVal, diags.Append(tfdiags.WholeContainingBody,
+			// Shouldn't happen as long as blocks are represented by lists / maps / sets / objs.
+			return cty.NilVal, diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
 				fmt.Sprintf("Unexpected block type: %v", t.FriendlyName()),
 				"Failed to generate mock value for this block type. Please, report it as an issue at OpenTofu repository, since it's not expected.",
-			)
+			))
 		}
 	}
 
