@@ -120,20 +120,16 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
     - [ ] Refactor Graph/Nodes (and dependencies)
     - [ ] Refactor Configs
   - [ ] Wire in module for_each and count static expansion
-- [ ] Solutions
-  - [ ] Module Sources
+- [ ] [Solutions](#static-context-design)
+  - [ ] [Module Sources](#module-sources)
   - [ ] Module Sources with Iteration
-  - [ ] Module Provider Mappings
-  - [ ] Module Provider Mappings with Iteration
-  - [ ] Provider Iteration
-  - [ ] Backend Configuration
-  - [ ] Lifecycle Attributes
-  - [ ] Variable defaults/validation?
-  - [ ] Provisioners
-  - [ ] Moved blocks
+  - [ ] [Provider Iteration](#provider-iteration)
+  - [ ] [Backend Configuration](#backend-configuration)
+  - [ ] [Lifecycle Attributes](#lifecycle-attributes)
+  - [ ] [Variable defaults/validation?](#variable-defaultsvalidation)
+  - [ ] [Provisioners](#provisioners)
+  - [ ] [Moved blocks](#moved-blocks)
   - [ ] Variables/locals in encryption
-
-(TODO link solutions to lower in the document)
 
 ## Core Implementation:
 
