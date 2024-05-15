@@ -4942,7 +4942,7 @@ import {
 		},
 		{
 			Description:   "for_each expression is null",
-			expectedError: "Invalid for_each argument: The given \"for_each\" argument value is unsuitable: the given \"for_each\" argument value is null. A map, set of strings, or a tuple is allowed.",
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A map, set of strings, or a tuple is allowed.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -4963,7 +4963,7 @@ import {
 		},
 		{
 			Description:   "for_each value is unknown",
-			expectedError: "Invalid import id argument: The import block \"id\" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.",
+			expectedError: `Invalid import id argument: The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -4989,7 +4989,7 @@ import {
 		},
 		{
 			Description:   "for_each key is unknown",
-			expectedError: "Invalid for_each argument: The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
+			expectedError: `Invalid for_each argument: The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -5015,7 +5015,7 @@ import {
 		},
 		{
 			Description:   "for_each expression is unknown",
-			expectedError: "Invalid for_each argument: The given \"for_each\" argument value is unsuitable: the given \"for_each\" argument value is null. A map, set of strings, or a tuple is allowed.",
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A map, set of strings, or a tuple is allowed.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
