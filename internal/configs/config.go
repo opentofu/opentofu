@@ -1020,9 +1020,9 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		}
 
 		if res.Mode != overrideRes.Mode {
-			blockName, targetMode := "override_resource", "data"
+			blockName, targetMode := blockNameOverrideResource, "data"
 			if overrideRes.Mode == addrs.DataResourceMode {
-				blockName, targetMode = "override_data", "resource"
+				blockName, targetMode = blockNameOverrideData, "resource"
 			}
 			// It could be a warning, but for the sake of consistent UX let's make it an error
 			diags = append(diags, &hcl.Diagnostic{

@@ -228,6 +228,11 @@ type TestRunOptions struct {
 	DeclRange hcl.Range
 }
 
+const (
+	blockNameOverrideResource = "override_resource"
+	blockNameOverrideData     = "override_data"
+)
+
 // OverrideResource contains information about a resource or data block to be overridden.
 type OverrideResource struct {
 	// Target references resource or data block to override.
@@ -245,15 +250,17 @@ type OverrideResource struct {
 func (r OverrideResource) getBlockName() string {
 	switch r.Mode {
 	case addrs.ManagedResourceMode:
-		return "override_resource"
+		return blockNameOverrideResource
 	case addrs.DataResourceMode:
-		return "override_data"
+		return blockNameOverrideData
 	case addrs.InvalidResourceMode:
 		return "invalid"
 	default:
 		return "invalid"
 	}
 }
+
+const blockNameOverrideModule = "override_module"
 
 // OverrideModule contains information about a module to be overridden.
 type OverrideModule struct {
@@ -312,21 +319,21 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
 
-		case "override_resource":
+		case blockNameOverrideResource:
 			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
 			diags = append(diags, overrideResDiags...)
 			if !overrideResDiags.HasErrors() {
 				tf.OverrideResources = append(tf.OverrideResources, overrideRes)
 			}
 
-		case "override_data":
+		case blockNameOverrideData:
 			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
 			diags = append(diags, overrideDataDiags...)
 			if !overrideDataDiags.HasErrors() {
 				tf.OverrideResources = append(tf.OverrideResources, overrideData)
 			}
 
-		case "override_module":
+		case blockNameOverrideModule:
 			overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
 			diags = append(diags, overrideModDiags...)
 			if !overrideModDiags.HasErrors() {
@@ -419,21 +426,21 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 				r.Module = module
 			}
 
-		case "override_resource":
+		case blockNameOverrideResource:
 			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
 			diags = append(diags, overrideResDiags...)
 			if !overrideResDiags.HasErrors() {
 				r.OverrideResources = append(r.OverrideResources, overrideRes)
 			}
 
-		case "override_data":
+		case blockNameOverrideData:
 			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
 			diags = append(diags, overrideDataDiags...)
 			if !overrideDataDiags.HasErrors() {
 				r.OverrideResources = append(r.OverrideResources, overrideData)
 			}
 
-		case "override_module":
+		case blockNameOverrideModule:
 			overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
 			diags = append(diags, overrideModDiags...)
 			if !overrideModDiags.HasErrors() {
@@ -817,13 +824,13 @@ var testFileSchema = &hcl.BodySchema{
 			Type: "variables",
 		},
 		{
-			Type: "override_resource",
+			Type: blockNameOverrideResource,
 		},
 		{
-			Type: "override_data",
+			Type: blockNameOverrideData,
 		},
 		{
-			Type: "override_module",
+			Type: blockNameOverrideModule,
 		},
 	},
 }
@@ -848,13 +855,13 @@ var testRunBlockSchema = &hcl.BodySchema{
 			Type: "module",
 		},
 		{
-			Type: "override_resource",
+			Type: blockNameOverrideResource,
 		},
 		{
-			Type: "override_data",
+			Type: blockNameOverrideData,
 		},
 		{
-			Type: "override_module",
+			Type: blockNameOverrideModule,
 		},
 	},
 }

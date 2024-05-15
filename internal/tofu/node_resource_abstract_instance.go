@@ -2644,9 +2644,7 @@ func (mvc mockValueComposer) getMockString(length int) string {
 	return f(length)
 }
 
-func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (
-	cty.Value, tfdiags.Diagnostics) {
-
+func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	mockValue := make(map[string]cty.Value)
 
 	var configMap map[string]cty.Value
@@ -2664,7 +2662,6 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 				description,
 			))
 		}
-
 	}
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
@@ -2749,77 +2746,19 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 			continue
 		}
 
-		// Code below uses an object from the defaults (overrides)
-		// to compose each value from the block's inner collection. It recursevily calls
-		// composeMockValueBySchema to proceed with all the inner attributes and blocks
-		// the same way so all the nested blocks follow the same logic.
-
 		var blockDefaults map[string]cty.Value
 
 		if hasDefaultVal {
 			blockDefaults = defaultVal.AsValueMap()
 		}
 
-		switch t := impliedTypes[k]; {
-		case t.IsObjectType():
-			mockBlockVal, moreDiags := mvc.composeMockValueBySchema(&block.Block, configVal, blockDefaults)
-			diags = diags.Append(moreDiags)
-			if moreDiags.HasErrors() {
-				return cty.NilVal, diags
-			}
-
-			mockValue[k] = mockBlockVal
-
-		case t.ListElementType() != nil || t.SetElementType() != nil:
-			var mockBlockVals []cty.Value
-
-			var iterator = configVal.ElementIterator()
-
-			for iterator.Next() {
-				_, blockConfigV := iterator.Element()
-
-				mockBlockVal, moreDiags := mvc.composeMockValueBySchema(&block.Block, blockConfigV, blockDefaults)
-				diags = diags.Append(moreDiags)
-				if moreDiags.HasErrors() {
-					return cty.NilVal, diags
-				}
-
-				mockBlockVals = append(mockBlockVals, mockBlockVal)
-			}
-
-			if t.ListElementType() != nil {
-				mockValue[k] = cty.ListVal(mockBlockVals)
-			} else {
-				mockValue[k] = cty.SetVal(mockBlockVals)
-			}
-
-		case t.MapElementType() != nil:
-			var mockBlockVals = make(map[string]cty.Value)
-
-			var iterator = configVal.ElementIterator()
-
-			for iterator.Next() {
-				blockConfigK, blockConfigV := iterator.Element()
-
-				mockBlockVal, moreDiags := mvc.composeMockValueBySchema(&block.Block, blockConfigV, blockDefaults)
-				diags = diags.Append(moreDiags)
-				if moreDiags.HasErrors() {
-					return cty.NilVal, diags
-				}
-
-				mockBlockVals[blockConfigK.AsString()] = mockBlockVal
-			}
-
-			mockValue[k] = cty.MapVal(mockBlockVals)
-
-		default:
-			// Shouldn't happen as long as blocks are represented by lists / maps / sets / objs.
-			return cty.NilVal, diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Error,
-				fmt.Sprintf("Unexpected block type: %v", t.FriendlyName()),
-				"Failed to generate mock value for this block type. Please, report it as an issue at OpenTofu repository, since it's not expected.",
-			))
+		v, moreDiags := mvc.getMockValueForBlock(impliedTypes[k], configVal, &block.Block, blockDefaults)
+		diags = append(diags, moreDiags...)
+		if moreDiags.HasErrors() {
+			return cty.NilVal, diags
 		}
+
+		mockValue[k] = v
 	}
 
 	for k := range defaults {
@@ -2833,6 +2772,75 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 	}
 
 	return cty.ObjectVal(mockValue), diags
+}
+
+// getMockValueForBlock uses an object from the defaults (overrides)
+// to compose each value from the block's inner collection. It recursevily calls
+// composeMockValueBySchema to proceed with all the inner attributes and blocks
+// the same way so all the nested blocks follow the same logic.
+func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal cty.Value, block *configschema.Block, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	switch {
+	case targetType.IsObjectType():
+		mockBlockVal, moreDiags := mvc.composeMockValueBySchema(block, configVal, defaults)
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			return cty.NilVal, diags
+		}
+
+		return mockBlockVal, diags
+
+	case targetType.ListElementType() != nil || targetType.SetElementType() != nil:
+		var mockBlockVals []cty.Value
+
+		var iterator = configVal.ElementIterator()
+
+		for iterator.Next() {
+			_, blockConfigV := iterator.Element()
+
+			mockBlockVal, moreDiags := mvc.composeMockValueBySchema(block, blockConfigV, defaults)
+			diags = diags.Append(moreDiags)
+			if moreDiags.HasErrors() {
+				return cty.NilVal, diags
+			}
+
+			mockBlockVals = append(mockBlockVals, mockBlockVal)
+		}
+
+		if targetType.ListElementType() != nil {
+			return cty.ListVal(mockBlockVals), diags
+		} else {
+			return cty.SetVal(mockBlockVals), diags
+		}
+
+	case targetType.MapElementType() != nil:
+		var mockBlockVals = make(map[string]cty.Value)
+
+		var iterator = configVal.ElementIterator()
+
+		for iterator.Next() {
+			blockConfigK, blockConfigV := iterator.Element()
+
+			mockBlockVal, moreDiags := mvc.composeMockValueBySchema(block, blockConfigV, defaults)
+			diags = diags.Append(moreDiags)
+			if moreDiags.HasErrors() {
+				return cty.NilVal, diags
+			}
+
+			mockBlockVals[blockConfigK.AsString()] = mockBlockVal
+		}
+
+		return cty.MapVal(mockBlockVals), diags
+
+	default:
+		// Shouldn't happen as long as blocks are represented by lists / maps / sets / objs.
+		return cty.NilVal, diags.Append(tfdiags.WholeContainingBody(
+			tfdiags.Error,
+			fmt.Sprintf("Unexpected block type: %v", targetType.FriendlyName()),
+			"Failed to generate mock value for this block type. Please, report it as an issue at OpenTofu repository, since it's not expected.",
+		))
+	}
 }
 
 // getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
@@ -2901,7 +2909,7 @@ func getRandomAlphaNumString(length int) string {
 	b.Grow(length)
 
 	for i := 0; i < length; i++ {
-		b.WriteByte(chars[rand.Intn(len(chars))])
+		b.WriteByte(chars[rand.Intn(len(chars))]) //nolint:gosec // It doesn't need to be secure.
 	}
 
 	return b.String()
