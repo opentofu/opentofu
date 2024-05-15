@@ -13,6 +13,9 @@ This page will run you through the most important changes in OpenTofu 1.7:
 - [Provider-defined functions](#provider-defined-functions)
 - [Removed block](#removed-block)
 - [Loopable import blocks](#loopable-import-blocks)
+- [Built-in function changes](#built-in-function-changes)
+- [CLI changes](#cli-changes)
+- [Testing feature changes](#testing-feature-changes)
 
 ## State encryption
 
@@ -82,7 +85,7 @@ If you have access to an AWS, GCP account, or an OpenBao/MPL-licensed HashiCorp 
 
 ## Provider-defined functions
 
-The new Terraform Plugin SDK added support for provider-defined functions that you can use directly in OpenTofu. This is a significant improvement over using data sources as provider-defined functions don't increase the size of your state file and require less code to write.
+The new Terraform Plugin SDK added support for [provider-defined functions](../language/functions/index.mdx#provider-defined-functions) that you can use directly in OpenTofu. This is a significant improvement over using data sources as provider-defined functions don't increase the size of your state file and require less code to write.
 
 If you want to test provider-defined functions, you can use the [corefunc](https://library.tf/providers/northwood-labs/corefunc/latest) provider by [Ryan Parman](https://github.com/skyzyx):
 
@@ -104,6 +107,8 @@ output "test" {
   # Prints: hello_world
 }
 ```
+
+What's more, we added an OpenTofu-only feature to let providers dynamically define custom functions based on your configuration. This enhancement allows you to fully integrate other programming languages as [shown in our live stream](https://www.youtube.com/watch?v=6OXBv0MYalY). You can try out this functionality with our experimental [Lua](https://github.com/opentofu/terraform-provider-lua) and [Go](https://github.com/opentofu/terraform-provider-go) providers.
 
 ## Removed block
 
@@ -195,9 +200,9 @@ There are also several changes to the CLI:
 - `tofu console` now works on Solaris and AIX.
 - The CLI now supports the XDG directory specification.
 - Aliases for:
-- `state list` &rarr; `state ls`
-- `state mv` &rarr; `state move`
-- `state rm` &rarr; `state remove`
+    - `state list` &rarr; `state ls`
+    - `state mv` &rarr; `state move`
+    - `state rm` &rarr; `state remove`
 
 ## Testing feature changes
 

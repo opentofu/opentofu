@@ -61,9 +61,8 @@ locals {
 }
 ```
 
-
 ### Notes for Provider Authors:
 * Support for functions was added in protocol version 5.5 and 6.5.
 * OpenTofu's provider protocol is compatible with Terraform's provider protocol.
 * `GetProviderSchema()` is used to initially query the functions available in a given provider.
-* Providers which supply functions may be configured and may supply additional functions via `GetFunctions()`.
+* Providers which supply functions may be configured and may supply additional functions via `GetFunctions()`. See the experimental [Lua](https://github.com/opentofu/terraform-provider-lua) and [Go](https://github.com/opentofu/terraform-provider-go) providers for implementation examples.

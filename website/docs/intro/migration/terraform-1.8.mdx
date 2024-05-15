@@ -7,15 +7,15 @@ description: |-
 
 # Migrating to OpenTofu from Terraform 1.8.x
 
-When migrating from Terraform 1.8.x, please migrate to OpenTofu 1.7.0 first, then
-[upgrade your OpenTofu installation](../upgrading.mdx) to the latest version.
+When migrating from Terraform 1.8.x, please migrate to OpenTofu 1.7.1 first, then
+[upgrade your OpenTofu installation](/docs/intro/upgrading/) to the latest version.
 
-OpenTofu 1.7.0 is largely compatible with Terraform 1.8.x with a few minor changes needed. This migration guide will
+OpenTofu 1.7.1 is largely compatible with Terraform 1.8.x with a few minor changes needed. This migration guide will
 take you through the process of switching from Terraform to OpenTofu.
 
 ## Step 0: Prepare a disaster recovery plan
 
-Although OpenTofu 1.7.0 is very similar to Terraform 1.8.2, make sure you have an up to date and *tested* disaster
+Although OpenTofu 1.7.1 is very similar to Terraform 1.8.2, make sure you have an up to date and *tested* disaster
 recovery plan.
 
 ## Step 1: Upgrading Terraform
@@ -41,14 +41,14 @@ Terraform has compared your real infrastructure against your
 configuration and found no differences, so no changes are needed.
 ```
 
-## Step 3: Install OpenTofu 1.7.0
+## Step 3: Install OpenTofu 1.7.1
 
-As a first step, please [follow the installation instructions for the OpenTofu CLI tool](install/index.mdx). Please test
+As a first step, please [follow the installation instructions for the OpenTofu CLI tool](intro/install/index.mdx). Please test
 if you can successfully execute the `tofu` command:
 
 ```
 $ tofu --version
-OpenTofu v1.7.0
+OpenTofu v1.7.1
 on linux_amd64
 ```
 
@@ -126,6 +126,11 @@ updates the state file.
 
 Before you begin using OpenTofu for larger changes, test out `tofu apply` with a smaller, non-critical
 change.
+
+## Step 10: Upgrade to the latest OpenTofu version
+
+Now that the migration is complete, follow the [upgrade guide](/docs/intro/upgrading/) for OpenTofu to upgrade to the
+latest version.
 
 ## Rolling back to Terraform and reporting issues
 
