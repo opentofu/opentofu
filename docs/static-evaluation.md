@@ -229,7 +229,9 @@ Module sources must be known at init time as they are downloaded and collated in
 
 This is relatively straight forward once the core is implemented, but will require some more in-depth changes to support for_each/count later on.
 
-**TODO more details from the later prototypes.**
+Without module pre-expansion / support for for_each/count, the process would look like:
+* Create a SourceExpression field in config.ModuleCall and don't set the "config.ModuleCall.Source" field initially
+* Use the static context available during NewModule constructor to evaluate all of the config.ModuleCall source fields and check for bad references and other errors.
 
 ### Provider Iteration
 
@@ -450,7 +452,15 @@ provider "aws" {
 
 ### Backend Configuration
 
-Once the core is implemented, this is probably the easiest solution to implement.  TODO more details from initial prototype.
+Once the core is implemented, this is probably the easiest solution to implement.
+
+Notes from initial prototyping:
+* The configs.Backend saves the config body during the config load and does not evaluate it
+* backendInitFromConfig() in command/meta_backend.go is what evaluates the body
+  - This happens before the graph is constructed / evaluated and can be considered an extension of the config loading stage.
+* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to provide do the decoding.
+  - There are a few ways to do this, stashing it there was a simple way to get it working in the prototype.
+* Don't forget to update the configs.Backend.Hash() function as that's used to detect any changes
 
 ### Lifecycle Attributes
 
