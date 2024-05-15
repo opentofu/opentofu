@@ -248,8 +248,9 @@ func (r OverrideResource) getBlockName() string {
 		return "override_resource"
 	case addrs.DataResourceMode:
 		return "override_data"
+	case addrs.InvalidResourceMode:
+		return "invalid"
 	default:
-		// must never happen
 		return "invalid"
 	}
 }
@@ -655,9 +656,9 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 }
 
 func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*OverrideResource, hcl.Diagnostics) {
-	parseTarget := func(attr *hcl.Attribute) (traversal hcl.Traversal, configRes *addrs.ConfigResource, diags hcl.Diagnostics) {
+	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.ConfigResource, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
-		diags = append(diags, traversalDiags...)
+		diags := traversalDiags
 		if traversalDiags.HasErrors() {
 			return nil, nil, diags
 		}
@@ -692,9 +693,9 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 }
 
 func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnostics) {
-	parseTarget := func(attr *hcl.Attribute) (traversal hcl.Traversal, mod addrs.Module, diags hcl.Diagnostics) {
+	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, addrs.Module, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
-		diags = append(diags, traversalDiags...)
+		diags := traversalDiags
 		if traversalDiags.HasErrors() {
 			return nil, nil, diags
 		}
@@ -726,7 +727,7 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 	return mod, diags
 }
 
-func parseObjectAttrWithNoVariables(attr *hcl.Attribute) (v map[string]cty.Value, diags hcl.Diagnostics) {
+func parseObjectAttrWithNoVariables(attr *hcl.Attribute) (map[string]cty.Value, hcl.Diagnostics) {
 	if vars := attr.Expr.Variables(); len(vars) != 0 {
 		return nil, hcl.Diagnostics{
 			&hcl.Diagnostic{
@@ -739,7 +740,7 @@ func parseObjectAttrWithNoVariables(attr *hcl.Attribute) (v map[string]cty.Value
 	}
 
 	attrVal, valDiags := attr.Expr.Value(nil)
-	diags = append(diags, valDiags...)
+	diags := valDiags
 	if valDiags.HasErrors() {
 		return nil, diags
 	}
@@ -756,7 +757,9 @@ func parseObjectAttrWithNoVariables(attr *hcl.Attribute) (v map[string]cty.Value
 	return attrVal.AsValueMap(), diags
 }
 
-func checkForDuplicatedOverrideResources(resources []*OverrideResource) (diags hcl.Diagnostics) {
+func checkForDuplicatedOverrideResources(resources []*OverrideResource) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
 	overrideResources := make(map[string]struct{}, len(resources))
 	for _, res := range resources {
 		k := res.TargetParsed.String()
@@ -777,7 +780,9 @@ func checkForDuplicatedOverrideResources(resources []*OverrideResource) (diags h
 	return diags
 }
 
-func checkForDuplicatedOverrideModules(modules []*OverrideModule) (diags hcl.Diagnostics) {
+func checkForDuplicatedOverrideModules(modules []*OverrideModule) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
 	overrideModules := make(map[string]struct{}, len(modules))
 	for _, mod := range modules {
 		k := mod.TargetParsed.String()

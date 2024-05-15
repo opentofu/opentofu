@@ -2838,6 +2838,8 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 // getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
 // It will return non-ok response if it encounters dynamic type.
 func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
+	const mockStringLength = 8
+
 	var v cty.Value
 
 	// just to be sure for cases when the logic below misses something
@@ -2852,7 +2854,7 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	case t.Equals(cty.Bool):
 		v = cty.False
 	case t.Equals(cty.String):
-		v = cty.StringVal(mvc.getMockString(8))
+		v = cty.StringVal(mvc.getMockString(mockStringLength))
 
 	// collections
 	case t.ListElementType() != nil:
@@ -2872,12 +2874,12 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 				continue
 			}
 
-			v, ok := mvc.getMockValueByType(at)
+			objV, ok := mvc.getMockValueByType(at)
 			if !ok {
 				return cty.Value{}, false
 			}
 
-			objVals[k] = v
+			objVals[k] = objV
 		}
 
 		v = cty.ObjectVal(objVals)
