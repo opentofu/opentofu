@@ -292,11 +292,14 @@ func (v *OperationJSON) Diagnostics(diags tfdiags.Diagnostics) {
 
 func resetSensitiveVariables(outputs map[string]jsonplan.Change, resourceChanges []jsonplan.ResourceChange) {
 	for i, output := range outputs {
-		outputs[i] = jsonplan.MarkAllValuesNonSensitive(output)
+		output.BeforeSensitive = nil
+		output.AfterSensitive = nil
+		outputs[i] = output
 	}
 
 	for i := range resourceChanges {
-		resourceChanges[i].Change = jsonplan.MarkAllValuesNonSensitive(resourceChanges[i].Change)
+		resourceChanges[i].Change.BeforeSensitive = nil
+		resourceChanges[i].Change.AfterSensitive = nil
 	}
 }
 

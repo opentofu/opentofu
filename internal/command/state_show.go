@@ -197,11 +197,8 @@ func (c *StateShowCommand) Run(args []string) int {
 	// If the "-show-sensitive" argument is provided, reset the value of
 	// resource.SensitiveValues to display the sensitive values.
 	if showSensitive {
-		for i, resource := range root.Resources {
-			if len(resource.SensitiveValues) > 0 {
-				resource.MakeAllValuesNonsensitive()
-				root.Resources[i] = resource
-			}
+		for i := range root.Resources {
+			root.Resources[i].SensitiveValues = nil
 		}
 	}
 

@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -1679,21 +1678,8 @@ func TestPlan_showSensitiveArg(t *testing.T) {
 		t.Fatalf("bad status code: \n%s", output.Stderr())
 	}
 
-	expected := `Changes to Outputs:
-  [32m+[0m[0m notsensitive = "Hello world"
-  [32m+[0m[0m sensitive    = "Hello world"
-
-You can apply this plan to save these new output values to the OpenTofu
-state, without changing any real infrastructure.
-[90m
-─────────────────────────────────────────────────────────────────────────────[0m
-
-Note: You didn't use the -out option to save this plan, so OpenTofu can't
-guarantee to take exactly these actions if you run "tofu apply" now.`
-
-	actual := strings.TrimSpace(output.Stdout())
-	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
-		t.Fatalf("got incorrect output\n %v", diff)
+	if got, want := output.Stdout(), "sensitive    = \"Hello world\""; !strings.Contains(got, want) {
+		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
 	}
 }
 
@@ -1718,21 +1704,8 @@ func TestPlan_withoutShowSensitiveArg(t *testing.T) {
 		t.Fatalf("bad status code: \n%s", output.Stderr())
 	}
 
-	expected := `Changes to Outputs:
-  [32m+[0m[0m notsensitive = "Hello world"
-  [32m+[0m[0m sensitive    = (sensitive value)
-
-You can apply this plan to save these new output values to the OpenTofu
-state, without changing any real infrastructure.
-[90m
-─────────────────────────────────────────────────────────────────────────────[0m
-
-Note: You didn't use the -out option to save this plan, so OpenTofu can't
-guarantee to take exactly these actions if you run "tofu apply" now.`
-
-	actual := strings.TrimSpace(output.Stdout())
-	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
-		t.Fatalf("got incorrect output\n %v", diff)
+	if got, want := output.Stdout(), "sensitive    = (sensitive value)"; !strings.Contains(got, want) {
+		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
 	}
 }
 

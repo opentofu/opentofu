@@ -936,17 +936,3 @@ func encodePath(path cty.Path) (json.RawMessage, error) {
 	}
 	return json.Marshal(steps)
 }
-
-func MarkAllValuesNonSensitive(resourceChange Change) Change {
-	return Change{
-		Actions:         resourceChange.Actions,
-		Before:          resourceChange.Before,
-		After:           resourceChange.After,
-		AfterUnknown:    resourceChange.AfterUnknown,
-		BeforeSensitive: nil,
-		AfterSensitive:  nil,
-		ReplacePaths:    resourceChange.ReplacePaths,
-		Importing:       resourceChange.Importing,
-		GeneratedConfig: resourceChange.GeneratedConfig,
-	}
-}
