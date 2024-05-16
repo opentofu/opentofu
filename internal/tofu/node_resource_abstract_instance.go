@@ -2645,14 +2645,47 @@ func (mvc mockValueComposer) getMockString(length int) string {
 }
 
 func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
-	mockValue := make(map[string]cty.Value)
-
 	var configMap map[string]cty.Value
 	var diags tfdiags.Diagnostics
 
 	if !config.IsNull() {
 		configMap = config.AsValueMap()
 	}
+
+	impliedTypes := schema.ImpliedType().AttributeTypes()
+
+	mockAttrs, moreDiags := mvc.composeMockValueForAttributes(schema, configMap, defaults)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return cty.NilVal, diags
+	}
+
+	mockBlocks, moreDiags := mvc.composeMockValueForBlocks(schema, configMap, defaults)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return cty.NilVal, diags
+	}
+
+	mockValues := mockAttrs
+	for k, v := range mockBlocks {
+		mockValues[k] = v
+	}
+
+	for k := range defaults {
+		if _, ok := impliedTypes[k]; !ok {
+			diags = diags.Append(tfdiags.WholeContainingBody(
+				tfdiags.Warning,
+				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				"The field is unknown. Please, ensure it is a part of resource definition.",
+			))
+		}
+	}
+
+	return cty.ObjectVal(mockValues), diags
+}
+
+func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 
 	addPotentialDefaultsWarning := func(key, description string) {
 		if _, ok := defaults[key]; ok {
@@ -2664,12 +2697,14 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		}
 	}
 
+	mockAttrs := make(map[string]cty.Value)
+
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
 	for k, attr := range schema.Attributes {
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
-			mockValue[k] = cv
+			mockAttrs[k] = cv
 			addPotentialDefaultsWarning(k, "The field is ignored since overriding configuration values not allowed.")
 			continue
 		}
@@ -2677,7 +2712,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		// Non-computed attributes can't be generated
 		// so we set them from configuration only.
 		if !attr.Computed {
-			mockValue[k] = cty.NullVal(attr.Type)
+			mockAttrs[k] = cty.NullVal(attr.Type)
 			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields not allowed.")
 			continue
 		}
@@ -2685,7 +2720,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		// If the attribute is computed and not configured,
 		// we use provided value from defaults.
 		if ov, ok := defaults[k]; ok {
-			mockValue[k] = ov
+			mockAttrs[k] = ov
 			continue
 		}
 
@@ -2700,8 +2735,18 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 			continue
 		}
 
-		mockValue[k] = v
+		mockAttrs[k] = v
 	}
+
+	return mockAttrs, diags
+}
+
+func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	mockBlocks := make(map[string]cty.Value)
+
+	impliedTypes := schema.ImpliedType().AttributeTypes()
 
 	for k, block := range schema.BlockTypes {
 		// Checking if the config value really present for the block.
@@ -2733,7 +2778,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		// We must keep blocks the same as it defined in configuration,
 		// so provider response validation succeeds later.
 		if !hasConfigVal {
-			mockValue[k] = block.EmptyValue()
+			mockBlocks[k] = block.EmptyValue()
 
 			if hasDefaultVal {
 				diags = diags.Append(tfdiags.WholeContainingBody(
@@ -2755,23 +2800,13 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 		v, moreDiags := mvc.getMockValueForBlock(impliedTypes[k], configVal, &block.Block, blockDefaults)
 		diags = append(diags, moreDiags...)
 		if moreDiags.HasErrors() {
-			return cty.NilVal, diags
+			return nil, diags
 		}
 
-		mockValue[k] = v
+		mockBlocks[k] = v
 	}
 
-	for k := range defaults {
-		if _, ok := impliedTypes[k]; !ok {
-			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", k),
-				"The field is unknown. Please, ensure it is a part of resource definition.",
-			))
-		}
-	}
-
-	return cty.ObjectVal(mockValue), diags
+	return mockBlocks, diags
 }
 
 // getMockValueForBlock uses an object from the defaults (overrides)
