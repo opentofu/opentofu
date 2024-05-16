@@ -95,7 +95,7 @@ func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File, enc encry
 }
 
 func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
-	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas, v.view.showSensitive)
+	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
 		return
@@ -105,6 +105,12 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
 		RunningInAutomation: v.inAutomation,
+	}
+
+	// If the -show-sensitive argument is provided in the tofu plan/apply command,
+	// then unmark all sensitive values
+	if v.view.showSensitive && plan.Changes != nil {
+		resetSensitiveVariables(outputs, changed)
 	}
 
 	jplan := jsonformat.Plan{
@@ -282,6 +288,16 @@ func (v *OperationJSON) PlanNextStep(planPath string, genConfigPath string) {
 
 func (v *OperationJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
+}
+
+func resetSensitiveVariables(outputs map[string]jsonplan.Change, resourceChanges []jsonplan.ResourceChange) {
+	for i, output := range outputs {
+		outputs[i] = jsonplan.MarkAllValuesNonSensitive(output)
+	}
+
+	for i := range resourceChanges {
+		resourceChanges[i].Change = jsonplan.MarkAllValuesNonSensitive(resourceChanges[i].Change)
+	}
 }
 
 const fatalInterrupt = `
