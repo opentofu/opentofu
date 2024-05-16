@@ -188,7 +188,7 @@ aws_instance.foo:
 	`)
 }
 
-//nolint:dupl,funlen // This test doesn't need to be short nor reusing test cases.
+//nolint:dupl,funlen,cyclop // This test doesn't need to be short nor reusing test cases.
 func TestComposeMockValueBySchema(t *testing.T) {
 	t.Parallel()
 
