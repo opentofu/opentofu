@@ -8,6 +8,323 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Yevgeniy Brikman ([@brikis98](https://github.com/brikis98)) representing Gruntwork, Inc.
 
+## 2024-05-07
+
+## Agenda
+
+### RFC: Init-time Constant Evaluation Proposal
+
+https://github.com/opentofu/opentofu/issues/1042
+This feature is a composable language addition that idiomatically solves many common top user requests (see linked issues):
+
+- Module sources using variables/locals https://github.com/opentofu/opentofu/issues/286https://github.com/opentofu/opentofu/issues/1017
+- Providers for_each support https://github.com/opentofu/opentofu/issues/300
+- Module provider mappings from variables/for_each https://github.com/opentofu/opentofu/issues/300
+- Backend configurations using variables/locals https://github.com/opentofu/opentofu/issues/388
+- Lifecycle attributes must be known https://github.com/opentofu/opentofu/issues/304https://github.com/opentofu/opentofu/issues/1329
+- Variable defaults/validation must be known https://github.com/opentofu/opentofu/issues/1336https://github.com/opentofu/opentofu/issues/1514
+- Many more https://github.com/opentofu/opentofu/issues/1258
+
+This proposal is an avenue to solve a very significant portion of the most frequently requested and top voted issues in OpenTofu and Terraform (see RFC for full related issue list). I am not proposing solving all of the above issues in a single PR/feature, but instead proposing a mechanism to support the addition of the above features in a simple and idiomatic way.
+
+#### User Experience:
+
+Many components of OpenTofu are dynamic and can refer to other objects/configuration. Users frequently attempt to use locals and variables in the above listed items, but are stymied by the fact that these items are quite limited in what they can reference.
+
+This leads to significant additional complexity, with copy/paste between configurations being the default.  Some tools like Terragrunt offer ways to improve some of the common cases such as module sources, but many vanilla environments are severely lacking.  Another example is the -backend-config parameter and override files providing an incredibly hacky workaround to backend configuration limitations.
+
+#### Technical Description:
+
+OpenTofu's execution is split into two major components: setup to build the internal graph representation and evaluation of the graph.
+
+What I propose is an init time constant evaluation stage be added between loading the configuration and building the graph.  This stage will be able to identify effectively constant values (variables/locals) which can be used during evaluation of the above.
+
+Module Source Example:
+
+```
+variable "library_version" {
+    type = string
+}
+module "my-mod" {
+    source = "github.com/org/common-library?tag=${var.library_version}"
+}
+
+```
+
+Provider Region Example
+
+```
+locals {
+    region = {"primary": "us-east-1", "secondary": "us-east-2", "fallback": "us-west-1"}
+}
+provider "aws" {
+    for_each = locals.region
+    alias = each.key
+    region = each.value
+}
+module "aws_resource" {
+    source = "./per-region-module/"
+    for_each = local.region
+    providers = {
+        aws = aws[each.key]
+    }
+}
+
+```
+
+#### Current State:
+
+I have a [proof of concept](https://github.com/opentofu/opentofu/pull/1107) that supports variables in module sources, but more importantly implements an init time constant evaluation stage which supports that feature. The only remaining technical hurdle is how this interfaces with building the module tree when for_each is evaluated in the constant context. Given our teams recent work on the graph structure, I do not believe this will be a particularly difficult hurdle to overcome.
+
+#### Summary:
+
+I believe that by adding this init time evaluation we can idiomatically solve some of the largest pain points our users experience every day. In the future, we may re-design and re-engineer much of OpenTofu to remove the need for this evaluation stage.  However, this solves an incredible amount of our most important issues today.  It gives us the breathing room to decide on the technical future of the project without the pressure of users who are frustrated today.
+
+#### Discussion:
+
+- @Igor Savchenko thinks we should move forward - but we should have consider performance testing on large configurations and how those are impacted by the change. Also imported to note - this ***will*** break Terraform support.
+- @Wojciech Barczyński reinforces that
+- @Roger Simms 👍
+- @Roni Frantchi asks - considering this is extending language features, and linters/language servers may raise errors or warnings if one uses this configuration - does that mean we will support that on .otf files only?
+
+#### Decision:
+
+- RFC accepted
+- Ask core team to be mindful and rigorously test performance
+- Strong recommendation to core team for consideration: if possible, the TSC’s preference is to roll out support for the above in iterations to limit the blast radius:
+    1. Module source resolution
+    2. Dynamic provider config
+    3. …
+
+### Alternate file extension .OTF for OpenTofu Specific Features
+
+https://github.com/opentofu/opentofu/issues/1328
+
+- Module and project authors can use .tf vs .otf to opt into different features but maintain support for both tools
+- Easier for code completion / dev tools to support OpenTofu specific features
+- Allows projects/modules to be written for OpenTofu and not Terraform if the author wishes (.otf only)
+- Shows support / adoption of OpenTofu!
+- Very little development effort required in OpenTofu
+
+#### Discussion:
+
+- TSC’s not entirely sure what’s the ask here - it’s been given green light for 1.8
+
+### Next version of OpenTofu - what should it be? 1.8? 2.0?
+
+- Implications on provider/module constraints?
+- Feature comparison?
+
+#### Discussion:
+
+- @Roger Simms mentioned we wanted to get community feedback last time.
+- @Wojciech Barczyński thinks we should carry on with the current versioning scheme while having our own release cycle as we gather more community feedback. He too fears jumping a major version can make people think OpenTofu introduces breaking changes that may deter them from joining.
+- @Igor Savchenko currently, version compatibility and their mismatch in iterations confuses our users. We need something to distinguish between our own versions and HTF, while providing some kind of compatibility matrix? What is our versioning strategy?
+- @Roni Frantchi is not concerned about 2.0 or 1.8 - either way, what concerns him is the provider/module constraints - for instance, right now providers may be adding constraints around new provider features support coming in HTF 1.8, which will “fail” compatibility as it checks OpenTofu’s version, despite beings supported in OTF 1.7
+
+#### Decision:
+
+- Come up with versioning strategy that is publicly available -
+    - What is our release cadence?
+    - Do we follow semver?
+    - Consider in said strategy that there may be some perception that the release cadence of OTF is lower than that of HTF (despite OTF having more content in each) - should we have more frequent releases?
+- Continue with current versioning schema for now (next version is 1.8)
+- Open up an issue for the community to discuss wether we should change that versioning
+- Open up an issue to track and come up with suggestion how the current or future versioning scheme will support provider constraints as support for new provider/module features are added on different version of OTF vs HTF
+
+### Backends as Plugins
+
+- We said we’re postponing it by 3 months, 3 months have passed.
+- An oracle employee also reached out again, as they would like to add support for Oracle Object Storage as a Backend (and we blocked it by backends as plugins).
+
+#### Discussion:
+
+- @Igor Savchenko thinks it is not a priority still. As a TACO vendor, sounds great sure but - looking at the top ranking issue alternatives and what would benefit the community it does not seem remotely there.
+- @Roger Simms similar
+- @Wojciech Barczyński similar but we should reconsider again for next version.
+- @Roni Frantchi similar
+
+#### Decision:
+
+Reconsider in 6 months
+
+### The TSC never posted on GitHub summary since February
+
+- We should discuss who owns this
+    - AI: @Roni Frantchi will backtrack and post the summaries of all meetings dating back to Feb
+    - From now on, whomever takes notes during the TSC meeting will also open the PR posting the public notes
+
+### Change docs license in the charter to Mozilla as asked by Linux Foundation
+
+#### Decision:
+
+Yes.
+
+## 2024-04-03
+
+### Attendees:
+    - Roger Simms;
+    - Roni Frantchi;
+    - Igor Savchenko;
+    - Marcin Wyszynski
+### Absent:
+    - Jim Brikman
+
+### Agenda
+
+- The `tofu` keyword addition as an alternative to `terraform`.
+    - The steering committee voted last week to block breaking changes until we have .otf files in place. However, since this is an opt-in feature, and it’s a community contribution by a member who **already created a PR for it,** it would be very discouraging to now tell them that “actually, this is gonna be frozen for a month”. Thus, I’d like to include it right away.
+    - Options:
+        - Reject for now, wait for RFC acceptance to the language divergence problem;
+        - Accept just this one as an exception:
+            - Igor: we acknowledge that this will break compatibility with some tools, but state encryption does it already, so we’re not making things worse, and we promise to have a long-term solution in 1.8 where this is a top priority. Good for adoption.
+            - Roni: exception, we will not be accepting more until we have the solution to the divergence problem, including changes going into 1.8;
+            - Roger: same;
+            - Marcin: same;
+        - We go back on our original decision, so it’s open season for divergence;
+    - *Decision:* accept as an exception, unanimous;
+
+- Discuss versioning, specifically continue to follow 1.6, 1.7, 1.8 versioning can cause confusion in differences between tofu and terraform. tofu 1.6 = terraform 1.6, but then tofu 1.7 is not the same as terraform 1.7 (both will have it’s own features and lack some). Longer we continue this pattern, more confusion it will cause on what are the differences and what are the expectations.
+    - Concern (Roni): Terraform version constraints for modules;
+    - We cannot forever follow Terraform versioning (Igor);
+    - Could be weaponized by module authors hostile towards OpenTofu;
+    - We cannot bet the future of the project on psychology of individuals - we don’t want to be anyone’s hostages;
+    - Options:
+        - Proposal 1: continue to use 1.X for terraform parity features and start. using 2.X for features specific to Opentofu (too late for State encryption). TBD how long we would like to support 1.X branch.
+        - Proposal 2: Continue current versioning pattern;
+        - Proposal 3: solicit input from the dev team and other stakeholders;
+        - Proposal 4: go on the offense, provide module authors to explicitly state they don’t want their work used with OpenTofu;
+        - Proposal 5: ignore Terraform versioning block in modules, if someone wants to put OpenTofu constraints, they need to put OpenTofu constraints explicitly;
+    - *Decision:* take a week to openly discuss with different stakeholders, resume discussion during the next meeting;
+
+
+## 2024-03-06
+
+   1. Terraform variable/block Alias
+   - For https://github.com/opentofu/opentofu/issues/1156 we realized we had not formalized what we will eventually alias `terraform` to as we move forward.  This covers the `terraform {}` block as well as the `terraform.workspace` and `terraform.env` config variables
+      - During the community discussion on the Pull Request, the discussion revolved around using `tofu` as the alias or `meta` as the alias.
+      - `tofu` fits with the current “theme” of the block and alias.
+      - `meta` is more tool agnostic and may be a better long term / community option.
+      - We’ve already accepted the addition of a tofu-specific namespace for this, and we’re just deciding which alias fits best
+      - Note: This has an open PR by an external contributor and is blocking them: https://github.com/opentofu/opentofu/pull/1305
+   - Other patterns to consider where the word “terraform” shows up:
+      - `terraform.tfvars`: https://developer.hashicorp.com/terraform/language/values/variables
+      - `.terraformrc`: https://developer.hashicorp.com/terraform/cli/config/config-file
+      - There may be others…
+      - The ones above we’d probably alias to `tofu` at some point
+   - Decision:
+      - Generally -  `tofu`
+      - But then - this brings up an older discussion/decision made that the RFC to submit such “breaking” change in the language would require certain tooling (such, language server support for IDEs etc)
+      - ***Before moving forward*** - we probably need an RFC for OpenTofu Language Server Protocol
+      - Before introducing any language features or syntactic changes that diverge from Terraform language we should introduce some sort of file or other system to help language services distinguish between the two
+         - Supporting tooling may break
+         - E.g., tflint, IDE, etc
+         - Creates a crappy experience for users
+      - We should be extra careful with changes to the api of modules - having different file extension may affect the way they reference one another
+         - E.g., A `.tf` file with `module "foo"` and a `.otf` file with `module "foo"`. What happens if something needs to reference `module.foo`? Which module gets used? How do language servers / IDEs check this stuff? How do module authors ensure compatibility.
+         - So it’s mostly about the cross-references that touch module outputs.
+      
+      <aside>
+      💡 We use the term “breaking change” here, but we don’t really mean the change is breaking. These are all opt-in features. But what we mean is that the experience may be poor: e.g., tflint/tfsec/etc will fail, IDEs won’t do syntax highlighting, etc.
+      
+      </aside>
+      
+      - Proposal 1: before moving on with any of the breaking changes RFC - we should choose and start to implement a solution that would allow those to coexist in IDEs/module authors and all the concerns listed above ?
+         - Against: (everyone)
+      - ✅ **[DECISION]** Proposal 1a: allow 1.7 to go out with state encryption as a breaking change, but block future breaking changes until we land this RFC in 1.8.
+         - In favor: Roni, Jim, Igor, Roger, Marcin—**but with the caveat:**
+               - If this is going to take more than ~1 quarter to implement, we should rethink it.
+               - So we need to know: if we get someone working on this ASAP, is it likely that we can get this RFC approved, implemented, and included in 1.8?
+               - If yes, let’s do it.
+               - If no, let’s reconsider.
+      - Proposal 2: maintain Tofu 1.6 LTS for a long period of time and always have it there as a backward compatible way to transition from Terraform. So you switch to that first, and then if happy in the Tofu world, then we have upgrade guides from Tofu 1.6 to newer versions, and those newer versions may have breaking changes.
+         - In favor: Igor
+      - Proposal 3: we ask for an initial placeholder RFC, but we don’t block releases with breaking changes on the RFC being completed/implemented. Instead, when we launch breaking changes, we have something that says “this is a breaking change, if you want to use it in a way compatible with Terraform, see this RFC, which will let you do that in a  future version.” And eventually, that RFC does land, and we have what we need without blocking.
+         - In favor: Roger, Marcin, Igor
+
+
+## 2024-02-27
+
+1. Ecosystem
+   - The core team feels strongly that we need to give users guidance on what safe migration paths from Terraform are and what the potential pitfalls exist. The lack of safe migration paths hinders adoption because users are left to their own devices to work around issues.
+   Specifically, we would like to split the current migration guide into a few migration guides from a specific Terraform version x.y.z to a specific OpenTofu version a.b.c, outlining these few supported and tested migration paths that we are willing to fix bugs for if found. This would enable us to describe exactly what parts of the code users need to modify and what features may not be supported between those two specific versions.
+   - **Decision:**
+      - accept: Unanimous
+      - reject:
+
+2. Handling new language constructs
+   - With state encryption, and the issue below, we’re introducing new constructs to the OpenTofu language. That also goes for functions we’ve added. In practice, for module authors this might lead to complexity or artificial limitations in order to support both Terraform and OpenTofu. Janos suggests that we introduce support for the .otf extension, and if there’s both [xyz.tf](http://xyz.tf) and xyz.otf in a directory (same name), we ignore xyz.tf. Thus introducing a simple way for people to support both in a single configuration.
+   - Issue: https://github.com/opentofu/opentofu/issues/1275
+   - *Decision:* TSC would like to see a **holistic RFC(s) it can vote on**, gather community feedback, consider capturing use cases of divergence from HTF and OTF side, and how these will be handled by IDE etc.
+    
+
+3. Deprecating module variables
+   - We’ve accepted an issue to introduce the mechanism of deprecating module variables. After extensive discussions we’d like the steering committees decision on which approach to go with.
+      - Issue: https://github.com/opentofu/opentofu/issues/1005
+      - Approach 1
+         - We add the deprecation as part of the variable description. Thus, one could embed `@deprecated: message` or `@deprecated{message}` (TBD) as part of their variable description, and tofu would raise a warning with the message.
+         - Disadvantages: Magical and implicit. Introduces a new, slightly hacky, mechanism.
+         - Advantages: Modules can use it while still supporting Terraform.
+      - Approach 2
+         - We add the deprecation as an explicit `deprecated` string field in the variable block.
+         - Disadvantages: Modules using it will not work with Terraform, it will break on parsing the variable block.
+         - Advantages: First-class, looks nicer and cleaner. Module authors can signal their support for OpenTofu by using this feature, and making their module not work with Terraform. Alternatively, module authors can use the .otf extension (if decided for, see above) to provide alternative code for OpenTofu.
+      - Note: TSC doesn’t remember voting on accepting this issue;
+      - **Decisions:**
+         - Reject approach 1
+         - Consider how approach 2 fits in with the OTF/HTF discrepancies RFCs
+
+4. Functions in providers
+   - This point is mostly a formality I believe, but: **Do we agree that functions in providers is something that we want to do** (regardless of when).
+   - Note: Terraform is adding this in 1.8, **and the provider sdk including it is already stabilized and released.**
+   - Note #2: If this is not too much work, we might actually get this into 1.7, and release support for this at the same time as Terraform. But that’s to be seen. To be clear, we’d only do this if Terraform 1.8 comes out first and we’re sure that the user-facing API is stabilized.
+   - Note #3: proper issues / rfc’s for this will of course be created prior to implementation; this vote is just to get everybody on the same page around whether we’re doing this feature at all
+   - **Decision:**
+      - We do agree that functions in providers is something that we want to do (regardless of when).
+      - Keep it out of OTF 1.7 - add to 1.8 roadmap
+
+5. Registry UI
+   - Registry UI, we haven’t seen anything appear, and people are asking for it. Please reevaluate.
+   - **Decision:**
+      - Please prioritize RFC of our own formal registry
+
+## 2024-02-21
+
+### Attendees
+
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczyński([wojciech12](https://github.com/wojciech12))
+
+### Agenda
+
+1. Comparison Table
+   - Community members are asking for comparisons between OpenTofu and Terraform. It’s a tradeoff - on one hand it pushes us into the mindset of being a shadow-project, on the other hand it would ease the risk of migration and help those who value high levels of compatibility. It’s worth noting that the community has been creating similar tables already, like [nedinthecloud](https://nedinthecloud.com/2024/01/22/comparing-opentofu-and-terraform/).  
+   - ❌ Add a compatibility table to the website
+      - Yes:
+      - No: Unanimous
+   - ✅ Emphasize on the website much more strongly that we are a “drop in” replacement (100% compatible with TF [1.xxx](http://1.xxx) to OpenTofu 1.xxx)
+      - *Ask the dev team to think about how to get this done*
+      - Yes: Roni, Roger, Igor, Jim
+      - No: Wojciech
+   - ✅ Add/improve page on “why OpenTofu” (rather than just a compatibility table)
+      - *Ask the dev team to think about how to get this done*
+      - Yes: Unanimous
+      - No:
+   - ❓Add a “check” command OpenTofu that lets you know if you’re good to migrate from Terraform to OpenTofu or using features that might conflict
+      - *This was a split vote. So let’s ask the dev team to think about what’s possible here and to come back with a more concrete proposal and see what they think.*
+      - Yes: Roger, Igor, Jim
+      - No: Roni, Wojciech
+   - ❌ Add a “check” command OpenTofu that lets you know if you’re good to migrate from OpenTofu back to Terraform or using features that might conflict
+      - Yes: Jim
+      - No: Roger, Igor, Roni, Wojciech
+   - Research what other projects have done in terms of migration tools
+      - *No vote necessary*
+      - Anyone on steering committee can do this and come back with more info
+   - ❌ Add a “compatibility mode” that blocks usage of OpenTofu features not in Terraform
+      - Yes:
+      - No: Unanimous
 
 ## 2024-02-17
 
