@@ -1165,10 +1165,10 @@ Success! 2 passed, 0 failed.
 			defer testChdir(t, td)()
 
 			provider := testing_command.NewProvider(nil)
-			providerSource, close := newMockProviderSource(t, map[string][]string{
+			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
 				"test": {"1.0.0"},
 			})
-			defer close()
+			defer providerClose()
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
