@@ -9,8 +9,8 @@ git config user.name "GitHub Actions"
 # Get backport label from all the labels of the PR
 backport_label=""
 branch_name=""
-readarray -t labels < <(echo "$LABELS" | jq -r '.[]')
-for label in "${labels[@]}"; do
+readarray -t labelArray < <(echo "$LABELS" | jq -r '.[]')
+for label in "${labelArray[@]}"; do
     if [[ $label == "backport"* ]]; then
         backport_label=$label
         branch_name=${label#backport }
@@ -20,19 +20,19 @@ done
 
 # Exit if backport label not found
 if [ -z "$backport_label" ]; then
-    echo "Warning: Backport label not found. Skipping backport process."
+    echo "Warning: The backport label is not found on the Pull Request. Skipping the backport process"
     exit 0
 fi
 
 # Check if GitHub token is set
 if [ -z "$GITHUB_TOKEN" ]; then
-    echo "Error: GitHub token is not set. Please set the GITHUB_TOKEN environment variable."
+    echo "Error: GitHub token is not available. Please ensure a secret named 'GITHUB_TOKEN' is defined."
     exit 1
 fi
 
 # Check if gh is logged in
 if ! gh auth status >/dev/null 2>&1; then
-    echo "Error: gh auth status check failed."
+    echo "Error: Authentication check for 'gh' failed."
     exit 1
 fi
 
