@@ -33,7 +33,6 @@ issues:
       linters:
         - funlen
         - dupl
-        - cyclop
 
 linters:
   disable-all: true
