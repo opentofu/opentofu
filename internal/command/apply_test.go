@@ -164,12 +164,12 @@ func TestApply_approveNo(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
-	if got, want := output.Stdout(), "Apply cancelled"; !strings.Contains(got, want) {
+	if got, want := output.Stdout(), "Apply cancelled!\n"; !strings.Contains(got, want) {
 		t.Fatalf("expected output to include %q, but was:\n%s", want, got)
 	}
 
 	if _, err := os.Stat(statePath); err == nil || !os.IsNotExist(err) {
-		t.Fatalf("state file should not exist")
+		t.Fatalf("state file should not exist!\n")
 	}
 }
 

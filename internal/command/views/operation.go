@@ -78,9 +78,9 @@ func (v *OperationHuman) Stopping() {
 func (v *OperationHuman) Cancelled(planMode plans.Mode) {
 	switch planMode {
 	case plans.DestroyMode:
-		v.view.streams.Println("Destroy cancelled.")
+		v.view.streams.Println("Destroy cancelled!\n")
 	default:
-		v.view.streams.Println("Apply cancelled.")
+		v.view.streams.Println("Apply cancelled!\n")
 	}
 }
 
@@ -194,9 +194,9 @@ func (v *OperationJSON) Stopping() {
 func (v *OperationJSON) Cancelled(planMode plans.Mode) {
 	switch planMode {
 	case plans.DestroyMode:
-		v.view.Log("Destroy cancelled")
+		v.view.Log("Destroy cancelled!\n")
 	default:
-		v.view.Log("Apply cancelled")
+		v.view.Log("Apply cancelled!\n")
 	}
 }
 

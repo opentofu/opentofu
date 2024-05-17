@@ -41,11 +41,11 @@ func TestOperation_cancelled(t *testing.T) {
 	}{
 		"apply": {
 			planMode: plans.NormalMode,
-			want:     "Apply cancelled.\n",
+			want:     "Apply cancelled!\n",
 		},
 		"destroy": {
 			planMode: plans.DestroyMode,
-			want:     "Destroy cancelled.\n",
+			want:     "Destroy cancelled!\n",
 		},
 	}
 	for name, tc := range testCases {
