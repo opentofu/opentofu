@@ -1007,7 +1007,6 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 // includes variables that are reference by the config and not everything that
 // is defined within the test run block and test file.
 func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue, evalCtx *hcl.EvalContext) (tofu.InputValues, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
 	variables := make(map[string]backend.UnparsedVariableValue)
 	for name := range config.Module.Variables {
 		if run != nil {
@@ -1045,9 +1044,8 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 		// If it's not set at all that might be okay if the variable is optional
 		// so we'll just not add anything to the map.
 	}
-	parsedVariables, pvDiags := backend.ParseVariableValues(variables, config.Module.Variables)
-	diags = diags.Append(pvDiags)
-	return parsedVariables, diags
+
+	return backend.ParseVariableValues(variables, config.Module.Variables)
 }
 
 // getEvalContextForTest constructs an hcl.EvalContext based on the provided map of
