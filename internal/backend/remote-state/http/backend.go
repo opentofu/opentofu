@@ -262,6 +262,7 @@ func (b *Backend) configure(ctx context.Context) error {
 				if username != "" {
 					return fmt.Errorf("headers \"%s\" cannot be set when providing username", k)
 				}
+				headers[k] = v.(string)
 			case "content-type", "content-md5":
 				return fmt.Errorf("headers \"%s\" is reserved", k)
 			default:
