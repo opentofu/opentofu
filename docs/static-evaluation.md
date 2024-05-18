@@ -419,6 +419,10 @@ Consider:
   - The unexpanded resource would depend on both instances
   - Once expanded, the module expansion key would be used to look up the provider instance
   - This implies aliased providers addresses can be resolved given a ModuleInstance path?
+* How does this impact state?
+  - Resource instances all currently point to a single provider type + alias
+  - We could introduce "provider_alias" in state and bump the version number
+  - Could also be a good reason to consider pre-expansion?
 * What happens if "magicsauce" is passed into another module?
   - During config loading, the name/type is known but the alias can be multiple things?
   - Each level down providers aliases must be made "deferred"
