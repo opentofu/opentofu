@@ -113,7 +113,7 @@ func TestHTTPClientFactory(t *testing.T) {
 		}),
 	}
 
-	b = backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
+	b, _ = backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	client = b.client
 
 	if client == nil {
