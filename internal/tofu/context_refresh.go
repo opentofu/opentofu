@@ -21,7 +21,7 @@ import (
 // automation relying on the "tofu refresh" subcommand. The modern way
 // to get this effect is to create and then apply a plan in the refresh-only
 // mode.
-func (c *Context) Refresh(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Refresh(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (states.ImmutableState, tfdiags.Diagnostics) {
 	if opts == nil {
 		// This fallback is only here for tests, not for real code.
 		opts = &PlanOpts{
@@ -35,7 +35,7 @@ func (c *Context) Refresh(config *configs.Config, prevRunState *states.State, op
 	log.Printf("[DEBUG] Refresh is really just plan now, so creating a %s plan", opts.Mode)
 	p, diags := c.Plan(config, prevRunState, opts)
 	if diags.HasErrors() {
-		return nil, diags
+		return states.ImmutableNil, diags
 	}
 
 	return p.PriorState, diags

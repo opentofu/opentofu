@@ -38,7 +38,7 @@ type Run struct {
 // all the information within this struct.
 type Verbose struct {
 	Plan         *plans.Plan
-	State        *states.State
+	State        states.ImmutableState
 	Config       *configs.Config
 	Providers    map[addrs.Provider]providers.ProviderSchema
 	Provisioners map[string]*configschema.Block

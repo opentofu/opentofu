@@ -32,6 +32,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -1039,7 +1040,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 			log.Printf("[TRACE] Meta.Backend: removing old state snapshots from old backend")
 			for _, localState := range localStates {
 				// We always delete the local state, unless that was our new state too.
-				if err := localState.WriteState(nil); err != nil {
+				if err := localState.WriteState(states.ImmutableNil); err != nil {
 					diags = diags.Append(fmt.Errorf(errBackendMigrateLocalDelete, err))
 					return nil, diags
 				}

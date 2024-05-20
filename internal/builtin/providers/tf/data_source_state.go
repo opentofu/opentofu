@@ -162,7 +162,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 	}
 
 	remoteState := state.State()
-	if remoteState == nil {
+	if remoteState.IsNil() {
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Unable to find remote state",
@@ -172,7 +172,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 		newState["outputs"] = cty.EmptyObjectVal
 		return cty.ObjectVal(newState), diags
 	}
-	mod := remoteState.RootModule()
+	mod := remoteState.Mutable().RootModule()
 	if mod != nil { // should always have a root module in any valid state
 		for k, os := range mod.OutputValues {
 			outputs[k] = os.Value

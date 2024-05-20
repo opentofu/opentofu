@@ -424,7 +424,7 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 
 		if r.URL.Path == "/state-json" {
 			t.Log("pretending to be Archivist")
-			fakeState := states.NewState()
+			fakeState := states.NewState().Immutable()
 			fakeStateFile := statefile.New(fakeState, "boop", 1)
 			var buf bytes.Buffer
 			statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())

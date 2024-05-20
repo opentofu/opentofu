@@ -204,7 +204,7 @@ type LocalRun struct {
 	// method call to a context created with CoreOpts. When creating a plan
 	// this will be the previous run state, but when applying a saved plan
 	// this will be the prior state recorded in that plan.
-	InputState *states.State
+	InputState states.ImmutableState
 
 	// PlanOpts are options to pass to a Plan or Plan-like operation.
 	//

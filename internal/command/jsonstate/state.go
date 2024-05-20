@@ -146,17 +146,19 @@ func newState() *State {
 // MarshalForRenderer returns the pre-json encoding changes of the state, in a
 // format available to the structured renderer.
 func MarshalForRenderer(sf *statefile.File, schemas *tofu.Schemas) (Module, map[string]Output, error) {
-	if sf.State.Modules == nil {
+	if sf.State.Empty() {
 		// Empty state case.
 		return Module{}, nil, nil
 	}
 
-	outputs, err := MarshalOutputs(sf.State.RootModule().OutputValues)
+	state := sf.State.Mutable()
+
+	outputs, err := MarshalOutputs(state.RootModule().OutputValues)
 	if err != nil {
 		return Module{}, nil, err
 	}
 
-	root, err := marshalRootModule(sf.State, schemas)
+	root, err := marshalRootModule(state, schemas)
 	if err != nil {
 		return Module{}, nil, err
 	}
@@ -177,15 +179,17 @@ func MarshalForLog(sf *statefile.File, schemas *tofu.Schemas) (*State, error) {
 		output.TerraformVersion = sf.TerraformVersion.String()
 	}
 
+	state := sf.State.Mutable()
+
 	// output.StateValues
-	err := output.marshalStateValues(sf.State, schemas)
+	err := output.marshalStateValues(state, schemas)
 	if err != nil {
 		return nil, err
 	}
 
 	// output.Checks
-	if sf.State.CheckResults != nil && sf.State.CheckResults.ConfigResults.Len() > 0 {
-		output.Checks = jsonchecks.MarshalCheckStates(sf.State.CheckResults)
+	if state.CheckResults != nil && state.CheckResults.ConfigResults.Len() > 0 {
+		output.Checks = jsonchecks.MarshalCheckStates(state.CheckResults)
 	}
 
 	return output, nil

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/aquasecurity/defsec/pkg/state"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -259,8 +260,8 @@ func (s *stateStorageThatFailsRefresh) Unlock(id string) error {
 	return nil
 }
 
-func (s *stateStorageThatFailsRefresh) State() *states.State {
-	return nil
+func (s *stateStorageThatFailsRefresh) State() states.ImmutableState {
+	return nil.(*state.State).Immutable()
 }
 
 func (s *stateStorageThatFailsRefresh) GetRootOutputValues() (map[string]*states.OutputValue, error) {

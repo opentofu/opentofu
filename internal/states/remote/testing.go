@@ -18,7 +18,7 @@ import (
 func TestClient(t *testing.T, c Client) {
 	var buf bytes.Buffer
 	s := statemgr.TestFullInitialState()
-	sf := statefile.New(s, "stub-lineage", 2)
+	sf := statefile.New(s.Immutable(), "stub-lineage", 2)
 	err := statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatalf("err: %s", err)

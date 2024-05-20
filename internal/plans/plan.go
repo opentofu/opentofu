@@ -88,8 +88,8 @@ type Plan struct {
 	// PriorState is the main snapshot we use for actions during apply.
 	// PrevRunState is only here so that we can diff PriorState against it in
 	// order to report to the user any out-of-band changes we've detected.
-	PrevRunState *states.State
-	PriorState   *states.State
+	PrevRunState states.ImmutableState
+	PriorState   states.ImmutableState
 
 	// PlannedState is the temporary planned state that was created during the
 	// graph walk that generated this plan.

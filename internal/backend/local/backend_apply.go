@@ -73,7 +73,7 @@ func (b *Local) opApply(
 	// We'll start off with our result being the input state, and replace it
 	// with the result state only if we eventually complete the apply
 	// operation.
-	runningOp.State = lr.InputState
+	runningOp.State = lr.InputState.Mutable()
 
 	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
@@ -230,7 +230,7 @@ func (b *Local) opApply(
 	stateHook.StateMgr = opState
 
 	// Start to apply in a goroutine so that we can be interrupted.
-	var applyState *states.State
+	var applyState states.ImmutableState
 	var applyDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
 	panicHandler := logging.PanicHandlerWithTraceFn()
@@ -248,14 +248,14 @@ func (b *Local) opApply(
 
 	// Even on error with an empty state, the state value should not be nil.
 	// Return early here to prevent corrupting any existing state.
-	if diags.HasErrors() && applyState == nil {
+	if diags.HasErrors() && applyState.IsNil() {
 		log.Printf("[ERROR] backend/local: apply returned nil state")
 		op.ReportResult(runningOp, diags)
 		return
 	}
 
 	// Store the final state
-	runningOp.State = applyState
+	runningOp.State = applyState.Mutable()
 	err := statemgr.WriteAndPersist(opState, applyState, schemas)
 	if err != nil {
 		// Export the state file from the state manager and assign the new

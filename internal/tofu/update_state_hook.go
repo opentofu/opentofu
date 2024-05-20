@@ -13,7 +13,7 @@ func updateStateHook(ctx EvalContext) error {
 	// situation of us racing to call PostStateUpdate concurrently with
 	// different state snapshots.
 	stateSync := ctx.State()
-	state := stateSync.Lock().DeepCopy()
+	state := stateSync.Lock().Immutable()
 	defer stateSync.Unlock()
 
 	// Call the hook

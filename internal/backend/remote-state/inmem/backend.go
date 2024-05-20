@@ -143,8 +143,8 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		defer s.Unlock(lockID)
 
 		// If we have no state, we have to create an empty state
-		if v := s.State(); v == nil {
-			if err := s.WriteState(statespkg.NewState()); err != nil {
+		if v := s.State(); v.IsNil() {
+			if err := s.WriteState(statespkg.NewState().Immutable()); err != nil {
 				return nil, err
 			}
 			if err := s.PersistState(nil); err != nil {

@@ -197,7 +197,8 @@ func (b *binary) StateFromFile(filename string) (*states.State, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error reading statefile: %w", err)
 	}
-	return stateFile.State, nil
+	// TODO Immutable
+	return stateFile.State.Mutable(), nil
 }
 
 // Plan is a helper for easily reading a plan file from the working directory.
@@ -218,6 +219,7 @@ func (b *binary) Plan(path string) (*plans.Plan, error) {
 // uses for state in the working directory. This does not go through the
 // actual local backend code, so processing such as management of serials
 // does not apply and the given state will simply be written verbatim.
+// TODO Immutable
 func (b *binary) SetLocalState(state *states.State) error {
 	path := b.Path("terraform.tfstate")
 	f, err := os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, os.ModePerm)
@@ -229,7 +231,7 @@ func (b *binary) SetLocalState(state *states.State) error {
 	sf := &statefile.File{
 		Serial:  0,
 		Lineage: "fake-for-testing",
-		State:   state,
+		State:   state.Immutable(),
 	}
 	return statefile.Write(sf, f, encryption.StateEncryptionDisabled())
 }

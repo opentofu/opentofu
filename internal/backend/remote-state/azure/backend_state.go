@@ -106,7 +106,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	}
 	//if this isn't the default state name, we need to create the object so
 	//it's listed by States.
-	if v := stateMgr.State(); v == nil {
+	if v := stateMgr.State(); v.IsNil() {
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
@@ -130,9 +130,9 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		}
 		//if this isn't the default state name, we need to create the object so
 		//it's listed by States.
-		if v := stateMgr.State(); v == nil {
+		if v := stateMgr.State(); v.IsNil() {
 			// If we have no state, we have to create an empty state
-			if err := stateMgr.WriteState(states.NewState()); err != nil {
+			if err := stateMgr.WriteState(states.NewState().Immutable()); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

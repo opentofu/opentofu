@@ -146,7 +146,7 @@ func (c *TaintCommand) Run(args []string) int {
 		diags = diags.Append(schemaDiags)
 	}
 
-	ss := state.SyncWrapper()
+	ss := state.Mutable().SyncWrapper()
 
 	// Get the resource and instance we're going to taint
 	rs := ss.Resource(addr.ContainingResource())

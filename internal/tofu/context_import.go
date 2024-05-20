@@ -235,18 +235,17 @@ func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *Evaluate
 // Further, this operation also gracefully handles partial state. If during
 // an import there is a failure, all previously imported resources remain
 // imported.
-func (c *Context) Import(config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Import(config *configs.Config, prevRunState states.ImmutableState, opts *ImportOpts) (states.ImmutableState, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Hold a lock since we can modify our own state here
 	defer c.acquireRun("import")()
 
-	// Don't modify our caller's state
-	state := prevRunState.DeepCopy()
-
 	log.Printf("[DEBUG] Building and walking import graph")
 
 	variables := opts.SetVariables
+
+	state := prevRunState.Mutable()
 
 	// Initialize our graph builder
 	builder := &PlanGraphBuilder{
@@ -262,17 +261,17 @@ func (c *Context) Import(config *configs.Config, prevRunState *states.State, opt
 	graph, graphDiags := builder.Build(addrs.RootModuleInstance)
 	diags = diags.Append(graphDiags)
 	if graphDiags.HasErrors() {
-		return state, diags
+		return prevRunState, diags
 	}
 
 	// Walk it
 	walker, walkDiags := c.walk(graph, walkImport, &graphWalkOpts{
 		Config:     config,
-		InputState: state,
+		InputState: state.Immutable(),
 	})
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {
-		return state, diags
+		return prevRunState, diags
 	}
 
 	// Data sources which could not be read during the import plan will be
@@ -281,5 +280,5 @@ func (c *Context) Import(config *configs.Config, prevRunState *states.State, opt
 	walker.State.RemovePlannedResourceInstanceObjects()
 
 	newState := walker.State.Close()
-	return newState, diags
+	return newState.Immutable(), diags
 }

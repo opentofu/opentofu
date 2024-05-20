@@ -153,7 +153,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	}, diags
 }
 
-func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
+func (c *Context) Schemas(config *configs.Config, state states.ImmutableState) (*Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	ret, err := loadSchemas(config, state, c.plugins)

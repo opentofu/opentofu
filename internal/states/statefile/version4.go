@@ -310,7 +310,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		diags = diags.Append(moreDiags)
 	}
 
-	file.State = state
+	file.State = state.Immutable()
 	return file, diags
 }
 
@@ -324,7 +324,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 	// read/prepare V4 functions above would stick around.
 
 	var diags tfdiags.Diagnostics
-	if file == nil || file.State == nil {
+	if file == nil || file.State.IsNil() {
 		panic("attempt to write nil state to file")
 	}
 
@@ -341,7 +341,10 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 		Resources:        []resourceStateV4{},
 	}
 
-	for name, os := range file.State.RootModule().OutputValues {
+	// TODO Implement safe RootModule() and similar functions on top of state.Immutable()
+	state := file.State.Mutable()
+
+	for name, os := range state.RootModule().OutputValues {
 		src, err := ctyjson.Marshal(os.Value, os.Value.Type())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -369,7 +372,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 		}
 	}
 
-	for _, ms := range file.State.Modules {
+	for _, ms := range state.Modules {
 		moduleAddr := ms.Addr
 		for _, rs := range ms.Resources {
 			resourceAddr := rs.Addr.Resource
@@ -420,7 +423,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 		}
 	}
 
-	sV4.CheckResults = encodeCheckResultsV4(file.State.CheckResults)
+	sV4.CheckResults = encodeCheckResultsV4(state.CheckResults)
 
 	sV4.normalize()
 

@@ -39,18 +39,18 @@ import (
 //	}
 //
 // then we keep the old address.
-func MigrateStateProviderAddresses(config *configs.Config, state *states.State) (*states.State, tfdiags.Diagnostics) {
+func MigrateStateProviderAddresses(config *configs.Config, state states.ImmutableState) (states.ImmutableState, tfdiags.Diagnostics) {
 	if os.Getenv("OPENTOFU_STATEFILE_PROVIDER_ADDRESS_TRANSLATION") == "0" {
 		return state, nil
 	}
 
-	if state == nil {
-		return nil, nil
+	if state.IsNil() {
+		return states.ImmutableNil, nil
 	}
 
 	var diags tfdiags.Diagnostics
 
-	stateCopy := state.DeepCopy()
+	stateCopy := state.Mutable()
 
 	providers := getproviders.Requirements{}
 	// config could be nil when we're e.g. showing a statefile without the configuration present
@@ -59,7 +59,7 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 		providers, hclDiags = config.ProviderRequirements()
 		diags = diags.Append(hclDiags)
 		if hclDiags.HasErrors() {
-			return nil, diags
+			return states.ImmutableNil, diags
 		}
 	}
 
@@ -72,5 +72,5 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 		}
 	}
 
-	return stateCopy, diags
+	return stateCopy.Immutable(), diags
 }

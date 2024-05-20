@@ -34,7 +34,7 @@ func TestFull(t *testing.T, s Full) {
 	// Check that the initial state is correct.
 	// These do have different Lineages, but we will replace current below.
 	initial := TestFullInitialState()
-	if state := s.State(); !state.Equal(initial) {
+	if state := s.State().Mutable(); !state.Equal(initial) {
 		t.Fatalf("state does not match expected initial state\n\ngot:\n%s\nwant:\n%s", spew.Sdump(state), spew.Sdump(initial))
 	}
 
@@ -47,16 +47,16 @@ func TestFull(t *testing.T, s Full) {
 	// state, we'll complete our work here with that state, since otherwise
 	// further writes would violate the invariant that we only try to write
 	// states that share the same lineage as what was initially written.
-	current := s.State()
+	current := s.State().Mutable()
 
 	// Write a new state and verify that we have it
 	current.RootModule().SetOutputValue("bar", cty.StringVal("baz"), false)
 
-	if err := s.WriteState(current); err != nil {
+	if err := s.WriteState(current.Immutable()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if actual := s.State(); !actual.Equal(current) {
+	if actual := s.State().Mutable(); !actual.Equal(current) {
 		t.Fatalf("bad:\n%#v\n\n%#v", actual, current)
 	}
 
@@ -83,7 +83,7 @@ func TestFull(t *testing.T, s Full) {
 
 	// Same serial
 	serial := newMeta.Serial
-	if err := s.WriteState(current); err != nil {
+	if err := s.WriteState(current.Immutable()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if err := s.PersistState(nil); err != nil {
@@ -106,7 +106,7 @@ func TestFull(t *testing.T, s Full) {
 	current.EnsureModule(addrs.RootModuleInstance).SetOutputValue(
 		"serialCheck", cty.StringVal("true"), false,
 	)
-	if err := s.WriteState(current); err != nil {
+	if err := s.WriteState(current.Immutable()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if err := s.PersistState(nil); err != nil {
@@ -133,14 +133,14 @@ func TestFull(t *testing.T, s Full) {
 
 	// Check that State() returns a copy by modifying the copy and comparing
 	// to the current state.
-	stateCopy := s.State()
+	stateCopy := s.State().Mutable()
 	stateCopy.EnsureModule(addrs.RootModuleInstance.Child("another", addrs.NoKey))
 	if reflect.DeepEqual(stateCopy, s.State()) {
 		t.Fatal("State() should return a copy")
 	}
 
 	// our current expected state should also marshal identically to the persisted state
-	if !statefile.StatesMarshalEqual(current, s.State()) {
+	if !statefile.StatesMarshalEqual(current.Immutable(), s.State()) {
 		t.Fatalf("Persisted state altered unexpectedly.\n\ngot:\n%s\nwant:\n%s", spew.Sdump(s.State()), spew.Sdump(current))
 	}
 }

@@ -72,7 +72,7 @@ func (c *StateListCommand) Run(args []string) int {
 		return 1
 	}
 
-	state := stateMgr.State()
+	state := stateMgr.State().Mutable()
 	if state == nil {
 		c.Ui.Error(errStateNotFound)
 		return 1

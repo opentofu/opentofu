@@ -183,7 +183,7 @@ func (b *TestLocalNoDefaultState) StateMgr(name string) (statemgr.Full, error) {
 func testStateFile(t *testing.T, path string, s *states.State) {
 	t.Helper()
 
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
+	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s.Immutable(), nil); err != nil {
 		t.Fatal(err)
 	}
 }

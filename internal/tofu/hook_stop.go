@@ -94,7 +94,7 @@ func (h *stopHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pla
 
 func (h *stopHook) Stopping() {}
 
-func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *stopHook) PostStateUpdate(new states.ImmutableState) (HookAction, error) {
 	return h.hook()
 }
 

@@ -130,8 +130,8 @@ func TestBackendStates(t *testing.T, b Backend) {
 	{
 		// We'll use two distinct states here and verify that changing one
 		// does not also change the other.
-		fooState := states.NewState()
-		barState := states.NewState()
+		fooState := states.NewState().Immutable()
+		barState := states.NewState().Immutable()
 
 		// write a known state to foo
 		if err := foo.WriteState(fooState); err != nil {
@@ -142,7 +142,8 @@ func TestBackendStates(t *testing.T, b Backend) {
 		}
 
 		// We'll make "bar" different by adding a fake resource state to it.
-		barState.SyncWrapper().SetResourceInstanceCurrent(
+		mut := barState.Mutable()
+		mut.SyncWrapper().SetResourceInstanceCurrent(
 			addrs.ResourceInstance{
 				Resource: addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
@@ -160,6 +161,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 				Module:   addrs.RootModule,
 			},
 		)
+		barState = mut.Immutable()
 
 		// write a distinct known state to bar
 		if err := bar.WriteState(barState); err != nil {

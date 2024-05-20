@@ -72,7 +72,7 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // either misbehavior on the part of one of the providers or of the provider
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
-func loadSchemas(config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
+func loadSchemas(config *configs.Config, state states.ImmutableState, plugins *contextPlugins) (*Schemas, error) {
 	schemas := &Schemas{
 		Providers:    map[addrs.Provider]providers.ProviderSchema{},
 		Provisioners: map[string]*configschema.Block{},
@@ -87,7 +87,7 @@ func loadSchemas(config *configs.Config, state *states.State, plugins *contextPl
 	return schemas, diags.Err()
 }
 
-func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
+func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state states.ImmutableState, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	ensure := func(fqn addrs.Provider) {
@@ -123,8 +123,8 @@ func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, co
 		}
 	}
 
-	if state != nil {
-		needed := providers.AddressedTypesAbs(state.ProviderAddrs())
+	if state.IsNil() {
+		needed := providers.AddressedTypesAbs(state.Mutable().ProviderAddrs())
 		for _, typeAddr := range needed {
 			ensure(typeAddr)
 		}

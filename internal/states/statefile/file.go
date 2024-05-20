@@ -33,17 +33,10 @@ type File struct {
 	Lineage string
 
 	// State is the actual state represented by this file.
-	State *states.State
+	State states.ImmutableState
 }
 
-func New(state *states.State, lineage string, serial uint64) *File {
-	// To make life easier on callers, we'll accept a nil state here and just
-	// allocate an empty one, which is required for this file to be successfully
-	// written out.
-	if state == nil {
-		state = states.NewState()
-	}
-
+func New(state states.ImmutableState, lineage string, serial uint64) *File {
 	return &File{
 		TerraformVersion: tfversion.SemVer,
 		State:            state,
@@ -62,6 +55,6 @@ func (f *File) DeepCopy() *File {
 		TerraformVersion: f.TerraformVersion,
 		Serial:           f.Serial,
 		Lineage:          f.Lineage,
-		State:            f.State.DeepCopy(),
+		State:            f.State,
 	}
 }

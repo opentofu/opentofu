@@ -42,7 +42,7 @@ type State struct {
 	lineage, readLineage string
 	serial, readSerial   uint64
 	mu                   sync.Mutex
-	state, readState     *states.State
+	state, readState     states.ImmutableState
 	disableLocks         bool
 
 	// If this is set then the state manager will decline to store intermediate
@@ -68,11 +68,11 @@ func (s *State) DisableIntermediateSnapshots() {
 }
 
 // statemgr.Reader impl.
-func (s *State) State() *states.State {
+func (s *State) State() states.ImmutableState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.state.DeepCopy()
+	return s.state
 }
 
 func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
@@ -80,7 +80,7 @@ func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
 		return nil, fmt.Errorf("Failed to load state: %w", err)
 	}
 
-	state := s.State()
+	state := s.State().Mutable()
 	if state == nil {
 		state = states.NewState()
 	}
@@ -93,18 +93,15 @@ func (s *State) StateForMigration() *statefile.File {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return statefile.New(s.state.DeepCopy(), s.lineage, s.serial)
+	return statefile.New(s.state, s.lineage, s.serial)
 }
 
 // statemgr.Writer impl.
-func (s *State) WriteState(state *states.State) error {
+func (s *State) WriteState(state states.ImmutableState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// We create a deep copy of the state here, because the caller also has
-	// a reference to the given object and can potentially go on to mutate
-	// it after we return, but we want the snapshot at this point in time.
-	s.state = state.DeepCopy()
+	s.state = state
 
 	return nil
 }
@@ -132,7 +129,7 @@ func (s *State) WriteStateForMigration(f *statefile.File, force bool) error {
 	// We create a deep copy of the state here, because the caller also has
 	// a reference to the given object and can potentially go on to mutate
 	// it after we return, but we want the snapshot at this point in time.
-	s.state = f.State.DeepCopy()
+	s.state = f.State
 	s.lineage = f.Lineage
 	s.serial = f.Serial
 
@@ -157,7 +154,7 @@ func (s *State) refreshState() error {
 
 	// no remote state is OK
 	if payload == nil {
-		s.readState = nil
+		s.readState = states.ImmutableNil
 		s.lineage = ""
 		s.serial = 0
 		return nil
@@ -176,7 +173,7 @@ func (s *State) refreshState() error {
 	// track changes as lineage, serial and/or state are mutated
 	s.readLineage = stateFile.Lineage
 	s.readSerial = stateFile.Serial
-	s.readState = s.state.DeepCopy()
+	s.readState = s.state
 	return nil
 }
 
@@ -188,7 +185,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 	log.Printf("[DEBUG] states/remote: state read serial is: %d; serial is: %d", s.readSerial, s.serial)
 	log.Printf("[DEBUG] states/remote: state read lineage is: %s; lineage is: %s", s.readLineage, s.lineage)
 
-	if s.readState != nil {
+	if !s.readState.IsNil() {
 		lineageUnchanged := s.readLineage != "" && s.lineage == s.readLineage
 		serialUnchanged := s.readSerial != 0 && s.serial == s.readSerial
 		stateUnchanged := statefile.StatesMarshalEqual(s.state, s.readState)
@@ -236,7 +233,7 @@ func (s *State) PersistState(schemas *tofu.Schemas) error {
 	// and / or serial (and serial was incremented) so we copy over all
 	// three fields so everything matches the new state and a subsequent
 	// operation would correctly detect no changes to the lineage, serial or state.
-	s.readState = s.state.DeepCopy()
+	s.readState = s.state
 	s.readLineage = s.lineage
 	s.readSerial = s.serial
 	return nil

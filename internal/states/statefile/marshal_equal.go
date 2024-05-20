@@ -19,12 +19,12 @@ import (
 // in state files, so for example it will not return false if the only
 // differences between the two states are local values or descendent module
 // outputs.
-func StatesMarshalEqual(a, b *states.State) bool {
+func StatesMarshalEqual(a, b states.ImmutableState) bool {
 	var aBuf bytes.Buffer
 	var bBuf bytes.Buffer
 
 	// nil states are not valid states, and so they can never martial equal.
-	if a == nil || b == nil {
+	if a.IsNil() || b.IsNil() {
 		return false
 	}
 

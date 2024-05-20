@@ -19,7 +19,7 @@ type LockDisabled struct {
 	Inner Full
 }
 
-func (s *LockDisabled) State() *states.State {
+func (s *LockDisabled) State() states.ImmutableState {
 	return s.Inner.State()
 }
 
@@ -27,7 +27,7 @@ func (s *LockDisabled) GetRootOutputValues() (map[string]*states.OutputValue, er
 	return s.Inner.GetRootOutputValues()
 }
 
-func (s *LockDisabled) WriteState(v *states.State) error {
+func (s *LockDisabled) WriteState(v states.ImmutableState) error {
 	return s.Inner.WriteState(v)
 }
 

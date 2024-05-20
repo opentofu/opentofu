@@ -130,7 +130,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	state := stateMgr.State()
-	if state == nil {
+	if state.IsNil() {
 		c.Streams.Eprintln(errStateNotFound)
 		return 1
 	}
@@ -142,14 +142,14 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 	state = migratedState
 
-	is := state.ResourceInstance(addr)
+	is := state.Mutable().ResourceInstance(addr)
 	if !is.HasCurrent() {
 		c.Streams.Eprintln(errNoInstanceFound)
 		return 1
 	}
 
 	// check if the resource has a configured provider, otherwise this will use the default provider
-	rs := state.Resource(addr.ContainingResource())
+	rs := state.Mutable().Resource(addr.ContainingResource())
 	absPc := addrs.AbsProviderConfig{
 		Provider: rs.ProviderConfig.Provider,
 		Alias:    rs.ProviderConfig.Alias,
@@ -162,7 +162,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		absPc,
 	)
 
-	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance, "", 0), schemas)
+	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance.Immutable(), "", 0), schemas)
 	if err != nil {
 		c.Streams.Eprintf("Failed to marshal state to json: %s", err)
 	}

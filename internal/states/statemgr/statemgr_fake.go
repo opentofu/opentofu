@@ -30,14 +30,14 @@ import (
 //
 // The Locker portion of the returned manager uses a local mutex to simulate
 // mutually-exclusive access to the fake persistent portion of the object.
-func NewFullFake(t Transient, initial *states.State) Full {
+func NewFullFake(t Transient, initial states.ImmutableState) Full {
 	if t == nil {
-		t = NewTransientInMemory(nil)
+		t = NewTransientInMemory(states.ImmutableNil)
 	}
 
 	// The "persistent" part of our manager is actually just another in-memory
 	// transient used to fake a secondary storage layer.
-	fakeP := NewTransientInMemory(initial.DeepCopy())
+	fakeP := NewTransientInMemory(initial)
 
 	return &fakeFull{
 		t:     t,
@@ -55,11 +55,11 @@ type fakeFull struct {
 
 var _ Full = (*fakeFull)(nil)
 
-func (m *fakeFull) State() *states.State {
+func (m *fakeFull) State() states.ImmutableState {
 	return m.t.State()
 }
 
-func (m *fakeFull) WriteState(s *states.State) error {
+func (m *fakeFull) WriteState(s states.ImmutableState) error {
 	return m.t.WriteState(s)
 }
 
@@ -72,7 +72,7 @@ func (m *fakeFull) PersistState(schemas *tofu.Schemas) error {
 }
 
 func (m *fakeFull) GetRootOutputValues() (map[string]*states.OutputValue, error) {
-	return m.State().RootModule().OutputValues, nil
+	return m.State().Mutable().RootModule().OutputValues, nil
 }
 
 func (m *fakeFull) Lock(info *LockInfo) (string, error) {
@@ -117,15 +117,15 @@ type fakeErrorFull struct{}
 
 var _ Full = (*fakeErrorFull)(nil)
 
-func (m *fakeErrorFull) State() *states.State {
-	return nil
+func (m *fakeErrorFull) State() states.ImmutableState {
+	return states.ImmutableNil
 }
 
 func (m *fakeErrorFull) GetRootOutputValues() (map[string]*states.OutputValue, error) {
 	return nil, errors.New("fake state manager error")
 }
 
-func (m *fakeErrorFull) WriteState(s *states.State) error {
+func (m *fakeErrorFull) WriteState(s states.ImmutableState) error {
 	return errors.New("fake state manager error")
 }
 

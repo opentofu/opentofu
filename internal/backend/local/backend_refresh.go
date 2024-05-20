@@ -69,7 +69,7 @@ func (b *Local) opRefresh(
 
 	// If we succeed then we'll overwrite this with the resulting state below,
 	// but otherwise the resulting state is just the input state.
-	runningOp.State = lr.InputState
+	runningOp.State = lr.InputState.Mutable()
 	if !runningOp.State.HasManagedResourceInstanceObjects() {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
@@ -87,7 +87,7 @@ func (b *Local) opRefresh(
 	}
 
 	// Perform the refresh in a goroutine so we can be interrupted
-	var newState *states.State
+	var newState states.ImmutableState
 	var refreshDiags tfdiags.Diagnostics
 	doneCh := make(chan struct{})
 	panicHandler := logging.PanicHandlerWithTraceFn()
@@ -103,7 +103,7 @@ func (b *Local) opRefresh(
 	}
 
 	// Write the resulting state to the running op
-	runningOp.State = newState
+	runningOp.State = newState.Mutable()
 	diags = diags.Append(refreshDiags)
 	if refreshDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)

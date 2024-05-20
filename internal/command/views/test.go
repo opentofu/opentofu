@@ -577,7 +577,7 @@ func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *mo
 	var diags tfdiags.Diagnostics
 	localFileSystem := statemgr.NewFilesystem("errored_test.tfstate", encryption.StateEncryptionDisabled())
 	stateFile := statemgr.NewStateFile()
-	stateFile.State = state
+	stateFile.State = state.Immutable()
 
 	//creating an operation to invoke EmergencyDumpState()
 	var op Operation

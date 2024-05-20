@@ -24,9 +24,9 @@ import (
 // responsibility to hold the lock at least for the duration of this call.
 // It is not safe to modify the given state concurrently while
 // PlannedStateUpdate is running.
-func PlannedStateUpdate(mgr Transient, planned *states.State) *statefile.File {
+func PlannedStateUpdate(mgr Transient, planned states.ImmutableState) *statefile.File {
 	ret := &statefile.File{
-		State: planned.DeepCopy(),
+		State: planned,
 	}
 
 	// If the given manager uses snapshot metadata then we'll save that

@@ -857,7 +857,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (c *Meta) MaybeGetSchemas(state states.ImmutableState, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -874,7 +874,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 		}
 	}
 
-	if config != nil || state != nil {
+	if config != nil || state.IsNil() {
 		opts, err := c.contextOpts()
 		if err != nil {
 			diags = diags.Append(err)

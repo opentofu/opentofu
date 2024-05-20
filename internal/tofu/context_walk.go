@@ -26,7 +26,7 @@ import (
 // us using the same graph structure for all operations; hopefully we'll
 // make the necessary differences between the walk types more explicit someday.
 type graphWalkOpts struct {
-	InputState *states.State
+	InputState states.ImmutableState
 	Changes    *plans.Changes
 	Config     *configs.Config
 
@@ -76,10 +76,10 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 	// To account for that, most of our SyncState values created below end up
 	// wrapping a _deep copy_ of opts.InputState instead.
 	inputState := opts.InputState
-	if inputState == nil {
+	if inputState.IsNil() {
 		// Lots of callers use nil to represent the "empty" case where we've
 		// not run Apply yet, so we tolerate that.
-		inputState = states.NewState()
+		inputState = states.NewState().Immutable()
 	}
 
 	switch operation {
@@ -93,9 +93,9 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		prevRunState = states.NewState().SyncWrapper()
 
 	case walkPlan, walkPlanDestroy, walkImport:
-		state = inputState.DeepCopy().SyncWrapper()
-		refreshState = inputState.DeepCopy().SyncWrapper()
-		prevRunState = inputState.DeepCopy().SyncWrapper()
+		state = inputState.Mutable().SyncWrapper()
+		refreshState = inputState.Mutable().SyncWrapper()
+		prevRunState = inputState.Mutable().SyncWrapper()
 
 		// For both of our new states we'll discard the previous run's
 		// check results, since we can still refer to them from the
@@ -104,7 +104,7 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		refreshState.DiscardCheckResults()
 
 	default:
-		state = inputState.DeepCopy().SyncWrapper()
+		state = inputState.Mutable().SyncWrapper()
 		// Only plan-like walks use refreshState and prevRunState
 
 		// Discard the input state's check results, because we should create

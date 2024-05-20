@@ -17,30 +17,30 @@ import (
 // The given initial state, if any, must not be modified concurrently while
 // this function is running, but may be freely modified once this function
 // returns without affecting the stored transient snapshot.
-func NewTransientInMemory(initial *states.State) Transient {
+func NewTransientInMemory(initial states.ImmutableState) Transient {
 	return &transientInMemory{
-		current: initial.DeepCopy(),
+		current: initial,
 	}
 }
 
 type transientInMemory struct {
 	lock    sync.RWMutex
-	current *states.State
+	current states.ImmutableState
 }
 
 var _ Transient = (*transientInMemory)(nil)
 
-func (m *transientInMemory) State() *states.State {
+func (m *transientInMemory) State() states.ImmutableState {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	return m.current.DeepCopy()
+	return m.current
 }
 
-func (m *transientInMemory) WriteState(new *states.State) error {
+func (m *transientInMemory) WriteState(new states.ImmutableState) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.current = new.DeepCopy()
+	m.current = new
 	return nil
 }

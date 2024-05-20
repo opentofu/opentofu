@@ -113,7 +113,7 @@ type PlanOpts struct {
 // planned so far, which is not safe to apply but could potentially be used
 // by the UI layer to give extra context to support understanding of the
 // returned error messages.
-func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) Plan(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
 	defer c.acquireRun("plan")()
 	var diags tfdiags.Diagnostics
 
@@ -123,8 +123,8 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 	if config == nil {
 		config = configs.NewEmptyConfig()
 	}
-	if prevRunState == nil {
-		prevRunState = states.NewState()
+	if prevRunState.IsNil() {
+		prevRunState = states.NewState().Immutable()
 	}
 	if opts == nil {
 		opts = &PlanOpts{
@@ -304,7 +304,7 @@ func SimplePlanOpts(mode plans.Mode, setVariables InputValues) *PlanOpts {
 	}
 }
 
-func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) plan(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.NormalMode {
@@ -332,7 +332,7 @@ func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts 
 	return plan, diags
 }
 
-func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.RefreshOnlyMode {
@@ -376,7 +376,7 @@ func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.S
 	return plan, diags
 }
 
-func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) destroyPlan(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.DestroyMode {
@@ -429,11 +429,11 @@ func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State
 		// the perspective of this "destroy plan" -- as the starting state
 		// for our destroy-plan walk, so it can take into account if we
 		// detected during refreshing that anything was already deleted outside OpenTofu.
-		priorState = refreshPlan.PriorState.DeepCopy()
+		priorState = refreshPlan.PriorState
 
 		// The refresh plan may have upgraded state for some resources, make
 		// sure we store the new version.
-		prevRunState = refreshPlan.PrevRunState.DeepCopy()
+		prevRunState = refreshPlan.PrevRunState
 		log.Printf("[TRACE] Context.destroyPlan: now _really_ creating a destroy plan")
 	}
 
@@ -657,12 +657,13 @@ func importResourceWithoutConfigDiags(addressStr string, config *configs.Import)
 	return &diag
 }
 
-func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) planWalk(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	log.Printf("[DEBUG] Building and walking plan graph for %s", opts.Mode)
 
-	prevRunState = prevRunState.DeepCopy() // don't modify the caller's object when we process the moves
-	moveStmts, moveResults := c.prePlanFindAndApplyMoves(config, prevRunState, opts.Targets)
+	mut := prevRunState.Mutable()
+	moveStmts, moveResults := c.prePlanFindAndApplyMoves(config, mut, opts.Targets)
+	prevRunState = mut.Immutable()
 
 	// If resource targeting is in effect then it might conflict with the
 	// move result.
@@ -687,8 +688,8 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	changes := plans.NewChanges()
 	walker, walkDiags := c.walk(graph, walkOp, &graphWalkOpts{
 		Config:            config,
-		InputState:        prevRunState,
 		Changes:           changes,
+		InputState:        prevRunState,
 		MoveResults:       moveResults,
 		PlanTimeTimestamp: timestamp,
 	})
@@ -728,12 +729,12 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	// we encountered errors, which we'll return as part of a non-nil plan
 	// so that e.g. the UI can show what was planned so far in case that extra
 	// context helps the user to understand the error messages we're returning.
-	prevRunState = walker.PrevRunState.Close()
+	prevRunState = walker.PrevRunState.Close().Immutable()
 
 	// The refreshed state may have data resource objects which were deferred
 	// to apply and cannot be serialized.
 	walker.RefreshState.RemovePlannedResourceInstanceObjects()
-	priorState := walker.RefreshState.Close()
+	priorState := walker.RefreshState.Close().Immutable()
 
 	driftedResources, driftDiags := c.driftedResources(config, prevRunState, priorState, moveResults)
 	diags = diags.Append(driftDiags)
@@ -754,12 +755,12 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	return plan, diags
 }
 
-func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) planGraph(config *configs.Config, prevRunState states.ImmutableState, opts *PlanOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	switch mode := opts.Mode; mode {
 	case plans.NormalMode:
 		graph, diags := (&PlanGraphBuilder{
 			Config:             config,
-			State:              prevRunState,
+			State:              prevRunState.Mutable(),
 			RootVariableValues: opts.SetVariables,
 			Plugins:            c.plugins,
 			Targets:            opts.Targets,
@@ -776,7 +777,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 	case plans.RefreshOnlyMode:
 		graph, diags := (&PlanGraphBuilder{
 			Config:             config,
-			State:              prevRunState,
+			State:              prevRunState.Mutable(),
 			RootVariableValues: opts.SetVariables,
 			Plugins:            c.plugins,
 			Targets:            opts.Targets,
@@ -789,7 +790,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 	case plans.DestroyMode:
 		graph, diags := (&PlanGraphBuilder{
 			Config:             config,
-			State:              prevRunState,
+			State:              prevRunState.Mutable(),
 			RootVariableValues: opts.SetVariables,
 			Plugins:            c.plugins,
 			Targets:            opts.Targets,
@@ -809,22 +810,25 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 // report. This is known to happen when targeting a subset of resources,
 // because the excluded instances will have been removed from the plan and
 // not upgraded.
-func (c *Context) driftedResources(config *configs.Config, oldState, newState *states.State, moves refactoring.MoveResults) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
+func (c *Context) driftedResources(config *configs.Config, oldStateIn, newStateIn states.ImmutableState, moves refactoring.MoveResults) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	if newState.ManagedResourcesEqual(oldState) && moves.Changes.Len() == 0 {
+	if newStateIn.ManagedResourcesEqual(oldStateIn) && moves.Changes.Len() == 0 {
 		// Nothing to do, because we only detect and report drift for managed
 		// resource instances.
 		return nil, diags
 	}
 
-	schemas, schemaDiags := c.Schemas(config, newState)
+	schemas, schemaDiags := c.Schemas(config, newStateIn)
 	diags = diags.Append(schemaDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
 	var drs []*plans.ResourceInstanceChangeSrc
+
+	oldState := oldStateIn.Mutable()
+	newState := newStateIn.Mutable()
 
 	for _, ms := range oldState.Modules {
 		for _, rs := range ms.Resources {
@@ -954,7 +958,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 // graph, and so may change in future in order to make the result more useful
 // in that context, even if drifts away from the physical graph that OpenTofu
 // Core currently uses as an implementation detail of planning.
-func (c *Context) PlanGraphForUI(config *configs.Config, prevRunState *states.State, mode plans.Mode) (*Graph, tfdiags.Diagnostics) {
+func (c *Context) PlanGraphForUI(config *configs.Config, prevRunState states.ImmutableState, mode plans.Mode) (*Graph, tfdiags.Diagnostics) {
 	// For now though, this really is just the internal graph, confusing
 	// implementation details and all.
 
@@ -991,7 +995,7 @@ func blockedMovesWarningDiag(results refactoring.MoveResults) tfdiags.Diagnostic
 // referenceAnalyzer returns a globalref.Analyzer object to help with
 // global analysis of references within the configuration that's attached
 // to the receiving context.
-func (c *Context) referenceAnalyzer(config *configs.Config, state *states.State) (*globalref.Analyzer, tfdiags.Diagnostics) {
+func (c *Context) referenceAnalyzer(config *configs.Config, state states.ImmutableState) (*globalref.Analyzer, tfdiags.Diagnostics) {
 	schemas, diags := c.Schemas(config, state)
 	if diags.HasErrors() {
 		return nil, diags

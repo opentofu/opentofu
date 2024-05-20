@@ -232,7 +232,7 @@ func (c *InitCommand) Run(args []string) int {
 		header = true
 	}
 
-	var state *states.State
+	var state states.ImmutableState
 
 	// If we have a functional backend (either just initialized or initialized
 	// on a previous run) we'll use the current state as a potential source
@@ -327,7 +327,7 @@ func (c *InitCommand) Run(args []string) int {
 		}
 	}
 
-	if state != nil {
+	if !state.IsNil() {
 		// Since we now have the full configuration loaded, we can use it to migrate the in-memory state view
 		// prior to fetching providers.
 		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
@@ -548,7 +548,7 @@ the backend configuration is present and valid.
 
 // Load the complete module tree, and fetch any missing providers.
 // This method outputs its own Ui.
-func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, state *states.State, upgrade bool, pluginDirs []string, flagLockfile string) (output, abort bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, state states.ImmutableState, upgrade bool, pluginDirs []string, flagLockfile string) (output, abort bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracer.Start(ctx, "install providers")
 	defer span.End()
 
@@ -565,8 +565,8 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	if hclDiags.HasErrors() {
 		return false, true, diags
 	}
-	if state != nil {
-		stateReqs := state.ProviderRequirements()
+	if state.IsNil() {
+		stateReqs := state.Mutable().ProviderRequirements()
 		reqs = reqs.Merge(stateReqs)
 	}
 

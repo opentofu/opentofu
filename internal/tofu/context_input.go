@@ -16,6 +16,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -50,7 +51,7 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("input")()
 
-	schemas, moreDiags := c.Schemas(config, nil)
+	schemas, moreDiags := c.Schemas(config, states.ImmutableNil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags

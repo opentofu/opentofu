@@ -113,7 +113,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		return 1
 	}
 
-	state := stateMgr.State()
+	state := stateMgr.State().Mutable()
 	if state == nil {
 		c.Ui.Error(errStateNotFound)
 		return 1
@@ -186,12 +186,12 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(state.Immutable(), nil)
 		diags = diags.Append(schemaDiags)
 	}
 
 	// Write the updated state
-	if err := stateMgr.WriteState(state); err != nil {
+	if err := stateMgr.WriteState(state.Immutable()); err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}

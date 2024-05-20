@@ -63,7 +63,7 @@ type IntermediateStatePersistInfo struct {
 
 var _ tofu.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) {
+func (h *StateHook) PostStateUpdate(new states.ImmutableState) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 

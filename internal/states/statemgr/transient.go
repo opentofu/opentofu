@@ -36,18 +36,9 @@ type Transient interface {
 // For a type that implements both Reader and Writer, State must return the
 // result of the most recently completed call to WriteState, and the state
 // manager must accept concurrent calls to both State and WriteState.
-//
-// Each caller of this function must get a distinct copy of the state, and
-// it must also be distinct from any instance cached inside the reader, to
-// ensure that mutations of the returned state will not affect the values
-// returned to other callers.
 type Reader interface {
 	// State returns the latest state.
-	//
-	// Each call to State returns an entirely-distinct copy of the state, with
-	// no storage shared with any other call, so the caller may freely mutate
-	// the returned object via the state APIs.
-	State() *states.State
+	State() states.ImmutableState
 }
 
 // Writer is the interface for managers that can create transient snapshots
@@ -57,15 +48,7 @@ type Reader interface {
 // method reads from. It does not write the state to any persistent
 // storage, and (for managers that support historical versions) must not
 // be recorded as a persistent new version of state.
-//
-// Implementations that cache the state in memory must take a deep copy of it,
-// since the caller may continue to modify the given state object after
-// WriteState returns.
 type Writer interface {
 	// WriteState saves a transient snapshot of the given state.
-	//
-	// The caller must ensure that the given state object is not concurrently
-	// modified while a WriteState call is in progress. WriteState itself
-	// will never modify the given state.
-	WriteState(*states.State) error
+	WriteState(states.ImmutableState) error
 }

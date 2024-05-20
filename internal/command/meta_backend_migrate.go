@@ -331,7 +331,7 @@ func (m *Meta) backendMigrateState_s_s(opts *backendMigrateOpts) error {
 		// Equal isn't identical; it doesn't check lineage.
 		sm1, _ := sourceState.(statemgr.PersistentMeta)
 		sm2, _ := destinationState.(statemgr.PersistentMeta)
-		if source != nil && destination != nil {
+		if source.IsNil() && destination.IsNil() {
 			if sm1 == nil || sm2 == nil {
 				log.Print("[TRACE] backendMigrateState: both source and destination workspaces have no state, so no migration is needed")
 				return nil
@@ -497,7 +497,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	defer os.RemoveAll(td)
 
 	// Helper to write the state
-	saveHelper := func(n, path string, s *states.State) error {
+	saveHelper := func(n, path string, s states.ImmutableState) error {
 		return statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil)
 	}
 

@@ -26,7 +26,7 @@ import (
 //
 // Even if the returned diagnostics contains errors, Apply always returns the
 // resulting state which is likely to have been partially-updated.
-func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (states.ImmutableState, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
@@ -38,7 +38,7 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 			"Cannot apply failed plan",
 			`The given plan is incomplete due to errors during planning, and so it cannot be applied.`,
 		))
-		return nil, diags
+		return states.ImmutableNil, diags
 	}
 
 	for _, rc := range plan.Changes.Resources {
@@ -56,10 +56,10 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 
 	graph, operation, diags := c.applyGraph(plan, config, true)
 	if diags.HasErrors() {
-		return nil, diags
+		return states.ImmutableNil, diags
 	}
 
-	workingState := plan.PriorState.DeepCopy()
+	workingState := plan.PriorState
 	walker, walkDiags := c.walk(graph, operation, &graphWalkOpts{
 		Config:     config,
 		InputState: workingState,
@@ -116,7 +116,7 @@ Note that the -target option is not suitable for routine use, and is provided on
 		newState.CheckResults = plan.Checks.DeepCopy()
 	}
 
-	return newState, diags
+	return newState.Immutable(), diags
 }
 
 func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate bool) (*Graph, walkOperation, tfdiags.Diagnostics) {
@@ -173,7 +173,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 	graph, moreDiags := (&ApplyGraphBuilder{
 		Config:             config,
 		Changes:            plan.Changes,
-		State:              plan.PriorState,
+		State:              plan.PriorState.Mutable(),
 		RootVariableValues: variables,
 		Plugins:            c.plugins,
 		Targets:            plan.TargetAddrs,

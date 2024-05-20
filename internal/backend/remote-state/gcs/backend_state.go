@@ -106,7 +106,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	}
 
 	// If we have no state, we have to create an empty state
-	if v := st.State(); v == nil {
+	if v := st.State(); v.IsNil() {
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
@@ -134,7 +134,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 			return baseErr
 		}
 
-		if err := st.WriteState(states.NewState()); err != nil {
+		if err := st.WriteState(states.NewState().Immutable()); err != nil {
 			return nil, unlock(err)
 		}
 		if err := st.PersistState(nil); err != nil {

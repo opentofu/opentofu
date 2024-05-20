@@ -117,16 +117,16 @@ func (s *Filesystem) BackupPath() string {
 }
 
 // State is an implementation of Reader.
-func (s *Filesystem) State() *states.State {
+func (s *Filesystem) State() states.ImmutableState {
 	defer s.mutex()()
 	if s.file == nil {
-		return nil
+		return states.ImmutableNil
 	}
-	return s.file.DeepCopy().State
+	return s.file.State
 }
 
 // WriteState is an implementation of Writer.
-func (s *Filesystem) WriteState(state *states.State) error {
+func (s *Filesystem) WriteState(state states.ImmutableState) error {
 	defer s.mutex()()
 
 	if s.readFile == nil {
@@ -139,12 +139,11 @@ func (s *Filesystem) WriteState(state *states.State) error {
 	return s.writeState(state, nil)
 }
 
-func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
-	s.file = s.file.DeepCopy()
+func (s *Filesystem) writeState(state states.ImmutableState, meta *SnapshotMeta) error {
 	if s.file == nil {
 		s.file = NewStateFile()
 	}
-	s.file.State = state.DeepCopy()
+	s.file.State = state
 
 	if meta != nil {
 		// Force new metadata
@@ -220,7 +219,7 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 		return err
 	}
 
-	if state == nil {
+	if state.IsNil() {
 		// if we have no state, don't write anything else.
 		log.Print("[TRACE] statemgr.Filesystem: state is nil, so leaving the file empty")
 		return nil
@@ -256,11 +255,11 @@ func (s *Filesystem) GetRootOutputValues() (map[string]*states.OutputValue, erro
 	}
 
 	state := s.State()
-	if state == nil {
-		state = states.NewState()
+	if state.IsNil() {
+		return map[string]*states.OutputValue{}, nil
 	}
 
-	return state.RootModule().OutputValues, nil
+	return state.Mutable().RootModule().OutputValues, nil
 }
 
 func (s *Filesystem) refreshState() error {

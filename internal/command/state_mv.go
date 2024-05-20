@@ -124,7 +124,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return 1
 	}
 
-	stateFrom := stateFromMgr.State()
+	stateFrom := stateFromMgr.State().Mutable()
 	if stateFrom == nil {
 		c.Ui.Error(errStateNotFound)
 		return 1
@@ -162,7 +162,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			return 1
 		}
 
-		stateTo = stateToMgr.State()
+		stateTo = stateToMgr.State().Mutable()
 		if stateTo == nil {
 			stateTo = states.NewState()
 		}
@@ -410,12 +410,12 @@ func (c *StateMvCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(stateTo, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(stateTo.Immutable(), nil)
 		diags = diags.Append(schemaDiags)
 	}
 
 	// Write the new state
-	if err := stateToMgr.WriteState(stateTo); err != nil {
+	if err := stateToMgr.WriteState(stateTo.Immutable()); err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
@@ -426,7 +426,7 @@ func (c *StateMvCommand) Run(args []string) int {
 
 	// Write the old state if it is different
 	if stateTo != stateFrom {
-		if err := stateFromMgr.WriteState(stateFrom); err != nil {
+		if err := stateFromMgr.WriteState(stateFrom.Immutable()); err != nil {
 			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 			return 1
 		}

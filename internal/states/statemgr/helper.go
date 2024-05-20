@@ -21,21 +21,8 @@ func NewStateFile() *statefile.File {
 	return &statefile.File{
 		Lineage:          NewLineage(),
 		TerraformVersion: version.SemVer,
-		State:            states.NewState(),
+		State:            states.NewState().Immutable(),
 	}
-}
-
-// RefreshAndRead refreshes the persistent snapshot in the given state manager
-// and then returns it.
-//
-// This is a wrapper around calling RefreshState and then State on the given
-// manager.
-func RefreshAndRead(mgr Storage) (*states.State, error) {
-	err := mgr.RefreshState()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.State(), nil
 }
 
 // WriteAndPersist writes a snapshot of the given state to the given state
@@ -50,7 +37,7 @@ func RefreshAndRead(mgr Storage) (*states.State, error) {
 // out quickly with a user-facing error. In situations where more control
 // is required, call WriteState and PersistState on the state manager directly
 // and handle their errors.
-func WriteAndPersist(mgr Storage, state *states.State, schemas *tofu.Schemas) error {
+func WriteAndPersist(mgr Storage, state states.ImmutableState, schemas *tofu.Schemas) error {
 	err := mgr.WriteState(state)
 	if err != nil {
 		return err

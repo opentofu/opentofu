@@ -136,7 +136,7 @@ type MockHook struct {
 	StoppingCalled bool
 
 	PostStateUpdateCalled bool
-	PostStateUpdateState  *states.State
+	PostStateUpdateState  states.ImmutableState
 	PostStateUpdateReturn HookAction
 	PostStateUpdateError  error
 }
@@ -334,7 +334,7 @@ func (h *MockHook) Stopping() {
 	h.StoppingCalled = true
 }
 
-func (h *MockHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *MockHook) PostStateUpdate(new states.ImmutableState) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 

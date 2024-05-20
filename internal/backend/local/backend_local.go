@@ -212,7 +212,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	// For a "direct" local run, the input state is the most recently stored
 	// snapshot, from the previous run.
 	state := s.State()
-	if state != nil {
+	if !state.IsNil() {
 		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
 		diags = diags.Append(migrateDiags)
 		if migrateDiags.HasErrors() {

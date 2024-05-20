@@ -7,8 +7,51 @@ package states
 
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/zclconf/go-cty/cty"
 )
+
+var ImmutableNil = ImmutableState{nil}
+
+type ImmutableState struct {
+	state *State
+}
+
+func (s *State) Immutable() ImmutableState {
+	return ImmutableState{s.DeepCopy()}
+}
+
+func (s ImmutableState) Mutable() *State {
+	return s.state.DeepCopy()
+}
+
+func (s ImmutableState) IsNil() bool {
+	return s.state == nil
+}
+
+// Implement common state functions (safely)
+func (s ImmutableState) Empty() bool {
+	return s.state.Empty()
+}
+
+func (s ImmutableState) Equal(other ImmutableState) bool {
+	return s.state.Equal(other.state)
+}
+
+func (s ImmutableState) ManagedResourcesEqual(other ImmutableState) bool {
+	return s.state.ManagedResourcesEqual(other.state)
+}
+
+func (s ImmutableState) ProviderAddrs() []addrs.AbsProviderConfig {
+	return s.state.ProviderAddrs()
+}
+func (s ImmutableState) HasManagedResourceInstanceObjects() bool {
+	return s.state.HasManagedResourceInstanceObjects()
+}
+
+func (s ImmutableState) ProviderRequirements() getproviders.Requirements {
+	return s.state.ProviderRequirements()
+}
 
 // Taking deep copies of states is an important operation because state is
 // otherwise a mutable data structure that is challenging to share across

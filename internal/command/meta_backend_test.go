@@ -330,7 +330,12 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	state, err := statemgr.RefreshAndRead(s)
+	err := s.RefreshState()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	state = statemgr.Read()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

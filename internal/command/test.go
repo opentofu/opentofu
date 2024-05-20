@@ -521,7 +521,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		}
 
 		if runner.Suite.Verbose {
-			schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+			schemas, diags := planCtx.Schemas(config, plan.PlannedState.Immutable())
 
 			// If we're going to fail to render the plan, let's not fail the overall
 			// test. It can still have succeeded. So we'll add the diagnostics, but
@@ -535,7 +535,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 			} else {
 				run.Verbose = &moduletest.Verbose{
 					Plan:         plan,
-					State:        plan.PlannedState,
+					State:        plan.PlannedState.Immutable(),
 					Config:       config,
 					Providers:    schemas.Providers,
 					Provisioners: schemas.Provisioners,
@@ -594,7 +594,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 	}
 
 	if runner.Suite.Verbose {
-		schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+		schemas, diags := planCtx.Schemas(config, plan.PlannedState.Immutable())
 
 		// If we're going to fail to render the plan, let's not fail the overall
 		// test. It can still have succeeded. So we'll add the diagnostics, but
@@ -608,7 +608,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		} else {
 			run.Verbose = &moduletest.Verbose{
 				Plan:         plan,
-				State:        updated,
+				State:        updated.Immutable(),
 				Config:       config,
 				Providers:    schemas.Providers,
 				Provisioners: schemas.Provisioners,
@@ -696,7 +696,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting destroy plan for %s/%s", file.Name, run.Name)
-		plan, planDiags = tfCtx.Plan(config, state, planOpts)
+		plan, planDiags = tfCtx.Plan(config, state.Immutable(), planOpts)
 		log.Printf("[DEBUG] TestFileRunner: completed destroy plan for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -770,7 +770,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting plan for %s/%s", file.Name, run.Name)
-		plan, planDiags = tfCtx.Plan(config, state, planOpts)
+		plan, planDiags = tfCtx.Plan(config, state.Immutable(), planOpts)
 		log.Printf("[DEBUG] TestFileRunner: completed plan for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -825,7 +825,9 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
-		updated, applyDiags = tfCtx.Apply(plan, config)
+		var up states.ImmutableState
+		up, applyDiags = tfCtx.Apply(plan, config)
+		updated = up.Mutable()
 		log.Printf("[DEBUG] TestFileRunner: completed apply for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)

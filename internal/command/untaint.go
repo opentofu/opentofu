@@ -129,7 +129,7 @@ func (c *UntaintCommand) Run(args []string) int {
 		return 1
 	}
 
-	ss := state.SyncWrapper()
+	ss := state.Mutable().SyncWrapper()
 
 	// Get the resource and instance we're going to taint
 	rs := ss.Resource(addr.ContainingResource())

@@ -128,7 +128,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 
 	state := s.State()
 	var stateReqs getproviders.Requirements
-	if state != nil {
+	if !state.IsNil() {
 		stateReqs = state.ProviderRequirements()
 	}
 

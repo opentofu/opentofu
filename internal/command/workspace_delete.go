@@ -145,7 +145,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		// We'll collect a list of what's being managed here as extra context
 		// for the message.
 		var buf strings.Builder
-		for _, obj := range stateMgr.State().AllResourceInstanceObjectAddrs() {
+		for _, obj := range stateMgr.State().Mutable().AllResourceInstanceObjectAddrs() {
 			if obj.DeposedKey == states.NotDeposed {
 				fmt.Fprintf(&buf, "\n  - %s", obj.Instance.String())
 			} else {

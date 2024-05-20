@@ -111,7 +111,7 @@ type Hook interface {
 	// PostStateUpdate is called each time the state is updated. It receives
 	// a deep copy of the state, which it may therefore access freely without
 	// any need for locks to protect from concurrent writes from the caller.
-	PostStateUpdate(new *states.State) (HookAction, error)
+	PostStateUpdate(new states.ImmutableState) (HookAction, error)
 }
 
 // NilHook is a Hook implementation that does nothing. It exists only to
@@ -192,6 +192,6 @@ func (*NilHook) Stopping() {
 	// Does nothing at all by default
 }
 
-func (*NilHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (*NilHook) PostStateUpdate(new states.ImmutableState) (HookAction, error) {
 	return HookActionContinue, nil
 }

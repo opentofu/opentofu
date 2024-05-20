@@ -32,6 +32,7 @@ type PlanGraphBuilder struct {
 	Config *configs.Config
 
 	// State is the current state
+	// TODO Immutable
 	State *states.State
 
 	// RootVariableValues are the raw input values for root input variables
