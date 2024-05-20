@@ -104,6 +104,25 @@ func TestHTTPClientFactory(t *testing.T) {
 	if len(client.Headers) != 1 || client.Headers["user-defined"] != "test" {
 		t.Fatalf("Expected headers \"user-defined\" to be \"test\", got \"%s\"", client.Headers)
 	}
+
+	// authorization header
+	conf = map[string]cty.Value{
+		"address": cty.StringVal("http://127.0.0.1:8888/foo"),
+		"headers": cty.MapVal(map[string]cty.Value{
+			"authorization": cty.StringVal("auth-test"),
+		}),
+	}
+
+	b, _ = backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
+	client = b.client
+
+	if client == nil {
+		t.Fatal("Unexpected failure, update_method")
+	}
+
+	if len(client.Headers) != 1 || client.Headers["authorization"] != "auth-test" {
+		t.Fatalf("Expected headers \"authorization\" to be \"auth-test\", got \"%s\"", client.Headers)
+	}
 }
 
 func TestHTTPClientFactoryWithEnv(t *testing.T) {
