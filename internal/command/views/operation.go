@@ -108,7 +108,7 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 	}
 
 	// If the -show-sensitive argument is provided in the tofu plan/apply command,
-	// then unmark all sensitive values
+	// then reset all sensitive values to display the value of variables marked as sensitive.
 	if v.view.showSensitive && plan.Changes != nil {
 		resetSensitiveVariables(outputs, changed)
 	}

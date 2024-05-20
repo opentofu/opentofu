@@ -180,6 +180,19 @@ func (c *StateShowCommand) Run(args []string) int {
 		c.Streams.Eprintf("Failed to marshal state to json: %s", err)
 	}
 
+	// If the "-show-sensitive" argument is provided, then reset all sensitive
+	// values to display the value of variables marked as sensitive.
+	if showSensitive {
+		for i := range root.Resources {
+			root.Resources[i].SensitiveValues = nil
+		}
+
+		for i, output := range outputs {
+			output.Sensitive = false
+			outputs[i] = output
+		}
+	}
+
 	jstate := jsonformat.State{
 		StateFormatVersion:    jsonstate.FormatVersion,
 		ProviderFormatVersion: jsonprovider.FormatVersion,
@@ -192,14 +205,6 @@ func (c *StateShowCommand) Run(args []string) int {
 		Streams:             c.Streams,
 		Colorize:            c.Colorize(),
 		RunningInAutomation: c.RunningInAutomation,
-	}
-
-	// If the "-show-sensitive" argument is provided, reset the value of
-	// resource.SensitiveValues to display the sensitive values.
-	if showSensitive {
-		for i := range root.Resources {
-			root.Resources[i].SensitiveValues = nil
-		}
 	}
 
 	renderer.RenderHumanState(jstate)
