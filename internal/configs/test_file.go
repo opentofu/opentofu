@@ -735,17 +735,6 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 }
 
 func parseObjectAttrWithNoVariables(attr *hcl.Attribute) (map[string]cty.Value, hcl.Diagnostics) {
-	if vars := attr.Expr.Variables(); len(vars) != 0 {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Variables not allowed",
-				Detail:   fmt.Sprintf("Variables may not be used in `%v` attribute.", attr.Name),
-				Subject:  attr.Range.Ptr(),
-			},
-		}
-	}
-
 	attrVal, valDiags := attr.Expr.Value(nil)
 	diags := valDiags
 	if valDiags.HasErrors() {
