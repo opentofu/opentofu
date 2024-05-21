@@ -676,7 +676,7 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 			return nil, nil, diags
 		}
 
-		return traversal, configRes, diags
+		return traversal, &configRes, diags
 	}
 
 	res := &OverrideResource{

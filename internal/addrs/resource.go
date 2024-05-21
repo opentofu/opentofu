@@ -398,14 +398,14 @@ type ConfigResource struct {
 // and then parses the resource address from the leftover. Returning ConfigResource
 // contains both module and resource addresses. ParseConfigResource doesn't support
 // instance keys and will return an error if it encounters one.
-func ParseConfigResource(traversal hcl.Traversal) (*ConfigResource, tfdiags.Diagnostics) {
+func ParseConfigResource(traversal hcl.Traversal) (ConfigResource, tfdiags.Diagnostics) {
 	modulePath, remainTraversal, diags := parseModulePrefix(traversal)
 	if diags.HasErrors() {
-		return nil, diags
+		return ConfigResource{}, diags
 	}
 
 	if len(remainTraversal) == 0 {
-		return nil, diags.Append(&hcl.Diagnostic{
+		return ConfigResource{}, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module address is not allowed",
 			Detail:   "Expected reference to either resource or data block. Provided reference appears to be a module.",
@@ -414,7 +414,7 @@ func ParseConfigResource(traversal hcl.Traversal) (*ConfigResource, tfdiags.Diag
 	}
 
 	configRes, moreDiags := parseResourceUnderModule(modulePath, remainTraversal)
-	return &configRes, diags.Append(moreDiags)
+	return configRes, diags.Append(moreDiags)
 }
 
 // Resource returns the address of a particular resource within the module.
