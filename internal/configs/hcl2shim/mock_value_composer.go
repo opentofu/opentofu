@@ -109,8 +109,19 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// If the attribute is computed and not configured,
 		// we use provided value from defaults.
 		if ov, ok := defaults[k]; ok {
-			mockAttrs[k] = ov
-			continue
+			typeConformanceErrs := ov.Type().TestConformance(attr.Type)
+			if len(typeConformanceErrs) == 0 {
+				mockAttrs[k] = ov
+				continue
+			}
+
+			for _, err := range typeConformanceErrs {
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Warning,
+					fmt.Sprintf("Ignored mock/override field `%v`", k),
+					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", err),
+				))
+			}
 		}
 
 		// If there's no value in defaults, we generate our own.
