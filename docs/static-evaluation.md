@@ -15,6 +15,9 @@ terraform {
 
 To understand why this is, we need to peek under the hood and understand how and why OpenTofu evaluates expressions in configuration.
 
+> [!NOTE]
+> It is HIGHLY recommended to read the [Architecture document](./architecture.md) before diving too deep into this document. Below, many of the concepts in the Architecture doc are expanded upon or viewed from a different angle for the purposes of understanding this proposal.
+
 ## Expressions
 
 The evaluation of expressions (`1 + var.bar` for example) depends on required values and functions used in the expression. In that example, you would need to know the value of `var.bar`. That dependency is known via a concept called "[HCL Traversals](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Traversal)", which represent an attribute access path and can be turned into strongly typed "OpenTofu References". In practice, you would say "the expression depends on an OpenTofu Variable named bar".
