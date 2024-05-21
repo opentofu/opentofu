@@ -17,9 +17,9 @@ To understand why this is, we need to peek under the hood and understand how and
 
 ## Expressions
 
-The evaluation of expressions (`1 + var.bar` for example) depends on required values and functions used in the expression. In that example, you would need to know the value of `var.bar`. That dependency is known via a concept called "HCL Traversals", which represent an attribute access path and can be turned into strongly typed "OpenTofu References". In practice, you would say "the expression depends on an OpenTofu Variable named bar".
+The evaluation of expressions (`1 + var.bar` for example) depends on required values and functions used in the expression. In that example, you would need to know the value of `var.bar`. That dependency is known via a concept called "[HCL Traversals](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Traversal)", which represent an attribute access path and can be turned into strongly typed "OpenTofu References". In practice, you would say "the expression depends on an OpenTofu Variable named bar".
 
-Once you know what the requirements are for an expression (`hcl.Expression`), you can build up an evaluation context (`hcl.EvalContext`) to provide those requirements or return an error.  In the above example, the evaluation context would include `{"var": {"bar": <somevalue>}`.
+Once you know what the requirements are for an expression ([hcl.Expression](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Expression)), you can build up an evaluation context ([hcl.EvalContext](https://pkg.go.dev/github.com/hashicorp/hcl/v2#EvalContext)) to provide those requirements or return an error.  In the above example, the evaluation context would include `{"var": {"bar": <somevalue>}`.
 
 Expression evaluation is currently split up into two stages: config loading and graph reference evaluation
 
@@ -55,7 +55,7 @@ No evaluation context is built or provided during the entire config loading proc
 
 ## Graph Reference Evaluation
 
-After the config is fully loaded, it is transformed and processed into nodes in a graph. These nodes use the "OpenTofu References" present in their blocks/attributes (the ones not evaluated in config loading) to build both the dependency edges in the graph, and eventually an evaluation context once those references are available.
+After the config is fully loaded, it is transformed and processed into nodes in a [graph (DAG)]( https://en.wikipedia.org/wiki/Directed_acyclic_graph). These nodes use the "[OpenTofu References](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/addrs/parse_ref.go#L174)" present in their blocks/attributes (the ones not evaluated in config loading) to build both the dependency edges in the graph, and eventually an evaluation context once those references are available.
 
 This theoretically simple process is deeply complicated by the module dependency tree and expansion therein. The graph is dynamically modified due to `for_each` and `count` being evaluated as their required references are made available. The majority of the logic in this process exists within the `tofu` and `lang` package which are somewhat tightly coupled.
 
@@ -226,7 +226,8 @@ At the heart of the project lies an evaluation context, similar to what currentl
 Any static evaluator must be able to:
 * Evaluate a hcl expression or block into a single cty value
   - Provide detailed insight into why a given expression or block can not be turned into a cty value
-* Be scoped to a given path
+* Be constructed with variables derived from a parent static context
+  - This is primarlly for passing values down the module call stack, while maintaining references
 
 There are three potential paths in implementing a static evaluator:
 * Build a custom streamlined (?) solution for this specific problem and it's current use cases
