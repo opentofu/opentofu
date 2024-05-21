@@ -1140,15 +1140,47 @@ func TestTest_LocalVariables(t *testing.T) {
 		"pass_with_local_variable": {
 			expected: `tests/test.tftest.hcl... pass
   run "first"... pass
+
+
+Outputs:
+
+foo = "bar"
   run "second"... pass
+
+No changes. Your infrastructure matches the configuration.
+
+OpenTofu has compared your real infrastructure against your configuration and
+found no differences, so no changes are needed.
 
 Success! 2 passed, 0 failed.
 `,
 			code: 0,
 		},
 		"pass_var_inside_variables": {
-			expected: "main.tftest.hcl... pass\n  run \"first\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
-			code:     0,
+			expected: `main.tftest.hcl... pass
+  run "first"... pass
+
+
+Outputs:
+
+sss = "false"
+
+Success! 1 passed, 0 failed.
+`,
+			code: 0,
+		},
+		"pass_var_with_default_value_inside_variables": {
+			expected: `main.tftest.hcl... pass
+  run "first"... pass
+
+
+Outputs:
+
+sss = "true"
+
+Success! 1 passed, 0 failed.
+`,
+			code: 0,
 		},
 	}
 
@@ -1193,7 +1225,7 @@ Success! 2 passed, 0 failed.
 				Meta: meta,
 			}
 
-			code := command.Run([]string{"-no-color"})
+			code := command.Run([]string{"-verbose", "-no-color"})
 			output := done(t)
 
 			if code != tc.code {

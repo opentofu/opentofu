@@ -1067,21 +1067,14 @@ func getEvalContextForTest(states map[string]*TestFileState, config *configs.Con
 		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
 	}
 
+	// If the variable is referenced in the tfvars file or TF_VAR_ environment variable, then lookup the value
+	// in global variables; otherwise, assign the default value.
+	inputValues, diags := parseAndApplyDefaultValues(globals, config.Module.Variables)
+	diags.Append(diags)
+
 	varCtx := make(map[string]cty.Value)
-	for _, variable := range config.Module.Variables {
-		// If the variable is referenced in the tfvars file or TF_VAR_ environment variable, then lookup the value
-		// in global variables; otherwise, assign the default value.
-		if globals != nil {
-			if vv, exists := globals[variable.Name]; exists {
-				val, valDiags := vv.ParseVariableValue(variable.ParsingMode)
-				if valDiags == nil {
-					varCtx[variable.Name] = val.Value
-					continue
-				}
-				diags = diags.Append(valDiags)
-			}
-		}
-		varCtx[variable.Name] = variable.Default
+	for name, val := range inputValues {
+		varCtx[name] = val.Value
 	}
 
 	ctx := &hcl.EvalContext{
@@ -1111,6 +1104,40 @@ func (v testVariableValueExpression) ParseVariableValue(mode configs.VariablePar
 		SourceType:  v.sourceType,
 		SourceRange: rng,
 	}, diags
+}
+
+// parseAndApplyDefaultValues parses the given unparsed variables into tofu.InputValues
+// and applies default values from the configuration variables where applicable.
+// This ensures all variables are correctly initialized and returns the resulting tofu.InputValues.
+func parseAndApplyDefaultValues(unparsedVariables map[string]backend.UnparsedVariableValue, configVariables map[string]*configs.Variable) (tofu.InputValues, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	inputs := make(tofu.InputValues, len(unparsedVariables))
+	for name, variable := range unparsedVariables {
+		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
+		diags = diags.Append(valueDiags)
+		inputs[name] = value
+	}
+
+	// Now, we're going to apply any default values from the configuration.
+	// We do this after the conversion into tofu.InputValues, as the
+	// defaults have already been converted into cty.Value objects.
+	for name, variable := range configVariables {
+		if _, exists := unparsedVariables[name]; exists {
+			// Then we don't want to apply the default for this variable as we
+			// already have a value.
+			continue
+		}
+
+		if variable.Default != cty.NilVal {
+			inputs[name] = &tofu.InputValue{
+				Value:       variable.Default,
+				SourceType:  tofu.ValueFromConfig,
+				SourceRange: tfdiags.SourceRangeFromHCL(variable.DeclRange),
+			}
+		}
+	}
+
+	return inputs, diags
 }
 
 // prepareInputVariablesForAssertions creates a tofu.InputValues mapping
@@ -1173,33 +1200,9 @@ func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs
 
 	// We've gathered all the values we have, let's convert them into
 	// tofu.InputValues so they can be passed into the OpenTofu graph.
-
-	inputs := make(tofu.InputValues, len(variables))
-	for name, variable := range variables {
-		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
-		diags = diags.Append(valueDiags)
-		inputs[name] = value
-	}
-
-	// Next, we're going to apply any default values from the configuration.
-	// We do this after the conversion into tofu.InputValues, as the
-	// defaults have already been converted into cty.Value objects.
-
-	for name, variable := range config.Module.Variables {
-		if _, exists := variables[name]; exists {
-			// Then we don't want to apply the default for this variable as we
-			// already have a value.
-			continue
-		}
-
-		if variable.Default != cty.NilVal {
-			inputs[name] = &tofu.InputValue{
-				Value:       variable.Default,
-				SourceType:  tofu.ValueFromConfig,
-				SourceRange: tfdiags.SourceRangeFromHCL(variable.DeclRange),
-			}
-		}
-	}
+	// Also, apply default values from the configuration variables where applicable.
+	inputs, valDiags := parseAndApplyDefaultValues(variables, config.Module.Variables)
+	diags.Append(valDiags)
 
 	// Finally, we're going to do a some modifications to the config.
 	// If we have got variable values from the test file we need to make sure
