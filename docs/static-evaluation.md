@@ -27,9 +27,29 @@ Expression evaluation is currently split up into two stages: config loading and 
 
 During configuration loading, the hcl or json config is pulled apart into Blocks and Attributes. A Block contains Attributes and nested Blocks. Attributes are simply named expressions (`foo = 1 + var.bar` for example).
 
+```hcl
+some_block {
+    some_attribute = "some value
+}
+```
+
 These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. Depending on the handing of the given block/attribute, either the abstract representation is kept or it is evaluated into a real value for use.
 
 As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and therefore are stored as an expression for later evaluation.
+
+```hcl
+resource "aws_instance" "example" {
+  name  = "server-${count.index}"
+  count = 5
+  # (other resource arguments...)
+}
+
+module "dnsentries" {
+  source   = "./dnsentries"
+  hostname = each.value
+  for_each = toset(aws_instance.example.*.name)
+}
+```
 
 No evaluation context is built or provided during the entire config loading process.  **Therefore, no functions, locals, or variables may be used during config loading due to the lack of context.  This limitation is what we wish to resolve**.
 
@@ -47,17 +67,26 @@ For example, a module's `for_each` statement may require data from a resource: `
 
 ## Initial implementation
 
-As you can see above, the lack of a building and managing evaluation contexts during the config loading stage prevents any expressions with references from being evaluated. Only primitive types and expressions are allowed during that stage.
+As you can see above, the lack of evaluation contexts during the config loading stage prevents any expressions with references from being expanded. Only primitive types and expressions are currently allowed during that stage.
 
 By introducing the ability to build and manage evaluation contexts during config loading, we would open up the ability for *certain* references to be evaluated during the config loading process.
 
 For example, many users expect to be able to use `local` values within `module -> source` to simplify upgrades and DRY up their configuration. This is not currently possible as the value of `module -> source` *must* be known during the config loading stage and can not be deferred until graph evaluation.
 
+```hcl
+local {
+  gitrepo = "git://..."
+}
+module "mymodule" {
+  source = locals.gitrepo
+}
+```
+
 By utilizing Traversals/References, we can track what values are statically known throughout the config loading process. This will follow a similar pattern to the graph reference evaluation (with limitations) and may or may not re-use much of it's code.
 
-When evaluating an Attribute/Block into a value, any missing reference must be properly reported in a way that the user can easily debug and understand. For example, a user may try to use a local that depends on a resource's value in a module's source. The user must then be told that the local can not be used in the module source field as it depends on a resource which is not yet available.  Variables used through the module tree must also be passed with their associated information. In practice this is fairly easy to track and has been prototyped during the exploration of [#1042](https://github.com/opentofu/opentofu/issues/1042).
+When evaluating an Attribute/Block into a value, any missing reference must be properly reported in a way that the user can easily debug and understand. For example, a user may try to use a `local` that depends on a resource's value in a module's source. The user must then be told that the `local` can not be used in the module source field as it depends on a resource which is not yet available.  Variables used through the module tree must also be passed with their associated information. In practice this is fairly easy to track and has been prototyped during the exploration of [#1042](https://github.com/opentofu/opentofu/issues/1042).
 
-Implementing this initial concept will allow many of the Solutions below to be fully implemented.  However, there are some limitations due to module expansion which are worth considering.
+Implementing this initial concept will allow many of the [solutions](#solutions) below to be fully implemented.  However, there are some limitations due to module expansion which are worth considering.
 
 ## Additional Complexity due to Module Expansion
 
