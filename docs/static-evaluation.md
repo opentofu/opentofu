@@ -110,25 +110,17 @@ module "mod" {
 
 As the provider requirements are baked into the module itself, the multiple "instances" don't have any concept of providers per instance. This becomes even more complex when you consider that these providers might be passed through a complex tree of modules before they are directly used.
 
-The solution proposed is to perform the module expansion during the config process, if the references in the expansion expression are known at that time. This is easier said than done as will be expanded upon below, particularly due to the fact that not all expansion expressions can be evaluated due to references that are not known at config time and that must continue to be supported.
-
-More details are available in [Static Module Expansion](static-module-expansion.md)
-
-> [!Note]
-> There is a case to not implement this complexity. It *may* be possible to work around the provider scenario explicitly and forbid the use of any values derived from a count/for_each in a static context.  Given the required effort to introduce this complexity, this should be seriously considered.
-
+There are two potential solutions detailed below in [Provider Iteration](#provider-iteration), each with their own tradeoffs.  Depending on the decision made there, we may not allow each.key/vaue and count to be used in module sources (at least for now).
 
 ## Plan of Attack
 
-Between the initial implementation, the solutions, and the expansion, we are talking about a significant amount of work likely spread across multiple releases.
+Between the initial implementation, the simple solutions, and the provider complexity, we are talking about a significant amount of work likely spread across multiple releases.
 
 We can not take the approach of hacking on a feature branch for months or freezing all related code. It's unrealistic and unfair to other developers.
 
 Instead, we can break this work into smaller discrete and testable components, some of which may be easy to work on in parallel.
 
 If we design an interface for the static evaluator and wire a noop implementation through the config package, work on all of the major solutions can be started. Those solutions will then become functional as pieces of the static evaluator are implemented.
-
-Additionally, the module iteration work can likely be broken into stages, implementing changes package by package and keeping around an address translation layer (detailed below).
 
 With this piece by piece approach, we can also add testing before, during, and after each component is added/modified.
 
@@ -141,27 +133,16 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
   - [ ] Pick Static Evaluator Approach
   - [ ] Implement Static Evaluator
   - [ ] Wire Static Evaluator through the config package
-  - [ ] Implement one of the simple solutions to validate
-- [ ] [Static Module Expansion](static-module-expansion.md)
-  - [ ] Figure out if we need static module expansion
-  - [ ] If so, decide on when we would plan on implementing it
-  - [ ] Decide on addressing approach (Module vs ModuleInstance)
-  - [ ] Apply addressing approach to different components
-    - [ ] Setup code to support translating between current and new approach
-    - [ ] Refactor Expander
-    - [ ] Refactor Graph/Nodes (and dependencies)
-    - [ ] Refactor Configs
-  - [ ] Wire in module for_each and count static expansion
+  - [ ] Implement one of the simple solutions to validaten
 - [ ] [Solutions](#static-context-design)
   - [ ] [Module Sources](#module-sources)
-  - [ ] Module Sources with Iteration
   - [ ] [Provider Iteration](#provider-iteration)
   - [ ] [Backend Configuration](#backend-configuration)
   - [ ] [Lifecycle Attributes](#lifecycle-attributes)
   - [ ] [Variable defaults/validation?](#variable-defaultsvalidation)
   - [ ] [Provisioners](#provisioners)
   - [ ] [Moved blocks](#moved-blocks)
-  - [ ] Variables/locals in encryption
+  - [ ] [Encryption block](#encryption)
 
 ## Core Implementation:
 
@@ -351,6 +332,9 @@ Not yet investigated in depth.
 
 Not yet investigated in depth.
 
+## Encryption
+
+Not yet investigated in depth.
 
 ## Blockers:
 ### Testing
@@ -361,7 +345,6 @@ Code coverage should be inspected before refactoring of a component is undertake
 
 A comprehensive guide on e2e testing should be written, see #1536.
 
-
 ## Unknowns:
 ### Providers variables
 Providers may have configuration that depends on variables and dynamic values, such as resources from other providers. There is a odd workaround within the internal/tofu package where variable values may be requested during the graph building phase. This is an odd hack and may need to be reworked for the providers iteration above.
@@ -370,7 +353,7 @@ Do we want to support the core OpenTofu functions in the static evaluation conte
 ### Provider functions
 Do we want to support provider functions during this static evaluation phase? I suspect not, without a good reason as the development costs may be significant with minimal benefit. It is trivial to detect someone attempting to use a provider function in an expression/body and to mark the expression result as dynamic.
 ### Module Expansion Disk Copy
-As described in #issue, large projects may incur a large cost to build a directory for every remote module.  If we are expanding modules in a static context when possible, that implies that we will also be building a directory for every remote module instance.
+As described in #issue, large projects may incur a large cost to build a directory for every remote module.  *If* we are expanding modules in a static context when possible, that implies that we will also be building a directory for every remote module instance.
 
 Potential solutions include:
 * Optimizing the copy process - fairly straightforward low hanging fruit
@@ -399,7 +382,7 @@ module "other_capability" {
 }
 ```
 
-All modules referenced by a parent module are downloaded and added to the config graph without any understanding of inter dependencies. To implement this, we would need to rewrite the config builder to be aware of the state evaluator and increase the complexity of that component.
+All modules referenced by a parent module are downloaded and added to the config graph without any understanding of inter-dependencies. To implement this, we would need to rewrite the config builder to be aware of the state evaluator and increase the complexity of that component.
 
 I am not sure the engineering effort here is warranted, but it should at least be investigated
 
