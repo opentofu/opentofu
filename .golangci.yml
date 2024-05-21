@@ -24,6 +24,16 @@ linters-settings:
     require-explanation: true
     require-specific: true
 
+  cyclop:
+    max-complexity: 15
+
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - funlen
+        - dupl
+
 linters:
   disable-all: true
   enable:
