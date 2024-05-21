@@ -41,6 +41,12 @@ const (
 
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
+
+	// Global options
+	optionChDir    = "chdir"
+	optionPedantic = "pedantic"
+	optionVersion  = "version"
+	optionHelp     = "help"
 )
 
 // ui wraps the primary output cli.Ui, and redirects Warn calls to Output
@@ -70,6 +76,27 @@ func realMain() int {
 	defer logging.PanicHandler()
 
 	var err error
+
+	args := os.Args[1:]
+	options, err := getGlobalOptions(args)
+	if err != nil {
+		Ui.Error(err.Error())
+		return 1
+	}
+	args = args[len(options):]
+
+	// Set to the version subcommand if version has been toggled
+	if _, ok := options[optionVersion]; ok {
+		newArgs := make([]string, len(args)+1)
+		newArgs = append(newArgs, "version")
+		copy(newArgs[1:], args)
+		args = newArgs
+	}
+
+	// Attach the help option to the command or subcommand arguments to activate help if it has been toggled
+	if _, ok := options[optionHelp]; ok {
+		args = append(args, fmt.Sprintf("-%s", optionHelp))
+	}
 
 	err = openTelemetryInit()
 	if err != nil {
@@ -215,10 +242,6 @@ func realMain() int {
 	// Initialize the backends.
 	backendInit.Init(services)
 
-	// Get the command line args.
-	binName := filepath.Base(os.Args[0])
-	args := os.Args[1:]
-
 	originalWd, err := os.Getwd()
 	if err != nil {
 		// It would be very strange to end up here
@@ -226,16 +249,10 @@ func realMain() int {
 		return 1
 	}
 
-	// The arguments can begin with a -chdir option to ask OpenTofu to switch
-	// to a different working directory for the rest of its work. If that
-	// option is present then extractChdirOption returns a trimmed args with that option removed.
-	overrideWd, args, err := extractChdirOption(args)
-	if err != nil {
-		Ui.Error(fmt.Sprintf("Invalid -chdir option: %s", err))
-		return 1
-	}
-	if overrideWd != "" {
-		err := os.Chdir(overrideWd)
+	// The arguments can contain the -chdir global option to ask OpenTofu to switch
+	// to a different working directory for the rest of its work.
+	if overrideWd, ok := options[optionChDir]; ok {
+		err = os.Chdir(overrideWd)
 		if err != nil {
 			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
 			return 1
@@ -244,11 +261,14 @@ func realMain() int {
 
 	// In tests, Commands may already be set to provide mock commands
 	if commands == nil {
+		_, pedanticMode := options[optionPedantic]
+
 		// Commands get to hold on to the original working directory here,
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, originalWd, streams, config,
+			services, providerSrc, providerDevOverrides, unmanagedProviders, pedanticMode)
 	}
 
 	// Attempt to ensure the config directory exists.
@@ -287,21 +307,10 @@ func realMain() int {
 		return 1
 	}
 
-	// We shortcut "--version" and "-v" to just show the version
-	for _, arg := range args {
-		if arg == "-v" || arg == "-version" || arg == "--version" {
-			newArgs := make([]string, len(args)+1)
-			newArgs[0] = "version"
-			copy(newArgs[1:], args)
-			args = newArgs
-			break
-		}
-	}
-
 	// Rebuild the CLI with any modified args.
 	log.Printf("[INFO] CLI command args: %#v", args)
 	cliRunner = &cli.CLI{
-		Name:           binName,
+		Name:           filepath.Base(os.Args[0]),
 		Args:           args,
 		Commands:       commands,
 		HiddenCommands: getAliasCommandKeys(),
@@ -457,52 +466,6 @@ func parseReattachProviders(in string) (map[addrs.Provider]*plugin.ReattachConfi
 	return unmanagedProviders, nil
 }
 
-func extractChdirOption(args []string) (string, []string, error) {
-	if len(args) == 0 {
-		return "", args, nil
-	}
-
-	const argName = "-chdir"
-	const argPrefix = argName + "="
-	var argValue string
-	var argPos int
-
-	for i, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			// Because the chdir option is a subcommand-agnostic one, we require
-			// it to appear before any subcommand argument, so if we find a
-			// non-option before we find -chdir then we are finished.
-			break
-		}
-		if arg == argName || arg == argPrefix {
-			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
-		}
-		if strings.HasPrefix(arg, argPrefix) {
-			argPos = i
-			argValue = arg[len(argPrefix):]
-		}
-	}
-
-	// When we fall out here, we'll have populated argValue with a non-empty
-	// string if the -chdir=... option was present and valid, or left it
-	// empty if it wasn't present.
-	if argValue == "" {
-		return "", args, nil
-	}
-
-	// If we did find the option then we'll need to produce a new args that
-	// doesn't include it anymore.
-	if argPos == 0 {
-		// Easy case: we can just slice off the front
-		return argValue, args[1:], nil
-	}
-	// Otherwise we need to construct a new array and copy to it.
-	newArgs := make([]string, len(args)-1)
-	copy(newArgs, args[:argPos])
-	copy(newArgs[argPos:], args[argPos+1:])
-	return argValue, newArgs, nil
-}
-
 // Creates the configuration directory.
 // `configDir` should refer to `~/.terraform.d`, `$XDG_CONFIG_HOME/opentofu` or its equivalent
 // on non-UNIX platforms.
@@ -520,4 +483,34 @@ func mkConfigDir(configDir string) error {
 	}
 
 	return err
+}
+
+func getGlobalOptions(args []string) (map[string]string, error) {
+	options := make(map[string]string)
+
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			// Global options are processed before the subcommand
+			// Exit if we have found the subcommand
+			break
+		}
+
+		option := strings.SplitN(arg[1:], "=", 2)
+		if option[0] == optionChDir {
+			if len(option) != 2 {
+				return nil, fmt.Errorf(
+					"%s must include an equals sign followed by a value: -%s=value", option[0], option[0])
+			}
+		} else if option[0] == "v" || option[0] == "-version" {
+			// Capture -v and --version as version option
+			option[0] = optionVersion
+		}
+
+		if len(option) != 2 {
+			option = append(option, "")
+		}
+		options[option[0]] = option[1]
+	}
+
+	return options, nil
 }
