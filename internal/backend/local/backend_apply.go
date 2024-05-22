@@ -29,7 +29,7 @@ import (
 // test hook called between plan+apply during opApply
 var testHookStopPlanApply func()
 
-var (
+const (
 	defaultPersistInterval                 = 20 // arbitrary interval that's hopefully a sweet spot
 	persistIntervalEnvironmentVariableName = "TF_STATE_PERSIST_INTERVAL"
 )
