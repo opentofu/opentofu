@@ -3583,8 +3583,15 @@ output "a" {
 }
 
 func TestContext2Plan_triggeredBy(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "TF configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
 resource "test_object" "a" {
   count = 1
   test_string = "new"
@@ -3598,7 +3605,41 @@ resource "test_object" "b" {
   }
 }
 `,
-	})
+			},
+		},
+		{
+			Description: "Json configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+    "resource": {
+        "test_object": {
+            "a": [
+                {
+                    "count": 1,
+                    "test_string": "new"
+                }
+            ],
+            "b": [
+                {
+                    "count": 1,
+                    "lifecycle": [
+                        {
+                            "replace_triggered_by": [
+                                "test_object.a[count.index].test_string"
+                            ]
+                        }
+                    ],
+                    "test_string": "test_object.a[count.index].test_string"
+                }
+            ]
+        }
+    }
+}
+`,
+			},
+		},
+	}
 
 	p := simpleMockProvider()
 
@@ -3626,28 +3667,31 @@ resource "test_object" "b" {
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 	})
+	for _, configuration := range configurations {
+		m := testModuleInline(t, configuration.inlineConfiguration)
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
-		Mode: plans.NormalMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-	}
-	for _, c := range plan.Changes.Resources {
-		switch c.Addr.String() {
-		case "test_object.a[0]":
-			if c.Action != plans.Update {
-				t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+		}
+		for _, c := range plan.Changes.Resources {
+			switch c.Addr.String() {
+			case "test_object.a[0]":
+				if c.Action != plans.Update {
+					t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+				}
+			case "test_object.b[0]":
+				if c.Action != plans.DeleteThenCreate {
+					t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+				}
+				if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
+					t.Fatalf("incorrect reason for change: %s\n", c.ActionReason)
+				}
+			default:
+				t.Fatal("unexpected change", c.Addr, c.Action)
 			}
-		case "test_object.b[0]":
-			if c.Action != plans.DeleteThenCreate {
-				t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
-			}
-			if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
-				t.Fatalf("incorrect reason for change: %s\n", c.ActionReason)
-			}
-		default:
-			t.Fatal("unexpected change", c.Addr, c.Action)
 		}
 	}
 }

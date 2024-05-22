@@ -74,10 +74,14 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		isJSON := hcljson.IsJSONExpression(attr.Expr)
 
 		if isJSON {
-			toExpr, diags = parseJsonExpressionToHclExpression(toExpr)
+			convertedExpr, convertDiags := convertJSONExpressionToHCL(toExpr)
+			diags = append(diags, convertDiags...)
+
 			if diags.HasErrors() {
 				return imp, diags
 			}
+
+			toExpr = convertedExpr
 		}
 
 		imp.To = toExpr
@@ -202,25 +206,4 @@ func resolvedImportAddress(expr hcl.Expression) *addrs.AbsResourceInstance {
 		return nil
 	}
 	return &to
-}
-
-func parseJsonExpressionToHclExpression(expr hcl.Expression) (hcl.Expression, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	// We can abuse the hcl json api and rely on the fact that calling
-	// Value on a json expression with no EvalContext will return the
-	// raw string. We can then parse that as normal hcl syntax, and
-	// continue with the decoding.
-	value, ds := expr.Value(nil)
-	diags = append(diags, ds...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	expr, ds = hclsyntax.ParseExpression([]byte(value.AsString()), expr.Range().Filename, expr.Range().Start)
-	diags = append(diags, ds...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	return expr, diags
 }

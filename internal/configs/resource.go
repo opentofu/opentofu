@@ -551,18 +551,9 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 
 	for i, expr := range exprs {
 		if isJSON {
-			// We can abuse the hcl json api and rely on the fact that calling
-			// Value on a json expression with no EvalContext will return the
-			// raw string. We can then parse that as normal hcl syntax, and
-			// continue with the decoding.
-			v, ds := expr.Value(nil)
-			diags = diags.Extend(ds)
-			if diags.HasErrors() {
-				continue
-			}
-
-			expr, ds = hclsyntax.ParseExpression([]byte(v.AsString()), "", expr.Range().Start)
-			diags = diags.Extend(ds)
+			var convertDiags hcl.Diagnostics
+			expr, convertDiags = convertJSONExpressionToHCL(expr)
+			diags = diags.Extend(convertDiags)
 			if diags.HasErrors() {
 				continue
 			}
