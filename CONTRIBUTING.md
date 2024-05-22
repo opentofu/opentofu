@@ -55,7 +55,7 @@ Please make sure you complete the following checklist before you mark your PR re
 
 - [ ] I have read the contribution guidelines.
 - [ ] I have not used an AI coding assistant to create this PR.
-- [ ] I have marked any code I have not written myself (including modified code, e.g. copied from other places and then modified) with a comment indicating where it came from.
+- [ ] I have written all code in this PR myself OR I have marked all code I have not written myself (including modified code, e.g. copied from other places and then modified) with a comment indicating where it came from.
 
 ### Go checklist
 
