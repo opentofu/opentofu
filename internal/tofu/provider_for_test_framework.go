@@ -121,6 +121,6 @@ func (p providerForTest) Close() error {
 	return p.internal.Close()
 }
 
-func (p providerForTest) ImportResourceState(r providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+func (p providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
 	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
 }
