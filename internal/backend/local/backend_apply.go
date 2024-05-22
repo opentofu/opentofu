@@ -30,7 +30,7 @@ import (
 var testHookStopPlanApply func()
 
 var (
-	defaultPersistInterval                 = 20
+	defaultPersistInterval                 = 20 // arbitrary interval that's hopefully a sweet spot
 	persistIntervalEnvironmentVariableName = "TF_STATE_PERSIST_INTERVAL"
 )
 
@@ -106,7 +106,7 @@ func (b *Local) opApply(
 	if persistInterval < 0 {
 		panic(fmt.Sprintf("Can't use negative value for %s: %d", persistIntervalEnvironmentVariableName, persistInterval))
 	}
-	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second // arbitrary interval that's hopefully a sweet spot
+	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second
 
 	var plan *plans.Plan
 	// If we weren't given a plan, then we refresh/plan
