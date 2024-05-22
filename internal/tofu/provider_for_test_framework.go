@@ -75,6 +75,12 @@ func (p providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) provi
 	return resp
 }
 
+// Calling the internal provider ensures providerForTest has the same behaviour as if
+// it wasn't overridden. Some of these functions should be changed in the future to
+// support mock_provider (e.g. ConfigureProvider should do nothing), mock_resource and
+// mock_data. The only exception is ImportResourceState, which panics if called via providerForTest
+// because importing is not supported in testing framework.
+
 func (p providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
 	return p.internal.GetProviderSchema()
 }
@@ -103,10 +109,6 @@ func (p providerForTest) Stop() error {
 	return p.internal.Stop()
 }
 
-func (p providerForTest) ImportResourceState(r providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
-	return p.internal.ImportResourceState(r)
-}
-
 func (p providerForTest) GetFunctions() providers.GetFunctionsResponse {
 	return p.internal.GetFunctions()
 }
@@ -117,4 +119,8 @@ func (p providerForTest) CallFunction(r providers.CallFunctionRequest) providers
 
 func (p providerForTest) Close() error {
 	return p.internal.Close()
+}
+
+func (p providerForTest) ImportResourceState(r providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
 }
