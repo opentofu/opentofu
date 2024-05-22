@@ -8,6 +8,7 @@ package configs
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -66,8 +67,21 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["to"]; exists {
-		imp.To = attr.Expr
-		staticAddress, addressDiags := staticImportAddress(attr.Expr)
+		toExpr := attr.Expr
+		// Since we are manually parsing the 'to' argument, we need to specially
+		// handle json configs, in which case the values will be json strings
+		// rather than hcl
+		isJSON := hcljson.IsJSONExpression(attr.Expr)
+
+		if isJSON {
+			toExpr, diags = parseJsonExpressionToHclExpression(toExpr)
+			if diags.HasErrors() {
+				return imp, diags
+			}
+		}
+
+		imp.To = toExpr
+		staticAddress, addressDiags := staticImportAddress(toExpr)
 		diags = append(diags, addressDiags.ToHCL()...)
 
 		// Exit early if there are issues resolving the static address part. We wouldn't be able to validate the provider in such a case
@@ -188,4 +202,25 @@ func resolvedImportAddress(expr hcl.Expression) *addrs.AbsResourceInstance {
 		return nil
 	}
 	return &to
+}
+
+func parseJsonExpressionToHclExpression(expr hcl.Expression) (hcl.Expression, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	// We can abuse the hcl json api and rely on the fact that calling
+	// Value on a json expression with no EvalContext will return the
+	// raw string. We can then parse that as normal hcl syntax, and
+	// continue with the decoding.
+	value, ds := expr.Value(nil)
+	diags = append(diags, ds...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	expr, ds = hclsyntax.ParseExpression([]byte(value.AsString()), expr.Range().Filename, expr.Range().Start)
+	diags = append(diags, ds...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return expr, diags
 }
