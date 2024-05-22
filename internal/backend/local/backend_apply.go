@@ -31,7 +31,7 @@ var testHookStopPlanApply func()
 
 var (
 	defaultPersistInterval                 = 20
-	persistIntervalEnvironmentVariableName = "TF_BACKEND_PERSIST_INTERVAL_SECONDS"
+	persistIntervalEnvironmentVariableName = "TF_STATE_PERSIST_INTERVAL"
 )
 
 func getEnvAsInt(envName string, defaultValue int) int {
