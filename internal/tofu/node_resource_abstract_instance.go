@@ -2587,7 +2587,7 @@ func (n *NodeAbstractResourceInstance) getProviderWithPlannedChange(ctx EvalCont
 	}
 
 	providerForTest := providerForTest{
-		Interface:      underlyingProvider,
+		internal:       underlyingProvider,
 		schema:         schema,
 		overrideValues: n.Config.OverrideValues,
 	}

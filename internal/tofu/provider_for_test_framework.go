@@ -7,6 +7,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+var _ providers.Interface = providerForTest{}
+
 // providerForTest is a wrapper around real provider to allow certain resources to be overridden
 // for testing framework. Currently, it's used in NodeAbstractResourceInstance only in a format
 // of one time use. It handles overrideValues and plannedChange for a single resource instance
@@ -17,8 +19,10 @@ import (
 // should contain per PlanResourceChangeRequest cache to produce the same plan result
 // for the same PlanResourceChangeRequest.
 type providerForTest struct {
-	providers.Interface
-	schema providers.ProviderSchema
+	// It's not embedded to make it safer to extend providers.Interface
+	// without silently breaking providerForTest functionality.
+	internal providers.Interface
+	schema   providers.ProviderSchema
 
 	overrideValues map[string]cty.Value
 	plannedChange  *cty.Value
@@ -69,4 +73,48 @@ func (p providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) provi
 	resp.State, resp.Diagnostics = hcl2shim.ComposeMockValueBySchema(resSchema, r.Config, p.overrideValues)
 
 	return resp
+}
+
+func (p providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
+	return p.internal.GetProviderSchema()
+}
+
+func (p providerForTest) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+	return p.internal.ValidateProviderConfig(r)
+}
+
+func (p providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	return p.internal.ValidateResourceConfig(r)
+}
+
+func (p providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
+	return p.internal.ValidateDataResourceConfig(r)
+}
+
+func (p providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+	return p.internal.UpgradeResourceState(r)
+}
+
+func (p providerForTest) ConfigureProvider(r providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+	return p.internal.ConfigureProvider(r)
+}
+
+func (p providerForTest) Stop() error {
+	return p.internal.Stop()
+}
+
+func (p providerForTest) ImportResourceState(r providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+	return p.internal.ImportResourceState(r)
+}
+
+func (p providerForTest) GetFunctions() providers.GetFunctionsResponse {
+	return p.internal.GetFunctions()
+}
+
+func (p providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	return p.internal.CallFunction(r)
+}
+
+func (p providerForTest) Close() error {
+	return p.internal.Close()
 }
