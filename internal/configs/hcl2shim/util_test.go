@@ -1,6 +1,7 @@
 package hcl2shim
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -46,7 +47,7 @@ func TestConvertJSONExpressionToHCL(t *testing.T) {
 				}
 			}
 
-			if resultExpr == want {
+			if !reflect.DeepEqual(resultExpr, want) {
 				t.Errorf("got %s, but want %s", resultExpr, want)
 			}
 		})
