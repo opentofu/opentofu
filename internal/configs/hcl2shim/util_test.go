@@ -6,25 +6,17 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hclJSON "github.com/hashicorp/hcl/v2/json"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestConvertJSONExpressionToHCL(t *testing.T) {
 	tests := []struct {
 		Input string
-		Want  hcl.Traversal
 	}{
 		{
 			Input: "hello",
-			Want: hcl.Traversal{
-				hcl.TraverseRoot{Name: "hello"}}},
+		},
 		{
 			Input: "resource.test_resource[0]",
-			Want: hcl.Traversal{
-				hcl.TraverseRoot{Name: "boop"},
-				hcl.TraverseAttr{Name: "test_resource"},
-				hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
-			},
 		},
 	}
 
