@@ -312,7 +312,7 @@ Notes from initial prototyping:
 * The configs.Backend saves the config body during the config load and does not evaluate it
 * backendInitFromConfig() in command/meta_backend.go is what evaluates the body
   - This happens before the graph is constructed / evaluated and can be considered an extension of the config loading stage.
-* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to do the decoding.
+* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to provide an evaluation context for decoding into the given backend scheam.
   - There are a few ways to do this, stashing it there was a simple way to get it working in the prototype.
 * Don't forget to update the configs.Backend.Hash() function as that's used to detect any changes
 
@@ -347,7 +347,7 @@ A comprehensive guide on e2e testing should be written, see #1536.
 
 ## Unknowns:
 ### Providers variables
-Providers may have configuration that depends on variables and dynamic values, such as resources from other providers. There is a odd workaround within the internal/tofu package where variable values may be requested during the graph building phase. This is an odd hack and may need to be reworked for the providers iteration above.
+Providers may have configuration that depends on variables and dynamic values, such as resources from other providers. There is a odd workaround within the internal/tofu package where [variable values may be requested during the graph building phase](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L22-L39). This is an odd hack and may [need to be reworked](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L46-L48) for the providers iteration above.
 ### Core functions
 Do we want to support the core OpenTofu functions in the static evaluation context? Probably as it would be fairly trivial to hook in.
 ### Provider functions
