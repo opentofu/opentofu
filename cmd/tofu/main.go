@@ -77,6 +77,7 @@ func realMain() int {
 
 	var err error
 
+	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 	options, err := getGlobalOptions(args)
 	if err != nil {
@@ -310,7 +311,7 @@ func realMain() int {
 	// Rebuild the CLI with any modified args.
 	log.Printf("[INFO] CLI command args: %#v", args)
 	cliRunner = &cli.CLI{
-		Name:           filepath.Base(os.Args[0]),
+		Name:           binName,
 		Args:           args,
 		Commands:       commands,
 		HiddenCommands: getAliasCommandKeys(),
