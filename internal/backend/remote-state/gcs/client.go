@@ -7,6 +7,7 @@ package gcs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -135,9 +136,13 @@ func (c *remoteClient) lockError(err error) *statemgr.LockError {
 	}
 
 	info, infoErr := c.lockInfo()
-	if infoErr != nil {
+	switch {
+	case errors.Is(infoErr, storage.ErrObjectNotExist):
+		// Race condition - file exists initially but then has been deleted by other process
+		lockErr.InconsistentRead = true
+	case infoErr != nil:
 		lockErr.Err = multierror.Append(lockErr.Err, infoErr)
-	} else {
+	default:
 		lockErr.Info = info
 	}
 	return lockErr
