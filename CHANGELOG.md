@@ -16,6 +16,7 @@ BUG FIXES:
 * `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 * Fixed support for provider functions in tests ([#1603](https://github.com/opentofu/opentofu/pull/1603))
 * Added a better error message on `for_each` block with sensitive value of unsuitable type. ([#1485](https://github.com/opentofu/opentofu/pull/1485))
+* Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
 
 ## Previous Releases
 
