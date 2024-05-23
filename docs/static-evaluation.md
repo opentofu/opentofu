@@ -252,7 +252,34 @@ In [#300](https://github.com/opentofu/opentofu/issues/300), users describe how s
 
 #### Proposed Changes
 
-The first change is to support static variables in the provider config block.  This can then be extended to support for_each/count and be expanded at the end of the `config.NewModule()` function, similar to how module.ProviderLocalNames is generated.  This piece is fairly straightforward and can be done relatively easily.
+The first change is to support static variables in the provider config block.  This can then be extended to support for_each/count and be expanded at the end of the `config.NewModule()` function, similar to how [module.ProviderLocalNames](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L186) is generated.  This piece is fairly straightforward and can be done relatively easily.
+
+```hcl
+locals {
+  regions = {"us": "us-east-1", "eu": "eu-west-1"}
+}
+
+provider "aws" {
+  for_each = local.regions
+  alias = each.key
+  region = each.value
+}
+
+# Uses the AWS US Provider
+resource "aws_s3_bucket" "primary" {
+  for_each = local.regions
+  provider = aws.us
+}
+
+# Uses the AWS EU Provider
+module "mod" {
+  source = "./mod"
+  providers {
+    aws = aws.eu
+  }
+}
+```
+
 
 The next step is to support provider aliases indexed by an expression, which is quite a bit trickier.
 Example:
