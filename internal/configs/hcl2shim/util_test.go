@@ -38,7 +38,7 @@ func TestConvertJSONExpressionToHCL(t *testing.T) {
 		}
 
 		t.Run(test.Input, func(t *testing.T) {
-			resultExpr, diags := convertJSONExpressionToHCL(JSONExpr)
+			resultExpr, diags := ConvertJSONExpressionToHCL(JSONExpr)
 			if diags.HasErrors() {
 				t.Errorf("got %d diagnostics; want 0", len(diags))
 				for _, d := range diags {

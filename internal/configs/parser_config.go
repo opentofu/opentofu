@@ -7,7 +7,6 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -370,28 +369,4 @@ var configFileExperimentsSniffBlockSchema = &hcl.BodySchema{
 		{Name: "experiments"},
 		{Name: "language"},
 	},
-}
-
-// Sometimes, we manually parse an expression instead of using the hcl library
-// for parsing. In this case we need to handle json configs specially, as the
-// values will be json strings rather than hcl.
-func convertJSONExpressionToHCL(expr hcl.Expression) (hcl.Expression, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	// We can abuse the hcl json api and rely on the fact that calling
-	// Value on a json expression with no EvalContext will return the
-	// raw string. We can then parse that as normal hcl syntax, and
-	// continue with the decoding.
-	value, ds := expr.Value(nil)
-	diags = append(diags, ds...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	expr, ds = hclsyntax.ParseExpression([]byte(value.AsString()), expr.Range().Filename, expr.Range().Start)
-	diags = append(diags, ds...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	return expr, diags
 }

@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -552,7 +552,7 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 	for i, expr := range exprs {
 		if isJSON {
 			var convertDiags hcl.Diagnostics
-			expr, convertDiags = convertJSONExpressionToHCL(expr)
+			expr, convertDiags = hcl2shim.ConvertJSONExpressionToHCL(expr)
 			diags = diags.Extend(convertDiags)
 			if diags.HasErrors() {
 				continue
