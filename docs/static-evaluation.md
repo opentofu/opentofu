@@ -20,25 +20,27 @@ To understand why this is, we need to peek under the hood and understand how and
 
 ## Expressions
 
-The evaluation of expressions (`1 + var.bar` for example) depends on required values and functions used in the expression. In that example, you would need to know the value of `var.bar`. That dependency is known via a concept called "[HCL Traversals](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Traversal)", which represent an attribute access path and can be turned into strongly typed "OpenTofu References". In practice, you would say "the expression depends on an OpenTofu Variable named bar".
+The evaluation of expressions (`1 + var.bar` for example) depends on referenced values and functions used in the expression. In that example, you would need to know the value of `var.bar`. That dependency is known via a concept called "[HCL Traversals](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Traversal)", which represent an attribute access path and can be turned into strongly typed "OpenTofu References". In practice, you would say "the expression depends on an OpenTofu Variable named bar".
 
-Once you know what the requirements are for an expression ([hcl.Expression](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Expression)), you can build up an evaluation context ([hcl.EvalContext](https://pkg.go.dev/github.com/hashicorp/hcl/v2#EvalContext)) to provide those requirements or return an error.  In the above example, the evaluation context would include `{"var": {"bar": <somevalue>}`.
+Once you know what the requirements are for an expression ([hcl.Expression](https://pkg.go.dev/github.com/hashicorp/hcl/v2#Expression)), you can build up an evaluation context ([hcl.EvalContext](https://pkg.go.dev/github.com/hashicorp/hcl/v2#EvalContext)) to provide those requirements or return an error. In the above example, the evaluation context must include `{"var": {"bar": <somevalue>}`.
 
-Expression evaluation is currently split up into two stages: config loading and graph reference evaluation
+Expression evaluation is currently split up into two stages: config loading and graph reference evaluation.
 
 ## Config Loading
 
-During configuration loading, the hcl or json config is pulled apart into Blocks and Attributes. A Block contains Attributes and nested Blocks. Attributes are simply named expressions (`foo = 1 + var.bar` for example).
+During configuration loading, the HCL or JSON config is pulled apart into Blocks and Attributes by the hcl package. A Block can contain Attributes and nested Blocks. Attributes are simply named expressions (`foo = 1 + var.bar` for example).
 
 ```hcl
 some_block {
-    some_attribute = "some value
+    some_attribute = "some value"
 }
 ```
 
-These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. Depending on the handing of the given block/attribute, either the abstract representation is kept or it is evaluated into a real value for use.
+These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. Depending on the handling of the given block/attribute, either the abstract representation is kept for the [Graph Reference Evaluation](#graph-reference-evaluation) or it is evaluated into a real value for use.
 
-As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and therefore are stored as an expression for later evaluation.
+TODO: example, or forward link explaining that this is done on a per-block basis.
+
+As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However, attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and are therefore stored as an expression for the [Graph Reference Evaluation](#graph-reference-evaluation).
 
 ```hcl
 resource "aws_instance" "example" {
@@ -54,18 +56,20 @@ module "dnsentries" {
 }
 ```
 
-No evaluation context is built or provided during the entire config loading process.  **Therefore, no functions, locals, or variables may be used during config loading due to the lack of context.  This limitation is what we wish to resolve**.
+No evaluation context is built or provided during the entire config loading process. **Therefore, no functions, locals, or variables may be used during config loading due to the lack of an evaluation context. This limitation is what we wish to resolve.**
 
 ## Graph Reference Evaluation
 
-After the config is fully loaded, it is transformed and processed into nodes in a [graph (DAG)]( https://en.wikipedia.org/wiki/Directed_acyclic_graph). These nodes use the "[OpenTofu References](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/addrs/parse_ref.go#L174)" present in their blocks/attributes (the ones not evaluated in config loading) to build both the dependency edges in the graph, and eventually an evaluation context once those references are available.
+After the config is fully loaded, it is transformed and processed into nodes in a [graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph). These nodes use the "[OpenTofu References](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/addrs/parse_ref.go#L174)" present in their blocks/attributes (the ones not evaluated in config loading) to build both the dependency edges in the graph, and eventually an evaluation context once those references are available.
 
-This theoretically simple process is deeply complicated by the module dependency tree and expansion therein. The graph is dynamically modified due to `for_each` and `count` being evaluated as their required references are made available. The majority of the logic in this process exists within the `tofu` and `lang` package which are somewhat tightly coupled.
+TODO: link to architecture document
 
-For example, a module's `for_each` statement may require data from a resource: `for_each = resource.aws_s3_bucket.foo.tags`. Before it could be evaluated, the module must wait for "OpenTofu Resource Reference aws_s3_bucket.foo" to be available. This would be represented as a dependency edge between the module node and the specific resource node. The evaluation context would then include `{"resource": {"aws_s3_bucket": {"foo": {"tags": <provided value>}}}}`.
+This theoretically simple process is deeply complicated by the module dependency tree and expansion therein. The graph is dynamically modified due to `for_each` and `count` being evaluated as their required references are made available. The majority of the logic in this process exists within the `tofu` and `lang` packages, which are somewhat tightly coupled.
+
+For example, a module's `for_each` statement may require data from a resource: `for_each = resource.aws_s3_bucket.foo.tags`. Before it can be evaluated, the module must wait for "OpenTofu Resource Reference `aws_s3_bucket.foo`" to be available. This would be represented as a dependency edge between the module node and the specific resource node. The evaluation context would then include `{"resource": {"aws_s3_bucket": {"foo": {"tags": <provided value>}}}}`.
 
 > [!NOTE]
-> A common misconception is that modules are "objects". However, modules more closely resemble "namespaces" and can cross reference each other's vars/outputs as long as there is no reference loop.
+> A common misconception is that modules are "objects". However, modules more closely resemble "namespaces" and can cross-reference each other's vars/outputs as long as there is no reference loop.
 
 
 ## Initial implementation
@@ -85,9 +89,13 @@ module "mymodule" {
 }
 ```
 
-By utilizing Traversals/References, we can track what values are statically known throughout the config loading process. This will follow a similar pattern to the graph reference evaluation (with limitations) and may or may not re-use much of it's code.
+By utilizing Traversals/References, we can track what values are statically known throughout the config loading process. This will follow a similar pattern to the graph reference evaluation (with limitations) and may or may not re-use much of the existing graph reference evaluators code.
 
-When evaluating an Attribute/Block into a value, any missing reference must be properly reported in a way that the user can easily debug and understand. For example, a user may try to use a `local` that depends on a resource's value in a module's source. The user must then be told that the `local` can not be used in the module source field as it depends on a resource which is not yet available.  Variables used through the module tree must also be passed with their associated information. In practice this is fairly easy to track and has been prototyped during the exploration of [#1042](https://github.com/opentofu/opentofu/issues/1042).
+When evaluating an Attribute/Block into a value, any missing reference must be properly reported in a way that the user can easily debug and understand. For example, a user may try to use a `local` that depends on a resource's value in a module's source. The user must then be told that the `local` can not be used in the module source field as it depends on a resource which is not available during the config loading process. Variables used through the module tree must also be passed with their associated information, such as their references.
+
+TODO add a note that the current evaluator does not support dependency chains. Why do we need these? Forward reference?
+TODO example for this, as well as an example error message.
+TODO the whole previous paragraph should be rewritten to describe user experience, not technical details.
 
 Implementing this initial concept will allow many of the [solutions](#solutions) below to be fully implemented.  However, there are some limitations due to module expansion which are worth considering.
 
@@ -95,7 +103,8 @@ Implementing this initial concept will allow many of the [solutions](#solutions)
 
 The concepts of `for_each` and `count` were grafted on to the codebase in a way that has added significant complexity and limitations. When a module block contains a `for_each` or `count` all of the nodes (resources/variables/locals/etc...) will be created multiple times, one copy per "instance".
 
-One common example of a limitation would be to use different providers for different module instances:
+One common example of a limitation would be to use different providers for different module instances, which does not work today:
+
 ```hcl
 # main.tf
 module "mod" {
@@ -103,28 +112,30 @@ module "mod" {
         source = "./mod"
         name = each.key
         providers {
-          aws = provider.aws[each.value]
+          aws = provider.aws[each.value] # Currently only hard-coded values are supported here
         }
 }
 ```
 
 As the provider requirements are baked into the module itself, the multiple "instances" don't have any concept of providers per instance. This becomes even more complex when you consider that these providers might be passed through a complex tree of modules before they are directly used.
 
-There are two potential solutions detailed below in [Provider Iteration](#provider-iteration), each with their own tradeoffs.  Depending on the decision made there, we may not allow each.key/vaue and count to be used in module sources (at least for now).
+There are two potential solutions detailed below in [Provider Iteration](#provider-iteration), each with their own tradeoffs.
+
+A related problem is using `each.key/value` or `count` in module sources.  The sources don't have any concept of "module instances" from `for_each/count` and have similar limitations to provider iteration.  This a much lower priority item that is likely not going to be considered for the foreseeable future. TODO reference module expansion document.
 
 ## Plan of Attack
 
-Between the initial implementation, the simple solutions, and the provider complexity, we are talking about a significant amount of work likely spread across multiple releases.
+Between the initial implementation, the simple Solutions, and the provider complexity, we are talking about a significant amount of work likely spread across multiple releases.
 
 We can not take the approach of hacking on a feature branch for months or freezing all related code. It's unrealistic and unfair to other developers.
 
 Instead, we can break this work into smaller discrete and testable components, some of which may be easy to work on in parallel.
 
-If we design an interface for the static evaluator and wire a noop implementation through the config package, work on all of the major solutions can be started. Those solutions will then become functional as pieces of the static evaluator are implemented.
-
 With this piece by piece approach, we can also add testing before, during, and after each component is added/modified.
 
-The OpenTofu core team should be the ones to do the majority of the core implementation and the module expansion work.  If community members are interested, many of the solutions are isolated and well defined enough for them to be worked on independently of the core team.
+The OpenTofu core team should be the ones to do the majority of the core implementation.  If community members are interested, many of the [Solutions](#solutions) are isolated and well defined enough for them to be worked on independently of the core team.
+
+TODO rename solutions to something else
 
 ## Progress Overview:
 - [ ] Plan Approved by Core Team
@@ -133,7 +144,7 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
   - [ ] Pick Static Evaluator Approach
   - [ ] Implement Static Evaluator
   - [ ] Wire Static Evaluator through the config package
-  - [ ] Implement one of the simple solutions to validaten
+  - [ ] Implement one of the simple solutions to validate
 - [ ] [Solutions](#static-context-design)
   - [ ] [Module Sources](#module-sources)
   - [ ] [Provider Iteration](#provider-iteration)
@@ -143,34 +154,45 @@ The OpenTofu core team should be the ones to do the majority of the core impleme
   - [ ] [Provisioners](#provisioners)
   - [ ] [Moved blocks](#moved-blocks)
   - [ ] [Encryption block](#encryption)
+  - TODO Double check full list
+  - TODO Link to issues and use more descriptive names
 
 ## Core Implementation:
 
 Before implementation starts, the relevant parts of the current config loading / graph process must be well understood by all developers working on it.
 
+TODO reword this
+
 ### Current Design / Workflow
 
 Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified):
-* A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/init.go#L193) in the command package [parses the configuration in the current directory](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config_dir.go#L41-L58)
-  - [The module's configuration is loaded](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config.go#L54) into [configs.File](https://github.com/opentofu/opentofu/blob/290fbd6/internal/configs/module.go#L76) structures
-    - Fields like [module -> source](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L79) are evaluated without a evaluation context (nil)
-    - config items are [validated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L145-L150) (which should not be done here, see [#1467](https://github.com/opentofu/opentofu/issues/#1467))
-  - `configs.File` [structures used to create](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L122) a [configs.Module](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L22) using [various rules](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L205)
-  - `configs.Module` is [used to build](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L173) a [config.Config](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L30) which represents the [module](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L57) and it's [location](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L48) within the module [config tree](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L53)
-  - [configs.Module.ModuleCalls](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L20) are iterated through to [recursively pull in modules using the same procedure](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L118)
-* The command [constructs a backend](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L111) from the configuration
-* The command executes the [operation](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L119) using the [backend and the configuration](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L135)
-  - The `configs.Config` module tree is [walked and used to populate a basic graph](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_config.go#L16-L27)
-  - The graph is [transformed and linked based on references detected between nodes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L119)
-    - Node dependencies are determined by inspecting [blocks](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L584) and [attributes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/node_resource_abstract.go#L159)
-      - The blocks and attributes are are [turned into references](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/lang/references.go#L56) in the lang package
-  - The graph is [evaluated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L86) by [walking each node](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L43) after it's dependencies have been evaluated.
+
+TODO: please explain the structures referenced in this section
+
+1. A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/init.go#L193) in the command package [parses the configuration in the current directory](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config_dir.go#L41-L58)
+   - [The module's configuration is loaded](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/parser_config.go#L54) into [configs.File](https://github.com/opentofu/opentofu/blob/290fbd6/internal/configs/module.go#L76) structures
+     - Fields like [module -> source](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L79) are evaluated without an evaluation context (nil)
+     - config items are [validated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L145-L150)
+   - `configs.File` [structures used to create](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L122) a [configs.Module](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L22) using [various rules](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L205)
+   - `configs.Module` is [used to build](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L173) a [config.Config](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L30) which represents the [module](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L57) and it's [location](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L48) within the module [config tree](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config.go#L53)
+   - [configs.Module.ModuleCalls](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module_call.go#L20) are iterated through to [recursively pull in modules using the same procedure](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L118)
+2. The command [constructs a backend](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L111) from the configuration
+3. The command executes the [operation](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L119) using the [backend and the configuration](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/apply.go#L135)
+   - The `configs.Config` module tree is [walked and used to populate an initial graph](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_config.go#L16-L27)
+   - The graph is [transformed and linked based on references detected between nodes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L119)
+     - Node dependencies are determined by inspecting [blocks](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/transform_reference.go#L584) and [attributes](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/node_resource_abstract.go#L159)
+       - The blocks and attributes are [turned into references](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/lang/references.go#L56) in the `lang` package
+   - The graph is [evaluated](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L86) by [walking each node](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/graph.go#L43) after it's dependencies have been evaluated.
+
+TODO: link to architecture document too
 
 ### Proposed Design Changes
 
 As explained in [Initial implementation](#Initial-implementation), we will need to modify the above workflow to track references/values in different scopes during the config loading process. This will be called a [Static Context](#Static-Context), with the requirements and potential implementation paths below.
 
-When loading a module, a static context must be supplied. When called from an external package like command, the static context will contain tfvars from both cli options and .tfvars files. When called from within the `configs.Config` tree building process, it will pass static references to values from the `config.ModuleCall` in as supplied variables.
+When loading a module, a static context must be supplied. When called from an external package like `command`, the static context will contain tfvars from both cli options and .tfvars files. When called from within the `configs.Config` tree building process, it will pass static references to values from the `config.ModuleCall` in as supplied variables.
+
+TODO: clarify that simple functions are also available.
 
 Example:
 
@@ -187,6 +209,7 @@ module "mod" {
 ```
 
 pseudocode
+TODO: rewrite this please
 ```go
 buildConfig(path = ".", ctx = StaticContextFromTFVars(command.TFVars))
   config = Config{}
@@ -205,16 +228,17 @@ buildConfig(path = ".", ctx = StaticContextFromTFVars(command.TFVars))
 ```
 
 ### Static Context Design
-At the heart of the project lies an evaluation context, similar to what currently exist in the tofu and lang package. It must serve a similar purpose, but has some differing requirements.
+At the heart of the project lies an evaluation context, similar to what currently exist in the `tofu` and `lang` packages. It must serve a similar purpose, but has some differing requirements.
 
 Any static evaluator must be able to:
 * Evaluate a hcl expression or block into a single cty value
   - Provide detailed insight into why a given expression or block can not be turned into a cty value
-* Be constructed with variables derived from a parent static context
-  - This is primarlly for passing values down the module call stack, while maintaining references
+* Be constructed with variables derived from a parent static context corresponding to parent modules
+  - This is primarily for passing values down the module call stack, while maintaining references
 
 There are three potential paths in implementing a static evaluator:
-* Build a custom streamlined (?) solution for this specific problem and it's current use cases
+* Build a custom solution for this specific problem and it's current use cases
+  - This will not be shared with the existing evaluation context
   - This approach was taken in the prototypes
   - Can be flexible during development
   - Does not break other packages
@@ -222,7 +246,7 @@ There are three potential paths in implementing a static evaluator:
 * Re-use existing components of the tofu and lang packages with new plumbing
   - Can build on top of existing tested logic
   - Somewhat flexible as components can be swapped out as needed
-  - May require refactoring existing componets we wish to use
+  - May require refactoring existing components we wish to use
   - May accidentally break other packages due to poor existing testing
 * Re-use current evaluator/scope constructs in tofu and lang packages
   - Would require re-designing these components to function in either mode
@@ -232,16 +256,23 @@ There are three potential paths in implementing a static evaluator:
 
 This will need to be investigated and roughly prototyped, but all solutions should fit a similar enough interface to not block development of dependent tasks. We should design the interface first, based on the requirements of the initial prototype.
 
+TODO iterative approach?
 
 ## Solutions
+
+TODO Link to issues in each solution 
+
 ### Module Sources
 Module sources must be known at init time as they are downloaded and collated into .terraform/modules. This can be implemented by inspecting the source hcl.Expression using the static evaluator scoped to the current module.
 
-This is relatively straight forward once the core is implemented, but will require some more in-depth changes to support for_each/count later on.
+This is relatively straight forward once the core is implemented, but will require some more in-depth changes to potentially support for_each/count later on.
 
 Without module pre-expansion / support for for_each/count, the process would look like:
 * Create a SourceExpression field in config.ModuleCall and don't set the "config.ModuleCall.Source" field initially
 * Use the static context available during NewModule constructor to evaluate all of the config.ModuleCall source fields and check for bad references and other errors.
+
+TODO link to code / expand above explanation.
+TODO before/after examples
 
 ### Provider Iteration
 
@@ -261,21 +292,21 @@ locals {
 
 provider "aws" {
   for_each = local.regions
-  alias = each.key
+  alias = each.key # Defines aliases aws.eu and aws.us
   region = each.value
 }
 
 # Uses the AWS US Provider
 resource "aws_s3_bucket" "primary" {
   for_each = local.regions
-  provider = aws.us
+  provider = aws.us # Note the provider alias above.
 }
 
 # Uses the AWS EU Provider
 module "mod" {
   source = "./mod"
   providers {
-    aws = aws.eu
+    aws = aws.eu # Note the provider alias above.
   }
 }
 ```
@@ -287,7 +318,6 @@ Example:
 locals {
   regions = {"us": "us-east-1", "eu": "eu-west-1"}
 }
-
 
 provider "aws" {
   for_each = local.regions
@@ -301,6 +331,7 @@ resource "aws_s3_bucket" "primary" {
 }
 
 module "mod" {
+  for_each = local.regions
   source = "./mod"
   providers {
     aws = provider.aws[each.key]
@@ -313,14 +344,14 @@ As you can see, the `provider.name[alias]` form is introduced in that example.  
 At this point, we don't have a clear path to implementation, but we can enumerate some of the challenges that are faced:
 
 * Introducing an alternate provider address method and updating documentation
-* Provider mappings for modules and resources are hard-coded at config load time on an *unexpanded* view of the config/graph structures
+* Provider mappings for modules and resources are hard-coded at config load time on an *unexpanded* view of the config/graph structures (TODO what's hardcoding it and where)
 * Provider configurations are [pruned during graph processing](./provider-references.md#Provider-Workflow)
 
 Potential implementation paths are explored in [Static Evaluation of Providers](./static-evaluation-providers.md)
 
 #### Questions
 
-Should variables be allowed in required_providers now or in the future?  Could help with versioning / swapping out for testing?
+Should variables be allowed in required_providers now or in the future?  Could help with versioning / swapping out for testing?  TODO Add example
 
 In #300, there's also a discussion on allowing variable names in provider aliases.
 Example:
@@ -374,7 +405,7 @@ A comprehensive guide on e2e testing should be written, see #1536.
 
 ## Unknowns:
 ### Providers variables
-Providers may have configuration that depends on variables and dynamic values, such as resources from other providers. There is a odd workaround within the internal/tofu package where [variable values may be requested during the graph building phase](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L22-L39). This is an odd hack and may [need to be reworked](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L46-L48) for the providers iteration above.
+Providers may have configuration that depends on variables and dynamic values, such as resources from other providers. There is an odd workaround within the internal/tofu package where [variable values may be requested from the user during the graph building phase](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L22-L39). This is an odd hack and may [need to be reworked](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L46-L48) for the providers iteration above.
 ### Core functions
 Do we want to support the core OpenTofu functions in the static evaluation context? Probably as it would be fairly trivial to hook in.
 ### Provider functions
