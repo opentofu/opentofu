@@ -312,7 +312,7 @@ Notes from initial prototyping:
 * The configs.Backend saves the config body during the config load and does not evaluate it
 * backendInitFromConfig() in command/meta_backend.go is what evaluates the body
   - This happens before the graph is constructed / evaluated and can be considered an extension of the config loading stage.
-* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to provide do the decoding.
+* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to do the decoding.
   - There are a few ways to do this, stashing it there was a simple way to get it working in the prototype.
 * Don't forget to update the configs.Backend.Hash() function as that's used to detect any changes
 
