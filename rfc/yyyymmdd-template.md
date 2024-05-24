@@ -1,0 +1,39 @@
+# { Title }
+
+Issue: https://github.com/OpenTofu/{ Repository }/issues/{ issue number }
+
+A short description of the problem that is trying to be solved.  Include links to existing documentation, code examples, and links to existing code.  Written such that a non-technical user or someone unfamiliar with the OpenTofu code will be able to understand and discuss it.
+
+Background on the issue and link to similar problems which have been resolved in the past.
+
+## Proposed Solution
+
+Overview of the Proposed Solution to introduce the User Documentation and Technical Approach.
+
+### User Documentation
+
+Describe what the user would encounter when attempting to use what is being proposed.  Provide clear and detailed descriptions, code examples, diagrams, etc... Starting point the documentation that will be added during implementation.
+
+Writing this documentation is important since the community will have a better understanding how they will be using this feature and have an easier time discussing it in depth.
+
+### Technical Approach
+
+Technical summary, easy to understand by someone unfamiliar with the codebase.
+
+Link to existing documentation and code, include diagrams if helpful.
+
+Include pseudocode or link to a Proof of Concept if applicable.
+
+Describe potential limitations or impacts on other areas of the codebase.
+
+### Open Questions
+
+List questions that should be discussed and answered during the RFC process.
+
+### Future Considerations
+
+What are some potential future paths this solution could take?  What other features may interact with this solution, what should be kept in mind during implementation?
+
+## Potential Alternatives
+
+List different approaches and breifly compare with the proposal in this RFC.  It's important to explore and understand possible alternatives before agreeing on a solution.
