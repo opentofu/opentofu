@@ -44,9 +44,9 @@ const (
 
 	// Global options
 	optionChDir    = "chdir"
+	optionHelp     = "help"
 	optionPedantic = "pedantic"
 	optionVersion  = "version"
-	optionHelp     = "help"
 )
 
 // ui wraps the primary output cli.Ui, and redirects Warn calls to Output
@@ -488,7 +488,6 @@ func mkConfigDir(configDir string) error {
 
 func getGlobalOptions(args []string) (map[string]string, error) {
 	options := make(map[string]string)
-
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the subcommand
@@ -500,11 +499,20 @@ func getGlobalOptions(args []string) (map[string]string, error) {
 		if option[0] == optionChDir {
 			if len(option) != 2 {
 				return nil, fmt.Errorf(
-					"%s must include an equals sign followed by a value: -%s=value", option[0], option[0])
+					"Invalid global option -%s: must include an equals sign followed by a value: -%s=value",
+					option[0],
+					option[0])
 			}
 		} else if option[0] == "v" || option[0] == "-version" {
 			// Capture -v and --version as version option
 			option[0] = optionVersion
+		}
+
+		switch option[0] {
+		case optionChDir, optionHelp, optionPedantic, optionVersion:
+			break
+		default:
+			return nil, fmt.Errorf("Unsupported global option -%s", option[0])
 		}
 
 		if len(option) != 2 {
