@@ -103,8 +103,9 @@ func (b *Local) opApply(
 	// persistent storage backend.
 	stateHook.Schemas = schemas
 	persistInterval := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
-	if persistInterval < 0 {
-		panic(fmt.Sprintf("Can't use negative value for %s: %d", persistIntervalEnvironmentVariableName, persistInterval))
+	if persistInterval < defaultPersistInterval {
+		panic(fmt.Sprintf("Can't use value lower than %d for env variable %s, got %d",
+			defaultPersistInterval, persistIntervalEnvironmentVariableName, persistInterval))
 	}
 	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second
 
