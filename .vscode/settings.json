@@ -1,0 +1,5 @@
+{
+  "github.copilot.enable": {
+    "*": false
+  }
+}
