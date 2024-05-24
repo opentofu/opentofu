@@ -17,7 +17,7 @@ To file an RFC, please create a PR by copying the contents of the [template](tem
 
 ## Working on an RFC
 
-RFCs take a longer time than simple issues. Core team members and community members will comment on your pull request and request changes or clarifications. The main goal of the RFC is to serve as a documentation to even the casual reader on what this feature does and how it will be implemented.
+RFCs take a longer time than simple issues. Core team members and community members will comment on your pull request and request changes or clarifications. The main goal of the RFC is to serve as a documentation to even the casual reader on what this feature does and how it should be implemented.
 
 ## Merging the RFC
 
