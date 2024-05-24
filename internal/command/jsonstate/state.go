@@ -500,7 +500,7 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 }
 
 func SensitiveAsBoolWithPathValueMarks(val cty.Value, pvms []cty.PathValueMarks) cty.Value {
-	sensitiveMarks := make([]cty.PathValueMarks, 0)
+	var sensitiveMarks []cty.PathValueMarks
 	for _, pvm := range pvms {
 		if _, ok := pvm.Marks[marks.Sensitive]; ok {
 			sensitiveMarks = append(sensitiveMarks, pvm)
