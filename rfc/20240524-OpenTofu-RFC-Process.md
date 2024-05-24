@@ -81,6 +81,4 @@ As mentioned in [Open Questions](#Open-Questions), we may build automation using
 
 The main alternative to this process is to keep the existing process.  It does work in some capacity despite the limitations described above.
 
-@janosdebugs has also proposed a similar RFC template flow which can be found at <link>.
-
 There are more "formal" RFC processes such as the [IETF RFCs](https://en.wikipedia.org/wiki/List_of_RFCs).  We don't believe we need that level of formality and detail at this juncture.
