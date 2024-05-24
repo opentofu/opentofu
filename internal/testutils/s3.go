@@ -70,7 +70,9 @@ func S3(t *testing.T) TestS3Service {
 			CommonName:   "localhost",
 		},
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		Hosts:       []string{},
+		Hosts: []string{
+			"localhost",
+		},
 	})
 
 	accessKey := "test"
