@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -475,7 +476,7 @@ func extractChdirOption(args []string) (string, []string, error) {
 			break
 		}
 		if arg == argName || arg == argPrefix {
-			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
+			return "", args, errors.New("must include an equals sign followed by a directory path, like -chdir=example")
 		}
 		if strings.HasPrefix(arg, argPrefix) {
 			argPos = i
