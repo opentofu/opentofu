@@ -500,14 +500,13 @@ func SensitiveAsBool(val cty.Value) cty.Value {
 }
 
 func SensitiveAsBoolWithPathValueMarks(val cty.Value, pvms []cty.PathValueMarks) cty.Value {
-	var path cty.Path
 	sensitiveMarks := make([]cty.PathValueMarks, 0)
 	for _, pvm := range pvms {
 		if _, ok := pvm.Marks[marks.Sensitive]; ok {
 			sensitiveMarks = append(sensitiveMarks, pvm)
 		}
 	}
-	return sensitiveAsBoolWithPathValueMarks(val, path, sensitiveMarks)
+	return sensitiveAsBoolWithPathValueMarks(val, cty.Path{}, sensitiveMarks)
 }
 
 func sensitiveAsBoolWithPathValueMarks(val cty.Value, path cty.Path, pvms []cty.PathValueMarks) cty.Value {
@@ -552,19 +551,13 @@ func sensitiveAsBoolWithPathValueMarks(val cty.Value, path cty.Path, pvms []cty.
 		return cty.TupleVal(vals)
 	case ty.IsMapType():
 		if !val.IsKnown() {
-			// If the map/object is unknown we can't say anything about the
+			// If the map is unknown we can't say anything about the
 			// sensitivity of its attributes
 			return cty.EmptyObjectVal
 		}
-		var length int
-		switch {
-		case ty.IsMapType():
-			length = val.LengthInt()
-		default:
-			length = len(val.Type().AttributeTypes())
-		}
+		length := val.LengthInt()
 		if length == 0 {
-			// If there are no elements then we can't have sensitive values
+			// If there is no elements then we can't have  sensitive values
 			return cty.EmptyObjectVal
 		}
 		vals := make(map[string]cty.Value)
@@ -589,7 +582,7 @@ func sensitiveAsBoolWithPathValueMarks(val cty.Value, path cty.Path, pvms []cty.
 		return cty.ObjectVal(vals)
 	case ty.IsObjectType():
 		if !val.IsKnown() || ty.Equals(cty.EmptyObject) {
-			// If the map/object is unknown we can't say anything about the
+			// If the object is unknown we can't say anything about the
 			// sensitivity of its attributes
 			return cty.EmptyObjectVal
 		}

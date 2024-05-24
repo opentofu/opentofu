@@ -1179,6 +1179,27 @@ func TestSensitiveAsBoolWithPathValueMarks(t *testing.T) {
 			}),
 		},
 		{
+			cty.TupleVal([]cty.Value{
+				cty.ObjectVal(map[string]cty.Value{
+					"a": cty.UnknownVal(cty.String),
+				}),
+				cty.ObjectVal(map[string]cty.Value{
+					"a": cty.StringVal("known"),
+				}),
+			}),
+			[]cty.PathValueMarks{{
+				Path:  cty.Path{cty.IndexStep{Key: cty.NumberIntVal(1)}, cty.GetAttrStep{Name: "a"}},
+				Marks: cty.NewValueMarks(marks.Sensitive)},
+			},
+
+			cty.TupleVal([]cty.Value{
+				cty.EmptyObjectVal,
+				cty.ObjectVal(map[string]cty.Value{
+					"a": cty.True,
+				}),
+			}),
+		},
+		{
 			cty.ListVal([]cty.Value{
 				cty.MapValEmpty(cty.String),
 				cty.MapVal(map[string]cty.Value{
