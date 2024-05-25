@@ -81,11 +81,13 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	kv := c.Client.KVv2(c.Mount)
 
 	chunked, hash, chunks, secret, err := c.chunkedMode()
+
+	// If vault error contains no secret, return empty state
+	if strings.Contains(err.Error(), "secret not found") {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
-	}
-	if secret == nil {
-		return nil, nil
 	}
 
 	c.modifyIndex = uint64(secret.VersionMetadata.Version)
