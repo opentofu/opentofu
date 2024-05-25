@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package consul
+package vault
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
 
-// New creates a new backend for Consul remote state.
+// New creates a new backend for Vault remote state.
 func New(enc encryption.StateEncryption) backend.Backend {
 	s := &schema.Backend{
 		Schema: map[string]*schema.Schema{
@@ -42,7 +42,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			"address": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "HTTP URL to the Consul Cluster",
+				Description: "HTTP URL to the Vault Cluster",
 				Default:     "", // To prevent input
 			},
 
