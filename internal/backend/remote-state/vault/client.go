@@ -357,10 +357,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	var lockCas int = 0
-	lockSecretExists := false
 	if currentLockMetadata != nil {
-		lockSecretExists = true
-
 		// Implement 2.
 		currentLockData, err := kv.GetVersion(ctx, c.lockPath(), currentLockMetadata.CurrentVersion)
 		if err != nil {
@@ -382,11 +379,8 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	// Implement 4.
-	if !lockSecretExists {
-		_, err = kv.Put(ctx, c.lockPath(), vaultData, vaultapi.WithCheckAndSet(lockCas))
-	} else {
-		_, err = kv.Patch(ctx, c.lockPath(), vaultData, vaultapi.WithCheckAndSet(lockCas))
-	}
+	_, err = kv.Put(ctx, c.lockPath(), vaultData, vaultapi.WithCheckAndSet(lockCas))
+
 	// Implement 6.
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfo()
