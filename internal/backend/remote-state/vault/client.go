@@ -371,7 +371,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		}
 
 		// Implement 3.
-		lockCas = currentLockMetadata.CurrentVersion + 1
+		lockCas = currentLockMetadata.CurrentVersion
 	}
 
 	val := info.Marshal()
