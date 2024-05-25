@@ -10,6 +10,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -98,7 +99,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}
 
 	// If the payload starts with 0x1f, it's gzip, not json
-	if len(payload) >= 1 && payload[0] == '\x1f' {
+	if len(payload) >= 1 && payload[0] == '\x48' {
 		payload, err = uncompressState(payload)
 		if err != nil {
 			return nil, err
@@ -432,18 +433,26 @@ func compressState(data string) (string, error) {
 	if err := gz.Close(); err != nil {
 		return "", err
 	}
-	return b.String(), nil
+	return base64.StdEncoding.EncodeToString(b.Bytes()), nil
 }
 
 func uncompressState(data string) (string, error) {
 	b := new(bytes.Buffer)
-	reader := strings.NewReader(data)
-	gz, err := gzip.NewReader(reader)
+
+	// Convert base64 to bytes
+	byteData, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return "", nil
+	}
+
+	gz, err := gzip.NewReader(bytes.NewReader(byteData))
 	if err != nil {
 		return "", err
 	}
-	b.ReadFrom(gz)
-	if err := gz.Close(); err != nil {
+	defer gz.Close()
+
+	_, err = b.ReadFrom(gz)
+	if err != nil {
 		return "", err
 	}
 	return b.String(), nil
