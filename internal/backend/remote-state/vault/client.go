@@ -11,34 +11,22 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-uuid"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 const (
-	lockSuffix     = "/.lock"
-	lockInfoSuffix = "/.lockinfo"
+	lockSuffix = "/.lock"
 
-	// The Session TTL associated with this lock.
-	lockSessionTTL = "15s"
-
-	dataKey = "data"
-
-	// the delay time from when a session is lost to when the
-	// lock is released by the server
-	lockDelay = 5 * time.Second
-	// interval between attempts to reacquire a lost lock
-	lockReacquireInterval = 2 * time.Second
+	secretNotFoundError = "secret not found"
 )
-
-var lostLockErr = errors.New("consul lock was lost")
 
 // RemoteClient is a remote client that stores data in Consul.
 type RemoteClient struct {
@@ -57,21 +45,6 @@ type RemoteClient struct {
 	// if the client loses the lock for some reason, then reacquires it, we
 	// need to make sure that the state was not modified.
 	modifyIndex uint64
-
-	// consulLock *vaultapi.Lock
-	lockCh <-chan struct{}
-
-	info *statemgr.LockInfo
-
-	// cancel our goroutine which is monitoring the lock to automatically
-	// reacquire it when possible.
-	monitorCancel context.CancelFunc
-	monitorWG     sync.WaitGroup
-
-	// sessionCancel cancels the Context use for session.RenewPeriodic, and is
-	// called when unlocking, or before creating a new lock if the lock is
-	// lost.
-	sessionCancel context.CancelFunc
 }
 
 func (c *RemoteClient) Get() (*remote.Payload, error) {
@@ -84,7 +57,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 
 	// If vault error contains no secret, return empty state
 	if err != nil {
-		if strings.Contains(err.Error(), "secret not found") {
+		if strings.Contains(err.Error(), secretNotFoundError) {
 			return nil, nil
 		}
 		return nil, err
@@ -192,7 +165,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	// First we determine what mode we were using and to prepare the cleanup
 	chunked, _, oldChunks, _, err := c.chunkedMode()
 	if err != nil {
-		if !strings.Contains(err.Error(), "secret not found") {
+		if !strings.Contains(err.Error(), secretNotFoundError) {
 			return err
 		}
 	}
@@ -313,37 +286,8 @@ func (c *RemoteClient) lockPath() string {
 	return c.Name + ".lock"
 }
 
-func (c *RemoteClient) putLockInfo(info *statemgr.LockInfo) error {
-	info.Path = c.Name
-	info.Created = time.Now().UTC()
-
-	kv := c.Client.KVv2(c.Mount)
-	ctx := context.TODO()
-
-	val := info.Marshal()
-	var vaultData map[string]interface{}
-	err := json.Unmarshal(val, &vaultData)
-	if err != nil {
-		return err
-	}
-
-	_, err = kv.Put(ctx, c.lockPath()+lockInfoSuffix, vaultData)
-
-	// _, err := kv.Put(ctx, c.lockPath()+lockInfoSuffix, map[string]interface{}{
-	// 	"Created":   info.Created,
-	// 	"ID":        info.ID,
-	// 	"Info":      info.Info,
-	// 	"Operation": info.Operation,
-	// 	"Path":      info.Path,
-	// 	"Version":   info.Version,
-	// 	"Who":       info.Who,
-	// })
-
-	return err
-}
-
 func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
-	path := c.lockPath() + lockInfoSuffix
+	path := c.lockPath()
 
 	kv := c.Client.KVv2(c.Mount)
 	ctx := context.TODO()
@@ -369,286 +313,127 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	return li, nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if !c.lockState {
-		return "", nil
+func hasSecretNotFound(err error) bool {
+	if err != nil && strings.Contains(err.Error(), secretNotFoundError) {
+		return true
 	}
-
-	c.info = info
-
-	// These checks only are to ensure we strictly follow the specification.
-	// OpenTofu shouldn't ever re-lock, so provide errors for the 2 possible
-	// states if this is called.
-	select {
-	case <-c.lockCh:
-		// We had a lock, but lost it.
-		return "", errors.New("lost vault lock, cannot re-lock")
-	default:
-		if c.lockCh != nil {
-			// we have an active lock already
-			return "", fmt.Errorf("state %q/%q already locked", c.Mount, c.Name)
-		}
-	}
-
-	return c.lock()
+	return false
 }
 
-// the lock implementation.
-// Only to be called while holding Client.mu
-func (c *RemoteClient) lock() (string, error) {
-	return "abdef", nil
-	// @TODO
-	// // We create a new session here, so it can be canceled when the lock is
-	// // lost or unlocked.
-	// lockSession, err := c.createSession()
-	// if err != nil {
-	// 	return "", err
-	// }
+func (c *RemoteClient) getCurrentLockMetadata() (*vaultapi.KVMetadata, error) {
+	metadata, err := c.Client.KVv2(c.Mount).GetMetadata(context.TODO(), c.lockPath())
+	if hasSecretNotFound(err) {
+		return nil, nil
+	}
+	return metadata, err
+}
 
-	// // Lock perform lock by performing the following, making use of CAS:
-	// // 1. Obtain latest version of lock secret
-	// // 2. Ensure latest version is either non-existent or deleted
-	// // 3. Increment the CAS
-	// // 4. Create new version with inremented CAS
-	// // 5. If the write is allowed, then we have the lock
-	// // 6. If Vault rejects the secret, then someone else has locked
+func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+	info.Path = c.lockPath()
+	kv := c.Client.KVv2(c.Mount)
+	ctx := context.TODO()
 
-	// // store the session ID for correlation with consul logs
-	// c.info.Info = "consul session: " + lockSession
+	// Lock perform lock by performing the following, making use of CAS:
+	// 1. Obtain latest version of lock secret
+	// 2. Ensure latest version is either non-existent or deleted
+	// 3. Increment the CAS
+	// 4. Create new version with inremented CAS
+	// 5. If the write is allowed, then we have the lock
+	// 6. If Vault rejects the secret, then someone else has locked
 
-	// // A random lock ID has been generated but we override it with the session
-	// // ID as this will make it easier to manually invalidate the session
-	// // if needed.
-	// c.info.ID = lockSession
+	if info.ID == "" {
+		lockID, err := uuid.GenerateUUID()
+		if err != nil {
+			return "", err
+		}
 
-	// opts := &vaultapi.LockOptions{
-	// 	Key:     c.lockPath() + lockSuffix,
-	// 	Session: lockSession,
+		info.ID = lockID
+	}
 
-	// 	// only wait briefly, so tofu has the choice to fail fast or
-	// 	// retry as needed.
-	// 	LockWaitTime: time.Second,
-	// 	LockTryOnce:  true,
+	// Implement 1.
+	currentLockMetadata, err := c.getCurrentLockMetadata()
+	if err != nil {
+		return "", err
+	}
 
-	// 	// Don't let the lock monitor give up right away, as it's possible the
-	// 	// session is still OK. While the session is refreshed at a rate of
-	// 	// TTL/2, the lock monitor is an idle blocking request and is more
-	// 	// susceptible to being closed by a lower network layer.
-	// 	MonitorRetries: 5,
-	// 	//
-	// 	// The delay between lock monitor retries.
-	// 	// While the session has a 15s TTL plus a 5s wait period on a lost
-	// 	// lock, if we can't get our lock back in 10+ seconds something is
-	// 	// wrong so we're going to drop the session and start over.
-	// 	MonitorRetryTime: 2 * time.Second,
-	// }
+	var lockCas int = 0
+	lockSecretExists := false
+	if currentLockMetadata != nil {
+		lockSecretExists = true
 
-	// c.consulLock, err = c.Client.LockOpts(opts)
-	// if err != nil {
-	// 	return "", err
-	// }
+		// Implement 2.
+		currentLockData, err := kv.GetVersion(ctx, c.lockPath(), currentLockMetadata.CurrentVersion)
+		if err != nil {
+			return "", err
+		}
+		if currentLockId, ok := currentLockData.Data["ID"]; ok {
+			return "", fmt.Errorf("Lock already exists: %v", currentLockId)
+		}
 
-	// lockErr := &statemgr.LockError{}
+		// Implement 3.
+		lockCas = currentLockMetadata.CurrentVersion + 1
+	}
 
-	// lockCh, err := c.consulLock.Lock(make(chan struct{}))
-	// if err != nil {
-	// 	lockErr.Err = err
-	// 	return "", lockErr
-	// }
+	val := info.Marshal()
+	var vaultData map[string]interface{}
+	err = json.Unmarshal(val, &vaultData)
+	if err != nil {
+		return "", err
+	}
 
-	// if lockCh == nil {
-	// 	lockInfo, e := c.getLockInfo()
-	// 	if e != nil {
-	// 		lockErr.Err = e
-	// 		return "", lockErr
-	// 	}
+	// Implement 4.
+	if !lockSecretExists {
+		_, err = kv.Put(ctx, c.lockPath(), vaultData, vaultapi.WithCheckAndSet(lockCas))
+	} else {
+		_, err = kv.Patch(ctx, c.lockPath(), vaultData, vaultapi.WithCheckAndSet(lockCas))
+	}
+	// Implement 6.
+	if err != nil {
+		lockInfo, infoErr := c.getLockInfo()
+		if infoErr != nil {
+			err = multierror.Append(err, infoErr)
+		}
 
-	// 	lockErr.Info = lockInfo
+		lockErr := &statemgr.LockError{
+			Err:  err,
+			Info: lockInfo,
+		}
+		return "", lockErr
+	}
 
-	// 	return "", lockErr
-	// }
-
-	// c.lockCh = lockCh
-
-	// err = c.putLockInfo(c.info)
-	// if err != nil {
-	// 	if unlockErr := c.unlock(c.info.ID); unlockErr != nil {
-	// 		err = multierror.Append(err, unlockErr)
-	// 	}
-
-	// 	return "", err
-	// }
-
-	// // Start a goroutine to monitor the lock state.
-	// // If we lose the lock to due communication issues with the consul agent,
-	// // attempt to immediately reacquire the lock. Put will verify the integrity
-	// // of the state by using a CAS operation.
-	// ctx, cancel := context.WithCancel(context.Background())
-	// c.monitorCancel = cancel
-	// c.monitorWG.Add(1)
-	// go func() {
-	// 	defer c.monitorWG.Done()
-	// 	select {
-	// 	case <-c.lockCh:
-	// 		log.Println("[ERROR] lost consul lock")
-	// 		for {
-	// 			c.mu.Lock()
-	// 			// We lost our lock, so we need to cancel the session too.
-	// 			// The CancelFunc is only replaced while holding Client.mu, so
-	// 			// this is safe to call here. This will be replaced by the
-	// 			// lock() call below.
-	// 			c.sessionCancel()
-
-	// 			c.consulLock = nil
-	// 			_, err := c.lock()
-	// 			c.mu.Unlock()
-
-	// 			if err != nil {
-	// 				// We failed to get the lock, keep trying as long as
-	// 				// tofu is running. There may be changes in progress,
-	// 				// so there's no use in aborting. Either we eventually
-	// 				// reacquire the lock, or a Put will fail on a CAS.
-	// 				log.Printf("[ERROR] could not reacquire lock: %s", err)
-	// 				time.Sleep(lockReacquireInterval)
-
-	// 				select {
-	// 				case <-ctx.Done():
-	// 					return
-	// 				default:
-	// 				}
-	// 				continue
-	// 			}
-
-	// 			// if the error was nil, the new lock started a new copy of
-	// 			// this goroutine.
-	// 			return
-	// 		}
-
-	// 	case <-ctx.Done():
-	// 		return
-	// 	}
-	// }()
-
-	// if testLockHook != nil {
-	// 	testLockHook()
-	// }
-
-	// return c.info.ID, nil
+	// Implement 5.
+	return info.ID, nil
 }
 
 // called after a lock is acquired
 var testLockHook func()
 
-func (c *RemoteClient) createSession() (string, error) {
-	return "abcdefg", nil
-	// @TODO
-	// // create the context first. Even if the session creation fails, we assume
-	// // that the CancelFunc is always callable.
-	// ctx, cancel := context.WithCancel(context.Background())
-	// c.sessionCancel = cancel
-
-	// session := c.Client.Session()
-	// se := &vaultapi.SessionEntry{
-	// 	Name:      vaultapi.DefaultLockSessionName,
-	// 	TTL:       lockSessionTTL,
-	// 	LockDelay: lockDelay,
-	// }
-
-	// id, _, err := session.Create(se, nil)
-	// if err != nil {
-	// 	return "", err
-	// }
-
-	// log.Println("[INFO] created consul lock session", id)
-
-	// // keep the session renewed
-	// go session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done())
-
-	// return id, nil
-}
-
 func (c *RemoteClient) Unlock(id string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	kv := c.Client.KVv2(c.Mount)
+	ctx := context.TODO()
 
-	if !c.lockState {
-		return nil
+	currentLockData, err := kv.Get(ctx, c.lockPath())
+	if err != nil {
+		return err
+	}
+	if currentLockData == nil {
+		return fmt.Errorf("Unable to obtain current lock secret")
+	}
+	if existingLockId, ok := currentLockData.Data["ID"]; ok {
+		if existingLockId != id {
+			return fmt.Errorf("Existing lock ID (%s) does not match ID to unlock: %s", existingLockId, id)
+		}
+	} else {
+		return fmt.Errorf("Cannot obtain ID from existing lock")
 	}
 
-	return c.unlock(id)
-}
+	var versionsToDelete = []int{currentLockData.VersionMetadata.Version}
+	err = kv.DeleteVersions(ctx, c.lockPath(), versionsToDelete)
+	if err != nil {
+		return err
+	}
 
-// the unlock implementation.
-// Only to be called while holding Client.mu
-func (c *RemoteClient) unlock(id string) error {
-	// This method can be called in two circumstances:
-	// - when the plan apply or destroy operation finishes and the lock needs to be released,
-	// the watchdog stopped and the session closed
-	// - when the user calls `tofu force-unlock <lock_id>` in which case
-	// we only need to release the lock.
 	return nil
-
-	// @TODO
-	// if c.consulLock == nil || c.lockCh == nil {
-	// 	// The user called `tofu force-unlock <lock_id>`, we just destroy
-	// 	// the session which will release the lock, clean the KV store and quit.
-
-	// 	_, err := c.Client.Session().Destroy(id, nil)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	// We ignore the errors that may happen during cleanup
-	// 	kv := c.Client.KV()
-	// 	kv.Delete(c.lockPath()+lockSuffix, nil)
-	// 	kv.Delete(c.lockPath()+lockInfoSuffix, nil)
-
-	// 	return nil
-	// }
-
-	// // cancel our monitoring goroutine
-	// c.monitorCancel()
-
-	// defer func() {
-	// 	c.consulLock = nil
-
-	// 	// The consul session is only used for this single lock, so cancel it
-	// 	// after we unlock.
-	// 	// The session is only created and replaced holding Client.mu, so the
-	// 	// CancelFunc must be non-nil.
-	// 	c.sessionCancel()
-	// }()
-
-	// select {
-	// case <-c.lockCh:
-	// 	return lostLockErr
-	// default:
-	// }
-
-	// kv := c.Client.KV()
-
-	// var errs error
-
-	// if _, err := kv.Delete(c.lockPath()+lockInfoSuffix, nil); err != nil {
-	// 	errs = multierror.Append(errs, err)
-	// }
-
-	// if err := c.consulLock.Unlock(); err != nil {
-	// 	errs = multierror.Append(errs, err)
-	// }
-
-	// // the monitoring goroutine may be in a select on the lockCh, so we need to
-	// // wait for it to return before changing the value.
-	// c.monitorWG.Wait()
-	// c.lockCh = nil
-
-	// // This is only cleanup, and will fail if the lock was immediately taken by
-	// // another client, so we don't report an error to the user here.
-	// c.consulLock.Destroy()
-
-	// return errs
 }
 
 func compressState(data string) (string, error) {
@@ -698,7 +483,7 @@ func (c *RemoteClient) chunkedMode() (bool, string, []string, *vaultapi.KVSecret
 	ctx := context.TODO()
 	secret, err := kv.Get(ctx, c.Name)
 	if err != nil {
-		if strings.Contains(err.Error(), "secret not found") {
+		if strings.Contains(err.Error(), secretNotFoundError) {
 			return false, "", nil, secret, err
 		}
 		return false, "", nil, secret, err
