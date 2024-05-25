@@ -150,6 +150,8 @@ func (b *Backend) configure(ctx context.Context) error {
 		return err
 	}
 
+	client.SetToken(b.token)
+
 	b.client = client
 	return nil
 }
