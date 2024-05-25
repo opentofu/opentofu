@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-uuid"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -383,16 +382,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 	// Implement 6.
 	if err != nil {
-		lockInfo, infoErr := c.getLockInfo()
-		if infoErr != nil {
-			err = multierror.Append(err, infoErr)
-		}
-
-		lockErr := &statemgr.LockError{
-			Err:  err,
-			Info: lockInfo,
-		}
-		return "", lockErr
+		return "", err
 	}
 
 	// Implement 5.
