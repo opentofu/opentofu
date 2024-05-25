@@ -6,6 +6,7 @@
 package consul
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -21,11 +22,12 @@ const (
 
 func (b *Backend) Workspaces() ([]string, error) {
 	// List our raw path
-	prefix := b.configData.Get("path").(string) + keyEnvPrefix
-	keys, _, err := b.client.KV().Keys(prefix, "/", nil)
-	if err != nil {
-		return nil, err
-	}
+	prefix := b.configData.Get("name").(string) + keyEnvPrefix
+	// keys, _, err := b.client.KVv2(b.mount).
+	// if err != nil {
+	// 	return nil, err
+	// }
+	var keys []string
 
 	// Find the envs, we use a map since we can get duplicates with
 	// path suffixes.
@@ -64,7 +66,8 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 
 	// Delete it. We just delete it without any locking since
 	// the DeleteState API is documented as such.
-	_, err := b.client.KV().Delete(path, nil)
+	ctx := context.TODO()
+	err := b.client.KVv2(b.mount).Delete(ctx, path)
 	return err
 }
 
@@ -79,7 +82,8 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	var stateMgr = remote.NewState(
 		&RemoteClient{
 			Client:    b.client,
-			Path:      path,
+			Mount:     b.mount,
+			Name:      path,
 			GZip:      gzip,
 			lockState: b.lock,
 		},
@@ -141,7 +145,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 }
 
 func (b *Backend) path(name string) string {
-	path := b.configData.Get("path").(string)
+	path := b.configData.Get("name").(string)
 	if name != backend.DefaultStateName {
 		path += fmt.Sprintf("%s%s", keyEnvPrefix, name)
 	}
