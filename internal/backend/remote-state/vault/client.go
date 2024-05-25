@@ -83,10 +83,10 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	chunked, hash, chunks, secret, err := c.chunkedMode()
 
 	// If vault error contains no secret, return empty state
-	if strings.Contains(err.Error(), "secret not found") {
-		return nil, nil
-	}
 	if err != nil {
+		if strings.Contains(err.Error(), "secret not found") {
+			return nil, nil
+		}
 		return nil, err
 	}
 
@@ -192,7 +192,9 @@ func (c *RemoteClient) Put(data []byte) error {
 	// First we determine what mode we were using and to prepare the cleanup
 	chunked, _, oldChunks, _, err := c.chunkedMode()
 	if err != nil {
-		return err
+		if !strings.Contains(err.Error(), "secret not found") {
+			return err
+		}
 	}
 	cleanupOldChunks := func() {}
 	if chunked {
@@ -693,21 +695,20 @@ func (c *RemoteClient) chunkedMode() (bool, string, []string, *vaultapi.KVSecret
 	ctx := context.TODO()
 	secret, err := kv.Get(ctx, c.Name)
 	if err != nil {
+		if strings.Contains(err.Error(), "secret not found") {
+			return false, "", nil, secret, err
+		}
 		return false, "", nil, secret, err
 	}
-	if secret != nil {
-		var d map[string]interface{}
-
-		d = secret.Data
-		// If we find the "current-hash" key we were in chunked mode
-		hash, ok := d["current-hash"]
-		if ok {
-			chunks := make([]string, 0)
-			for _, c := range d["chunks"].([]interface{}) {
-				chunks = append(chunks, c.(string))
-			}
-			return true, hash.(string), chunks, secret, nil
+	d := secret.Data
+	// If we find the "current-hash" key we were in chunked mode
+	hash, ok := d["current-hash"]
+	if ok {
+		chunks := make([]string, 0)
+		for _, c := range d["chunks"].([]interface{}) {
+			chunks = append(chunks, c.(string))
 		}
+		return true, hash.(string), chunks, secret, nil
 	}
 	return false, "", nil, secret, nil
 }
