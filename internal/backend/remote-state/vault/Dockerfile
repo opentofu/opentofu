@@ -28,5 +28,5 @@ RUN apk del -q curl tar
 VOLUME "/app"
 WORKDIR "/app"
 
-ENV TF_CONSUL_TEST=1
+ENV TF_VAULT_TEST=1
 ENTRYPOINT [ "go" ]
