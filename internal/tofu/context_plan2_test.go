@@ -3583,8 +3583,15 @@ output "a" {
 }
 
 func TestContext2Plan_triggeredBy(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "TF configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
 resource "test_object" "a" {
   count = 1
   test_string = "new"
@@ -3598,7 +3605,41 @@ resource "test_object" "b" {
   }
 }
 `,
-	})
+			},
+		},
+		{
+			Description: "Json configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+    "resource": {
+        "test_object": {
+            "a": [
+                {
+                    "count": 1,
+                    "test_string": "new"
+                }
+            ],
+            "b": [
+                {
+                    "count": 1,
+                    "lifecycle": [
+                        {
+                            "replace_triggered_by": [
+                                "test_object.a[count.index].test_string"
+                            ]
+                        }
+                    ],
+                    "test_string": "test_object.a[count.index].test_string"
+                }
+            ]
+        }
+    }
+}
+`,
+			},
+		},
+	}
 
 	p := simpleMockProvider()
 
@@ -3626,28 +3667,31 @@ resource "test_object" "b" {
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		)
 	})
+	for _, configuration := range configurations {
+		m := testModuleInline(t, configuration.inlineConfiguration)
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
-		Mode: plans.NormalMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-	}
-	for _, c := range plan.Changes.Resources {
-		switch c.Addr.String() {
-		case "test_object.a[0]":
-			if c.Action != plans.Update {
-				t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+		}
+		for _, c := range plan.Changes.Resources {
+			switch c.Addr.String() {
+			case "test_object.a[0]":
+				if c.Action != plans.Update {
+					t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+				}
+			case "test_object.b[0]":
+				if c.Action != plans.DeleteThenCreate {
+					t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+				}
+				if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
+					t.Fatalf("incorrect reason for change: %s\n", c.ActionReason)
+				}
+			default:
+				t.Fatal("unexpected change", c.Addr, c.Action)
 			}
-		case "test_object.b[0]":
-			if c.Action != plans.DeleteThenCreate {
-				t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
-			}
-			if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
-				t.Fatalf("incorrect reason for change: %s\n", c.ActionReason)
-			}
-		default:
-			t.Fatal("unexpected change", c.Addr, c.Action)
 		}
 	}
 }
@@ -4207,8 +4251,16 @@ resource "test_object" "a" {
 
 func TestContext2Plan_importResourceBasic(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
+
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "TF configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
 resource "test_object" "a" {
   test_string = "foo"
 }
@@ -4218,7 +4270,33 @@ import {
   id   = "123"
 }
 `,
-	})
+			},
+		},
+		{
+			Description: "Json configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+    "import": [
+        {
+            "id": "123",
+            "to": "test_object.a"
+        }
+    ],
+    "resource": {
+        "test_object": {
+            "a": [
+		        {
+		            "test_string": "foo"
+		        }
+            ]
+        }
+    }
+}
+`,
+			},
+		},
+	}
 
 	p := simpleMockProvider()
 	hook := new(MockHook)
@@ -4244,47 +4322,51 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	for _, configuration := range configurations {
+		m := testModuleInline(t, configuration.inlineConfiguration)
+
+		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+		}
+
+		t.Run(configuration.Description, func(t *testing.T) {
+			instPlan := plan.Changes.ResourceInstance(addr)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", addr)
+			}
+
+			if got, want := instPlan.Addr, addr; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, plans.NoOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+			if instPlan.Importing.ID != "123" {
+				t.Errorf("expected import change from \"123\", got non-import change")
+			}
+
+			if !hook.PrePlanImportCalled {
+				t.Fatalf("PostPlanImport hook not called")
+			}
+			if addr, wantAddr := hook.PrePlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
+				t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
+			}
+
+			if !hook.PostPlanImportCalled {
+				t.Fatalf("PostPlanImport hook not called")
+			}
+			if addr, wantAddr := hook.PostPlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
+				t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
+			}
+		})
 	}
-
-	t.Run(addr.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addr)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addr)
-		}
-
-		if got, want := instPlan.Addr, addr; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-		if instPlan.Importing.ID != "123" {
-			t.Errorf("expected import change from \"123\", got non-import change")
-		}
-
-		if !hook.PrePlanImportCalled {
-			t.Fatalf("PostPlanImport hook not called")
-		}
-		if addr, wantAddr := hook.PrePlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
-			t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
-		}
-
-		if !hook.PostPlanImportCalled {
-			t.Fatalf("PostPlanImport hook not called")
-		}
-		if addr, wantAddr := hook.PostPlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
-			t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
-		}
-	})
 }
 
 func TestContext2Plan_importToDynamicAddress(t *testing.T) {
@@ -4295,7 +4377,7 @@ func TestContext2Plan_importToDynamicAddress(t *testing.T) {
 	}
 	configurations := []TestConfiguration{
 		{
-			Description:     "To address includes a variable as index",
+			Description:     "To address includes a variable as index in TF configuration",
 			ResolvedAddress: "test_object.a[0]",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
@@ -4311,6 +4393,37 @@ resource "test_object" "a" {
 import {
   to   = test_object.a[var.index]
   id   = "%d"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a variable as index in JSON configuration",
+			ResolvedAddress: "test_object.a[0]",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+     "locals": [
+        {
+            "index": 0
+        }
+    ],
+    "import": [
+        {
+            "id": "%d",
+            "to": "test_object.a[local.index]"
+        }
+    ],
+    "resource": {
+        "test_object": {
+            "a": [
+		        {
+                    "count": 1,
+		            "test_string": "foo"
+		        }
+            ]
+        }
+    }
 }
 `,
 			},

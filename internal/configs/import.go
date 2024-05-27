@@ -8,7 +8,9 @@ package configs
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -66,8 +68,25 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["to"]; exists {
-		imp.To = attr.Expr
-		staticAddress, addressDiags := staticImportAddress(attr.Expr)
+		toExpr := attr.Expr
+		// Since we are manually parsing the 'to' argument, we need to specially
+		// handle json configs, in which case the values will be json strings
+		// rather than hcl
+		isJSON := hcljson.IsJSONExpression(attr.Expr)
+
+		if isJSON {
+			convertedExpr, convertDiags := hcl2shim.ConvertJSONExpressionToHCL(toExpr)
+			diags = append(diags, convertDiags...)
+
+			if diags.HasErrors() {
+				return imp, diags
+			}
+
+			toExpr = convertedExpr
+		}
+
+		imp.To = toExpr
+		staticAddress, addressDiags := staticImportAddress(toExpr)
 		diags = append(diags, addressDiags.ToHCL()...)
 
 		// Exit early if there are issues resolving the static address part. We wouldn't be able to validate the provider in such a case
