@@ -456,9 +456,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 		},
 	}
 
+	const mockStringLength = 8
+
 	mvc := mockValueComposer{
-		getMockStringOverride: func(length int) string {
-			return strings.Repeat("a", length)
+		getMockStringOverride: func() string {
+			return strings.Repeat("a", mockStringLength)
 		},
 	}
 

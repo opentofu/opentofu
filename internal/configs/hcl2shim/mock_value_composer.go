@@ -20,17 +20,17 @@ func ComposeMockValueBySchema(schema *configschema.Block, config cty.Value, defa
 }
 
 type mockValueComposer struct {
-	getMockStringOverride func(length int) string
+	getMockStringOverride func() string
 }
 
-func (mvc mockValueComposer) getMockString(length int) string {
+func (mvc mockValueComposer) getMockString() string {
 	f := getRandomAlphaNumString
 
 	if mvc.getMockStringOverride != nil {
 		f = mvc.getMockStringOverride
 	}
 
-	return f(length)
+	return f()
 }
 
 func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
@@ -281,8 +281,6 @@ func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 // getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
 // It will return non-ok response if it encounters dynamic type.
 func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
-	const mockStringLength = 8
-
 	var v cty.Value
 
 	// just to be sure for cases when the logic below misses something
@@ -297,7 +295,7 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	case t.Equals(cty.Bool):
 		v = cty.False
 	case t.Equals(cty.String):
-		v = cty.StringVal(mvc.getMockString(mockStringLength))
+		v = cty.StringVal(mvc.getMockString())
 
 	// collections
 	case t.ListElementType() != nil:
@@ -337,8 +335,12 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	return v, true
 }
 
-func getRandomAlphaNumString(length int) string {
+func getRandomAlphaNumString() string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+
+	const minLength, maxLength = 4, 16
+
+	length := rand.Intn(maxLength-minLength) + minLength //nolint:gosec // It doesn't need to be secure.
 
 	b := strings.Builder{}
 	b.Grow(length)
