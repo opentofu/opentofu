@@ -65,15 +65,15 @@ validate_github_auth_and_env_vars() {
 # This function cherry-picks the commits onto the new backport branch.
 cherry_pick_commits() {
     # Get the commit SHAs associated with the pull request
-    log_info "Starting the cherry-pick process for the pull request #${PR_NUMBER}..."
+    log_info "Fetching commit SHAs from the pull request..."
     if ! commit_shas=$(gh api "/repos/$OWNER/$REPO/pulls/$PR_NUMBER/commits" --jq '.[].sha'); then
-        log_error "Failed to fetch commit SHAs from pull request #${PR_NUMBER}."
+        log_error "Failed to fetch commit SHAs from the pull request #${PR_NUMBER}."
     fi
 
     # Check if commit_shas is empty
     log_info "Checking if any commit SHAs were fetched..."
     if [ -z "$commit_shas" ]; then
-        log_error "No commit SHAs were found in pull request #${PR_NUMBER}."
+        log_error "No commit SHAs were found in the pull request #${PR_NUMBER}."
     fi
     log_info "Commit SHAs were successfully fetched."
 
@@ -99,24 +99,14 @@ cherry_pick_commits() {
             log_info "Successfully added failure comment to the pull request."
 
             cherry_pick_failed=true
-            log_error "Error: Failed to cherry-pick commit '${commit_sha}'. Added failure comment to the pull request."
+            log_error "Failed to cherry-pick commit '${commit_sha}'. Added failure comment to the pull request."
         fi
     done
 
-    if ! "$cherry_pick_failed"; then
+    if $cherry_pick_failed; then
         return 1
     fi
-
-    log_info "Cherry-pick completed successfully for the pull request #${PR_NUMBER}."
-}
-
-# This function pushes the latest changes to the backport branch.
-push_changes_to_branch() {
-    log_info "Pushing changes to the branch: '$1'..."
-    if ! git push origin "$1"; then
-        log_error "Failed to push changes to the branch: '$1'."
-    fi
-    log_info "Successfully pushed changes to the branch: '$1'"
+    return 0
 }
 
 # This function creates the pull request.
@@ -152,14 +142,18 @@ backport_branch() {
     log_info "Successfully checked out new backport branch: '$2'."
 
     # Cherry-pick commits
+    log_info "Starting the cherry-pick process for the pull request #${PR_NUMBER}..."
     if ! cherry_pick_commits "$1"; then
         log_error "Failed to cherry-pick commits for the pull request."
     fi
+    log_info "Cherry-pick completed successfully for the pull request #${PR_NUMBER}."
 
     # Push final changes to the backport branch
-    if ! push_changes_to_branch "$2"; then
-        log_error "Failed to push latest changes to branch: '$2'."
+    log_info "Pushing changes to the branch: '$2'..."
+    if ! git push origin "$2"; then
+        log_error "Failed to push changes to the branch: '$2'."
     fi
+    log_info "Successfully pushed changes to the branch: '$2'"
     
     # Create the pull request 
     log_info "Creating pull request between '$1' and '$2'..."
@@ -197,7 +191,7 @@ main() {
 
     log_info "Validate all the target branches to which the pull request changes will be backported..."
     if [ ${#target_branches[@]} -eq 0 ]; then
-        log_info "Failed to retrieve the list of target branches."
+        log_info "No target branches found. The backport label is not found in any of the labels on the pull request. Skipping the backport process."
         exit 0
     fi
     log_info "Successfully found the following target branches: ${target_branches[*]}"
@@ -214,11 +208,9 @@ main() {
         if [ "$(echo "$pull_request_list" | jq length)" -eq 0 ]; then
             log_info "Starting the backport process for branch: $branch."
             if ! backport_branch "$branch" "$new_backport_branch"; then
-                # Continue the backporting process for the remaining branches if a failure occurs on any target branch, 
-                # instead of terminating the script.
                 log_error "Failed to backport changes to the branch: $branch."
             fi
-            log_info "Successfully created the pull request for backporting changes to the branch '$branch'."
+            log_info "Successfully backported the pull request changes to the branch '$branch'."
         else
             log_info "Pull requests already exist between the branch '$branch' and '$new_backport_branch'. Skipping backport for '$branch'"
         fi
