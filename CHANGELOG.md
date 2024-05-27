@@ -8,6 +8,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 * Added `tofu test -json` types to website Machine-Readable UI documentation. ([1408](https://github.com/opentofu/opentofu/issues/1408))
 * Made `tofu plan` with `generate-config-out` flag replace JSON strings with `jsonencode` functions calls. ([#1595](https://github.com/opentofu/opentofu/pull/1595))
+* Improved performance of writing state files and reduced their size using compact json encoding. ([#1647](https://github.com/opentofu/opentofu/pull/1647))
 
 BUG FIXES:
 * Fixed crash in gcs backend when using certain commands. ([#1618](https://github.com/opentofu/opentofu/pull/1618))
@@ -16,6 +17,7 @@ BUG FIXES:
 * `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
 * Fixed support for provider functions in tests. ([#1603](https://github.com/opentofu/opentofu/pull/1603))
 * Added a better error message on `for_each` block with sensitive value of unsuitable type. ([#1485](https://github.com/opentofu/opentofu/pull/1485))
+* Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
 
 ## Previous Releases
 
