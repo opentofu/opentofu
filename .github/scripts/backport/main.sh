@@ -77,9 +77,12 @@ cherry_pick_commits() {
     fi
     log_info "Commit SHAs were successfully fetched."
 
+    cherry_pick_failed=false # Flag to track cherry pick status.
+
     echo "$commit_shas" | while IFS= read -r commit_sha; do
         log_info "Fetching the commit id: '${commit_sha}'..."
         if ! git fetch origin "$commit_sha"; then
+            cherry_pick_failed=true
             log_error "Failed to fetch the commit id: '${commit_sha}'"
         fi
         log_info "Successfully fetched the commit id: '${commit_sha}'"
@@ -95,9 +98,15 @@ cherry_pick_commits() {
             fi
             log_info "Successfully added failure comment to the pull request."
 
+            cherry_pick_failed=true
             log_error "Error: Failed to cherry-pick commit '${commit_sha}'. Added failure comment to the pull request."
         fi
     done
+
+    if ! "$cherry_pick_failed"; then
+        return 1
+    fi
+
     log_info "Cherry-pick completed successfully for the pull request #${PR_NUMBER}."
 }
 
