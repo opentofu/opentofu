@@ -92,6 +92,9 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 	return References(parseRef, traversals)
 }
 
+// ProviderFunctionsInExpr is a helper wrapper around References that searches for provider
+// function traversals in an ExpressionWithFunctions, then converts the traversals into
+// references
 func ProviderFunctionsInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Reference, tfdiags.Diagnostics) {
 	if expr == nil {
 		return nil, nil
