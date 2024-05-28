@@ -1,3 +1,14 @@
+## 1.7.2
+
+NEW FEATURES:
+
+ENHANCEMENTS:
+
+BUG FIXES:
+* Fix e2e test_test on darwin amd64 ([#1551](https://github.com/opentofu/opentofu/pull/1551))
+* ensure authorization header is included for http backends ([#1656](https://github.com/opentofu/opentofu/pull/1656))
+* Fix bug in import 'to' parsing in json configurations ([#1665](https://github.com/opentofu/opentofu/pull/1665))
+
 ## 1.7.1
 
 NEW FEATURES:
