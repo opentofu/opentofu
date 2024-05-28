@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -147,6 +148,7 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 
 	ctx := &hcl.EvalContext{
 		Variables: vals,
+		// TODO consider if any provider functions make sense here
 		Functions: s.Functions(),
 	}
 
@@ -297,10 +299,13 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 
 	var diags tfdiags.Diagnostics
 	vals := make(map[string]cty.Value)
-	funcs := s.Functions()
+	funcs := make(map[string]function.Function)
 	ctx := &hcl.EvalContext{
 		Variables: vals,
 		Functions: funcs,
+	}
+	for name, fn := range s.Functions() {
+		funcs[name] = fn
 	}
 
 	if len(refs) == 0 {

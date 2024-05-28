@@ -359,10 +359,14 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 					// earlier, however there may be more to prune now based on
 					// targeting or a destroy with no related instances in the
 					// state.
+					// TODO: consider replacing this with an actual "references" check instead of the simple type check below.
+					// Due to provider functions, many provider references through GraphNodeReferencer still are required.
 					des, _ := g.Descendents(n)
 					for _, v := range des {
 						switch v.(type) {
 						case GraphNodeProviderConsumer:
+							return
+						case GraphNodeReferencer:
 							return
 						}
 					}
