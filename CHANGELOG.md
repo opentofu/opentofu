@@ -17,6 +17,7 @@ BUG FIXES:
 * Fixed support for provider functions in tests ([#1603](https://github.com/opentofu/opentofu/pull/1603))
 * Added a better error message on `for_each` block with sensitive value of unsuitable type. ([#1485](https://github.com/opentofu/opentofu/pull/1485))
 * Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
+* Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
 
 ## Previous Releases
 
