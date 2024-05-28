@@ -10,7 +10,7 @@ As we move forward, a new more transparent and flexible RFC process is needed.  
 * https://github.com/openshift/enhancements
 
 These popular and well tested solutions all follow a similar format:
-1. Single file to track an RFC comitted to the repo
+1. Single file to track an RFC committed to the repo
 2. Markdown format used in most cases
 3. Public Github Pull Request serves as a dynamic avenue for discussions and threads therein
 4. Easily proposed feedback in the form of `suggestions` and pull requests
@@ -32,9 +32,9 @@ Both of these users will be looking for a single location, which contains organi
 
 We therefore propose that Markdown files which contain RFCs are located within the `./rfc` folder in the main OpenTofu Repository.  This folder will contain files that follow the format of `./rfc/${isodate}-${rfc title}.md`, which allows easy searching and sorting of accepted RFCs.  Additionally, RFCs that have not yet been accepted will exist as Pull Requests labeled with `rfc`.
 
-In the case that a single MD file is not sufficient for describing a RFC, a folder named `./rfc/${isodate}-${rfc title}` should be created to contain supplimentary information such as diagrams or detailed technical explorations.  These supplimentary files should be linked to from the main Markdown file for the RFC.
+In the case that a single MD file is not sufficient for describing a RFC, a folder named `./rfc/${isodate}-${rfc title}` should be created to contain supplementary information such as diagrams or detailed technical explorations.  These supplementary files should be linked to from the main Markdown file for the RFC.
 
-RFCs shoud link to the issue(s) that originally required the more in-depth process that an RFC provides.  Additionally, issues which are created to track the implentation of an RFC will link to that RFC.  This allows anyone encountering each of these distinct pieces to easily gather a view of the whole process.
+RFCs should link to the issue(s) that originally required the more in-depth process that an RFC provides.  Additionally, issues which are created to track the implementation of an RFC will link to that RFC.  This allows anyone encountering each of these distinct pieces to easily gather a view of the whole process.
 
 #### RFC Authors and Reviewers
 
@@ -51,7 +51,7 @@ If interested, a Community Member will take the following actions to submit an R
 5. The majority of the Core Team Approves the RFC Pull Request
   - If a concensus is not reached, the Pull Request is closed.
   - The Core Team may ask for a new RFC or may close the original issue entirely depending on the discussion that has happened.
-6. The RFC is Merged and the Core Team creates issues in the relavent repositories to track the work requred to implement the RFC.
+6. The RFC is Merged, and the Core Team creates issues in the relevant repositories to track the work required to implement the RFC.
 
 ### Technical Approach
 
@@ -66,7 +66,7 @@ Updates to the CONTRIBUTING.md are required as described above and the existing 
 * Should we use ISODATE or assigned SERIAL in the RFC file name
   - ISODATE could either be proposed date or accepted date
   - SERIAL is clearly linear, but requires additional processing once the PR is Accepted.
-  - For now we are using proposed date, but automation could easily be added to ammend the RFC once it has been merged.
+  - For now we are using proposed date, but automation could easily be added to amend the RFC once it has been merged.
 * Should we backport some or all of the current RFCs accepted into OpenTofu to additionally validate this process?
 
 ### Future Considerations

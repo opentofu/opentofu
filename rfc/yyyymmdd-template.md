@@ -36,4 +36,4 @@ What are some potential future paths this solution could take?  What other featu
 
 ## Potential Alternatives
 
-List different approaches and breifly compare with the proposal in this RFC.  It's important to explore and understand possible alternatives before agreeing on a solution.
+List different approaches and briefly compare with the proposal in this RFC.  It's important to explore and understand possible alternatives before agreeing on a solution.

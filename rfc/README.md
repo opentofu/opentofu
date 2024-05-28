@@ -16,10 +16,10 @@ When an Issue is given the `needs-rfc` label, any community member may propose a
 
 Once an RFC is submitted, community members discuss the RFC in detail until all open questions are resolved
 
-To Accept an RFC, the majority of the OpenTofu [Core Team](../MAINTAINERS.md) must approve the Pull Request.  If a concensus is not reached, the Pull Request is closed and the Core Team may ask for a new RFC or close the original issue entirely.
+To Accept an RFC, the majority of the OpenTofu [Core Team](../MAINTAINERS) must approve the Pull Request.  If a consensus is not reached, the Pull Request is closed and the Core Team may ask for a new RFC or close the original issue entirely.
 
 Once an RFC is Accepted and Merged, the Core Team creates issues in the relavent repositories to track the work requred to implement the RFC.
 
-## Ammending an RFC
+## Amending an RFC
 
-RFCs are not set in stone, Approval signifies that an initial concensus has been reached and work can be started. If you realize that parts of the implementation won't work, feel free to amend the RFC in a subsequent PR. Doing so will serve as an important point of discussion if something doesn't go according to plan.
+RFCs are not set in stone, Approval signifies that an initial consensus has been reached and work can be started. If you realize that parts of the implementation won't work, feel free to amend the RFC in a subsequent PR. Doing so will serve as an important point of discussion if something doesn't go according to plan.
