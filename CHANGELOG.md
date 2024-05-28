@@ -1,3 +1,13 @@
+## 1.7.2
+
+NEW FEATURES:
+
+ENHANCEMENTS:
+
+BUG FIXES:
+* Fixed: authorization header is not included for HTTP backends ([#1656](https://github.com/opentofu/opentofu/pull/1656))
+* Fixed: bug in import 'to' parsing in JSON configurations ([#1665](https://github.com/opentofu/opentofu/pull/1665))
+
 ## 1.7.1
 
 NEW FEATURES:
