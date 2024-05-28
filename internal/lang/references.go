@@ -92,6 +92,17 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 	return References(parseRef, traversals)
 }
 
+func ProviderFunctionsInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Reference, tfdiags.Diagnostics) {
+	if expr == nil {
+		return nil, nil
+	}
+	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
+		funcs := filterProviderFunctions(fexpr.Functions())
+		return References(parseRef, funcs)
+	}
+	return nil, nil
+}
+
 func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
 	pfuncs := make([]hcl.Traversal, 0, len(funcs))
 	for _, fn := range funcs {
