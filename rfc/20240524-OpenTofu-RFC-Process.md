@@ -2,7 +2,7 @@
 
 Issue: <N/A>
 
-As the OpenTofu project evolves, the community has been proposing more advanced concepts and ideas which frequetly need significant discussion and iterations of feedback.  Our Current RFC Process is cubersome and hard to follow due to the following limitations: single user can edit, pages of comments are overwhelming, sub discussions are not easily possible.
+As the OpenTofu project evolves, the community has been proposing more advanced concepts and ideas that frequently need significant discussion and iterations of feedback.  Our Current RFC Process is cubersome and hard to follow due to the following limitations: single user can edit, pages of comments are overwhelming, sub discussions are not easily possible.
 
 As we move forward, a new more transparent and flexible RFC process is needed.  We start by investigating the other successful open source communities with similar goals.
 * https://github.com/rust-lang/rfcs/blob/master/0000-template.md
@@ -40,7 +40,7 @@ RFCs should link to the issue(s) that originally required the more in-depth proc
 
 The following will be split between [CONTRIBUTING.md](../CONTRIBUTING.md) and [rfc/README.md](./README.md):
 
-The process starts with an issue (`enhancement` or `bug`) is submitted to the repository.  The `needs-rfc` label is added during the Core Team Triage process and indicates that an in-depth discussion and concensus is needed.  This facilitates conversations and discussions around complex issues that are hard to have in the Github Isssue format.
+The process starts with an issue (`enhancement` or `bug`) is submitted to the repository.  The `needs-rfc` label is added during the Core Team Triage process and indicates that an in-depth discussion and concensus is needed.  This facilitates conversations and discussions around complex issues that are hard to have in the Github Issue format.
 
 If interested, a Community Member will take the following actions to submit an RFC:
 1. Copy the [./rfc/yyyymmdd-template.md](link) to `./rfc/${isodate}-${rfc title}.md` on a branch in their fork of the OpenTofu Repository
