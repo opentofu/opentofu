@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -50,6 +51,23 @@ func (n *NodeRootVariable) ModulePath() addrs.Module {
 // GraphNodeReferenceable
 func (n *NodeRootVariable) ReferenceableAddrs() []addrs.Referenceable {
 	return []addrs.Referenceable{n.Addr}
+}
+
+// GraphNodeReferencer
+func (n *NodeRootVariable) References() []*addrs.Reference {
+	// This is identical to nodeModuleVariable.References
+	var refs []*addrs.Reference
+
+	if n.Config != nil {
+		for _, validation := range n.Config.Validations {
+			condFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+			refs = append(refs, condFuncs...)
+			errFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+			refs = append(refs, errFuncs...)
+		}
+	}
+
+	return refs
 }
 
 // GraphNodeExecutable

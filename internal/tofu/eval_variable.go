@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -234,16 +235,25 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		})
 		return diags
 	}
-	hclCtx := &hcl.EvalContext{
-		Variables: map[string]cty.Value{
-			"var": cty.ObjectVal(map[string]cty.Value{
-				config.Name: val,
-			}),
-		},
-		Functions: ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey).Functions(),
-	}
-
 	for ix, validation := range config.Validations {
+		condFuncs, condDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+		diags = diags.Append(condDiags)
+		errFuncs, errDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+		diags = diags.Append(errDiags)
+
+		if diags.HasErrors() {
+			continue
+		}
+
+		hclCtx, ctxDiags := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condFuncs, errFuncs...))
+		diags = diags.Append(ctxDiags)
+		if diags.HasErrors() {
+			continue
+		}
+		hclCtx.Variables["var"] = cty.ObjectVal(map[string]cty.Value{
+			config.Name: val,
+		})
+
 		result, ruleDiags := evalVariableValidation(validation, hclCtx, addr, config, expr, ix)
 		diags = diags.Append(ruleDiags)
 
