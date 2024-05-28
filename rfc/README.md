@@ -1,8 +1,8 @@
 # The OpenTofu RFCs
 
-This folder contains Request For Comment (RFC) documents that have been discussed, reviewed, and accepted.  They represent a proposal of changes to one or more of the repositories in the OpenTofu organization.
+This folder contains Request For Comment (RFC) documents that have been discussed, reviewed, and accepted. They represent a proposal of changes to one or more of the repositories in the OpenTofu organization.
 
-RFCs are primarily created by the OpenTofu Community in response to one or more Github issues that require a more in-depth discussion than the Github Issue process can provide.  They are organized by date to help show the progression of concepts over time.
+RFCs are primarily created by the OpenTofu Community in response to one or more GitHub issues that require a more in-depth discussion than the GitHub Issue process can provide. They are organized by date to help show the progression of concepts over time.
 
 ## Authoring an RFC
 
@@ -16,9 +16,9 @@ When an Issue is given the `needs-rfc` label, any community member may propose a
 
 Once an RFC is submitted, community members discuss the RFC in detail until all open questions are resolved
 
-To Accept an RFC, the majority of the OpenTofu [Core Team](../MAINTAINERS) must approve the Pull Request.  If a consensus is not reached, the Pull Request is closed and the Core Team may ask for a new RFC or close the original issue entirely.
+To Accept an RFC, the majority of the OpenTofu [Core Team](../MAINTAINERS) must approve the Pull Request. If a consensus is not reached, the Pull Request is closed and the Core Team may ask for a new RFC or close the original issue entirely.
 
-Once an RFC is Accepted and Merged, the Core Team creates issues in the relavent repositories to track the work requred to implement the RFC.
+Once an RFC is Accepted and Merged, the Core Team creates issues in the relevant repositories to track the work required to implement the RFC.
 
 ## Amending an RFC
 
