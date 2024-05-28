@@ -46,11 +46,11 @@ If interested, a Community Member will take the following actions to submit an R
 1. Copy the [./rfc/yyyymmdd-template.md](link) to `./rfc/${isodate}-${rfc title}.md` on a branch in their fork of the OpenTofu Repository
 2. Edit the newly created Markdown file and fill in the template fields
 3. Submit a Pull Request in the OpenTofu Repository, linked to the open issue(s)
-  - A Draft Pull Request is recommended if early feedback or help is needed to fully fill out the template
+   - A Draft Pull Request is recommended if early feedback or help is needed to fully fill out the template
 4. The Community Members discuss the RFC in detail until all open questions are resolved
 5. The majority of the Core Team Approves the RFC Pull Request
-  - If a concensus is not reached, the Pull Request is closed.
-  - The Core Team may ask for a new RFC or may close the original issue entirely depending on the discussion that has happened.
+   - If a concensus is not reached, the Pull Request is closed.
+   - The Core Team may ask for a new RFC or may close the original issue entirely depending on the discussion that has happened.
 6. The RFC is Merged, and the Core Team creates issues in the relevant repositories to track the work required to implement the RFC.
 
 ### Technical Approach
