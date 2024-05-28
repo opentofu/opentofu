@@ -1,6 +1,6 @@
 # RFC Title
 
-Issue: https://github.com/OpenTofu/{ Repository }/issues/{ issue number }
+Issue: https://github.com/OpenTofu/{ Repository }/issues/{ issue number } <!-- Ideally, this issue will have the "needs-rfc" label added by the Core Team during triage -->
 
 A short description of the problem that is trying to be solved.  Include links to existing documentation, code examples, and links to existing code.  Written such that a non-technical user or someone unfamiliar with the OpenTofu code will be able to understand and discuss it.
 
