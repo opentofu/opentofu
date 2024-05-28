@@ -12,7 +12,7 @@ variable "number" {
 	default = 1
 	validation {
 		condition = provider::example::echo(var.number) > 0
-		error_message = "number must be > 0"
+		error_message = "number must be > ${provider::example::echo(0)}"
 	}
 }
 
