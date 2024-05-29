@@ -460,6 +460,8 @@ There are three potential paths in implementing a static evaluator:
 
 This will need to be investigated and roughly prototyped, but all solutions should fit a similar enough interface to not block development of dependent tasks. We should design the interface first, based on the requirements of the initial prototype. Alternatively this could be a more iterative approach where the interface is designed at the same time as being implemented by multiple team members.
 
+We are deferring this decision to the actual implementation of this work.  It is a deeply technical investigation and discussion that does not significantly impact the proposed solution in this RFC.
+
 #### Overview of dependent issues
 
 To better understand the exact solution we are trying to solve, a limited overview of problems that could be solved using the static evaluation context are provided.
