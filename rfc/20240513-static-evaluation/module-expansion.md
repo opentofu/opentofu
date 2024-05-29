@@ -1,3 +1,5 @@
+This is an ancillary document to the [Static Evaluation RFC](20240513-static-evaluation.md) and is not planned on being implemented. It serves to document the reasoning behind why we are deciding to defer implementation of this complex functionaltiy.
+
 # Static Module Expansion
 
 Modules may be expanded using for_each and count. This poses a problem for the static evaluation step.

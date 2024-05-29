@@ -187,7 +187,7 @@ This will produce the following error, regardless of the value of the variable "
 * Module common.helper's source can not be determined
   - common.helper.source depends on variable "common.version", which depends on a for_each key and is forbidden here!
 
-There are some significant technical roadblocks to supporting `for_each`/`count` in static expressions. For the purposes of this RFC, we are forbidding it.  For more information, see the [static evaluation for providers](TODO) RFC.
+There are some significant technical roadblocks to supporting `for_each`/`count` in static expressions. For the purposes of this RFC, we are forbidding it.  For more information, see [Static Module Expansion](20240513-static-evaluation/module-expansion.md).
 
 ### Technical Approach
 
@@ -379,7 +379,7 @@ The graph is then [evaluated](https://github.com/opentofu/opentofu/blob/290fbd66
 
 When evaluating a node in the graph, the [tofu.EvalContext](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/eval_context.go#L117-L125) (implemented by [tofu.BuiltinEvalContext](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/eval_context_builtin.go#L271-L284)) is used to [build and utilize](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/eval_context_builtin.go#L504) a `lang.Scope` based on the references that the node specifies, all of which should have already been evaluated due to the dependency structure represented by the transformed graph.
 
-The `lang.Scope` handles the specific details of [taking OpenTofu references and building](https://github.com/opentofu/opentofu/blob/main/internal/lang/eval.go#L295) a `hcl.EvalContext` from the values and functions currently available to the EvaluationContext/State.
+The `lang.Scope` handles the specific details of [taking OpenTofu references and building](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/lang/eval.go#L295) a `hcl.EvalContext` from the values and functions currently available to the EvaluationContext/State.
 
 ### Proposed Changes
 
@@ -494,7 +494,7 @@ It uses the hcl libraries directly and does not follow the same patterns as the 
 
 ##### Provider Iteration
 
-This will be described in it's [own RFC](TODO link) due to expansion complexity.
+This will be described in the [Provider Evaluation RFC](20240513-static-evaluation-providers.md) due to expansion complexity.
 
 #### Blockers
 
@@ -519,6 +519,8 @@ Do we want to support the core OpenTofu functions in the static evaluation conte
 Do we want to support provider functions during this static evaluation phase? I suspect not, without a good reason as the development costs may be significant with minimal benefit. It is trivial to detect someone attempting to use a provider function in an expression/body and to mark the expression result as dynamic.
 
 ### Future Considerations
+
+[Static Module Expansion](20240513-static-evaluation/module-expansion.md) is currently forbidden due to the significant architectural changes required. The linked document serves as an exploration into what that architectural change could look like if the need arises.
 
 #### Static Module Outputs
 It would be quite useful to pull in a single module which defined sources and versions of dependencies across multiple projects within an organization. This would enable the following example:
