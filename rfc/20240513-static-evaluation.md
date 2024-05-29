@@ -294,7 +294,7 @@ A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d
 
 Starting at the root module (current directory), a `config.Config` structure is created. This structure is the root node of a tree representing all of the module calls (`module {}`) that make up the project. Each node in the tree contains a `config.Module` and a `addrs.Module` path.
 
-The tree is built by: installing a module's source, loading the module, inspecting a the module calls, recursing in a depth first pattern.
+The tree is built by: installing a module's source, loading the module, inspecting the module calls, recursing in a depth first pattern.
 ```go
 // Pseudocode
 // https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/config_build.go#L27
@@ -502,7 +502,7 @@ Existing testing within OpenTofu is fragmented and more sparse than we would lik
 
 Code coverage should be inspected before refactoring of a component is undertaken to guide the additional test coverage required. We are not aiming for 100%, but should use it as a tool to understand our current testing.
 
-A comprehensive guide on e2e testing should be written, see https://github.com/opentofu/opentofu/issues/#1536.
+A comprehensive guide on e2e testing should be written, see https://github.com/opentofu/opentofu/issues/1536.
 
 #### Performance Considerations
 
