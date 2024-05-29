@@ -196,7 +196,7 @@ There are some significant technical roadblocks to supporting `for_each`/`count`
 Although mostly limited in scope to one or two packages in OpenTofu, it is important to understand what complex systems it will be resembling and interacting with.
 
 > [!NOTE]
-> It is HIGHLY recommended to read the [Architecture document](./architecture.md) before diving too deep into this document. Below, many of the concepts in the Architecture doc are expanded upon or viewed from a different angle for the purposes of understanding this proposal.
+> It is HIGHLY recommended to read the [Architecture document](../docs/architecture.md) before diving too deep into this document. Below, many of the concepts in the Architecture doc are expanded upon or viewed from a different angle for the purposes of understanding this proposal.
 
 ##### Expressions
 
