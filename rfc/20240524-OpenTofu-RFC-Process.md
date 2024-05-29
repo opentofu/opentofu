@@ -49,8 +49,9 @@ If interested, a Community Member will take the following actions to submit an R
    - A Draft Pull Request is recommended if early feedback or help is needed to fully fill out the template
 4. The Community Members discuss the RFC in detail until all open questions are resolved
 5. The majority of the Core Team Approves the RFC Pull Request
+   - The Team Lead has the ability veto an RFC or to escalate to the Technical Steering Committee
    - If a consensus is not reached, the Pull Request is closed.
-   - The Core Team may ask for a new RFC or may close the original issue entirely depending on the discussion that has happened.
+   - The Core Team may ask for a new RFC or may close the original issue entirely.
 6. The RFC is Merged, and the Core Team creates issues in the relevant repositories to track the work required to implement the RFC.
 
 ### Technical Approach
