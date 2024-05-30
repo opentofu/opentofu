@@ -77,12 +77,9 @@ cherry_pick_commits() {
     fi
     log_info "Commit SHAs were successfully fetched."
 
-    cherry_pick_failed=false # Flag to track cherry pick status.
-
-    echo "$commit_shas" | while IFS= read -r commit_sha; do
+    while IFS= read -r commit_sha; do
         log_info "Fetching the commit id: '${commit_sha}'..."
         if ! git fetch origin "$commit_sha"; then
-            cherry_pick_failed=true
             log_error "Failed to fetch the commit id: '${commit_sha}'"
         fi
         log_info "Successfully fetched the commit id: '${commit_sha}'"
@@ -98,14 +95,10 @@ cherry_pick_commits() {
             fi
             log_info "Successfully added failure comment to the pull request."
 
-            cherry_pick_failed=true
             log_error "Failed to cherry-pick commit '${commit_sha}'. Added failure comment to the pull request."
         fi
-    done
+    done <<< "$commit_shas"
 
-    if $cherry_pick_failed; then
-        return 1
-    fi
     return 0
 }
 
@@ -114,7 +107,7 @@ create_pull_request() {
     title="Backport PR #$ISSUE_NUMBER: '$HEAD_BRANCH' to '$1'"
     body="This pull request backports changes from branch '$HEAD_BRANCH' to branch '$1'."
     if ! url=$(gh pr create --title "$title" --body "$body" --base "$1" --head "$2"); then
-        log_error "Failed to create pull request."
+        return 1
     fi
     echo "${url}"
 }
@@ -134,7 +127,17 @@ backport_branch() {
     fi
     log_info "Successfully checked out branch: '$1'."
 
-    # Checkout new backport branch
+    # Check whether the new backport branch already exists. If it does, delete the branch to remove any unnecessary changes.
+    log_info "Checking if new backport branch already exists  '$2'..."
+    if git ls-remote --exit-code --heads origin "$2" >/dev/null 2>&1; then
+        if git push origin --delete "$2" >/dev/null 2>&1; then
+            log_info "Successfully deleted existing backport branch: '$2'"
+        else
+            log_error "Failed to delete existing backport branch: '$2'"
+        fi
+    fi
+
+    # Checking out new backport branch
     log_info "Checking out new backport branch '$2'..."
     if ! git checkout -b "$2"; then 
         log_error "Failed to create new backport branch: '$2'"
@@ -198,22 +201,24 @@ main() {
 
     # Iterate over each target branch and attempt to backport the changes
     for branch in "${target_branches[@]}"; do
-        new_backport_branch="backport/$branch/$ISSUE_NUMBER"
+        (
+            new_backport_branch="backport/$branch/$ISSUE_NUMBER"
         
-        log_info "Checking if pull request already exists between the branch '$branch' and '$new_backport_branch'."
-        pull_request_list=$(gh pr list --base="$branch" --head="$new_backport_branch" --json number,title)
+            log_info "Checking if pull request already exists between the branch '$branch' and '$new_backport_branch'."
+            pull_request_list=$(gh pr list --base="$branch" --head="$new_backport_branch" --json number,title)
 
-        # If a pull request already exists between branch and new_backport_branch, 
-        # then skip backporting the pull request changes.
-        if [ "$(echo "$pull_request_list" | jq length)" -eq 0 ]; then
-            log_info "Starting the backport process for branch: $branch."
-            if ! backport_branch "$branch" "$new_backport_branch"; then
-                log_error "Failed to backport changes to the branch: $branch."
+            # If a pull request already exists between branch and new_backport_branch, 
+            # then skip backporting the pull request changes.
+            if [ "$(echo "$pull_request_list" | jq length)" -eq 0 ]; then
+                log_info "Starting the backport process for branch: $branch."
+                if ! backport_branch "$branch" "$new_backport_branch"; then
+                    log_error "Failed to backport changes to the branch: $branch."
+                fi
+                log_info "Successfully backported the pull request changes to the branch '$branch'."
+            else
+                log_info "Pull requests already exist between the branch '$branch' and '$new_backport_branch'. Skipping backport for '$branch'"
             fi
-            log_info "Successfully backported the pull request changes to the branch '$branch'."
-        else
-            log_info "Pull requests already exist between the branch '$branch' and '$new_backport_branch'. Skipping backport for '$branch'"
-        fi
+        )
     done
 
     log_info "Successfully, completed the backporting for the pull request #${PR_NUMBER}."
