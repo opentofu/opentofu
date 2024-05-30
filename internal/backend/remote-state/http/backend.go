@@ -257,15 +257,20 @@ func (b *Backend) configure(ctx context.Context) error {
 		headers = make(map[string]string, len(dh))
 
 		for k, v := range dh {
+			value, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("header value for %s must be a string", k)
+			}
 			switch strings.ToLower(k) {
 			case "authorization":
 				if username != "" {
 					return fmt.Errorf("headers \"%s\" cannot be set when providing username", k)
 				}
+				headers[k] = value
 			case "content-type", "content-md5":
 				return fmt.Errorf("headers \"%s\" is reserved", k)
 			default:
-				headers[k] = v.(string)
+				headers[k] = value
 			}
 		}
 	}
