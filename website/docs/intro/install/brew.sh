@@ -10,6 +10,6 @@ apt-get install -y curl git build-essential gcc procps curl file
 (echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> /root/.bashrc
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-bash -x brew-install.sh
+bash -x examples/brew-install.sh
 
 tofu --version
