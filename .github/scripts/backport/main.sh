@@ -104,74 +104,79 @@ cherry_pick_commits() {
 
 # This function creates the pull request.
 create_pull_request() {
-    title="Backport PR #$ISSUE_NUMBER: '$HEAD_BRANCH' to '$1'"
-    body="This pull request backports changes from branch '$HEAD_BRANCH' to branch '$1'."
-    if ! url=$(gh pr create --title "$title" --body "$body" --base "$1" --head "$2"); then
+    local target_branch=$1
+    local backport_branch=$2
+    title="Backport PR #$ISSUE_NUMBER: '$HEAD_BRANCH' to '$target_branch'"
+    body="This pull request backports changes from branch '$HEAD_BRANCH' to branch '$target_branch'."
+    if ! url=$(gh pr create --title "$title" --body "$body" --base "$target_branch" --head "$backport_branch"); then
         return 1
     fi
     echo "${url}"
 }
 
 # This function performs all the operations required to backport a pull request to a target branch.
-backport_branch() {
-    # Fetch and checkout the target branch.
-    log_info "Fetching branch '$1'..."
-    if ! git fetch origin "$1"; then
-        log_error "Failed to fetch branch: '$1'."
-    fi
-    log_info "Successfully fetched branch: '$1'."
+backport_changes() {
+    local target_branch=$1
+    local backport_branch=$2
 
-    log_info "Checking out branch '$1'..."
-    if ! git checkout "$1"; then
-        log_error "Failed to checkout branch: '$1'"
+    # Fetch and checkout the target branch.
+    log_info "Fetching branch '$target_branch'..."
+    if ! git fetch origin "$target_branch"; then
+        log_error "Failed to fetch branch: '$target_branch'."
     fi
-    log_info "Successfully checked out branch: '$1'."
+    log_info "Successfully fetched branch: '$target_branch'."
+
+    log_info "Checking out branch '$target_branch'..."
+    if ! git checkout "$target_branch"; then
+        log_error "Failed to checkout branch: '$target_branch'"
+    fi
+    log_info "Successfully checked out branch: '$target_branch'."
 
     # Check whether the new backport branch already exists. If it does, delete the branch to remove any unnecessary changes.
-    log_info "Checking if new backport branch already exists  '$2'..."
-    if git ls-remote --exit-code --heads origin "$2" >/dev/null 2>&1; then
-        if git push origin --delete "$2" >/dev/null 2>&1; then
-            log_info "Successfully deleted existing backport branch: '$2'"
+    log_info "Checking if new backport branch already exists  '$backport_branch'..."
+    if git ls-remote --exit-code --heads origin "$backport_branch" >/dev/null 2>&1; then
+        if git push origin --delete "$backport_branch" >/dev/null 2>&1; then
+            log_info "Successfully deleted existing backport branch: '$backport_branch'"
         else
-            log_error "Failed to delete existing backport branch: '$2'"
+            log_error "Failed to delete existing backport branch: '$backport_branch'"
         fi
     fi
 
     # Checking out new backport branch
-    log_info "Checking out new backport branch '$2'..."
-    if ! git checkout -b "$2"; then 
-        log_error "Failed to create new backport branch: '$2'"
+    log_info "Checking out new backport branch '$backport_branch'..."
+    if ! git checkout -b "$backport_branch"; then 
+        log_error "Failed to create new backport branch: '$backport_branch'"
     fi
-    log_info "Successfully checked out new backport branch: '$2'."
+    log_info "Successfully checked out new backport branch: '$backport_branch'."
 
     # Cherry-pick commits
     log_info "Starting the cherry-pick process for the pull request #${PR_NUMBER}..."
-    if ! cherry_pick_commits "$1"; then
+    if ! cherry_pick_commits "$target_branch"; then
         log_error "Failed to cherry-pick commits for the pull request."
     fi
     log_info "Cherry-pick completed successfully for the pull request #${PR_NUMBER}."
 
     # Push final changes to the backport branch
-    log_info "Pushing changes to the branch: '$2'..."
-    if ! git push origin "$2"; then
-        log_error "Failed to push changes to the branch: '$2'."
+    log_info "Pushing changes to the branch: '$backport_branch'..."
+    if ! git push origin "$backport_branch"; then
+        log_error "Failed to push changes to the branch: '$backport_branch'."
     fi
-    log_info "Successfully pushed changes to the branch: '$2'"
+    log_info "Successfully pushed changes to the branch: '$backport_branch'"
     
     # Create the pull request 
-    log_info "Creating pull request between '$1' and '$2'..."
-    if ! pull_request_url=$(create_pull_request "$1" "$2"); then
+    log_info "Creating pull request between '$target_branch' and '$backport_branch'..."
+    if ! pull_request_url=$(create_pull_request "$target_branch" "$backport_branch"); then
         log_error "Failed to create the pull request."
     fi
     log_info "Pull request created successfully. You can view the pull request at: ${pull_request_url}."
 
     # Add comment to the pull request
     comment="This pull request has been successfully backported. Link to the new pull request: ${pull_request_url}."
-    log_info "Adding a comment to the original pull request #${PR_NUMBER} created between '$1' and '$2'..."
+    log_info "Adding a comment to the original pull request #${PR_NUMBER} created between '$target_branch' and '$backport_branch'..."
     if ! gh pr comment "$PR_NUMBER" --body "$comment"; then
-        log_error "Failed to add a comment to the original pull request #${PR_NUMBER} created between '$1' and '$2'."
+        log_error "Failed to add a comment to the original pull request #${PR_NUMBER} created between '$target_branch' and '$backport_branch'."
     fi
-    log_info "Successfully added a comment to the original pull request #${PR_NUMBER} created between '$1' and '$2'."
+    log_info "Successfully added a comment to the original pull request #${PR_NUMBER} created between '$target_branch' and '$backport_branch'."
 }
 
 main() {
@@ -211,7 +216,7 @@ main() {
             # then skip backporting the pull request changes.
             if [ "$(echo "$pull_request_list" | jq length)" -eq 0 ]; then
                 log_info "Starting the backport process for branch: $branch."
-                if ! backport_branch "$branch" "$new_backport_branch"; then
+                if ! backport_changes "$branch" "$new_backport_branch"; then
                     log_error "Failed to backport changes to the branch: $branch."
                 fi
                 log_info "Successfully backported the pull request changes to the branch '$branch'."
