@@ -217,8 +217,10 @@ jobs:
       
       - name: "Copyright headers"
         run: |
-          if [[ ! (go run github.com/hashicorp/copywrite headers --plan) ]]; then
+          go run github.com/hashicorp/copywrite headers --plan
+          if [[ $? != 0 ]]; then
             echo >&2 "ERROR: some files are missing required copyright headers"
+            exit 1
           fi
 
   license-checks:
