@@ -15,7 +15,7 @@ project {
     "**/*.tf",
     "**/*.tftest.hcl",
     "testing/equivalence-tests/**/.terraform.lock.hcl",
-    // "website/docs/**/examples/*", // ???
+    "website/docs/**/examples/**",
     "**/testdata/**",
     "**/*.pb.go",
     "**/*_string.go",
