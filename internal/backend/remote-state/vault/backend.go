@@ -10,7 +10,7 @@ import (
 	"net"
 	"time"
 
-	vaultapi "github.com/hashicorp/vault/api"
+	openbaoapi "github.com/openbao/openbao/api"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
@@ -100,7 +100,7 @@ type Backend struct {
 	encryption encryption.StateEncryption
 
 	// The fields below are set from configure
-	client     *vaultapi.Client
+	client     *openbaoapi.Client
 	configData *schema.ResourceData
 	lock       bool
 	token      string
@@ -119,7 +119,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	data := b.configData
 
 	// Configure the client
-	config := vaultapi.DefaultConfig()
+	config := openbaoapi.DefaultConfig()
 
 	// replace the default Transport Dialer to reduce the KeepAlive
 	// config.Transport.DialContext = dialContext
@@ -145,7 +145,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	// 	config.TLSConfig.KeyFile = v.(string)
 	// }
 
-	client, err := vaultapi.NewClient(config)
+	client, err := openbaoapi.NewClient(config)
 	if err != nil {
 		return err
 	}

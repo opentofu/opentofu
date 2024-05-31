@@ -17,7 +17,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-uuid"
-	vaultapi "github.com/hashicorp/vault/api"
+	openbaoapi "github.com/openbao/openbao/api"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -35,7 +35,7 @@ type RemoteClient struct {
 	GZip  bool
 
 	mu     sync.Mutex
-	Client *vaultapi.Client
+	Client *openbaoapi.Client
 	// lockState is true if we're using locks
 	lockState bool
 
@@ -204,7 +204,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	// with anyway.
 
 	store := func(payload map[string]interface{}) error {
-		var secret *vaultapi.KVSecret = nil
+		var secret *openbaoapi.KVSecret = nil
 		var err error = nil
 		if c.modifyIndex == 0 {
 			secret, err = kv.Put(ctx, c.Name, payload)
@@ -320,7 +320,7 @@ func hasSecretNotFound(err error) bool {
 	return false
 }
 
-func (c *RemoteClient) getCurrentLockMetadata() (*vaultapi.KVMetadata, error) {
+func (c *RemoteClient) getCurrentLockMetadata() (*openbaoapi.KVMetadata, error) {
 	metadata, err := c.Client.KVv2(c.Mount).GetMetadata(context.TODO(), c.lockPath())
 	if hasSecretNotFound(err) {
 		return nil, nil
@@ -379,7 +379,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	// Implement 4.
-	_, err = kv.Put(ctx, c.lockPath(), vaultData, vaultapi.WithCheckAndSet(lockCas))
+	_, err = kv.Put(ctx, c.lockPath(), vaultData, openbaoapi.WithCheckAndSet(lockCas))
 
 	// Implement 6.
 	if err != nil {
@@ -471,7 +471,7 @@ func split(payload string, limit int) []string {
 	return chunks
 }
 
-func (c *RemoteClient) chunkedMode() (bool, string, []string, *vaultapi.KVSecret, error) {
+func (c *RemoteClient) chunkedMode() (bool, string, []string, *openbaoapi.KVSecret, error) {
 	kv := c.Client.KVv2(c.Mount)
 	ctx := context.TODO()
 	secret, err := kv.Get(ctx, c.Name)
