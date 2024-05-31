@@ -28,7 +28,7 @@ for SERVICE in $SERVICES; do
     echo -e "::group::\033[0;32m✅  ${SERVICE}\033[0m"
   else
     echo -e "::group::\033[0;31m❌  ${SERVICE}\033[0m"
-    FAILED=$(("${FAILED}"+1))
+    FAILED=$((${FAILED}+1))
   fi
   cat $TEMPFILE | grep -a -E "^[a-zA-Z]+-${SERVICE}-1\s+\| " | sed -E "s/^[a-zA-Z]+-${SERVICE}-1\s+\| //"
   echo "::endgroup::"
