@@ -13,6 +13,9 @@ project {
   # files or folders should be ignored
   header_ignore = [
     "**/*.tf",
+    "**/*.tftest.hcl",
+    "testing/equivalence-tests/**/.terraform.lock.hcl",
+    "website/docs/**/examples/**",
     "**/testdata/**",
     "**/*.pb.go",
     "**/*_string.go",

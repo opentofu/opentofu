@@ -1,4 +1,9 @@
 #!/bin/bash
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 # This script tests the installation instructions on all relevant Linux operating systems listed in docker-compose.yaml.
 

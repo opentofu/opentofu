@@ -33,3 +33,7 @@ To update the sidebar navigation, you must edit the appropriate `nav-data.json` 
 Currently, you can preview your changes through the [opentofu/opentofu.org](https://github.com/opentofu/opentofu.org/blob/main/README.md) repository.
 
 Follow the [Getting Started](https://github.com/opentofu/opentofu.org/blob/main/README.md#getting-started) guide.
+
+## Copyright headers for code examples
+
+In order to not include copyright headers for code examples used in docs, please, add the files under `examples` folder. This way, it will be ignored on automated copyright headers check.
