@@ -5,3 +5,9 @@ data "local_file" "bucket_name" {
 output "name" {
   value = data.local_file.bucket_name.content
 }
+
+output "tags" {
+  value = {
+    Environment = "Dev"
+  }
+}

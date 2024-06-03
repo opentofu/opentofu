@@ -5,6 +5,9 @@ override_module {
   target = module.bucket_meta
   outputs = {
     name = "test"
+    tags = {
+      Environment = "Test Env"
+    }
   }
 }
 
@@ -20,5 +23,10 @@ run "test" {
   assert {
     condition     = aws_s3_bucket.test.bucket == "test"
     error_message = "Incorrect bucket name: ${aws_s3_bucket.test.bucket}"
+  }
+
+  assert {
+    condition     = aws_s3_bucket.test.tags["Environment"] == "Test Env"
+    error_message = "Incorrect `Environment` tag: ${aws_s3_bucket.test.tags["Environment"]}"
   }
 }
