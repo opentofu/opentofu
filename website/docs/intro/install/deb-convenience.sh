@@ -11,4 +11,4 @@ chmod +x install-opentofu.sh
 ./install-opentofu.sh --install-method deb
 
 # Remove the installer:
-rm install-opentofu.sh
+rm -f install-opentofu.sh
