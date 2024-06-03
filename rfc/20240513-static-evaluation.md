@@ -4,18 +4,6 @@ Issue: https://github.com/OpenTofu/OpenTofu/issues/1042
 
 As initially described in https://github.com/opentofu/opentofu/issues/1042, many users of OpenTofu expect to be able to use variables and locals in a variety of locations that are currently not supported.  Common examples include but are not limited to: module sources, provider assignments, backend configuration, encryption configuration.
 
-```hcl
-variable "accesskey" {
-    type = string
-}
-
-terraform {
-  backend "somebackend" {
-    accesskey = var.accesskey
-  }
-}
-```
-
 All of these examples are pieces of information that need to be known during `tofu init` and can not be integrated into the usual `tofu plan/apply` system. Init sets up a static understanding of the project's configuration that plan/apply can later operate on.
 
 ## Proposed Solution
