@@ -1,2 +1,0 @@
-Please do not add license headers and end-of-file line breaks to the examples in this folder.
-They are embedded in the website, and it makes for really hard reading to have license headers 5-6 times in a page.

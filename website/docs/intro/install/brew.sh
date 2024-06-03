@@ -1,4 +1,9 @@
 #!/bin/bash
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 set -ex
 
@@ -10,6 +15,6 @@ apt-get install -y curl git build-essential gcc procps curl file
 (echo; echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"') >> /root/.bashrc
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-bash -x brew-install.sh
+bash -x examples/brew-install.sh
 
 tofu --version
