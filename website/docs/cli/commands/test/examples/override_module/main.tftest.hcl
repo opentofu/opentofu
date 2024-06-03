@@ -1,6 +1,6 @@
 // All the module configuration will be ignored for this
-// module call. Instead, `outputs` object will be used to
-// populate module outputs.
+// module call. Instead, the `outputs` object will be used
+// to populate module outputs.
 override_module {
   target = module.bucket_meta
   outputs = {

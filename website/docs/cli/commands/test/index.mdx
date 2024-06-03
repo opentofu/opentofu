@@ -453,7 +453,7 @@ The block consist of the following elements:
 | Name     | Type         | Description                                                                                                            |
 |:--------:|:------------:|------------------------------------------------------------------------------------------------------------------------|
 | target   | reference    | Required. Address of the target module call to be overridden.                                                          |
-| outputs  | object       | Values to be used as module call outputs. If output is not specified, OpenTofu will set it to `null` by default.       |
+| outputs  | object       | Values to be used as module call outputs. If an output is not specified, OpenTofu will set it to `null` by default.       |
 
 You can use `override_module` block for the whole test file or inside a single `run` block. The latter takes precedence if both specified for the same `target`.
 
