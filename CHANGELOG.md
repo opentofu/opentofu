@@ -7,6 +7,7 @@ ENHANCEMENTS:
 BUG FIXES:
 * Fixed: authorization header is not included for HTTP backends ([#1656](https://github.com/opentofu/opentofu/pull/1656))
 * Fixed: bug in import 'to' parsing in JSON configurations ([#1665](https://github.com/opentofu/opentofu/pull/1665))
+* Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
 
 ## 1.7.1
 
@@ -20,7 +21,6 @@ BUG FIXES:
 * Fix inmem backend crash due to missing struct field ([#1619](https://github.com/opentofu/opentofu/pull/1619))
 * Fix for `tofu init` failure when test have spaces in their name. ([1489](https://github.com/opentofu/opentofu/pull/1489))
 * `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
-* Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
 
 ## 1.7.0
 
