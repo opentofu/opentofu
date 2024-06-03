@@ -83,9 +83,6 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 		})
 	}
 
-	if diags.HasErrors() {
-		return nullMap, diags
-	}
 	ty := forEachVal.Type()
 
 	var isAllowedType bool
@@ -96,6 +93,23 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 	} else {
 		isAllowedType = ty.IsMapType() || ty.IsSetType() || ty.IsObjectType()
 		allowedTypesMessage = "map, or set of strings"
+	}
+
+	// Check if the type is allowed whether the value is marked or not
+	if forEachVal.IsKnown() && !isAllowedType {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the "for_each" argument must be a %s, and you have provided a value of type %s.`, allowedTypesMessage, ty.FriendlyName()),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+		})
+	}
+
+	// Return it to avoid expose sensitive value by further check
+	if diags.HasErrors() {
+		return nullMap, diags
 	}
 
 	const errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\nAlternatively, you could use the -target planning option to first apply only the resources that the for_each value depends on, and then apply a second time to fully converge."
@@ -134,18 +148,6 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 		}
 		// ensure that we have a map, and not a DynamicValue
 		return cty.UnknownVal(cty.Map(cty.DynamicPseudoType)), diags
-
-	case !(isAllowedType):
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the "for_each" argument must be a %s, and you have provided a value of type %s.`, allowedTypesMessage, ty.FriendlyName()),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-		})
-		return nullMap, diags
-
 	case markSafeLengthInt(forEachVal) == 0:
 		// If the map is empty ({}), return an empty map, because cty will
 		// return nil when representing {} AsValueMap. This also covers an empty

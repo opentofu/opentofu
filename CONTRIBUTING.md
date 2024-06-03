@@ -7,7 +7,7 @@ Welcome and thank you for wanting to contribute!
 - Have a question? Post it in [GitHub Discussions ➡️](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack ➡️](https://opentofu.org/slack/)!
 - Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
 - Have a feature idea? [Submit it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=enhancement%2Cpending-decision&projects=&template=feature_request.yml)
-- Want to provide detailed documentation on a feature idea? [Write an RFC here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=rfc%2Cpending-decision&projects=&template=rfc.yml)
+- Want to help define a complex feature or bug fix? [Write an RFC here ➡️](./rfc/README.md)
 - Want to provide a proof-of-concept for an issue? Please [submit a draft PR here ➡️](https://github.com/opentofu/opentofu/compare)
 - Want to add a feature, fix a linter error, refactor something, or add CI tooling?
   1. Check if there is an [open issue with the `accepted` label](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted),
@@ -37,11 +37,41 @@ We specifically do not merge PRs **without prior issues** that:
 Eager to get started on coding? Here's the short version:
 
 1. Set up a Go development environment with Git.
-2. Pay attention to copyright: [please read the DCO](https://developercertificate.org/), write the code yourself, avoid copy/paste. Disable or limit your AI coding assistant.
+2. Pay attention to copyright: [please read the DCO](https://developercertificate.org/), write the code yourself, avoid copy/paste. Disable your AI coding assistant.
 3. Run the tests with `go test` in the package you are working on.
 4. Build OpenTofu by running `go build ./cmd/tofu`.
 5. Update [the changelog](CHANGELOG.md).
 6. When you commit, use `git commit -s` to sign off your commits.
+7. Complete the checklist below before you submit your PR (or submit a draft PR).
+8. Your PR will be reviewed by the core team once it is marked as ready to review.
+
+---
+
+## PR checklist
+
+<!-- Make sure to keep this in sync with the PR template. -->
+
+Please make sure you complete the following checklist before you mark your PR ready for review. If you cannot complete the checklist but want to submit a PR, please submit it as a draft PR. Please note, the core team will only review your PR if you have completed the checklist and marked your PR as ready to review.
+
+- [ ] I have read the contribution guidelines.
+- [ ] I have not used an AI coding assistant to create this PR.
+- [ ] I have written all code in this PR myself OR I have marked all code I have not written myself (including modified code, e.g. copied from other places and then modified) with a comment indicating where it came from.
+
+### Go checklist
+
+If your PR contains Go code, please make sure you check off all items on this list:
+
+- [ ] I have run golangci-lint on my change and receive no errors relevant to my code.
+- [ ] I have run existing tests to ensure my code doesn't break anything.
+- [ ] I have added tests for all relevant use cases of my code, and those tests are passing.
+- [ ] I have only exported functions, variables and structs that should be used from other packages.
+- [ ] I have added meaningful comments to all exported functions, variables, and structs.
+
+### Website/documentation checklist
+
+If you have changed the website, please follow this checklist:
+
+- [ ] I have locally started the website as [described here](https://github.com/opentofu/opentofu/blob/main/website/README.md) and checked my changes.
 
 ---
 
@@ -224,7 +254,7 @@ We take copyright and intellectual property very seriously. A few quick rules sh
 
 1. When you submit a PR, you are responsible for the code in that pull request. You signal your acceptance of the [DCO](https://developercertificate.org/) with your sign-off.
 2. If you include code in your PR that you didn't write yourself, make sure you have permission from the author. If you have permission, always add the `Co-authored-by` sign-off to your commits to indicate the author of the code you are adding.
-3. Be careful about AI coding assistants! Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot, are awesome tools to help. However, in the specific case of OpenTofu the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training sources, they may emit copyrighted code. Please avoid using LLM-based coding assistants as much as possible.
+3. Be careful about AI coding assistants! Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot, are awesome tools to help. However, in the specific case of OpenTofu the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training sources, they may emit copyrighted code. Please avoid using LLM-based coding assistants.
 4. When you copy/paste code from within the OpenTofu code, always make it explicit where you copied from. This helps us resolve issues later on.
 5. Before you copy code from external sources, make sure that the license allows this. Also make sure that any licensing requirements, such as attribution, are met. When in doubt, ask first!
 6. Specifically, do not copy from the Terraform repository, or any PRs others have filed against that repository. This code is licensed under the BSL, a license which is not compatible with OpenTofu. (You may submit the same PR to both Terraform and OpenTofu as long as you are the author of both.)
@@ -339,7 +369,7 @@ Depending on the core team's review, a feature request can have the following ou
 
 1. **The feature is accepted for development by the core team.** This means that the core team will schedule it for an upcoming release and develop it.
 2. **The feature is accepted and open for community contributions.** The core team adds a `help wanted` label and waits for community volunteers to develop it.
-3. **More information is needed.** The core team will either add questions in comments, or when there is a deep technical issue to be resolved, call for an RFC to detail a possible implementation.
+3. **More information is needed.** The core team will either add questions in comments, or when there is a deep technical issue to be resolved, call for an [RFC](./rfc/README.md) to detail a possible implementation.
 4. **More community input is needed.** When an issue is, on its surface, valuable, but there is no track record of a large portion of the community needing it, the core team adds the `needs community input` label. If you are interested in the feature and would like to use it, please add a reaction to the issue and add a description on specifically what problem it would solve for you in a comment.
 5. **The feature is rejected.** If based on the criteria above it is not feasible to implement the feature, the core team closes the issue with an explanation why it is being closed.
 6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the core team adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file.
@@ -368,10 +398,10 @@ First of all, thank you for volunteering! Before you begin coding, please take a
 - [`bug`](https://github.com/opentofu/opentofu/labels/bug): it's broken and needs to be fixed.
 - [`enhancement`](https://github.com/opentofu/opentofu/labels/enhancement): it's a short-form feature request. If the implementation path is unclear, an `rfc` may be needed in addition.
 - [`documentation`](https://github.com/opentofu/opentofu/labels/documentation): something that needs a description on the OpenTofu website.
-- [`rfc`](https://github.com/opentofu/opentofu/labels/rfc): a long-form feature request with details on how exactly it should be implemented.
+- [`rfc`](https://github.com/opentofu/opentofu/labels/rfc): a long-form discussion on building a feature or solving bug, see [RFC](./rfc/README.md).
 - [`question`](https://github.com/opentofu/opentofu/labels/question): the core team needs more information on the issue to decide.
 - [`needs-community-input`](https://github.com/opentofu/opentofu/labels/needs-community-input): the core team needs to see how many people are affected by this issue. You can provide feedback by using reactions on the issue and adding your use case in the comments. (Please describe what problem it would solve for you specifically.)
-- [`needs-rfc`](https://github.com/opentofu/opentofu/labels/needs-rfc): this issue needs a detailed technical description on how it would be implemented in the form of an RFC.
+- [`needs-rfc`](https://github.com/opentofu/opentofu/labels/needs-rfc): this issue needs a detailed technical description on how it would be implemented in the form of an [RFC](./rfc/README.md).
 
 ---
 

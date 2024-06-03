@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package tofu
 
 import (
@@ -134,7 +139,7 @@ func TestFunctions(t *testing.T) {
 	}
 
 	// Provider missing
-	_, diags := evalContextProviderFunction(mockCtx, cfg, walkValidate, providerFunc("provider::invalid::unknown"), rng)
+	_, diags := evalContextProviderFunction(mockCtx.Provider, cfg, walkValidate, providerFunc("provider::invalid::unknown"), rng)
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function provider")
 	}
@@ -143,7 +148,7 @@ func TestFunctions(t *testing.T) {
 	}
 
 	// Provider not initialized
-	_, diags = evalContextProviderFunction(mockCtx, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
+	_, diags = evalContextProviderFunction(mockCtx.Provider, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function provider")
 	}
@@ -156,7 +161,7 @@ func TestFunctions(t *testing.T) {
 
 	// Function missing (validate)
 	mockProvider.GetFunctionsCalled = false
-	_, diags = evalContextProviderFunction(mockCtx, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
+	_, diags = evalContextProviderFunction(mockCtx.Provider, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -166,7 +171,7 @@ func TestFunctions(t *testing.T) {
 
 	// Function missing (Non-validate)
 	mockProvider.GetFunctionsCalled = false
-	_, diags = evalContextProviderFunction(mockCtx, cfg, walkPlan, providerFunc("provider::mockname::missing"), rng)
+	_, diags = evalContextProviderFunction(mockCtx.Provider, cfg, walkPlan, providerFunc("provider::mockname::missing"), rng)
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function")
 	}
@@ -188,7 +193,7 @@ func TestFunctions(t *testing.T) {
 	// Load functions into ctx
 	for _, fn := range []string{"echo", "concat", "coalesce", "unknown_param", "error_param"} {
 		pf := providerFunc("provider::mockname::" + fn)
-		impl, diags := evalContextProviderFunction(mockCtx, cfg, walkPlan, pf, rng)
+		impl, diags := evalContextProviderFunction(mockCtx.Provider, cfg, walkPlan, pf, rng)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}

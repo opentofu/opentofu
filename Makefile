@@ -21,21 +21,11 @@ generate:
 protobuf:
 	go run ./tools/protobuf-compile .
 
-.PHONY: fmtcheck
-fmtcheck:
-	"$(CURDIR)/scripts/gofmtcheck.sh"
-
-.PHONY: importscheck
-importscheck:
-	"$(CURDIR)/scripts/goimportscheck.sh"
-
-.PHONY: staticcheck
-staticcheck:
-	"$(CURDIR)/scripts/staticcheck.sh"
-
-.PHONY: exhaustive
-exhaustive:
-	"$(CURDIR)/scripts/exhaustive.sh"
+# Golangci-lint
+.PHONY: golangci-lint
+golangci-lint:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.58.1
+	golangci-lint run --timeout 60m ./...
 
 # Run license check
 .PHONY: license-check

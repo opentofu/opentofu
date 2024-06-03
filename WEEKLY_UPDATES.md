@@ -1,5 +1,47 @@
 # Weekly Updates
 
+## 2024-05-17
+
+Hello there! After the 1.7.1 release last week, the core team has been focusing on a few remaining issues for 1.7.2 and starting to look forward to 1.8!
+
+- Current Status
+  - [Init-time constant evaluation](https://github.com/opentofu/opentofu/issues/1042)
+    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC proces
+  - [Registry UI](https://github.com/opentofu/registry/issues/450)
+    - Designs and prototyping are in progress!
+  - [Releases page with direct links to artifacts](https://github.com/opentofu/get.opentofu.org/pull/25) is now live https://get.opentofu.org/tofu/api.json
+  - A lot of smaller tickets are being worked on, you can take a look at the [1.7.2 and 1.8.0 milestones](https://github.com/opentofu/opentofu/milestones) for details.
+    - [Better error messages in for_each blocks](https://github.com/opentofu/opentofu/pull/1485/) was approved and merged!
+    - [Improved integration of JSON strings in generated configs](https://github.com/opentofu/opentofu/pull/1595) also made it in!
+- Issue and RFC Workflow:
+  - As this project matures, the core team has started looking more closely at the current issue and RFC process.
+  - The core team will likely be proposing changes to this process based on contributor feedback and rough edges we've encountered.
+  - Once the proposal is ready, we'd love any past, current, or prospective contributors to weigh in and share their feedback!
+- How can I help?
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
+## 2024-05-10
+
+Hello there! Again after a break in updates, since most weeks we've had preview or stable releases, which summed up most of what happened.
+
+We haven't slowed down, and managed to get the stable release out according to schedule, before the end of April! Since then, we've got a few bug reports and already released a follow-up 1.7.1 release. Now, we're primarily working towards the 1.8 release.
+
+- Current Status
+  - State Encryption
+    - We've fixed some issues as part of 1.7.1, and have [one more important usability issue](https://github.com/opentofu/opentofu/issues/1605) that we'd like to improve on in the not-too-distant future.
+  - [Init-time constant evaluation](https://github.com/opentofu/opentofu/issues/1042)
+    - Got accepted by the TSC and will be the flagship feature of 1.8.
+    - We're currently planning and splitting up the work to be done.
+    - We'll most likely deliver it in parts, with the foundation and first features in 1.8, and later more features built on top of it in 1.9.
+  - [Registry UI](https://github.com/opentofu/registry/issues/450)
+    - We've been asked about this a lot, and have now started working on it.
+  - A lot of smaller tickets are being worked on, you can take a look at the [1.7.2 and 1.8.0 milestones](https://github.com/opentofu/opentofu/milestones) for details.
+  - Additionally, we're working on improved developer documentation on how to author end-to-end tests in OpenTofu as we hope to increase the end-to-end test coverage. We'll be opening a bunch of related issues, most of which should be open to external contribution! 
+- How can I help?
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
 ## 2024-04-17
 
 Hey there! First, apologies for the lack of updates over the last two weeks, we've been a bit busy with the [Cease and Desist Letter we got](https://opentofu.org/blog/our-response-to-hashicorps-cease-and-desist/). That's fortunately all sorted now, and we're fully back to engineering work this week! All of this delayed 1.7 by around a week, but this delay also gave us some additional time to add cool unique features to provider-defined functions in OpenTofu!
