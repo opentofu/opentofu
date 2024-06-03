@@ -11,12 +11,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/pem"
-	"fmt"
 	"math/big"
 	"net"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -100,34 +97,21 @@ func (c *ca) CreateServerCert(config CertConfig) *KeyPair {
 	defer c.lock.Unlock()
 	c.serial.Add(c.serial, big.NewInt(1))
 
-	extAltName := pkix.Extension{}
-	extAltName.Id = asn1.ObjectIdentifier{2, 5, 29, 17}
-	extAltName.Value = []byte{}
-
-	var valueParts []string
-	for _, hostname := range config.Hosts {
-		valueParts = append(valueParts, fmt.Sprintf("DNS:%s", hostname))
-	}
-	for _, ip := range config.IPAddresses {
-		valueParts = append(valueParts, fmt.Sprintf("IP:%s", ip))
-	}
-	extAltName.Value = []byte(strings.Join(valueParts, ", "))
-
 	ipAddresses := make([]net.IP, len(config.IPAddresses))
 	for i, ip := range config.IPAddresses {
 		ipAddresses[i] = net.ParseIP(ip)
 	}
 
 	cert := &x509.Certificate{
-		SerialNumber:    c.serial,
-		Subject:         config.Subject,
-		IPAddresses:     ipAddresses,
-		NotBefore:       time.Now(),
-		NotAfter:        time.Now().AddDate(0, 0, 1),
-		SubjectKeyId:    []byte{1},
-		ExtKeyUsage:     config.ExtKeyUsage,
-		KeyUsage:        x509.KeyUsageDigitalSignature,
-		ExtraExtensions: []pkix.Extension{extAltName},
+		SerialNumber: c.serial,
+		Subject:      config.Subject,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(0, 0, 1),
+		SubjectKeyId: []byte{1},
+		ExtKeyUsage:  config.ExtKeyUsage,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		DNSNames:     config.Hosts,
+		IPAddresses:  ipAddresses,
 	}
 	certPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {

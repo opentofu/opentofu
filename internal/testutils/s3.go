@@ -10,10 +10,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 
@@ -128,13 +131,30 @@ func S3(t *testing.T) TestS3Service {
 		}
 	})
 
-	endpoint, err := minioContainer.Endpoint(ctx, "")
+	mappedPort, err := minioContainer.MappedPort(ctx, "9000/tcp")
 	if err != nil {
-		t.Skipf("Failed to get port endpoint: %v", err)
+		t.Skipf("Failed to get mapped port for Minio instance (%v)", err)
+	}
+	host, err := minioContainer.Host(ctx)
+	if err != nil {
+		t.Skipf("Failed to get host for Minio instance (%v)", err)
+	}
+	s3Connection, err := createS3Connection(accessKey, secretKey, ca.GetPEMCACert(), host, mappedPort.Int())
+	if err != nil {
+		t.Skipf("Failed to establish S3 connection after Minio came up.")
+	}
+	_, err = s3Connection.CreateBucket(&s3.CreateBucketInput{
+		Bucket: aws.String(bucket),
+	})
+	if err != nil {
+		var s3error awserr.Error
+		if !errors.As(err, &s3error) || s3error.Code() != s3.ErrCodeBucketAlreadyOwnedByYou {
+			t.Skipf("Unexpected error encountered: %v", err)
+		}
 	}
 
 	return &s3TestBackend{
-		endpoint:  endpoint,
+		endpoint:  fmt.Sprintf("%s:%d", host, mappedPort.Int()),
 		cacert:    ca.GetPEMCACert(),
 		accessKey: accessKey,
 		secretKey: secretKey,
@@ -160,7 +180,10 @@ func (s *s3Strategy) WaitUntilReady(ctx context.Context, target wait.StrategyTar
 	if err != nil {
 		return err
 	}
-	port := mappedPort.Port()
+	port, err := strconv.Atoi(mappedPort.Port())
+	if err != nil {
+		return err
+	}
 	host, err := target.Host(ctx)
 	if err != nil {
 		return err
@@ -172,35 +195,10 @@ func (s *s3Strategy) WaitUntilReady(ctx context.Context, target wait.StrategyTar
 		if tries > 30 {
 			return fmt.Errorf("backend failed to come up in %d seconds", sleepTime*10)
 		}
-		awsConfig := &aws.Config{
-			Credentials: credentials.NewCredentials(
-				&credentials.StaticProvider{
-					Value: credentials.Value{
-						AccessKeyID:     s.accessKey,
-						SecretAccessKey: s.secretKey,
-					},
-				},
-			),
-			Endpoint:         aws.String(fmt.Sprintf("https://%s:%s", host, port)),
-			Region:           aws.String("us-east-1"),
-			S3ForcePathStyle: aws.Bool(true),
-		}
-		if cacert := s.caCert; cacert != nil {
-			certPool := x509.NewCertPool()
-			certPool.AppendCertsFromPEM(cacert)
-			awsConfig.WithHTTPClient(&http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						RootCAs: certPool,
-					},
-				},
-			})
-		}
-		sess, err := session.NewSession(awsConfig)
+		s3Connection, err := createS3Connection(s.accessKey, s.secretKey, s.caCert, host, port)
 		if err != nil {
-			s.t.Logf("Failed to create S3 session, S3 backend is not yet up (%v)", err)
+			s.t.Logf("Failed to create S3 connection, S3 backend is not yet up (%v)", err)
 		} else {
-			s3Connection := s3.New(sess)
 			if _, err := s3Connection.ListBuckets(&s3.ListBucketsInput{}); err != nil {
 				s.t.Logf("ListBuckets call failed, S3 backend is not yet up (%v)", err)
 			} else {
@@ -210,6 +208,38 @@ func (s *s3Strategy) WaitUntilReady(ctx context.Context, target wait.StrategyTar
 		time.Sleep(time.Duration(sleepTime) * time.Second)
 		tries++
 	}
+}
+
+func createS3Connection(accessKey string, secretKey string, caCert []byte, host string, port int) (*s3.S3, error) {
+	awsConfig := &aws.Config{
+		Credentials: credentials.NewCredentials(
+			&credentials.StaticProvider{
+				Value: credentials.Value{
+					AccessKeyID:     accessKey,
+					SecretAccessKey: secretKey,
+				},
+			},
+		),
+		Endpoint:         aws.String(fmt.Sprintf("%s:%d", host, port)),
+		Region:           aws.String("us-east-1"),
+		S3ForcePathStyle: aws.Bool(true),
+	}
+	if caCert != nil {
+		certPool := x509.NewCertPool()
+		certPool.AppendCertsFromPEM(caCert)
+		awsConfig.WithHTTPClient(&http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: certPool,
+				},
+			},
+		})
+	}
+	sess, err := session.NewSession(awsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create S3 session (%w)", err)
+	}
+	return s3.New(sess), nil
 }
 
 type s3TestBackend struct {
