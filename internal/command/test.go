@@ -668,7 +668,10 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 
 	var diags tfdiags.Diagnostics
 
-	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, runner.States)
+	evalCtx, ctxDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
+	diags = diags.Append(ctxDiags)
+
+	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, evalCtx)
 	diags = diags.Append(variableDiags)
 
 	if diags.HasErrors() {
@@ -731,7 +734,10 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	references, referenceDiags := run.GetReferences()
 	diags = diags.Append(referenceDiags)
 
-	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, runner.States)
+	evalCtx, ctxDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
+	diags = diags.Append(ctxDiags)
+
+	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, evalCtx)
 	diags = diags.Append(variableDiags)
 
 	if diags.HasErrors() {
@@ -1000,9 +1006,8 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 // Crucially, it differs from prepareInputVariablesForAssertions in that it only
 // includes variables that are reference by the config and not everything that
 // is defined within the test run block and test file.
-func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue, states map[string]*TestFileState) (tofu.InputValues, tfdiags.Diagnostics) {
+func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue, evalCtx *hcl.EvalContext) (tofu.InputValues, tfdiags.Diagnostics) {
 	variables := make(map[string]backend.UnparsedVariableValue)
-	evalCtx := getEvalContextFromStates(states)
 	for name := range config.Module.Variables {
 		if run != nil {
 			if expr, exists := run.Config.Variables[name]; exists {
@@ -1019,9 +1024,10 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 		if file != nil {
 			if expr, exists := file.Config.Variables[name]; exists {
 				// If it's not set locally, it maybe set for the entire file.
-				variables[name] = unparsedVariableValueExpression{
+				variables[name] = testVariableValueExpression{
 					expr:       expr,
 					sourceType: tofu.ValueFromConfig,
+					ctx:        evalCtx,
 				}
 				continue
 			}
@@ -1042,17 +1048,12 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 	return backend.ParseVariableValues(variables, config.Module.Variables)
 }
 
-// getEvalContextFromStates constructs an hcl.EvalContext based on the provided map
-// of TestFileState instances. It extracts the relevant information from the
-// states to create a context suitable for HCL evaluation, including the output
-// values of modules.
-//
-// Parameters:
-//   - states: A map of TestFileState instances containing the state information.
-//
-// Returns:
-//   - *hcl.EvalContext: The constructed HCL evaluation context.
-func getEvalContextFromStates(states map[string]*TestFileState) *hcl.EvalContext {
+// getEvalContextForTest constructs an hcl.EvalContext based on the provided map of
+// TestFileState instances, configuration and global variables.
+// It extracts the relevant information from the input parameters to create a
+// context suitable for HCL evaluation.
+func getEvalContextForTest(states map[string]*TestFileState, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 	runCtx := make(map[string]cty.Value)
 	for _, state := range states {
 		if state.Run == nil {
@@ -1065,9 +1066,24 @@ func getEvalContextFromStates(states map[string]*TestFileState) *hcl.EvalContext
 		}
 		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
 	}
-	ctx := &hcl.EvalContext{Variables: map[string]cty.Value{"run": cty.ObjectVal(runCtx)}}
 
-	return ctx
+	// If the variable is referenced in the tfvars file or TF_VAR_ environment variable, then lookup the value
+	// in global variables; otherwise, assign the default value.
+	inputValues, diags := parseAndApplyDefaultValues(globals, config.Module.Variables)
+	diags.Append(diags)
+
+	varCtx := make(map[string]cty.Value)
+	for name, val := range inputValues {
+		varCtx[name] = val.Value
+	}
+
+	ctx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{
+			"run": cty.ObjectVal(runCtx),
+			"var": cty.ObjectVal(varCtx),
+		},
+	}
+	return ctx, diags
 }
 
 type testVariableValueExpression struct {
@@ -1090,6 +1106,40 @@ func (v testVariableValueExpression) ParseVariableValue(mode configs.VariablePar
 	}, diags
 }
 
+// parseAndApplyDefaultValues parses the given unparsed variables into tofu.InputValues
+// and applies default values from the configuration variables where applicable.
+// This ensures all variables are correctly initialized and returns the resulting tofu.InputValues.
+func parseAndApplyDefaultValues(unparsedVariables map[string]backend.UnparsedVariableValue, configVariables map[string]*configs.Variable) (tofu.InputValues, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	inputs := make(tofu.InputValues, len(unparsedVariables))
+	for name, variable := range unparsedVariables {
+		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
+		diags = diags.Append(valueDiags)
+		inputs[name] = value
+	}
+
+	// Now, we're going to apply any default values from the configuration.
+	// We do this after the conversion into tofu.InputValues, as the
+	// defaults have already been converted into cty.Value objects.
+	for name, variable := range configVariables {
+		if _, exists := unparsedVariables[name]; exists {
+			// Then we don't want to apply the default for this variable as we
+			// already have a value.
+			continue
+		}
+
+		if variable.Default != cty.NilVal {
+			inputs[name] = &tofu.InputValue{
+				Value:       variable.Default,
+				SourceType:  tofu.ValueFromConfig,
+				SourceRange: tfdiags.SourceRangeFromHCL(variable.DeclRange),
+			}
+		}
+	}
+
+	return inputs, diags
+}
+
 // prepareInputVariablesForAssertions creates a tofu.InputValues mapping
 // that contains all the variables defined for a given run and file, alongside
 // any unset variables that have defaults within the provided config.
@@ -1107,7 +1157,9 @@ func (v testVariableValueExpression) ParseVariableValue(mode configs.VariablePar
 // available are also defined in the config. It returns a function that resets
 // the config which must be called so the config can be reused going forward.
 func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs.Config, run *moduletest.Run, file *moduletest.File, globals map[string]backend.UnparsedVariableValue) (tofu.InputValues, func(), tfdiags.Diagnostics) {
-	ctx := getEvalContextFromStates(runner.States)
+	var diags tfdiags.Diagnostics
+	ctx, ctxDiags := getEvalContextForTest(runner.States, config, globals)
+	diags = diags.Append(ctxDiags)
 
 	variables := make(map[string]backend.UnparsedVariableValue)
 
@@ -1148,34 +1200,9 @@ func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs
 
 	// We've gathered all the values we have, let's convert them into
 	// tofu.InputValues so they can be passed into the OpenTofu graph.
-
-	inputs := make(tofu.InputValues, len(variables))
-	var diags tfdiags.Diagnostics
-	for name, variable := range variables {
-		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
-		diags = diags.Append(valueDiags)
-		inputs[name] = value
-	}
-
-	// Next, we're going to apply any default values from the configuration.
-	// We do this after the conversion into tofu.InputValues, as the
-	// defaults have already been converted into cty.Value objects.
-
-	for name, variable := range config.Module.Variables {
-		if _, exists := variables[name]; exists {
-			// Then we don't want to apply the default for this variable as we
-			// already have a value.
-			continue
-		}
-
-		if variable.Default != cty.NilVal {
-			inputs[name] = &tofu.InputValue{
-				Value:       variable.Default,
-				SourceType:  tofu.ValueFromConfig,
-				SourceRange: tfdiags.SourceRangeFromHCL(variable.DeclRange),
-			}
-		}
-	}
+	// Also, apply default values from the configuration variables where applicable.
+	inputs, valDiags := parseAndApplyDefaultValues(variables, config.Module.Variables)
+	diags.Append(valDiags)
 
 	// Finally, we're going to do a some modifications to the config.
 	// If we have got variable values from the test file we need to make sure
