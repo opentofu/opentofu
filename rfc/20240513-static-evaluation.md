@@ -59,6 +59,9 @@ When first running `tofu init`, two errors will be produced:
 
 The variable "key" can either be provided with via a `terraform.tfvars` file or a cli flag `-var "key=somevalue"`. This implies that the `-var` cli flag will need to be added to most OpenTofu commands.
 
+> [!NOTE]
+> Instead of producing an error in this scenario, we could instead ask the user to provide values for the required variables. This already occurs as part of the provider configuration process. We could unify that process as well to reduce code duplication and [odd workarounds](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/tofu/context_input.go#L22-L48).
+
 Let's now consider what happens when `tofu apply` is run. If `terraform.tfvars` or `-var "key="` have changed, the backend configuration will no longer match the configuration during `tofu init` and will return an error to the user. This will require users to be considerate of what vars they are allowing in backends and how they are managed as a team. That said, there are clear guide-rails already in place for most scenarios where configuration does not match expectation.
 
 As shown by users looking to use values in backends today, someone will eventually try to use a "dynamic" value (resource/data) in a backend configuration:
@@ -515,9 +518,10 @@ We should keep performance in mind for which solution we choose for the static e
 
 ### Open Questions
 
-#### Core functions
+Do we want to support asking for variable values when required but not provided? This is already an established pattern, but may require additional work. It may be prudent to defer this until a later iteration. See above note on provider configuration in the first user error example.
+
 Do we want to support the core OpenTofu functions in the static evaluation context? Probably as it would be fairly trivial to hook in.
-#### Provider functions
+
 Do we want to support provider functions during this static evaluation phase? I suspect not, without a good reason as the development costs may be significant with minimal benefit. It is trivial to detect someone attempting to use a provider function in an expression/body and to mark the expression result as dynamic.
 
 ### Future Considerations
