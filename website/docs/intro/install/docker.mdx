@@ -32,11 +32,20 @@ To pull platform-specific images (`amd64`, `arm`, `arm64`, `386`) use:
 
 ## Usage
 
-To pull the image from GitHub Packages registry:
+1. Create your `main.tf` file. Example:
+```hcl
+resource "null_resource" "default" {
+  provisioner "local-exec" {
+    command = "echo 'hello world!'"
+  }
+}
+```
+
+2. Pull the image from GitHub Packages registry:
 
 <CodeBlock language="bash">{DockerPullScript}</CodeBlock>
 
-To run OpenTofu as a Docker container:
+3. Run OpenTofu as a Docker container:
 
 <CodeBlock language="bash">{DockerRunScript}</CodeBlock>
 
