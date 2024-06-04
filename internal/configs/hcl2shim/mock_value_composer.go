@@ -94,7 +94,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
 			mockAttrs[k] = cv
-			addPotentialDefaultsWarning(k, "The field is ignored since overriding configuration values not allowed.")
+			addPotentialDefaultsWarning(k, "The field is ignored since overriding configuration values is not allowed.")
 			continue
 		}
 
@@ -102,7 +102,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// so we set them from configuration only.
 		if !attr.Computed {
 			mockAttrs[k] = cty.NullVal(attr.Type)
-			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields not allowed.")
+			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields is not allowed.")
 			continue
 		}
 
@@ -130,7 +130,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
 				"Failed to generate mock value",
-				fmt.Sprintf("Mock value cannot be generated for dynamic type. Please, specify `%v` field explicitly in configuration.", k),
+				fmt.Sprintf("Mock value cannot be generated for dynamic type. Please specify the `%v` field explicitly in the configuration.", k),
 			))
 			continue
 		}
