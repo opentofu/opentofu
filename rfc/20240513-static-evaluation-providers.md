@@ -148,15 +148,15 @@ However, there is a bit of a snag. Due to how the HCL package is designed, we ca
 
 #### Provider Alias Mappings
 
-I'll preface this by saying that this understanding of the current OpenTofu code may be incorrect or incomplete. It is a wild mix of legacy patterns and fallbacks that is hard to reason about. It is based on [Provider References](../docs/provider-references.md#Provider-Workflow)
+The following understanding of the current OpenTofu code may be incorrect or incomplete. It is a wild mix of legacy patterns and fallbacks that is hard to reason about. It is based on [Provider References](../docs/provider-references.md#Provider-Workflow)
 
-Providers and there aliases are:
+Providers and their aliases are:
 * Fully known at init/config time
 * Hacked into the graph via ProviderTransformers
 * Attached to *Unexpanded* modules/resources in the graph
 * Linked to *Unexpanded* resources in the graph.
 
-Let's desconstruct each of these challenges individually:
+Let's deconstruct each of these challenges individually:
 
 ##### Providers through Init/Configuration:
 
@@ -259,7 +259,7 @@ The module providers block already deals with provider aliases and has complex r
 
 All of that logic boils down into a simplified view of what `addrs.AbsProviderConfig`s are available globally and how `addrs.LocalProviderConfig`s map to them at a module level.
 
-By making the `config.Module`'s provider data indexable by an instance key, we can provide still directly provide that view while allowing index information to be preserved.
+By making the `config.Module`'s provider data indexable by an instance key, we can still directly provide that view while allowing index information to be preserved.
 
 This section is not fully fleshed out, but should be reasonable to implement given what is currently known about the provider reference structures.
 
@@ -281,8 +281,9 @@ terraform {
 ```
 
 There's also an ongoing discussion on allowing variable names in provider aliases.
+
 Example:
-```
+```hcl
 # Why would you want to do this?  It looks like terraform deprecated this some time after 0.11.
 provider "aws" {
   alias = var.foo
@@ -290,6 +291,8 @@ provider "aws" {
 ```
 
 ### Future Considerations
+
+If we ever decide to implement Static Module Expansion, how will that interact with the work proposed in this RFC?
 
 ## Potential Alternatives
 
