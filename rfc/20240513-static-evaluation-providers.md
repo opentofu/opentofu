@@ -5,17 +5,17 @@ Issue: https://github.com/opentofu/opentofu/issues/300
 Since the introduction of for_each/count, users have been trying to use each/count in provider configurations and resource/module mappings. Providers are a special case throughout OpenTofu and interacting with them either as a user or developer requires significant care.
 
 > [!Note]
-> Please read [Provider References](../docs/provider-references.md) before diving into this section!
+> Please read [Provider References](../docs/provider-references.md) before diving into this section! This document uses the same terminology and formatting.
 
 ## Proposed Solution
 
-The approach proposed in the [Static Evaluation RFC](20240513-static-evaluation.md) can be extended to support provider for_each/count with some clever code and lots of testing. It is assumed that the reader has gone through the Static Evaluation thoroughly before continuing here.
+The approach proposed in the [Static Evaluation RFC](20240513-static-evaluation.md) can be extended to support provider for_each/count with some clever code and lots of testing. It is assumed that the reader has gone through the Static Evaluation RFC thoroughly before continuing here.
 
 ### User Documentation
 
 #### Provider Configuration Expansion
 
-The first change is to support static variables in the provider config block:
+First, we need to define what is expected when a user adds for_each/count to a provider configuration:
 ```hcl
 locals {
   regions = {"us": "us-east-1", "eu": "eu-west-1"}
@@ -23,28 +23,55 @@ locals {
 
 provider "aws" {
   for_each = local.regions
-  alias = each.key # Defines aliases aws.eu and aws.us
   region = each.value
 }
+```
 
-# Uses the AWS US Provider
+At first glance, this looks fairly straightforward. Following the rules in place with resources, we would expect `aws["us"]` and `aws["eu"]` to be valid.
+
+What happens if you have another aws provider with the alias of `"us"` (`aws.us`)? That would be incredibly confusing to end users. Therefore, we should consider that provider "indices" and provider aliases are identical concepts. In that previous example both `aws["us"]` and `aws.us` would both be defined.
+
+
+Providers already have an alias field, how will this interact with for_each/count?
+```hcl
+provider "aws" {
+  for_each = local.regions
+  alias = "HARDCODED"
+  region = each.value
+}
+```
+
+This would produce two provider configurations: `aws.HARDCODED` and `aws.HARDCODED`, an obvious conflict. We could try to be smart and try to make sure that the keys are identical and in some way derived from the iteration. That approach is complex, likely error prone, and confusing to the user. Instead, we should not allow users to provide the alias field when for_each/count are present.
+
+
+What if a user tries to use a resource output in a provider for_each? In an ideal world, this would be allowed as long as there is not a cyclic dependency. However, due to the way providers are resolved deep in OpenTofu this would require a near rewrite of the core provider logic. Here we rely on the ideas set forth in the Static Evaluation RFC and only allow values known during configuration processing (locals/vars). Anything dynamic like resources/data will be forbidden for now.
+
+
+With the provider references clarified, we can now use the providers defined above in resources:
+
+```hcl
 resource "aws_s3_bucket" "primary" {
   for_each = local.regions
-  provider = aws.us # Note the provider alias above.
+  provider = aws.us # Uses the existing reference format
 }
 
-# Uses the AWS EU Provider
+locals {
+  region = "eu"
+}
+
 module "mod" {
   source = "./mod"
   providers {
-    aws = aws.eu # Note the provider alias above.
+    aws = aws[local.region] # Uses the new reference format.
   }
 }
 ```
 
 
 #### Provider Alias Mappings
-The next step is to support provider aliases indexed by an expression, which is quite a bit trickier.
+
+Now that we can reference providers via variables, how should this interact with for_each / count in resources and modules?
+
 ```hcl
 locals {
   regions = {"us": "us-east-1", "eu": "eu-west-1"}
@@ -52,134 +79,189 @@ locals {
 
 provider "aws" {
   for_each = local.regions
-  alias = each.key # Could theoretically default to each.key if not specified.  It must use each.key/value in some fashion.
   region = each.value
 }
 
 resource "aws_s3_bucket" "primary" {
   for_each = local.regions
-  provider = provider.aws[each.key]
+  provider = aws[each.key]
 }
 
 module "mod" {
   for_each = local.regions
   source = "./mod"
   providers {
-    aws = provider.aws[each.key]
+    aws = aws[each.key]
   }
 }
 ```
 
-As you can see, the `provider.name[alias]` form is introduced in that example.  This allows providers named "local" or other conflicting names, and clearly shows that it's referencing a particular instance of a given type.
+From a user perspective, this provider mapping fairly simple to understand. As we will show in the Technical Approach, this will be quite difficult to implement.
+
+
+#### What's not currently allowed
+
+There are scenarios that users might think could work, but we don't want to support at this time.
+
+
+Storing a provider reference in a local or passing it as a variable
+```hcl
+locals {
+  my_provider = aws["us"]
+}
+
+resource "aws_s3_bucket" "primary" {
+  provider = local.my_provider
+}
+```
+It's not well defined what a "provider reference" is outside of a "provider/providers" block. All of the provider references are built as special cases that are handed beside the code and not as part of it directly.
+
+
+Using the "splat/*" operator in module providers block:
+```hcl
+module "mod" {
+  source = "./mod"
+  providers {
+    aws[*] = aws[*]
+  }
+}
+```
+This implies that all aliased aws providers would be passed into the child module.
 
 ### Technical Approach
 
 #### Provider Configuration Expansion
 
-Expanding provider configurations can be done using the StaticContext availalble in `configs.NewModule()` as defined in the StaticEvaluation RFC. At the end of the NewModule constructor, the configured provider's aliases can be expanded using the each/count, similar to how [module.ProviderLocalNames](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L186) is generated. This does not require any special workarounds.
+##### Expansion
+
+Expanding provider configurations can be done using the StaticContext available in `configs.NewModule()` as defined in the Static Evaluation RFC.
+
+At the end of the NewModule constructor, the configured provider's aliases can be expanded using the each/count, similar to how [module.ProviderLocalNames](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L186) is generated. This does not require any special workarounds and will resemble most other applications of the StaticContext.
+
+New validation rules will be added per the User Documentation above, all of which closely resemble existing checks and do not require engineering discussion.
+
+##### Evaluation
+
+Using static variables in provider/providers fields is also fairly straightforward. We use the StaticContext as designed to evaluate the expression.
+
+However, there is a bit of a snag. Due to how the HCL package is designed, we can't directly evaluate `aws["foo"]` without knowing the values of the `aws` map. We will need to defer evaluating the provider/providers block until after the each/count expansion defined above is run. Once the full map of local provider names is known in the module, it can be used to check and evaluate the provider/providers fields. This deferred evaluation will be done in the NewModule constructor as well.
 
 #### Provider Alias Mappings
 
-To fully implement static provider alias mappings with for_each/count, the provider reference system throughout the configs package and the tofu package must be significantly changed:
-* Introduce an alternate provider address method and updating documentation
-* Provider mappings for modules and resources are hard-coded at config load time on an *unexpanded* view of the config/graph structures, see `configs.NewModule` and `configs.Module`'s provider fields.
-* Provider configurations are [pruned during graph processing](../docs/provider-references.md#Provider-Workflow)
+I'll preface this by saying that this understanding of the current OpenTofu code may be incorrect or incomplete. It is a wild mix of legacy patterns and fallbacks that is hard to reason about. It is based on [Provider References](../docs/provider-references.md#Provider-Workflow)
 
-Approach explored in this RFC:
-* Make the provider reference system a bit looser until the point in which it's actually needed
-  - The main challenge is the convoluted reference system and graph transforms built around it.
-  - An *unexpanded* module or resource could depend on a single provider type, but refer to multiple aliases
-    - The for_each/count values would be known and could be used to determine the aliases required
-  - Expanded modules/resources could then refer to a specific alias of the provider required by the unexpanded parent.
+Providers and there aliases are:
+* Fully known at init/config time
+* Hacked into the graph via ProviderTransformers
+* Attached to *Unexpanded* modules/resources in the graph
+* Linked to *Unexpanded* resources in the graph.
 
+Let's desconstruct each of these challenges individually:
 
-For now this, is mostly a brain dump of the initial exploration.
+##### Providers through Init/Configuration:
 
-We assume that `provider.aws["foo"]` is equivalent to `aws.foo` in the provider config reference as it's easiest if they both use the same alias.  Therefore, the provider for_each expansion is trivial and can be completely calculated during the config phase (replace mod.ProviderConfigs with an expanded view using the static context).
+Each configs.Module contains fields which define how the module understands it's local provider references and provider configurations. As defined in Expansion above, we can use the StaticContext to fully build out these maps.
 
+The next piece of data that's import to the config layer is which `addrs.LocalProviderConfig` (and therefore `addrs.AbsProviderConfig`) a resource or module requires. The entire config system is (currently) blissfully unaware that instances of modules and resources may want different configurations of the same provider.
 
-Let's first consider the simpler case of specifying a resource's provider. The resource provider field is either a name or name+alias.  These both refer to providers within the current module and do not have any prefix/path associated.  Let's limit ourselves to not support different provider names within a `provider =` field and only allow the alias to be manipulated. `provider = provider[var.name][var.alias]` vs `provider = provider.name[var.alias]`.
+Resources and Modules can be queried about which provider they reference. Due to legacy / implicit reasons, it is a bit of a complex question. The Resource and Module structures contain `configs.ProviderConfigRefs`, which is a config-friendly version of `addrs.LocalProviderConfig` (includes ranges).
 
-With this limitation, a provider's name is always known and therefore the type will always be known.  The alias, however is malleable.  The majority of the opentofu codebase only cares about names/types and is quite happy when that is unchanging (not altered in for_each).  The alias however is much more flexible and only used in a few critical places, mostly in the provider transformer with values from resource nodes.
+Interestingly the majority of the code that uses `configs.ProviderConfigRefs` only cares about using it to look up the `addrs.Provider` and *does not care about the alias*. This will be one of the keys to surgically adding in support for per-instance provider aliases.
 
-Let's consider the resource above. It depends on the provider with a name 'aws' and it is known at config time that it's eventual expanded instances will require aws.us and aws.eu. We could have the unexpanded resource node depend on both providers being configured and ready for use before performing the expansion and assigning each provider to their respective expanded resource instance.
+We could therefore track a unaliased `addrs.LocalProviderConfig` (which points to an `addrs.Provider`) through most of the config code, and maintain a map within resources/modules that define "Instance Key" -> "Provider Alias" to be used much later on when that information is actually required.
 
-```
-Graph:
-resource.aws_s3_bucket -> provider.aws.us, provider.aws.eu
-Expanded:
-resource.aws_s3_bucket["us"] -> provider.aws.us
-resource.aws_s3_bucket["eu"] -> provider.aws.eu
-```
+##### Providers in the graph
 
-The unexpanded resource depending on both provider nodes is critical for two reasons:
-* The provider transformers try to identify unused providers and remove them from the graph.  This happens pre-expansion before the instanced links are established.
+As previously mentioned, the ProviderTransformers are tasked with inspecting the providers defined in configuration and attatching them to resources.
+
+They inspect all nodes in the graph that say "Hey I require a Provider!" AKA `tofu.GraphNodeProviderConsumer`. This interface allows nodes to specify a single provider that they require be configured (if applicable) before being evaluated.
+
+As mentioned before, one of the key issues is that *unexpanded* resources don't currently understand the concept of different provider aliases for the instances they will expand into. With the "Instance Key" -> "Provider Alias" map created in the previous section, the unexpanded resource can now understand and needs to express that each instance depends on a specific aliased `addrs.AbsProviderConfig` (all with the same `addrs.Provider`). By changing the `tofu.GraphNodeProviderConsumer` to allow dependencies on a set of providers instead of a single provider, all of the required configured providers will be initialized before any instances are executed.
+
+The unexpanded resource depending on all required configured provider nodes is critical for two reasons:
+* The provider transformers try to identify unused providers and remove them from the graph. This happens pre-expansion before the instanced links are established.
 * A core assumption of the code is that expanded instances depend on identical or a subset of references that the unexpanded nodes do.
 
 
-Although the code ergonomics of modifying the transformers and resource nodes may not be great, it's a fairly surgical change that won't disrupt much of the rest of the codebase and can be tested and validated in isolation.
-
-Let's now consider the module scenario above.  Modules link providers by name through the config tree. Author's note: I don't fully grok this flow and this should be taken with a big grain of salt.
-
-```hcl
-# main.tf
-terraform {
-  required_providers { aws = { source = "hashicorp/aws" } }
-}
-provider "aws" {
-  for_each = local.regions
-  alias = each.key
-  region = each.value
-}
-module "mod" {
-  source = "./mod"
-  for_each = local.regions
-  providers {
-    magicsauce = provider.aws[each.key]
-  }
-}
-```
-```hcl
-# mod/main.tf
-terraform {
-  required_providers { magicsauce = { source = "hashicorp/aws" } }
-}
-resource "aws_s3_bucket" "primary" {
-  provider = magicsauce
-}
+That's a lot to take in, a diagram may be clearer:
+```mermaid
+graph LR;
+configs.Resource-->tofu.Resource;
+tofu.Resource-->Providers;
+Providers-->KeyA;
+Providers-->KeyB;
+KeyA-->tofu.Provider.A;
+KeyB-->tofu.Provider.B;
+tofu.Resource-->Expansion;
+Expansion-.->tofu.ResourceInstance.A;
+Expansion-.->tofu.ResourceInstance.B;
+tofu.ResourceInstance.A -->tofu.Provider.A;
+tofu.ResourceInstance.B -->tofu.Provider.B;
 ```
 
-This would imply:
-* The root module requires a provider of type "hashicorp/aws" with name "aws"
-* There are two aliased provider configurations for provider with name "aws": aws.eu and aws.us
-* The ModuleCall "mod" maps a provider named "magicsauce" to both aws.eu and aws.us, depending on the instance it's used in (not known at config time).
-* The resulting module "mod" requires a provider of type "hashicorp/aws" with name "magicsauce", this is linked in via the module call.
-  - There are two options that won't be known which is used until later on.
-* The resource "aws_s3_bucket" (which could also be "magicsauce_s3_bucket") depends on a provider named or typed: "aws" or "margicsauce"
+That shows that although each tofu.ResourceInstance depends on a single provider alias, to evaluate and expand the tofu.Resource, all of the providers required for the instances must already be initialized and configured.
+
+It is also worth noting that for "tofu validate" (also run pre plan/apply), the graph is walked *unexpanded* but still uses the providers to validate the config schema. Although we are allowing different "Configured Provider Instances" for each ResourceInstance, the actual "addrs.Provider" must remain the same.
+
+Although complex, this approach builds on top of and expands existing structures within the OpenTofu codebase. It is evolutionary, not revolutionary as compared to [Static Module Expansion](20240513-static-evaluation/module-expansion.md).
+
+##### Providers in the State
+
+This is the last "tall pole" to knock down for instanced provider alias mapping.
+
+The state currently is formatted in such a way that the `addrs.AbsProviderConfig` of an *unexpanded* resource is serialized and attached to the resource itself and not each instance.
+
+Example (with relavent fields only):
+```json
+{
+  "module": "module.dummy",
+  "type": "tfcoremock_simple_resource",
+  "name": "resource",
+  "provider": "module.dummy.provider[\"registry.opentofu.org/hashicorp/tfcoremock\"].alias",
+  "instances": [
+    {
+      "index_key": "first"
+    },
+    {
+      "index_key": "second"
+    }
+  ]
+}
+```
+
+The simplest path forward is to use an un-aliased value for the provider if multiple aliases for the instances are detected. The provider could then be overridden by each instance.
+
+```json
+{
+  "module": "module.dummy",
+  "type": "tfcoremock_simple_resource",
+  "name": "resource",
+  "provider": "module.dummy.provider[\"registry.opentofu.org/hashicorp/tfcoremock\"]",
+  "instances": [
+    {
+      "index_key": "first",
+      "provider": "module.dummy.provider[\"registry.opentofu.org/hashicorp/tfcoremock\"].firstalias"
+    },
+    {
+      "index_key": "second",
+      "provider": "module.dummy.provider[\"registry.opentofu.org/hashicorp/tfcoremock\"].secondalias"
+    }
+  ]
+}
+```
+
+This change would keep the state file reasonably compatible and not require a new version. Inspecting the history of the state file versioning, this fits well within changes allowed in the same version.
 
 
-Consider:
-* How are these mappings represented currently in code structures? It's a bit convoluted as would be expected
-* How much does the config package understand about aliasing and can it be abstracted out?
-* How does the resource decide which "magicsauce" to use?
-  - The unexpanded resource would depend on both instances
-  - Once expanded, the module expansion key would be used to look up the provider instance
-  - This implies aliased providers addresses can be resolved given a ModuleInstance path?
-* How does this impact state?
-  - Resource instances all currently point to a single provider type + alias
-  - We could introduce "provider_alias" in state and bump the version number
-  - Could also be a good reason to consider pre-expansion?
-* What happens if "magicsauce" is passed into another module?
-  - During config loading, the name/type is known but the alias can be multiple things?
-  - Each level down providers aliases must be made "deferred"
-  - This implies aliased providers addresses can be resolved given a ModuleInstance path?
+#### Module Provider Map
 
+The module providers block already deals with provider aliases and has complex resolution logic baked into the config package. This logic validates the required and implied providers, as well as fully filling out the provider mapping throughout the module config tree.
 
+All of that logic boils down into a simplified view of what `addrs.AbsProviderConfig`s are available globally and how `addrs.LocalProviderConfig`s map to them at a module level.
 
-#### Conclusion:
+By making the `config.Module`'s provider data indexable by an instance key, we can provide still directly provide that view while allowing index information to be preserved.
 
-The provider mapping system is quite bodged together and we will need to understand it's idiosyncrasies before making large changes.  It's fun to think of how this evolved from older versions of this code (v0.11 for example).  This has started to be pieced together in [Provider References](./docs/provider-references.md)
-
+This section is not fully fleshed out, but should be reasonable to implement given what is currently known about the provider reference structures.
 
 ### Open Questions
 
@@ -198,7 +280,7 @@ terraform {
 }
 ```
 
-There's also an ongoing discussion in the linked issue on allowing variable names in provider aliases.
+There's also an ongoing discussion on allowing variable names in provider aliases.
 Example:
 ```
 # Why would you want to do this?  It looks like terraform deprecated this some time after 0.11.
@@ -215,6 +297,4 @@ Go the route of expanded modules/resources as detailed in [Static Module Expansi
 - Concept has been explored for modules
 - Not yet explored for resources
 - Massive development and testing effort!
-
-At this point, we now need to determine if pre-expanding modules and resources is simpler / less risk than changing provider mappings to be deferred through the entire application. Initial gut feeling is that provider mappings are fairly isolated to a few complex pieces of code, whereas module/resource expansion complexity is deeply ingrained in the whole codebase.
 
