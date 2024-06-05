@@ -3,7 +3,7 @@
 Issue: https://github.com/opentofu/opentofu/issues/1275 
 
 ## Motivation
-Today, OpenTofu uses the `.tf` extension files as the main configuration files. This is the result of forking Terraform 1.6. As time goes by, the OpenTofu code starts to diverge from the original Terraform codebase in different ways:
+Today, OpenTofu uses the `.tf` extension files as the main configuration files. This is the result of forking Terraform ~1.5.5. As time goes by, the OpenTofu code starts to diverge from the original Terraform codebase in different ways:
 1. OpenTofu adds new features that are not supported by Terraform, like [State Encryption](https://opentofu.org/docs/language/state/encryption/) and [Dynamic Provider-Defined Functions](https://opentofu.org/docs/intro/whats-new/#provider-defined-functions).
 2. OpenTofu and Terraform are likely to have similar features with different implementations and syntax usage. For example, OpenTofu's [Removed block](https://opentofu.org/docs/intro/whats-new/#removed-block).
 3. In the future, Terraform might introduce new features that are not supported by OpenTofu.
@@ -59,7 +59,7 @@ As part of this RFC we'll address the following user stories, and try to underst
 
 #### I’m a module developer who wants to write a module supporting TF and Tofu
 Today:  
-As a module developer, I want to start supporting OpenTofu in my module, so my users can use it with both OpenTofu and Terraform. Today, my module automatically supports both Terraform and OpenTofu for features that were released until 1.6 for both projects. The problem starts when I want to use new features that were released in versions > 1.6:
+As a module developer, I want to start supporting OpenTofu in my module, so my users can use it with both OpenTofu and Terraform. Today, my module automatically supports both Terraform and OpenTofu for features that were released until ~1.5.5 for both projects. The problem starts when I want to use new features that were released in versions > ~1.5.5:
 1. If I want to use a new OpenTofu feature that is not supported by Terraform (for example, [urldecode function](https://opentofu.org/docs/language/functions/urldecode/)), I can't use it in my module because it will break the Terraform compatibility.
 2. If I want to use a compatible feature that was released in both OpenTofu and Terraform, I might still have an issue because the versions that include this feature in both projects might be different (for example, [Provider-Defined Functions](https://opentofu.org/docs/language/functions/#provider-defined-functions) was released in OpenTofu v.1.7.0 and in Terraform 1.8.0). This causes me a problem when setting the `required_version` [setting](https://opentofu.org/docs/language/settings/#specifying-a-required-opentofu-version) as I can't define two different minimum versions for OpenTofu and Terraform in the same module.
 
