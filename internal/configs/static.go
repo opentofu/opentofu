@@ -6,23 +6,22 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
 type StaticIdentifier struct {
-	Module string
-	Type   string
-	Name   string
+	Module    addrs.Module
+	Subject   addrs.Referenceable
+	DeclRange hcl.Range
 }
 
 func (ref StaticIdentifier) String() string {
-	val := ref.Name
-	if len(ref.Type) != 0 {
-		val = ref.Type + "." + val
-	}
+	val := ref.Subject.String()
 	if len(ref.Module) != 0 {
-		val = ref.Module + "." + val
+		val = ref.Module.String() + "." + val
 	}
 	return val
 }
@@ -55,8 +54,8 @@ type VariableValueFunc func(VariableParsingMode) (cty.Value, hcl.Diagnostics)
 type RawVariables map[string]VariableValueFunc
 
 type StaticModuleCall struct {
-	// Absolute Module Name
-	Name string
+	// Absolute Module Addr
+	Addr addrs.Module
 	Raw  RawVariables     // CLI
 	Call StaticReferences // Module Call
 }
@@ -78,8 +77,7 @@ func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Pa
 		locals: make(StaticReferences),
 		workspace: StaticReference{
 			Identifier: StaticIdentifier{
-				Type: "terraform",
-				Name: "workspace",
+				Subject: addrs.TerraformAttr{Name: "workspace"},
 			},
 			Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 				return cty.StringVal("TODO"), nil
@@ -103,9 +101,9 @@ func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Pa
 func (s *StaticContext) addVariable(variable *Variable) {
 	s.vars[variable.Name] = StaticReference{
 		Identifier: StaticIdentifier{
-			Module: s.Params.Name,
-			Type:   "var",
-			Name:   variable.Name,
+			Module:    s.Params.Addr,
+			Subject:   addrs.InputVariable{Name: variable.Name},
+			DeclRange: variable.DeclRange,
 		},
 		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			// This is a raw value passed in via the command line.
@@ -135,140 +133,155 @@ func (s *StaticContext) addVariable(variable *Variable) {
 	}.Cached()
 }
 
-func traversalToIdentifier(ident hcl.Traversal) (StaticIdentifier, hcl.Diagnostics) {
-	// Everything *should* be root.attr
-	root, rootOk := ident[0].(hcl.TraverseRoot)
-	attr, attrOk := ident[1].(hcl.TraverseAttr)
-	if !rootOk || !attrOk {
-		return StaticIdentifier{}, hcl.Diagnostics{&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid reference, expected x.y",
-			Subject:  ident.SourceRange().Ptr(),
-		}}
-	}
-	return StaticIdentifier{Type: root.Name, Name: attr.Name}, nil
+type ScopeData struct {
+	sctx   *StaticContext
+	source StaticIdentifier
+	stack  []StaticIdentifier
 }
 
-func (s *StaticContext) followTraversal(trav hcl.Traversal) (*StaticReference, hcl.Diagnostics) {
-	ident, diags := traversalToIdentifier(trav)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	switch ident.Type {
-	case "var":
-		variable, ok := s.vars[ident.Name]
-		if !ok {
-			return nil, hcl.Diagnostics{&hcl.Diagnostic{
+func (s ScopeData) StaticValidateReferences(refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, ref := range refs {
+		switch subject := ref.Subject.(type) {
+		case addrs.TerraformAttr:
+			continue
+		case addrs.LocalValue:
+			continue
+		case addrs.InputVariable:
+			continue
+		default:
+			diags = diags.Append(hcl.Diagnostics{&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Undefined variable",
-				Detail:   fmt.Sprintf("Undefined variable %s", ident.String()),
-				Subject:  trav.SourceRange().Ptr(),
-			}}
+				Summary:  "Dynamic value in static context",
+				Detail:   fmt.Sprintf("Unable to use %s in static context", subject.String()),
+				Subject:  ref.SourceRange.ToHCL().Ptr(),
+			}})
 		}
-		return &variable, nil
-	case "local":
-		local, ok := s.locals[ident.Name]
-		if !ok {
-			return nil, hcl.Diagnostics{&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Undefined local",
-				Detail:   fmt.Sprintf("Undefined local %s", ident.String()),
-				Subject:  trav.SourceRange().Ptr(),
-			}}
-		}
-		return &local, nil
-	case "terraform":
-		return &s.workspace, nil
-	default:
-		return nil, hcl.Diagnostics{&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Dynamic value in static context",
-			Detail:   fmt.Sprintf("Unable to use %s in static context", ident.String()),
-			Subject:  trav.SourceRange().Ptr(),
-		}}
 	}
+	return diags
 }
 
-func (s *StaticContext) buildEvaluationContext(deps []hcl.Traversal, source StaticIdentifier, stack []StaticIdentifier) (*hcl.EvalContext, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
+func (s ScopeData) GetCountAttr(addrs.CountAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	panic("Not Available in Static Context")
+}
+func (s ScopeData) GetForEachAttr(addrs.ForEachAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	panic("Not Available in Static Context")
+}
+func (s ScopeData) GetResource(addrs.Resource, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	panic("Not Available in Static Context")
+}
 
-	variables := make(map[string]map[string]cty.Value)
+func (s ScopeData) eval(ref StaticReference) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 
-	for _, ident := range deps {
-		ref, rDiags := s.followTraversal(ident)
-		diags = append(diags, rDiags...)
-
-		if rDiags.HasErrors() {
-			// Something critical happened, invalid reference
-			continue
+	circular := false
+	for _, frame := range s.stack {
+		if frame.String() == s.source.String() {
+			circular = true
+			break
 		}
-
-		if _, ok := variables[ref.Identifier.Type]; !ok {
-			variables[ref.Identifier.Type] = make(map[string]cty.Value)
-		}
-
-		circular := false
-		for _, frame := range stack {
-			if frame.String() == source.String() {
-				circular = true
-				break
-			}
-		}
-		if circular {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Circular reference",
-				Detail:   fmt.Sprintf("%s is self referential", ref.Identifier.String()), // TODO use stack in error message
-				Subject:  ident.SourceRange().Ptr(),
-			})
-			continue
-		}
-
-		val, vDiags := ref.Value(append(stack, ref.Identifier))
-		diags = append(diags, vDiags...)
-		if vDiags.HasErrors() {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unable to compute static value",
-				Detail:   fmt.Sprintf("%s depends on %s which is not available", source.String(), ref.Identifier.String()),
-				Subject:  ident.SourceRange().Ptr(),
-			})
-		}
-
-		variables[ref.Identifier.Type][ref.Identifier.Name] = val
+	}
+	if circular {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Circular reference",
+			Detail:   fmt.Sprintf("%s is self referential", ref.Identifier.String()), // TODO use stack in error message
+			Subject:  ref.Identifier.DeclRange.Ptr(),
+		})
+		return cty.NilVal, diags
 	}
 
-	if diags.HasErrors() {
-		return nil, diags
+	val, vDiags := ref.Value(append(s.stack, ref.Identifier))
+	diags = diags.Append(vDiags)
+	if vDiags.HasErrors() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unable to compute static value",
+			Detail:   fmt.Sprintf("%s depends on %s which is not available", s.source.String(), ref.Identifier.String()),
+			Subject:  ref.Identifier.DeclRange.Ptr(),
+		})
 	}
+	return val, diags
+}
 
-	ctx := &hcl.EvalContext{
-		Variables: map[string]cty.Value{},
-		Functions: (&lang.Scope{PureOnly: true}).Functions(),
+func (s ScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	local, ok := s.sctx.locals[ident.Name]
+	if !ok {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Undefined local",
+			Detail:   fmt.Sprintf("Undefined local %s", ident.String()),
+			Subject:  rng.ToHCL().Ptr(),
+		})
 	}
+	return s.eval(local)
+}
+func (s ScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	panic("Not Available in Static Context")
+}
+func (s ScopeData) GetPathAttr(addrs.PathAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	// TODO
+	panic("Not Available in Static Context")
+}
+func (s ScopeData) GetTerraformAttr(ident addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 
-	for ty, o := range variables {
-		ctx.Variables[ty] = cty.ObjectVal(o)
+	if ident.Name != "workspace" {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Undefined terraform attr",
+			Detail:   fmt.Sprintf("Undefined %s", ident.String()),
+			Subject:  rng.ToHCL().Ptr(),
+		})
 	}
+	// TODO shortcut
+	return s.eval(s.sctx.workspace)
+}
+func (s ScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 
-	return ctx, nil
+	variable, ok := s.sctx.vars[ident.Name]
+	if !ok {
+		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Undefined variable",
+			Detail:   fmt.Sprintf("Undefined variable %s", ident.String()),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	}
+	return s.eval(variable)
+}
+func (s ScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	panic("Not Available in Static Context")
+}
+func (s ScopeData) GetCheckBlock(addrs.Check, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	panic("Not Available in Static Context")
+}
+
+func (s *StaticContext) scope(ident StaticIdentifier, stack []StaticIdentifier) *lang.Scope {
+	return &lang.Scope{
+		Data:     ScopeData{s, ident, stack},
+		ParseRef: addrs.ParseRef,
+		//SourceAddr: ident.Subject?
+		//TODO BaseDir string
+		//TODO PureOnly bool
+		//ConsoleMode bool
+	}
 }
 
 func (s *StaticContext) addLocal(local *Local) {
 	ident := StaticIdentifier{
-		Module: s.Params.Name,
-		Type:   "local",
-		Name:   local.Name,
+		Module:    s.Params.Addr,
+		Subject:   addrs.LocalValue{Name: local.Name},
+		DeclRange: local.DeclRange,
 	}
 	s.locals[local.Name] = StaticReference{
 		Identifier: ident,
 		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-			ctx, diags := s.buildEvaluationContext(local.Expr.Variables(), ident, stack)
-			if diags.HasErrors() {
-				return cty.NilVal, diags
-			}
-			return local.Expr.Value(ctx)
+			val, diags := s.scope(ident, stack).EvalExpr(local.Expr, cty.DynamicPseudoType)
+			return val, diags.ToHCL()
 		},
 	}.Cached()
 }
@@ -277,27 +290,40 @@ func (s StaticContext) Evaluate(expr hcl.Expression, ident StaticIdentifier) Sta
 	return StaticReference{
 		Identifier: ident,
 		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-			ctx, diags := s.buildEvaluationContext(expr.Variables(), ident, stack)
-			if diags.HasErrors() {
-				return cty.NilVal, diags
-			}
-			return expr.Value(ctx)
+			val, diags := s.scope(ident, stack).EvalExpr(expr, cty.DynamicPseudoType)
+			return val, diags.ToHCL()
 		},
 	}.Cached()
 }
 
 // This is heavily inspired by gohcl.DecodeExpression
 func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
-	ctx, diags := s.buildEvaluationContext(expr.Variables(), ident, nil)
+	refs, diags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	if diags.HasErrors() {
-		return diags
+		return diags.ToHCL()
+	}
+
+	// TODO overrides diag warnings
+	ctx, diags := s.scope(ident, nil).EvalContext(refs)
+	if diags.HasErrors() {
+		return diags.ToHCL()
 	}
 
 	return gohcl.DecodeExpression(expr, ctx, val)
 }
 
 func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-	ctx, diags := s.buildEvaluationContext(hcldec.Variables(body, spec), ident, nil)
+	refs, rdiags := lang.References(addrs.ParseRef, hcldec.Variables(body, spec))
+	if rdiags.HasErrors() {
+		return cty.NilVal, rdiags.ToHCL()
+	}
+
+	// TODO overrides diag warnings
+	ctx, cdiags := s.scope(ident, nil).EvalContext(refs)
+	diags := cdiags.ToHCL()
+	if cdiags.HasErrors() {
+		return cty.NilVal, cdiags.ToHCL()
+	}
 
 	val, valDiags := hcldec.Decode(body, spec, ctx)
 	if !diags.HasErrors() {

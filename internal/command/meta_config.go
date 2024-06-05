@@ -19,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -96,7 +97,7 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 	vars, vDiags := m.rootModuleVariables()
 	diags.Append(vDiags)
 
-	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticModuleCall{Name: "root", Raw: vars})
+	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticModuleCall{Addr: addrs.RootModule, Raw: vars})
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -133,7 +134,7 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 	vars, vDiags := m.rootModuleVariables()
 	diags.Append(vDiags)
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticModuleCall{Name: "root", Raw: vars})
+	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticModuleCall{Addr: addrs.RootModule, Raw: vars})
 	diags = diags.Append(hclDiags)
 	return module, diags
 }

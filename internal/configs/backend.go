@@ -7,6 +7,7 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -59,5 +60,9 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 }
 
 func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
-	return b.ctx.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{Module: "terraform", Type: "backend", Name: b.Type})
+	return b.ctx.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
+		Module:    addrs.RootModule.Child("terraform"),
+		Subject:   addrs.Backend{Type: b.Type},
+		DeclRange: b.DeclRange,
+	})
 }

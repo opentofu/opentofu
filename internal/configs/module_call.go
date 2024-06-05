@@ -44,7 +44,7 @@ type ModuleCall struct {
 func (mc *ModuleCall) IncludeContext(ctx *StaticContext) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	valDiags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Params.Name, Name: mc.Name}, &mc.SourceAddrRaw)
+	valDiags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Params.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
 	diags = append(diags, valDiags...)
 	if !valDiags.HasErrors() {
 		var addr addrs.ModuleSource
@@ -107,7 +107,8 @@ func (mc *ModuleCall) IncludeContext(ctx *StaticContext) hcl.Diagnostics {
 
 	attr, _ := mc.Config.JustAttributes()
 	for k, v := range attr {
-		val := ctx.Evaluate(v.Expr, StaticIdentifier{Module: ctx.Params.Name, Type: mc.Name, Name: k})
+		// TODO addrs.ModuleCallInstanceInput?
+		val := ctx.Evaluate(v.Expr, StaticIdentifier{Module: ctx.Params.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: k}})
 		mc.Variables[k] = val
 	}
 
