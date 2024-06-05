@@ -27,15 +27,15 @@ variable "region" {
 ```
 
 ```hcl
-// vars.tf
+// vars.tofu
 
 variable "region" {
   type = string
-   deprecated = "Reason this was deprecated"
+  deprecated = "Reason this was deprecated"
 }
 ```
-Terraform would read all files including `vars.tf` and ignore `vars.otf`.
-OpenTofu would read all files, but replace `vars.tf` with `vars.otf` and will include the additional deprecated attribute.
+Terraform would read all files including `vars.tf` and ignore `vars.tofu`.
+OpenTofu would read all files, but replace `vars.tf` with `vars.tofu` and will include the additional deprecated attribute.
 
 
 > [!NOTE]
