@@ -127,11 +127,11 @@ The technical change required to implement this RFC is fairly simple:
 1. We need to change the `internal/configs` package that loads `.tf` files to also load `.tofu` files (and all other file extensions mentioned in the [Supported Scenarios](#Supported-Scenarios) section). 
 2. We need to ignore the `.tf` files when a `.tofu` file exists with the same name.
 3. Support the new files as part of the `fmt` [command](https://opentofu.org/docs/cli/commands/fmt/) - extend the relevant code in [here](https://github.com/opentofu/opentofu/blob/7a713ccd833c10a315e2397da80923215da45332/internal/command/fmt.go#L32).
-4. 
+
 We have a working [proof of concept](https://github.com/opentofu/opentofu/issues/1328) and the implementation will be very similar to it. So the change in the code is very minimal and isolated to specific locations in the codebase.
 
 ## Open Questions
-
+1. Do we also want to support overriding `.tfvars` with `.tofuvars`? I can't see how their syntax will differ that will justify creating an override for OpenTofu, but it might be a good idea to support it for consistency. I'm open to hearing your opinions on the matter. 
 TODO: List questions that should be discussed and answered during the RFC process.
 
 ## Cons
