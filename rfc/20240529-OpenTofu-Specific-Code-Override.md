@@ -58,12 +58,12 @@ As part of this RFC we'll address the following user stories, and try to underst
 4. I’m a Tofu user who wants to write Tofu code as efficiently as possible, using language servers and extensions in my IDE and external tools.
 
 #### I’m a module developer who wants to write a module supporting TF and Tofu
-Today:  
+**Today:**  
 As a module developer, I want to start supporting OpenTofu in my module, so my users can use it with both OpenTofu and Terraform. Today, my module automatically supports both Terraform and OpenTofu for features that were released until ~1.5.5 for both projects. The problem starts when I want to use new features that were released in versions > ~1.5.5:
 1. If I want to use a new OpenTofu feature that is not supported by Terraform (for example, [urldecode function](https://opentofu.org/docs/language/functions/urldecode/)), I can't use it in my module because it will break the Terraform compatibility.
 2. If I want to use a compatible feature that was released in both OpenTofu and Terraform, I might still have an issue because the versions that include this feature in both projects might be different (for example, [Provider-Defined Functions](https://opentofu.org/docs/language/functions/#provider-defined-functions) was released in OpenTofu v.1.7.0 and in Terraform 1.8.0). This causes me a problem when setting the `required_version` [setting](https://opentofu.org/docs/language/settings/#specifying-a-required-opentofu-version) as I can't define two different minimum versions for OpenTofu and Terraform in the same module.
 
-With this solution implemented:  
+**With this solution implemented:**  
 1. If I want to use a specific OpenTofu feature in one of my module files, I can create two copies of the file - a `.tf` file and a `.tofu` file with very similar content. The only difference is that the `.tofu` file will contain OpenTofu specific features that are not supported by Terraform. This way, I can use the new features without breaking my module's compatibility with Terraform.
 2. If I want to set a minimum version for Terraform and OpenTofu for my module, I can create a`.tf` file and a `.tofu` file both containing:
     ```hcl
@@ -74,24 +74,24 @@ With this solution implemented:
    In the `.tf` file I'll put my minimum Terraform version, and in the `.tofu` file I'll put my minimum OpenTofu version. This way, I can set different minimum versions for OpenTofu and Terraform in the same module.
 
 #### I’m a module developer/user who wants to write a module/configuration supporting only Tofu
-Today:  
+**Today:**  
 Unfortunately, I don't have a simple way to do it today. I cannot limit my modules/configurations to be loaded only by OpenTofu.
 
-With this solution implemented:  
+**With this solution implemented:**  
 If I include only `.tofu` files in my module/configuration, I can be sure it'll be supported only by OpenTofu. This way, I can use OpenTofu-specific features without worrying that others might run the module/configuration by mistake with Terraform instead of OpenTofu.
 
 #### I’m a TF user who wants to switch to Tofu and start using new Tofu features, without losing the ability to go back to TF
-Today:  
+**Today:**  
 I can [migrate to OpenTofu](https://opentofu.org/docs/intro/migration/) very easily, and mostly keep my configuration the same way it is with minimal required [code changes in some cases](https://opentofu.org/docs/intro/migration/terraform-1.8/#step-5-code-changes). But for using OpenTofu-specific configuration I still need to change my existing configuration files.
 
-With this solution implemented:  
+**With this solution implemented:**  
 I have another option for the migration process. Instead of changing my existing `.tf` configuration files to try OpenTofu-specific features, I can create a new `.tofu` file with the same content as the `.tf` file and start using OpenTofu-specific features in the `.tofu` file. This way, I can experiment with OpenTofu-specific features without changing my existing `.tf` files. If I decide to go back, I can simply delete the `.tofu` file and keep using the `.tf` file.
 
 #### I’m a Tofu user who wants to write Tofu code as efficiently as possible, using language servers and extensions in my IDE and external tools
-Today:  
+**Today**:  
 I can write OpenTofu code in my IDE, but I don't have complete support for new OpenTofu features. For example, my IDE will not recognize the syntax of [State Encryption](https://opentofu.org/docs/language/state/encryption/) and will show a warning when I try to use it. This makes it harder for me to write OpenTofu code efficiently and without errors. In addition, I can't use some 3rd party tools that support Terraform, because they don't support OpenTofu.
 
-With this solution implemented:  
+**With this solution implemented:**  
 This problem will not be solved as part of the technical solution in this RFC, but in my opinion we should also address these issues as a part of this RFC. This is an opportunity to standardize the way IDEs and 3rd party tools support OpenTofu. If we want to support `.tofu` files, we should also make sure that IDE plugins and 3rd Party Tools can support the new files.
 
 TODO: run each user-story with the existing POC, and try to understand if we missed something that this solution is not addressing.
