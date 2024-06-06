@@ -327,7 +327,7 @@ func TestOutput_stateDefault(t *testing.T) {
 }
 
 func TestOutput_showSensitiveArg(t *testing.T) {
-	originalState := testStateForOutput()
+	originalState := stateWithSensitiveValueForOutput()
 
 	statePath := testStateFile(t, originalState)
 
@@ -356,7 +356,7 @@ func TestOutput_showSensitiveArg(t *testing.T) {
 }
 
 func TestOutput_withoutShowSensitiveArg(t *testing.T) {
-	originalState := testStateForOutput()
+	originalState := stateWithSensitiveValueForOutput()
 
 	statePath := testStateFile(t, originalState)
 
@@ -383,7 +383,9 @@ func TestOutput_withoutShowSensitiveArg(t *testing.T) {
 	}
 }
 
-func testStateForOutput() *states.State {
+// stateWithSensitiveValueForOutput return a state with an output value
+// marked as sensitive.
+func stateWithSensitiveValueForOutput() *states.State {
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetOutputValue(
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),

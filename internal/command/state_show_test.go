@@ -272,11 +272,11 @@ func TestStateShow_configured_provider(t *testing.T) {
 }
 
 func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
-	state := testStateForStateShow()
+	state := stateWithSensitiveValueForStateShow()
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	p.GetProviderSchemaResponse = testProviderForStateShow()
+	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
 
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
@@ -309,11 +309,11 @@ resource "test_instance" "foo" {
 }
 
 func TestStateShow_showSensitiveArg(t *testing.T) {
-	state := testStateForStateShow()
+	state := stateWithSensitiveValueForStateShow()
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	p.GetProviderSchemaResponse = testProviderForStateShow()
+	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
 
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
@@ -346,7 +346,9 @@ resource "test_instance" "foo" {
 	}
 }
 
-func testStateForStateShow() *states.State {
+// stateWithSensitiveValueForStateShow returns a state with a resource
+// instance.
+func stateWithSensitiveValueForStateShow() *states.State {
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -368,7 +370,9 @@ func testStateForStateShow() *states.State {
 	return state
 }
 
-func testProviderForStateShow() *providers.GetProviderSchemaResponse {
+// providerWithSensitiveValueForStateShow returns a provider schema response
+// with the "id" attribute flagged as sensitive.
+func providerWithSensitiveValueForStateShow() *providers.GetProviderSchemaResponse {
 	return &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"test_instance": {

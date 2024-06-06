@@ -82,6 +82,7 @@ type Renderer struct {
 	Colorize *colorstring.Colorize
 
 	RunningInAutomation bool
+	ShowSensitive       bool
 }
 
 func (renderer Renderer) RenderHumanPlan(plan Plan, mode plans.Mode, opts ...plans.Quality) {
@@ -106,7 +107,7 @@ func (renderer Renderer) RenderHumanState(state State) {
 		return
 	}
 
-	opts := computed.NewRenderHumanOpts(renderer.Colorize)
+	opts := computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive)
 	opts.ShowUnchangedChildren = true
 	opts.HideDiffActionSymbols = true
 
@@ -143,7 +144,7 @@ func (renderer Renderer) RenderLog(log *JSONLog) error {
 					return err
 				}
 
-				opts := computed.NewRenderHumanOpts(renderer.Colorize)
+				opts := computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive)
 				opts.ShowUnchangedChildren = true
 
 				outputDiff := differ.ComputeDiffForType(change, ctype)

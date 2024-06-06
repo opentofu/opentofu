@@ -105,12 +105,7 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
 		RunningInAutomation: v.inAutomation,
-	}
-
-	// If the -show-sensitive argument is provided in the tofu plan/apply command,
-	// then reset all sensitive values to display the value of variables marked as sensitive.
-	if v.view.showSensitive && plan.Changes != nil {
-		resetSensitiveVariables(outputs, changed)
+		ShowSensitive:       v.view.showSensitive,
 	}
 
 	jplan := jsonformat.Plan{
@@ -288,19 +283,6 @@ func (v *OperationJSON) PlanNextStep(planPath string, genConfigPath string) {
 
 func (v *OperationJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
-}
-
-func resetSensitiveVariables(outputs map[string]jsonplan.Change, resourceChanges []jsonplan.ResourceChange) {
-	for i, output := range outputs {
-		output.BeforeSensitive = nil
-		output.AfterSensitive = nil
-		outputs[i] = output
-	}
-
-	for i := range resourceChanges {
-		resourceChanges[i].Change.BeforeSensitive = nil
-		resourceChanges[i].Change.AfterSensitive = nil
-	}
 }
 
 const fatalInterrupt = `

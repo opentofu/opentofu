@@ -53,6 +53,7 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
 		RunningInAutomation: v.view.runningInAutomation,
+		ShowSensitive:       v.view.showSensitive,
 	}
 
 	// Prefer to display a pre-built JSON plan, if we got one; then, fall back
