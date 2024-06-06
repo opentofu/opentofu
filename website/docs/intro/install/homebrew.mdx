@@ -7,9 +7,14 @@ description: |-
 
 import CodeBlock from '@theme/CodeBlock';
 import BrewScript from '!!raw-loader!./examples/brew-install.sh'
+import ValidateInstall from '!!raw-loader!./examples/verify-installation.sh'
 
 # Installing OpenTofu via Homebrew
 
 You can use OpenTofu as a [standalone binary](standalone.mdx) or you can install it using [Homebrew](https://formulae.brew.sh/formula/opentofu). OpenTofu is available in the Homebrew Core repository, so you can install it by running:
 
 <CodeBlock language={"bash"}>{BrewScript}</CodeBlock>
+
+Validate the installation by running:
+
+<CodeBlock language={"bash"}>{ValidateInstall}</CodeBlock>
