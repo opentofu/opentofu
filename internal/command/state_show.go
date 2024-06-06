@@ -34,7 +34,6 @@ func (c *StateShowCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.BoolVar(&c.Meta.showSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
 
 	showSensitive := false

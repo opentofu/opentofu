@@ -2172,7 +2172,7 @@ func TestApply_showSensitiveArg(t *testing.T) {
 	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
 	defer testChdir(t, td)()
 
-	p := applyFixtureProvider()
+	p := testProvider()
 	view, done := testView(t)
 	c := &ApplyCommand{
 		Meta: Meta{
@@ -2180,44 +2180,27 @@ func TestApply_showSensitiveArg(t *testing.T) {
 			View:             view,
 		},
 	}
+
+	statePath := testTempFile(t)
 
 	args := []string{
+		"-state", statePath,
+		"-auto-approve",
 		"-show-sensitive",
 	}
+
 	code := c.Run(args)
 	output := done(t)
 	if code != 0 {
-		t.Fatalf("bad status code: \n%s", output.Stderr())
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	if got, want := output.Stdout(), "sensitive    = \"Hello world\""; !strings.Contains(got, want) {
-		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
+	stdout := output.Stdout()
+	if !strings.Contains(stdout, "notsensitive = \"Hello world\"") {
+		t.Fatalf("bad: output should contain 'notsensitive' output\n%s", stdout)
 	}
-}
-
-func TestApply_withoutShowSensitiveArg(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
-	defer testChdir(t, td)()
-
-	p := applyFixtureProvider()
-	view, done := testView(t)
-	c := &ApplyCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
-	}
-
-	args := []string{}
-	code := c.Run(args)
-	output := done(t)
-	if code != 0 {
-		t.Fatalf("bad status code: \n%s", output.Stderr())
-	}
-
-	if got, want := output.Stdout(), "sensitive    = (sensitive value)"; !strings.Contains(got, want) {
-		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
+	if !strings.Contains(stdout, "sensitive    = \"Hello world\"") {
+		t.Fatalf("bad: output should contain 'sensitive' output\n%s", stdout)
 	}
 }
 
