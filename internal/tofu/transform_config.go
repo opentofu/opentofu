@@ -71,6 +71,12 @@ func (t *ConfigTransformer) transform(g *Graph, config *configs.Config, generate
 		return nil
 	}
 
+	// If the module is being overridden, do nothing. We don't want to create anything
+	// from the underlying module.
+	if config.Module.IsOverridden {
+		return nil
+	}
+
 	// Add our resources
 	if err := t.transformSingle(g, config, generateConfigPath); err != nil {
 		return err

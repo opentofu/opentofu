@@ -406,6 +406,14 @@ type Output struct {
 	SensitiveSet   bool
 
 	DeclRange hcl.Range
+
+	// IsOverridden indicates if the output is being overridden. It's used in
+	// testing framework to not evaluate expression and use OverrideValue instead.
+	IsOverridden bool
+	// OverrideValue is only valid if IsOverridden is set to true. The value
+	// should be used instead of evaluated expression. It's possible to have no
+	// OverrideValue even with IsOverridden is set to true.
+	OverrideValue *cty.Value
 }
 
 func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostics) {
