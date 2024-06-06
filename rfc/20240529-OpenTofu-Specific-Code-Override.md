@@ -143,7 +143,7 @@ A major drawback of this solution is that it leads to code duplication for users
 2. I don't think we need it now, maybe when we'll have more OpenTofu-specific feature, but we can create Best Practices around how to work with `.tofu` files.
 
 ## Potential Alternatives
-1. One proposition was that the `.tofu` file well not override the `.tf` file completely, but will instead override specific blocks. This way, we can avoid code duplication. But this solution is not sufficient for the future, when Terraform might introduce features that OpenTofu cannot parse.
+1. One proposition was that the `.tofu` file will not override the `.tf` file completely, but will instead override specific blocks. This way, we can avoid code duplication. But this solution is not sufficient for the future, when Terraform might introduce features that OpenTofu cannot parse.
 2. We thought about using a different file extension, like `.otf`, but we decided to use `.tofu` because the `.otf` extension is already used to represent [OpenType](https://en.wikipedia.org/wiki/OpenType) font files.
 
 ## General Break Down to Tasks
