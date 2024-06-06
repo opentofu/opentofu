@@ -131,7 +131,8 @@ The technical change required to implement this RFC is fairly simple:
 We have a working [proof of concept](https://github.com/opentofu/opentofu/issues/1328) and the implementation will be very similar to it. So the change in the code is very minimal and isolated to specific locations in the codebase.
 
 ## Open Questions
-1. Do we also want to support overriding `.tfvars` with `.tofuvars`? I can't see how their syntax will differ that will justify creating an override for OpenTofu, but it might be a good idea to support it for consistency. I'm open to hearing your opinions on the matter. 
+1. Do we also want to support overriding `.tfvars` with `.tofuvars`? I can't see how their syntax will differ that will justify creating an override for OpenTofu, but it might be a good idea to support it for consistency. I'm open to hearing your opinions on the matter.
+2. if someone starts a new project (tofu only), do we recommend going with `.tofu` files?
 TODO: List questions that should be discussed and answered during the RFC process.
 
 ## Cons
