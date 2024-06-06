@@ -196,7 +196,9 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&CloseProviderTransformer{},
 
 		// close the root module
-		&CloseRootModuleTransformer{},
+		&CloseRootModuleTransformer{
+			RootConfig: b.Config,
+		},
 
 		// Perform the transitive reduction to make our graph a bit
 		// more understandable if possible (it usually is possible).

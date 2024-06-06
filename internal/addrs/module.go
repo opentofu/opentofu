@@ -177,6 +177,25 @@ func (m Module) configRemovableSigil() {
 	// Empty function so Module will fulfill the requirements of the removable interface
 }
 
+// ParseModule parses a module address from the given traversal,
+// which has to contain only the module address with no resource/data/variable/etc.
+// This function only supports module addresses without instance keys (as the
+// returned Module struct doesn't support instance keys) and will return an
+// error if it encounters one.
+func ParseModule(traversal hcl.Traversal) (Module, tfdiags.Diagnostics) {
+	mod, remain, diags := parseModulePrefix(traversal)
+	if !diags.HasErrors() && len(remain) != 0 {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Module address expected",
+			Detail:   "It's not allowed to reference anything other than module here.",
+			Subject:  remain[0].SourceRange().Ptr(),
+		})
+	}
+
+	return mod, diags
+}
+
 // parseModulePrefix parses a module address from the given traversal,
 // returning the module address and the remaining traversal.
 // For example, if the input traversal is ["module","a","module","b",
