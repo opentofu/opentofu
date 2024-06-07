@@ -386,6 +386,7 @@ func NewSignatureAuthentication(meta PackageMeta, document, signature []byte, ke
 	}
 }
 
+// ErrUnknownIssuer indicates an error when no valid signature for a provider could be found.
 var ErrUnknownIssuer = fmt.Errorf("authentication signature from unknown issuer")
 
 func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
