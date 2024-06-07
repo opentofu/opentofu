@@ -27,6 +27,11 @@ import ExpectFailureVariablesMain from '!!raw-loader!./examples/expect_failures_
 import ExpectFailureVariablesTest from '!!raw-loader!./examples/expect_failures_variables/main.tftest.hcl'
 import ExpectFailureResourcesMain from '!!raw-loader!./examples/expect_failures_resources/main.tf'
 import ExpectFailureResourcesTest from '!!raw-loader!./examples/expect_failures_resources/main.tftest.hcl'
+import OverrideResourceMain from '!!raw-loader!./examples/override_resource/main.tf'
+import OverrideResourceTest from '!!raw-loader!./examples/override_resource/main.tftest.hcl'
+import OverrideModuleMain from '!!raw-loader!./examples/override_module/main.tf'
+import OverrideModuleTest from '!!raw-loader!./examples/override_module/main.tftest.hcl'
+import OverrideModuleBucketMeta from '!!raw-loader!./examples/override_module/bucket_meta/main.tf'
 
 # Command: test
 
@@ -127,6 +132,9 @@ A test file consists of:
 * A **[`variables` block](#the-variables-and-runvariables-blocks)** (optional): define variables for all tests in the
   current file.
 * The **[`provider` blocks](#the-providers-block)** (optional): define the providers to be used for the tests.
+* The **[`override_resource` block](#the-override_resource-and-override_data-blocks)** (optional): defines a resource to be overridden.
+* The **[`override_data` block](#the-override_resource-and-override_data-blocks)** (optional): defines a data source to be overridden.
+* The **[`override_module` block](#the-override_module-block)** (optional): defines a module call to be overridden.
 
 ### The `run` block
 
@@ -144,6 +152,9 @@ A `run` block consists of the following elements:
 | [`command`](#the-runcommand-setting-and-the-runplan_options-block)      | `plan` or `apply` | Defines the command which OpenTofu will execute, `plan` or `apply`. Defaults to `apply`.                                                                                                                       |
 | [`plan_options`](#the-runcommand-setting-and-the-runplan_options-block) | block             | Options for the `plan` or `apply` operation.                                                                                                                                                                   |
 | [`providers`](#the-providers-block)                                     | object            | Aliases for providers.                                                                                                                                                                                         |
+| [`override_resource`](#the-override_resource-and-override_data-blocks)  | block             | Defines a resource to be overridden for the run.                                                                                                                                                               |
+| [`override_data`](#the-override_resource-and-override_data-blocks)      | block             | Defines a data source to be overridden for the run.                                                                                                                                                            |
+| [`override_module`](#the-override_module-block)                         | block             | Defines a module call to be overridden for the run.                                                                                                                                                            |
 
 ### The `run.assert` block
 
@@ -374,3 +385,94 @@ of the file.
         <CodeBlock language={"hcl"}>{ProviderAliasMain}</CodeBlock>
     </TabItem>
 </Tabs>
+
+### The `override_resource` and `override_data` blocks
+
+In some cases you may want to test your infrastructure with certain resources or data sources being overridden.
+You can use the `override_resource` or `override_data` blocks to skip creation and retrieval of these resources or data sources using the real provider.
+Instead, OpenTofu will automatically generate all computed attributes and blocks to be used in tests.
+
+These blocks consist of the following elements:
+
+| Name     | Type         | Description                                                                                                            |
+|:--------:|:------------:|------------------------------------------------------------------------------------------------------------------------|
+| target   | reference    | Required. Address of the target resource or data source to be overridden.                                              |
+| values   | object       | Custom values for computed attributes and blocks to be used instead of automatically generated.                        |
+
+You can use `override_resource` or `override_data` blocks for the whole test file or inside a single `run` block. The latter takes precedence if both specified for the same `target`.
+
+In the example below, we test if the bucket name is correctly passed to the resource without actually creating it:
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{OverrideResourceTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{OverrideResourceMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+:::warning Limitation
+
+You cannot use `override_resource` or `override_data` with a single instance of a resource or data source.
+Each instance of a resource or data source must be overridden.
+
+:::
+
+#### Automatically generated values
+
+Overriding resources and data sources requires OpenTofu to automatically generate computed attributes without calling respective providers.
+When generating these values, OpenTofu cannot follow custom provider logic, so it uses simple rules based on value type:
+
+| Attribute type     | Generated value                                                     |
+|:------------------:|---------------------------------------------------------------------|
+| number             | `0`                                                                 |
+| bool               | `false`                                                             |
+| string             | A random alpha-numeric string.                                      |
+| list               | An empty list.                                                      |
+| map                | An empty map.                                                       |
+| set                | An empty set.                                                       |
+| object             | An object with its fields populated by the same logic recursevily.  |
+| tuple              | An empty tuple.                                                     |
+
+:::tip Note
+
+You can set custom values to use instead of automatically generated ones via `values` field in both `override_resource` and `override_data` blocks.
+Keep in mind, it's only possible for computed attributes and configuration values cannot be changed.
+
+:::
+
+### The `override_module` block
+
+In some cases you may want to test your infrastructure with certain module calls being overridden.
+You can use the `override_module` block to ignore all the configuration provided by called module.
+In this case, OpenTofu will use custom values specified in the `override_module` block as module outputs.
+
+The block consist of the following elements:
+
+| Name     | Type         | Description                                                                                                            |
+|:--------:|:------------:|------------------------------------------------------------------------------------------------------------------------|
+| target   | reference    | Required. Address of the target module call to be overridden.                                                          |
+| outputs  | object       | Values to be used as module call outputs. If an output is not specified, OpenTofu will set it to `null` by default.       |
+
+You can use `override_module` block for the whole test file or inside a single `run` block. The latter takes precedence if both specified for the same `target`.
+
+In the example below, we test if the bucket name is correctly passed from the module without actually calling it:
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{OverrideModuleTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{OverrideModuleMain}</CodeBlock>
+    </TabItem>
+    <TabItem value={"bucket_meta_main"} label={"bucket_meta/main.tf"}>
+        <CodeBlock language={"hcl"}>{OverrideModuleBucketMeta}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+:::warning Limitation
+
+You cannot use `override_module` with a single instance of a module call. Each instance of a module call must be overridden.
+
+:::

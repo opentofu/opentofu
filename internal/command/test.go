@@ -479,6 +479,12 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		return state, false
 	}
 
+	run.Diagnostics = run.Diagnostics.Append(file.Config.Validate())
+	if run.Diagnostics.HasErrors() {
+		run.Status = moduletest.Error
+		return state, false
+	}
+
 	run.Diagnostics = run.Diagnostics.Append(run.Config.Validate())
 	if run.Diagnostics.HasErrors() {
 		run.Status = moduletest.Error
