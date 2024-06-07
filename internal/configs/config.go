@@ -1001,7 +1001,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	}, diags
 }
 
-func (c *Config) transformVariablesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+func (c *Config) transformVariablesForTest(_ *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	previous := c.Module.Variables
@@ -1013,12 +1013,12 @@ func (c *Config) transformVariablesForTest(run *TestRun, file *TestFile) (func()
 	// Adds the missing variables in config.Module.Variables from file.Variables to
 	// allow provider blocks in test files to access "var" inputs.
 	for key, variable := range file.Variables {
-		if _, ok := run.Variables[key]; !ok {
+		if _, ok := next[key]; !ok {
 			defaultValue, valDiags := variable.Value(nil)
 			if valDiags != nil {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Value not found for expression: %v", variable),
+					Summary:  fmt.Sprintf("Value not found for expression: %v", key),
 					Detail:   "The expression may contain non-constant sub-expressions or require variables/functions that are not available. Please ensure that either it is constant or the evaluation context is properly initialized.",
 					Subject:  variable.Range().Ptr(),
 				})
