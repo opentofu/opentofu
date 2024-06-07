@@ -897,10 +897,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 				t.Setenv(enforceGPGValidationEnvName, tt.envVarValue)
 			}
 
-			actual, err := sigAuth.shouldEnforceGPGValidation()
-			if err != nil {
-				t.Fatal(err)
-			}
+			actual := sigAuth.shouldEnforceGPGValidation()
 			if actual != tt.expected {
 				t.Errorf("expected %t, actual %t", tt.expected, actual)
 			}
