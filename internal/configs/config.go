@@ -1013,7 +1013,7 @@ func (c *Config) transformVariablesForTest(run *TestRun, file *TestFile) (func()
 	// Adds the missing variables in config.Module.Variables from file.Variables to
 	// allow provider blocks in test files to access "var" inputs.
 	for key, variable := range file.Variables {
-		if _, ok := next[key]; !ok {
+		if _, ok := run.Variables[key]; !ok {
 			defaultValue, valDiags := variable.Value(nil)
 			if valDiags != nil {
 				diags = append(diags, &hcl.Diagnostic{
