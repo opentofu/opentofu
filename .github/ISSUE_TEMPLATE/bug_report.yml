@@ -11,13 +11,13 @@ body:
     attributes:
       value: |
         # Thank you for opening an issue.
-
+        
         The [OpenTofu](https://github.com/opentofu/opentofu) issue tracker is reserved for bug reports relating to the core OpenTofu CLI application and configuration language.
-
+        
         ## Filing a bug report
-
+        
         To fix problems, we need clear reproduction cases - we need to be able to see it happen locally. A reproduction case is ideally something any engineer can git-clone or copy-paste and run immediately, without inventing any details or context.
-
+        
         * A short example can be directly copy-pasteable; longer examples should be in separate git repositories, especially if multiple files are needed
         * Please include all needed context. For example, if you figured out that an expression can cause a crash, put the expression in a variable definition or a resource
         * Set defaults on (or omit) any variables. The person reproducing it should not need to invent variable settings
@@ -52,7 +52,13 @@ body:
     id: tf-debug
     attributes:
       label: Debug Output
-      description: Full debug output can be obtained by running OpenTofu with the environment variable `TF_LOG=trace`. Please create a GitHub Gist containing the debug output. Please do _not_ paste the debug output in the issue, since debug output is long. Debug output may contain sensitive information. Please review it before posting publicly.
+      description: |
+        Full debug output can be obtained by running OpenTofu with the environment variable `TF_LOG=trace`.
+        Please create a GitHub Gist containing the debug output. Please do _not_ paste the debug output in the issue,
+        since debug output is long. Debug output may contain sensitive information.
+        
+        **⚠ Warning!** Carefully inspect the `TRACE` level OpenTofu logs! They may contain sensitive credentials.
+        When in doubt, you can omit posting the logs and provide information later.
       placeholder: ...link to gist...
       value:
     validations:
