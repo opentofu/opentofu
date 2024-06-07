@@ -9,6 +9,4 @@ run "setup" {
 }
 
 run "test" {
-  // ... a normal testing block ...
-  command = plan
 }

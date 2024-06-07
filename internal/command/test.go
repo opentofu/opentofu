@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
 
@@ -695,15 +696,15 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		return state, diags
 	}
 
-	// schemas, schemaDiags := tfCtx.Schemas(config, state)
-	// diags = diags.Append(schemaDiags)
+	schemas, schemaDiags := tfCtx.Schemas(config, state)
+	diags = diags.Append(schemaDiags)
 
-	// // Evaluates "run" and "var" blocks before Plan operation.
-	// evalDiags := evaluateBlockForTest(runner.States, schemas, config)
-	// diags = diags.Append(evalDiags)
-	// if diags.HasErrors() {
-	// 	return nil, diags
-	// }
+	// Evaluates "run" blocks before Plan operation.
+	evalDiags := evaluateBlockForTest(schemas, config, evalCtx)
+	diags = diags.Append(evalDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	runningCtx, done := context.WithCancel(context.Background())
 
@@ -782,15 +783,15 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		return nil, nil, diags
 	}
 
-	// schemas, schemaDiags := tfCtx.Schemas(config, state)
-	// diags = diags.Append(schemaDiags)
+	schemas, schemaDiags := tfCtx.Schemas(config, state)
+	diags = diags.Append(schemaDiags)
 
-	// // Evaluates "run" and "var" blocks before Plan operation.
-	// evalDiags := evaluateBlockForTest(runner.States, schemas, config)
-	// diags = diags.Append(evalDiags)
-	// if diags.HasErrors() {
-	// 	return nil, nil, diags
-	// }
+	// Evaluates "run" blocks before Plan operation.
+	evalDiags := evaluateBlockForTest(schemas, config, evalCtx)
+	diags = diags.Append(evalDiags)
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
 
 	runningCtx, done := context.WithCancel(context.Background())
 
@@ -1080,6 +1081,10 @@ func buildInputVariablesForTest(run *moduletest.Run, file *moduletest.File, conf
 // context suitable for HCL evaluation.
 func getEvalContextForTest(states map[string]*TestFileState, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+	ctx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{},
+	}
+
 	runCtx := make(map[string]cty.Value)
 	for _, state := range states {
 		if state.Run == nil {
@@ -1092,6 +1097,9 @@ func getEvalContextForTest(states map[string]*TestFileState, config *configs.Con
 		}
 		runCtx[state.Run.Name] = cty.ObjectVal(outputs)
 	}
+	if len(runCtx) > 0 {
+		ctx.Variables["run"] = cty.ObjectVal(runCtx)
+	}
 
 	// If the variable is referenced in the tfvars file or TF_VAR_ environment variable, then lookup the value
 	// in global variables; otherwise, assign the default value.
@@ -1102,54 +1110,50 @@ func getEvalContextForTest(states map[string]*TestFileState, config *configs.Con
 	for name, val := range inputValues {
 		varCtx[name] = val.Value
 	}
-
-	ctx := &hcl.EvalContext{
-		Variables: map[string]cty.Value{
-			"run": cty.ObjectVal(runCtx),
-			"var": cty.ObjectVal(varCtx),
-		},
+	if len(varCtx) > 0 {
+		ctx.Variables["var"] = cty.ObjectVal(varCtx)
 	}
+
 	return ctx, diags
 }
 
-// evaluateBlockForTest evaluates the values of "run" and "var" blocks in test files.
+// evaluateBlockForTest evaluates the values of "run" blocks in test files.
 // It iterates over the provider configurations defined in the given config and evaluates the hcl.Expression
 // found in the attributes of those provider configurations, which are used to decode the value for the test provider config.
-// func evaluateBlockForTest(states map[string]*TestFileState, schemas *tofu.Schemas, config *configs.Config) tfdiags.Diagnostics {
-// 	var diags tfdiags.Diagnostics
-// 	evalCtx := getEvalContextForTest(states, config, nil)
-// 	if evalCtx == nil {
-// 		return nil
-// 	}
+func evaluateBlockForTest(schemas *tofu.Schemas, config *configs.Config, evalCtx *hcl.EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, provider := range config.Module.ProviderConfigs {
+		providerSchema := schemas.ProviderSchema(config.ProviderForConfigAddr(provider.Addr()))
+		spec := providerSchema.Provider.Block.DecoderSpec()
 
-// 	for _, provider := range config.Module.ProviderConfigs {
-// 		providerSchema := schemas.ProviderSchema(config.ProviderForConfigAddr(provider.Addr()))
-// 		spec := providerSchema.Provider.Block.DecoderSpec()
-
-// 		// If attributes are nil, then it iterates to the next ProviderConfig.
-// 		attributes, _ := provider.Config.JustAttributes()
-// 		for _, attribute := range attributes {
-// 			if len(attribute.Expr.Variables()) == 0 {
-// 				continue
-// 			}
-// 			rootName := attribute.Expr.Variables()[0].RootName()
-// 			if _, ok := evalCtx.Variables[rootName]; !ok {
-// 				continue
-// 			}
-// 			val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
-// 			diags = diags.Append(decDiags)
-// 			if decDiags.HasErrors() {
-// 				continue
-// 			}
-// 			// Update the test provider config with the value
-// 			provider.Config = &configs.TestProviderConfig{
-// 				Body:  provider.Config,
-// 				Value: &val,
-// 			}
-// 		}
-// 	}
-// 	return diags
-// }
+		// If attributes are nil, then it iterates to the next ProviderConfig.
+		attributes, attrDiags := provider.Config.JustAttributes()
+		diags = diags.Append(attrDiags)
+		if attrDiags.HasErrors() {
+			continue
+		}
+		for _, attribute := range attributes {
+			if len(attribute.Expr.Variables()) == 0 {
+				continue
+			}
+			rootName := attribute.Expr.Variables()[0].RootName()
+			if _, ok := evalCtx.Variables[rootName]; !ok {
+				continue
+			}
+			val, decDiags := hcldec.Decode(provider.Config, spec, evalCtx)
+			diags = diags.Append(decDiags)
+			if decDiags.HasErrors() {
+				continue
+			}
+			// Update the test provider config with the value
+			provider.Config = &configs.TestProviderConfig{
+				Body:  provider.Config,
+				Value: &val,
+			}
+		}
+	}
+	return diags
+}
 
 type testVariableValueExpression struct {
 	expr       hcl.Expression
