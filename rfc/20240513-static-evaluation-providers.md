@@ -15,7 +15,45 @@ The approach proposed in the [Static Evaluation RFC](20240513-static-evaluation.
 
 #### Provider Configuration Expansion
 
-First, we need to define what is expected when a user adds for_each/count to a provider configuration:
+How are multiple configured providers of the same type used today?
+```hcl
+provider "aws" {
+  alias = "us"
+  region = "us-east-1"
+}
+// Copy pasted from above provider, with minor changes
+provider "aws" {
+  alias = "eu"
+  region = "eu-west-1"
+}
+
+resource "aws_s3_bucket" "primary_us" {
+  provider = aws.us
+}
+// Copy pasted from above resource, with minor changes
+resource "aws_s3_bucket" "primary_eu" {
+  provider = aws.eu
+}
+
+module "mod_us" {
+  source = "./mod"
+  providers {
+    aws = aws.us
+  }
+}
+// Copy pasted from above module, with minor changes
+module "mod_eu" {
+  source = "./mod"
+  providers {
+    aws = aws.eu
+  }
+}
+```
+For scenarios where you wish to use the same pattern with multiple providers, copy-paste or multiple workspaces is the only path available.  Any copy-paste like this can easily introduce errors and bugs and should be avoided. For this reason, users have been asking to use for_each and count in providers for a long time.
+
+Let's run through what it would look like to enable this workflow.
+
+What is expected when a user adds for_each/count to a provider configuration:
 ```hcl
 locals {
   regions = {"us": "us-east-1", "eu": "eu-west-1"}
@@ -41,10 +79,10 @@ provider "aws" {
 }
 ```
 
-This would produce two provider configurations: `aws.HARDCODED` and `aws.HARDCODED`, an obvious conflict. We could try to be smart and try to make sure that the keys are identical and in some way derived from the iteration. That approach is complex, likely error prone, and confusing to the user. Instead, we should not allow users to provide the alias field when for_each/count are present.
+This would produce two provider configurations: `aws.HARDCODED` and `aws.HARDCODED`, an obvious conflict. We could try to be smart and try to make sure that the keys are not identical and in some way derived from the iteration. That approach is complex, likely error prone, and confusing to the user. Instead, we should not allow users to provide the alias field when for_each/count are present.
 
 
-What if a user tries to use a resource output in a provider for_each? In an ideal world, this would be allowed as long as there is not a cyclic dependency. However, due to the way providers are resolved deep in OpenTofu this would require a near rewrite of the core provider logic. Here we rely on the ideas set forth in the Static Evaluation RFC and only allow values known during configuration processing (locals/vars). Anything dynamic like resources/data will be forbidden for now.
+What if a user tries to use a resource output in a provider for_each? In an ideal world, this would be allowed as long as there is not a cyclic dependency. However, due to the way providers are resolved deep in OpenTofu this would require a near rewrite of the core provider logic. Here we rely on the ideas set forth in the [Static Evaluation RFC](20240513-static-evaluation.md) and only allow values known during configuration processing (locals/vars). Anything dynamic like resources/data will be forbidden for now.
 
 
 With the provider references clarified, we can now use the providers defined above in resources:
@@ -96,7 +134,7 @@ module "mod" {
 }
 ```
 
-From a user perspective, this provider mapping fairly simple to understand. As we will show in the Technical Approach, this will be quite difficult to implement.
+From a user perspective, this provider mapping is fairly simple to understand. As we will show in the Technical Approach, this will be quite difficult to implement.
 
 
 #### What's not currently allowed
@@ -114,7 +152,7 @@ resource "aws_s3_bucket" "primary" {
   provider = local.my_provider
 }
 ```
-It's not well defined what a "provider reference" is outside of a "provider/providers" block. All of the provider references are built as special cases that are handed beside the code and not as part of it directly.
+It's not well defined what a "provider reference" is outside of a "provider/providers" block. All of the provider references are built as special cases that are handled beside the code and not as part of it directly.
 
 
 Using the "splat/*" operator in module providers block:
@@ -126,7 +164,7 @@ module "mod" {
   }
 }
 ```
-This implies that all aliased aws providers would be passed into the child module.
+This implies that all aliased aws providers would be passed into the child module. This is confusing as it conflicts with the existing idea of providers configs passed implicitly to child modules with the same names.
 
 ### Technical Approach
 
@@ -134,17 +172,37 @@ This implies that all aliased aws providers would be passed into the child modul
 
 ##### Expansion
 
-Expanding provider configurations can be done using the StaticContext available in `configs.NewModule()` as defined in the Static Evaluation RFC.
+Expanding provider configurations can be done using the StaticContext available in [configs.NewModule()](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L122) as defined in the Static Evaluation RFC.
 
 At the end of the NewModule constructor, the configured provider's aliases can be expanded using the each/count, similar to how [module.ProviderLocalNames](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L186) is generated. This does not require any special workarounds and will resemble most other applications of the StaticContext.
 
+```go
+// Pseudocode
+func NewModule(files []configs.File, ctx StaticContext) {
+  module = &Module{}
+  for _, file := range files {
+    module.Append(file)
+  }
+
+  ctx.AddVariables(module.Variables)
+  ctx.AddLocals(module.Locals)
+
+  // Re-build the ProviderConfigs map with expansion
+  newProviderConfigs := make(map)
+  for _, cfg := range module.ProviderConfigs {
+    for key, expanded := range cfg.expand(ctx) {
+      newProviderConfigs[key] = expanded
+    }
+  }
+  module.ProviderConfigs = newProviderConfigs
+
+
+  // Generate the FQN -> LocalProviderName map
+  module.ProviderLocalNames()
+}
+```
+
 New validation rules will be added per the User Documentation above, all of which closely resemble existing checks and do not require engineering discussion.
-
-##### Evaluation
-
-Using static variables in provider/providers fields is also fairly straightforward. We use the StaticContext as designed to evaluate the expression.
-
-However, there is a bit of a snag. Due to how the HCL package is designed, we can't directly evaluate `aws["foo"]` without knowing the values of the `aws` map. We will need to defer evaluating the provider/providers block until after the each/count expansion defined above is run. Once the full map of local provider names is known in the module, it can be used to check and evaluate the provider/providers fields. This deferred evaluation will be done in the NewModule constructor as well.
 
 #### Provider Alias Mappings
 
@@ -162,46 +220,47 @@ Let's deconstruct each of these challenges individually:
 
 Each configs.Module contains fields which define how the module understands it's local provider references and provider configurations. As defined in Expansion above, we can use the StaticContext to fully build out these maps.
 
-The next piece of data that's import to the config layer is which `addrs.LocalProviderConfig` (and therefore `addrs.AbsProviderConfig`) a resource or module requires. The entire config system is (currently) blissfully unaware that instances of modules and resources may want different configurations of the same provider.
+The next piece of data that's important to the config layer is: which `addrs.LocalProviderConfig` (and therefore `addrs.AbsProviderConfig`) a resource or module requires. The entire config system is (currently) blissfully unaware that instances of modules and resources may want different configurations of the same provider.
 
 Resources and Modules can be queried about which provider they reference. Due to legacy / implicit reasons, it is a bit of a complex question. The Resource and Module structures contain `configs.ProviderConfigRefs`, which is a config-friendly version of `addrs.LocalProviderConfig` (includes ranges).
 
-Interestingly the majority of the code that uses `configs.ProviderConfigRefs` only cares about using it to look up the `addrs.Provider` and *does not care about the alias*. This will be one of the keys to surgically adding in support for per-instance provider aliases.
-
-We could therefore track a unaliased `addrs.LocalProviderConfig` (which points to an `addrs.Provider`) through most of the config code, and maintain a map within resources/modules that define "Instance Key" -> "Provider Alias" to be used much later on when that information is actually required.
+Resolving these provider references is a bit tricky and is a split responsibility between the ProviderTransformers in the graph and [validateProviderConfigs](https://github.com/opentofu/opentofu/blob/main/internal/configs/provider_validation.go#L292). This will require surgical changes to how provider configs are tracked between modules. Different approaches will need to be evaluated by the team and prototyped, likely with some refactoring beforehand.
 
 ##### Providers in the graph
 
 As previously mentioned, the ProviderTransformers are tasked with inspecting the providers defined in configuration and attatching them to resources.
 
-They inspect all nodes in the graph that say "Hey I require a Provider!" AKA `tofu.GraphNodeProviderConsumer`. This interface allows nodes to specify a single provider that they require be configured (if applicable) before being evaluated.
+They inspect all nodes in the graph that say "Hey I require a Provider!" AKA `tofu.GraphNodeProviderConsumer`. This interface allows nodes to specify a single provider that they require to be configured (if applicable) before being evaluated.
 
 As mentioned before, one of the key issues is that *unexpanded* resources don't currently understand the concept of different provider aliases for the instances they will expand into. With the "Instance Key" -> "Provider Alias" map created in the previous section, the unexpanded resource can now understand and needs to express that each instance depends on a specific aliased `addrs.AbsProviderConfig` (all with the same `addrs.Provider`). By changing the `tofu.GraphNodeProviderConsumer` to allow dependencies on a set of providers instead of a single provider, all of the required configured providers will be initialized before any instances are executed.
 
 The unexpanded resource depending on all required configured provider nodes is critical for two reasons:
 * The provider transformers try to identify unused providers and remove them from the graph. This happens pre-expansion before the instanced links are established.
-* A core assumption of the code is that expanded instances depend on identical or a subset of references that the unexpanded nodes do.
+* A core assumption of the code is that expanded instances depend on a subset of references/providers that the unexpanded nodes do.
 
 
-That's a lot to take in, a diagram may be clearer:
+That's a lot to take in, a diagram may be clearer.
+
+Pre-Expansion:
 ```mermaid
 graph LR;
-configs.Resource-->tofu.Resource;
-tofu.Resource-->Providers;
-Providers-->KeyA;
-Providers-->KeyB;
-KeyA-->tofu.Provider.A;
-KeyB-->tofu.Provider.B;
-tofu.Resource-->Expansion;
-Expansion-.->tofu.ResourceInstance.A;
-Expansion-.->tofu.ResourceInstance.B;
+configs.Resource-.->tofu.Resource;
+tofu.Resource-->tofu.Provider.A;
+tofu.Resource-->tofu.Provider.B;
+```
+
+Post-Expansion:
+```mermaid
+graph LR;
+configs.Resource-.->tofu.Resource;
+tofu.Resource-->tofu.ResourceInstance.A;
+tofu.Resource-->tofu.ResourceInstance.B;
 tofu.ResourceInstance.A -->tofu.Provider.A;
 tofu.ResourceInstance.B -->tofu.Provider.B;
 ```
-
 That shows that although each tofu.ResourceInstance depends on a single provider alias, to evaluate and expand the tofu.Resource, all of the providers required for the instances must already be initialized and configured.
 
-It is also worth noting that for "tofu validate" (also run pre plan/apply), the graph is walked *unexpanded* but still uses the providers to validate the config schema. Although we are allowing different "Configured Provider Instances" for each ResourceInstance, the actual "addrs.Provider" must remain the same.
+It is also worth noting that for "tofu validate" (also run pre plan/apply), the graph is walked *unexpanded* but still uses the providers to validate the config schema. Although we are allowing different "Configured Provider Instances" for each ResourceInstance, the actual "addrs.Provider" must remain the same and therefore will all use the same provider schema.
 
 Although complex, this approach builds on top of and expands existing structures within the OpenTofu codebase. It is evolutionary, not revolutionary as compared to [Static Module Expansion](20240513-static-evaluation/module-expansion.md).
 
@@ -209,9 +268,9 @@ Although complex, this approach builds on top of and expands existing structures
 
 This is the last "tall pole" to knock down for instanced provider alias mapping.
 
-The state currently is formatted in such a way that the `addrs.AbsProviderConfig` of an *unexpanded* resource is serialized and attached to the resource itself and not each instance.
+The state file is currently formatted in such a way that the `addrs.AbsProviderConfig` of an *unexpanded* resource is serialized and attached to the resource itself and not each instance.
 
-Example (with relavent fields only):
+Example (with relevant fields only):
 ```json
 {
   "module": "module.dummy",
@@ -250,18 +309,9 @@ The simplest path forward is to use an un-aliased value for the provider if mult
 }
 ```
 
-This change would keep the state file reasonably compatible and not require a new version. Inspecting the history of the state file versioning, this fits well within changes allowed in the same version.
+Inspecting the history of the state file versioning, this fits well within changes allowed in the same version. This would break compatibility for downgrading to older OpenTofu versions and should be noted in the changelog.  It is possible to migrate back to not using provider iteration, but that will need to be applied before any downgrade could occur.
 
-
-#### Module Provider Map
-
-The module providers block already deals with provider aliases and has complex resolution logic baked into the config package. This logic validates the required and implied providers, as well as fully filling out the provider mapping throughout the module config tree.
-
-All of that logic boils down into a simplified view of what `addrs.AbsProviderConfig`s are available globally and how `addrs.LocalProviderConfig`s map to them at a module level.
-
-By making the `config.Module`'s provider data indexable by an instance key, we can still directly provide that view while allowing index information to be preserved.
-
-This section is not fully fleshed out, but should be reasonable to implement given what is currently known about the provider reference structures.
+Note: This only applies to the state file, `tofu state show -json` has it's own format which is not impacted by this change.
 
 ### Open Questions
 
@@ -279,6 +329,8 @@ terraform {
     }
 }
 ```
+Initial discussion with Core Team suggests that this should be moved to it's own issue as it would be useful, but does not impact the work done in this issue.
+
 
 There's also an ongoing discussion on allowing variable names in provider aliases.
 
@@ -289,6 +341,7 @@ provider "aws" {
   alias = var.foo
 }
 ```
+Are there any downsides to supporting this?
 
 ### Future Considerations
 
