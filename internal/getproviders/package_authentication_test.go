@@ -501,6 +501,7 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 	}
 
 	for name, test := range tests {
+		test := test
 		t.Run(name, func(t *testing.T) {
 			// Location is unused
 			location := PackageLocalArchive("testdata/my-package.zip")

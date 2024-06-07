@@ -389,20 +389,20 @@ func NewSignatureAuthentication(meta PackageMeta, document, signature []byte, ke
 // ErrUnknownIssuer indicates an error when no valid signature for a provider could be found.
 var ErrUnknownIssuer = fmt.Errorf("authentication signature from unknown issuer")
 
-func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
+func (s signatureAuthentication) shouldEnforceGPGValidation() bool {
 	// we should enforce validation for all provider sources that are not the default provider registry
 	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
-		return true, nil
+		return true
 	}
 
 	// if we have been provided keys, we should enforce GPG validation
 	if len(s.Keys) > 0 {
-		return true, nil
+		return true
 	}
 
 	// otherwise if the environment variable is set to true, we should enforce GPG validation
 	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
-	return exists && enforceEnvVar == "true", nil
+	return exists && enforceEnvVar == "true"
 }
 func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
 	// otherwise if the environment variable is set to true, we should enforce GPG expiration
@@ -411,10 +411,7 @@ func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
 }
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
-	shouldValidate, err := s.shouldEnforceGPGValidation()
-	if err != nil {
-		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %w", location.String(), err)
-	}
+	shouldValidate := s.shouldEnforceGPGValidation()
 
 	if !shouldValidate {
 		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
