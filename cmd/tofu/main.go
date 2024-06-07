@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"log"
 	"net"
 	"os"
@@ -60,6 +61,16 @@ func (u *ui) Warn(msg string) {
 	u.Ui.Output(msg)
 }
 
+type uiPedantic struct {
+	cli.Ui
+	triggered bool
+}
+
+func (u *uiPedantic) Warn(msg string) {
+	u.triggered = true
+	u.Error(msg)
+}
+
 func init() {
 	Ui = &ui{&cli.BasicUi{
 		Writer:      os.Stdout,
@@ -76,6 +87,7 @@ func realMain() int {
 	defer logging.PanicHandler()
 
 	var err error
+	var pedanticMode bool
 
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
@@ -97,6 +109,12 @@ func realMain() int {
 	// Attach the help option to the command or subcommand arguments to activate help if it has been toggled
 	if _, ok := options[optionHelp]; ok {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
+	}
+
+	// Set up in pedantic mode if pedantic has been toggled
+	if pedanticMode, ok := options[optionPedantic]; ok {
+		tfdiags.Warning = tfdiags.Error
+		Ui = &uiPedantic{Ui, false}
 	}
 
 	err = openTelemetryInit()
@@ -262,8 +280,6 @@ func realMain() int {
 
 	// In tests, Commands may already be set to provide mock commands
 	if commands == nil {
-		_, pedanticMode := options[optionPedantic]
-
 		// Commands get to hold on to the original working directory here,
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
@@ -367,6 +383,8 @@ func realMain() int {
 			Ui.Error(panicLog)
 		}
 	}
+
+	// TODO: Exit pedantic
 
 	return exitCode
 }
