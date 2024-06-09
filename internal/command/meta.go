@@ -629,16 +629,10 @@ func (m *Meta) process(args []string) []string {
 	}
 	args = args[:i]
 
-	var (
-		errorColour   string
-		warningColour string
-	)
-
+	var warningColour string
 	if m.PedanticMode {
-		errorColour = ErrorColour
 		warningColour = ErrorColour
 	} else {
-		errorColour = ErrorColour
 		warningColour = WarningColour
 	}
 
@@ -647,7 +641,7 @@ func (m *Meta) process(args []string) []string {
 	m.Ui = &cli.ConcurrentUi{
 		Ui: &ColorizeUi{
 			Colorize:   m.Colorize(),
-			ErrorColor: errorColour,
+			ErrorColor: ErrorColour,
 			WarnColor:  warningColour,
 			Ui:         m.oldUi,
 		},
