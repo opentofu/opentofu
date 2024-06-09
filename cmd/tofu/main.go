@@ -388,6 +388,7 @@ func realMain() int {
 		}
 	}
 
+	// Exit with a non-zero exit code if no previous error has been found and a pedantic warning has been flagged
 	if exitCode == 0 && ui.pedanticMode && ui.warningFlagged {
 		exitCode = 1
 	}
