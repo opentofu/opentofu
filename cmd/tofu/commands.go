@@ -51,18 +51,17 @@ var primaryCommands []string
 // hiddenCommands set, because that would be rather silly.
 var hiddenCommands map[string]struct{}
 
-// Ui is the cli.Ui used for communicating to the outside world.
-var Ui cli.Ui
-
 func initCommands(
 	ctx context.Context,
 	originalWorkingDir string,
 	streams *terminal.Streams,
+	ui cli.Ui,
 	config *cliconfig.Config,
 	services *disco.Disco,
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
+
 	pedanticMode bool,
 ) {
 	var inAutomation bool
@@ -94,7 +93,7 @@ func initCommands(
 
 		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),
-		Ui:               Ui,
+		Ui:               ui,
 
 		Services:        services,
 		BrowserLauncher: webbrowser.NewNativeLauncher(),
