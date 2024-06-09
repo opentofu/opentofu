@@ -60,6 +60,10 @@ type Module struct {
 	Checks map[string]*Check
 
 	Tests map[string]*TestFile
+
+	// IsOverridden indicates if the module is being overridden. It's used in
+	// testing framework to not call the underlying module.
+	IsOverridden bool
 }
 
 // File describes the contents of a single configuration file.

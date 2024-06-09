@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
@@ -62,11 +63,15 @@ func (n graphNodeRoot) Name() string {
 }
 
 // CloseRootModuleTransformer is a GraphTransformer that adds a root to the graph.
-type CloseRootModuleTransformer struct{}
+type CloseRootModuleTransformer struct {
+	RootConfig *configs.Config
+}
 
 func (t *CloseRootModuleTransformer) Transform(g *Graph) error {
 	// close the root module
-	closeRoot := &nodeCloseModule{}
+	closeRoot := &nodeCloseModule{
+		RootConfig: t.RootConfig,
+	}
 	g.Add(closeRoot)
 
 	// since this is closing the root module, make it depend on everything in

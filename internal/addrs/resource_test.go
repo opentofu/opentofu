@@ -8,6 +8,10 @@ package addrs
 import (
 	"fmt"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
 func TestResourceEqual_true(t *testing.T) {
@@ -346,6 +350,137 @@ func TestConfigResourceEqual_false(t *testing.T) {
 
 			if tc.right.Equal(tc.left) {
 				t.Fatalf("expected %#v not to be equal to %#v", tc.right, tc.left)
+			}
+		})
+	}
+}
+
+func TestParseConfigResource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		Input              string
+		WantConfigResource ConfigResource
+		WantErr            string
+	}{
+		{
+			Input: "a.b",
+			WantConfigResource: ConfigResource{
+				Module: RootModule,
+				Resource: Resource{
+					Mode: ManagedResourceMode,
+					Type: "a",
+					Name: "b",
+				},
+			},
+		},
+		{
+			Input: "data.a.b",
+			WantConfigResource: ConfigResource{
+				Module: RootModule,
+				Resource: Resource{
+					Mode: DataResourceMode,
+					Type: "a",
+					Name: "b",
+				},
+			},
+		},
+		{
+			Input: "module.a.b.c",
+			WantConfigResource: ConfigResource{
+				Module: []string{"a"},
+				Resource: Resource{
+					Mode: ManagedResourceMode,
+					Type: "b",
+					Name: "c",
+				},
+			},
+		},
+		{
+			Input: "module.a.data.b.c",
+			WantConfigResource: ConfigResource{
+				Module: []string{"a"},
+				Resource: Resource{
+					Mode: DataResourceMode,
+					Type: "b",
+					Name: "c",
+				},
+			},
+		},
+		{
+			Input: "module.a.module.b.c.d",
+			WantConfigResource: ConfigResource{
+				Module: []string{"a", "b"},
+				Resource: Resource{
+					Mode: ManagedResourceMode,
+					Type: "c",
+					Name: "d",
+				},
+			},
+		},
+		{
+			Input: "module.a.module.b.data.c.d",
+			WantConfigResource: ConfigResource{
+				Module: []string{"a", "b"},
+				Resource: Resource{
+					Mode: DataResourceMode,
+					Type: "c",
+					Name: "d",
+				},
+			},
+		},
+		{
+			Input:   "module.a.module.b",
+			WantErr: "Module address is not allowed: Expected reference to either resource or data block. Provided reference appears to be a module.",
+		},
+		{
+			Input:   "module",
+			WantErr: `Invalid address operator: Prefix "module." must be followed by a module name.`,
+		},
+		{
+			Input:   "module.a.module.b.c",
+			WantErr: "Invalid address: Resource specification must include a resource type and name.",
+		},
+		{
+			Input:   "module.a.module.b.c.d[0]",
+			WantErr: `Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+		{
+			Input:   "module.a.module.b.data.c.d[0]",
+			WantErr: `Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.Input, func(t *testing.T) {
+			t.Parallel()
+
+			traversal, hclDiags := hclsyntax.ParseTraversalAbs([]byte(test.Input), "", hcl.InitialPos)
+			if hclDiags.HasErrors() {
+				t.Fatalf("Bug in tests: %s", hclDiags.Error())
+			}
+
+			configRes, diags := ParseConfigResource(traversal)
+
+			switch {
+			case test.WantErr != "":
+				if !diags.HasErrors() {
+					t.Fatalf("Unexpected success, wanted error: %s", test.WantErr)
+				}
+
+				gotErr := diags.Err().Error()
+				if gotErr != test.WantErr {
+					t.Fatalf("Mismatched error\nGot:  %s\nWant: %s", gotErr, test.WantErr)
+				}
+			default:
+				if diags.HasErrors() {
+					t.Fatalf("Unexpected error: %s", diags.Err().Error())
+				}
+				if diff := cmp.Diff(test.WantConfigResource, configRes); diff != "" {
+					t.Fatalf("Mismatched result:\n%s", diff)
+				}
 			}
 		})
 	}
