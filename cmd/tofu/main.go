@@ -70,18 +70,6 @@ func (u *ui) Warn(msg string) {
 	u.Output(msg)
 }
 
-func newUi() *ui {
-	return &ui{
-		Ui: &cli.BasicUi{
-			Writer:      os.Stdout,
-			ErrorWriter: os.Stderr,
-			Reader:      os.Stdin,
-		},
-		pedanticMode:   false,
-		warningFlagged: false,
-	}
-}
-
 func main() {
 	os.Exit(realMain())
 }
@@ -90,9 +78,17 @@ func realMain() int {
 	defer logging.PanicHandler()
 
 	var err error
-	var pedanticMode bool
 
-	cliUi := newUi()
+	cliUi := &ui{
+		Ui: &cli.BasicUi{
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+			Reader:      os.Stdin,
+		},
+		pedanticMode:   false,
+		warningFlagged: false,
+	}
+
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 	options, err := getGlobalOptions(args)
@@ -114,6 +110,8 @@ func realMain() int {
 	if _, ok := options[optionHelp]; ok {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
+
+	var pedanticMode bool
 
 	// Set up in pedantic mode if pedantic has been toggled
 	if _, ok := options[optionPedantic]; ok {
