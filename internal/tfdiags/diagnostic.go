@@ -33,7 +33,7 @@ type Severity rune
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=Severity
 
-var (
+const (
 	Error   Severity = 'E'
 	Warning Severity = 'W'
 )

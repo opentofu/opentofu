@@ -61,7 +61,6 @@ func initCommands(
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
-
 	pedanticMode bool,
 ) {
 	var inAutomation bool
