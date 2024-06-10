@@ -133,6 +133,12 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 		configVal, configBody, evalDiags = ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
 		diags = diags.Append(evalDiags)
 		if evalDiags.HasErrors() {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to evaluate the value for the HCL body",
+				Detail:   "The evaluation of the HCL body failed against the provided schema constraints due to dependencies on values that can only be resolved during the apply.",
+				Subject:  &config.DeclRange,
+			})
 			return diags
 		}
 	}
