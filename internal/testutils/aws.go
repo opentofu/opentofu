@@ -38,6 +38,9 @@ type AWSTestServiceBase interface {
 	// https endpoint.
 	CACert() []byte
 
+	// CACertFile returns a file on the local disk containing the CA certificate.
+	CACertFile() string
+
 	// ConfigV1 creates an AWS Go SDK v1-compatible configuration.
 	// Deprecated: the v1 SDK is no longer supported.
 	ConfigV1() awsv1.Config
@@ -48,8 +51,9 @@ type AWSTestServiceBase interface {
 
 // AWSTestService is a top interface for all AWS-related test services.
 type AWSTestService interface {
-	AWSS3TestService
+	AWSIAMTestService
 	AWSSTSTestService
+	AWSS3TestService
 	AWSDynamoDBTestService
 	AWSKMSTestService
 }
@@ -59,6 +63,7 @@ type AWSTestService interface {
 // parallel.
 func AWS(t *testing.T) AWSTestService {
 	return newAWSTestService(t, []awsServiceFixture{
+		&iamServiceFixture{},
 		&stsServiceFixture{},
 		&s3ServiceFixture{},
 		&dynamoDBServiceFixture{},
@@ -74,6 +79,11 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 	pair := ca.CreateLocalhostServerCert()
 	tempDir := t.TempDir()
 	if err := os.WriteFile(path.Join(tempDir, "server.pem"), append(pair.Certificate, pair.PrivateKey...), permAll); err != nil {
+		t.Skipf("Cannot write to test directory %s: %v", tempDir, err)
+	}
+
+	caCertFile := path.Join(tempDir, "cacert.pem")
+	if err := os.WriteFile(caCertFile, ca.GetPEMCACert(), permAll); err != nil {
 		t.Skipf("Cannot write to test directory %s: %v", tempDir, err)
 	}
 
@@ -137,7 +147,8 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 		t:           t,
 		ctx:         ctx,
 		ca:          ca,
-		endpoint:    "https://" + host + strconv.Itoa(mappedPort.Int()),
+		caCertFile:  caCertFile,
+		endpoint:    "https://" + host + ":" + strconv.Itoa(mappedPort.Int()),
 		region:      "us-east-1",
 		accessKeyID: "test",
 		secretKeyID: "test",
@@ -169,15 +180,21 @@ type awsTestService struct {
 	t           *testing.T
 	ctx         context.Context
 	ca          CertificateAuthority
+	caCertFile  string
 	endpoint    string
 	region      string
 	accessKeyID string
 	secretKeyID string
 
+	awsIAMParameters
 	awsSTSParameters
 	awsS3Parameters
 	awsDynamoDBParameters
 	awsKMSParameters
+}
+
+func (a awsTestService) CACertFile() string {
+	return a.caCertFile
 }
 
 func (a awsTestService) ConfigV1() awsv1.Config {

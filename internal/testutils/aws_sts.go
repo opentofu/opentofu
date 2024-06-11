@@ -24,7 +24,10 @@ func (s stsServiceFixture) LocalStackID() string {
 	return "sts"
 }
 
-func (s stsServiceFixture) Setup(_ *awsTestService) error {
+func (s stsServiceFixture) Setup(service *awsTestService) error {
+	service.awsSTSParameters = awsSTSParameters{
+		stsEndpoint: service.endpoint,
+	}
 	return nil
 }
 
