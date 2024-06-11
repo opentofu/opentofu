@@ -76,7 +76,7 @@ func (p *provisioner) GetSchema() (resp provisioners.GetSchemaResponse) {
 func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisionerConfigRequest) (resp provisioners.ValidateProvisionerConfigResponse) {
 	if _, err := p.GetSchema().Provisioner.CoerceValue(req.Config); err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid local-exec provisioner configuration",
 			err.Error(),
 		))
@@ -88,7 +88,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 	command := req.Config.GetAttr("command").AsString()
 	if command == "" {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid local-exec provisioner command",
 			"The command must be a non-empty string.",
 		))
@@ -139,7 +139,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"local-exec provisioner error",
 			fmt.Sprintf("Failed to initialize pipe for output: %s", err),
 		))
@@ -198,7 +198,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"local-exec provisioner error",
 			fmt.Sprintf("Error running command '%s': %v. Output: %s", command, err, output.Bytes()),
 		))

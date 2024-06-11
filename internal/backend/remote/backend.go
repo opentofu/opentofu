@@ -164,7 +164,7 @@ func (b *Remote) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 
 	if val := obj.GetAttr("organization"); val.IsNull() || val.AsString() == "" {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid organization value",
 			`The "organization" attribute value must not be empty.`,
 			cty.Path{cty.GetAttrStep{Name: "organization"}},
@@ -184,7 +184,7 @@ func (b *Remote) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	// Make sure that we have either a workspace name or a prefix.
 	if name == "" && prefix == "" {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid workspaces configuration",
 			`Either workspace "name" or "prefix" is required.`,
 			cty.Path{cty.GetAttrStep{Name: "workspaces"}},
@@ -194,7 +194,7 @@ func (b *Remote) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	// Make sure that only one of workspace name or a prefix is configured.
 	if name != "" && prefix != "" {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid workspaces configuration",
 			`Only one of workspace "name" or "prefix" is allowed.`,
 			cty.Path{cty.GetAttrStep{Name: "workspaces"}},
@@ -238,7 +238,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 		b.hostname = val.AsString()
 	} else {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Hostname is required for the remote backend",
 			`OpenTofu does not provide a default "hostname" attribute, so it must be set to the hostname of the remote backend.`,
 		))
@@ -286,7 +286,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	// errors before we continue.
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			strings.ToUpper(err.Error()[:1])+err.Error()[1:],
 			"", // no description is needed here, the error is clear
 			cty.Path{cty.GetAttrStep{Name: "hostname"}},
@@ -307,7 +307,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 		token, err = b.token()
 		if err != nil {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				strings.ToUpper(err.Error()[:1])+err.Error()[1:],
 				"", // no description is needed here, the error is clear
 				cty.Path{cty.GetAttrStep{Name: "hostname"}},
@@ -319,7 +319,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	// Return an error if we still don't have a token at this point.
 	if token == "" {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Required token could not be found",
 			fmt.Sprintf(
 				"Run the following command to generate a token for %s:\n    %s",
@@ -348,7 +348,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.client, err = tfe.NewClient(cfg)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to create the remote backend client",
 			fmt.Sprintf(
 				`The "remote" backend encountered an unexpected error while creating the `+
@@ -368,7 +368,7 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 				b.organization, b.hostname, b.hostname)
 		}
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("Failed to read organization %q at host %s", b.organization, b.hostname),
 			fmt.Sprintf("The \"remote\" backend encountered an unexpected error while reading the "+
 				"organization settings: %s", err),
@@ -508,7 +508,7 @@ func (b *Remote) checkConstraints(c *disco.Constraints) tfdiags.Diagnostics {
 	}
 
 	// Return the customized and informational error message.
-	return diags.Append(tfdiags.Sourceless(tfdiags.Error, summary, details))
+	return diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), summary, details))
 }
 
 // token returns the token for this host as configured in the credentials
@@ -947,7 +947,7 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error looking up workspace",
 			fmt.Sprintf("Workspace read failed: %s", err),
 		))
@@ -970,7 +970,7 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 	remoteVersion, err := version.NewSemver(workspace.TerraformVersion)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error looking up workspace",
 			fmt.Sprintf("Invalid OpenTofu version: %s", err),
 		))
@@ -1050,7 +1050,7 @@ func generalError(msg string, err error) error {
 		return err
 	case tfe.ErrResourceNotFound:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("%s: %v", msg, err),
 			`The configured "remote" backend returns '404 Not Found' errors for resources `+
 				`that do not exist, as well as for resources that a user doesn't have access `+
@@ -1059,7 +1059,7 @@ func generalError(msg string, err error) error {
 		return diags.Err()
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("%s: %v", msg, err),
 			`The configured "remote" backend encountered an unexpected error. Sometimes `+
 				`this is caused by network connection problems, in which case you could retry `+

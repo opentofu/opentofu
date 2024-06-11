@@ -20,8 +20,7 @@ const (
 )
 
 const (
-	Error   Severity = 'E'
-	Warning Severity = 'W'
+	Error Severity = 'E'
 )
 
 type Severity struct {

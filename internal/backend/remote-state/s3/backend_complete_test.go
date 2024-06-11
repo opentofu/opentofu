@@ -167,7 +167,7 @@ func TestBackendConfig_Authentication(t *testing.T) {
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("No valid credential sources found"),
 				newRegexpMatcher("^Please see.+"),
 			),
@@ -196,7 +196,7 @@ func TestBackendConfig_Authentication(t *testing.T) {
 			},
 			ExpectedCredentialsValue: mockdata.MockStaticCredentials,
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("Invalid account ID"),
 				equalsMatcher("AWS account ID not allowed: 222222222222"),
 			),
@@ -565,7 +565,7 @@ region = us-east-1
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("No valid credential sources found"),
 				newRegexpMatcher("^Please see.+"),
 			),
@@ -585,7 +585,7 @@ aws_access_key_id = DefaultSharedCredentialsAccessKey
 aws_secret_access_key = DefaultSharedCredentialsSecretKey
 `,
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("failed to get shared config profile, no-such-profile"),
 				equalsMatcher(""),
 			),
@@ -604,7 +604,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("failed to get shared config profile, no-such-profile"),
 				equalsMatcher(""),
 			),
@@ -649,7 +649,7 @@ aws_access_key_id = DefaultSharedCredentialsAccessKey
 aws_secret_access_key = DefaultSharedCredentialsSecretKey
 `,
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("failed to get shared config profile, no-such-profile"),
 				equalsMatcher(""),
 			),
@@ -1114,7 +1114,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					noopMatcher{},
 				),
 				ExpectDiagMatching(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					equalsMatcher("Cannot assume IAM Role"),
 					noopMatcher{},
 				),
@@ -1517,7 +1517,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				equalsMatcher("Cannot assume IAM Role"),
 				noopMatcher{},
 			),

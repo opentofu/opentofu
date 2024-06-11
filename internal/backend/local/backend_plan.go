@@ -34,7 +34,7 @@ func (b *Local) opPlan(
 
 	if op.PlanFile != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Can't re-plan a saved plan",
 			"The plan command was given a saved plan file as its input. This command generates "+
 				"a new plan, and so it requires a configuration directory as its argument.",
@@ -46,7 +46,7 @@ func (b *Local) opPlan(
 	// Local planning requires a config, unless we're planning to destroy.
 	if op.PlanMode != plans.DestroyMode && !op.HasConfig() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No configuration files",
 			"Plan requires configuration to be present. Planning without a configuration would "+
 				"mark everything for destruction, which is normally not what is desired. If you "+
@@ -60,7 +60,7 @@ func (b *Local) opPlan(
 	if len(op.GenerateConfigOut) > 0 {
 		if op.PlanMode != plans.NormalMode {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid generate-config-out flag",
 				"Config can only be generated during a normal plan operation, and not during a refresh-only or destroy plan."))
 			op.ReportResult(runningOp, diags)
@@ -176,7 +176,7 @@ func (b *Local) opPlan(
 		}, op.Encryption.Plan())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to write plan file",
 				fmt.Sprintf("The plan file could not be written: %s.", err),
 			))

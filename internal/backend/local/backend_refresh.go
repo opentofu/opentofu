@@ -36,7 +36,7 @@ func (b *Local) opRefresh(
 
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Cannot read state file",
 					fmt.Sprintf("Failed to read %s: %s", b.StatePath, err),
 				))

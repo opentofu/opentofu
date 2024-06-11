@@ -273,7 +273,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		// materialized the values into a tfvars file we can report from.)
 		if exprDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Invalid expression for var.%s", v.definition.Key),
 				fmt.Sprintf("The value of variable %q is marked in the remote workspace as being specified in HCL syntax, but the given value is not valid HCL. Stored variable values must be valid literal expressions and may not contain references to other variables or calls to functions.", v.definition.Key),
 			))

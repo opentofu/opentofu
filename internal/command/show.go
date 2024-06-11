@@ -222,7 +222,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 			if errors.As(planErr, &unLocal) {
 				diags = diags.Append(
 					tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Couldn't show local plan",
 						fmt.Sprintf("Plan read error: %s", unLocal),
 					),
@@ -230,7 +230,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 			} else if errors.As(planErr, &unMisc) {
 				diags = diags.Append(
 					tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						fmt.Sprintf("Couldn't show %s", unMisc.kind),
 						fmt.Sprintf("Plan read error: %s", unMisc),
 					),
@@ -238,7 +238,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 			} else if errors.As(stateErr, &unState) {
 				diags = diags.Append(
 					tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Couldn't show state file",
 						fmt.Sprintf("Plan read error: %s", unState),
 					),
@@ -246,7 +246,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 			} else if errors.As(stateErr, &unMisc) {
 				diags = diags.Append(
 					tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						fmt.Sprintf("Couldn't show %s", unMisc.kind),
 						fmt.Sprintf("Plan read error: %s", unMisc),
 					),
@@ -255,7 +255,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 				// Ok, give up and show the really big error
 				diags = diags.Append(
 					tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Failed to read the given file as a state or plan file",
 						fmt.Sprintf("State read error: %s\n\nPlan read error: %s", stateErr, planErr),
 					),

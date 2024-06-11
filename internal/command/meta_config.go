@@ -390,7 +390,7 @@ func configValueFromCLI(synthFilename, rawValue string, wantType cty.Type) (cty.
 		val, err = convert.Convert(val, wantType)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid backend configuration value",
 				fmt.Sprintf("Invalid backend configuration argument %s: %s", synthFilename, err),
 			))

@@ -44,7 +44,7 @@ func TestValidateKMSKey(t *testing.T) {
 			in: "$%wrongkey",
 			expected: tfdiags.Diagnostics{
 				tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid KMS Key ID",
 					`Value must be a valid KMS Key ID, got "$%wrongkey"`,
 					path,
@@ -55,7 +55,7 @@ func TestValidateKMSKey(t *testing.T) {
 			in: "arn:aws:lamda:foo:bar:key/xyz",
 			expected: tfdiags.Diagnostics{
 				tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid KMS Key ARN",
 					`Value must be a valid KMS Key ARN, got "arn:aws:lamda:foo:bar:key/xyz"`,
 					path,
@@ -97,7 +97,7 @@ func TestValidateKeyARN(t *testing.T) {
 			in: "arn:aws:kms:us-west-2:123456789012:something/else",
 			expected: tfdiags.Diagnostics{
 				tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid KMS Key ARN",
 					`Value must be a valid KMS Key ARN, got "arn:aws:kms:us-west-2:123456789012:something/else"`,
 					path,
@@ -108,7 +108,7 @@ func TestValidateKeyARN(t *testing.T) {
 			in: "arn:aws:iam::123456789012:user/David",
 			expected: tfdiags.Diagnostics{
 				tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid KMS Key ARN",
 					`Value must be a valid KMS Key ARN, got "arn:aws:iam::123456789012:user/David"`,
 					path,
@@ -119,7 +119,7 @@ func TestValidateKeyARN(t *testing.T) {
 			in: "not an arn",
 			expected: tfdiags.Diagnostics{
 				tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid KMS Key ARN",
 					`Value must be a valid KMS Key ARN, got "not an arn"`,
 					path,

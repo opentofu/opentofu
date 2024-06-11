@@ -80,7 +80,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 		configTy := cfg.GetAttr("config").Type()
 		if configTy != cty.DynamicPseudoType && !(configTy.IsObjectType() || configTy.IsMapType()) {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid backend configuration",
 				"The configuration must be an object value.",
 				cty.GetAttrPath("config"),
@@ -92,7 +92,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 		defaultsTy := cfg.GetAttr("defaults").Type()
 		if defaultsTy != cty.DynamicPseudoType && !(defaultsTy.IsObjectType() || defaultsTy.IsMapType()) {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid default values",
 				"Defaults must be given in an object value.",
 				cty.GetAttrPath("defaults"),
@@ -135,7 +135,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 	state, err := b.StateMgr(workspaceName)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error loading state error",
 			fmt.Sprintf("error loading the remote state: %s", err),
 			cty.Path(nil).GetAttr("backend"),
@@ -164,7 +164,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 	remoteState := state.State()
 	if remoteState == nil {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unable to find remote state",
 			"No stored state was found for the given workspace in the given backend.",
 			cty.Path(nil).GetAttr("workspace"),
@@ -205,7 +205,7 @@ func getBackend(cfg cty.Value, enc encryption.StateEncryption) (backend.Backend,
 		}
 
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid backend configuration",
 			detail,
 			cty.Path(nil).GetAttr("backend"),
@@ -230,7 +230,7 @@ func getBackend(cfg cty.Value, enc encryption.StateEncryption) (backend.Backend,
 	configVal, err := schema.CoerceValue(config)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid backend configuration",
 			fmt.Sprintf("The given configuration is not valid for backend %q: %s.", backendType,
 				tfdiags.FormatError(err)),

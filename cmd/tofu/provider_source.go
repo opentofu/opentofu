@@ -55,7 +55,7 @@ func explicitProviderSource(config *cliconfig.ProviderInstallation, services *di
 		include, err := getproviders.ParseMultiSourceMatchingPatterns(methodConfig.Include)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid provider source inclusion patterns",
 				fmt.Sprintf("CLI config specifies invalid provider inclusion patterns: %s.", err),
 			))
@@ -64,7 +64,7 @@ func explicitProviderSource(config *cliconfig.ProviderInstallation, services *di
 		exclude, err := getproviders.ParseMultiSourceMatchingPatterns(methodConfig.Exclude)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid provider source exclusion patterns",
 				fmt.Sprintf("CLI config specifies invalid provider exclusion patterns: %s.", err),
 			))
@@ -209,7 +209,7 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		if err != nil {
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid URL for provider installation source",
 				fmt.Sprintf("Cannot parse %q as a URL for a network provider mirror: %s.", string(loc), err),
 			))
@@ -218,7 +218,7 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		if url.Scheme != "https" || url.Host == "" {
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid URL for provider installation source",
 				fmt.Sprintf("Cannot use %q as a URL for a network provider mirror: the mirror must be at an https: URL.", string(loc)),
 			))

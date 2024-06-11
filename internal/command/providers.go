@@ -54,7 +54,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	empty, err := configs.IsEmptyDir(configPath)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error validating configuration directory",
 			fmt.Sprintf("OpenTofu encountered an unexpected error while verifying that the given configuration directory is valid: %s.", err),
 		))
@@ -67,7 +67,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 			absPath = configPath
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No configuration files",
 			fmt.Sprintf("The directory %s contains no OpenTofu configuration files.", absPath),
 		))

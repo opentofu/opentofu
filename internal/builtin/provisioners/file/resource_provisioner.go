@@ -81,7 +81,7 @@ func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisi
 func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
 	if req.Connection.IsNull() {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"file provisioner error",
 			"Missing connection configuration for provisioner.",
 		))
@@ -91,7 +91,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 	comm, err := communicator.New(req.Connection)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"file provisioner error",
 			err.Error(),
 		))
@@ -102,7 +102,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 	src, deleteSource, err := getSrc(req.Config)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"file provisioner error",
 			err.Error(),
 		))
@@ -116,7 +116,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 	dst := req.Config.GetAttr("destination").AsString()
 	if err := copyFiles(p.ctx, comm, src, dst); err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"file provisioner error",
 			err.Error(),
 		))

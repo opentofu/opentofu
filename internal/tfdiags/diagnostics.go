@@ -105,7 +105,7 @@ func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
 // a severity of Error.
 func (diags Diagnostics) HasErrors() bool {
 	for _, diag := range diags {
-		if diag.Severity() == Error {
+		if diag.Severity().SeverityLevel == ErrorLevel {
 			return true
 		}
 	}

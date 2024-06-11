@@ -141,7 +141,7 @@ func (b *Local) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		p := val.AsString()
 		if p == "" {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid local state file path",
 				`The "path" attribute value must not be empty.`,
 				cty.Path{cty.GetAttrStep{Name: "path"}},
@@ -153,7 +153,7 @@ func (b *Local) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 		p := val.AsString()
 		if p == "" {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid local workspace directory path",
 				`The "workspace_dir" attribute value must not be empty.`,
 				cty.Path{cty.GetAttrStep{Name: "workspace_dir"}},
@@ -366,7 +366,7 @@ func (b *Local) opWait(
 			// attempt to save the state another way.
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Error saving current state",
 				fmt.Sprintf(earlyStateWriteErrorFmt, err),
 			))

@@ -114,7 +114,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 			},
 			expectedDiags: tfdiags.Diagnostics{
 				tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid region value",
 					`Invalid AWS Region: nonesuch`,
 					cty.Path{cty.GetAttrStep{Name: "region"}},
@@ -319,7 +319,7 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 		"none": {
 			expectedDiags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Cannot assume IAM Role",
 					``,
 				),

@@ -41,7 +41,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 
 	if !w.Permissions.CanQueueRun {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Insufficient rights to generate a plan",
 			"The provided credentials have insufficient rights to generate a plan. In order "+
 				"to generate plans, at least plan permissions on the workspace are required.",
@@ -51,7 +51,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 
 	if b.ContextOpts != nil && b.ContextOpts.Parallelism != defaultParallelism {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Custom parallelism values are currently not supported",
 			`Cloud backend does not support setting a custom parallelism `+
 				`value at this time.`,
@@ -60,7 +60,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 
 	if op.PlanFile != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Displaying a saved plan is currently not supported",
 			`Cloud backend currently requires configuration to be present and `+
 				`does not accept an existing saved plan as an argument at this time.`,
@@ -69,7 +69,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 
 	if !op.HasConfig() && op.PlanMode != plans.DestroyMode {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No configuration files found",
 			`Plan requires configuration to be present. Planning without a configuration `+
 				`would mark everything for destruction, which is normally not what is desired. `+

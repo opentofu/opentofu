@@ -48,7 +48,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	args = cmdFlags.Args()
 	if len(args) != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No output directory specified",
 			"The providers mirror command requires an output directory as a command-line argument.",
 		))
@@ -66,7 +66,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			platform, err := getproviders.ParsePlatform(platformStr)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid target platform",
 					fmt.Sprintf("The string %q given in the -platform option is not a valid target platform: %s.", platformStr, err),
 				))
@@ -99,7 +99,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	if !lockedDeps.Empty() {
 		if errs := config.VerifyDependencySelections(lockedDeps); len(errs) > 0 {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Inconsistent dependency lock file",
 				fmt.Sprintf("To update the locked dependency selections to match a changed configuration, run:\n  tofu init -upgrade\n got:%v", errs),
 			))
@@ -155,7 +155,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 		}
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Provider not available",
 				fmt.Sprintf("Failed to download %s from its origin registry: %s.", provider.String(), err),
 			))
@@ -175,7 +175,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			meta, err := source.PackageMeta(ctx, provider, selected, platform)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Provider release not available",
 					fmt.Sprintf("Failed to download %s v%s for %s: %s.", provider.String(), selected.String(), platform.String(), err),
 				))
@@ -187,7 +187,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				// using the registry source, so this seems like a bug in the
 				// registry source.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Provider release not available",
 					fmt.Sprintf("Failed to download %s v%s for %s: OpenTofu's provider registry client returned unexpected location type %T. This is a bug in OpenTofu.", provider.String(), selected.String(), platform.String(), meta.Location),
 				))
@@ -199,7 +199,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				// using the registry source, so this seems like a bug in the
 				// registry source.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid URL for provider release",
 					fmt.Sprintf("The origin registry for %s returned an invalid URL for v%s on %s: %s.", provider.String(), selected.String(), platform.String(), err),
 				))
@@ -215,7 +215,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			err = httpGetter.GetFile(stagingPath, urlObj)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Cannot download provider release",
 					fmt.Sprintf("Failed to download %s v%s for %s: %s.", provider.String(), selected.String(), platform.String(), err),
 				))
@@ -225,7 +225,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				result, err := meta.Authentication.AuthenticatePackage(getproviders.PackageLocalArchive(stagingPath))
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider package",
 						fmt.Sprintf("Failed to authenticate %s v%s for %s: %s.", provider.String(), selected.String(), platform.String(), err),
 					))
@@ -237,7 +237,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			err = os.Rename(stagingPath, targetPath)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Cannot download provider release",
 					fmt.Sprintf("Failed to place %s package into mirror directory: %s.", provider.String(), err),
 				))
@@ -254,7 +254,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	available, err := getproviders.SearchLocalDirectory(outputDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to update indexes",
 			fmt.Sprintf("Could not scan the output directory to get package metadata for the JSON indexes: %s.", err),
 		))
@@ -286,7 +286,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			hash, err := meta.Hash()
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to update indexes",
 					fmt.Sprintf("Failed to determine a hash value for %s v%s on %s: %s.", provider, version, platform, err),
 				))
@@ -320,7 +320,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 		err = os.WriteFile(filepath.Join(indexDir, "index.json"), mainIndexJSON, 0644)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to update indexes",
 				fmt.Sprintf("Failed to write an updated JSON index for %s: %s.", provider, err),
 			))
@@ -338,7 +338,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			err = os.WriteFile(filepath.Join(indexDir, version.String()+".json"), versionIndexJSON, 0644)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to update indexes",
 					fmt.Sprintf("Failed to write an updated JSON index for %s v%s: %s.", provider, version, err),
 				))

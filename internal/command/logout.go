@@ -46,7 +46,7 @@ func (c *LogoutCommand) Run(args []string) int {
 	hostname, err := svchost.ForComparison(givenHostname)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid hostname",
 			fmt.Sprintf("The given hostname %q is not valid: %s.", givenHostname, err.Error()),
 		))
@@ -70,7 +70,7 @@ func (c *LogoutCommand) Run(args []string) int {
 
 	if credsCtx.Location == cliconfig.CredentialsInOtherFile {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("Credentials for %s are manually configured", dispHostname),
 			"The \"tofu logout\" command cannot log out because credentials for this host are manually configured in a CLI configuration file.\n\nTo log out, revoke the existing credentials and remove that block from the CLI configuration.",
 		))
@@ -94,7 +94,7 @@ func (c *LogoutCommand) Run(args []string) int {
 	err = creds.ForgetForHost(hostname)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to remove API token",
 			fmt.Sprintf("Unable to remove stored API token: %s", err),
 		))

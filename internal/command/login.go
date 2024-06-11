@@ -69,7 +69,7 @@ func (c *LoginCommand) Run(args []string) int {
 
 	if !c.input {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Login is an interactive command",
 			"The \"tofu login\" command uses interactive prompts to obtain and record credentials, so it can't be run with input disabled.\n\nTo configure credentials in a non-interactive context, write existing credentials directly to a CLI configuration file.",
 		))
@@ -82,7 +82,7 @@ func (c *LoginCommand) Run(args []string) int {
 	hostname, err := svchost.ForComparison(givenHostname)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid hostname",
 			fmt.Sprintf("The given hostname %q is not valid: %s.", givenHostname, err.Error()),
 		))
@@ -99,7 +99,7 @@ func (c *LoginCommand) Run(args []string) int {
 	host, err := c.Services.Discover(hostname)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Service discovery failed for "+dispHostname,
 
 			// Contrary to usual Go idiom, the Discover function returns
@@ -150,19 +150,19 @@ func (c *LoginCommand) Run(args []string) int {
 			// Success!
 		case *disco.ErrServiceNotProvided:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Host does not support OpenTofu tokens API",
 				fmt.Sprintf("The given hostname %q does not support creating OpenTofu authorization tokens.", dispHostname),
 			))
 		case *disco.ErrVersionNotSupported:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Host does not support OpenTofu tokens API",
 				fmt.Sprintf("The given hostname %q allows creating OpenTofu authorization tokens, but requires a newer version of OpenTofu CLI to do so.", dispHostname),
 			))
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Host does not support OpenTofu tokens API",
 				fmt.Sprintf("The given hostname %q cannot support \"tofu login\": %s.", dispHostname, err),
 			))
@@ -171,7 +171,7 @@ func (c *LoginCommand) Run(args []string) int {
 
 	if credsCtx.Location == cliconfig.CredentialsInOtherFile {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("Credentials for %s are manually configured", dispHostname),
 			"The \"tofu login\" command cannot log in because credentials for this host are already configured in a CLI configuration file.\n\nTo log in, first revoke the existing credentials and remove that block from the CLI configuration.",
 		))
@@ -200,7 +200,7 @@ func (c *LoginCommand) Run(args []string) int {
 			oauthToken, tokenDiags = c.interactiveGetTokenByPassword(hostname, credsCtx, clientConfig)
 		default:
 			tokenDiags = tokenDiags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Host does not support OpenTofu login",
 				fmt.Sprintf("The given hostname %q does not allow any OAuth grant types that are supported by this version of OpenTofu.", dispHostname),
 			))
@@ -221,7 +221,7 @@ func (c *LoginCommand) Run(args []string) int {
 	err = creds.StoreForHost(hostname, token)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to save API token",
 			fmt.Sprintf("The given host returned an API token, but OpenTofu failed to save it: %s.", err),
 		))
@@ -385,7 +385,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		// This should be very unlikely, but could potentially occur if e.g.
 		// there's not enough pseudo-random entropy available.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Can't generate login request state",
 			fmt.Sprintf("Cannot generate random request identifier for login request: %s.", err),
 		))
@@ -395,7 +395,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	proofKey, proofKeyChallenge, err := c.proofKey()
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Can't generate login request state",
 			fmt.Sprintf("Cannot generate random prrof key for login request: %s.", err),
 		))
@@ -405,7 +405,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	listener, callbackURL, err := c.listenerForCallback(clientConfig.MinPort, clientConfig.MaxPort)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Can't start temporary login server",
 			fmt.Sprintf(
 				"The login process uses OAuth, which requires starting a temporary HTTP server on localhost. However, no TCP port numbers between %d and %d are available to create such a server.",
@@ -460,7 +460,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Can't start temporary login server",
 				fmt.Sprintf(
 					"The login process uses OAuth, which requires starting a temporary HTTP server on localhost. However, no TCP port numbers between %d and %d are available to create such a server.",
@@ -510,7 +510,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	case <-c.ShutdownCh:
 		diags = diags.Append(
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Action aborted",
 				"Current command was aborted by the calling code.",
 			),
@@ -545,7 +545,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to obtain auth token",
 			fmt.Sprintf("The remote server did not assign an auth token: %s.", err),
 		))
@@ -598,7 +598,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		// with which errors are most common we should try to recognize them
 		// here and produce better error messages for them.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to retrieve API token",
 			fmt.Sprintf("The remote host did not issue an API token: %s.", err),
 		))

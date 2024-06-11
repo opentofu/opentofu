@@ -57,7 +57,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 	if fsMirrorDir != "" && netMirrorURL != "" {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid installation method options",
 			"The -fs-mirror and -net-mirror command line options are mutually-exclusive.",
 		))
@@ -76,7 +76,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			platform, err := getproviders.ParsePlatform(platformStr)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid target platform",
 					fmt.Sprintf("The string %q given in the -platform option is not a valid target platform: %s.", platformStr, err),
 				))
@@ -106,7 +106,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		u, err := url.Parse(netMirrorURL)
 		if err != nil || u.Scheme != "https" {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid network mirror URL",
 				"The -net-mirror option requires a valid https: URL as the mirror base URL.",
 			))
@@ -143,7 +143,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				// Can't request a provider that isn't required by the
 				// current configuration.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid provider argument",
 					fmt.Sprintf("The provider %s is not required by the current configuration.", addr.String()),
 				))
@@ -194,7 +194,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		tempDir, err := os.MkdirTemp("", "terraform-providers-lock")
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Could not create temporary directory",
 				fmt.Sprintf("Failed to create a temporary directory for staging the requested provider packages: %s.", err),
 			))
@@ -221,7 +221,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 					// blocks we have here, and so we'll wait to do it only
 					// if this situation arises often in practice.
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Inconsistent provider versions",
 						fmt.Sprintf(
 							"The version constraint for %s selected inconsistent versions for different platforms, which is unexpected.\n\nThe upstream registry may have changed its available versions during OpenTofu's work. If so, re-running this command may produce a successful result.",
@@ -250,7 +250,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		newLocks, err := installer.EnsureProviderVersions(ctx, oldLocks, reqs, providercache.InstallNewProvidersForce)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Could not retrieve providers for locking",
 				fmt.Sprintf("OpenTofu failed to fetch the requested providers for %s in order to calculate their checksums: %s.", platform, err),
 			))

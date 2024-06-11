@@ -19,7 +19,7 @@ func (c *PushCommand) Run(args []string) int {
 	// This command is no longer supported, but we'll retain it just to
 	// give the user some next-steps after upgrading.
 	c.showDiagnostics(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Command \"tofu push\" is no longer supported",
 		"This command was used to push configuration to Terraform Enterprise legacy (v1), which has now reached end-of-life. To push configuration to a new cloud backend, use its REST API.",
 	))

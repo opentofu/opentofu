@@ -28,21 +28,21 @@ var (
 // Diagnostic error messages
 var (
 	invalidWorkspaceConfigMissingValues = tfdiags.AttributeValue(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Invalid workspaces configuration",
 		fmt.Sprintf("Missing workspace mapping strategy. Either workspace \"tags\" or \"name\" is required.\n\n%s", workspaceConfigurationHelp),
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
 	)
 
 	invalidWorkspaceConfigMisconfiguration = tfdiags.AttributeValue(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Invalid workspaces configuration",
 		fmt.Sprintf("Only one of workspace \"tags\" or \"name\" is allowed.\n\n%s", workspaceConfigurationHelp),
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
 	)
 
 	invalidWorkspaceConfigMisconfigurationEnvVar = tfdiags.AttributeValue(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Invalid workspaces configuration",
 		fmt.Sprintf("The workspace defined using the environment variable \"TF_WORKSPACE\" does not belong to \"tags\".\n\n%s", workspaceConfigurationHelp),
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
@@ -61,7 +61,7 @@ func missingConfigAttributeAndEnvVar(attribute string, envVar string) tfdiags.Di
 }
 
 func incompatibleWorkspaceTerraformVersion(message string, ignoreVersionConflict bool) tfdiags.Diagnostic {
-	severity := tfdiags.Error
+	severity := tfdiags.NewSeverity(tfdiags.ErrorLevel)
 	suggestion := ignoreRemoteVersionHelp
 	if ignoreVersionConflict {
 		severity = tfdiags.NewSeverity(tfdiags.WarningLevel)

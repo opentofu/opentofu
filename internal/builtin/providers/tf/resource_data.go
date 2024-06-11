@@ -131,7 +131,7 @@ func applyDataStoreResourceChange(req providers.ApplyResourceChangeRequest) (res
 		// source, but catch the error anyway.
 		if err != nil {
 			diag := tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Error generating id",
 				err.Error(),
 				cty.GetAttrPath("id"),

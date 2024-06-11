@@ -76,7 +76,7 @@ func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls ma
 			// configurations.
 		case tofu.ValueFromCLIArg:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Value for undeclared variable",
 				fmt.Sprintf("A variable named %q was assigned on the command line, but the root module does not declare a variable of that name. To use this value, add a \"variable\" block to the configuration.", name),
 			))
@@ -84,7 +84,7 @@ func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls ma
 			// For all other source types we are more vague, but other situations
 			// don't generally crop up at this layer in practice.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Value for undeclared variable",
 				fmt.Sprintf("A variable named %q was assigned a value, but the root module does not declare a variable of that name. To use this value, add a \"variable\" block to the configuration.", name),
 			))

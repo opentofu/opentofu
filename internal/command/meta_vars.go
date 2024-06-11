@@ -82,7 +82,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			eq := strings.Index(raw, "=")
 			if eq == -1 {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid -var option",
 					fmt.Sprintf("The given -var option %q is not correctly specified. Must be a variable name and value separated by an equals sign, like -var=\"key=value\".", raw),
 				))
@@ -92,7 +92,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			rawVal := raw[eq+1:]
 			if strings.HasSuffix(name, " ") {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid -var option",
 					fmt.Sprintf("Variable name %q is invalid due to trailing space. Did you mean -var=\"%s=%s\"?", name, strings.TrimSuffix(name, " "), strings.TrimPrefix(rawVal, " ")),
 				))
@@ -152,13 +152,13 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 	if err != nil {
 		if os.IsNotExist(err) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to read variables file",
 				fmt.Sprintf("Given variables file %s does not exist.", filename),
 			))
 		} else {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to read variables file",
 				fmt.Sprintf("Error while reading %s: %s.", filename, err),
 			))

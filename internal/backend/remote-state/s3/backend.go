@@ -475,7 +475,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 
 	if val := obj.GetAttr("bucket"); val.IsNull() || val.AsString() == "" {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid bucket value",
 			`The "bucket" attribute value must not be empty.`,
 			cty.Path{cty.GetAttrStep{Name: "bucket"}},
@@ -484,7 +484,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 
 	if val := obj.GetAttr("key"); val.IsNull() || val.AsString() == "" {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid key value",
 			`The "key" attribute value must not be empty.`,
 			cty.Path{cty.GetAttrStep{Name: "key"}},
@@ -495,7 +495,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 		// S3 will recognize objects with a trailing slash as a directory
 		// so they should not be valid keys
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid key value",
 			`The "key" attribute value must not start or end with with "/".`,
 			cty.Path{cty.GetAttrStep{Name: "key"}},
@@ -505,7 +505,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 	if val := obj.GetAttr("region"); val.IsNull() || val.AsString() == "" {
 		if os.Getenv("AWS_REGION") == "" && os.Getenv("AWS_DEFAULT_REGION") == "" {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Missing region value",
 				`The "region" attribute or the "AWS_REGION" or "AWS_DEFAULT_REGION" environment variables must be set.`,
 				cty.Path{cty.GetAttrStep{Name: "region"}},
@@ -516,14 +516,14 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 	if val := obj.GetAttr("kms_key_id"); !val.IsNull() && val.AsString() != "" {
 		if val := obj.GetAttr("sse_customer_key"); !val.IsNull() && val.AsString() != "" {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid encryption configuration",
 				encryptionKeyConflictError,
 				cty.Path{},
 			))
 		} else if customerKey := os.Getenv("AWS_SSE_CUSTOMER_KEY"); customerKey != "" {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid encryption configuration",
 				encryptionKeyConflictEnvVarError,
 				cty.Path{},
@@ -536,7 +536,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 	if val := obj.GetAttr("workspace_key_prefix"); !val.IsNull() {
 		if v := val.AsString(); strings.HasPrefix(v, "/") || strings.HasSuffix(v, "/") {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid workspace_key_prefix value",
 				`The "workspace_key_prefix" attribute value must not start with "/".`,
 				cty.Path{cty.GetAttrStep{Name: "workspace_key_prefix"}},
@@ -608,7 +608,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 
 		if defined := findDeprecatedFields(obj, assumeRoleDeprecatedFields); len(defined) != 0 {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Conflicting Parameters",
 				`The following deprecated parameters conflict with the parameter "assume_role". Replace them as follows:`+"\n"+
 					formatDeprecated(defined),
@@ -638,7 +638,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 		s := val.AsString()
 		if _, err := aws.ParseRetryMode(s); err != nil {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid retry mode",
 				fmt.Sprintf("Valid values are %q and %q.", aws.RetryModeStandard, aws.RetryModeAdaptive),
 				cty.Path{cty.GetAttrStep{Name: "retry_mode"}},
@@ -673,7 +673,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if region != "" && !boolAttr(obj, "skip_region_validation") {
 		if err := awsbaseValidation.SupportedRegion(region); err != nil {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid region value",
 				err.Error(),
 				cty.Path{cty.GetAttrStep{Name: "region"}},
@@ -694,7 +694,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	if customerKey, ok := stringAttrOk(obj, "sse_customer_key"); ok {
 		if len(customerKey) != 44 {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid sse_customer_key value",
 				"sse_customer_key must be 44 characters in length",
 				cty.Path{cty.GetAttrStep{Name: "sse_customer_key"}},
@@ -703,7 +703,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 			var err error
 			if b.customerEncryptionKey, err = base64.StdEncoding.DecodeString(customerKey); err != nil {
 				diags = diags.Append(tfdiags.AttributeValue(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid sse_customer_key value",
 					fmt.Sprintf("sse_customer_key must be base64 encoded: %s", err),
 					cty.Path{cty.GetAttrStep{Name: "sse_customer_key"}},
@@ -713,7 +713,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	} else if customerKey := os.Getenv("AWS_SSE_CUSTOMER_KEY"); customerKey != "" {
 		if len(customerKey) != 44 {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid AWS_SSE_CUSTOMER_KEY value",
 				`The environment variable "AWS_SSE_CUSTOMER_KEY" must be 44 characters in length`,
 			))
@@ -721,7 +721,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 			var err error
 			if b.customerEncryptionKey, err = base64.StdEncoding.DecodeString(customerKey); err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid AWS_SSE_CUSTOMER_KEY value",
 					fmt.Sprintf(`The environment variable "AWS_SSE_CUSTOMER_KEY" must be base64 encoded: %s`, err),
 				))
@@ -864,7 +864,7 @@ func verifyAllowedAccountID(ctx context.Context, awsConfig aws.Config, cfg *awsb
 	err := cfg.VerifyAccountIDAllowed(accountID)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid account ID",
 			err.Error(),
 		))

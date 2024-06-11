@@ -154,7 +154,7 @@ func (c *StateRmCommand) Run(args []string) int {
 
 	if isCount == 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid target address",
 			"No matching objects found. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
 		))

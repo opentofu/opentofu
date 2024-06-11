@@ -58,7 +58,7 @@ func (b *Local) opApply(
 	// to avoid any potential crashes.
 	if op.PlanFile == nil && op.PlanMode != plans.DestroyMode && !op.HasConfig() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No configuration files",
 			"Apply requires configuration to be present. Applying without a configuration "+
 				"would mark everything for destruction, which is normally not what is desired. "+
@@ -235,7 +235,7 @@ func (b *Local) opApply(
 		plan = lr.Plan
 		if plan.Errored {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Cannot apply incomplete plan",
 				"OpenTofu encountered an error when generating this plan, so it cannot be applied.",
 			))
@@ -314,7 +314,7 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 	var diags tfdiags.Diagnostics
 
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Failed to save state",
 		fmt.Sprintf("Error saving state: %s", err),
 	))
@@ -323,7 +323,7 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 	writeErr := local.WriteStateForMigration(stateFile, true)
 	if writeErr != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to create local state file",
 			fmt.Sprintf("Error creating local state file for recovery: %s", writeErr),
 		))
@@ -335,14 +335,14 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 		// here for some reason.
 		if dumpErr := view.EmergencyDumpState(stateFile, b.encryption); dumpErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to serialize state",
 				fmt.Sprintf(stateWriteFatalErrorFmt, dumpErr),
 			))
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to persist state to backend",
 			stateWriteConsoleFallbackError,
 		))
@@ -350,7 +350,7 @@ func (b *Local) backupStateForError(stateFile *statefile.File, err error, view v
 	}
 
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Failed to persist state to backend",
 		stateWriteBackedUpError,
 	))

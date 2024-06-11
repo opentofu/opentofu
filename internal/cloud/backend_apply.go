@@ -31,7 +31,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 	// (to remain compatible with tfe.v2.1) we'll leave it in here.
 	if !w.Permissions.CanUpdate && !w.Permissions.CanQueueApply {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Insufficient rights to apply changes",
 			"The provided credentials have insufficient rights to apply changes. In order "+
 				"to apply changes at least write permissions on the workspace are required.",
@@ -41,7 +41,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 
 	if w.VCSRepo != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Apply not allowed for workspaces with a VCS connection",
 			"A workspace that is connected to a VCS requires the VCS-driven workflow "+
 				"to ensure that the VCS remains the single source of truth.",
@@ -51,7 +51,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 
 	if b.ContextOpts != nil && b.ContextOpts.Parallelism != defaultParallelism {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Custom parallelism values are currently not supported",
 			`Cloud backend does not support setting a custom parallelism `+
 				`value at this time.`,
@@ -60,7 +60,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 
 	if op.PlanFile.IsLocal() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Applying a saved local plan is not supported",
 			`Cloud backend can apply a saved cloud plan, or create a new plan when `+
 				`configuration is present. It cannot apply a saved local plan.`,
@@ -69,7 +69,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 
 	if !op.HasConfig() && op.PlanMode != plans.DestroyMode {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No configuration files found",
 			`Apply requires configuration to be present. Applying without a configuration `+
 				`would mark everything for destruction, which is normally not what is desired. `+
@@ -91,7 +91,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 		// Check hostname first, for a more actionable error than a generic 404 later
 		if cp.Hostname != b.hostname {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Saved plan is for a different hostname",
 				fmt.Sprintf("The given saved plan refers to a run on %s, but the currently configured cloud backend instance is %s.", cp.Hostname, b.hostname),
 			))
@@ -108,7 +108,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 
 		if r.Workspace.ID != w.ID {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Saved plan is for a different workspace",
 				fmt.Sprintf("The given saved plan does not refer to a run in the current workspace (%s/%s), so it cannot currently be applied. For more details, view this run in a browser at:\n%s", w.Organization.Name, w.Name, runURL(b.hostname, r.Workspace.Organization.Name, r.Workspace.Name, r.ID)),
 			))
@@ -313,7 +313,7 @@ func unusableSavedPlanError(status tfe.RunStatus, url string) error {
 	}
 
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		summary,
 		fmt.Sprintf("%s For more details, view this run in a browser at:\n%s", reason, url),
 	))

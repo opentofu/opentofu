@@ -169,7 +169,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 			suggestion = "To update the locked dependency selections to match a changed configuration, run:\n  tofu init -upgrade"
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Inconsistent dependency lock file",
 			fmt.Sprintf(
 				"The following dependency selections recorded in the lock file are inconsistent with the current configuration:%s\n\n%s",
@@ -242,7 +242,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	snap, err := pf.ReadConfigSnapshot()
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			errSummary,
 			fmt.Sprintf("Failed to read configuration snapshot from plan file: %s.", err),
 		))
@@ -268,7 +268,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 			fmt.Fprintf(&buf, "\n  - %s", err.Error())
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Inconsistent dependency lock file",
 			fmt.Sprintf(
 				"The following dependency selections recorded in the lock file are inconsistent with the configuration in the saved plan:%s\n\nA saved plan can be applied only to the same configuration it was created from. Create a new plan from the updated configuration.",
@@ -290,7 +290,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	diags = diags.Append(moreDiags)
 	if depLocksFromPlan != nil && !op.DependencyLocks.Equal(depLocksFromPlan) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Inconsistent dependency lock file",
 			"The given plan file was created with a different set of external dependency selections than the current configuration. A saved plan can be applied only to the same configuration it was created from.\n\nCreate a new plan from the updated configuration.",
 		))
@@ -301,7 +301,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	priorStateFile, err := pf.ReadStateFile()
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			errSummary,
 			fmt.Sprintf("Failed to read prior state snapshot from plan file: %s.", err),
 		))
@@ -324,14 +324,14 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 		switch {
 		case !firstPlan && priorStateFile.Lineage != currentStateMeta.Lineage:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Saved plan does not match the given state",
 				"The given plan file can not be applied because it was created from a different state lineage.",
 			))
 
 		case priorStateFile.Serial != currentStateMeta.Serial:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Saved plan is stale",
 				"The given plan file can no longer be applied because the state was changed by another operation after the plan was created.",
 			))
@@ -345,7 +345,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	plan, err := pf.ReadPlan()
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			errSummary,
 			fmt.Sprintf("Failed to read plan from plan file: %s.", err),
 		))

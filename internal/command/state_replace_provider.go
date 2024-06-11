@@ -60,7 +60,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	from, fromDiags := addrs.ParseProviderSourceString(args[0])
 	if fromDiags.HasErrors() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf(`Invalid "from" provider %q`, args[0]),
 			fromDiags.Err().Error(),
 		))
@@ -68,7 +68,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	to, toDiags := addrs.ParseProviderSourceString(args[1])
 	if toDiags.HasErrors() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf(`Invalid "to" provider %q`, args[1]),
 			toDiags.Err().Error(),
 		))

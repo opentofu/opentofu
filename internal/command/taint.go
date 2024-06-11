@@ -130,7 +130,7 @@ func (c *TaintCommand) Run(args []string) int {
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No such resource instance",
 			"The state currently contains no resource instances whatsoever. This may occur if the configuration has never been applied or if it has recently been destroyed.",
 		))
@@ -157,7 +157,7 @@ func (c *TaintCommand) Run(args []string) int {
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No such resource instance",
 			fmt.Sprintf("There is no resource instance in the state with the address %s. If the resource configuration has just been added, you must run \"tofu apply\" once to create the corresponding instance(s) before they can be tainted.", addr),
 		))
@@ -169,14 +169,14 @@ func (c *TaintCommand) Run(args []string) int {
 	if obj == nil {
 		if len(is.Deposed) != 0 {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"No such resource instance",
 				fmt.Sprintf("Resource instance %s is currently part-way through a create_before_destroy replacement action. Run \"tofu apply\" to complete its replacement before tainting it.", addr),
 			))
 		} else {
 			// Don't know why we're here, but we'll produce a generic error message anyway.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"No such resource instance",
 				fmt.Sprintf("Resource instance %s does not currently have a remote object associated with it, so it cannot be tainted.", addr),
 			))

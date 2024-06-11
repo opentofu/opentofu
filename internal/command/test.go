@@ -654,7 +654,7 @@ func (runner *TestFileRunner) validate(config *configs.Config, run *moduletest.R
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
 
 	if cancelled {
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
 	}
 
 	diags = diags.Append(waitDiags)
@@ -711,7 +711,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
 
 	if cancelled {
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
 	}
 
 	diags = diags.Append(waitDiags)
@@ -788,7 +788,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
 
 	if cancelled {
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
 	}
 
 	diags = diags.Append(waitDiags)
@@ -843,7 +843,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)
 
 	if cancelled {
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "Test interrupted", "The test operation could not be completed due to an interrupt signal. Please read the remaining diagnostics carefully for any sign of failed state cleanup or dangling resources."))
 	}
 
 	diags = diags.Append(waitDiags)
@@ -951,7 +951,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 			// print a diagnostic instead of panicking later.
 
 			var diags tfdiags.Diagnostics
-			diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTofu - please report it", file.Name)))
+			diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "Inconsistent state", fmt.Sprintf("Found inconsistent state while cleaning up %s. This is a bug in OpenTofu - please report it", file.Name)))
 			runner.Suite.View.DestroySummary(diags, nil, file, state.State)
 			continue
 		}

@@ -164,13 +164,13 @@ func (c *GraphCommand) Run(args []string) int {
 		// details and don't reveal anything (user-model-wise) that you can't
 		// see in the plan graph.
 		graphDiags = graphDiags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Graph type no longer available",
 			fmt.Sprintf("The graph type %q is no longer available. Use -type=plan instead to get a similar result.", graphTypeStr),
 		))
 	default:
 		graphDiags = graphDiags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported graph type",
 			`The -type=... argument must be either "plan", "plan-refresh-only", "plan-destroy", or "apply".`,
 		))

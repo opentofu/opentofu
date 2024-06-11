@@ -29,7 +29,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 	// (to remain compatible with tfe.v2.1) we'll leave it in here.
 	if !w.Permissions.CanUpdate && !w.Permissions.CanQueueApply {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Insufficient rights to apply changes",
 			"The provided credentials have insufficient rights to apply changes. In order "+
 				"to apply changes at least write permissions on the workspace are required.",
@@ -39,7 +39,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 	if w.VCSRepo != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Apply not allowed for workspaces with a VCS connection",
 			"A workspace that is connected to a VCS requires the VCS-driven workflow "+
 				"to ensure that the VCS remains the single source of truth.",
@@ -49,7 +49,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 	if b.ContextOpts != nil && b.ContextOpts.Parallelism != defaultParallelism {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Custom parallelism values are currently not supported",
 			`The "remote" backend does not support setting a custom parallelism `+
 				`value at this time.`,
@@ -58,7 +58,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 	if op.PlanFile != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Applying a saved plan is currently not supported",
 			`The "remote" backend currently requires configuration to be present and `+
 				`does not accept an existing saved plan as an argument at this time.`,
@@ -67,7 +67,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 	if b.hasExplicitVariableValues(op) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Run variables are currently not supported",
 			fmt.Sprintf(
 				"The \"remote\" backend does not support setting run variables at this time. "+
@@ -83,7 +83,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 	if !op.HasConfig() && op.PlanMode != plans.DestroyMode {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"No configuration files found",
 			`Apply requires configuration to be present. Applying without a configuration `+
 				`would mark everything for destruction, which is normally not what is desired. `+
@@ -102,7 +102,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 		if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Planning without refresh is not supported",
 				fmt.Sprintf(
 					`The host %s does not support the -refresh=false option for `+
@@ -118,7 +118,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 		if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Refresh-only mode is not supported",
 				fmt.Sprintf(
 					`The host %s does not support -refresh-only mode for `+
@@ -134,7 +134,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 		if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Planning resource replacements is not supported",
 				fmt.Sprintf(
 					`The host %s does not support the -replace option for `+
@@ -150,7 +150,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 
 		if parseErr != nil || currentAPIVersion.LessThan(desiredAPIVersion) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Resource targeting is not supported",
 				fmt.Sprintf(
 					`The host %s does not support the -target option for `+
@@ -207,7 +207,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 			}
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Insufficient rights to approve the pending changes",
 			fmt.Sprintf("There are pending changes, but the provided credentials have "+
 				"insufficient rights to approve them. The run will be discarded to prevent "+

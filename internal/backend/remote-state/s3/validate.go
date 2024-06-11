@@ -33,7 +33,7 @@ func validateKMSKeyID(path cty.Path, s string) (diags tfdiags.Diagnostics) {
 	keyIdRegex := regexp.MustCompile(`^` + uuidRegexPattern + `|` + multiRegionKeyIdPattern + `|` + aliasRegexPattern + `$`)
 	if !keyIdRegex.MatchString(s) {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid KMS Key ID",
 			fmt.Sprintf("Value must be a valid KMS Key ID, got %q", s),
 			path,
@@ -48,7 +48,7 @@ func validateKMSKeyARN(path cty.Path, s string) (diags tfdiags.Diagnostics) {
 	parsedARN, err := arn.Parse(s)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid KMS Key ARN",
 			fmt.Sprintf("Value must be a valid KMS Key ARN, got %q", s),
 			path,
@@ -58,7 +58,7 @@ func validateKMSKeyARN(path cty.Path, s string) (diags tfdiags.Diagnostics) {
 
 	if !isKeyARN(parsedARN) {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid KMS Key ARN",
 			fmt.Sprintf("Value must be a valid KMS Key ARN, got %q", s),
 			path,
@@ -211,7 +211,7 @@ func validateAttributesConflict(paths ...cty.Path) objectValidator {
 }
 
 func attributeErrDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnostic {
-	return tfdiags.AttributeValue(tfdiags.Error, summary, detail, attrPath.Copy())
+	return tfdiags.AttributeValue(tfdiags.NewSeverity(tfdiags.ErrorLevel), summary, detail, attrPath.Copy())
 }
 
 func attributeWarningDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnostic {

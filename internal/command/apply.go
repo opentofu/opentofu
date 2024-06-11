@@ -85,7 +85,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Check for invalid combination of plan file and variable overrides
 	if planFile != nil && !args.Vars.Empty() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Can't set variables when applying a saved plan",
 			"The -var and -var-file options cannot be used when applying a saved plan file, because a saved plan includes the variable values that were set when it was created.",
 		))
@@ -171,7 +171,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 		planFile, err = c.PlanFile(path, enc.Plan())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Failed to load %q as a plan file", path),
 				fmt.Sprintf("Error: %s", err),
 			))
@@ -183,7 +183,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 		// argument to specify a configuration path. Point them at -chdir.
 		if planFile == nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Failed to load %q as a plan file", path),
 				"The specified path is a directory, not a plan file. You can use the global -chdir flag to use this directory as the configuration root.",
 			))
@@ -194,7 +194,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 		// explain that this is not supported.
 		if c.Destroy {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Destroy can't be called with a plan file",
 				fmt.Sprintf("If this plan was created using plan -destroy, apply it using:\n  tofu apply %q", path),
 			))
@@ -221,7 +221,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 		plan, err := lp.ReadPlan()
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to read plan from plan file",
 				fmt.Sprintf("Cannot read the plan from the given plan file: %s.", err),
 			))
@@ -230,7 +230,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 		if plan.Backend.Config == nil {
 			// Should never happen; always indicates a bug in the creation of the plan file
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to read plan from plan file",
 				"The given plan file does not have a valid backend configuration. This is a bug in the OpenTofu command that generated this plan file.",
 			))

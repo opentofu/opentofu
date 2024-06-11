@@ -320,7 +320,7 @@ func (c *InitCommand) Run(args []string) int {
 	if cb, ok := back.(*cloud.Cloud); ok {
 		if c.RunningInAutomation {
 			if err := cb.AssertImportCompatible(config); err != nil {
-				diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Compatibility error", err.Error()))
+				diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "Compatibility error", err.Error()))
 				c.showDiagnostics(diags)
 				return 1
 			}
@@ -425,7 +425,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		if err := c.configLoader.RefreshModules(); err != nil {
 			// Should never happen
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to read module manifest",
 				fmt.Sprintf("After installing modules, OpenTofu could not re-read the manifest of installed modules. This is a bug in OpenTofu. %s.", err),
 			))
@@ -444,7 +444,7 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 
 	if len(extraConfig.AllItems()) != 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid command-line option",
 			"The -backend-config=... command line option is only for state backends, and is not applicable to cloud backend-based configurations.\n\nTo change the set of workspaces associated with this configuration, edit the Cloud configuration block in the root module.",
 		))
@@ -579,7 +579,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 		if providerAddr.IsLegacy() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid legacy provider address",
 				fmt.Sprintf(
 					"This configuration or its associated state refers to the unqualified provider %q.\n\nYou must complete the Terraform 0.13 upgrade process before upgrading to later versions.",
@@ -653,7 +653,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		},
 		BuiltInProviderFailure: func(provider addrs.Provider, err error) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid dependency on built-in provider",
 				fmt.Sprintf("Cannot use %s: %s.", provider.ForDisplay(), err),
 			))
@@ -684,7 +684,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					displaySources[i] = fmt.Sprintf("  - %s", source)
 				}
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to query available provider packages",
 					fmt.Sprintf("Could not retrieve the list of available versions for provider %s: %s\n\n%s",
 						provider.ForDisplay(), err, strings.Join(displaySources, "\n"),
@@ -707,7 +707,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				}
 
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to query available provider packages",
 					fmt.Sprintf("Could not retrieve the list of available versions for provider %s: %s%s",
 						provider.ForDisplay(), err, suggestion,
@@ -725,7 +725,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					// rather unlikely) possibility that github.com starts being
 					// a real Terraform provider registry in the future.
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider registry host",
 						fmt.Sprintf("The given source address %q specifies a GitHub repository rather than a OpenTofu provider. Refer to the documentation of the provider to find the correct source address to use.",
 							provider.String(),
@@ -734,7 +734,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 				case errorTy.HasOtherVersion:
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider registry host",
 						fmt.Sprintf("The host %q given in provider source address %q does not offer a OpenTofu provider registry that is compatible with this OpenTofu version, but it may be compatible with a different OpenTofu version.",
 							errorTy.Hostname, provider.String(),
@@ -743,7 +743,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 				default:
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider registry host",
 						fmt.Sprintf("The host %q given in provider source address %q does not offer a OpenTofu provider registry.",
 							errorTy.Hostname, provider.String(),
@@ -758,7 +758,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to resolve provider packages",
 					fmt.Sprintf("Could not resolve provider %s: %s",
 						provider.ForDisplay(), err,
@@ -784,7 +784,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		},
 		LinkFromCacheFailure: func(provider addrs.Provider, version getproviders.Version, err error) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to install provider from shared cache",
 				fmt.Sprintf("Error while importing %s v%s from the shared cache directory: %s.", provider.ForDisplay(), version, err),
 			))
@@ -797,13 +797,13 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				switch {
 				case closestAvailable == getproviders.UnspecifiedVersion:
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						summaryIncompatible,
 						fmt.Sprintf(errProviderVersionIncompatible, provider.String()),
 					))
 				case version.GreaterThan(closestAvailable):
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						summaryIncompatible,
 						fmt.Sprintf(providerProtocolTooNew, provider.ForDisplay(),
 							version, tfversion.String(), closestAvailable, closestAvailable,
@@ -812,7 +812,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					))
 				default: // version is less than closestAvailable
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						summaryIncompatible,
 						fmt.Sprintf(providerProtocolTooOld, provider.ForDisplay(),
 							version, tfversion.String(), closestAvailable, closestAvailable,
@@ -827,7 +827,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					// the mirror lacking the package, rather than it being
 					// unavailable from upstream.
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						summaryIncompatible,
 						fmt.Sprintf(
 							"Your chosen provider mirror at %s does not have a %s v%s package available for your current platform, %s.\n\nProvider releases are separate from OpenTofu CLI releases, so this provider might not support your current platform. Alternatively, the mirror itself might have only a subset of the plugin packages available in the origin registry, at %s.",
@@ -837,7 +837,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					))
 				default:
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						summaryIncompatible,
 						fmt.Sprintf(
 							"Provider %s v%s does not have a package available for your current platform, %s.\n\nProvider releases are separate from OpenTofu CLI releases, so not all providers are available for all platforms. Other versions of this provider may have different platforms supported.",
@@ -862,7 +862,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				// normal cancellation handling.
 
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to install provider",
 					fmt.Sprintf("Error while installing %s v%s: %s", provider.ForDisplay(), version, err),
 				))
@@ -974,7 +974,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// check if required provider dependences change
 			if !newLocks.EqualProviderAddress(previousLocks) {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					`Provider dependency changes detected`,
 					`Changes to the required provider dependencies were detected, but the lock file is read-only. To use and record these requirements, run "tofu init" without the "-lockfile=readonly" flag.`,
 				))
@@ -1118,7 +1118,7 @@ func (c *InitCommand) backendConfigOverrideBody(flags rawFlags, schema *configsc
 			attrS := schema.Attributes[name]
 			if attrS == nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid backend configuration argument",
 					fmt.Sprintf("The backend configuration argument %q given on the command line is not expected for the selected backend type.", name),
 				))

@@ -276,7 +276,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	// Check for errors before we continue.
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			strings.ToUpper(err.Error()[:1])+err.Error()[1:],
 			"", // no description is needed here, the error is clear
 			cty.Path{cty.GetAttrStep{Name: "hostname"}},
@@ -296,7 +296,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 		token, err = b.cliConfigToken()
 		if err != nil {
 			diags = diags.Append(tfdiags.AttributeValue(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				strings.ToUpper(err.Error()[:1])+err.Error()[1:],
 				"", // no description is needed here, the error is clear
 				cty.Path{cty.GetAttrStep{Name: "hostname"}},
@@ -308,7 +308,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 	// Return an error if we still don't have a token at this point.
 	if token == "" {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Required token could not be found",
 			fmt.Sprintf(
 				"Run the following command to generate a token for %s:\n    %s",
@@ -341,7 +341,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 		b.client, err = tfe.NewClient(cfg)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to create the cloud backend client",
 				fmt.Sprintf(
 					`Encountered an unexpected error while creating the `+
@@ -362,7 +362,7 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 				b.organization, b.hostname, b.hostname)
 		}
 		diags = diags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("Failed to read organization %q at host %s", b.organization, b.hostname),
 			fmt.Sprintf("Encountered an unexpected error while reading the "+
 				"organization settings: %s", err),
@@ -397,14 +397,14 @@ func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
 			// just in case it happens, give an actionable error.
 			diags = diags.Append(
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Unsupported cloud backend version",
 					cloudIntegrationUsedInUnsupportedTFE,
 				),
 			)
 		} else {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Unsupported cloud backend version",
 				`The 'cloud' option is not supported with this version of the cloud backend.`,
 			),
@@ -431,7 +431,7 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 		b.hostname = val.AsString()
 	} else if b.hostname == "" {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Hostname is required for the cloud backend",
 			`OpenTofu does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`,
 		))
@@ -977,7 +977,7 @@ func (b *Cloud) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.Di
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error looking up workspace",
 			fmt.Sprintf("Workspace read failed: %s", err),
 		))
@@ -1173,7 +1173,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 	_, err := b.client.Workspaces.Read(ctx, organization, workspace)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cloud backend returned an unexpected error",
 			err.Error(),
 		)
@@ -1181,7 +1181,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 
 	if err == tfe.ErrResourceNotFound {
 		return tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid workspace selection",
 			fmt.Sprintf(`OpenTofu failed to find workspace %q in organization %s.`, workspace, organization),
 		)
@@ -1197,7 +1197,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 			wl, err := b.client.Workspaces.List(ctx, b.organization, opts)
 			if err != nil {
 				return tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Cloud backend returned an unexpected error",
 					err.Error(),
 				)
@@ -1217,7 +1217,7 @@ func (b *Cloud) validWorkspaceEnvVar(ctx context.Context, organization, workspac
 		}
 
 		return tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid workspace selection",
 			fmt.Sprintf(
 				"OpenTofu failed to find workspace %q with the tags specified in your configuration:\n[%s]",
@@ -1257,7 +1257,7 @@ func generalError(msg string, err error) error {
 		return err
 	case tfe.ErrResourceNotFound:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("%s: %v", msg, err),
 			"For security, cloud backends returns '404 Not Found' responses for resources\n"+
 				"for resources that a user doesn't have access to, in addition to resources that\n"+
@@ -1266,7 +1266,7 @@ func generalError(msg string, err error) error {
 		return diags.Err()
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("%s: %v", msg, err),
 			`Cloud backend returned an unexpected error. Sometimes `+
 				`this is caused by network connection problems, in which case you could retry `+

@@ -89,7 +89,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		if currentBackend != nil && !isLocalBackend {
 			diags = diags.Append(
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					fmt.Sprintf("Invalid command line options: %s", strings.Join(setLegacyLocalBackendOptions[:], ", ")),
 					"Command line options -backup and -backup-out are legacy options that operate on a local state file only. You must specify a local state file with the -state option or switch to the local backend.",
 				),
@@ -191,7 +191,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	sourceAddrs := c.sourceObjectAddrs(stateFrom, sourceAddr)
 	if len(sourceAddrs) == 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			msgInvalidSource,
 			fmt.Sprintf("Cannot move %s: does not match anything in the current state.", sourceAddr),
 		))
@@ -205,7 +205,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			addrTo, ok := destAddr.(addrs.ModuleInstance)
 			if !ok {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidTarget,
 					fmt.Sprintf("Cannot move %s to %s: the target must also be a module.", addrFrom, destAddr),
 				))
@@ -228,7 +228,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			ms := ssFrom.Module(addrFrom)
 			if ms == nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidSource,
 					fmt.Sprintf("The current state does not contain %s.", addrFrom),
 				))
@@ -250,7 +250,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			addrTo, ok := destAddr.(addrs.AbsResource)
 			if !ok {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidTarget,
 					fmt.Sprintf("Cannot move %s to %s: the source is a whole resource (not a resource instance) so the target must also be a whole resource.", addrFrom, destAddr),
 				))
@@ -261,7 +261,7 @@ func (c *StateMvCommand) Run(args []string) int {
 
 			if stateTo.Resource(addrTo) != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidTarget,
 					fmt.Sprintf("Cannot move to %s: there is already a resource at that address in the current state.", addrTo),
 				))
@@ -270,7 +270,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			rs := ssFrom.Resource(addrFrom)
 			if rs == nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidSource,
 					fmt.Sprintf("The current state does not contain %s.", addrFrom),
 				))
@@ -297,7 +297,7 @@ func (c *StateMvCommand) Run(args []string) int {
 				ra, ok := destAddr.(addrs.AbsResource)
 				if !ok {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						msgInvalidTarget,
 						fmt.Sprintf("Cannot move %s to %s: the target must also be a resource instance.", addrFrom, destAddr),
 					))
@@ -315,7 +315,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			}
 			if stateTo.ResourceInstance(addrTo) != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidTarget,
 					fmt.Sprintf("Cannot move to %s: there is already a resource instance at that address in the current state.", addrTo),
 				))
@@ -324,7 +324,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			is := ssFrom.ResourceInstance(addrFrom)
 			if is == nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					msgInvalidSource,
 					fmt.Sprintf("The current state does not contain %s.", addrFrom),
 				))
@@ -363,7 +363,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			}
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				msgInvalidSource,
 				fmt.Sprintf("Cannot move %s: OpenTofu doesn't know how to move this object.", rawAddrFrom),
 			))
@@ -497,20 +497,20 @@ func (c *StateMvCommand) validateResourceMove(addrFrom, addrTo addrs.AbsResource
 		switch addrFrom.Resource.Mode {
 		case addrs.ManagedResourceMode:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				msgInvalidRequest,
 				fmt.Sprintf("Cannot move %s to %s: a managed resource can be moved only to another managed resource address.", addrFrom, addrTo),
 			))
 		case addrs.DataResourceMode:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				msgInvalidRequest,
 				fmt.Sprintf("Cannot move %s to %s: a data resource can be moved only to another data resource address.", addrFrom, addrTo),
 			))
 		default:
 			// In case a new mode is added in future, this unhelpful error is better than nothing.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				msgInvalidRequest,
 				fmt.Sprintf("Cannot move %s to %s: cannot change resource mode.", addrFrom, addrTo),
 			))
@@ -518,7 +518,7 @@ func (c *StateMvCommand) validateResourceMove(addrFrom, addrTo addrs.AbsResource
 	}
 	if addrFrom.Resource.Type != addrTo.Resource.Type {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			msgInvalidRequest,
 			fmt.Sprintf("Cannot move %s to %s: resource types don't match.", addrFrom, addrTo),
 		))

@@ -157,7 +157,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		stateLocker.Unlock()
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Workspace is not empty",
 			fmt.Sprintf(
 				"Workspace %q is currently tracking the following resource instances:%s\n\nDeleting this workspace would cause OpenTofu to lose track of any associated remote objects, which would then require you to delete them manually outside of OpenTofu. You should destroy these objects with OpenTofu before deleting the workspace.\n\nIf you want to delete this workspace anyway, and have OpenTofu forget about these managed objects, use the -force option to disable this safety check.",

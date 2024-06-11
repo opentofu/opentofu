@@ -137,7 +137,7 @@ func (m *Meta) Backend(opts *BackendOpts, enc encryption.StateEncryption) (backe
 					suggestion = "You must install the required plugins before running OpenTofu operations."
 				}
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Required plugins are not installed",
 					fmt.Sprintf(
 						"The installed provider plugins are not consistent with the packages selected in the dependency lock file:%s\n\nOpenTofu uses external plugins to integrate with a variety of different infrastructure services. %s",
@@ -593,7 +593,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts, enc encryption.StateEncrypti
 		// Legacy remote state is no longer supported. User must first
 		// migrate with Terraform 0.11 or earlier.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Legacy remote state not supported",
 			"This working directory is configured for legacy remote state, which is no longer supported from Terraform v0.12 onwards, and thus not supported by OpenTofu, either. To migrate this environment, first run \"terraform init\" under a Terraform 0.11 release, and then upgrade to OpenTofu.",
 		))
@@ -615,7 +615,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts, enc encryption.StateEncrypti
 		initReason := fmt.Sprintf("Unsetting the previously set backend %q", s.Backend.Type)
 		if !opts.Init {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Backend initialization required, please run \"tofu init\"",
 				fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
 			))
@@ -636,14 +636,14 @@ func (m *Meta) backendFromConfig(opts *BackendOpts, enc encryption.StateEncrypti
 			if c.Type == "cloud" {
 				initReason := "Initial configuration of cloud backend"
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Cloud backend initialization required: please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
 				))
 			} else {
 				initReason := fmt.Sprintf("Initial configuration of the requested backend %q", c.Type)
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Backend initialization required, please run \"tofu init\"",
 					fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
 				))
@@ -753,19 +753,19 @@ func (m *Meta) determineInitReason(previousBackendType string, currentBackendTyp
 	switch cloudMode {
 	case cloud.ConfigChangeInPlace:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cloud backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
 		))
 	case cloud.ConfigMigrationIn:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cloud backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInitCloud), initReason),
 		))
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Backend initialization required: please run \"tofu init\"",
 			fmt.Sprintf(strings.TrimSpace(errBackendInit), initReason),
 		))
@@ -820,7 +820,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	configVal, err := s.Backend.Config(schema)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to decode current backend config",
 			fmt.Sprintf("The backend configuration created by the most recent run of \"tofu init\" could not be decoded: %s. The configuration may have been initialized by an earlier version that used an incompatible configuration structure. Run \"tofu init -reconfigure\" to force re-initialization of the backend.", err),
 		))
@@ -1277,7 +1277,7 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState, enc encryption.StateEncry
 	configVal, err := s.Backend.Config(schema)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to decode current backend config",
 			fmt.Sprintf("The backend configuration created by the most recent run of \"tofu init\" could not be decoded: %s. The configuration may have been initialized by an earlier version that used an incompatible configuration structure. Run \"tofu init -reconfigure\" to force re-initialization of the backend.", err),
 		))
@@ -1405,7 +1405,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend, enc encryption.StateEnc
 
 	if !configVal.IsWhollyKnown() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unknown values within backend definition",
 			"The `tofu` configuration block should contain only concrete and static values. Another diagnostic should contain more information about which part of the configuration is problematic."))
 		return nil, cty.NilVal, diags
@@ -1508,13 +1508,13 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 		if m.reconfigure {
 			if mode.IsCloudMigration() {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid command-line option",
 					"The -reconfigure option is unsupported when migrating to cloud backend, because activating cloud backend involves some additional steps.",
 				))
 			} else {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid command-line option",
 					"The -reconfigure option is for in-place reconfiguration of state backends only, and is not needed when changing cloud backend settings.\n\nWhen using cloud backend, initialization automatically activates any new Cloud configuration settings.",
 				))
@@ -1531,13 +1531,13 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 			}
 			if mode.IsCloudMigration() {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid command-line option",
 					fmt.Sprintf("The %s option is for migration between state backends only, and is not applicable when using cloud backend.\n\nCloud backend migration has additional steps, configured by interactive prompts.", name),
 				))
 			} else {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid command-line option",
 					fmt.Sprintf("The %s option is for migration between state backends only, and is not applicable when using cloud backend.\n\nState storage is handled automatically by cloud backend and so the state storage location is not configurable.", name),
 				))
@@ -1684,7 +1684,7 @@ use this backend unless the backend configuration changes.
 `
 
 var migrateOrReconfigDiag = tfdiags.Sourceless(
-	tfdiags.Error,
+	tfdiags.NewSeverity(tfdiags.ErrorLevel),
 	"Backend configuration changed",
 	"A change in the backend configuration has been detected, which may require migrating existing state.\n\n"+
 		"If you wish to attempt automatic migration of the state, use \"tofu init -migrate-state\".\n"+
