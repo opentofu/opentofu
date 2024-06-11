@@ -72,7 +72,7 @@ func (b *Local) opRefresh(
 	runningOp.State = lr.InputState
 	if !runningOp.State.HasManagedResourceInstanceObjects() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Empty or non-existent state",
 			"There are currently no remote objects tracked in the state, so there is nothing to refresh.",
 		))

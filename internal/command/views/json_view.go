@@ -81,8 +81,8 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 		args := []interface{}{"type", json.MessageDiagnostic, "diagnostic", diagnostic}
 		args = append(args, metadata...)
 
-		switch diag.Severity() {
-		case tfdiags.Warning:
+		switch diag.Severity().SeverityLevel {
+		case tfdiags.WarningLevel:
 			v.log.Warn(fmt.Sprintf("Warning: %s", diag.Description().Summary), args...)
 		default:
 			v.log.Error(fmt.Sprintf("Error: %s", diag.Description().Summary), args...)

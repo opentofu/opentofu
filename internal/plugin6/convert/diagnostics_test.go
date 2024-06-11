@@ -116,7 +116,7 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 					Summary:  "simple warning",
 				},
 			},
@@ -131,7 +131,7 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 					Summary:  "simple warning",
 					Detail:   "detailed warning",
 				},
@@ -172,7 +172,7 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 					Summary:  "warning",
 				},
 				{
@@ -310,7 +310,7 @@ func TestDiagnostics(t *testing.T) {
 					Attr:     []interface{}{"attr", "sub"},
 				},
 				{
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 					Summary:  "warning",
 					Detail:   "warning detail",
 					Attr:     []interface{}{"attr", 1, "sub"},

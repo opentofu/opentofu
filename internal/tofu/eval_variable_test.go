@@ -1214,7 +1214,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 			wantWarns:
 				for _, want := range test.wantWarn {
 					for _, diag := range gotDiags {
-						if diag.Severity() != tfdiags.Warning {
+						if diag.Severity().SeverityLevel != tfdiags.WarningLevel {
 							continue
 						}
 						desc := diag.Description()

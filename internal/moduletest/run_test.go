@@ -64,7 +64,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "simple warning",
 						Detail:  "want to see this in the returned set",
 					},
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 				},
 			},
 		},
@@ -171,7 +171,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "expected warning",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -277,7 +277,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "expected warning",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -529,7 +529,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "expected warning in test_instance.single",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -654,7 +654,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				diags = diags.Append(
 					tfdiags.Override(
 						tfdiags.Sourceless(tfdiags.Error, "unexpected failure", "this should be an error and not removed"),
-						tfdiags.Warning,
+						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
 								CheckRule: addrs.NewCheckRule(addrs.AbsCheck{
@@ -670,8 +670,8 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				// assertion that should remain as a warning.
 				diags = diags.Append(
 					tfdiags.Override(
-						tfdiags.Sourceless(tfdiags.Warning, "unexpected warning", "this should be a warning and not removed"),
-						tfdiags.Warning,
+						tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "unexpected warning", "this should be a warning and not removed"),
+						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
 								CheckRule: addrs.NewCheckRule(addrs.AbsCheck{
@@ -688,7 +688,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				diags = diags.Append(
 					tfdiags.Override(
 						tfdiags.Sourceless(tfdiags.Error, "expected failure from child module", "this should be an error and not removed"),
-						tfdiags.Warning,
+						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
 								CheckRule: addrs.NewCheckRule(addrs.AbsCheck{
@@ -708,7 +708,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				diags = diags.Append(
 					tfdiags.Override(
 						tfdiags.Sourceless(tfdiags.Error, "expected failure", "this should be removed"),
-						tfdiags.Warning,
+						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
 								CheckRule: addrs.NewCheckRule(addrs.AbsCheck{
@@ -735,7 +735,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "unexpected warning",
 						Detail:  "this should be a warning and not removed",
 					},
-					Severity: tfdiags.Warning,
+					Severity: tfdiags.NewSeverity(tfdiags.WarningLevel),
 				},
 				{
 					Description: tfdiags.Description{

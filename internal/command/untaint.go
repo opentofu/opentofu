@@ -246,7 +246,7 @@ func (c *UntaintCommand) Synopsis() string {
 
 func (c *UntaintCommand) allowMissingExit(name addrs.AbsResourceInstance) int {
 	c.showDiagnostics(tfdiags.Sourceless(
-		tfdiags.Warning,
+		tfdiags.NewSeverity(tfdiags.WarningLevel),
 		"No such resource instance",
 		fmt.Sprintf("Resource instance %s was not found, but this is not an error because -allow-missing was set.", name),
 	))

@@ -330,7 +330,7 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 		// configuration will be raised as soon as the config is loaded again.
 		// We continue below because writing the manifest is required to finish
 		// module installation.
-		diags = tfdiags.OverrideAll(diags, tfdiags.Warning, nil)
+		diags = tfdiags.OverrideAll(diags, tfdiags.NewSeverity(tfdiags.WarningLevel), nil)
 	}
 
 	err := manifest.WriteSnapshotToDir(i.modsDir)

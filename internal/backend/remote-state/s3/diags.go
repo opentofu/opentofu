@@ -43,10 +43,10 @@ func diagnosticsString(d tfdiags.Diagnostics) string {
 func baseSeverityToTofuSeverity(s diag.Severity) tfdiags.Severity {
 	switch s {
 	case diag.SeverityWarning:
-		return tfdiags.Warning
+		return tfdiags.NewSeverity(tfdiags.WarningLevel)
 	case diag.SeverityError:
-		return tfdiags.Error
+		return tfdiags.NewSeverity(tfdiags.ErrorLevel)
 	default:
-		return -1
+		return tfdiags.NewSeverity(-1)
 	}
 }

@@ -19,9 +19,9 @@ var _ Diagnostic = hclDiagnostic{}
 func (d hclDiagnostic) Severity() Severity {
 	switch d.diag.Severity {
 	case hcl.DiagWarning:
-		return Warning
+		return NewSeverity(WarningLevel)
 	default:
-		return Error
+		return NewSeverity(ErrorLevel)
 	}
 }
 

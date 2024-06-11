@@ -1009,9 +1009,9 @@ func (b *Remote) VerifyWorkspaceTerraformVersion(workspaceName string) tfdiags.D
 	// Even if ignoring version conflicts, it may still be useful to call this
 	// method and warn the user about a mismatch between the local and remote
 	// OpenTofu versions.
-	severity := tfdiags.Error
+	severity := tfdiags.NewSeverity(tfdiags.ErrorLevel)
 	if b.ignoreVersionConflict {
-		severity = tfdiags.Warning
+		severity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 	}
 
 	suggestion := " If you're sure you want to upgrade the state, you can force OpenTofu to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
@@ -1072,7 +1072,7 @@ func generalError(msg string, err error) error {
 
 func checkConstraintsWarning(err error) tfdiags.Diagnostic {
 	return tfdiags.Sourceless(
-		tfdiags.Warning,
+		tfdiags.NewSeverity(tfdiags.WarningLevel),
 		fmt.Sprintf("Failed to check version constraints: %v", err),
 		"Checking version constraints is considered optional, but this is an"+
 			"unexpected error which should be reported.",

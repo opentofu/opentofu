@@ -64,7 +64,7 @@ func incompatibleWorkspaceTerraformVersion(message string, ignoreVersionConflict
 	severity := tfdiags.Error
 	suggestion := ignoreRemoteVersionHelp
 	if ignoreVersionConflict {
-		severity = tfdiags.Warning
+		severity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 		suggestion = ""
 	}
 	description := strings.TrimSpace(fmt.Sprintf("%s\n\n%s", message, suggestion))

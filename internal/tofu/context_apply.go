@@ -92,7 +92,7 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 
 	if len(plan.TargetAddrs) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Applied changes may be incomplete",
 			`The plan was created with the -target option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
     tofu plan

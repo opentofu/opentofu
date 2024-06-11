@@ -182,7 +182,7 @@ func (m *Meta) providerDevOverrideInitWarnings() tfdiags.Diagnostics {
 	detailMsg.WriteString("\nSkip tofu init when using provider development overrides. It is not necessary and may error unexpectedly.")
 	return tfdiags.Diagnostics{
 		tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Provider development overrides are in effect",
 			detailMsg.String(),
 		),
@@ -214,7 +214,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 	detailMsg.WriteString("\nThe behavior may therefore not match any released version of the provider and applying changes may cause the state to become incompatible with published releases.")
 	return tfdiags.Diagnostics{
 		tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Provider development overrides are in effect",
 			detailMsg.String(),
 		),

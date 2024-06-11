@@ -724,7 +724,7 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		// can sometimes serve as good context for a subsequent error.
 		useCompact := true
 		for _, diag := range diags {
-			if diag.Severity() != tfdiags.Warning {
+			if diag.Severity().SeverityLevel != tfdiags.WarningLevel {
 				useCompact = false
 				break
 			}
@@ -745,10 +745,10 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 			msg = format.DiagnosticPlain(diag, m.configSources(), outputWidth)
 		}
 
-		switch diag.Severity() {
-		case tfdiags.Error:
+		switch diag.Severity().SeverityLevel {
+		case tfdiags.ErrorLevel:
 			m.Ui.Error(msg)
-		case tfdiags.Warning:
+		case tfdiags.WarningLevel:
 			m.Ui.Warn(msg)
 		default:
 			m.Ui.Output(msg)

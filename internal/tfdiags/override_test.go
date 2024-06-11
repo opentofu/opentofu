@@ -13,9 +13,9 @@ import (
 
 func TestOverride_UpdatesSeverity(t *testing.T) {
 	original := Sourceless(Error, "summary", "detail")
-	override := Override(original, Warning, nil)
+	override := Override(original, NewSeverity(WarningLevel), nil)
 
-	if override.Severity() != Warning {
+	if override.Severity().SeverityLevel != WarningLevel {
 		t.Errorf("expected warning but was %s", override.Severity())
 	}
 }
@@ -27,7 +27,7 @@ func TestOverride_MaintainsExtra(t *testing.T) {
 		Detail:   "detail",
 		Extra:    "extra",
 	}}
-	override := Override(original, Warning, nil)
+	override := Override(original, NewSeverity(WarningLevel), nil)
 
 	if override.ExtraInfo().(string) != "extra" {
 		t.Errorf("invalid extra info %v", override.ExtraInfo())
@@ -41,7 +41,7 @@ func TestOverride_WrapsExtra(t *testing.T) {
 		Detail:   "detail",
 		Extra:    "extra",
 	}}
-	override := Override(original, Warning, func() DiagnosticExtraWrapper {
+	override := Override(original, NewSeverity(WarningLevel), func() DiagnosticExtraWrapper {
 		return &extraWrapper{
 			mine: "mine",
 		}
@@ -58,7 +58,7 @@ func TestOverride_WrapsExtra(t *testing.T) {
 
 func TestUndoOverride(t *testing.T) {
 	original := Sourceless(Error, "summary", "detail")
-	override := Override(original, Warning, nil)
+	override := Override(original, NewSeverity(WarningLevel), nil)
 	restored := UndoOverride(override)
 
 	if restored.Severity() != Error {

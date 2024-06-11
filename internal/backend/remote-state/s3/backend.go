@@ -617,7 +617,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 	} else {
 		if defined := findDeprecatedFields(obj, assumeRoleDeprecatedFields); len(defined) != 0 {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Deprecated Parameters",
 				`The following parameters have been deprecated. Replace them as follows:`+"\n"+
 					formatDeprecated(defined),

@@ -160,7 +160,7 @@ func (run *Run) ValidateExpectedFailures(originals tfdiags.Diagnostics) tfdiags.
 					break
 				}
 
-				if diag.Severity() == tfdiags.Warning {
+				if diag.Severity().SeverityLevel == tfdiags.WarningLevel {
 					// Warnings don't count as errors. This diagnostic will be
 					// added into the returned set below.
 					break
@@ -187,7 +187,7 @@ func (run *Run) ValidateExpectedFailures(originals tfdiags.Diagnostics) tfdiags.
 					break
 				}
 
-				if diag.Severity() == tfdiags.Warning {
+				if diag.Severity().SeverityLevel == tfdiags.WarningLevel {
 					// Warnings don't count as errors. This diagnostic will be
 					// added into the returned set below.
 					break
@@ -213,7 +213,7 @@ func (run *Run) ValidateExpectedFailures(originals tfdiags.Diagnostics) tfdiags.
 					break
 				}
 
-				if diag.Severity() == tfdiags.Warning {
+				if diag.Severity().SeverityLevel == tfdiags.WarningLevel {
 					// Warnings don't count as errors. This diagnostic will be
 					// added into the returned set below.
 					break

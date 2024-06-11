@@ -248,7 +248,7 @@ aws_access_key_id = ProfileSharedCredentialsAccessKey
 aws_secret_access_key = ProfileSharedCredentialsSecretKey
 `,
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameter"),
 				noopMatcher{},
 			),
@@ -391,7 +391,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -806,7 +806,7 @@ func TestBackendConfig_Authentication_AssumeRoleInline(t *testing.T) {
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -827,7 +827,7 @@ func TestBackendConfig_Authentication_AssumeRoleInline(t *testing.T) {
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -929,7 +929,7 @@ aws_access_key_id = DefaultSharedCredentialsAccessKey
 aws_secret_access_key = DefaultSharedCredentialsSecretKey
 `,
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -947,7 +947,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -965,7 +965,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -985,7 +985,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -1005,7 +1005,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -1025,7 +1025,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -1045,7 +1045,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -1067,7 +1067,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -1090,7 +1090,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				servicemocks.MockStsGetCallerIdentityValidEndpoint,
 			},
 			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				equalsMatcher("Deprecated Parameters"),
 				noopMatcher{},
 			),
@@ -1109,7 +1109,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			},
 			ValidateDiags: ExpectMultipleDiags(
 				ExpectDiagMatching(
-					tfdiags.Warning,
+					tfdiags.NewSeverity(tfdiags.WarningLevel),
 					equalsMatcher("Deprecated Parameters"),
 					noopMatcher{},
 				),

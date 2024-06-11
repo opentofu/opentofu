@@ -108,11 +108,11 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	for _, diag := range diags {
 		output.Diagnostics = append(output.Diagnostics, viewsjson.NewDiagnostic(diag, configSources))
 
-		switch diag.Severity() {
-		case tfdiags.Error:
+		switch diag.Severity().SeverityLevel {
+		case tfdiags.ErrorLevel:
 			output.ErrorCount++
 			output.Valid = false
-		case tfdiags.Warning:
+		case tfdiags.WarningLevel:
 			output.WarningCount++
 		}
 	}

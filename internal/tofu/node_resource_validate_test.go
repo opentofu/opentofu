@@ -390,15 +390,15 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 		t.Fatal("unexpected success; want error")
 	}
 
-	bySeverity := map[tfdiags.Severity]tfdiags.Diagnostics{}
+	bySeverity := map[tfdiags.SeverityLevel]tfdiags.Diagnostics{}
 	for _, diag := range diags {
-		bySeverity[diag.Severity()] = append(bySeverity[diag.Severity()], diag)
+		bySeverity[diag.Severity().SeverityLevel] = append(bySeverity[diag.Severity().SeverityLevel], diag)
 	}
-	if len(bySeverity[tfdiags.Warning]) != 1 || bySeverity[tfdiags.Warning][0].Description().Summary != "warn" {
-		t.Errorf("Expected 1 warning 'warn', got: %s", bySeverity[tfdiags.Warning].ErrWithWarnings())
+	if len(bySeverity[tfdiags.WarningLevel]) != 1 || bySeverity[tfdiags.WarningLevel][0].Description().Summary != "warn" {
+		t.Errorf("Expected 1 warning 'warn', got: %s", bySeverity[tfdiags.WarningLevel].ErrWithWarnings())
 	}
-	if len(bySeverity[tfdiags.Error]) != 1 || bySeverity[tfdiags.Error][0].Description().Summary != "err" {
-		t.Errorf("Expected 1 error 'err', got: %s", bySeverity[tfdiags.Error].Err())
+	if len(bySeverity[tfdiags.ErrorLevel]) != 1 || bySeverity[tfdiags.ErrorLevel][0].Description().Summary != "err" {
+		t.Errorf("Expected 1 error 'err', got: %s", bySeverity[tfdiags.ErrorLevel].Err())
 	}
 }
 

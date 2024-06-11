@@ -38,7 +38,7 @@ func (diags Diagnostics) ConsolidateWarnings(threshold int) Diagnostics {
 
 	for _, diag := range diags {
 		severity := diag.Severity()
-		if severity != Warning || diag.Source().Subject == nil {
+		if severity.SeverityLevel != WarningLevel || diag.Source().Subject == nil {
 			// Only warnings can get special treatment, and we only
 			// consolidate warnings that have source locations because
 			// our primary goal here is to deal with the situation where
@@ -135,7 +135,7 @@ func (wg *warningGroup) ExtraInfo() interface{} {
 }
 
 func (wg *warningGroup) Append(diag Diagnostic) {
-	if diag.Severity() != Warning {
+	if diag.Severity().SeverityLevel != WarningLevel {
 		panic("can't append a non-warning diagnostic to a warningGroup")
 	}
 	wg.Warnings = append(wg.Warnings, diag)

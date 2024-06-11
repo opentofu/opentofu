@@ -103,7 +103,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		// can sometimes serve as good context for a subsequent error.
 		useCompact := true
 		for _, diag := range diags {
-			if diag.Severity() != tfdiags.Warning {
+			if diag.Severity().SeverityLevel != tfdiags.WarningLevel {
 				useCompact = false
 				break
 			}

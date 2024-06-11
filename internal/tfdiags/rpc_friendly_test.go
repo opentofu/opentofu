@@ -55,7 +55,7 @@ func TestDiagnosticsForRPC(t *testing.T) {
 			Summary_:  "bad",
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "less bad",
 		},
 		&rpcFriendlyDiag{

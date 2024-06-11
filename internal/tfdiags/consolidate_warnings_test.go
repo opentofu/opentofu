@@ -38,7 +38,7 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		})
 		diags = diags.Append(Sourceless(
-			Warning,
+			NewSeverity(WarningLevel),
 			"Warning 2",
 			fmt.Sprintf("This one is sourceless %d", i),
 		))
@@ -100,7 +100,7 @@ func TestConsolidateWarnings(t *testing.T) {
 	want := Diagnostics{
 		// First set
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 1",
 			Detail_:   "This one has a subject 0",
 			Subject_: &SourceRange{
@@ -120,18 +120,18 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 2",
 			Detail_:   "This one is sourceless 0",
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 3",
 		},
 
 		// Second set (consolidation begins; note additional paragraph in Warning 1 detail)
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 1",
 			Detail_:   "This one has a subject 1\n\n(and 2 more similar warnings elsewhere)",
 			Subject_: &SourceRange{
@@ -151,12 +151,12 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 2",
 			Detail_:   "This one is sourceless 1",
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 3",
 		},
 
@@ -172,12 +172,12 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 2",
 			Detail_:   "This one is sourceless 2",
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 3",
 		},
 
@@ -193,19 +193,19 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 2",
 			Detail_:   "This one is sourceless 3",
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 3",
 		},
 
 		// Special straggler warning gets to show up unconsolidated, because
 		// there is only one of it.
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "Warning 4",
 			Detail_:   "Only one of this one",
 			Subject_: &SourceRange{
@@ -218,7 +218,7 @@ func TestConsolidateWarnings(t *testing.T) {
 		// The final set of warnings should not have been consolidated because
 		// of our filter function.
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "do not consolidate",
 			Detail_:   "warning 1, I should not have been consolidated",
 			Subject_: &SourceRange{
@@ -228,7 +228,7 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "do not consolidate",
 			Detail_:   "warning 2, I should not have been consolidated",
 			Subject_: &SourceRange{
@@ -238,7 +238,7 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Warning,
+			Severity_: NewSeverity(WarningLevel),
 			Summary_:  "do not consolidate",
 			Detail_:   "warning 3, I should not have been consolidated",
 			Subject_: &SourceRange{

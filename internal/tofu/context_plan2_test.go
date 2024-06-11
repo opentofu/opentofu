@@ -1353,7 +1353,7 @@ func TestContext2Plan_movedResourceCollision(t *testing.T) {
 	gotDiags := diags.ForRPC()
 	wantDiags := tfdiags.Diagnostics{
 		tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Unresolved resource instance address changes",
 			`OpenTofu tried to adjust resource instance addresses in the prior state based on change information recorded in the configuration, but some adjustments did not succeed due to existing objects already at the intended addresses:
   - test_object.a[0] could not move to test_object.a
@@ -1459,7 +1459,7 @@ func TestContext2Plan_movedResourceCollisionDestroy(t *testing.T) {
 	gotDiags := diags.ForRPC()
 	wantDiags := tfdiags.Diagnostics{
 		tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Unresolved resource instance address changes",
 			// NOTE: This message is _lightly_ confusing in the destroy case,
 			// because it says "OpenTofu has planned to destroy these objects"
@@ -1572,7 +1572,7 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 		gotDiags := diags.ForRPC()
 		wantDiags := tfdiags.Diagnostics{
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Resource targeting is in effect",
 				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
@@ -1612,7 +1612,7 @@ Note that adding these options may include further additional resource instances
 		gotDiags := diags.ForRPC()
 		wantDiags := tfdiags.Diagnostics{
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Resource targeting is in effect",
 				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
@@ -1652,7 +1652,7 @@ Note that adding these options may include further additional resource instances
 		gotDiags := diags.ForRPC()
 		wantDiags := tfdiags.Diagnostics{
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Resource targeting is in effect",
 				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
@@ -1700,7 +1700,7 @@ Note that adding these options may include further additional resource instances
 		wantDiags := tfdiags.Diagnostics{
 			// Still get the warning about the -target option...
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Resource targeting is in effect",
 				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 

@@ -62,7 +62,7 @@ func ParseUndeclaredVariableValues(vv map[string]UnparsedVariableValue, decls ma
 			// across multiple configurations.
 			if seenUndeclaredInFile < 2 {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Warning,
+					tfdiags.NewSeverity(tfdiags.WarningLevel),
 					"Value for undeclared variable",
 					fmt.Sprintf("The root module does not declare a variable named %q but a value was found in file %q. If you meant to use this value, add a \"variable\" block to the configuration.\n\nTo silence these warnings, use TF_VAR_... environment variables to provide certain \"global\" settings to all configurations in your organization. To reduce the verbosity of these warnings, use the -compact-warnings option.", name, val.SourceRange.Filename),
 				))

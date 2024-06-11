@@ -265,7 +265,7 @@ func (v *OutputJSON) Diagnostics(diags tfdiags.Diagnostics) {
 // happened.
 func noOutputsWarning() tfdiags.Diagnostic {
 	return tfdiags.Sourceless(
-		tfdiags.Warning,
+		tfdiags.NewSeverity(tfdiags.WarningLevel),
 		"No outputs found",
 		"The state file either has no outputs defined, or all the defined "+
 			"outputs are empty. Please define an output in your configuration "+

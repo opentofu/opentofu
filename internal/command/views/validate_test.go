@@ -28,7 +28,7 @@ func TestValidateHuman(t *testing.T) {
 		},
 		"warning": {
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Your shoelaces are untied",
 				"Watch out, or you'll trip!",
 			),
@@ -88,7 +88,7 @@ func TestValidateJSON(t *testing.T) {
 		},
 		"warning": {
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Your shoelaces are untied",
 				"Watch out, or you'll trip!",
 			),

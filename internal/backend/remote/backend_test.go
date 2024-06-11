@@ -770,7 +770,7 @@ func TestRemote_VerifyWorkspaceTerraformVersion_ignoreFlagSet(t *testing.T) {
 		t.Fatal("expected diag, but none returned")
 	}
 
-	if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+	if got, want := diags[0].Severity().SeverityLevel, tfdiags.WarningLevel; got != want {
 		t.Errorf("wrong severity: got %#v, want %#v", got, want)
 	}
 	if got, want := diags[0].Description().Summary, "OpenTofu version mismatch"; got != want {

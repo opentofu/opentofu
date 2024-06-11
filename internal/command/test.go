@@ -128,7 +128,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 						// entry and print a warning. But we could still execute
 						// any other tests within the filter.
 						fileDiags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
+							tfdiags.NewSeverity(tfdiags.WarningLevel),
 							"Unknown test file",
 							fmt.Sprintf("The specified test file, %s, could not be found.", name)))
 						continue
@@ -535,7 +535,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 			if diags.HasErrors() {
 				// This is very unlikely.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Warning,
+					tfdiags.NewSeverity(tfdiags.WarningLevel),
 					"Failed to print verbose output",
 					fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
 			} else {
@@ -608,7 +608,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		if diags.HasErrors() {
 			// This is very unlikely.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Failed to print verbose output",
 				fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
 		} else {

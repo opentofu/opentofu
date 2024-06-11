@@ -327,7 +327,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 	if !n.DestroyApply {
 		checkRuleSeverity := tfdiags.Error
 		if n.RefreshOnly {
-			checkRuleSeverity = tfdiags.Warning
+			checkRuleSeverity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 		}
 		checkDiags := evalCheckRules(
 			addrs.OutputPrecondition,
@@ -402,10 +402,10 @@ If you do intend to export this data, annotate the output value as sensitive by 
 			// make the errors pretty.
 			var warnings tfdiags.Diagnostics
 			for _, d := range diags {
-				switch d.Severity() {
-				case tfdiags.Warning:
+				switch d.Severity().SeverityLevel {
+				case tfdiags.WarningLevel:
 					warnings = warnings.Append(d)
-				case tfdiags.Error:
+				case tfdiags.ErrorLevel:
 					desc := d.Description()
 					warnings = warnings.Append(tfdiags.SimpleWarning(fmt.Sprintf("%s:%s", desc.Summary, desc.Detail)))
 				}

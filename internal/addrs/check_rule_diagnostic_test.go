@@ -22,7 +22,7 @@ func TestCheckRuleDiagnosticExtra_WrapsExtra(t *testing.T) {
 		Extra:    "extra",
 	})
 
-	overridden := tfdiags.OverrideAll(originals, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+	overridden := tfdiags.OverrideAll(originals, tfdiags.NewSeverity(tfdiags.WarningLevel), func() tfdiags.DiagnosticExtraWrapper {
 		return &CheckRuleDiagnosticExtra{}
 	})
 
@@ -40,7 +40,7 @@ func TestCheckRuleDiagnosticExtra_Unwraps(t *testing.T) {
 		Extra:    "extra",
 	})
 
-	overridden := tfdiags.OverrideAll(originals, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+	overridden := tfdiags.OverrideAll(originals, tfdiags.NewSeverity(tfdiags.WarningLevel), func() tfdiags.DiagnosticExtraWrapper {
 		return &CheckRuleDiagnosticExtra{}
 	})
 

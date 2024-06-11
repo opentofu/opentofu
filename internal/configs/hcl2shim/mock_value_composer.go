@@ -63,7 +63,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 	for k := range defaults {
 		if _, ok := impliedTypes[k]; !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				fmt.Sprintf("Ignored mock/override field `%v`", k),
 				"The field is unknown. Please, ensure it is a part of resource definition.",
 			))
@@ -79,7 +79,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 	addPotentialDefaultsWarning := func(key, description string) {
 		if _, ok := defaults[key]; ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				fmt.Sprintf("Ignored mock/override field `%v`", key),
 				description,
 			))
@@ -117,7 +117,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 
 			for _, err := range typeConformanceErrs {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Warning,
+					tfdiags.NewSeverity(tfdiags.WarningLevel),
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
 					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", err),
 				))
@@ -169,7 +169,7 @@ func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
 			hasDefaultVal = false
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				fmt.Sprintf("Ignored mock/override field `%v`", k),
 				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
 			))
@@ -182,7 +182,7 @@ func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 
 			if hasDefaultVal {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Warning,
+					tfdiags.NewSeverity(tfdiags.WarningLevel),
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
 					"Cannot overridde block value, because it's not present in configuration.",
 				))

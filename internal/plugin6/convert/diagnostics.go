@@ -62,9 +62,9 @@ func ProtoToDiagnostics(ds []*proto.Diagnostic) tfdiags.Diagnostics {
 
 		switch d.Severity {
 		case proto.Diagnostic_ERROR:
-			severity = tfdiags.Error
+			severity = tfdiags.NewSeverity(tfdiags.ErrorLevel)
 		case proto.Diagnostic_WARNING:
-			severity = tfdiags.Warning
+			severity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 		}
 
 		var newDiag tfdiags.Diagnostic

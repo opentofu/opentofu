@@ -92,7 +92,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Warning,
+		tfdiags.NewSeverity(tfdiags.WarningLevel),
 		`Improper use of "less"`,
 		`You probably mean "10 buckets or fewer"`,
 	))
@@ -137,7 +137,7 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Warning,
+		tfdiags.NewSeverity(tfdiags.WarningLevel),
 		`Improper use of "less"`,
 		`You probably mean "10 buckets or fewer"`,
 	))

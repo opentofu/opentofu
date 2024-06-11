@@ -129,13 +129,13 @@ func (c *LoginCommand) Run(args []string) int {
 		// This is also fine! We'll try the manual token creation process.
 	case *disco.ErrVersionNotSupported:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Host does not support OpenTofu login",
 			fmt.Sprintf("The given hostname %q allows creating OpenTofu authorization tokens, but requires a newer version of OpenTofu CLI to do so.", dispHostname),
 		))
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Host does not support OpenTofu login",
 			fmt.Sprintf("The given hostname %q cannot support \"tofu login\": %s.", dispHostname, err),
 		))

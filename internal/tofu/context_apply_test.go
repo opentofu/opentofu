@@ -6051,7 +6051,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 			// Should have one warning that -target is in effect.
 			t.Fatalf("got %d diagnostics in plan; want 1", len(diags))
 		}
-		if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+		if got, want := diags[0].Severity().SeverityLevel, tfdiags.WarningLevel; got != want {
 			t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
 		}
 		if got, want := diags[0].Description().Summary, "Resource targeting is in effect"; got != want {
@@ -6066,7 +6066,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("got %d diagnostics; want 1", len(diags))
 		}
-		if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+		if got, want := diags[0].Severity().SeverityLevel, tfdiags.WarningLevel; got != want {
 			t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
 		}
 		if got, want := diags[0].Description().Summary, "Applied changes may be incomplete"; got != want {

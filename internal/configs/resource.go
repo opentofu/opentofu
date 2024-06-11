@@ -574,7 +574,7 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 		refs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 		for _, diag := range refDiags {
 			severity := hcl.DiagError
-			if diag.Severity() == tfdiags.Warning {
+			if diag.Severity().SeverityLevel == tfdiags.WarningLevel {
 				severity = hcl.DiagWarning
 			}
 

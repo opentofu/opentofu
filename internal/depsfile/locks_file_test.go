@@ -76,10 +76,10 @@ func TestLoadLocksFromFile(t *testing.T) {
 					continue
 				}
 				lineNum := diag.Source().Subject.Start.Line
-				switch sev := diag.Severity(); sev {
-				case tfdiags.Error:
+				switch sev := diag.Severity().SeverityLevel; sev {
+				case tfdiags.ErrorLevel:
 					gotErrors[lineNum] = summary
-				case tfdiags.Warning:
+				case tfdiags.WarningLevel:
 					gotWarnings[lineNum] = summary
 				default:
 					t.Errorf("unexpected diagnostic severity %s", sev)

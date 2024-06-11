@@ -57,7 +57,7 @@ func TestNewDiagnostic(t *testing.T) {
 	}{
 		"sourceless warning": {
 			tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Oh no",
 				"Something is broken",
 			),

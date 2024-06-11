@@ -168,7 +168,7 @@ func (n *nodeCheckAssert) Execute(ctx EvalContext, _ walkOperation) tfdiags.Diag
 			ctx,
 			n.addr,
 			EvalDataForNoInstanceKey,
-			tfdiags.Warning)
+			tfdiags.NewSeverity(tfdiags.WarningLevel))
 
 	}
 

@@ -475,7 +475,7 @@ func TestTestHuman_Run(t *testing.T) {
 			Run: &moduletest.Run{
 				Name:        "run_block",
 				Status:      moduletest.Pass,
-				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "a warning occurred", "some warning happened during this test")},
+				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "a warning occurred", "some warning happened during this test")},
 			},
 			StdOut: `  run "run_block"... pass
 
@@ -737,8 +737,8 @@ func TestTestHuman_DestroySummary(t *testing.T) {
 		},
 		"empty_state_only_warnings": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "some thing not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "some thing not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
 			},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.NewState(),
@@ -754,8 +754,8 @@ some thing not very bad happened again
 		},
 		"empty_state_with_errors": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "some thing not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "some thing not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
 				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
 			},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
@@ -794,8 +794,8 @@ this time it is very bad
 		},
 		"state_only_warnings": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "some thing not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "some thing not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.BuildState(func(state *states.SyncState) {
@@ -861,8 +861,8 @@ up manually:
 		},
 		"state_with_errors": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "some thing not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "some thing not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
 				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
@@ -935,9 +935,9 @@ up manually:
 		},
 		"state_null_resource_with_errors": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "some thing not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "some thing not very bad happened again"),
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.BuildState(func(state *states.SyncState) {
@@ -1925,8 +1925,8 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 	}{
 		"empty_state_only_warnings": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "something not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "something not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
 			},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.NewState(),
@@ -1959,8 +1959,8 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 		},
 		"empty_state_with_errors": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "something not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "something not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
 				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
 			},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
@@ -2042,8 +2042,8 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 		},
 		"state_only_warnings": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "something not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "something not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.BuildState(func(state *states.SyncState) {
@@ -2138,8 +2138,8 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 		},
 		"state_with_errors": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "something not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "something not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
 				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
@@ -2247,8 +2247,8 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 		},
 		"state_null_resource_with_errors": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Warning, "first warning", "something not very bad happened"),
-				tfdiags.Sourceless(tfdiags.Warning, "second warning", "something not very bad happened again"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
 				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
@@ -2487,7 +2487,7 @@ func TestTestJSON_Run(t *testing.T) {
 			run: &moduletest.Run{
 				Name:        "run_block",
 				Status:      moduletest.Pass,
-				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "a warning occurred", "some warning happened during this test")},
+				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "a warning occurred", "some warning happened during this test")},
 			},
 			want: []map[string]interface{}{
 				{

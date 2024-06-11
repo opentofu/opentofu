@@ -121,7 +121,7 @@ func TestBuild(t *testing.T) {
 					Detail:   "It was really, really bad.",
 				},
 				{
-					Severity: Warning,
+					Severity: NewSeverity(WarningLevel),
 					Summary:  "Also, somebody sneezed",
 					Detail:   "How rude!",
 				},
@@ -169,7 +169,7 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Warning,
+					Severity: NewSeverity(WarningLevel),
 					Summary:  "Don't forget your toothbrush!",
 				},
 			},
@@ -182,7 +182,7 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Warning,
+					Severity: NewSeverity(WarningLevel),
 					Summary:  "Don't forget your toothbrush!",
 				},
 				{

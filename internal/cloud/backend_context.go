@@ -242,7 +242,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			fmt.Sprintf("Value for var.%s unavailable", v.definition.Key),
 			fmt.Sprintf("The value of variable %q is marked as sensitive in the remote workspace. This operation always runs locally, so the value for that variable is not available.", v.definition.Key),
 		))

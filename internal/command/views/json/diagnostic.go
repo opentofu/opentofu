@@ -135,10 +135,10 @@ type DiagnosticFunctionCall struct {
 // and returns a Diagnostic struct.
 func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnostic {
 	var sev string
-	switch diag.Severity() {
-	case tfdiags.Error:
+	switch diag.Severity().SeverityLevel {
+	case tfdiags.ErrorLevel:
 		sev = DiagnosticSeverityError
-	case tfdiags.Warning:
+	case tfdiags.WarningLevel:
 		sev = DiagnosticSeverityWarning
 	default:
 		sev = DiagnosticSeverityUnknown

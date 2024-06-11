@@ -245,7 +245,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 						// In this case there _are_ no instances to replace, so
 						// there isn't any alternative address for us to suggest.
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
+							tfdiags.NewSeverity(tfdiags.WarningLevel),
 							"Incompletely-matched force-replace resource instance",
 							fmt.Sprintf(
 								"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
@@ -254,7 +254,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 						))
 					case len(instanceAddrs) == 1:
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
+							tfdiags.NewSeverity(tfdiags.WarningLevel),
 							"Incompletely-matched force-replace resource instance",
 							fmt.Sprintf(
 								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
@@ -268,7 +268,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 						}
 
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
+							tfdiags.NewSeverity(tfdiags.WarningLevel),
 							"Incompletely-matched force-replace resource instance",
 							fmt.Sprintf(
 								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",

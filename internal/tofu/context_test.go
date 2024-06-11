@@ -1001,10 +1001,10 @@ func logDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
 		rng := diag.Source()
 
 		var severity string
-		switch diag.Severity() {
-		case tfdiags.Error:
+		switch diag.Severity().SeverityLevel {
+		case tfdiags.ErrorLevel:
 			severity = "ERROR"
-		case tfdiags.Warning:
+		case tfdiags.WarningLevel:
 			severity = "WARN"
 		default:
 			severity = "???" // should never happen

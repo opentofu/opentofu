@@ -711,7 +711,7 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	checkRuleSeverity := tfdiags.Error
 	if n.preDestroyRefresh {
-		checkRuleSeverity = tfdiags.Warning
+		checkRuleSeverity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 	}
 
 	if plannedChange != nil {
@@ -1767,7 +1767,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 		// Any warning or error diagnostics we'll wrap with some special checks
 		// diagnostics. This is so we can identify them later, and so they'll
 		// only report as warnings.
-		readDiags = tfdiags.OverrideAll(readDiags, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+		readDiags = tfdiags.OverrideAll(readDiags, tfdiags.NewSeverity(tfdiags.WarningLevel), func() tfdiags.DiagnosticExtraWrapper {
 			return &addrs.CheckRuleDiagnosticExtra{
 				CheckRule: addrs.NewCheckRule(addr, addrs.CheckDataResource, 0),
 			}
@@ -1934,7 +1934,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx EvalContext, planned 
 		// data blocks.
 		if readDiags.HasErrors() {
 			ctx.Checks().ReportCheckFailure(addr, addrs.CheckDataResource, 0, readDiags.Err().Error())
-			diags = diags.Append(tfdiags.OverrideAll(readDiags, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+			diags = diags.Append(tfdiags.OverrideAll(readDiags, tfdiags.NewSeverity(tfdiags.WarningLevel), func() tfdiags.DiagnosticExtraWrapper {
 				return &addrs.CheckRuleDiagnosticExtra{
 					CheckRule: addrs.NewCheckRule(addr, addrs.CheckDataResource, 0),
 				}
@@ -1944,7 +1944,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx EvalContext, planned 
 
 		// Even though we know there are no errors here, we still want to
 		// identify these diags has having been generated from a check block.
-		readDiags = tfdiags.OverrideAll(readDiags, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+		readDiags = tfdiags.OverrideAll(readDiags, tfdiags.NewSeverity(tfdiags.WarningLevel), func() tfdiags.DiagnosticExtraWrapper {
 			return &addrs.CheckRuleDiagnosticExtra{
 				CheckRule: addrs.NewCheckRule(addr, addrs.CheckDataResource, 0),
 			}

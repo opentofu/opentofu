@@ -442,7 +442,7 @@ func cliConfigFile() (string, tfdiags.Diagnostics) {
 
 	if mustExist || !errors.Is(err, fs.ErrNotExist) {
 		diags = append(diags, tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Unable to open CLI configuration file",
 			fmt.Sprintf("The CLI configuration file at %q does not exist.", configFilePath),
 		))

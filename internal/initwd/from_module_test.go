@@ -240,7 +240,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 	diags := DirFromModule(context.Background(), loader, dir, modInstallDir, fromModuleDir, nil, hooks)
 
 	for _, d := range diags {
-		if d.Severity() != tfdiags.Warning {
+		if d.Severity().SeverityLevel != tfdiags.WarningLevel {
 			t.Errorf("expected warning, got %v", diags.Err())
 		}
 	}

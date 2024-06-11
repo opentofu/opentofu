@@ -296,7 +296,7 @@ func (sd sortDiagnostics) Less(i, j int) bool {
 	switch {
 
 	case iSev != jSev:
-		return iSev == Warning
+		return iSev.SeverityLevel == WarningLevel
 
 	case (iSrc.Subject == nil) != (jSrc.Subject == nil):
 		return iSrc.Subject == nil

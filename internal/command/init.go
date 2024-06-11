@@ -516,7 +516,7 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 		// necessarily - a mistake. Return a warning.
 		if !extraConfig.Empty() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Missing backend configuration",
 				`-backend-config was used without a "backend" block in the configuration.
 
@@ -592,7 +592,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	for name, addrs := range potentialProviderConflicts {
 		if len(addrs) > 1 {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Potential provider misconfiguration",
 				fmt.Sprintf(
 					"OpenTofu has detected multiple providers of type %s (%s) which may be a misconfiguration.\n\nIf this is intentional you can ignore this warning",
@@ -774,7 +774,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			}
 
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Additional provider information from registry",
 				fmt.Sprintf("The remote registry returned warnings for %s:\n%s",
 					provider.String(),
@@ -984,7 +984,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// suppress updating the file to record any new information it learned,
 			// such as a hash using a new scheme.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				`Provider lock file not updated`,
 				`Changes to the provider selections were detected, but not saved in the .terraform.lock.hcl file. To record these selections, run "tofu init" without the "-lockfile=readonly" flag.`,
 			))
@@ -999,7 +999,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				return incompleteProviders[i] < incompleteProviders[j]
 			})
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				incompleteLockFileInformationHeader,
 				fmt.Sprintf(
 					incompleteLockFileInformationBody,

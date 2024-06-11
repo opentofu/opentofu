@@ -188,7 +188,7 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 
 	if len(opts.Targets) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Warning,
+			tfdiags.NewSeverity(tfdiags.WarningLevel),
 			"Resource targeting is in effect",
 			`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
@@ -857,7 +857,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				)
 				if schema == nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
+						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						"Missing resource schema from provider",
 						fmt.Sprintf("No resource schema found for %s when decoding prior state", addr.Resource.Resource.Type),
 					))
@@ -868,7 +868,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				oldObj, err := oldIS.Current.Decode(ty)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
+						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						"Failed to decode resource from state",
 						fmt.Sprintf("Error decoding %q from prior state: %s", addr.String(), err),
 					))
@@ -880,7 +880,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 					newObj, err = newIS.Current.Decode(ty)
 					if err != nil {
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Warning,
+							tfdiags.NewSeverity(tfdiags.WarningLevel),
 							"Failed to decode resource from state",
 							fmt.Sprintf("Error decoding %q from prior state: %s", addr.String(), err),
 						))
@@ -979,7 +979,7 @@ func blockedMovesWarningDiag(results refactoring.MoveResults) tfdiags.Diagnostic
 	}
 
 	return tfdiags.Sourceless(
-		tfdiags.Warning,
+		tfdiags.NewSeverity(tfdiags.WarningLevel),
 		"Unresolved resource instance address changes",
 		fmt.Sprintf(
 			"OpenTofu tried to adjust resource instance addresses in the prior state based on change information recorded in the configuration, but some adjustments did not succeed due to existing objects already at the intended addresses:%s\n\nOpenTofu has planned to destroy these objects. If OpenTofu's proposed changes aren't appropriate, you must first resolve the conflicts using the \"tofu state\" subcommands and then create a new plan.",

@@ -215,7 +215,7 @@ func attributeErrDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnos
 }
 
 func attributeWarningDiag(summary, detail string, attrPath cty.Path) tfdiags.Diagnostic {
-	return tfdiags.AttributeValue(tfdiags.Warning, summary, detail, attrPath.Copy())
+	return tfdiags.AttributeValue(tfdiags.NewSeverity(tfdiags.WarningLevel), summary, detail, attrPath.Copy())
 }
 
 func validateNonEmptyString(val string, path cty.Path, diags *tfdiags.Diagnostics) {

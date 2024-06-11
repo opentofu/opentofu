@@ -73,7 +73,7 @@ func (c *Change) MaybeWriteConfig(writer io.Writer, out string) (io.Writer, bool
 		header += "\n"
 		if _, err := writer.Write([]byte(fmt.Sprintf("%s%s\n", header, c.GeneratedConfig))); err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
+				tfdiags.NewSeverity(tfdiags.WarningLevel),
 				"Failed to save generated config",
 				fmt.Sprintf("OpenTofu encountered an error while writing generated config: %v. The config for %s must be created manually before applying. Depending on the error message, this may be a bug in OpenTofu itself. If so, please report it!", err, c.Addr)))
 		}

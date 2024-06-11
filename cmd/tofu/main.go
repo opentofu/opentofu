@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/version"
 	"go.opentelemetry.io/otel/trace"
 
@@ -110,12 +111,10 @@ func realMain() int {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
 
-	var pedanticMode bool
-
 	// Set up in pedantic mode if pedantic has been toggled
+	var pedanticMode bool
 	if _, ok := options[optionPedantic]; ok {
-		pedanticMode = true
-		cliUi.pedanticMode = true
+		pedanticMode, cliUi.pedanticMode, tfdiags.PedanticMode = true, true, true
 	}
 
 	err = openTelemetryInit()

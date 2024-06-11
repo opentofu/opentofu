@@ -4379,7 +4379,7 @@ func TestContext2Plan_outputContainsTargetedResource(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics; want 1", diags)
 	}
-	if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+	if got, want := diags[0].Severity().SeverityLevel, tfdiags.WarningLevel; got != want {
 		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
 	}
 	if got, want := diags[0].Description().Summary, "Resource targeting is in effect"; got != want {

@@ -15,7 +15,7 @@ func SimpleWarning(msg string) Diagnostic {
 }
 
 func (e simpleWarning) Severity() Severity {
-	return Warning
+	return NewSeverity(WarningLevel)
 }
 
 func (e simpleWarning) Description() Description {
