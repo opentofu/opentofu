@@ -1,0 +1,24 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package testutils_test
+
+import (
+	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/opentofu/opentofu/internal/testutils"
+)
+
+func TestSTSService(t *testing.T) {
+	ctx := testutils.Context(t)
+	var stsService testutils.AWSSTSTestService = testutils.AWS(t)
+	stsClient := sts.NewFromConfig(stsService.ConfigV2(), func(options *sts.Options) {})
+	output, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		t.Fatalf("failed to get caller identity: %v", err)
+	}
+	t.Logf("%s", *output.UserId)
+}

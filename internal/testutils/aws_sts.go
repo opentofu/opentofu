@@ -24,11 +24,11 @@ func (s stsServiceFixture) LocalStackID() string {
 	return "sts"
 }
 
-func (s stsServiceFixture) Setup(service *awsTestService) error {
+func (s stsServiceFixture) Setup(_ *awsTestService) error {
 	return nil
 }
 
-func (s stsServiceFixture) Teardown(service *awsTestService) error {
+func (s stsServiceFixture) Teardown(_ *awsTestService) error {
 	return nil
 }
 
