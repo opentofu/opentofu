@@ -5,6 +5,17 @@
 
 package testutils
 
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+)
+
 // AWSDynamoDBTestService is a specialized extension to the AWSTestServiceBase containing DynamoDB-specific functions.
 type AWSDynamoDBTestService interface {
 	AWSTestServiceBase
@@ -12,7 +23,8 @@ type AWSDynamoDBTestService interface {
 	// DynamoDBEndpoint returns the endpoint for the DynamoDB service.
 	DynamoDBEndpoint() string
 
-	// DynamoDBTable returns a DynamoDB table suitable for testing.
+	// DynamoDBTable returns a DynamoDB table suitable for testing. This table will contain an attribute called LockID
+	// with the type of String and a key for this attribute. You may or may not be able to create additional tables.
 	DynamoDBTable() string
 }
 
@@ -28,16 +40,56 @@ func (d dynamoDBServiceFixture) LocalStackID() string {
 }
 
 func (d dynamoDBServiceFixture) Setup(service *awsTestService) error {
+	tableName := fmt.Sprintf("opentofu-test-%s", strings.ToLower(RandomID(12)))
+	dynamoDBClient := dynamodb.NewFromConfig(service.ConfigV2())
+
+	// TODO replace with variable if the config comes from env.
+	const needsTableDeletion = true
+
+	_, err := dynamoDBClient.CreateTable(service.ctx, &dynamodb.CreateTableInput{
+		AttributeDefinitions: []types.AttributeDefinition{
+			{
+				AttributeName: aws.String("LockID"),
+				AttributeType: types.ScalarAttributeTypeS,
+			},
+		},
+		KeySchema: []types.KeySchemaElement{types.KeySchemaElement{
+			AttributeName: aws.String("LockID"),
+			KeyType:       types.KeyTypeHash,
+		}},
+		TableName:   &tableName,
+		BillingMode: types.BillingModePayPerRequest,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create the KMS key: %w", err)
+	}
+	service.awsDynamoDBParameters = awsDynamoDBParameters{
+		dynamoDBEndpoint:   service.endpoint,
+		dynamoDBTable:      tableName,
+		needsTableDeletion: needsTableDeletion,
+	}
 	return nil
 }
 
 func (d dynamoDBServiceFixture) Teardown(service *awsTestService) error {
+	if !service.awsDynamoDBParameters.needsTableDeletion {
+		return nil
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	dynamoDBClient := dynamodb.NewFromConfig(service.ConfigV2())
+	if _, err := dynamoDBClient.DeleteTable(cleanupCtx, &dynamodb.DeleteTableInput{
+		TableName: &service.dynamoDBTable,
+	}); err != nil {
+		return fmt.Errorf("failed to clean up DynamoDB table %s: %w", service.dynamoDBTable, err)
+	}
 	return nil
 }
 
 type awsDynamoDBParameters struct {
-	dynamoDBEndpoint string
-	dynamoDBTable    string
+	dynamoDBEndpoint   string
+	dynamoDBTable      string
+	needsTableDeletion bool
 }
 
 func (a awsDynamoDBParameters) DynamoDBEndpoint() string {
