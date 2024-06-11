@@ -326,6 +326,8 @@ Resources in the state file note the `addrs.Provider` required to modify them. D
 
 Note: This section should be expanded with examples.
 
+Note: `tofu show -json` and the internal statefile format are different and do not always line up one-to-one.
+
 ## Provider Workflow
 
 When `config.Module` is built from `config.Files`, each module maintains:
