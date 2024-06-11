@@ -206,11 +206,11 @@ New validation rules will be added per the User Documentation above, all of whic
 
 #### Provider Alias Mappings
 
-The following understanding of the current OpenTofu code may be incorrect or incomplete. It is a wild mix of legacy patterns and fallbacks that is hard to reason about. It is based on [Provider References](../docs/provider-references.md#Provider-Workflow)
+The following understanding of the current OpenTofu code may be incorrect or incomplete. It is a mix of legacy patterns and fallbacks that is hard to reason about. It is based on [Provider References](../docs/provider-references.md#Provider-Workflow)
 
 Providers and their aliases are:
 * Fully known at init/config time
-* Hacked into the graph via ProviderTransformers
+* Added into the graph via ProviderTransformers
 * Attached to *Unexpanded* modules/resources in the graph
 * Linked to *Unexpanded* resources in the graph.
 
@@ -218,7 +218,7 @@ Let's deconstruct each of these challenges individually:
 
 ##### Providers through Init/Configuration:
 
-Each configs.Module contains fields which define how the module understands it's local provider references and provider configurations. As defined in Expansion above, we can use the StaticContext to fully build out these maps.
+Each `configs.Module` contains fields which define how the module understands it's local provider references and provider configurations. As defined in Expansion above, we can use the StaticContext to fully build out these maps.
 
 The next piece of data that's important to the config layer is: which `addrs.LocalProviderConfig` (and therefore `addrs.AbsProviderConfig`) a resource or module requires. The entire config system is (currently) blissfully unaware that instances of modules and resources may want different configurations of the same provider.
 
