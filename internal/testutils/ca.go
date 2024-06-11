@@ -62,21 +62,39 @@ func CA(t *testing.T) CertificateAuthority {
 	}
 }
 
+// CertConfig is the configuration structure for creating specialized certificates using
+// CertificateAuthority.CreateConfiguredServerCert.
 type CertConfig struct {
+	// IPAddresses contains a list of IP addresses that should be added to the SubjectAltName field of the certificate.
 	IPAddresses []string
-	Hosts       []string
-	Subject     pkix.Name
+	// Hosts contains a list of host names that should be added to the SubjectAltName field of the certificate.
+	Hosts []string
+	// Subject is the subject (CN, etc) setting for the certificate. Most commonly, you will want the CN field to match
+	// one of hour host names.
+	Subject pkix.Name
+	// ExtKeyUsage describes the extended key usage. Typically, this should be:
+	//
+	//     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	ExtKeyUsage []x509.ExtKeyUsage
 }
 
+// KeyPair contains a certificate and private key in PEM format.
 type KeyPair struct {
+	// Certificate contains an x509 certificate in PEM format.
 	Certificate []byte
-	PrivateKey  []byte
+	// PrivateKey contains an RSA or other private key in PEM format.
+	PrivateKey []byte
 }
 
+// CertificateAuthority provides simple access to x509 CA functions for testing purposes only.
 type CertificateAuthority interface {
+	// GetPEMCACert returns the CA certificate in PEM format.
 	GetPEMCACert() []byte
-	CreateServerCert(config CertConfig) *KeyPair
+	// CreateLocalhostServerCert creates a certificate pre-configured for "localhost", which is sufficient for most test
+	// cases.
+	CreateLocalhostServerCert() *KeyPair
+	// CreateConfiguredServerCert creates a server certificate with a specialized configuration.
+	CreateConfiguredServerCert(config CertConfig) *KeyPair
 }
 
 type ca struct {
@@ -92,7 +110,7 @@ func (c *ca) GetPEMCACert() []byte {
 	return c.caCertPEM
 }
 
-func (c *ca) CreateServerCert(config CertConfig) *KeyPair {
+func (c *ca) CreateConfiguredServerCert(config CertConfig) *KeyPair {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.serial.Add(c.serial, big.NewInt(1))
@@ -144,4 +162,19 @@ func (c *ca) CreateServerCert(config CertConfig) *KeyPair {
 		certPrivKeyPEM.Bytes(),
 		certPEM.Bytes(),
 	}
+}
+
+func (c *ca) CreateLocalhostServerCert() *KeyPair {
+	return c.CreateConfiguredServerCert(CertConfig{
+		IPAddresses: []string{},
+		Subject: pkix.Name{
+			Country:      []string{"US"},
+			Organization: []string{"OpenTofu a Series of LF Projects, LLC"},
+			CommonName:   "localhost",
+		},
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		Hosts: []string{
+			"localhost",
+		},
+	})
 }
