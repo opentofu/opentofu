@@ -44,6 +44,7 @@ func (s s3ServiceFixture) LocalStackID() string {
 func (s s3ServiceFixture) Setup(service *awsTestService) error {
 	bucketName := fmt.Sprintf("opentofu-test-%s", strings.ToLower(RandomID(12)))
 
+	// TODO replace with variable if the config comes from env.
 	const pathStyle = true
 
 	s3Connection := s3.NewFromConfig(service.ConfigV2(), func(options *s3.Options) {

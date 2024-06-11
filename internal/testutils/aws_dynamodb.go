@@ -53,7 +53,7 @@ func (d dynamoDBServiceFixture) Setup(service *awsTestService) error {
 				AttributeType: types.ScalarAttributeTypeS,
 			},
 		},
-		KeySchema: []types.KeySchemaElement{types.KeySchemaElement{
+		KeySchema: []types.KeySchemaElement{{
 			AttributeName: aws.String("LockID"),
 			KeyType:       types.KeyTypeHash,
 		}},
