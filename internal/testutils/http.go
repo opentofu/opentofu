@@ -19,7 +19,8 @@ func HTTPClientForCA(caCert []byte) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs: certPool,
+				RootCAs:    certPool,
+				MinVersion: tls.VersionTLS12,
 			},
 		},
 	}

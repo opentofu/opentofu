@@ -33,8 +33,8 @@ func TestS3Service(t *testing.T) {
 }
 
 func testS3Get(t *testing.T, s3Connection *s3.Client, s3TestBackend testutils.AWSS3TestService) {
-	t.Log("Getting test object...")
 	ctx := testutils.Context(t)
+	t.Logf("📂 Checking if an object can be retrieved...")
 	getObjectResponse, err := s3Connection.GetObject(
 		ctx,
 		&s3.GetObjectInput{
@@ -43,23 +43,23 @@ func testS3Get(t *testing.T, s3Connection *s3.Client, s3TestBackend testutils.AW
 		},
 	)
 	if err != nil {
-		t.Fatalf("Failed to get object (%v)", err)
+		t.Fatalf("❌ Failed to get object (%v)", err)
 	}
 	defer func() {
 		_ = getObjectResponse.Body.Close()
 	}()
 	data, err := io.ReadAll(getObjectResponse.Body)
 	if err != nil {
-		t.Fatalf("Failed to read get object response body (%v)", err)
+		t.Fatalf("❌ Failed to read get object response body (%v)", err)
 	}
 	if string(data) != s3TestFileContents {
-		t.Fatalf("Incorrect test data in S3 bucket: %s", data)
+		t.Fatalf("❌ Incorrect test data in S3 bucket: %s", data)
 	}
 }
 
 func testS3Put(t *testing.T, s3Connection *s3.Client, s3TestBackend testutils.AWSS3TestService) {
-	t.Log("Creating test object...")
 	ctx := testutils.Context(t)
+	t.Logf("💾 Checking if an object can be stored...")
 	if _, err := s3Connection.PutObject(
 		ctx,
 		&s3.PutObjectInput{
@@ -68,6 +68,6 @@ func testS3Put(t *testing.T, s3Connection *s3.Client, s3TestBackend testutils.AW
 			Bucket: aws.String(s3TestBackend.S3Bucket()),
 		},
 	); err != nil {
-		t.Fatalf("Failed to put object (%v)", err)
+		t.Fatalf("❌ Failed to put object (%v)", err)
 	}
 }

@@ -19,6 +19,9 @@ import (
 	"time"
 )
 
+const caKeySize = 4096
+const expirationYears = 10
+
 // CA creates an x509 CA certificate that can produce certificates for testing purposes.
 func CA(t *testing.T) CertificateAuthority {
 	caCert := &x509.Certificate{
@@ -28,13 +31,13 @@ func CA(t *testing.T) CertificateAuthority {
 			Country:      []string{"US"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotAfter:              time.Now().AddDate(expirationYears, 0, 0),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
 	}
-	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	caPrivateKey, err := rsa.GenerateKey(rand.Reader, caKeySize)
 	if err != nil {
 		t.Skipf("Failed to create private key: %v", err)
 	}
@@ -131,7 +134,7 @@ func (c *ca) CreateConfiguredServerCert(config CertConfig) *KeyPair {
 		DNSNames:     config.Hosts,
 		IPAddresses:  ipAddresses,
 	}
-	certPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	certPrivKey, err := rsa.GenerateKey(rand.Reader, caKeySize)
 	if err != nil {
 		c.t.Skipf("Failed to generate private key: %v", err)
 	}

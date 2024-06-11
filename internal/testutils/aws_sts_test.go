@@ -15,10 +15,11 @@ import (
 func TestSTSService(t *testing.T) {
 	ctx := testutils.Context(t)
 	var stsService testutils.AWSSTSTestService = testutils.AWS(t)
-	stsClient := sts.NewFromConfig(stsService.ConfigV2(), func(options *sts.Options) {})
+	stsClient := sts.NewFromConfig(stsService.ConfigV2())
+	t.Logf("\U0001FAAA Checking if the caller identity can be retrieved...")
 	output, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
-		t.Fatalf("failed to get caller identity: %v", err)
+		t.Fatalf("❌ Failed to get caller identity: %v", err)
 	}
-	t.Logf("%s", *output.UserId)
+	t.Logf("✅ Caller identity: %s", *output.UserId)
 }

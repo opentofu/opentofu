@@ -8,11 +8,12 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 )
+
+const awsKMSMinDeletionWindow = 7
 
 // AWSKMSTestService is a specialized extension to the AWSTestServiceBase containing KMS-specific functions.
 type AWSKMSTestService interface {
@@ -42,6 +43,7 @@ func (k kmsServiceFixture) Setup(service *awsTestService) error {
 	// TODO replace with variable if the config comes from env.
 	const needsKeyDeletion = true
 
+	service.t.Logf("🌟 Creating KMS key for testing...")
 	key, err := kmsClient.CreateKey(service.ctx, &kms.CreateKeyInput{})
 	if err != nil {
 		return fmt.Errorf("failed to create the KMS key: %w", err)
@@ -58,12 +60,13 @@ func (k kmsServiceFixture) Teardown(service *awsTestService) error {
 	if !service.needsKeyDeletion {
 		return nil
 	}
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
 	kmsClient := kms.NewFromConfig(service.ConfigV2())
+	service.t.Logf("🗑️ Scheduling KMS key %s for deletion...", service.kmsKeyID)
 	if _, err := kmsClient.ScheduleKeyDeletion(cleanupCtx, &kms.ScheduleKeyDeletionInput{
 		KeyId:               &service.kmsKeyID,
-		PendingWindowInDays: aws.Int32(7),
+		PendingWindowInDays: aws.Int32(awsKMSMinDeletionWindow),
 	}); err != nil {
 		return fmt.Errorf("failed to clean up KMS key ID %s: %w", service.kmsKeyID, err)
 	}

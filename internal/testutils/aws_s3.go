@@ -10,11 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
+
+const maxS3DeletionObjects = 1000
 
 // AWSS3TestService is a specialized extension to the AWSTestServiceBase containing S3-specific functions.
 type AWSS3TestService interface {
@@ -42,7 +43,10 @@ func (s s3ServiceFixture) LocalStackID() string {
 }
 
 func (s s3ServiceFixture) Setup(service *awsTestService) error {
-	bucketName := fmt.Sprintf("opentofu-test-%s", strings.ToLower(RandomID(12)))
+	const maxS3TableNameLength = uint(63)
+	const desiredS3TableNameSuffixLength = uint(12)
+	prefix := fmt.Sprintf("opentofu-test-%s-", service.t.Name())
+	bucketName := strings.ToLower(prefix + PseudoRandomID(min(maxS3TableNameLength-uint(len(prefix)), desiredS3TableNameSuffixLength)))
 
 	// TODO replace with variable if the config comes from env.
 	const pathStyle = true
@@ -50,6 +54,7 @@ func (s s3ServiceFixture) Setup(service *awsTestService) error {
 	s3Connection := s3.NewFromConfig(service.ConfigV2(), func(options *s3.Options) {
 		options.UsePathStyle = pathStyle
 	})
+	service.t.Logf("🌟 Creating S3 bucket %s for testing...", bucketName)
 	_, err := s3Connection.CreateBucket(service.ctx, &s3.CreateBucketInput{
 		Bucket: &bucketName,
 	})
@@ -57,7 +62,7 @@ func (s s3ServiceFixture) Setup(service *awsTestService) error {
 	if err != nil {
 		var bucketAlreadyExistsErr *types.BucketAlreadyExists
 		if !errors.As(err, &bucketAlreadyExistsErr) {
-			return fmt.Errorf("failed to create test bucket %s: %v", bucketName, err)
+			return fmt.Errorf("failed to create test bucket %s: %w", bucketName, err)
 		}
 		bucketNeedsDeletion = false
 	}
@@ -74,49 +79,67 @@ func (s s3ServiceFixture) Teardown(service *awsTestService) error {
 	if !service.bucketNeedsDeletion {
 		return nil
 	}
-	cleanupContext, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	cleanupContext, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
 
 	s3Connection := s3.NewFromConfig(service.ConfigV2(), func(options *s3.Options) {
 		options.UsePathStyle = service.s3PathStyle
 	})
 
-	listObjectsResult, err := s3Connection.ListObjects(cleanupContext, &s3.ListObjectsInput{
-		Bucket: &service.s3Bucket,
-	})
+	service.t.Logf("🗑️ Deleting all objects from S3 bucket %s...", service.s3Bucket)
+	err := s.emptyS3Bucket(cleanupContext, service, s3Connection)
 	if err != nil {
-		return fmt.Errorf("failed to clean up test bucket as the list objects call failed %s: %v", service.s3Bucket, err)
-	}
-	var objects []types.ObjectIdentifier
-	deleteObjects := func() error {
-		_, err := s3Connection.DeleteObjects(cleanupContext, &s3.DeleteObjectsInput{
-			Bucket: &service.s3Bucket,
-			Delete: &types.Delete{
-				Objects: objects,
-			},
-		})
 		return err
 	}
-	for _, object := range listObjectsResult.Contents {
-		objects = append(objects, types.ObjectIdentifier{
-			Key: object.Key,
-		})
-		if len(objects) == 1000 {
-			if err := deleteObjects(); err != nil {
-				return fmt.Errorf("failed to clean up test bucket %s: %v", service.s3Bucket, err)
-			}
-		}
-	}
-	if len(objects) > 0 {
-		if err := deleteObjects(); err != nil {
-			return fmt.Errorf("failed to clean up test bucket %s: %v", service.s3Bucket, err)
-		}
-	}
 
+	service.t.Logf("🗑️ Deleting S3 bucket %s...", service.s3Bucket)
 	if _, err := s3Connection.DeleteBucket(service.ctx, &s3.DeleteBucketInput{
 		Bucket: &service.s3Bucket,
 	}); err != nil {
-		return fmt.Errorf("failed to delete test bucket %s: %v", service.s3Bucket, err)
+		return fmt.Errorf("failed to delete test bucket %s: %w", service.s3Bucket, err)
+	}
+	return nil
+}
+
+func (s s3ServiceFixture) emptyS3Bucket(cleanupContext context.Context, service *awsTestService, s3Connection *s3.Client) error {
+	var marker *string
+	for {
+		listObjectsResult, err := s3Connection.ListObjects(cleanupContext, &s3.ListObjectsInput{
+			Bucket: &service.s3Bucket,
+			Marker: marker,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to clean up test bucket as the list objects call failed %s: %w", service.s3Bucket, err)
+		}
+		var objects []types.ObjectIdentifier
+		deleteObjects := func() error {
+			_, err := s3Connection.DeleteObjects(cleanupContext, &s3.DeleteObjectsInput{
+				Bucket: &service.s3Bucket,
+				Delete: &types.Delete{
+					Objects: objects,
+				},
+			})
+			return err
+		}
+		for _, object := range listObjectsResult.Contents {
+			objects = append(objects, types.ObjectIdentifier{
+				Key: object.Key,
+			})
+			if len(objects) == maxS3DeletionObjects {
+				if err := deleteObjects(); err != nil {
+					return fmt.Errorf("failed to clean up test bucket %s: %w", service.s3Bucket, err)
+				}
+			}
+		}
+		if len(objects) > 0 {
+			if err := deleteObjects(); err != nil {
+				return fmt.Errorf("failed to clean up test bucket %s: %w", service.s3Bucket, err)
+			}
+		}
+		marker = listObjectsResult.NextMarker
+		if marker == nil {
+			break
+		}
 	}
 	return nil
 }

@@ -32,6 +32,10 @@ linters-settings:
   cyclop:
     max-complexity: 15
 
+  gomoddirectives:
+    replace-allow-list:
+      - "github.com/hashicorp/hcl/v2"
+
 issues:
   exclude-rules:
     - path: (.+)_test.go

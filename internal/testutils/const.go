@@ -4,3 +4,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
 package testutils
+
+import (
+	"time"
+)
+
+const cleanupTimeout = 5 * time.Minute
+const permAll = 0777

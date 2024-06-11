@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-// RandomID generates a random, ASCII-character identifier of the given length. This function is for test purposes
+// PseudoRandomID generates a random, ASCII-character identifier of the given length. This function is for test purposes
 // only and should not be used for real identifiers as they are not guaranteed to be truly random or globally unique.
-func RandomID(length uint) string {
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+func PseudoRandomID(length uint) string {
+	random := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec // Disabling gosec linting because this ID is for testing only.
 	runes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	var builder strings.Builder
 	for i := uint(0); i < length; i++ {

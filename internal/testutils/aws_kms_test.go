@@ -16,10 +16,12 @@ import (
 func TestKMSService(t *testing.T) {
 	ctx := testutils.Context(t)
 	var kmsService testutils.AWSKMSTestService = testutils.AWS(t)
-	kmsClient := kms.NewFromConfig(kmsService.ConfigV2(), func(options *kms.Options) {})
+	kmsClient := kms.NewFromConfig(kmsService.ConfigV2())
+	t.Logf("🔍 Checking if the KMS key from the AWS test service can be described...")
 	if _, err := kmsClient.DescribeKey(ctx, &kms.DescribeKeyInput{
 		KeyId: aws.String(kmsService.KMSKeyID()),
 	}); err != nil {
-		t.Fatalf("failed to describe KMS test key: %v", err)
+		t.Fatalf("❌ %v", err)
 	}
+	t.Logf("✅ KMS works as intended.")
 }

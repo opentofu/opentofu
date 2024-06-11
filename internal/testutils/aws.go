@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"k8s.io/apimachinery/pkg/util/net"
 )
 
 // AWSTestServiceBase is an interface all AWS-related test services should embed.
@@ -66,12 +68,13 @@ func AWS(t *testing.T) AWSTestService {
 }
 
 func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestService {
+	t.Logf("🚧 Configuring AWS test service...")
 	ctx := Context(t)
 
 	ca := CA(t)
 	pair := ca.CreateLocalhostServerCert()
 	tempDir := t.TempDir()
-	if err := os.WriteFile(path.Join(tempDir, "server.pem"), append(pair.Certificate, pair.PrivateKey...), 0777); err != nil {
+	if err := os.WriteFile(path.Join(tempDir, "server.pem"), append(pair.Certificate, pair.PrivateKey...), permAll); err != nil {
 		t.Skipf("Cannot write to test directory %s: %v", tempDir, err)
 	}
 
@@ -110,31 +113,32 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 	localStackContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: request,
 		Started:          true,
+		Logger:           &testContainersLogger{t},
 	})
 	if err != nil {
-		t.Skipf("Failed to start LocalStack backend: %v", err)
+		t.Skipf("❌ Failed to start LocalStack backend: %v", err)
 		return nil
 	}
 	t.Cleanup(func() {
-		if err := localStackContainer.Terminate(ctx); err != nil {
-			t.Logf("Failed to stop LocalStack container %s: %v", localStackContainer.GetContainerID(), err)
+		if err := localStackContainer.Terminate(ctx); err != nil { //nolint:govet // This shadowing of err is intentional
+			t.Logf("❌ Failed to stop LocalStack container %s: %v", localStackContainer.GetContainerID(), err)
 		}
 	})
 
 	mappedPort, err := localStackContainer.MappedPort(ctx, nat.Port(natPort))
 	if err != nil {
-		t.Skipf("Failed to get mapped port for LocalStack instance (%v)", err)
+		t.Skipf("❌ Failed to get mapped port for LocalStack instance (%v)", err)
 	}
 	host, err := localStackContainer.Host(ctx)
 	if err != nil {
-		t.Skipf("Failed to get host for LocalStack instance (%v)", err)
+		t.Skipf("❌ Failed to get host for LocalStack instance (%v)", err)
 	}
 
 	svc := &awsTestService{
 		t:           t,
 		ctx:         ctx,
 		ca:          ca,
-		endpoint:    fmt.Sprintf("https://%s:%d", host, mappedPort.Int()),
+		endpoint:    net.JoinSchemeNamePort("https", "//"+host, strconv.Itoa(mappedPort.Int())),
 		region:      "us-east-1",
 		accessKeyID: "test",
 		secretKeyID: "test",
@@ -142,15 +146,16 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 	for _, service := range services {
 		service := service
 		if err := service.Setup(svc); err != nil {
-			t.Skipf("Failed to initialize %s: %v", service.Name(), err)
+			t.Skipf("❌ Failed to initialize %s: %v", service.Name(), err)
 			return nil
 		}
 		t.Cleanup(func() {
 			if err := service.Teardown(svc); err != nil {
-				t.Errorf("Failed to tear down service %s: %v", service.Name(), err)
+				t.Errorf("❌ Failed to tear down service %s: %v", service.Name(), err)
 			}
 		})
 	}
+	t.Logf("✅ AWS test service is ready for use.")
 	return svc
 }
 
@@ -195,7 +200,7 @@ func (a awsTestService) ConfigV1() awsv1.Config {
 func (a awsTestService) ConfigV2() awsv2.Config {
 	return awsv2.Config{
 		Region: a.region,
-		Credentials: awsv2.CredentialsProviderFunc(func(ctx context.Context) (awsv2.Credentials, error) {
+		Credentials: awsv2.CredentialsProviderFunc(func(_ context.Context) (awsv2.Credentials, error) {
 			return awsv2.Credentials{
 				AccessKeyID:     a.accessKeyID,
 				SecretAccessKey: a.secretKeyID,

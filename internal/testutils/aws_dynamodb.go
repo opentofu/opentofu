@@ -8,8 +8,6 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -40,11 +38,16 @@ func (d dynamoDBServiceFixture) LocalStackID() string {
 }
 
 func (d dynamoDBServiceFixture) Setup(service *awsTestService) error {
-	tableName := fmt.Sprintf("opentofu-test-%s", strings.ToLower(RandomID(12)))
+	const maxDynamoDBTableNameLength = uint(255)
+	const desiredDynamoDBTableNameSuffixLength = uint(12)
+	prefix := fmt.Sprintf("opentofu-test-%s-", service.t.Name())
+	tableName := prefix + PseudoRandomID(min(maxDynamoDBTableNameLength-uint(len(prefix)), desiredDynamoDBTableNameSuffixLength))
 	dynamoDBClient := dynamodb.NewFromConfig(service.ConfigV2())
 
 	// TODO replace with variable if the config comes from env.
 	const needsTableDeletion = true
+
+	service.t.Logf("🌟 Creating DynamoDB table %s...", tableName)
 
 	_, err := dynamoDBClient.CreateTable(service.ctx, &dynamodb.CreateTableInput{
 		AttributeDefinitions: []types.AttributeDefinition{
@@ -75,9 +78,10 @@ func (d dynamoDBServiceFixture) Teardown(service *awsTestService) error {
 	if !service.awsDynamoDBParameters.needsTableDeletion {
 		return nil
 	}
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
 	dynamoDBClient := dynamodb.NewFromConfig(service.ConfigV2())
+	service.t.Logf("🗑️ Deleting DynamoDB table %s...", service.dynamoDBTable)
 	if _, err := dynamoDBClient.DeleteTable(cleanupCtx, &dynamodb.DeleteTableInput{
 		TableName: &service.dynamoDBTable,
 	}); err != nil {
