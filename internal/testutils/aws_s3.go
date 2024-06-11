@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
+// AWSS3TestService is a specialized extension to the AWSTestServiceBase containing S3-specific functions.
 type AWSS3TestService interface {
 	AWSTestServiceBase
 

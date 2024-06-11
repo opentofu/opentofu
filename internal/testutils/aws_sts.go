@@ -5,6 +5,7 @@
 
 package testutils
 
+// AWSSTSTestService is a specialized extension to the AWSTestServiceBase containing STS-specific functions.
 type AWSSTSTestService interface {
 	AWSTestServiceBase
 

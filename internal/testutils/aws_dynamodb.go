@@ -5,7 +5,7 @@
 
 package testutils
 
-// AWSDynamoDBTestService holds the functions to access a DynamoDB table from a test.
+// AWSDynamoDBTestService is a specialized extension to the AWSTestServiceBase containing DynamoDB-specific functions.
 type AWSDynamoDBTestService interface {
 	AWSTestServiceBase
 

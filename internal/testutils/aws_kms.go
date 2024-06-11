@@ -5,7 +5,7 @@
 
 package testutils
 
-// AWSKMSTestService holds the functions to access an AWS KMS from a test service.
+// AWSKMSTestService is a specialized extension to the AWSTestServiceBase containing KMS-specific functions.
 type AWSKMSTestService interface {
 	AWSTestServiceBase
 
