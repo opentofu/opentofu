@@ -34,7 +34,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to parse command-line flags",
 			err.Error(),
 		))
@@ -43,7 +43,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 	args = cmdFlags.Args()
 	if len(args) > 1 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Too many command line arguments",
 			"Expected at most one positional argument.",
 		))

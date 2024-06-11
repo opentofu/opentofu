@@ -57,7 +57,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "simple error",
 						Detail:  "want to see this in the returned set",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -79,7 +79,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "Missing expected failure",
 						Detail:  "The checkable object, check.example, was expected to report an error but did not.",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 			},
 		},
@@ -164,7 +164,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "unexpected failure",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -178,14 +178,14 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "error in child module",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
 						Summary: "Missing expected failure",
 						Detail:  "The checkable object, output.expected_two, was expected to report an error but did not.",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 			},
 		},
@@ -270,7 +270,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "unexpected failure",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -284,14 +284,14 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "error in child module",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
 						Summary: "Missing expected failure",
 						Detail:  "The checkable object, var.expected_two, was expected to report an error but did not.",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 			},
 		},
@@ -522,7 +522,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "unexpected failure",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -536,21 +536,21 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "expected failure in test_instance.instance[1]",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
 						Summary: "failure in child module",
 						Detail:  "this should not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
 						Summary: "Missing expected failure",
 						Detail:  "The checkable object, test_instance.missing, was expected to report an error but did not.",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 			},
 		},
@@ -626,21 +626,21 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "unexpected failure",
 						Detail:  "this should upgrade and not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
 						Summary: "expected failure in child module",
 						Detail:  "this should upgrade and not be removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel)r,
 				},
 				{
 					Description: tfdiags.Description{
 						Summary: "Missing expected failure",
 						Detail:  "The checkable object, check.missing, was expected to report an error but did not.",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 			},
 		},
@@ -653,7 +653,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				// assertion that should be propagated as an error.
 				diags = diags.Append(
 					tfdiags.Override(
-						tfdiags.Sourceless(tfdiags.Error, "unexpected failure", "this should be an error and not removed"),
+						tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "unexpected failure", "this should be an error and not removed"),
 						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
@@ -687,7 +687,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				// in a child module that should be propagated as an error.
 				diags = diags.Append(
 					tfdiags.Override(
-						tfdiags.Sourceless(tfdiags.Error, "expected failure from child module", "this should be an error and not removed"),
+						tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "expected failure from child module", "this should be an error and not removed"),
 						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
@@ -707,7 +707,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 				// Fourth, we'll add an expected warning that should be removed.
 				diags = diags.Append(
 					tfdiags.Override(
-						tfdiags.Sourceless(tfdiags.Error, "expected failure", "this should be removed"),
+						tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "expected failure", "this should be removed"),
 						tfdiags.NewSeverity(tfdiags.WarningLevel),
 						func() tfdiags.DiagnosticExtraWrapper {
 							return &addrs.CheckRuleDiagnosticExtra{
@@ -728,7 +728,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "unexpected failure",
 						Detail:  "this should be an error and not removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
@@ -742,7 +742,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "expected failure from child module",
 						Detail:  "this should be an error and not removed",
 					},
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 			},
 		},

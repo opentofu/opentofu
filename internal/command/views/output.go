@@ -136,7 +136,7 @@ func (v *OutputRaw) Output(name string, outputs map[string]*states.OutputValue) 
 	strV, err := convert.Convert(output.Value, cty.String)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported value for raw output",
 			fmt.Sprintf(
 				"The -raw option only supports strings, numbers, and boolean values, but output value %q is %s.\n\nUse the -json option for machine-readable representations of output values that have complex types.",
@@ -147,7 +147,7 @@ func (v *OutputRaw) Output(name string, outputs map[string]*states.OutputValue) 
 	}
 	if strV.IsNull() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported value for raw output",
 			fmt.Sprintf(
 				"The value for output value %q is null, so -raw mode cannot print it.",
@@ -161,7 +161,7 @@ func (v *OutputRaw) Output(name string, outputs map[string]*states.OutputValue) 
 		// odd to end up in here, but we'll handle it anyway to avoid a
 		// panic in case our rules somehow change in future.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported value for raw output",
 			fmt.Sprintf(
 				"The value for output value %q won't be known until after a successful tofu apply, so -raw mode cannot print it.",
@@ -280,7 +280,7 @@ func noOutputsWarning() tfdiags.Diagnostic {
 // includes suggestions on how to rectify the problem.
 func missingOutputError(name string) tfdiags.Diagnostic {
 	return tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		fmt.Sprintf("Output %q not found", name),
 		"The output variable requested could not be found in the state "+
 			"file. If you recently added this to your configuration, be "+

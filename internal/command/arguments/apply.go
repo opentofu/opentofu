@@ -53,7 +53,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to parse command-line flags",
 			err.Error(),
 		))
@@ -67,7 +67,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 
 	if len(args) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Too many command line arguments",
 			"Expected at most one positional argument.",
 		))
@@ -83,7 +83,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	// override auto-approve, which would be dangerous.
 	if json && apply.PlanPath == "" && !apply.AutoApprove {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Plan file or auto-approve required",
 			"OpenTofu cannot ask for interactive approval when -json is set. You can either apply a saved plan file, or enable the -auto-approve option.",
 		))
@@ -121,13 +121,13 @@ func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
 		apply.Operation.PlanMode = plans.DestroyMode
 	case plans.DestroyMode:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid mode option",
 			"The -destroy option is not valid for \"tofu destroy\", because this command always runs in destroy mode.",
 		))
 	case plans.RefreshOnlyMode:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid mode option",
 			"The -refresh-only option is not valid for \"tofu destroy\".",
 		))
@@ -136,7 +136,7 @@ func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
 		// newly-handled plan mode in Operation.Parse. Ideally they should all
 		// have cases above so we can produce better error messages.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid mode option",
 			fmt.Sprintf("The \"tofu destroy\" command doesn't support %s.", apply.Operation.PlanMode),
 		))

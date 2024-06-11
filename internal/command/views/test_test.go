@@ -505,8 +505,8 @@ some warning happened during this test
 				Name:   "run_block",
 				Status: moduletest.Fail,
 				Diagnostics: tfdiags.Diagnostics{
-					tfdiags.Sourceless(tfdiags.Error, "a comparison failed", "details details details"),
-					tfdiags.Sourceless(tfdiags.Error, "a second comparison failed", "other details"),
+					tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "a comparison failed", "details details details"),
+					tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "a second comparison failed", "other details"),
 				},
 			},
 			StdOut: "  run \"run_block\"... fail\n",
@@ -530,7 +530,7 @@ other details
 			Run: &moduletest.Run{
 				Name:        "run_block",
 				Status:      moduletest.Error,
-				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "an error occurred", "something bad happened during this test")},
+				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "an error occurred", "something bad happened during this test")},
 			},
 			StdOut: "  run \"run_block\"... fail\n",
 			StdErr: `
@@ -756,7 +756,7 @@ some thing not very bad happened again
 			diags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.NewState(),
@@ -779,7 +779,7 @@ this time it is very bad
 		},
 		"error_from_run": {
 			diags: tfdiags.Diagnostics{
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			run:   &moduletest.Run{Name: "run_block"},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
@@ -863,7 +863,7 @@ up manually:
 			diags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "some thing not very bad happened"),
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "some thing not very bad happened again"),
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.BuildState(func(state *states.SyncState) {
@@ -1961,7 +1961,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			diags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			file:  &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.NewState(),
@@ -2140,7 +2140,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			diags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.BuildState(func(state *states.SyncState) {
@@ -2249,7 +2249,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 			diags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "first warning", "something not very bad happened"),
 				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.WarningLevel), "second warning", "something not very bad happened again"),
-				tfdiags.Sourceless(tfdiags.Error, "first error", "this time it is very bad"),
+				tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "first error", "this time it is very bad"),
 			},
 			file: &moduletest.File{Name: "main.tftest.hcl"},
 			state: states.BuildState(func(state *states.SyncState) {
@@ -2581,8 +2581,8 @@ func TestTestJSON_Run(t *testing.T) {
 				Name:   "run_block",
 				Status: moduletest.Fail,
 				Diagnostics: tfdiags.Diagnostics{
-					tfdiags.Sourceless(tfdiags.Error, "a comparison failed", "details details details"),
-					tfdiags.Sourceless(tfdiags.Error, "a second comparison failed", "other details"),
+					tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "a comparison failed", "details details details"),
+					tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "a second comparison failed", "other details"),
 				},
 			},
 			want: []map[string]interface{}{
@@ -2651,7 +2651,7 @@ func TestTestJSON_Run(t *testing.T) {
 			run: &moduletest.Run{
 				Name:        "run_block",
 				Status:      moduletest.Error,
-				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "an error occurred", "something bad happened during this test")},
+				Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "an error occurred", "something bad happened during this test")},
 			},
 			want: []map[string]interface{}{
 				{

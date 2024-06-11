@@ -21,7 +21,7 @@ func ShouldWriteConfig(out string) bool {
 func ValidateTargetFile(out string) (diags tfdiags.Diagnostics) {
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Target generated file already exists",
 			"OpenTofu can only write generated config into a new file. Either choose a different target location or move all existing configuration out of the target file, delete it and try again."))
 
@@ -45,14 +45,14 @@ func (c *Change) MaybeWriteConfig(writer io.Writer, out string) (io.Writer, bool
 			if w, err := os.Create(out); err != nil {
 				if os.IsPermission(err) {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Failed to create target generated file",
 						fmt.Sprintf("OpenTofu did not have permission to create the generated file (%s) in the target directory. Please modify permissions over the target directory, and try again.", out)))
 					return nil, false, diags
 				}
 
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to create target generated file",
 					fmt.Sprintf("OpenTofu could not create the generated file (%s) in the target directory: %v. Depending on the error message, this may be a bug in OpenTofu itself. If so, please report it!", out, err)))
 				return nil, false, diags

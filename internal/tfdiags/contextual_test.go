@@ -73,7 +73,7 @@ simple_attr = "val"
 	}{
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"foo[0].bar",
 				"detail",
 				cty.Path{
@@ -90,7 +90,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"foo[1].bar",
 				"detail",
 				cty.Path{
@@ -107,7 +107,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"foo[99].bar",
 				"detail",
 				cty.Path{
@@ -120,7 +120,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"bar.bar",
 				"detail",
 				cty.Path{
@@ -136,7 +136,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				`baz["a"].bar`,
 				"detail",
 				cty.Path{
@@ -153,7 +153,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				`baz["b"].bar`,
 				"detail",
 				cty.Path{
@@ -170,7 +170,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				`baz["not_exists"].bar`,
 				"detail",
 				cty.Path{
@@ -213,7 +213,7 @@ simple_attr = "val"
 		// Nested attributes
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_str",
 				"detail",
 				cty.Path{
@@ -229,7 +229,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_str_tuple[99]",
 				"detail",
 				cty.Path{
@@ -246,7 +246,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_str_tuple[0]",
 				"detail",
 				cty.Path{
@@ -263,7 +263,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_str_tuple[2]",
 				"detail",
 				cty.Path{
@@ -280,7 +280,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_num_tuple[0]",
 				"detail",
 				cty.Path{
@@ -297,7 +297,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_num_tuple[1]",
 				"detail",
 				cty.Path{
@@ -314,7 +314,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_map.first_key",
 				"detail",
 				cty.Path{
@@ -331,7 +331,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_map.second_key",
 				"detail",
 				cty.Path{
@@ -348,7 +348,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"parent.nested_map.undefined_key",
 				"detail",
 				cty.Path{
@@ -367,7 +367,7 @@ simple_attr = "val"
 		// Root attributes of complex types
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"tuple_of_one[0]",
 				"detail",
 				cty.Path{
@@ -383,7 +383,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"tuple_of_two[0]",
 				"detail",
 				cty.Path{
@@ -399,7 +399,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"tuple_of_two[1]",
 				"detail",
 				cty.Path{
@@ -415,7 +415,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"tuple_of_one[null]",
 				"detail",
 				cty.Path{
@@ -432,7 +432,7 @@ simple_attr = "val"
 		{
 			// index out of range
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"tuple_of_two[99]",
 				"detail",
 				cty.Path{
@@ -448,7 +448,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"root_map.first",
 				"detail",
 				cty.Path{
@@ -464,7 +464,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"root_map.second",
 				"detail",
 				cty.Path{
@@ -480,7 +480,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"root_map.undefined_key",
 				"detail",
 				cty.Path{
@@ -496,7 +496,7 @@ simple_attr = "val"
 		},
 		{
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"simple_attr",
 				"detail",
 				cty.Path{
@@ -513,7 +513,7 @@ simple_attr = "val"
 			// This should never happen as error should always point to an attribute
 			// or index of an attribute, but we should not crash if it does
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"key",
 				"index_step",
 				cty.Path{
@@ -526,7 +526,7 @@ simple_attr = "val"
 			// This should never happen as error should always point to an attribute
 			// or index of an attribute, but we should not crash if it does
 			AttributeValue(
-				Error,
+				NewSeverity(ErrorLevel),
 				"key.another",
 				"index_step",
 				cty.Path{
@@ -573,7 +573,7 @@ func TestGetAttribute(t *testing.T) {
 	}
 
 	d := AttributeValue(
-		Error,
+		NewSeverity(ErrorLevel),
 		"foo[0].bar",
 		"detail",
 		path,

@@ -13,7 +13,7 @@ type nativeError struct {
 var _ Diagnostic = nativeError{}
 
 func (e nativeError) Severity() Severity {
-	return Error
+	return NewSeverity(ErrorLevel)
 }
 
 func (e nativeError) Description() Description {

@@ -77,7 +77,7 @@ func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
 			return typeString(*valType), diags
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid use of type function",
 				"The console-only \"type\" function cannot be used as part of an expression.",
 			))

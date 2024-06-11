@@ -86,7 +86,7 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "simple error",
 				},
 			},
@@ -101,7 +101,7 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "simple error",
 					Detail:   "detailed error",
 				},
@@ -150,11 +150,11 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "first error",
 				},
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "second error",
 				},
 			},
@@ -176,7 +176,7 @@ func TestDiagnostics(t *testing.T) {
 					Summary:  "warning",
 				},
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "error",
 				},
 			},
@@ -201,7 +201,7 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "error",
 					Detail:   "error detail",
 					Attr:     []interface{}{"attribute_name"},
@@ -298,13 +298,13 @@ func TestDiagnostics(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "error 1",
 					Detail:   "error 1 detail",
 					Attr:     []interface{}{"attr"},
 				},
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "error 2",
 					Detail:   "error 2 detail",
 					Attr:     []interface{}{"attr", "sub"},
@@ -316,7 +316,7 @@ func TestDiagnostics(t *testing.T) {
 					Attr:     []interface{}{"attr", 1, "sub"},
 				},
 				{
-					Severity: tfdiags.Error,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					Summary:  "error 3",
 					Detail:   "error 3 detail",
 					Attr:     []interface{}{"attr", "idx", "sub"},

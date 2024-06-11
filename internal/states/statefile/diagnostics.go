@@ -29,7 +29,7 @@ func jsonUnmarshalDiags(err error) tfdiags.Diagnostics {
 		// the version number) so this particular error should not appear much
 		// in practice.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			invalidFormat,
 			fmt.Sprintf("The state file could not be parsed as JSON: syntax error at byte offset %d.", tErr.Offset),
 		))
@@ -39,7 +39,7 @@ func jsonUnmarshalDiags(err error) tfdiags.Diagnostics {
 		// at a semantic level.
 		if tErr.Field != "" {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				invalidFormat,
 				fmt.Sprintf("The state file field %q has invalid value %s", tErr.Field, tErr.Value),
 			))
@@ -47,7 +47,7 @@ func jsonUnmarshalDiags(err error) tfdiags.Diagnostics {
 		} else {
 			// Without a field name, we can't really say anything helpful.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				invalidFormat,
 				"The state file does not conform to the expected JSON data structure.",
 			))
@@ -57,7 +57,7 @@ func jsonUnmarshalDiags(err error) tfdiags.Diagnostics {
 		// custom UnmarshalJSON implementations, so should be encountered
 		// only rarely.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			invalidFormat,
 			fmt.Sprintf("The state file does not conform to the expected JSON data structure: %s.", err.Error()),
 		))

@@ -65,7 +65,7 @@ func Read(r io.Reader, enc encryption.StateEncryption) (*File, error) {
 	src, err := io.ReadAll(r)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to read state file",
 			fmt.Sprintf("The state file could not be read: %s", err),
 		))
@@ -99,7 +99,7 @@ func readState(src []byte) (*File, error) {
 
 	if looksLikeVersion0(src) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			unsupportedFormat,
 			// This is a user-facing usage of OpenTofu but refers to a very old historical version of OpenTofu
 			// which has no corresponding OpenTofu version, and is unlikely to get one.
@@ -123,7 +123,7 @@ func readState(src []byte) (*File, error) {
 	switch version {
 	case 0:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			unsupportedFormat,
 			"The state file uses JSON syntax but has a version number of zero. There was never a JSON-based state format zero, so this state file is invalid and cannot be processed.",
 		))
@@ -141,13 +141,13 @@ func readState(src []byte) (*File, error) {
 		switch {
 		case creatingVersion != "":
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				fmt.Sprintf("The state file uses format version %d, which is not supported by OpenTofu %s. This state file was created by OpenTofu %s.", version, thisVersion, creatingVersion),
 			))
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				fmt.Sprintf("The state file uses format version %d, which is not supported by OpenTofu %s. This state file may have been created by a newer version of OpenTofu.", version, thisVersion),
 			))
@@ -173,19 +173,19 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 		switch tErr := err.(type) {
 		case *json.SyntaxError:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				fmt.Sprintf("The state file could not be parsed as JSON: syntax error at byte offset %d.", tErr.Offset),
 			))
 		case *json.UnmarshalTypeError:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				fmt.Sprintf("The version in the state file is %s. A positive whole number is required.", tErr.Value),
 			))
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				"The state file could not be parsed as JSON.",
 			))
@@ -196,7 +196,7 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 		encrypted, err := encryption.IsEncryptionPayload(src)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				fmt.Sprintf("The state file can not be checked for presense of encryption: %s", err.Error()),
 			))
@@ -204,14 +204,14 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 		}
 		if encrypted {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				unsupportedFormat,
 				"This state file is encrypted and can not be read without an encryption configuration",
 			))
 			return 0, diags
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			unsupportedFormat,
 			"The state file does not have a \"version\" attribute, which is required to identify the format version.",
 		))

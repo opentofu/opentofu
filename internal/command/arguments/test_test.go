@@ -133,7 +133,7 @@ func TestParseTest(t *testing.T) {
 			},
 			wantDiags: tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to parse command-line flags",
 					"flag provided but not defined: -boop",
 				),

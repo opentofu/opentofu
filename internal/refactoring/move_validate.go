@@ -211,7 +211,7 @@ func validateMoveStatementGraph(g *dag.AcyclicGraph) tfdiags.Diagnostics {
 		sort.Strings(stmtStrs) // just to make the order deterministic
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cyclic dependency in move statements",
 			fmt.Sprintf(
 				"The following chained move statements form a cycle, and so there is no final location to move objects to:%s\n\nA chain of move statements must end with an address that doesn't appear in any other statements, and which typically also refers to an object still declared in the configuration.",
@@ -227,7 +227,7 @@ func validateMoveStatementGraph(g *dag.AcyclicGraph) tfdiags.Diagnostics {
 		src := e.Source()
 		if src == e.Target() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Self reference in move statements",
 				fmt.Sprintf(
 					"The move statement %s refers to itself the move dependency graph, which is invalid. This is a bug in OpenTofu; please report it!",

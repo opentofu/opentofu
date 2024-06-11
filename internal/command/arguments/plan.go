@@ -58,7 +58,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to parse command-line flags",
 			err.Error(),
 		))
@@ -68,7 +68,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 
 	if len(args) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Too many command line arguments",
 			"To specify a working directory for the plan, use the global -chdir flag.",
 		))

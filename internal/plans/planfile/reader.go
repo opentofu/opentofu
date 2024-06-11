@@ -219,7 +219,7 @@ func (r *Reader) ReadConfig() (*configs.Config, tfdiags.Diagnostics) {
 	snap, err := r.ReadConfigSnapshot()
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to read configuration from plan file",
 			fmt.Sprintf("The configuration file snapshot in the plan file could not be read: %s.", err),
 		))
@@ -248,7 +248,7 @@ func (r *Reader) ReadDependencyLocks() (*depsfile.Locks, tfdiags.Diagnostics) {
 			r, err := file.Open()
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to read dependency locks from plan file",
 					fmt.Sprintf("Couldn't read the dependency lock information embedded in the plan file: %s.", err),
 				))
@@ -257,7 +257,7 @@ func (r *Reader) ReadDependencyLocks() (*depsfile.Locks, tfdiags.Diagnostics) {
 			src, err := io.ReadAll(r)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to read dependency locks from plan file",
 					fmt.Sprintf("Couldn't read the dependency lock information embedded in the plan file: %s.", err),
 				))
@@ -271,7 +271,7 @@ func (r *Reader) ReadDependencyLocks() (*depsfile.Locks, tfdiags.Diagnostics) {
 
 	// If we fall out here then this is a file without dependency information.
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Saved plan has no dependency lock information",
 		"The specified saved plan file does not include any dependency lock information. This is a bug in the previous run of OpenTofu that created this file.",
 	))

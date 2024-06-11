@@ -99,7 +99,7 @@ func SaveLocksToFile(locks *Locks, filename string) tfdiags.Diagnostics {
 	err := replacefile.AtomicWriteFile(filename, src, 0644)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to update dependency lock file",
 			fmt.Sprintf("Error while writing new dependency lock information to %s: %s.", filename, err),
 		))

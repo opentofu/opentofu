@@ -54,7 +54,7 @@ const ignoreRemoteVersionHelp = "If you're sure you want to upgrade the state, y
 func missingConfigAttributeAndEnvVar(attribute string, envVar string) tfdiags.Diagnostic {
 	detail := strings.TrimSpace(fmt.Sprintf("\"%s\" must be set in the cloud configuration or as an environment variable: %s.\n", attribute, envVar))
 	return tfdiags.AttributeValue(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Invalid or missing required argument",
 		detail,
 		cty.Path{cty.GetAttrStep{Name: attribute}})

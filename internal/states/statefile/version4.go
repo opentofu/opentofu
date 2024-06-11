@@ -46,7 +46,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		tfVersion, err = version.NewVersion(sV4.TerraformVersion)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid OpenTofu version string",
 				fmt.Sprintf("State file claims to have been written by OpenTofu version %q, which is not a valid version string.", sV4.TerraformVersion),
 			))
@@ -73,7 +73,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			rAddr.Mode = addrs.DataResourceMode
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid resource mode in state",
 				fmt.Sprintf("State contains a resource with mode %q (%q %q) which is not supported.", rsV4.Mode, rAddr.Type, rAddr.Name),
 			))
@@ -128,7 +128,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			default:
 				if keyRaw != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid resource instance metadata in state",
 						fmt.Sprintf("Resource %s has an instance with the invalid instance key %#v.", rAddr.Absolute(moduleAddr), keyRaw),
 					))
@@ -188,7 +188,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					obj.Status = states.ObjectTainted
 				default:
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid resource instance metadata in state",
 						fmt.Sprintf("Instance %s has invalid status %q.", instAddr.Absolute(moduleAddr), raw),
 					))
@@ -219,7 +219,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				dk := states.DeposedKey(isV4.Deposed)
 				if len(dk) != 8 {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid resource instance metadata in state",
 						fmt.Sprintf("Instance %s has an object with deposed key %q, which is not correctly formatted.", instAddr.Absolute(moduleAddr), isV4.Deposed),
 					))
@@ -228,7 +228,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				is := ms.ResourceInstance(instAddr)
 				if is.HasDeposed(dk) {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Duplicate resource instance in state",
 						fmt.Sprintf("Instance %s deposed object %q appears multiple times in the state file.", instAddr.Absolute(moduleAddr), dk),
 					))
@@ -240,7 +240,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				is := ms.ResourceInstance(instAddr)
 				if is.HasCurrent() {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Duplicate resource instance in state",
 						fmt.Sprintf("Instance %s appears multiple times in the state file.", instAddr.Absolute(moduleAddr)),
 					))
@@ -277,7 +277,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			ty, err := ctyjson.UnmarshalType([]byte(fos.ValueTypeRaw))
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid output value type in state",
 					fmt.Sprintf("The state file has an invalid type specification for output %q: %s.", name, err),
 				))
@@ -287,7 +287,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			val, err := ctyjson.Unmarshal([]byte(fos.ValueRaw), ty)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid output value saved in state",
 					fmt.Sprintf("The state file has an invalid value for output %q: %s.", name, err),
 				))
@@ -345,7 +345,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 		src, err := ctyjson.Marshal(os.Value, os.Value.Type())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to serialize output value in state",
 				fmt.Sprintf("An error occured while serializing output value %q: %s.", name, err),
 			))
@@ -355,7 +355,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 		typeSrc, err := ctyjson.MarshalType(os.Value.Type())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to serialize output value in state",
 				fmt.Sprintf("An error occured while serializing the type of output value %q: %s.", name, err),
 			))
@@ -382,7 +382,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				mode = "data"
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to serialize resource in state",
 					fmt.Sprintf("Resource %s has mode %s, which cannot be serialized in state", resourceAddr.Absolute(moduleAddr), resourceAddr.Mode),
 				))
@@ -428,7 +428,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 	if err != nil {
 		// Shouldn't happen if we do our conversion to *stateV4 correctly above.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to serialize state",
 			fmt.Sprintf("An error occured while serializing the state to save it. This is a bug in OpenTofu and should be reported: %s.", err),
 		))
@@ -442,7 +442,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 	_, err = w.Write(encrypted)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to write state",
 			fmt.Sprintf("An error occured while writing the serialized state: %s.", err),
 		))
@@ -463,7 +463,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		status = "tainted"
 	default:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to serialize resource instance in state",
 			fmt.Sprintf("Instance %s has status %s, which cannot be saved in state.", rs.Addr.Instance(key), obj.Status),
 		))
@@ -488,7 +488,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	default:
 		if key != addrs.NoKey {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to serialize resource instance in state",
 				fmt.Sprintf("Instance %s has an unsupported instance key: %#v.", rs.Addr.Instance(key), key),
 			))
@@ -826,7 +826,7 @@ func unmarshalPaths(buf []byte) ([]cty.Path, tfdiags.Diagnostics) {
 	err := json.Unmarshal(buf, &jsonPaths)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error unmarshaling path steps",
 			err.Error(),
 		))
@@ -843,7 +843,7 @@ unmarshalOuter:
 				key, err := ctyjson.Unmarshal(jsonStep.Value, cty.DynamicPseudoType)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Error unmarshaling path step",
 						fmt.Sprintf("Failed to unmarshal index step key: %s", err),
 					))
@@ -854,7 +854,7 @@ unmarshalOuter:
 				var name string
 				if err := json.Unmarshal(jsonStep.Value, &name); err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Error unmarshaling path step",
 						fmt.Sprintf("Failed to unmarshal get attr step name: %s", err),
 					))
@@ -863,7 +863,7 @@ unmarshalOuter:
 				path = append(path, cty.GetAttrStep{Name: name})
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Unsupported path step",
 					fmt.Sprintf("Unsupported path step type %q", jsonStep.Type),
 				))
@@ -893,7 +893,7 @@ marshalOuter:
 				key, err := ctyjson.Marshal(s.Key, cty.DynamicPseudoType)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Error marshaling path step",
 						fmt.Sprintf("Failed to marshal index step key %#v: %s", s.Key, err),
 					))
@@ -905,7 +905,7 @@ marshalOuter:
 				name, err := json.Marshal(s.Name)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Error marshaling path step",
 						fmt.Sprintf("Failed to marshal get attr step name %s: %s", s.Name, err),
 					))
@@ -915,7 +915,7 @@ marshalOuter:
 				jsonStep.Value = name
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Unsupported path step",
 					fmt.Sprintf("Unsupported path step %#v (%t)", step, step),
 				))
@@ -929,7 +929,7 @@ marshalOuter:
 	buf, err := json.Marshal(jsonPaths)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error marshaling path steps",
 			fmt.Sprintf("Failed to marshal path steps: %s", err),
 		))

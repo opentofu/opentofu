@@ -51,7 +51,7 @@ func TestDiagnosticsForRPC(t *testing.T) {
 
 	want := Diagnostics{
 		&rpcFriendlyDiag{
-			Severity_: Error,
+			Severity_: NewSeverity(ErrorLevel),
 			Summary_:  "bad",
 		},
 		&rpcFriendlyDiag{
@@ -59,7 +59,7 @@ func TestDiagnosticsForRPC(t *testing.T) {
 			Summary_:  "less bad",
 		},
 		&rpcFriendlyDiag{
-			Severity_: Error,
+			Severity_: NewSeverity(ErrorLevel),
 			Summary_:  "bad bad bad",
 			Detail_:   "badily bad bad",
 			Subject_: &SourceRange{

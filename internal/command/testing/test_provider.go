@@ -249,7 +249,7 @@ func (provider *TestProvider) ReadResource(request providers.ReadResourceRequest
 	id := request.PriorState.GetAttr("id").AsString()
 	resource := provider.Store.Get(provider.GetResourceKey(id))
 	if resource == cty.NilVal {
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "not found", fmt.Sprintf("%s does not exist", id)))
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "not found", fmt.Sprintf("%s does not exist", id)))
 	}
 
 	return providers.ReadResourceResponse{
@@ -264,7 +264,7 @@ func (provider *TestProvider) ReadDataSource(request providers.ReadDataSourceReq
 	id := request.Config.GetAttr("id").AsString()
 	resource := provider.Store.Get(provider.GetDataKey(id))
 	if resource == cty.NilVal {
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "not found", fmt.Sprintf("%s does not exist", id)))
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "not found", fmt.Sprintf("%s does not exist", id)))
 	}
 
 	return providers.ReadDataSourceResponse{

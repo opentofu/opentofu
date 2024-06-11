@@ -64,13 +64,13 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		if err != nil {
 			if os.IsNotExist(err) {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Target directory does not exist",
 					fmt.Sprintf("Cannot initialize non-existent directory %s.", rootDir),
 				))
 			} else {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to read target directory",
 					fmt.Sprintf("Error reading %s to ensure it is empty: %s.", rootDir, err),
 				))
@@ -86,7 +86,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		}
 		if haveEntries {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Can't populate non-empty directory",
 				fmt.Sprintf("The target directory %s is not empty, so it cannot be initialized with the -from-module=... option.", rootDir),
 			))
@@ -101,7 +101,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	err := os.MkdirAll(instDir, os.ModePerm)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to create temporary directory",
 			fmt.Sprintf("Failed to create temporary directory %s: %s.", instDir, err),
 		))
@@ -133,7 +133,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	sourceAddr, err := addrs.ParseModuleSource(sourceAddrStr)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid module source address",
 			fmt.Sprintf("Failed to parse module source address: %s", err),
 		))
@@ -178,7 +178,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	err = os.MkdirAll(modulesDir, os.ModePerm)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to create local modules directory",
 			fmt.Sprintf("Failed to create modules directory %s: %s.", modulesDir, err),
 		))
@@ -201,7 +201,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			err := copy.CopyDir(rootDir, record.Dir)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to copy root module",
 					fmt.Sprintf("Error copying root module %q from %s to %s: %s.", sourceAddrStr, record.Dir, rootDir, err),
 				))
@@ -234,7 +234,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 							newAddr = fmt.Sprintf("%s//%s", newAddr, filepath.ToSlash(newSubdir))
 						}
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Error,
+							tfdiags.NewSeverity(tfdiags.ErrorLevel),
 							"Root module references parent directory",
 							fmt.Sprintf("The requested module %q refers to a module via its parent directory. To use this as a new root module this source string must be rewritten as a remote source address, such as %q.", sourceAddrStr, newAddr),
 						))
@@ -268,7 +268,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		if _, err := os.Stat(tempPath); err != nil {
 			if !os.IsNotExist(err) {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to stat temporary module install directory",
 					fmt.Sprintf("Error from stat %s for module %s: %s.", instPath, newKey, err),
 				))
@@ -302,7 +302,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 					absDir, err := filepath.Abs(parentOld.Dir)
 					if err != nil {
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Error,
+							tfdiags.NewSeverity(tfdiags.ErrorLevel),
 							"Failed to determine module install directory",
 							fmt.Sprintf("Error determine relative source directory for module %s: %s.", newKey, err),
 						))
@@ -311,7 +311,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 					baseDirRel, err = filepath.Rel(absDir, record.Dir)
 					if err != nil {
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Error,
+							tfdiags.NewSeverity(tfdiags.ErrorLevel),
 							"Failed to determine relative module source location",
 							fmt.Sprintf("Error determining relative source for module %s: %s.", newKey, err),
 						))
@@ -319,7 +319,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 					}
 				} else {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Failed to determine relative module source location",
 						fmt.Sprintf("Error determining relative source for module %s: %s.", newKey, err),
 					))
@@ -339,7 +339,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		err = os.MkdirAll(instPath, os.ModePerm)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to create module install directory",
 				fmt.Sprintf("Error creating directory %s for module %s: %s.", instPath, newKey, err),
 			))
@@ -352,7 +352,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		err := copy.CopyDir(instPath, tempPath)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to copy descendent module",
 				fmt.Sprintf("Error copying module %q from %s to %s: %s.", newKey, tempPath, rootDir, err),
 			))
@@ -376,7 +376,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	retManifest.WriteSnapshotToDir(modulesDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to write module manifest",
 			fmt.Sprintf("Error writing module manifest: %s.", err),
 		))

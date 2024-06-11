@@ -44,7 +44,7 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "oh no bad",
 				},
 			},
@@ -56,7 +56,7 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "oh no bad",
 				},
 			},
@@ -82,7 +82,7 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "Something bad happened",
 					Detail:   "It was really, really bad.",
 					Subject: &SourceRange{
@@ -116,7 +116,7 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "Something bad happened",
 					Detail:   "It was really, really bad.",
 				},
@@ -136,11 +136,11 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "bad thing A",
 				},
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "bad thing B",
 				},
 			},
@@ -154,11 +154,11 @@ func TestBuild(t *testing.T) {
 			},
 			[]diagFlat{
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "bad thing A",
 				},
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "bad thing B",
 				},
 			},
@@ -186,7 +186,7 @@ func TestBuild(t *testing.T) {
 					Summary:  "Don't forget your toothbrush!",
 				},
 				{
-					Severity: Error,
+					Severity: NewSeverity(ErrorLevel),
 					Summary:  "exploded",
 				},
 			},

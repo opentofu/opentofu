@@ -31,7 +31,7 @@ func prepareStateV1(sV1 *stateV1) (*File, tfdiags.Diagnostics) {
 	sV2, err := upgradeStateV1ToV2(sV1)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			upgradeFailed,
 			fmt.Sprintf("Error upgrading state file format from version 1 to version 2: %s.", err),
 		))

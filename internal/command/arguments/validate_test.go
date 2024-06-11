@@ -90,7 +90,7 @@ func TestParseValidate_invalid(t *testing.T) {
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to parse command-line flags",
 					"flag provided but not defined: -boop",
 				),
@@ -105,7 +105,7 @@ func TestParseValidate_invalid(t *testing.T) {
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Too many command line arguments",
 					"Expected at most one positional argument.",
 				),

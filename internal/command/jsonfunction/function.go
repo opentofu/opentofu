@@ -66,7 +66,7 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 			signature, err := marshalFunction(v)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					fmt.Sprintf("Failed to serialize function %q", name),
 					err.Error(),
 				))
@@ -82,7 +82,7 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 	ret, err := json.Marshal(signatures)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to serialize functions",
 			err.Error(),
 		))

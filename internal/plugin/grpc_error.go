@@ -51,26 +51,26 @@ func grpcErr(err error) (diags tfdiags.Diagnostics) {
 		// This case is when the plugin has stopped running for some reason,
 		// and is usually the result of a crash.
 		diags = diags.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Plugin did not respond",
 			fmt.Sprintf("The plugin encountered an error, and failed to respond to the %s call. "+
 				"The plugin logs may contain more details.", requestName),
 		))
 	case codes.Canceled:
 		diags = diags.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Request cancelled",
 			fmt.Sprintf("The %s request was cancelled.", requestName),
 		))
 	case codes.Unimplemented:
 		diags = diags.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported plugin method",
 			fmt.Sprintf("The %s method is not supported by this plugin.", requestName),
 		))
 	default:
 		diags = diags.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Plugin error",
 			fmt.Sprintf("The plugin returned an unexpected error from %s: %v", requestName, err),
 		))

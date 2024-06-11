@@ -39,7 +39,7 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to parse command-line flags",
 			err.Error(),
 		))
@@ -48,7 +48,7 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 	args = cmdFlags.Args()
 	if len(args) > 1 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unexpected argument",
 			"The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
 		))
@@ -56,7 +56,7 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 
 	if jsonOutput && rawOutput {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid output format",
 			"The -raw and -json options are mutually-exclusive.",
 		))
@@ -74,7 +74,7 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 
 	if rawOutput && output.Name == "" {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Output name required",
 			"You must give the name of a single output value when using the -raw option.",
 		))

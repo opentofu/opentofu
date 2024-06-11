@@ -35,7 +35,7 @@ func OutputsFromMap(outputValues map[string]*states.OutputValue) (Outputs, tfdia
 		value, err := ctyjson.Marshal(unmarked, unmarked.Type())
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Error serializing output %q", name),
 				fmt.Sprintf("Error: %s", err),
 			))

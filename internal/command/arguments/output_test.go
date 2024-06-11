@@ -80,7 +80,7 @@ func TestParseOutput_invalid(t *testing.T) {
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to parse command-line flags",
 					"flag provided but not defined: -boop",
 				),
@@ -95,7 +95,7 @@ func TestParseOutput_invalid(t *testing.T) {
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid output format",
 					"The -raw and -json options are mutually-exclusive.",
 				),
@@ -110,7 +110,7 @@ func TestParseOutput_invalid(t *testing.T) {
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Output name required",
 					"You must give the name of a single output value when using the -raw option.",
 				),
@@ -125,7 +125,7 @@ func TestParseOutput_invalid(t *testing.T) {
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Unexpected argument",
 					"The output command expects exactly one argument with the name of an output variable or no arguments to show all outputs.",
 				),

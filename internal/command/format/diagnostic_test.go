@@ -31,7 +31,7 @@ func TestDiagnostic(t *testing.T) {
 	}{
 		"sourceless error": {
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"A sourceless error",
 				"It has no source references but it does have a pretty long detail that should wrap over multiple lines.",
 			),
@@ -299,7 +299,7 @@ func TestDiagnosticPlain(t *testing.T) {
 	}{
 		"sourceless error": {
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"A sourceless error",
 				"It has no source references but it does have a pretty long detail that should wrap over multiple lines.",
 			),

@@ -12,7 +12,7 @@ import (
 )
 
 func TestOverride_UpdatesSeverity(t *testing.T) {
-	original := Sourceless(Error, "summary", "detail")
+	original := Sourceless(NewSeverity(ErrorLevel), "summary", "detail")
 	override := Override(original, NewSeverity(WarningLevel), nil)
 
 	if override.Severity().SeverityLevel != WarningLevel {
@@ -57,20 +57,20 @@ func TestOverride_WrapsExtra(t *testing.T) {
 }
 
 func TestUndoOverride(t *testing.T) {
-	original := Sourceless(Error, "summary", "detail")
+	original := Sourceless(NewSeverity(ErrorLevel), "summary", "detail")
 	override := Override(original, NewSeverity(WarningLevel), nil)
 	restored := UndoOverride(override)
 
-	if restored.Severity() != Error {
+	if restored.Severity().SeverityLevel != ErrorLevel {
 		t.Errorf("expected warning but was %s", restored.Severity())
 	}
 }
 
 func TestUndoOverride_NotOverridden(t *testing.T) {
-	original := Sourceless(Error, "summary", "detail")
+	original := Sourceless(NewSeverity(ErrorLevel), "summary", "detail")
 	restored := UndoOverride(original) // Shouldn't do anything bad.
 
-	if restored.Severity() != Error {
+	if restored.Severity().SeverityLevel != ErrorLevel {
 		t.Errorf("expected warning but was %s", restored.Severity())
 	}
 }

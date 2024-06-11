@@ -97,7 +97,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		`You probably mean "10 buckets or fewer"`,
 	))
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Unusually stripey cat detected",
 		"Are you sure this random_pet isn't a cheetah?",
 	))
@@ -142,7 +142,7 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 		`You probably mean "10 buckets or fewer"`,
 	))
 	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 		"Unusually stripey cat detected",
 		"Are you sure this random_pet isn't a cheetah?",
 	))

@@ -76,7 +76,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 		if block.Assign.Line != 0 && !isJSON {
 			// Seems to be an attribute rather than a block
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid provider_installation block",
 				fmt.Sprintf("The provider_installation block at %s must not be introduced with an equals sign.", block.Pos()),
 			))
@@ -84,7 +84,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 		}
 		if len(block.Keys) > 1 && !isJSON {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid provider_installation block",
 				fmt.Sprintf("The provider_installation block at %s must not have any labels.", block.Pos()),
 			))
@@ -100,7 +100,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 			// if we're reading JSON then our value could potentially be
 			// anything.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid provider_installation block",
 				fmt.Sprintf("The provider_installation block at %s must not be introduced with an equals sign.", block.Pos()),
 			))
@@ -111,7 +111,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 			if methodBlock.Assign.Line != 0 && !isJSON {
 				// Seems to be an attribute rather than a block
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid provider_installation method block",
 					fmt.Sprintf("The items inside the provider_installation block at %s must all be blocks.", block.Pos()),
 				))
@@ -119,7 +119,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 			}
 			if len(methodBlock.Keys) > 1 && !isJSON {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid provider_installation method block",
 					fmt.Sprintf("The blocks inside the provider_installation block at %s may not have any labels.", block.Pos()),
 				))
@@ -132,7 +132,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				// if we're reading JSON then our value could potentially be
 				// anything.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid provider_installation method block",
 					fmt.Sprintf("The items inside the provider_installation block at %s must all be blocks.", block.Pos()),
 				))
@@ -152,7 +152,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				err := hcl.DecodeObject(&bodyContent, methodBody)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("Invalid %s block at %s: %s.", methodTypeStr, block.Pos(), err),
 					))
@@ -171,7 +171,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				err := hcl.DecodeObject(&bodyContent, methodBody)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("Invalid %s block at %s: %s.", methodTypeStr, block.Pos(), err),
 					))
@@ -179,7 +179,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				}
 				if bodyContent.Path == "" {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("Invalid %s block at %s: \"path\" argument is required.", methodTypeStr, block.Pos()),
 					))
@@ -198,7 +198,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				err := hcl.DecodeObject(&bodyContent, methodBody)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("Invalid %s block at %s: %s.", methodTypeStr, block.Pos(), err),
 					))
@@ -206,7 +206,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				}
 				if bodyContent.URL == "" {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("Invalid %s block at %s: \"url\" argument is required.", methodTypeStr, block.Pos()),
 					))
@@ -223,7 +223,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					// and so they don't participate in the usual
 					// include/exclude arguments and priority ordering.
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("The dev_overrides block at at %s must appear before all other installation methods, because development overrides always have the highest priority.", methodBlock.Pos()),
 					))
@@ -239,7 +239,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				err := hcl.DecodeObject(&rawItems, methodBody)
 				if err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid provider_installation method block",
 						fmt.Sprintf("Invalid %s block at %s: %s.", methodTypeStr, block.Pos(), err),
 					))
@@ -250,7 +250,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					addr, moreDiags := addrs.ParseProviderSourceString(rawAddr)
 					if moreDiags.HasErrors() {
 						diags = diags.Append(tfdiags.Sourceless(
-							tfdiags.Error,
+							tfdiags.NewSeverity(tfdiags.ErrorLevel),
 							"Invalid provider installation dev overrides",
 							fmt.Sprintf("The entry %q in %s is not a valid provider source string.\n\n%s", rawAddr, block.Pos(), moreDiags.Err().Error()),
 						))
@@ -264,7 +264,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Invalid provider_installation method block",
 					fmt.Sprintf("Unknown provider installation method %q at %s.", methodTypeStr, methodBlock.Pos()),
 				))

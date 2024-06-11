@@ -18,7 +18,7 @@ import (
 func TestDiagnosticsToHCL(t *testing.T) {
 	var diags Diagnostics
 	diags = diags.Append(Sourceless(
-		Error,
+		NewSeverity(ErrorLevel),
 		"A sourceless diagnostic",
 		"...that has a detail",
 	))

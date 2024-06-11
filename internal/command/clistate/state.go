@@ -130,7 +130,7 @@ func (l *locker) Lock(s statemgr.Locker, reason string) tfdiags.Diagnostics {
 
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error acquiring the state lock",
 			fmt.Sprintf(LockErrorMessage, err),
 		))
@@ -155,7 +155,7 @@ func (l *locker) Unlock() tfdiags.Diagnostics {
 
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Error releasing the state lock",
 			fmt.Sprintf(UnlockErrorMessage, err),
 		))

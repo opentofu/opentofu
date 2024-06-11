@@ -600,13 +600,13 @@ func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *mo
 
 		if dumpErr := op.EmergencyDumpState(stateFile, encryption.StateEncryptionDisabled()); dumpErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to serialize state",
 				fmt.Sprintf(stateWriteFatalErrorFmt, dumpErr),
 			))
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel)
 			"Failed to persist state",
 			stateWriteConsoleFallbackError,
 		))

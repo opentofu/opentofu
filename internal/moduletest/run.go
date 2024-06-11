@@ -281,7 +281,7 @@ func (run *Run) ValidateExpectedFailures(originals tfdiags.Diagnostics) tfdiags.
 					}
 
 					// Otherwise, let's package this up as an error and move on.
-					diags = diags.Append(tfdiags.Override(diag, tfdiags.Error, nil))
+					diags = diags.Append(tfdiags.Override(diag, tfdiags.NewSeverity(tfdiags.ErrorLevel), nil))
 					continue
 				} else if rule.Type == addrs.CheckDataResource {
 					// Then the diagnostic we have was actually overridden so
@@ -289,7 +289,7 @@ func (run *Run) ValidateExpectedFailures(originals tfdiags.Diagnostics) tfdiags.
 					original := tfdiags.UndoOverride(diag)
 
 					// This diagnostic originated from a scoped data source.
-					if addr.Module.IsRoot() && original.Severity() == tfdiags.Error {
+					if addr.Module.IsRoot() && original.Severity().SeverityLevel == tfdiags.ErrorLevel {
 						// Okay, we have a genuine error from the root module,
 						// so we can now check if we want to ignore it or not.
 						if expectedFailures.Has(addr.Check) {

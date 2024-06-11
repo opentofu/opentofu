@@ -102,7 +102,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Invalid target %q", tr),
 				syntaxDiags[0].Detail,
 			))
@@ -112,7 +112,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 		target, targetDiags := addrs.ParseTarget(traversal)
 		if targetDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Invalid target %q", tr),
 				targetDiags[0].Description().Detail,
 			))
@@ -126,7 +126,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(raw), "", hcl.Pos{Line: 1, Column: 1})
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Invalid force-replace address %q", raw),
 				syntaxDiags[0].Detail,
 			))
@@ -136,7 +136,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 		addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
 		if addrDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Invalid force-replace address %q", raw),
 				addrDiags[0].Description().Detail,
 			))
@@ -145,7 +145,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 
 		if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				fmt.Sprintf("Invalid force-replace address %q", raw),
 				"Only managed resources can be used with the -replace=... option.",
 			))
@@ -160,7 +160,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 	switch {
 	case o.destroyRaw && o.refreshOnlyRaw:
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Incompatible plan mode options",
 			"The -destroy and -refresh-only options are mutually-exclusive.",
 		))
@@ -170,7 +170,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 		o.PlanMode = plans.RefreshOnlyMode
 		if !o.Refresh {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Incompatible refresh options",
 				"It doesn't make sense to use -refresh-only at the same time as -refresh=false, because OpenTofu would have nothing to do.",
 			))

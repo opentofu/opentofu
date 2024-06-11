@@ -128,7 +128,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 		v, ok := mvc.getMockValueByType(impliedTypes[k])
 		if !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to generate mock value",
 				fmt.Sprintf("Mock value cannot be generated for dynamic type. Please specify the `%v` field explicitly in the configuration.", k),
 			))
@@ -271,7 +271,7 @@ func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 	default:
 		// Shouldn't happen as long as blocks are represented by lists / maps / sets / objs.
 		return cty.NilVal, diags.Append(tfdiags.WholeContainingBody(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			fmt.Sprintf("Unexpected block type: %v", targetType.FriendlyName()),
 			"Failed to generate mock value for this block type. Please, report it as an issue at OpenTofu repository, since it's not expected.",
 		))

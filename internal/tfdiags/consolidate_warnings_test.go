@@ -110,7 +110,7 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Error,
+			Severity_: NewSeverity(ErrorLevel),
 			Summary_:  "Error 1",
 			Detail_:   "This one has a subject 0",
 			Subject_: &SourceRange{
@@ -141,7 +141,7 @@ func TestConsolidateWarnings(t *testing.T) {
 			},
 		},
 		&rpcFriendlyDiag{
-			Severity_: Error,
+			Severity_: NewSeverity(ErrorLevel),
 			Summary_:  "Error 1",
 			Detail_:   "This one has a subject 1",
 			Subject_: &SourceRange{
@@ -162,7 +162,7 @@ func TestConsolidateWarnings(t *testing.T) {
 
 		// Third set (no more Warning 1, because it's consolidated)
 		&rpcFriendlyDiag{
-			Severity_: Error,
+			Severity_: NewSeverity(ErrorLevel),
 			Summary_:  "Error 1",
 			Detail_:   "This one has a subject 2",
 			Subject_: &SourceRange{
@@ -183,7 +183,7 @@ func TestConsolidateWarnings(t *testing.T) {
 
 		// Fourth set (still no warning 1)
 		&rpcFriendlyDiag{
-			Severity_: Error,
+			Severity_: NewSeverity(ErrorLevel),
 			Summary_:  "Error 1",
 			Detail_:   "This one has a subject 3",
 			Subject_: &SourceRange{

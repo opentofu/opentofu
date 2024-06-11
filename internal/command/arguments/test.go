@@ -50,7 +50,7 @@ func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to parse command-line flags",
 			err.Error()))
 	}

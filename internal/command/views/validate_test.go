@@ -37,7 +37,7 @@ func TestValidateHuman(t *testing.T) {
 		},
 		"error": {
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Configuration is missing random_pet",
 				"Every configuration should have a random_pet.",
 			),
@@ -96,7 +96,7 @@ func TestValidateJSON(t *testing.T) {
 		},
 		"error": {
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Configuration is missing random_pet",
 				"Every configuration should have a random_pet.",
 			),

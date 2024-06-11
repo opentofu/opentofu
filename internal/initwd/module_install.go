@@ -116,7 +116,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	manifest, err := modsdir.ReadManifestSnapshotForDir(i.modsDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to read modules manifest file",
 			fmt.Sprintf("Error reading manifest for %s: %s.", i.modsDir, err),
 		))
@@ -336,7 +336,7 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	err := manifest.WriteSnapshotToDir(i.modsDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to update module manifest",
 			fmt.Sprintf("Unable to write the module manifest file: %s", err),
 		))
