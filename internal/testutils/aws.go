@@ -21,7 +21,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"k8s.io/apimachinery/pkg/util/net"
 )
 
 // AWSTestServiceBase is an interface all AWS-related test services should embed.
@@ -138,7 +137,7 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 		t:           t,
 		ctx:         ctx,
 		ca:          ca,
-		endpoint:    net.JoinSchemeNamePort("https", "//"+host, strconv.Itoa(mappedPort.Int())),
+		endpoint:    "https://" + host + strconv.Itoa(mappedPort.Int()),
 		region:      "us-east-1",
 		accessKeyID: "test",
 		secretKeyID: "test",
