@@ -1,6 +1,7 @@
 package encryption
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -168,7 +169,7 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry) func(t *testing.T)
 
 		for i, m := range methods {
 			if !testCase.wantMethods[i](m) {
-				t.Fatalf("Got unexpected method: %v", m)
+				t.Fatalf("Got unexpected method: %v", reflect.TypeOf(m).String())
 			}
 		}
 	}
