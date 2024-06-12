@@ -1,26 +1,23 @@
 package encryption
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
+	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
 )
 
 func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 	t.Parallel()
 
-	tests := map[string]struct {
-		rawConfig   string // must contain state target
-		wantMethods []func(method.Method) bool
-		wantErr     string
-	}{
+	tests := map[string]btmTestCase{
 		"simple": {
 			rawConfig: `
 				key_provider "static" "basic" {
@@ -123,54 +120,65 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			cfg, diags := config.LoadConfigFromString("Test Config Source", test.rawConfig)
-			if diags.HasErrors() {
-				panic(diags.Error())
-			}
-
-			base := &baseEncryption{
-				enc: &encryption{
-					cfg: cfg,
-					reg: reg,
-				},
-				target:   cfg.State.AsTargetConfig(),
-				enforced: cfg.State.Enforced,
-				name:     "test",
-				encMeta:  make(map[keyprovider.Addr][]byte),
-			}
-
-			methods, diags := base.buildTargetMethods(base.encMeta)
-
-			if diags.HasErrors() {
-				msgs := make([]string, len(diags))
-
-				for i, d := range diags {
-					msgs[i] = d.Error()
-				}
-
-				fullMsg := strings.Join(msgs, ";")
-				if !strings.Contains(fullMsg, test.wantErr) {
-					t.Fatalf("Unexpected error: %v", fullMsg)
-				}
-			}
-
-			if !diags.HasErrors() && test.wantErr != "" {
-				t.Fatalf("Expected error (got none): %v", test.wantErr)
-			}
-
-			if len(methods) != len(test.wantMethods) {
-				t.Fatalf("Expected %d method(s), got %d", len(test.wantMethods), len(methods))
-			}
-
-			for i, m := range methods {
-				if !test.wantMethods[i](m) {
-					t.Fatalf("Got unexpected method: %v", m)
-				}
-			}
-		})
+		t.Run(name, test.newTestRun(reg))
 	}
+}
+
+type btmTestCase struct {
+	rawConfig   string // must contain state target
+	wantMethods []func(method.Method) bool
+	wantErr     string
+}
+
+func (testCase btmTestCase) newTestRun(reg registry.Registry) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Parallel()
+
+		cfg, diags := config.LoadConfigFromString("Test Config Source", testCase.rawConfig)
+		if diags.HasErrors() {
+			panic(diags.Error())
+		}
+
+		base := &baseEncryption{
+			enc: &encryption{
+				cfg: cfg,
+				reg: reg,
+			},
+			target:   cfg.State.AsTargetConfig(),
+			enforced: cfg.State.Enforced,
+			name:     "test",
+			encMeta:  make(map[keyprovider.Addr][]byte),
+		}
+
+		methods, diags := base.buildTargetMethods(base.encMeta)
+
+		if diags.HasErrors() {
+			if !hasDiagWithMsg(diags, testCase.wantErr) {
+				t.Fatalf("Got unexpected error: %v", diags.Error())
+			}
+		}
+
+		if !diags.HasErrors() && testCase.wantErr != "" {
+			t.Fatalf("Expected error (got none): %v", testCase.wantErr)
+		}
+
+		if len(methods) != len(testCase.wantMethods) {
+			t.Fatalf("Expected %d method(s), got %d", len(testCase.wantMethods), len(methods))
+		}
+
+		for i, m := range methods {
+			if !testCase.wantMethods[i](m) {
+				t.Fatalf("Got unexpected method: %v", m)
+			}
+		}
+	}
+}
+
+func hasDiagWithMsg(diags hcl.Diagnostics, msg string) bool {
+	for _, d := range diags {
+		if d.Error() == msg {
+			return true
+		}
+	}
+	return false
 }
