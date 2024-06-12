@@ -35,18 +35,6 @@ type StaticModuleCall struct {
 	RootPath string
 }
 
-func (c StaticModuleCall) Child(name string, vars StaticModuleVariables) StaticModuleCall {
-	addr := make([]string, len(c.Addr)+1)
-	copy(addr, c.Addr)
-	addr[len(addr)-1] = name
-
-	return StaticModuleCall{
-		Addr:      addr,
-		Variables: vars,
-		RootPath:  c.RootPath,
-	}
-}
-
 type StaticContext struct {
 	Call StaticModuleCall
 	cfg  *Module
