@@ -64,8 +64,6 @@ type Module struct {
 	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
 	IsOverridden bool
-
-	Ctx *StaticContext
 }
 
 // File describes the contents of a single configuration file.
@@ -189,7 +187,6 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall) (*Mod
 	// Static evaluation to build a StaticContext now that module has all relavent Locals / Variables
 	ctx, sDiags := CreateStaticContext(mod, call)
 	diags = append(diags, sDiags...)
-	mod.Ctx = ctx
 	if mod.Backend != nil {
 		mod.Backend.ctx = ctx
 	}
