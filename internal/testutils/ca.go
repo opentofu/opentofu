@@ -189,7 +189,7 @@ func (c *ca) CreateConfiguredServerCert(config CertConfig) KeyPair {
 
 func (c *ca) CreateLocalhostServerCert() KeyPair {
 	return c.CreateConfiguredServerCert(CertConfig{
-		IPAddresses: []string{},
+		IPAddresses: []string{"127.0.0.1", "::1"},
 		Subject: pkix.Name{
 			Country:      []string{"US"},
 			Organization: []string{"OpenTofu a Series of LF Projects, LLC"},
