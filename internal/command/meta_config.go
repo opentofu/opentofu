@@ -51,7 +51,13 @@ func (m *Meta) loadConfig(rootDir string) (*configs.Config, tfdiags.Diagnostics)
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfig(rootDir)
+	call, callDiags := m.rootModuleCall(rootDir)
+	diags = diags.Append(callDiags)
+	if callDiags.HasErrors() {
+		return nil, diags
+	}
+
+	config, hclDiags := loader.LoadConfig(rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }

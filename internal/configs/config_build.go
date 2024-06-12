@@ -136,11 +136,9 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 		path[len(path)-1] = call.Name
 
 		staticCall := StaticModuleCall{
-			Addr: path,
-
+			Addr:      path,
 			Variables: call.Variables,
-
-			RootPath: parent.Root.Module.SourceDir,
+			RootPath:  parent.Root.Module.SourceDir,
 		}
 
 		req := ModuleRequest{

@@ -249,7 +249,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 		return nil, snap, diags
 	}
 	loader := configload.NewLoaderFromSnapshot(snap)
-	config, configDiags := loader.LoadConfig(snap.Modules[""].Dir)
+	config, configDiags := loader.LoadConfig(snap.Modules[""].Dir, op.Call)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, snap, diags

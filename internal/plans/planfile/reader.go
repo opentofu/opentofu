@@ -228,7 +228,8 @@ func (r *Reader) ReadConfig() (*configs.Config, tfdiags.Diagnostics) {
 
 	loader := configload.NewLoaderFromSnapshot(snap)
 	rootDir := snap.Modules[""].Dir // Root module base directory
-	config, configDiags := loader.LoadConfig(rootDir)
+	// TODO should we pass static variables in from the command package or store them in the plan?
+	config, configDiags := loader.LoadConfig(rootDir, configs.StaticModuleCall{})
 	diags = diags.Append(configDiags)
 
 	return config, diags

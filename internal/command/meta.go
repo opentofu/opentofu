@@ -851,7 +851,13 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 		return diags
 	}
 
-	config, configDiags := loader.LoadConfig(pwd)
+	call, callDiags := m.rootModuleCall(pwd)
+	if callDiags.HasErrors() {
+		diags = diags.Append(callDiags)
+		return diags
+	}
+
+	config, configDiags := loader.LoadConfig(pwd, call)
 	if configDiags.HasErrors() {
 		diags = diags.Append(configDiags)
 		return diags

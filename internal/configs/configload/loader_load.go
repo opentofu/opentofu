@@ -11,7 +11,6 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
@@ -25,9 +24,8 @@ import (
 //
 // LoadConfig performs the basic syntax and uniqueness validations that are
 // required to process the individual modules
-func (l *Loader) LoadConfig(rootDir string) (*configs.Config, hcl.Diagnostics) {
-	// TODO inject vars from environment / cli flags
-	return l.loadConfig(l.parser.LoadConfigDir(rootDir, configs.StaticModuleCall{Addr: addrs.RootModule}))
+func (l *Loader) LoadConfig(rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
+	return l.loadConfig(l.parser.LoadConfigDir(rootDir, call))
 }
 
 // LoadConfigWithTests matches LoadConfig, except the configs.Config contains
