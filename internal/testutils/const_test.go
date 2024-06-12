@@ -3,13 +3,11 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package testutils
+package testutils_test
 
 import (
 	"time"
 )
 
 const cleanupTimeout = 5 * time.Minute
-const permAll = 0777
-const httpProxyTimeoutUp = 30 * time.Second
-const httpHeaderReadTimeout = 15 * time.Second
+const httpTimeouts = 10 * time.Second

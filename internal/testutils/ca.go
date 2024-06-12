@@ -95,9 +95,9 @@ type CertificateAuthority interface {
 	GetPEMCACert() []byte
 	// CreateLocalhostServerCert creates a certificate pre-configured for "localhost", which is sufficient for most test
 	// cases.
-	CreateLocalhostServerCert() *KeyPair
+	CreateLocalhostServerCert() KeyPair
 	// CreateConfiguredServerCert creates a server certificate with a specialized configuration.
-	CreateConfiguredServerCert(config CertConfig) *KeyPair
+	CreateConfiguredServerCert(config CertConfig) KeyPair
 }
 
 type ca struct {
@@ -113,7 +113,7 @@ func (c *ca) GetPEMCACert() []byte {
 	return c.caCertPEM
 }
 
-func (c *ca) CreateConfiguredServerCert(config CertConfig) *KeyPair {
+func (c *ca) CreateConfiguredServerCert(config CertConfig) KeyPair {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.serial.Add(c.serial, big.NewInt(1))
@@ -161,13 +161,13 @@ func (c *ca) CreateConfiguredServerCert(config CertConfig) *KeyPair {
 	); err != nil {
 		c.t.Skipf("Failed to encode certificate: %v", err)
 	}
-	return &KeyPair{
+	return KeyPair{
 		certPrivKeyPEM.Bytes(),
 		certPEM.Bytes(),
 	}
 }
 
-func (c *ca) CreateLocalhostServerCert() *KeyPair {
+func (c *ca) CreateLocalhostServerCert() KeyPair {
 	return c.CreateConfiguredServerCert(CertConfig{
 		IPAddresses: []string{},
 		Subject: pkix.Name{

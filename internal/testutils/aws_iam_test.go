@@ -21,5 +21,5 @@ func TestIAMService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("❌ Failed to get caller identity: %v", err)
 	}
-	t.Logf("✅ %d roles returned.", len((*roles).Roles))
+	t.Logf("✅ %d roles returned.", len(roles.Roles))
 }
