@@ -8,6 +8,7 @@ package testutils
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -40,7 +41,7 @@ func (d dynamoDBServiceFixture) LocalStackID() string {
 func (d dynamoDBServiceFixture) Setup(service *awsTestService) error {
 	const maxDynamoDBTableNameLength = uint(255)
 	const desiredDynamoDBTableNameSuffixLength = uint(12)
-	prefix := fmt.Sprintf("opentofu-test-%s-", service.t.Name())
+	prefix := strings.ReplaceAll(fmt.Sprintf("opentofu-test-%s-", service.t.Name()), ":", "")
 	tableName := prefix + PseudoRandomID(min(maxDynamoDBTableNameLength-uint(len(prefix)), desiredDynamoDBTableNameSuffixLength))
 	dynamoDBClient := dynamodb.NewFromConfig(service.ConfigV2())
 

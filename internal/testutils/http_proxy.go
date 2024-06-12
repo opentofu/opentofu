@@ -61,11 +61,23 @@ type HTTPProxyService interface {
 	CACert() []byte
 }
 
-// HTTPProxyOptionForceHTTPTarget forces non-CONNECT (HTTP/HTTPS) requests to be sent to the specified target,
-// regardless of the request.
+// HTTPProxyOptionForceHTTPTarget forces non-CONNECT (HTTP/HTTPS) requests to be sent to the specified target via an
+// HTTP request regardless of the request. You should specify the target as hostname:ip.
 func HTTPProxyOptionForceHTTPTarget(target string) HTTPProxyOption {
 	return func(options *httpProxyOptions) error {
 		options.httpTarget = target
+		options.targetIsHTTPS = false
+		return nil
+	}
+}
+
+// HTTPProxyOptionForceHTTPSTarget forces non-CONNECT (HTTP/HTTPS) requests to be sent to the specified target via an
+// HTTPS request. If the backing server is using a custom CA, you should pass the caCert as the second parameter.
+func HTTPProxyOptionForceHTTPSTarget(target string, caCert []byte) HTTPProxyOption {
+	return func(options *httpProxyOptions) error {
+		options.httpTarget = target
+		options.targetIsHTTPS = true
+		options.targetCACert = caCert
 		return nil
 	}
 }
@@ -79,23 +91,15 @@ func HTTPProxyOptionForceCONNECTTarget(target string) HTTPProxyOption {
 	}
 }
 
-// HTTPProxyOptionTargetCACert sets the CA certificate expected from an HTTPS target. The default is to use the system
-// certificate pool. This option is meaningless for CONNECT requests.
-func HTTPProxyOptionTargetCACert(caCert []byte) HTTPProxyOption {
-	return func(options *httpProxyOptions) error {
-		options.caCert = caCert
-		return nil
-	}
-}
-
 // HTTPProxyOption is a function that changes the settings for the proxy server. The parameter is intentionally not
 // exposed.
 type HTTPProxyOption func(options *httpProxyOptions) error
 
 type httpProxyOptions struct {
 	httpTarget    string
+	targetIsHTTPS bool
+	targetCACert  []byte
 	connectTarget string
-	caCert        []byte
 }
 
 type httpProxyService struct {
@@ -135,15 +139,20 @@ func (h *httpProxyService) handleHTTP(writer http.ResponseWriter, request *http.
 		return
 	}
 	request.RequestURI = ""
+	if h.proxyOptions.targetIsHTTPS {
+		requestURLParsed.Scheme = "https"
+	} else {
+		requestURLParsed.Scheme = "http"
+	}
 	request.URL = requestURLParsed
 	request.Header.Del("Proxy-Authorization")
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
-	if len(h.proxyOptions.caCert) > 0 {
+	if len(h.proxyOptions.targetCACert) > 0 {
 		certPool := x509.NewCertPool()
-		certPool.AppendCertsFromPEM(h.proxyOptions.caCert)
+		certPool.AppendCertsFromPEM(h.proxyOptions.targetCACert)
 		tlsConfig.RootCAs = certPool
 	}
 
@@ -245,7 +254,7 @@ func (h *httpProxyService) start() error {
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{
-			*h.keyPair.GetTLSCertificate(),
+			h.keyPair.GetTLSCertificate(),
 		},
 		MinVersion: tls.VersionTLS13,
 	}

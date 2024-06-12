@@ -101,12 +101,12 @@ func (k KeyPair) GetPrivateKey() crypto.PrivateKey {
 	return key
 }
 
-func (k KeyPair) GetTLSCertificate() *tls.Certificate {
+func (k KeyPair) GetTLSCertificate() tls.Certificate {
 	cert, err := tls.X509KeyPair(k.Certificate, k.PrivateKey)
 	if err != nil {
 		panic(err)
 	}
-	return &cert
+	return cert
 }
 
 // CertificateAuthority provides simple access to x509 CA functions for testing purposes only.

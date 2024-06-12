@@ -45,7 +45,7 @@ func (s s3ServiceFixture) LocalStackID() string {
 func (s s3ServiceFixture) Setup(service *awsTestService) error {
 	const maxS3TableNameLength = uint(63)
 	const desiredS3TableNameSuffixLength = uint(12)
-	prefix := fmt.Sprintf("opentofu-test-%s-", strings.ReplaceAll(service.t.Name(), "_", "-"))
+	prefix := fmt.Sprintf("opentofu-test-%s-", strings.ReplaceAll(strings.ReplaceAll(service.t.Name(), "_", "-"), ":", ""))
 	bucketName := strings.ToLower(prefix + PseudoRandomID(min(maxS3TableNameLength-uint(len(prefix)), desiredS3TableNameSuffixLength)))
 
 	// TODO replace with variable if the config comes from env.
