@@ -268,12 +268,12 @@ func (s ScopeData) GetCheckBlock(addrs.Check, tfdiags.SourceRange) (cty.Value, t
 
 func (s *StaticContext) scope(ident StaticIdentifier, stack []StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
-		Data:     ScopeData{s, ident, stack},
-		ParseRef: addrs.ParseRef,
-		//SourceAddr: ident.Subject?
-		//TODO BaseDir string
-		//TODO PureOnly bool
-		//ConsoleMode bool
+		Data:        ScopeData{s, ident, stack},
+		ParseRef:    addrs.ParseRef,
+		SourceAddr:  ident.Subject,
+		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
+		PureOnly:    false,
+		ConsoleMode: false,
 	}
 }
 
