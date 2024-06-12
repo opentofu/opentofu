@@ -283,8 +283,9 @@ type Operation struct {
 	AutoApprove  bool
 	Targets      []addrs.Targetable
 	ForceReplace []addrs.AbsResourceInstance
-	Variables    map[string]UnparsedVariableValue
-	Call         configs.StaticModuleCall
+	// Injected by the command creating the operation (plan/apply/refresh/etc...)
+	Variables map[string]UnparsedVariableValue
+	Call      configs.StaticModuleCall
 
 	// Some operations use root module variables only opportunistically or
 	// don't need them at all. If this flag is set, the backend must treat

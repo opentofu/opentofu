@@ -67,6 +67,8 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	c.GatherVariables(args.Vars)
+
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
@@ -106,8 +108,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
 
-	c.GatherVariables(args.Vars)
-
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
 	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.State())
@@ -121,9 +121,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
 	diags = diags.Append(opDiags)
 
-	// Collect variable value and add them to the operation request
-	diags = diags.Append(c.StuffVariables(opReq))
-
 	// Before we delegate to the backend, we'll print any warning diagnostics
 	// we've accumulated here, since the backend will start fresh with its own
 	// diagnostics.
@@ -134,10 +131,9 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Run the operation
-	op, err := c.RunOperation(be, opReq)
-	if err != nil {
-		diags = diags.Append(err)
-		view.Diagnostics(diags)
+	op, diags := c.RunOperation(be, opReq)
+	view.Diagnostics(diags)
+	if diags.HasErrors() {
 		return 1
 	}
 
@@ -314,13 +310,6 @@ func (c *ApplyCommand) GatherVariables(args *arguments.Vars) {
 		items[i].Value = varArgs[i].Value
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
-}
-
-func (c *ApplyCommand) StuffVariables(opReq *backend.Operation) tfdiags.Diagnostics {
-	var diags, callDiags tfdiags.Diagnostics
-	opReq.Variables, diags = c.collectVariableValues()
-	opReq.Call, callDiags = c.rootModuleCall(opReq.ConfigDir)
-	return diags.Append(callDiags)
 }
 
 func (c *ApplyCommand) Help() string {

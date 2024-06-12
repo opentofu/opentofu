@@ -95,13 +95,6 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	// Collect variable value and add them to the operation request
-	diags = diags.Append(c.StuffVariables(opReq))
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return 1
-	}
-
 	// Before we delegate to the backend, we'll print any warning diagnostics
 	// we've accumulated here, since the backend will start fresh with its own
 	// diagnostics.
@@ -109,10 +102,9 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Perform the operation
-	op, err := c.RunOperation(be, opReq)
-	if err != nil {
-		diags = diags.Append(err)
-		view.Diagnostics(diags)
+	op, diags := c.RunOperation(be, opReq)
+	view.Diagnostics(diags)
+	if diags.HasErrors() {
 		return 1
 	}
 
@@ -201,13 +193,6 @@ func (c *PlanCommand) GatherVariables(args *arguments.Vars) {
 		items[i].Value = varArgs[i].Value
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
-}
-
-func (c *PlanCommand) StuffVariables(opReq *backend.Operation) tfdiags.Diagnostics {
-	var diags, callDiags tfdiags.Diagnostics
-	opReq.Variables, diags = c.collectVariableValues()
-	opReq.Call, callDiags = c.rootModuleCall(opReq.ConfigDir)
-	return diags.Append(callDiags)
 }
 
 func (c *PlanCommand) Help() string {

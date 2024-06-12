@@ -69,6 +69,8 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
 
+	c.GatherVariables(args.Vars)
+
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
@@ -94,7 +96,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	}
 
 	// Collect variable value and add them to the operation request
-	diags = diags.Append(c.GatherVariables(opReq, args.Vars))
+	diags = diags.Append()
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -107,10 +109,9 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Perform the operation
-	op, err := c.RunOperation(be, opReq)
-	if err != nil {
-		diags = diags.Append(err)
-		view.Diagnostics(diags)
+	op, diags := c.RunOperation(be, opReq)
+	view.Diagnostics(diags)
+	if diags.HasErrors() {
 		return 1
 	}
 
@@ -168,9 +169,7 @@ func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refres
 	return opReq, diags
 }
 
-func (c *RefreshCommand) GatherVariables(opReq *backend.Operation, args *arguments.Vars) tfdiags.Diagnostics {
-	var diags, callDiags tfdiags.Diagnostics
-
+func (c *RefreshCommand) GatherVariables(args *arguments.Vars) {
 	// FIXME the arguments package currently trivially gathers variable related
 	// arguments in a heterogenous slice, in order to minimize the number of
 	// code paths gathering variables during the transition to this structure.
@@ -185,10 +184,6 @@ func (c *RefreshCommand) GatherVariables(opReq *backend.Operation, args *argumen
 		items[i].Value = varArgs[i].Value
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
-	opReq.Variables, diags = c.collectVariableValues()
-	opReq.Call, callDiags = c.rootModuleCall(opReq.ConfigDir)
-
-	return diags.Append(callDiags)
 }
 
 func (c *RefreshCommand) Help() string {
