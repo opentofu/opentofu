@@ -18,8 +18,6 @@ At the time of writing this RFC, OpenTofu 1.7.x has very similar features to Ter
 
 As we introduce support for `.tofu` files, we open up the ability to add new language features without worrying as much about compatibility in shared modules. If we can differentiate between "OpenTofu Version" and "Terraform Version", the above scenarios become much easier.
 
-We must also consider "partial knowledge" of version information. Ideally the configuration would clearly define which terraform version and tofu version are required. If that is not the case, we will have to provide a "best guess" to fill in the blanks.
-
 As the [provider compatibility check is deprecated](https://github.com/hashicorp/terraform-plugin-framework/blob/8a09cef0bb892e2d90c89cad551ce12a959f1a2d/provider/configure.go#L28-L32) and the state's "terraform_version" field is not currently used in OpenTofu, we will not discuss them in this RFC.
 
 ### User Documentation
@@ -29,23 +27,23 @@ Currently the "software version" (both Terraform and Tofu) is defined in the con
 Example:
 ```hcl
 terraform {
-    required_version = 1.7.4
+    required_version = "1.7.4"
 }
 ```
-This configuration currently requires *both* Terraform 1.7.4 and OpenTofu 1.7.4 which are wildly different things.
+This configuration currently requires either Terraform 1.7.4 or OpenTofu 1.7.4 which are wildly different things.
 
 Let's look at a project or module which plans on supporting both tools (for the time being). They will start to introduce `.tofu` files as they start utilizing additional functionality in OpenTofu. How would they go about setting version requirements?
 
 ```hcl
 # version.tf
 terraform {
-    required_version = 1.7.4
+    required_version = "1.7.4"
 }
 ```
 ```hcl
 # version.tofu
 tofu {
-    required_version = 1.6.5
+    required_version = "1.6.5"
 }
 ```
 
@@ -56,27 +54,27 @@ When loaded by:
 
 What happens if only the `version.tf` file exists in this module with no tofu overwrite? This is a common case for modules who have not yet considered explicit OpenTofu migration.
 
-As a user, I would expect that the "Terraform Required Version" would have an equivalent "OpenTofu Required Version". This is not a 1-1 mapping, but is a reasonable stop-gap solution.
+As a user, I would like to know if any incompatible terraform_version has been specified as part of my project's configuration and modules. I would also assume any version requirement under 1.6 would be identical between Terraform and OpenTofu.
 
-As this is a not a 1-1 version mapping and a "best effort" solution, I would expect to see a warning:
-
+```hcl
+terraform {
+    required_version = 1.7.4
+}
+```
 ```shell
-$ tofu init
-...
-Warning: Using v1.7.x in 'terraform -> required_version' as equivalent to current tofu version 1.6.5!
-At file/line: ...
-...
+$ TF_LOG=debug tofu init
+Initializing the backend...
+Initializing modules...
+Warning: Configuration requests terraform version >= 1.6!
+  Please update the configuration to specify the required OpenTofu Version.  More information is available in the debug log.
+Debug: terraform required_version = 1.7.4 in main.tf:421
 ```
 
 This could also include some information on how to remedy this situation, perhaps linking to the docs.
 
 ### Technical Approach
 
-OpenTofu internally should know both it's own "software version" and what "terraform version" it is similar to.
-
-When we update the VERSION file in OpenTofu, we should also include the "terraform version" in the same file, or a similar file. OpenTofu's version package should then be able to supply both versions upon request.
-
-The "required_version" field is accessed via `sniffCoreVersionRequirements(body)` in internal/configs/parser_config.go and stored in `configs.File.CoreVersionConstraints`. These are then merged into `configs.Module.CoreVersionConstraints` and are checked in `configs.Module.CheckCoreVersionRequirements()`. This check function is called in a variety of locations moving up the stack, but is as high as we need to concern ourselves with for this RFC.
+The "required_version" field is accessed via `sniffCoreVersionRequirements(body)` in internal/configs/parser_config.go and stored in `configs.File.CoreVersionConstraints`. These are then merged into `configs.Module.CoreVersionConstraints` and are checked in `configs.Module.CheckCoreVersionRequirements()`. This check function is called in a variety of locations moving up the stack, but is as high as we need to concern ourselves with for this RFC. We will need to make sure the warning won't be emitted multiple times due to the spaghettified command package.
 
 We have two very similar paths here:
 * Split CoreVersionConstraints into two fields: `TofuVersionConstraints` and `TerraformVersionConstraints`
@@ -84,16 +82,13 @@ We have two very similar paths here:
 
 Either path is easy to both implement and thoroughly test.
 
-#### Version Compatibility
-
-As features don't change much between patch versions of Tofu and Terraform, we can use "Major.Minor.999999" as the "Terraform Version". This means that we are only tracking similarities between Major/Minor releases.
-
-This can be shown to the user as "Major.Minor.x" and solves the problem of new patch releases in Terraform after a compatible OpenTofu release has already gone out.
+The `configs.Module.CheckCoreVersionRequirements()` function is where we will need to emit the warnings and corresponding debug log entries.
 
 ### Open Questions
 
 Should there be an option (config, CLI, or ENV) to:
 * Disable the version checking altogether?
+* Don't check terraform required_versions
 * Treat both Tofu and Terraform version as identical instead of using our equivalent "terraform version" guess?
 * Do we show the guessed terraform version in `tofu -version`, maybe with a `-verbose` flag?
 
@@ -106,4 +101,6 @@ If we run into providers expecting a particular terraform version (even though t
 Don't implement this and assume that all module and project authors will adopt the .tofu extension and keep the respective required_versions up to date.
 
 Implement an option to disable required_version checking.
+
+Try to guess the equivalent OpenTofu version for a specified Terraform version.
 
