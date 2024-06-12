@@ -70,6 +70,9 @@ func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tf
 
 	call, vDiags := m.rootModuleCall(rootDir)
 	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir, call)
 	diags = diags.Append(hclDiags)
@@ -96,6 +99,9 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 
 	call, vDiags := m.rootModuleCall(dir)
 	diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	module, hclDiags := loader.Parser().LoadConfigDir(dir, call)
 	diags = diags.Append(hclDiags)
@@ -173,6 +179,9 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 
 	call, vDiags := m.rootModuleCall(dir)
 	diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, call)
 	diags = diags.Append(hclDiags)
@@ -274,6 +283,9 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 
 	call, vDiags := m.rootModuleCall(rootDir)
 	diags.Append(vDiags)
+	if diags.HasErrors() {
+		return true, diags
+	}
 
 	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks, call)
 	diags = diags.Append(moreDiags)

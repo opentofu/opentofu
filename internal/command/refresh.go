@@ -95,13 +95,6 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	// Collect variable value and add them to the operation request
-	diags = diags.Append()
-	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return 1
-	}
-
 	// Before we delegate to the backend, we'll print any warning diagnostics
 	// we've accumulated here, since the backend will start fresh with its own
 	// diagnostics.
