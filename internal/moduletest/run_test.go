@@ -633,7 +633,7 @@ func TestRun_ValidateExpectedFailures(t *testing.T) {
 						Summary: "expected failure in child module",
 						Detail:  "this should upgrade and not be removed",
 					},
-					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel)r,
+					Severity: tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				},
 				{
 					Description: tfdiags.Description{
