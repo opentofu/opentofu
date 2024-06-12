@@ -107,8 +107,8 @@ type File struct {
 
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles, call)
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -123,7 +123,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall) (*Module, hcl.Diagnostics) {
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -137,6 +137,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall) (*Mod
 		Checks:             map[string]*Check{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
+		SourceDir:          sourceDir,
 	}
 
 	// Process the required_providers blocks first, to ensure that all

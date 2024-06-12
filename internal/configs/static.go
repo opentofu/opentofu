@@ -2,11 +2,14 @@ package configs
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -62,15 +65,18 @@ type StaticModuleCall struct {
 type StaticContext struct {
 	Call StaticModuleCall
 
+	sourceDir string
+
 	vars   StaticReferences
 	locals StaticReferences
 }
 
 func CreateStaticContext(mod *Module, call StaticModuleCall) (*StaticContext, hcl.Diagnostics) {
 	ctx := StaticContext{
-		Call:   call,
-		vars:   make(StaticReferences),
-		locals: make(StaticReferences),
+		Call:      call,
+		sourceDir: mod.SourceDir,
+		vars:      make(StaticReferences),
+		locals:    make(StaticReferences),
 	}
 
 	// Process all variables
@@ -187,8 +193,54 @@ func (s ScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange
 func (s ScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
-func (s ScopeData) GetPathAttr(addrs.PathAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
-	panic("TODO")
+func (s ScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	// TODO this is copied and trimed down from tofu/evaluate.go GetPathAttr.  Ideally this should be refactored to a common location.
+	var diags tfdiags.Diagnostics
+	switch addr.Name {
+
+	case "cwd":
+		wd, err := os.Getwd()
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `Failed to get working directory`,
+				Detail:   fmt.Sprintf(`The value for path.cwd cannot be determined due to a system error: %s`, err),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+			return cty.DynamicVal, diags
+		}
+		wd, err = filepath.Abs(wd)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `Failed to get working directory`,
+				Detail:   fmt.Sprintf(`The value for path.cwd cannot be determined due to a system error: %s`, err),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+			return cty.DynamicVal, diags
+		}
+
+		return cty.StringVal(filepath.ToSlash(wd)), diags
+
+	case "module":
+		return cty.StringVal(s.sctx.sourceDir), diags
+
+	case "root":
+		return cty.StringVal(s.sctx.Call.RootPath), diags
+
+	default:
+		suggestion := didyoumean.NameSuggestion(addr.Name, []string{"cwd", "module", "root"})
+		if suggestion != "" {
+			suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid "path" attribute`,
+			Detail:   fmt.Sprintf(`The "path" object does not have an attribute named %q.%s`, addr.Name, suggestion),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
+	}
 }
 func (s ScopeData) GetTerraformAttr(ident addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
