@@ -223,7 +223,7 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 
 		// TODO addrs.ModuleCallInstanceInput?
 		ident := StaticIdentifier{Module: ctx.Call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
-		return ctx.Evaluate(v.Expr, ident)(nil)
+		return ctx.Evaluate(v.Expr, ident)
 	}
 
 	return diags
