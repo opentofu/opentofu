@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -58,7 +59,21 @@ func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte)
 	}
 
 	methods, targetDiags := builder.build(base.target, base.name)
-	return methods, append(diags, targetDiags...)
+	diags = append(diags, targetDiags...)
+
+	if base.enforced {
+		for _, m := range methods {
+			if unencrypted.Is(m) {
+				return nil, append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unencrypted method is forbidden",
+					Detail:   "Unable to use `unencrypted` method since the `enforced` flag is used.",
+				})
+			}
+		}
+	}
+
+	return methods, diags
 }
 
 // build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
