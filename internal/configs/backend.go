@@ -62,7 +62,7 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
 	return b.ctx.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
 		Module:    addrs.RootModule.Child("terraform"),
-		Subject:   addrs.Backend{Type: b.Type},
+		Subject:   addrs.BackendAttr{Type: b.Type},
 		DeclRange: b.DeclRange,
 	})
 }
