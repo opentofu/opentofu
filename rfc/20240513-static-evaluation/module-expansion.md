@@ -1,4 +1,6 @@
-This is an ancillary document to the [Static Evaluation RFC](20240513-static-evaluation.md) and is not planned on being implemented. It serves to document the reasoning behind why we are deciding to defer implementation of this complex functionality.
+This is an ancillary document to the [Static Evaluation RFC](20240513-static-evaluation.md) and is not planned on being implemented. It serves to document the reasoning behind why we are deciding to defer implementation of this complex functionality. For now, we have decided to implement a limited version of this that allows provider aliases *only* to be specified via for_each/count.
+
+This document should be used as a reference for anyone considering implementing this in the future. It is not designed as a comprehensive guide, but instead as documenting the previous exploration of this concept during the prototyping phase of the Static Evaluation RFC.
 
 # Static Module Expansion
 
@@ -9,29 +11,41 @@ For example:
 # main.tf
 module "mod" {
         for_each = {"us" = "first", "eu" = "second"}
-        source = "./mod"
+        source = "./my-mod-${each.vakue}"
         name = each.key
-        providers {
-          aws = provider.aws[each.value]
-        }
 }
 ```
 
-Each "instance" of "mod" will need it's own provider configuration, which is currently only specified as part of "mod" and not any "mod instance". This problem becomes more complex and problematic when considering nested modules.
+Each instance of "mod" will have a different source. This is a complex situation that must have intense validation, inputs and outputs must be identical between the two modules.
 
-To solve this, modules which have static for_each and count expressions must be expanded at the config layer. This must happen before the graph building, transformers, and walking.
+The example is a bit contrived, but is a simpler representation of why it's difficult to have different module sources for different instaces down a configuration tree.
 
-TODO Are there any alternatives?
+If we want to allow this, modules which have static for_each and count expressions must be expanded at the config layer. This must happen before the graph building, transformers, and walking.
+
+This document assumes you have read the [Static Evaluation RFC](20240513-static-evaluation.md) and understand the concepts in there.
 
 ## Current structure and paths
 
-TODO expound on what the below concepts are and link to the above docs.
+Over half of OpenTofu does not understand module/resource instances. They have a simplified view of the world that is called "pre-expansion".
 
-As specified above, the configs.Config struct is a tree linking config.Modules. The nodes in that tree are referenced via addr.Module paths (non-instanced). The whole process of turning Modules and ModuleCalls into a config tree uses those non-instanced paths.
+Relevant components for this document:
 
-The configs.Config tree is then walked and added into a tofu.Graph. The nodes in this graph have two different addresses: addr.Module and addr.ModuleInstance. The addr.Module paths of the graph nodes are used to look up the corresponding config structures and other operations on the "unexpanded" view of the world. The addrs.ModuleInstance paths are built by the module expansion process and are used when operating on the "expanded" view of the world.
+Pre-expansion:
+* Module structure in configs package
+* ModuleCalls structure in configs package
+* Config tree in configs package
+* Module cache file/filetree
+* Graph structure and transformers in tofu package (mixed)
+* EvaluationContext (mixed)
+
+Post-expansion
+* Graph structure and transformers in tofu package (mixed)
+* EvaluationContext (mixed)
+
 
 ## Example represenations:
+
+Variables and providers have been excluded for this example.
 
 **HCL:**
 
@@ -54,13 +68,15 @@ resource "tfcoremock_resource" { string = var.name, other = var.description }
 
 **configs.Config**:
 
-TODO Given the above HCL ... (this is how it is transformed/loaded)
-
 ```
-root = {
+root = Config {
   Root = root
   Parent = nil
-  Module = { ModuleCalls = { "test" = { source = "./mod", for_each = hcl.Expression, ... } }, ... }
+  Module = Module{
+    ModuleCalls = {
+      "test" = { source = "./mod", for_each = hcl.Expression, ... }
+    }
+  }
   Path = addrs.Module[]
   Children = { "test" = test }
 }
@@ -75,14 +91,13 @@ test = {
 
 **tofu.Graph (simplified)**
 
-Variables and providers have been excluded for the moment.
 
 Before Expansion:
 ```
 rootExpand = NodeExpandModule {
   Addr = addrs.Module[]
   Config = root
-  ModuleCall = nil?
+  ModuleCall = nil
 }
 testExpand = NodeExpandModule {
   Addr = addrs.Module["test"]
@@ -112,55 +127,17 @@ testExpandResourceB = NodeResourceInstance {
 }
 ```
 
-**Expander structure**
-
-The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree. It is built differently during validate vs plan/apply (validate does not expand).
-
-TODO detailed explanation
 
 ## Proposed structure and paths
 
 To implement a fully fledged static evaluator which supports for_each and count on modules/providers, the concept of module instances must be brought to all components in the previous section.
 
-In the prototype, I removed the concept of a "non-instanced" module path and simply deleted addrs.Module entirely and changed all references to addrs.ModuleInstance (among a number of other changes). This worked for the prototype, but the ramifications must be fully considered before implementation starts in earnest.
+One approach is to remove the concept of a "non-instanced" module path and simply deleted addrs.Module entirely and changed all references to addrs.ModuleInstance (among a number of other changes). This is a incredibly complex change with many ramifications.
 
 addrs.Module is simply a []string, while addrs.ModuleInstance is a pair of {string, key} where key is:
 * nil/NoKey representing no instances
 * CountKey for int count
 * ForEachKey for string for_each
-
-## Approaches:
-### Replace addrs.Module with addrs.ModuleInstance directly
-
-This approach may be the simplest, but could cause some confusion when inspecting paths. In practice nil would represent both NoKey and NotYetExpanded. In the rough prototype this was not an immediate problem, but could easily be a tripping hazard.
-
-Before:
-`addrs.Module["test", "resource"]`
-
-After:
-`addrs.ModuleInstance[{"test", nil}, {"resource", NoKey}`
-
-Indistinguishable from:
-`addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
-
-### Replace addrs.Module with addrs.ModuleInstance with additional keys types
-
-DeferredCount and DeferredForEach could be introduced as a placeholder for expansion that is yet to happen. This would clearly differentiate between NoKey and not yet expanded.
-
-Before:
-`addrs.Module["test", "resource"]`
-
-After:
-`addrs.ModuleInstance[{"test", DeferredForEach}, {"resource", NoKey}`
-
-Clearly distinguishable from:
-`addrs.ModuleInstance[{"test", NoKey}, {"resource", NoKey}`
-
-### Modify addrs.Module to be similar to addrs.ModuleInstance with limited keys
-
-Alternatively, addrs.Module could be kept distinct from addrs.ModuleInstance, but follow a nearly identical structure.
-
-TODO pros/cons...
 
 ## Example represenations for Module -> ModuleInstance:
 **HCL (identical):**
@@ -184,13 +161,16 @@ resource "tfcoremock_resource" { string = var.key, other = var.value }
 
 **configs.Config**
 
-TODO explain HOW this is different than before
+Changes:
+* All addresses are instanced.
+* ModuleCalls is expanded into ExpandedModuleCalls using the static evaluator
+* The root Children map points to distinct instances of `test["a"]` and `test["b"]`
 
 ```
-root = {
+root = Config {
   Root = root
   Parent = nil
-  Module = {
+  Module = Module{
     ModuleCalls = {
       "test" = { source = "./mod", for_each = hcl.Expression, ... }
     }
@@ -219,16 +199,16 @@ testB = {
 ```
 **tofu.Graph (simplified)**
 
-Variables and providers have been excluded for the moment.
-
-TODO explain HOW this is different than before
+Changes:
+* All addresses are instanced.
+* Pre-expanded modules are present in the graph and linked to single instances post-expansion.
 
 Before Expansion:
 ```
 rootExpand = NodeExpandModule {
   Addr = addrs.ModuleInstance[]
   Config = root
-  ModuleCall = nil?
+  ModuleCall = nil
 }
 testExpandA = NodeExpandModule {
   Addr = addrs.ModuleInstance[{"test", Key{"a"}}]
@@ -271,9 +251,4 @@ testExpandResourceB = NodeResourceInstance {
 }
 ```
 
-**Expander structure**
-
-The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree. It is built differently during validate vs plan/apply (validate does not expand).
-
-TODO detailed explanation
 
