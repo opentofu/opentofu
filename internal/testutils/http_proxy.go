@@ -30,7 +30,7 @@ func HTTPProxy(t *testing.T, options ...HTTPProxyOption) HTTPProxyService {
 	opts := httpProxyOptions{}
 	for _, opt := range options {
 		if err := opt(&opts); err != nil {
-			t.Errorf("❌ Failed to initalize HTTP proxy service (%v)", err)
+			t.Fatalf("❌ Failed to initalize HTTP proxy service (%v)", err)
 		}
 	}
 
@@ -42,7 +42,7 @@ func HTTPProxy(t *testing.T, options ...HTTPProxyOption) HTTPProxyService {
 		mutex:        &sync.Mutex{},
 	}
 	if err := service.start(); err != nil {
-		t.Errorf("❌ Failed to initalize HTTP proxy service (%v)", err)
+		t.Fatalf("❌ Failed to initalize HTTP proxy service (%v)", err)
 	}
 	t.Cleanup(func() {
 		service.stop()
@@ -245,10 +245,7 @@ func (h *httpProxyService) start() error {
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{
-			{
-				Certificate: [][]byte{h.keyPair.Certificate},
-				PrivateKey:  h.keyPair.PrivateKey,
-			},
+			*h.keyPair.GetTLSCertificate(),
 		},
 		MinVersion: tls.VersionTLS13,
 	}
@@ -339,6 +336,7 @@ func (h *httpProxyService) String() string {
 }
 
 func (h *httpProxyService) waitForService() error {
+	h.t.Logf("⌚ Waiting for HTTP/HTTPS proxy services to become available...")
 	ctx, cancel := context.WithTimeout(Context(h.t), httpProxyTimeoutUp)
 	defer cancel()
 	httpUp := false
@@ -352,8 +350,11 @@ func (h *httpProxyService) waitForService() error {
 			}
 			resp, err := httpClient.Do(req)
 			if err == nil {
+				h.t.Logf("✅ HTTP proxy service is up.")
 				_ = resp.Body.Close()
 				httpUp = true
+			} else {
+				h.t.Logf("⌚ Still waiting for the HTTP proxy service to come up...")
 			}
 		}
 		if !httpsUp {
@@ -363,8 +364,11 @@ func (h *httpProxyService) waitForService() error {
 			}
 			resp, err := httpClient.Do(req)
 			if err == nil {
+				h.t.Logf("✅ HTTPS proxy service is up.")
 				_ = resp.Body.Close()
 				httpsUp = true
+			} else {
+				h.t.Logf("⌚ Still waiting for the HTTPS proxy service to come up...")
 			}
 		}
 		if httpUp && httpsUp {
@@ -382,7 +386,13 @@ func (h *httpProxyService) waitForService() error {
 		h.mutex.Unlock()
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("timeout (the HTTP or HTTPS service failed to come up)")
+			if httpUp {
+				return fmt.Errorf("timeout: the HTTPS service failed to come up")
+			} else if httpsUp {
+				return fmt.Errorf("timeout: the HTTP service failed to come up")
+			} else {
+				return fmt.Errorf("timeout: both the HTTP and HTTPS services failed to come up")
+			}
 		case <-time.After(time.Second):
 		}
 	}

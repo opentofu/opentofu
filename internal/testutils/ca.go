@@ -7,8 +7,10 @@ package testutils
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -89,6 +91,24 @@ type KeyPair struct {
 	PrivateKey []byte
 }
 
+// GetPrivateKey returns a crypto.Signer for the private key.
+func (k KeyPair) GetPrivateKey() crypto.PrivateKey {
+	block, _ := pem.Decode(k.PrivateKey)
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	return key
+}
+
+func (k KeyPair) GetTLSCertificate() *tls.Certificate {
+	cert, err := tls.X509KeyPair(k.Certificate, k.PrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	return &cert
+}
+
 // CertificateAuthority provides simple access to x509 CA functions for testing purposes only.
 type CertificateAuthority interface {
 	// GetPEMCACert returns the CA certificate in PEM format.
@@ -162,8 +182,8 @@ func (c *ca) CreateConfiguredServerCert(config CertConfig) KeyPair {
 		c.t.Skipf("Failed to encode certificate: %v", err)
 	}
 	return KeyPair{
-		certPrivKeyPEM.Bytes(),
-		certPEM.Bytes(),
+		Certificate: certPEM.Bytes(),
+		PrivateKey:  certPrivKeyPEM.Bytes(),
 	}
 }
 

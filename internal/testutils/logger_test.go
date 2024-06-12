@@ -54,6 +54,9 @@ type fakeT struct {
 	cleanupFuncs []func()
 }
 
+func (f *fakeT) Helper() {
+}
+
 func (f *fakeT) Logf(format string, args ...interface{}) {
 	f.lines = append(f.lines, fmt.Sprintf(format, args...))
 }

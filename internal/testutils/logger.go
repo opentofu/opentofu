@@ -65,6 +65,7 @@ func NewGoTestLogger(t TestLogAdapter) *log.Logger {
 type TestLogAdapter interface {
 	Logf(format string, args ...interface{})
 	Cleanup(func())
+	Helper()
 }
 
 type goLoggerAdapter struct {
@@ -73,6 +74,7 @@ type goLoggerAdapter struct {
 }
 
 func (g *goLoggerAdapter) Write(p []byte) (int, error) {
+	g.t.Helper()
 	g.buf = append(g.buf, p...)
 	i := 0
 	for i < len(g.buf) {
@@ -88,6 +90,7 @@ func (g *goLoggerAdapter) Write(p []byte) (int, error) {
 }
 
 func (g *goLoggerAdapter) Close() error {
+	g.t.Helper()
 	if len(g.buf) > 0 {
 		g.t.Logf("%s", g.buf)
 	}
