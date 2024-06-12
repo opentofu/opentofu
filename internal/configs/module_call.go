@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -24,7 +25,7 @@ type ModuleCall struct {
 	SourceAddr    addrs.ModuleSource
 	SourceSet     bool
 
-	Variables StaticReferences
+	Variables StaticModuleVariables
 
 	Config hcl.Body
 
@@ -44,7 +45,7 @@ type ModuleCall struct {
 func (mc *ModuleCall) IncludeContext(ctx *StaticContext) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	valDiags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Params.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
+	valDiags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Call.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
 	diags = append(diags, valDiags...)
 	if !valDiags.HasErrors() {
 		var addr addrs.ModuleSource
@@ -103,13 +104,23 @@ func (mc *ModuleCall) IncludeContext(ctx *StaticContext) hcl.Diagnostics {
 		}
 	}
 
-	mc.Variables = make(StaticReferences)
-
 	attr, _ := mc.Config.JustAttributes()
-	for k, v := range attr {
+	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
+		v, ok := attr[variable.Name]
+		if !ok {
+			if variable.Required() {
+				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing variable in module call",
+					Subject:  mc.Config.MissingItemRange().Ptr(),
+				}}
+			}
+			return variable.Default, nil
+		}
+
 		// TODO addrs.ModuleCallInstanceInput?
-		val := ctx.Evaluate(v.Expr, StaticIdentifier{Module: ctx.Params.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: k}})
-		mc.Variables[k] = val
+		ident := StaticIdentifier{Module: ctx.Call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
+		return ctx.Evaluate(v.Expr, ident).Value(nil)
 	}
 
 	return diags

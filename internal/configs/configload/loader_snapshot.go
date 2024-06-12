@@ -15,7 +15,6 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/spf13/afero"
@@ -24,8 +23,8 @@ import (
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
-func (l *Loader) LoadConfigWithSnapshot(rootDir string, vars configs.RawVariables) (*configs.Config, *Snapshot, hcl.Diagnostics) {
-	rootMod, diags := l.parser.LoadConfigDir(rootDir, configs.StaticModuleCall{Addr: addrs.RootModule, Raw: vars})
+func (l *Loader) LoadConfigWithSnapshot(rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
+	rootMod, diags := l.parser.LoadConfigDir(rootDir, call)
 	if rootMod == nil {
 		return nil, nil, diags
 	}

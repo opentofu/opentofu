@@ -125,7 +125,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, params StaticModuleCall) (*Module, hcl.Diagnostics) {
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -187,7 +187,7 @@ func NewModule(primaryFiles, overrideFiles []*File, params StaticModuleCall) (*M
 	}
 
 	// Static evaluation to build a StaticContext now that module has all relavent Locals / Variables
-	ctx, sDiags := CreateStaticContext(mod.Variables, mod.Locals, params)
+	ctx, sDiags := CreateStaticContext(mod, call)
 	diags = append(diags, sDiags...)
 	mod.Ctx = ctx
 	if mod.Backend != nil {

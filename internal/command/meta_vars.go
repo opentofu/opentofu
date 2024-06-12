@@ -34,6 +34,11 @@ const VarEnvPrefix = "TF_VAR_"
 // parsed.
 func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	if m.inputVariableCache != nil {
+		return m.inputVariableCache, nil
+	}
+
 	ret := map[string]backend.UnparsedVariableValue{}
 
 	// First we'll deal with environment variables, since they have the lowest
@@ -114,6 +119,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 			diags = diags.Append(fmt.Errorf("unsupported variable option name %q (this is a bug in OpenTofu)", rawFlag.Name))
 		}
 	}
+	m.inputVariableCache = ret
 
 	return ret, diags
 }

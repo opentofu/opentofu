@@ -204,9 +204,10 @@ func (c *PlanCommand) GatherVariables(args *arguments.Vars) {
 }
 
 func (c *PlanCommand) StuffVariables(opReq *backend.Operation) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
+	var diags, callDiags tfdiags.Diagnostics
 	opReq.Variables, diags = c.collectVariableValues()
-	return diags
+	opReq.Call, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	return diags.Append(callDiags)
 }
 
 func (c *PlanCommand) Help() string {

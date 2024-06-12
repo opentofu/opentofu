@@ -68,10 +68,10 @@ func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tf
 		return nil, diags
 	}
 
-	vars, vDiags := m.rootModuleVariables()
-	diags.Append(vDiags)
+	call, vDiags := m.rootModuleCall(rootDir)
+	diags = diags.Append(vDiags)
 
-	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir, vars)
+	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -94,29 +94,69 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 		return nil, diags
 	}
 
-	vars, vDiags := m.rootModuleVariables()
+	call, vDiags := m.rootModuleCall(dir)
 	diags.Append(vDiags)
 
-	module, hclDiags := loader.Parser().LoadConfigDir(dir, configs.StaticModuleCall{Addr: addrs.RootModule, Raw: vars})
+	module, hclDiags := loader.Parser().LoadConfigDir(dir, call)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
 
-func (m *Meta) rootModuleVariables() (configs.RawVariables, tfdiags.Diagnostics) {
-	variables, diags := m.collectVariableValues()
+func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags.Diagnostics) {
+	if m.call == nil {
+		variables, diags := m.collectVariableValues()
 
-	vars := make(configs.RawVariables)
-	for k, v := range variables {
-		v := v
-		vars[k] = func(mode configs.VariableParsingMode) (cty.Value, hcl.Diagnostics) {
-			parsed, _ := v.ParseVariableValue(mode)
-			// TODO DIAGS
-			return parsed.Value, nil
+		m.call = &configs.StaticModuleCall{
+			Addr: addrs.RootModule,
+			Variables: func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+				name := variable.Name
+				v, ok := variables[name]
+				if !ok {
+					/* This is an example of how we might be able to interactively ask for user input for static vars.  It is disabled due to complex interactions between variable in different code paths (apply existing plan for example)
+					// TODO this is copied from backend_local.go:interactiveCollectVariables()
+					rawValue, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+						Id:          fmt.Sprintf("var.%s", name),
+						Query:       fmt.Sprintf("var.%s", name),
+						Description: variable.Description,
+						Secret:      variable.Sensitive,
+					})
+					if err != nil {
+						// Since interactive prompts are best-effort, we'll just continue
+						// here and let subsequent validation report this as a variable
+						// not specified.
+						log.Printf("[WARN] backend/local: Failed to request user input for variable %q: %s", name, err)
+						return configs.StaticReference{}, false
+					}
+					v = unparsedVariableValueString{
+						str:        rawValue,
+						name:       name,
+						sourceType: tofu.ValueFromInput,
+					}
+					// This intentionally modifies the input cache map
+					// This is a bad hack and should be replaced with a common input variable cache
+					variables[name] = v
+					*/
+					if variable.Required() {
+						// Not specified on CLI or in var files, without a valid default.
+						return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Variable not provided via cli flags or *.tfvars",
+							Subject:  variable.DeclRange.Ptr(),
+						}}
+					}
+					return variable.Default, nil
+				}
 
+				parsed, diags := v.ParseVariableValue(variable.ParsingMode)
+				return parsed.Value, diags.ToHCL()
+			},
+
+			RootPath: rootDir,
 		}
+		return *m.call, diags
 	}
 
-	return vars, diags
+	return *m.call, nil
 }
 
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any
@@ -131,10 +171,10 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 		return nil, diags
 	}
 
-	vars, vDiags := m.rootModuleVariables()
+	call, vDiags := m.rootModuleCall(dir)
 	diags.Append(vDiags)
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, configs.StaticModuleCall{Addr: addrs.RootModule, Raw: vars})
+	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -232,10 +272,10 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 
 	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
 
-	vars, vDiags := m.rootModuleVariables()
+	call, vDiags := m.rootModuleCall(rootDir)
 	diags.Append(vDiags)
 
-	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks, vars)
+	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks, call)
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {

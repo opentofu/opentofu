@@ -32,8 +32,8 @@ func (l *Loader) LoadConfig(rootDir string) (*configs.Config, hcl.Diagnostics) {
 
 // LoadConfigWithTests matches LoadConfig, except the configs.Config contains
 // any relevant .tftest.hcl files.
-func (l *Loader) LoadConfigWithTests(rootDir string, testDir string, vars configs.RawVariables) (*configs.Config, hcl.Diagnostics) {
-	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir, configs.StaticModuleCall{Addr: addrs.RootModule, Raw: vars}))
+func (l *Loader) LoadConfigWithTests(rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
+	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir, call))
 }
 
 func (l *Loader) loadConfig(rootMod *configs.Module, diags hcl.Diagnostics) (*configs.Config, hcl.Diagnostics) {
@@ -109,7 +109,7 @@ func (l *Loader) moduleWalkerLoad(req *configs.ModuleRequest) (*configs.Module, 
 		})
 	}
 
-	mod, mDiags := l.parser.LoadConfigDir(record.Dir, configs.StaticModuleCall{Addr: req.Path, Call: req.Variables})
+	mod, mDiags := l.parser.LoadConfigDir(record.Dir, req.Call)
 	diags = append(diags, mDiags...)
 	if mod == nil {
 		// nil specifically indicates that the directory does not exist or

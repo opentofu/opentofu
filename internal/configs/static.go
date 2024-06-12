@@ -49,49 +49,37 @@ func (ref StaticReference) Cached() StaticReference {
 }
 
 type StaticReferences map[string]StaticReference
-
-type VariableValueFunc func(VariableParsingMode) (cty.Value, hcl.Diagnostics)
-type RawVariables map[string]VariableValueFunc
+type StaticModuleVariables func(v *Variable) (cty.Value, hcl.Diagnostics)
 
 type StaticModuleCall struct {
-	// Absolute Module Addr
 	Addr addrs.Module
-	Raw  RawVariables     // CLI
-	Call StaticReferences // Module Call
+
+	Variables StaticModuleVariables
+
+	RootPath string
 }
 
 type StaticContext struct {
-	// Parameters
-	Params StaticModuleCall
+	Call StaticModuleCall
 
-	// Cache
-	vars      StaticReferences
-	locals    StaticReferences
-	workspace StaticReference
+	vars   StaticReferences
+	locals StaticReferences
 }
 
-func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Params StaticModuleCall) (*StaticContext, hcl.Diagnostics) {
+func CreateStaticContext(mod *Module, call StaticModuleCall) (*StaticContext, hcl.Diagnostics) {
 	ctx := StaticContext{
-		Params: Params,
+		Call:   call,
 		vars:   make(StaticReferences),
 		locals: make(StaticReferences),
-		workspace: StaticReference{
-			Identifier: StaticIdentifier{
-				Subject: addrs.TerraformAttr{Name: "workspace"},
-			},
-			Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-				return cty.StringVal("TODO"), nil
-			},
-		},
 	}
 
 	// Process all variables
-	for _, v := range vars {
+	for _, v := range mod.Variables {
 		ctx.addVariable(v)
 	}
 
 	// Process all locals
-	for _, l := range locals {
+	for _, l := range mod.Locals {
 		ctx.addLocal(l)
 	}
 
@@ -101,34 +89,12 @@ func CreateStaticContext(vars map[string]*Variable, locals map[string]*Local, Pa
 func (s *StaticContext) addVariable(variable *Variable) {
 	s.vars[variable.Name] = StaticReference{
 		Identifier: StaticIdentifier{
-			Module:    s.Params.Addr,
+			Module:    s.Call.Addr,
 			Subject:   addrs.InputVariable{Name: variable.Name},
 			DeclRange: variable.DeclRange,
 		},
 		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-			// This is a raw value passed in via the command line.
-			// Currently not EvalContextuated with any context.
-			if v, ok := s.Params.Raw[variable.Name]; ok {
-				return v(variable.ParsingMode)
-			}
-
-			// This is a module call parameter and may or may not be a resolved reference
-			if call, ok := s.Params.Call[variable.Name]; ok {
-				// We might want to enhance the diags here if diags.HasErrors()
-				return call.Value(nil)
-			}
-
-			// TODO use type checking to figure this out
-			if variable.Default.IsNull() {
-				return variable.Default, hcl.Diagnostics{&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Variable not set with null default",
-					Subject:  variable.DeclRange.Ptr(),
-				}}
-			}
-
-			// Not specified, use default instead
-			return variable.Default, nil
+			return s.Call.Variables(variable)
 		},
 	}.Cached()
 }
@@ -143,11 +109,11 @@ func (s ScopeData) StaticValidateReferences(refs []*addrs.Reference, self addrs.
 	var diags tfdiags.Diagnostics
 	for _, ref := range refs {
 		switch subject := ref.Subject.(type) {
-		case addrs.TerraformAttr:
-			continue
 		case addrs.LocalValue:
 			continue
 		case addrs.InputVariable:
+			continue
+		case addrs.PathAttr:
 			continue
 		default:
 			diags = diags.Append(hcl.Diagnostics{&hcl.Diagnostic{
@@ -188,7 +154,7 @@ func (s ScopeData) eval(ref StaticReference) (cty.Value, tfdiags.Diagnostics) {
 			Detail:   fmt.Sprintf("%s is self referential", ref.Identifier.String()), // TODO use stack in error message
 			Subject:  ref.Identifier.DeclRange.Ptr(),
 		})
-		return cty.NilVal, diags
+		return cty.DynamicVal, diags
 	}
 
 	val, vDiags := ref.Value(append(s.stack, ref.Identifier))
@@ -209,7 +175,7 @@ func (s ScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange
 
 	local, ok := s.sctx.locals[ident.Name]
 	if !ok {
-		return cty.NilVal, diags.Append(&hcl.Diagnostic{
+		return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Undefined local",
 			Detail:   fmt.Sprintf("Undefined local %s", ident.String()),
@@ -222,22 +188,10 @@ func (s ScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, 
 	panic("Not Available in Static Context")
 }
 func (s ScopeData) GetPathAttr(addrs.PathAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
-	// TODO
-	panic("Not Available in Static Context")
+	panic("TODO")
 }
 func (s ScopeData) GetTerraformAttr(ident addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	if ident.Name != "workspace" {
-		return cty.NilVal, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Undefined terraform attr",
-			Detail:   fmt.Sprintf("Undefined %s", ident.String()),
-			Subject:  rng.ToHCL().Ptr(),
-		})
-	}
-	// TODO shortcut
-	return s.eval(s.sctx.workspace)
+	panic("Not Available in Static Context")
 }
 func (s ScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -273,7 +227,7 @@ func (s *StaticContext) scope(ident StaticIdentifier, stack []StaticIdentifier) 
 
 func (s *StaticContext) addLocal(local *Local) {
 	ident := StaticIdentifier{
-		Module:    s.Params.Addr,
+		Module:    s.Call.Addr,
 		Subject:   addrs.LocalValue{Name: local.Name},
 		DeclRange: local.DeclRange,
 	}
@@ -296,42 +250,40 @@ func (s StaticContext) Evaluate(expr hcl.Expression, ident StaticIdentifier) Sta
 	}.Cached()
 }
 
-// This is heavily inspired by gohcl.DecodeExpression
 func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
-	refs, diags := lang.ReferencesInExpr(addrs.ParseRef, expr)
+	var diags hcl.Diagnostics
+
+	refs, refsDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
+	diags = append(diags, refsDiags.ToHCL()...)
 	if diags.HasErrors() {
-		return diags.ToHCL()
+		return diags
 	}
 
-	// TODO overrides diag warnings
-	ctx, diags := s.scope(ident, nil).EvalContext(refs)
+	ctx, ctxDiags := s.scope(ident, nil).EvalContext(refs)
+	diags = append(diags, ctxDiags.ToHCL()...)
 	if diags.HasErrors() {
-		return diags.ToHCL()
+		return diags
 	}
 
 	return gohcl.DecodeExpression(expr, ctx, val)
 }
 
 func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-	refs, rdiags := lang.References(addrs.ParseRef, hcldec.Variables(body, spec))
-	if rdiags.HasErrors() {
-		return cty.NilVal, rdiags.ToHCL()
+	var diags hcl.Diagnostics
+
+	refs, refsDiags := lang.References(addrs.ParseRef, hcldec.Variables(body, spec))
+	diags = append(diags, refsDiags.ToHCL()...)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
 	}
 
-	// TODO overrides diag warnings
-	ctx, cdiags := s.scope(ident, nil).EvalContext(refs)
-	diags := cdiags.ToHCL()
-	if cdiags.HasErrors() {
-		return cty.NilVal, cdiags.ToHCL()
+	ctx, ctxDiags := s.scope(ident, nil).EvalContext(refs)
+	diags = append(diags, ctxDiags.ToHCL()...)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
 	}
 
 	val, valDiags := hcldec.Decode(body, spec, ctx)
-	if !diags.HasErrors() {
-		// We rely on the Decode for generating a valid return cty.Value, even if references are not
-		// satisfiable.  We only care about the valDiags if we think all of the references are valid.
-		// Otherwise, we would get junk in the diags about variables that don't exist.
-		diags = append(diags, valDiags...)
-	}
-
+	diags = append(diags, valDiags...)
 	return val, diags
 }

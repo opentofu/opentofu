@@ -169,7 +169,7 @@ func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refres
 }
 
 func (c *RefreshCommand) GatherVariables(opReq *backend.Operation, args *arguments.Vars) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
+	var diags, callDiags tfdiags.Diagnostics
 
 	// FIXME the arguments package currently trivially gathers variable related
 	// arguments in a heterogenous slice, in order to minimize the number of
@@ -186,8 +186,9 @@ func (c *RefreshCommand) GatherVariables(opReq *backend.Operation, args *argumen
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
 	opReq.Variables, diags = c.collectVariableValues()
+	opReq.Call, callDiags = c.rootModuleCall(opReq.ConfigDir)
 
-	return diags
+	return diags.Append(callDiags)
 }
 
 func (c *RefreshCommand) Help() string {
