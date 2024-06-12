@@ -131,25 +131,16 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 
 	for _, callName := range callNames {
 		call := calls[callName]
-		path := make([]string, len(parent.Path)+1)
-		copy(path, parent.Path)
-		path[len(path)-1] = call.Name
-
-		staticCall := StaticModuleCall{
-			Addr:      path,
-			Variables: call.Variables,
-			RootPath:  parent.Root.Module.SourceDir,
-		}
 
 		req := ModuleRequest{
 			Name:              call.Name,
-			Path:              path,
+			Path:              call.Call.Addr,
 			SourceAddr:        call.SourceAddr,
 			SourceAddrRange:   call.Source.Range(),
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
-			Call:              staticCall,
+			Call:              call.Call,
 		}
 		child, modDiags := loadModule(parent.Root, &req, walker)
 		diags = append(diags, modDiags...)

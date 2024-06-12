@@ -25,8 +25,6 @@ type ModuleCall struct {
 	SourceAddr    addrs.ModuleSource
 	SourceSet     bool
 
-	Variables StaticModuleVariables
-
 	Config hcl.Body
 
 	HasVersion bool
@@ -40,6 +38,8 @@ type ModuleCall struct {
 	DependsOn []hcl.Traversal
 
 	DeclRange hcl.Range
+
+	Call StaticModuleCall
 }
 
 func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagnostics) {
@@ -208,7 +208,7 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 	}
 
 	attr, _ := mc.Config.JustAttributes()
-	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
+	mc.Call = ctx.Call.Child(mc.Name, func(variable *Variable) (cty.Value, hcl.Diagnostics) {
 		v, ok := attr[variable.Name]
 		if !ok {
 			if variable.Required() {
@@ -224,7 +224,7 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 		// TODO addrs.ModuleCallInstanceInput?
 		ident := StaticIdentifier{Module: ctx.Call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
 		return ctx.Evaluate(v.Expr, ident)
-	}
+	})
 
 	return diags
 }
