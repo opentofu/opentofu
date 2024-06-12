@@ -186,7 +186,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	}
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
-	ctx, sDiags := CreateStaticContext(mod, call)
+	ctx, sDiags := NewStaticContext(mod, call)
 	diags = append(diags, sDiags...)
 
 	// If we have a backend, it may have fields that require locals/vars

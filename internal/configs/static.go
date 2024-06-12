@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// StaticIdentifier holds a Referencable item and where it was declared
 type StaticIdentifier struct {
 	Module    addrs.Module
 	Subject   addrs.Referenceable
@@ -29,21 +30,23 @@ func (ref StaticIdentifier) String() string {
 	return val
 }
 
+// StaticReference is a mapping between a static identifer and it's value in the current context
 type StaticReference struct {
-	Identifier StaticIdentifier
-	Value      func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)
+	ident StaticIdentifier
+	value func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)
 }
 
-func (ref StaticReference) Cached() StaticReference {
+func NewStaticReference(ident StaticIdentifier, value func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)) StaticReference {
+	// Cache the values/diags internally
 	var val cty.Value
 	var diags hcl.Diagnostics
 	cached := false
 
 	return StaticReference{
-		Identifier: ref.Identifier,
-		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+		ident: ident,
+		value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			if !cached {
-				val, diags = ref.Value(stack)
+				val, diags = value(stack)
 				cached = true
 			}
 			return val, diags
@@ -51,9 +54,13 @@ func (ref StaticReference) Cached() StaticReference {
 	}
 }
 
-type StaticReferences map[string]StaticReference
+func (s StaticReference) Value(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+	return s.value(stack)
+}
+
 type StaticModuleVariables func(v *Variable) (cty.Value, hcl.Diagnostics)
 
+// StaticModuleCall contains the information required to call a given module
 type StaticModuleCall struct {
 	Addr addrs.Module
 
@@ -67,16 +74,17 @@ type StaticContext struct {
 
 	sourceDir string
 
-	vars   StaticReferences
-	locals StaticReferences
+	vars   map[string]StaticReference
+	locals map[string]StaticReference
 }
 
-func CreateStaticContext(mod *Module, call StaticModuleCall) (*StaticContext, hcl.Diagnostics) {
+// Creates a static context based from the given module and module call
+func NewStaticContext(mod *Module, call StaticModuleCall) (*StaticContext, hcl.Diagnostics) {
 	ctx := StaticContext{
 		Call:      call,
 		sourceDir: mod.SourceDir,
-		vars:      make(StaticReferences),
-		locals:    make(StaticReferences),
+		vars:      make(map[string]StaticReference),
+		locals:    make(map[string]StaticReference),
 	}
 
 	// Process all variables
@@ -93,25 +101,25 @@ func CreateStaticContext(mod *Module, call StaticModuleCall) (*StaticContext, hc
 }
 
 func (s *StaticContext) addVariable(variable *Variable) {
-	s.vars[variable.Name] = StaticReference{
-		Identifier: StaticIdentifier{
+	s.vars[variable.Name] = NewStaticReference(
+		StaticIdentifier{
 			Module:    s.Call.Addr,
 			Subject:   addrs.InputVariable{Name: variable.Name},
 			DeclRange: variable.DeclRange,
 		},
-		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+		func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			return s.Call.Variables(variable)
 		},
-	}.Cached()
+	)
 }
 
-type ScopeData struct {
+type scopeData struct {
 	sctx   *StaticContext
 	source StaticIdentifier
 	stack  []StaticIdentifier
 }
 
-func (s ScopeData) StaticValidateReferences(refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
+func (s scopeData) StaticValidateReferences(refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, ref := range refs {
 		switch subject := ref.Subject.(type) {
@@ -133,17 +141,17 @@ func (s ScopeData) StaticValidateReferences(refs []*addrs.Reference, self addrs.
 	return diags
 }
 
-func (s ScopeData) GetCountAttr(addrs.CountAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetCountAttr(addrs.CountAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
-func (s ScopeData) GetForEachAttr(addrs.ForEachAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetForEachAttr(addrs.ForEachAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
-func (s ScopeData) GetResource(addrs.Resource, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetResource(addrs.Resource, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
-func (s ScopeData) eval(ref StaticReference) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) eval(ref StaticReference) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	circular := false
@@ -157,26 +165,26 @@ func (s ScopeData) eval(ref StaticReference) (cty.Value, tfdiags.Diagnostics) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Circular reference",
-			Detail:   fmt.Sprintf("%s is self referential", ref.Identifier.String()), // TODO use stack in error message
-			Subject:  ref.Identifier.DeclRange.Ptr(),
+			Detail:   fmt.Sprintf("%s is self referential", ref.ident.String()), // TODO use stack in error message
+			Subject:  ref.ident.DeclRange.Ptr(),
 		})
 		return cty.DynamicVal, diags
 	}
 
-	val, vDiags := ref.Value(append(s.stack, ref.Identifier))
+	val, vDiags := ref.Value(append(s.stack, ref.ident))
 	diags = diags.Append(vDiags)
 	if vDiags.HasErrors() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to compute static value",
-			Detail:   fmt.Sprintf("%s depends on %s which is not available", s.source.String(), ref.Identifier.String()),
-			Subject:  ref.Identifier.DeclRange.Ptr(),
+			Detail:   fmt.Sprintf("%s depends on %s which is not available", s.source.String(), ref.ident.String()),
+			Subject:  ref.ident.DeclRange.Ptr(),
 		})
 	}
 	return val, diags
 }
 
-func (s ScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	local, ok := s.sctx.locals[ident.Name]
@@ -190,10 +198,10 @@ func (s ScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange
 	}
 	return s.eval(local)
 }
-func (s ScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
-func (s ScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// TODO this is copied and trimed down from tofu/evaluate.go GetPathAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
@@ -242,10 +250,10 @@ func (s ScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (ct
 		return cty.DynamicVal, diags
 	}
 }
-func (s ScopeData) GetTerraformAttr(ident addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetTerraformAttr(ident addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
-func (s ScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variable, ok := s.sctx.vars[ident.Name]
@@ -259,16 +267,16 @@ func (s ScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.Sourc
 	}
 	return s.eval(variable)
 }
-func (s ScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
-func (s ScopeData) GetCheckBlock(addrs.Check, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s scopeData) GetCheckBlock(addrs.Check, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
 func (s *StaticContext) scope(ident StaticIdentifier, stack []StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
-		Data:        ScopeData{s, ident, stack},
+		Data:        scopeData{s, ident, stack},
 		ParseRef:    addrs.ParseRef,
 		SourceAddr:  ident.Subject,
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
@@ -283,23 +291,23 @@ func (s *StaticContext) addLocal(local *Local) {
 		Subject:   addrs.LocalValue{Name: local.Name},
 		DeclRange: local.DeclRange,
 	}
-	s.locals[local.Name] = StaticReference{
-		Identifier: ident,
-		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+	s.locals[local.Name] = NewStaticReference(
+		ident,
+		func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			val, diags := s.scope(ident, stack).EvalExpr(local.Expr, cty.DynamicPseudoType)
 			return val, diags.ToHCL()
 		},
-	}.Cached()
+	)
 }
 
 func (s StaticContext) Evaluate(expr hcl.Expression, ident StaticIdentifier) StaticReference {
-	return StaticReference{
-		Identifier: ident,
-		Value: func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+	return NewStaticReference(
+		ident,
+		func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 			val, diags := s.scope(ident, stack).EvalExpr(expr, cty.DynamicPseudoType)
 			return val, diags.ToHCL()
 		},
-	}.Cached()
+	)
 }
 
 func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
