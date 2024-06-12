@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -40,6 +41,112 @@ func TestHTTPProxy(t *testing.T) {
 
 		testHTTPProxyRequests(t, proxy, ctx)
 	})
+	t.Run("Backend: TLS", func(t *testing.T) {
+		testHTTPProxyInConnectMode(t)
+	})
+}
+
+func testHTTPProxyInConnectMode(t *testing.T) {
+	backingServer, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("❌ Failed to start TCP server (%v)", err)
+	}
+	t.Cleanup(func() {
+		// Note: this will also stop the goroutine below.
+		_ = backingServer.Close()
+	})
+	addr := backingServer.Addr().(*net.TCPAddr) //nolint:errcheck //This is always a TCPAddr, see above.
+	addrPort := addr.IP.String() + ":" + strconv.Itoa(addr.Port)
+
+	t.Logf("🪧 Setting up proxy server...")
+	proxy := testutils.HTTPProxy(t, testutils.HTTPProxyOptionForceCONNECTTarget(addrPort))
+
+	t.Logf("🔍 Running functionality tests...")
+	var backingErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, e := backingServer.Accept()
+		if e != nil {
+			backingErr = fmt.Errorf("backing server failed to accept connection (%w)", e)
+			return
+		}
+		t.Logf("✅ Backing server accepted the connection from the proxy.")
+		expectedBytes := len("Say hi!")
+		request := make([]byte, expectedBytes)
+		n, e := io.ReadAtLeast(conn, request, expectedBytes)
+		if e != nil {
+			backingErr = fmt.Errorf("failed to read request (%w)", e)
+			return
+		}
+		if n != len(request) {
+			backingErr = fmt.Errorf("incorrect number of bytes read: %d", n)
+			return
+		}
+		response := "Hello world!"
+		if string(request) != "Say hi!" {
+			t.Logf("❌ Backing server read an incorrect request: %s", request)
+			response = fmt.Sprintf("Incorrect request received: %s", request)
+		} else {
+			t.Logf("✅ Backing server read the correct request.")
+		}
+		_, e = conn.Write([]byte(response))
+		if e != nil {
+			backingErr = fmt.Errorf("backing server failed to write to connection (%w)", e)
+			return
+		}
+		t.Logf("✅ Backing sent the response.")
+		e = conn.Close()
+		if e != nil {
+			backingErr = fmt.Errorf("backing server failed to close connection (%w)", e)
+			return
+		}
+		t.Logf("✅ Backing server finished working.")
+	}()
+
+	t.Logf("🔌 Client connecting to the proxy server...")
+	proxyConn, err := net.Dial("tcp", proxy.HTTPProxy().Host)
+	if err != nil {
+		t.Fatalf("❌ Failed to connect to the proxy server: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = proxyConn.Close()
+	})
+	t.Logf("✅ Proxy connection established.")
+	t.Logf("🙇 Client sending the CONNECT request to the proxy server...")
+	// We provide an obviously invalid address here to make sure the proxy connect override works as intended.
+	_, err = proxyConn.Write([]byte("CONNECT 127.0.0.1:1 HTTP/1.1\r\nHost: " + proxy.HTTPProxy().Host + "\r\n\r\n"))
+	if err != nil {
+		t.Fatalf("❌ Failed to send CONNECT header to the proxy server: %v", err)
+	}
+	t.Logf("✅ CONNECT request sent.")
+
+	// We send our greeting:
+	t.Logf("👋 Client sending the greeting to the backing service via the proxy...")
+	_, err = proxyConn.Write([]byte("Say hi!"))
+	if err != nil {
+		t.Fatalf("❌ Failed to send greeting through the proxy server: %v", err)
+	}
+	t.Logf("✅ Greeting request sent to backing server.")
+
+	t.Logf("⌚ Client waiting for the response from the backing server...")
+	response, err := io.ReadAll(proxyConn)
+	if err != nil {
+		t.Fatalf("❌ Failed to read response from proxy server: %v", err)
+	}
+	t.Logf("✅ Response received.")
+
+	if string(response) != "Hello world!" {
+		t.Fatalf("❌ Invalid response received from proxy server: %s", string(response))
+	}
+	t.Logf("✅ Response is correct.")
+
+	t.Logf("⌚ Waiting for the backing server goroutine to finish...")
+	<-done
+	if backingErr != nil {
+		t.Fatalf("❌ Backing server error: %v", backingErr)
+	}
+	t.Logf("✅ Proxy server works as intended in CONNECT mode.")
 }
 
 func testHTTPProxyRequests(t *testing.T, proxy testutils.HTTPProxyService, ctx context.Context) {

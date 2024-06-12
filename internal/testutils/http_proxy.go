@@ -213,17 +213,43 @@ func (h *httpProxyService) handleConnect(writer http.ResponseWriter, request *ht
 		writer.WriteHeader(http.StatusBadGateway)
 		return
 	}
-	defer func() {
+	finish := sync.OnceFunc(func() {
 		_ = clientConn.Close()
-	}()
+		_ = serverConn.Close()
+	})
+	defer finish()
+
+	// Send the unprocessed bytes from the hijack to the backend:
+	bufferedBytes := buf.Reader.Buffered()
+	if bufferedBytes != 0 {
+		tmpBuf := make([]byte, bufferedBytes)
+		if _, err = buf.Reader.Read(tmpBuf); err != nil {
+			return
+		}
+		if _, err = serverConn.Write(tmpBuf); err != nil {
+			return
+		}
+	}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2) //nolint:mnd // This is stupid.
 	go func() {
-		_, _ = io.Copy(buf, serverConn)
+		defer func() {
+			wg.Done()
+		}()
+		// Copy from the backing connection to the client
+		_, _ = io.Copy(clientConn, serverConn)
+		// Make sure both io.Copys finish.
+		finish()
 	}()
 	go func() {
+		defer func() {
+			wg.Done()
+		}()
+		// Copy from the client to the backing connection.
 		_, _ = io.Copy(serverConn, clientConn)
+		// Make sure both io.Copys finish.
+		finish()
 	}()
 	wg.Wait()
 }
