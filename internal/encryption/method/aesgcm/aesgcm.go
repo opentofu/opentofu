@@ -123,3 +123,8 @@ func (a aesgcm) getGCM(key []byte) (cipher.AEAD, error) {
 	}
 	return gcm, nil
 }
+
+func Is(m method.Method) bool {
+	_, ok := m.(*aesgcm)
+	return ok
+}
