@@ -709,7 +709,6 @@ func combinePathValueMarks(marks []cty.PathValueMarks, other []cty.PathValueMark
 				exists = true
 				break
 			}
-
 		}
 		// Otherwise we haven't seen this path before, so we should add it to the list
 		// no merging required
@@ -892,6 +891,8 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	plannedNewVal := resp.PlannedState
+	// Store an unmarked version of our planned new value because the `plan` now marks properties correctly with the config marks
+	unmarkedPlannedNewVal, _ := plannedNewVal.UnmarkDeep()
 	plannedPrivate := resp.PlannedPrivate
 
 	if plannedNewVal == cty.NilVal {
@@ -919,7 +920,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
-	if errs := objchange.AssertPlanValid(schema, unmarkedPriorVal, unmarkedConfigVal, plannedNewVal); len(errs) > 0 {
+	if errs := objchange.AssertPlanValid(schema, unmarkedPriorVal, unmarkedConfigVal, unmarkedPlannedNewVal); len(errs) > 0 {
 		if resp.LegacyTypeSystem {
 			// The shimming of the old type system in the legacy SDK is not precise
 			// enough to pass this consistency check, so we'll give it a pass here,
@@ -972,7 +973,6 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	// Add the marks back to the planned new value -- this must happen after ignore changes
 	// have been processed
-	unmarkedPlannedNewVal := plannedNewVal
 	marks := combinePathValueMarks(unmarkedPaths, schema.ValueMarks(plannedNewVal, nil))
 	if len(marks) > 0 {
 		plannedNewVal = plannedNewVal.MarkWithPaths(marks)
