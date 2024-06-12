@@ -107,8 +107,8 @@ type File struct {
 
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, params StaticModuleCall) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles, params)
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModule(primaryFiles, overrideFiles, call)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -184,15 +184,19 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall) (*Mod
 		diags = append(diags, fileDiags...)
 	}
 
-	// Static evaluation to build a StaticContext now that module has all relavent Locals / Variables
+	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
 	ctx, sDiags := CreateStaticContext(mod, call)
 	diags = append(diags, sDiags...)
+
+	// If we have a backend, it may have fields that require locals/vars
 	if mod.Backend != nil {
+		// We don't know the backend type / loader at this point so we save the context for later use
 		mod.Backend.ctx = ctx
 	}
 
+	// Process all module calls now that we have the static context
 	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.IncludeContext(ctx)
+		mDiags := mc.decodeStaticFields(ctx)
 		diags = append(diags, mDiags...)
 	}
 
