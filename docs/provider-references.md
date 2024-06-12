@@ -15,9 +15,9 @@ In general terms, a provider is a piece of code which interfaces OpenTofu with r
 
 In most cases providers live in a registry, are downloaded into the local path, and executed to provide a versioned GRPC server to OpenTofu. They could potentially be dynamically loaded directly into the running OpenTofu application, but a distinct process helps with fault tolerance and potential isolation issues.
 
-Providers also may define functions that can be called from the OpenTofu configuration.  See [Provider Functions](#Provider-Functions) below for more information.
+Providers also may define functions that can be called from the OpenTofu configuration. See [Provider Functions](#Provider-Functions) below for more information.
 
-It is HIGHLY recommended to vet all providers you execute locally as they are not sandboxed at all.  There are discussions ongoing on how to improve safety in that respect.
+It is HIGHLY recommended to vet all providers you execute locally as they are not sandboxed at all. There are discussions ongoing on how to improve safety in that respect.
 
 Providers also may be configured with values in a HCL block. This allows the provider have some "global" configuration that does not need to be passed in every resource/data instance, a common example being credentials.
 
@@ -30,7 +30,7 @@ Provider references and configuration have an interesting history, which leads t
 
 #### Provider Type
 
-Prior to v0.10.0, providers were built directly into the binary and not released/versioned separately.  They only had a single identifier, which we now call "Provider Type".
+Prior to v0.10.0, providers were built directly into the binary and not released/versioned separately. They only had a single identifier, which we now call "Provider Type".
 
 Example:
 ```hcl
@@ -69,7 +69,7 @@ As with the previous example, this requires the `addrs.Provider{Type = "aws"}` p
 
 #### Provider Versions
 
-Since v0.10.0, providers are distributed via a registry. This allows provider versions to be decoupled from the main application version.  Provider bugfixes and new features can be released independently of the main application. All providers/configs with the same `addrs.Provider` must use the same binary and must have compatible version constraints.
+Since v0.10.0, providers are distributed via a registry. This allows provider versions to be decoupled from the main application version. Provider bugfixes and new features can be released independently of the main application. All providers/configs with the same `addrs.Provider` must use the same binary and must have compatible version constraints.
 
 ```hcl
 provider "aws" {
@@ -210,9 +210,9 @@ The references are unchanged, except for the dependencies are now more explicit.
 
 #### Provider Names / Namespaces / Registries
 
-Other organizations started to create providers over time (along with their own registries) and the concept of referencing a provider needed to be expanded.  In v0.13.0 the concept of `addrs.Provider` was expanded to include `Namespace` and `Hostname`.
+Other organizations started to create providers over time (along with their own registries) and the concept of referencing a provider needed to be expanded. In v0.13.0 the concept of `addrs.Provider` was expanded to include `Namespace` and `Hostname`.
 
-Previously, all providers within the registry had global names "aws", "datadog", "gcp", etc...  As forks were introduced and the authoring of providers took off, the `Namespace` concept was introduced. It usually maps to the GitHub user/org that owns it, but it is not a strict requirement (especially in third-party registries).
+Previously, all providers within the registry had global names "aws", "datadog", "gcp", etc... As forks were introduced and the authoring of providers took off, the `Namespace` concept was introduced. It usually maps to the GitHub user/org that owns it, but it is not a strict requirement (especially in third-party registries).
 
 Organizations also wanted more control over their providers for both development and security purposes. The providers registry hostname was included in the spec.
 
@@ -262,7 +262,7 @@ resource "aws_s3_bucket" "foo" {
 }
 ```
 
-The required_providers "source" field in the root module decomposed into `addrs.Provider{Type="aws", Namespace="hashicorp", Hostname="registry.opentofu.org"}`. As the default namespace is "hashicorp" and the default hostname is "registry.opentofu.org", we will continue to use the shorthand `addrs.Provider{Type="aws"}`. Next `addrs.LocalProviderConfig{LocalName: "aws_name"}` is created and within the root module maps to `addrs.Provider{Type="aws"}`. This provider local name is then used in all subsequent references within the the root module. The configuration is then mapped to `addrs.AbsProviderConfig{Module: Root, Provider: addrs.Provider{Type = "aws"}, Alias = "default"}` globally.
+The required_providers "source" field in the root module decomposed into `addrs.Provider{Type="aws", Namespace="hashicorp", Hostname="registry.opentofu.org"}`. As the default namespace is "hashicorp" and the default hostname is "registry.opentofu.org", we will continue to use the shorthand `addrs.Provider{Type="aws"}`. Next `addrs.LocalProviderConfig{LocalName: "aws_name"}` is created and within the root module maps to `addrs.Provider{Type="aws"}`. This provider local name is then used in all subsequent references within the root module. The configuration is then mapped to `addrs.AbsProviderConfig{Module: Root, Provider: addrs.Provider{Type = "aws"}, Alias = "default"}` globally.
 
 The child module is passed the `addrs.AbsProviderConfig` and is internally referenceable within the module under `addrs.LocalProviderConfig{LocalName: "modaws"}`.
 

@@ -49,7 +49,7 @@ module "mod_eu" {
   }
 }
 ```
-For scenarios where you wish to use the same pattern with multiple providers, copy-paste or multiple workspaces is the only path available.  Any copy-paste like this can easily introduce errors and bugs and should be avoided. For this reason, users have been asking to use for_each and count in providers for a long time.
+For scenarios where you wish to use the same pattern with multiple providers, copy-paste or multiple workspaces is the only path available. Any copy-paste like this can easily introduce errors and bugs and should be avoided. For this reason, users have been asking to use for_each and count in providers for a long time.
 
 Let's run through what it would look like to enable this workflow.
 
@@ -228,7 +228,7 @@ Resolving these provider references is a bit tricky and is a split responsibilit
 
 ##### Providers in the graph
 
-As previously mentioned, the ProviderTransformers are tasked with inspecting the providers defined in configuration and attatching them to resources.
+As previously mentioned, the ProviderTransformers are tasked with inspecting the providers defined in configuration and attaching them to resources.
 
 They inspect all nodes in the graph that say "Hey I require a Provider!" AKA `tofu.GraphNodeProviderConsumer`. This interface allows nodes to specify a single provider that they require to be configured (if applicable) before being evaluated.
 
@@ -309,7 +309,7 @@ The simplest path forward is to use an un-aliased value for the provider if mult
 }
 ```
 
-Inspecting the history of the state file versioning, this fits well within changes allowed in the same version. This would break compatibility for downgrading to older OpenTofu versions and should be noted in the changelog.  It is possible to migrate back to not using provider iteration, but that will need to be applied before any downgrade could occur.
+Inspecting the history of the state file versioning, this fits well within changes allowed in the same version. This would break compatibility for downgrading to older OpenTofu versions and should be noted in the changelog. It is possible to migrate back to not using provider iteration, but that will need to be applied before any downgrade could occur.
 
 Note: This only applies to the state file, `tofu state show -json` has it's own format which is not impacted by this change.
 

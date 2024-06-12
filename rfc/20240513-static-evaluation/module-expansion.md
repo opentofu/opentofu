@@ -1,4 +1,4 @@
-This is an ancillary document to the [Static Evaluation RFC](20240513-static-evaluation.md) and is not planned on being implemented. It serves to document the reasoning behind why we are deciding to defer implementation of this complex functionaltiy.
+This is an ancillary document to the [Static Evaluation RFC](20240513-static-evaluation.md) and is not planned on being implemented. It serves to document the reasoning behind why we are deciding to defer implementation of this complex functionality.
 
 # Static Module Expansion
 
@@ -27,9 +27,9 @@ TODO Are there any alternatives?
 
 TODO expound on what the below concepts are and link to the above docs.
 
-As specified above, the configs.Config struct is a tree linking config.Modules.  The nodes in that tree are referenced via addr.Module paths (non-instanced).  The whole process of turning Modules and ModuleCalls into a config tree uses those non-instanced paths.
+As specified above, the configs.Config struct is a tree linking config.Modules. The nodes in that tree are referenced via addr.Module paths (non-instanced). The whole process of turning Modules and ModuleCalls into a config tree uses those non-instanced paths.
 
-The configs.Config tree is then walked and added into a tofu.Graph. The nodes in this graph have two different addresses: addr.Module and addr.ModuleInstance.  The addr.Module paths of the graph nodes are used to look up the corresponding config structures and other operations on the "unexpanded" view of the world.  The addrs.ModuleInstance paths are built by the module expansion process and are used when operating on the "expanded" view of the world.
+The configs.Config tree is then walked and added into a tofu.Graph. The nodes in this graph have two different addresses: addr.Module and addr.ModuleInstance. The addr.Module paths of the graph nodes are used to look up the corresponding config structures and other operations on the "unexpanded" view of the world. The addrs.ModuleInstance paths are built by the module expansion process and are used when operating on the "expanded" view of the world.
 
 ## Example represenations:
 
@@ -114,7 +114,7 @@ testExpandResourceB = NodeResourceInstance {
 
 **Expander structure**
 
-The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree.  It is built differently during validate vs plan/apply (validate does not expand).
+The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree. It is built differently during validate vs plan/apply (validate does not expand).
 
 TODO detailed explanation
 
@@ -122,7 +122,7 @@ TODO detailed explanation
 
 To implement a fully fledged static evaluator which supports for_each and count on modules/providers, the concept of module instances must be brought to all components in the previous section.
 
-In the prototype, I removed the concept of a "non-instanced" module path and simply deleted addrs.Module entirely and changed all references to addrs.ModuleInstance (among a number of other changes).  This worked for the prototype, but the ramifications must be fully considered before implementation starts in earnest.
+In the prototype, I removed the concept of a "non-instanced" module path and simply deleted addrs.Module entirely and changed all references to addrs.ModuleInstance (among a number of other changes). This worked for the prototype, but the ramifications must be fully considered before implementation starts in earnest.
 
 addrs.Module is simply a []string, while addrs.ModuleInstance is a pair of {string, key} where key is:
 * nil/NoKey representing no instances
@@ -132,7 +132,7 @@ addrs.Module is simply a []string, while addrs.ModuleInstance is a pair of {stri
 ## Approaches:
 ### Replace addrs.Module with addrs.ModuleInstance directly
 
-This approach may be the simplest, but could cause some confusion when inspecting paths. In practice nil would represent both NoKey and NotYetExpanded.  In the rough prototype this was not an immediate problem, but could easily be a tripping hazard.
+This approach may be the simplest, but could cause some confusion when inspecting paths. In practice nil would represent both NoKey and NotYetExpanded. In the rough prototype this was not an immediate problem, but could easily be a tripping hazard.
 
 Before:
 `addrs.Module["test", "resource"]`
@@ -145,7 +145,7 @@ Indistinguishable from:
 
 ### Replace addrs.Module with addrs.ModuleInstance with additional keys types
 
-DeferredCount and DeferredForEach could be introduced as a placeholder for expansion that is yet to happen.  This would clearly differentiate between NoKey and not yet expanded.
+DeferredCount and DeferredForEach could be introduced as a placeholder for expansion that is yet to happen. This would clearly differentiate between NoKey and not yet expanded.
 
 Before:
 `addrs.Module["test", "resource"]`
@@ -273,7 +273,7 @@ testExpandResourceB = NodeResourceInstance {
 
 **Expander structure**
 
-The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree.  It is built differently during validate vs plan/apply (validate does not expand).
+The expander is part of the evaluation context and is a tree that mirrors the configs.Config tree. It is built differently during validate vs plan/apply (validate does not expand).
 
 TODO detailed explanation
 

@@ -2,7 +2,7 @@
 
 Issue: https://github.com/OpenTofu/OpenTofu/issues/1042
 
-As initially described in https://github.com/opentofu/opentofu/issues/1042, many users of OpenTofu expect to be able to use variables and locals in a variety of locations that are currently not supported.  Common examples include but are not limited to: module sources, provider assignments, backend configuration, encryption configuration.
+As initially described in https://github.com/opentofu/opentofu/issues/1042, many users of OpenTofu expect to be able to use variables and locals in a variety of locations that are currently not supported. Common examples include but are not limited to: module sources, provider assignments, backend configuration, encryption configuration.
 
 All of these examples are pieces of information that need to be known during `tofu init` and can not be integrated into the usual `tofu plan/apply` system. Init sets up a static understanding of the project's configuration that plan/apply can later operate on.
 
@@ -129,7 +129,7 @@ module "helper" {
 }
 ```
 
-This now adds an additional dimension to reference errors.  Without the variable "version" supplied, the following errors will occur:
+This now adds an additional dimension to reference errors. Without the variable "version" supplied, the following errors will occur:
 * Module common_first.helper's source can not be determined
   - common_first.helper.source depends on variable common_first.version, which depends on variable "version" which has not been supplied
 * Module common_second.helper's source can not be determined
@@ -178,7 +178,7 @@ This will produce the following error, regardless of the value of the variable "
 * Module common.helper's source can not be determined
   - common.helper.source depends on variable "common.version", which depends on a for_each key and is forbidden here!
 
-There are some significant technical roadblocks to supporting `for_each`/`count` in static expressions. For the purposes of this RFC, we are forbidding it.  For more information, see [Static Module Expansion](20240513-static-evaluation/module-expansion.md).
+There are some significant technical roadblocks to supporting `for_each`/`count` in static expressions. For the purposes of this RFC, we are forbidding it. For more information, see [Static Module Expansion](20240513-static-evaluation/module-expansion.md).
 
 ### Technical Approach
 
@@ -207,9 +207,9 @@ some_block {
 }
 ```
 
-These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. When processing a block or attribute, a decision is made to either evaluate it immediately if required or to keep the abstract block/attribute for later processing. If it is kept in the a abstract representation, it will later be turned into a value by [Graph Reference Evaluation](#graph-reference-evaluation).
+These Blocks and Attributes are abstract representations of the configuration which have not yet been evaluated into actionable values. When processing a block or attribute, a decision is made to either evaluate it immediately if required or to keep the abstract block/attribute for later processing. If it is kept in the abstract representation, it will later be turned into a value by [Graph Reference Evaluation](#graph-reference-evaluation).
 
-As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process.  However, attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and are therefore stored as an expression for the [Graph Reference Evaluation](#graph-reference-evaluation).
+As a concrete example, the `module -> source` field must be known during configuration loading as it is required to continue the next iteration of the loading process. However, attributes like `module -> for_each` may depend on attribute values from resources or other pieces of information not known during config loading and are therefore stored as an expression for the [Graph Reference Evaluation](#graph-reference-evaluation).
 
 ```hcl
 resource "aws_instance" "example" {
@@ -257,7 +257,7 @@ module "mymodule" {
 }
 ```
 
-By utilizing Traversals/References, we can track what values are statically known throughout the config loading process. This will follow a similar pattern to the graph reference evaluation, with limitations in what can be resolved.  It may or may not re-use much of the existing graph reference evaluators code, limited by complex dependency tracing required for error handling.
+By utilizing Traversals/References, we can track what values are statically known throughout the config loading process. This will follow a similar pattern to the graph reference evaluation, with limitations in what can be resolved. It may or may not re-use much of the existing graph reference evaluators code, limited by complex dependency tracing required for error handling.
 
 When evaluating an Attribute/Block into a value, any missing reference must be properly reported in a way that the user can easily debug and understand. For example, a user may try to use a `local` that depends on a resource's value in a module's source. The user must then be told that the `local` can not be used in the module source field as it depends on a resource which is not available during the config loading process. Variables used through the module tree must also be passed with their associated information, such as their references.
 
@@ -271,7 +271,7 @@ Instead, we can break this work into smaller discrete and testable components, s
 
 With this piece by piece approach, we can also add testing before, during, and after each component is added/modified.
 
-The OpenTofu core team should be the ones to do the majority of the core implementation.  If community members are interested, much of the issues blocked by the static evaluation are isolated and well defined enough for them to be worked on independently of the core team.
+The OpenTofu core team should be the ones to do the majority of the core implementation. If community members are interested, much of the issues blocked by the static evaluation are isolated and well defined enough for them to be worked on independently of the core team.
 
 ### Current Load/Evaluation Flow
 
@@ -279,7 +279,7 @@ Much of this process is covered by the Architecture document linked above and sh
 
 Performing an action in OpenTofu (init/plan/apply/etc...) takes the following steps (simplified):
 
-A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/init.go#L193) in the command package is created based on the CLI arguments and is executed.  It performs the following actions:
+A [command](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/command/init.go#L193) in the command package is created based on the CLI arguments and is executed. It performs the following actions:
 
 #### Parse and Load the configuration modules
 
@@ -446,12 +446,12 @@ There are three potential paths in implementing a static evaluator:
 * Re-use current evaluator/scope constructs in tofu and lang packages
   - Would require re-designing these components to function in either mode
   - Would come with most of the core logic already implemented
-  - High likelyhood of breaking other packages due to poor existing testing
+  - High likelihood of breaking other packages due to poor existing testing
   - Would likely require some ergonomic gymnastics depending on scale of refactoring
 
 This will need to be investigated and roughly prototyped, but all solutions should fit a similar enough interface to not block development of dependent tasks. We should design the interface first, based on the requirements of the initial prototype. Alternatively this could be a more iterative approach where the interface is designed at the same time as being implemented by multiple team members.
 
-We are deferring this decision to the actual implementation of this work.  It is a deeply technical investigation and discussion that does not significantly impact the proposed solution in this RFC.
+We are deferring this decision to the actual implementation of this work. It is a deeply technical investigation and discussion that does not significantly impact the proposed solution in this RFC.
 
 #### Overview of dependent issues
 
@@ -465,7 +465,7 @@ Notes from initial prototyping:
 * The configs.Backend saves the config body during the config load and does not evaluate it
 * backendInitFromConfig() in command/meta_backend.go is what evaluates the body
   - This happens before the graph is constructed / evaluated and can be considered an extension of the config loading stage.
-* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to provide an evaluation context for decoding into the given backend scheam.
+* We can stash a copy of the StaticContext in the configs.Backend and use it in backendInitFromConfig() to provide an evaluation context for decoding into the given backend schema.
   - There are a few ways to do this, stashing it there was a simple way to get it working in the prototype.
 * Don't forget to update the configs.Backend.Hash() function as that's used to detect any changes
 
@@ -477,7 +477,7 @@ Notes from initial prototyping:
 * Create a SourceExpression field in config.ModuleCall and don't set the "config.ModuleCall.Source" field initially
 * Use the static context available during NewModule constructor to evaluate all of the config.ModuleCall source fields and check for bad references and other errors.
 
-Many of the other blocked issues follow an extremely similar pattern of "store the expression in the first part of config loading and evalute when needed" and are therefore omitted.
+Many of the other blocked issues follow an extremely similar pattern of "store the expression in the first part of config loading and evaluate when needed" and are therefore omitted.
 
 ##### Encryption
 
@@ -538,6 +538,6 @@ I am not sure the engineering effort here is warranted, but it should at least b
 
 ## Potential Alternatives
 
-Tools like terragrunt offer an abstraction layer on top of OpenTofu, which many users find beneficial. Building some of these features into OpenTofu means that out of the box you do not need additional tooling.  Additionally, terragrunt can focus more on more complex problems that occur when orchestrating complex infrastructure among multiple OpenTofu projects instead of patching around OpenTofu limitations.
+Tools like terragrunt offer an abstraction layer on top of OpenTofu, which many users find beneficial. Building some of these features into OpenTofu means that out of the box you do not need additional tooling. Additionally, terragrunt can focus more on more complex problems that occur when orchestrating complex infrastructure among multiple OpenTofu projects instead of patching around OpenTofu limitations.
 
-A distinct pre-processor is another option, but that would require a completely distinct language to be designed and implemented to pre-process the configuration.  Additionally, it would not integrate easily with any existing OpenTofu constructs.
+A distinct pre-processor is another option, but that would require a completely distinct language to be designed and implemented to pre-process the configuration. Additionally, it would not integrate easily with any existing OpenTofu constructs.
