@@ -379,7 +379,7 @@ check "resource_block" {
 					}
 
 					return providers.ReadDataSourceResponse{
-						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.NewSeverity(tfdiags.ErrorLevel)Level), "shouldn't make it here", "really shouldn't make it here")},
+						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "shouldn't make it here", "really shouldn't make it here")},
 					}
 				},
 			},

@@ -1002,7 +1002,7 @@ func logDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
 
 		var severity string
 		switch diag.Severity().SeverityLevel {
-		case tfdiags.NewSeverity(tfdiags.ErrorLevel)Level:
+		case tfdiags.ErrorLevel:
 			severity = "ERROR"
 		case tfdiags.WarningLevel:
 			severity = "WARN"
