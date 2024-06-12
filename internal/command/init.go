@@ -49,7 +49,6 @@ func (c *InitCommand) Run(args []string) int {
 	var flagFromModule, flagLockfile, testsDirectory string
 	var flagBackend, flagCloud, flagGet, flagUpgrade bool
 	var flagPluginPath FlagStringSlice
-
 	flagConfigExtra := newRawFlags("-backend-config")
 
 	args = c.Meta.process(args)
@@ -71,7 +70,6 @@ func (c *InitCommand) Run(args []string) int {
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
 	}
