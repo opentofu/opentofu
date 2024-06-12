@@ -61,7 +61,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 		defer func() {
 			if diags.HasErrors() {
 				for _, diag := range diags {
-					if diag.Severity() == tfdiags.Error {
+					if diag.Severity().SeverityLevel == tfdiags.ErrorLevel {
 						desc := diag.Description()
 						log.Printf("[ERROR] vertex %q error: %s", dag.VertexName(v), desc.Summary)
 					}
@@ -104,7 +104,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 				// graph validation rules.
 				if err := g.Validate(); err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Graph node has invalid dynamic subgraph",
 						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: %s.\n\nThis is a bug in OpenTofu. Please report it!", dag.VertexName(v), err),
 					))
@@ -115,7 +115,7 @@ func (g *Graph) walk(walker GraphWalker) tfdiags.Diagnostics {
 				// root node value.
 				if n, err := g.Root(); err != nil || n != dag.Vertex(rootNode) {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Graph node has invalid dynamic subgraph",
 						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: the root node is %T, which is not a suitable root node type.\n\nThis is a bug in OpenTofu. Please report it!", dag.VertexName(v), n),
 					))

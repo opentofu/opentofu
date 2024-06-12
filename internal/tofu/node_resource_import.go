@@ -163,7 +163,7 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 		existing := state.ResourceInstance(addr)
 		if existing != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Resource already managed by OpenTofu",
 				fmt.Sprintf("OpenTofu is already managing a remote object for %s. To import to this address you must first remove the existing object from the state.", addr),
 			))
@@ -250,7 +250,7 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 	if state.Value.IsNull() {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cannot import non-existent remote object",
 			fmt.Sprintf(
 				"While attempting to import an existing object to %q, "+

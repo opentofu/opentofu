@@ -452,7 +452,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 	// only valid value for a destroy plan.
 	if !resp.PlannedState.IsNull() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced invalid plan",
 			fmt.Sprintf(
 				"Provider %q planned a non-null destroy value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -617,7 +617,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 
 	for _, err := range resp.NewState.Type().TestConformance(schema.ImpliedType()) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced invalid object",
 			fmt.Sprintf(
 				"Provider %q planned an invalid value for %s during refresh: %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -701,7 +701,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		// so let's not do that and return an error message with more context.
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Resource has no configuration",
 			fmt.Sprintf("OpenTofu attempted to process a resource at %s that has no configuration. This is a bug in OpenTofu; please report it!", n.Addr.String())))
 		return nil, nil, keyData, diags
@@ -709,7 +709,7 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	config := *n.Config
 
-	checkRuleSeverity := tfdiags.Error
+	checkRuleSeverity := tfdiags.NewSeverity(tfdiags.ErrorLevel)
 	if n.preDestroyRefresh {
 		checkRuleSeverity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 	}
@@ -856,7 +856,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	// a value whose type conforms to the schema.
 	for _, err := range plannedNewVal.Type().TestConformance(schema.ImpliedType()) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced invalid plan",
 			fmt.Sprintf(
 				"Provider %q planned an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -887,7 +887,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		} else {
 			for _, err := range errs {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Provider produced invalid plan",
 					fmt.Sprintf(
 						"Provider %q planned an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -947,7 +947,7 @@ func (n *NodeAbstractResourceInstance) plan(
 				// This means the path was invalid in both the prior and new
 				// values, which is an error with the provider itself.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Provider produced invalid plan",
 					fmt.Sprintf(
 						"Provider %q has indicated \"requires replacement\" on %s for a non-existent attribute path %#v.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -1087,7 +1087,7 @@ func (n *NodeAbstractResourceInstance) plan(
 
 		for _, err := range plannedNewVal.Type().TestConformance(schema.ImpliedType()) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Provider produced invalid plan",
 				fmt.Sprintf(
 					"Provider %q planned an invalid value for %s%s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -1505,7 +1505,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 
 	for _, err := range newVal.Type().TestConformance(schema.ImpliedType()) {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced invalid object",
 			fmt.Sprintf(
 				"Provider %q produced an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -1519,7 +1519,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 
 	if newVal.IsNull() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced null object",
 			fmt.Sprintf(
 				"Provider %q produced a null value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -1530,7 +1530,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 
 	if !newVal.IsNull() && !newVal.IsWhollyKnown() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced invalid object",
 			fmt.Sprintf(
 				"Provider %q produced a value for %s that is not wholly known.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -1903,7 +1903,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx EvalContext, planned 
 		addrs.ResourcePrecondition,
 		n.Config.Preconditions,
 		ctx, n.Addr, keyData,
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 	)
 	diags = diags.Append(checkDiags)
 	if diags.HasErrors() {
@@ -2288,7 +2288,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		})
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Configuration contains unknown value",
 			fmt.Sprintf("configuration for %s still contains unknown values during apply (this is a bug in OpenTofu; please report it!)\n"+
 				"The following paths in the resource configuration are unknown:\n%s",
@@ -2376,7 +2376,7 @@ func (n *NodeAbstractResourceInstance) apply(
 
 		if !diags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Provider produced invalid object",
 				fmt.Sprintf(
 					"Provider %q produced an invalid nil value after apply for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -2389,7 +2389,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	var conformDiags tfdiags.Diagnostics
 	for _, err := range newVal.Type().TestConformance(schema.ImpliedType()) {
 		conformDiags = conformDiags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced invalid object",
 			fmt.Sprintf(
 				"Provider %q produced an invalid value after apply for %s. The result cannot not be saved in the OpenTofu state.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -2425,7 +2425,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			if !val.IsKnown() {
 				pathStr := tfdiags.FormatCtyPath(path)
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Provider returned invalid result object after apply",
 					fmt.Sprintf(
 						"After the apply operation, the provider still indicated an unknown value for %s%s. All values must be known after apply, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTofu will still save the other known object values in the state.",
@@ -2479,7 +2479,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			} else {
 				for _, err := range errs {
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Provider produced inconsistent result after apply",
 						fmt.Sprintf(
 							"When applying changes to %s, provider %q produced an unexpected new value: %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -2498,7 +2498,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	if !diags.HasErrors() {
 		if change.Action == plans.Delete && !newVal.IsNull() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Provider returned invalid result object after apply",
 				fmt.Sprintf(
 					"After applying a %s plan, the provider returned a non-null object for %s. Destroying should always produce a null value, so this is always a bug in the provider and should be reported in the provider's own repository. OpenTofu will still save this errant object in the state for debugging and recovery.",
@@ -2508,7 +2508,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		}
 		if change.Action != plans.Delete && newVal.IsNull() {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Provider returned invalid result object after apply",
 				fmt.Sprintf(
 					"After applying a %s plan, the provider returned a null object for %s. Only destroying should always produce a null value, so this is always a bug in the provider and should be reported in the provider's own repository.",

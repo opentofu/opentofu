@@ -123,7 +123,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	par := opts.Parallelism
 	if par < 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid parallelism value",
 			fmt.Sprintf("The parallelism must be a positive value. Not %d.", par),
 		))
@@ -159,7 +159,7 @@ func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas
 	ret, err := loadSchemas(config, state, c.plugins)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to load plugin schemas",
 			fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
 		))
@@ -365,7 +365,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 		if !c.plugins.HasProvider(providerAddr) {
 			if !providerAddr.IsBuiltIn() {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provider",
 					fmt.Sprintf(
 						"This configuration requires provider %s, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
@@ -376,7 +376,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 				// Built-in providers can never be installed by "tofu init",
 				// so no point in confusing the user by suggesting that.
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provider",
 					fmt.Sprintf(
 						"This configuration requires built-in provider %s, but that provider isn't available in this OpenTofu version.",
@@ -407,7 +407,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 					// error in a central place, rather than failing somewhere
 					// later in the non-deterministically-ordered graph walk.
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Missing required provisioner plugin",
 						fmt.Sprintf(
 							"This configuration requires provisioner plugin %q, which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.",

@@ -294,7 +294,7 @@ func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdia
 			// item with Value: cty.NilVal to be explicit that it offered
 			// an opportunity to set this variable.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Unassigned variable",
 				fmt.Sprintf("The input variable %q has not been assigned a value. This is a bug in OpenTofu; please report it in a GitHub issue.", name),
 			))
@@ -309,7 +309,7 @@ func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdia
 	for name := range vs {
 		if _, defined := vcs[name]; !defined {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Value assigned to undeclared variable",
 				fmt.Sprintf("A value was assigned to an undeclared input variable %q.", name),
 			))

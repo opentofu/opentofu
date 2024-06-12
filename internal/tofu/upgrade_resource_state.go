@@ -53,7 +53,7 @@ func upgradeResourceState(addr addrs.AbsResourceInstance, provider providers.Int
 		log.Printf("[TRACE] upgradeResourceState: can't downgrade state for %s from version %d to %d", addr, src.SchemaVersion, currentVersion)
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Resource instance managed by newer provider version",
 			// This is not a very good error message, but we don't retain enough
 			// information in state to give good feedback on what provider
@@ -106,7 +106,7 @@ func upgradeResourceState(addr addrs.AbsResourceInstance, provider providers.Int
 	if errs := newValue.Type().TestConformance(currentSchema.ImpliedType()); len(errs) > 0 {
 		for _, err := range errs {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid resource state upgrade",
 				fmt.Sprintf("The %s provider upgraded the state for %s from a previous version, but produced an invalid result: %s.", providerType, addr, tfdiags.FormatError(err)),
 			))
@@ -119,7 +119,7 @@ func upgradeResourceState(addr addrs.AbsResourceInstance, provider providers.Int
 		// We already checked for type conformance above, so getting into this
 		// codepath should be rare and is probably a bug somewhere under CompleteUpgrade.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to encode result of resource state upgrade",
 			fmt.Sprintf("Failed to encode state for %s after resource schema upgrade: %s.", addr, tfdiags.FormatError(err)),
 		))

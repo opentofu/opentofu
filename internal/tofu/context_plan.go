@@ -149,7 +149,7 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 			// The CLI layer (and other similar callers) should prevent this
 			// combination of options.
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Incompatible plan options",
 				"Cannot skip refreshing in refresh-only mode. This is a bug in OpenTofu.",
 			))
@@ -159,7 +159,7 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 		// The CLI layer (and other similar callers) should not try to
 		// create a context for a mode that OpenTofu Core doesn't support.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported plan mode",
 			fmt.Sprintf("OpenTofu Core doesn't know how to handle plan mode %s. This is a bug in OpenTofu.", opts.Mode),
 		))
@@ -169,7 +169,7 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 		// The other modes don't generate no-op or update actions that we might
 		// upgrade to be "replace", so doesn't make sense to combine those.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Unsupported plan mode",
 			"Forcing resource instance replacement (with -replace=...) is allowed only in normal planning mode.",
 		))
@@ -227,7 +227,7 @@ The -target option is not for routine use, and is provided only for exceptional 
 		dv, err := plans.NewDynamicValue(iv.Value, cty.DynamicPseudoType)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Failed to prepare variable value for plan",
 				fmt.Sprintf("The value for variable %q could not be serialized to store in the plan: %s.", k, err),
 			))
@@ -363,7 +363,7 @@ func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.S
 			}
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid refresh-only plan",
 			"OpenTofu generated planned resource changes in a refresh-only plan. This is a bug in OpenTofu.",
 		))
@@ -529,7 +529,7 @@ func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults
 			prevResourceAddr = resourceAddr
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Moved resource instances excluded by targeting",
 			fmt.Sprintf(
 				"Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.\n\nTo create a valid plan, either remove your -target=... options altogether or add the following additional target options:%s\n\nNote that adding these options may include further additional resource instances in your plan, in order to respect object dependencies.",

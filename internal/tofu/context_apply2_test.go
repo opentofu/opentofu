@@ -1025,7 +1025,7 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 		const wantSummary = "Module output value precondition failed"
 		found := false
 		for _, diag := range diags {
-			if diag.Severity() == tfdiags.Error && diag.Description().Summary == wantSummary {
+			if diag.Severity().SeverityLevel == tfdiags.ErrorLevel && diag.Description().Summary == wantSummary {
 				found = true
 				break
 			}

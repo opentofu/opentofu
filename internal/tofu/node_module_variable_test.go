@@ -295,7 +295,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		const wantSummary = "Invalid value for variable"
 		found := false
 		for _, diag := range diags {
-			if diag.Severity() == tfdiags.Error && diag.Description().Summary == wantSummary {
+			if diag.Severity().SeverityLevel == tfdiags.ErrorLevel && diag.Description().Summary == wantSummary {
 				found = true
 				break
 			}

@@ -379,7 +379,7 @@ check "resource_block" {
 					}
 
 					return providers.ReadDataSourceResponse{
-						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "shouldn't make it here", "really shouldn't make it here")},
+						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.NewSeverity(tfdiags.ErrorLevel)Level), "shouldn't make it here", "really shouldn't make it here")},
 					}
 				},
 			},
@@ -435,7 +435,7 @@ check "error" {
 				},
 				ReadDataSourceFn: func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 					return providers.ReadDataSourceResponse{
-						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "data source read failed", "something bad happened and the provider couldn't read the data source")},
+						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "data source read failed", "something bad happened and the provider couldn't read the data source")},
 					}
 				},
 			},
@@ -536,7 +536,7 @@ check "error" {
 				},
 				ReadDataSourceFn: func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 					return providers.ReadDataSourceResponse{
-						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "data source read failed", "something bad happened and the provider couldn't read the data source")},
+						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "data source read failed", "something bad happened and the provider couldn't read the data source")},
 					}
 				},
 			},
@@ -650,7 +650,7 @@ check "error" {
 				},
 				ReadDataSourceFn: func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 					return providers.ReadDataSourceResponse{
-						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "data source read failed", "something bad happened and the provider couldn't read the data source")},
+						Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.NewSeverity(tfdiags.ErrorLevel), "data source read failed", "something bad happened and the provider couldn't read the data source")},
 					}
 				},
 			},

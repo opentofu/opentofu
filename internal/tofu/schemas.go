@@ -106,7 +106,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, co
 			schemas[fqn] = providers.ProviderSchema{}
 			diags = diags.Append(
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to obtain provider schema",
 					fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
 				),
@@ -150,7 +150,7 @@ func loadProvisionerSchemas(schemas map[string]*configschema.Block, config *conf
 			schemas[name] = &configschema.Block{}
 			diags = diags.Append(
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Failed to obtain provisioner schema",
 					fmt.Sprintf("Could not load the schema for provisioner %q: %s.", name, err),
 				),

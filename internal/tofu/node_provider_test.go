@@ -347,7 +347,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		region := req.Config.GetAttr("region")
 		if region.IsNull() {
 			resp.Diagnostics = resp.Diagnostics.Append(
-				tfdiags.WholeContainingBody(tfdiags.Error, "value is not found", "you did not supply a required value"))
+				tfdiags.WholeContainingBody(tfdiags.NewSeverity(tfdiags.ErrorLevel), "value is not found", "you did not supply a required value"))
 		}
 		return
 	}
@@ -505,7 +505,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 func TestGetSchemaError(t *testing.T) {
 	provider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
-			Diagnostics: tfdiags.Diagnostics.Append(nil, tfdiags.WholeContainingBody(tfdiags.Error, "oops", "error")),
+			Diagnostics: tfdiags.Diagnostics.Append(nil, tfdiags.WholeContainingBody(tfdiags.NewSeverity(tfdiags.ErrorLevel), "oops", "error")),
 		},
 	}
 

@@ -1579,7 +1579,7 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Moved resource instances excluded by targeting",
 				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.
 
@@ -1619,7 +1619,7 @@ Note that adding these options may include further additional resource instances
 The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Moved resource instances excluded by targeting",
 				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.
 
@@ -1659,7 +1659,7 @@ Note that adding these options may include further additional resource instances
 The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Moved resource instances excluded by targeting",
 				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.
 
@@ -5771,7 +5771,7 @@ resource "test_object" "a" {
 
 			var errNum int
 			for _, diag := range diags {
-				if diag.Severity() == tfdiags.Error {
+				if diag.Severity().SeverityLevel == tfdiags.ErrorLevel {
 					errNum++
 				}
 			}
@@ -5885,7 +5885,7 @@ import {
 
 			var errNum int
 			for _, diag := range diags {
-				if diag.Severity() == tfdiags.Error {
+				if diag.Severity().SeverityLevel == tfdiags.ErrorLevel {
 					errNum++
 				}
 			}
@@ -6288,7 +6288,7 @@ resource "test_object" "a" {
 
 			var errNum int
 			for _, diag := range diags {
-				if diag.Severity() == tfdiags.Error {
+				if diag.Severity().SeverityLevel == tfdiags.ErrorLevel {
 					errNum++
 				}
 			}

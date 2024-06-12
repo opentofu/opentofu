@@ -19,10 +19,6 @@ const (
 	WarningLevel SeverityLevel = 'W' // Warning
 )
 
-const (
-	Error Severity = 'E'
-)
-
 type Severity struct {
 	SeverityLevel
 }

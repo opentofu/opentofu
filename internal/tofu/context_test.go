@@ -223,27 +223,27 @@ resource "implicit_thing" "b" {
 			var wantDiags tfdiags.Diagnostics
 			wantDiags = wantDiags.Append(
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provider",
 					"This configuration requires built-in provider terraform.io/builtin/nonexist, but that provider isn't available in this OpenTofu version.",
 				),
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provider",
 					"This configuration requires provider example.com/foo/beep, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
 				),
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provider",
 					"This configuration requires provider registry.opentofu.org/hashicorp/implicit, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
 				),
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provider",
 					"This configuration requires provider registry.opentofu.org/hashicorp/implicit2, but that provider isn't available. You may be able to install it automatically by running:\n  tofu init",
 				),
 				tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Missing required provisioner plugin",
 					`This configuration requires provisioner plugin "nonexist", which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.`,
 				),
@@ -1002,7 +1002,7 @@ func logDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
 
 		var severity string
 		switch diag.Severity().SeverityLevel {
-		case tfdiags.ErrorLevel:
+		case tfdiags.NewSeverity(tfdiags.ErrorLevel)Level:
 			severity = "ERROR"
 		case tfdiags.WarningLevel:
 			severity = "WARN"

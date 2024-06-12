@@ -606,7 +606,7 @@ func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *mo
 			))
 		}
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.NewSeverity(tfdiags.ErrorLevel)
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Failed to persist state",
 			stateWriteConsoleFallbackError,
 		))

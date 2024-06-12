@@ -116,7 +116,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 		// the most recent ReadResource operation.
 		if dk != states.NotDeposed && !(rc.Action == plans.Delete || rc.Action == plans.NoOp || rc.Action == plans.Forget) {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid planned change for deposed object",
 				fmt.Sprintf("The plan contains a non-removal change for %s deposed object %s. The only valid actions for a deposed object is to destroy it or forget it, so this is a bug in OpenTofu.", addr, dk),
 			))
@@ -140,7 +140,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 					// Should never happen, since we don't plan to replace an
 					// instance that doesn't exist yet.
 					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
+						tfdiags.NewSeverity(tfdiags.ErrorLevel),
 						"Invalid planned change",
 						fmt.Sprintf("The plan contains a replace change for %s, which doesn't exist yet. This is a bug in OpenTofu.", addr),
 					))

@@ -148,7 +148,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 		// this error message won't be very clear. Add some detail to the error
 		// message in this case.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid provider configuration",
 			fmt.Sprintf(providerConfigErr, n.Addr.Provider),
 		))
@@ -172,7 +172,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 		// this error message won't be very clear. Add some detail to the error
 		// message in this case.
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Invalid provider configuration",
 			fmt.Sprintf(providerConfigErr, n.Addr.Provider),
 		))

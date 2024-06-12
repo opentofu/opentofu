@@ -1200,7 +1200,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 			wantErrs:
 				for _, want := range test.wantErr {
 					for _, diag := range gotDiags {
-						if diag.Severity() != tfdiags.Error {
+						if diag.Severity().SeverityLevel != tfdiags.ErrorLevel {
 							continue
 						}
 						desc := diag.Description()
@@ -1357,7 +1357,7 @@ variable "bar" {
 			wantErrs:
 				for _, want := range test.wantErr {
 					for _, diag := range gotDiags {
-						if diag.Severity() != tfdiags.Error {
+						if diag.Severity().SeverityLevel != tfdiags.ErrorLevel {
 							continue
 						}
 						desc := diag.Description()

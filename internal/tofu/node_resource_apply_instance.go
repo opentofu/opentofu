@@ -131,7 +131,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperatio
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Resource node has no configuration attached",
 			fmt.Sprintf(
 				"The graph node for %s has no configuration attached to it. This suggests a bug in OpenTofu's apply graph builder; please report it!",
@@ -206,7 +206,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 		n.Config.Postconditions,
 		ctx, n.ResourceInstanceAddr(),
 		repeatData,
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 	)
 	diags = diags.Append(checkDiags)
 
@@ -349,7 +349,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 			// an object as part of the same operation.
 			if diffApply != nil {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Attempt to restore non-existent deposed object",
 					fmt.Sprintf(
 						"OpenTofu has encountered a bug where it would need to restore a deposed object for %s without knowing a deposed object key for that object. This occurred during a %s action. This is a bug in OpenTofu; please report it!",
@@ -358,7 +358,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 				))
 			} else {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.NewSeverity(tfdiags.ErrorLevel),
 					"Attempt to restore non-existent deposed object",
 					fmt.Sprintf(
 						"OpenTofu has encountered a bug where it would need to restore a deposed object for %s without knowing a deposed object key for that object. This is a bug in OpenTofu; please report it!",
@@ -392,7 +392,7 @@ func (n *NodeApplyableResourceInstance) managedResourcePostconditions(ctx EvalCo
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		ctx, n.ResourceInstanceAddr(), repeatData,
-		tfdiags.Error,
+		tfdiags.NewSeverity(tfdiags.ErrorLevel),
 	)
 	return diags.Append(checkDiags)
 }
@@ -430,7 +430,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(ctx EvalContext, plan
 			(plannedChange.Action == plans.DeleteThenCreate && actualChange.Action == plans.CreateThenDelete):
 			// If the order of replacement changed, then that is a bug in tofu
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"OpenTofu produced inconsistent final plan",
 				fmt.Sprintf(
 					"When expanding the plan for %s to include new values learned so far during apply, the planned action changed from %s to %s.\n\nThis is a bug in OpenTofu and should be reported.",
@@ -439,7 +439,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(ctx EvalContext, plan
 			))
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Provider produced inconsistent final plan",
 				fmt.Sprintf(
 					"When expanding the plan for %s to include new values learned so far during apply, provider %q changed the planned action from %s to %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
@@ -453,7 +453,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(ctx EvalContext, plan
 	errs := objchange.AssertObjectCompatible(schema, plannedChange.After, actualChange.After)
 	for _, err := range errs {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Provider produced inconsistent final plan",
 			fmt.Sprintf(
 				"When expanding the plan for %s to include new values learned so far during apply, provider %q produced an invalid new value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",

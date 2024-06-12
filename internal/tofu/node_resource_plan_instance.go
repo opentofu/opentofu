@@ -114,7 +114,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 		return diags
 	}
 
-	checkRuleSeverity := tfdiags.Error
+	checkRuleSeverity := tfdiags.NewSeverity(tfdiags.ErrorLevel)
 	if n.skipPlanChanges || n.preDestroyRefresh {
 		checkRuleSeverity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 	}
@@ -159,7 +159,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 
 	var instanceRefreshState *states.ResourceInstanceObject
 
-	checkRuleSeverity := tfdiags.Error
+	checkRuleSeverity := tfdiags.NewSeverity(tfdiags.ErrorLevel)
 	if n.skipPlanChanges || n.preDestroyRefresh {
 		checkRuleSeverity = tfdiags.NewSeverity(tfdiags.WarningLevel)
 	}
@@ -478,7 +478,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	if len(imported) == 0 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Import returned no resources",
 			fmt.Sprintf("While attempting to import with ID %s, the provider"+
 				"returned no instance states.",
@@ -492,7 +492,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	}
 	if len(imported) > 1 {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Multiple import states not supported",
 			fmt.Sprintf("While attempting to import with ID %s, the provider "+
 				"returned multiple resource instance states. This "+
@@ -517,7 +517,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 
 	if importedState.Value.IsNull() {
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Import returned null resource",
 			fmt.Sprintf("While attempting to import with ID %s, the provider"+
 				"returned an instance with no state.",
@@ -543,7 +543,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	if instanceRefreshState.Value.IsNull() {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cannot import non-existent remote object",
 			fmt.Sprintf(
 				"While attempting to import an existing object to %q, "+

@@ -34,7 +34,7 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 	if plan.Errored {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
+			tfdiags.NewSeverity(tfdiags.ErrorLevel),
 			"Cannot apply failed plan",
 			`The given plan is incomplete due to errors during planning, and so it cannot be applied.`,
 		))
@@ -127,7 +127,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 		val, err := dyVal.Decode(cty.DynamicPseudoType)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
+				tfdiags.NewSeverity(tfdiags.ErrorLevel),
 				"Invalid variable value in plan",
 				fmt.Sprintf("Invalid value for variable %q recorded in plan file: %s.", name, err),
 			))
