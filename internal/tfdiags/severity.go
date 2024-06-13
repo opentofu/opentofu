@@ -44,7 +44,7 @@ func (i Severity) ToHCL() hcl.DiagnosticSeverity {
 	}
 }
 
-// NewSeverity creates a new severity based on the level requested and whether we are running pedantic mode
+// NewSeverity creates a new severity based on the level requested and whether we are running in pedantic mode
 func NewSeverity(level SeverityLevel) Severity {
 	if pedanticMode && level == WarningLevel {
 		return Severity{SeverityLevel: ErrorLevel}
