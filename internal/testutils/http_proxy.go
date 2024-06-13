@@ -376,59 +376,69 @@ func (h *httpProxyService) waitForService() error {
 	defer cancel()
 	httpUp := false
 	httpsUp := false
+	var err error
 	for {
 		httpClient := HTTPClientForCA(h.CACert())
 		if !httpUp {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.HTTPProxy().String(), nil)
+			httpUp, err = h.startupCheckHTTP(ctx, httpClient, h.HTTPProxy().String())
 			if err != nil {
-				return fmt.Errorf("cannot create HTTP request (%w)", err)
-			}
-			resp, err := httpClient.Do(req)
-			if err == nil {
-				h.t.Logf("✅ HTTP proxy service is up.")
-				_ = resp.Body.Close()
-				httpUp = true
-			} else {
-				h.t.Logf("⌚ Still waiting for the HTTP proxy service to come up...")
+				return err
 			}
 		}
 		if !httpsUp {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.HTTPSProxy().String(), nil)
+			httpsUp, err = h.startupCheckHTTP(ctx, httpClient, h.HTTPSProxy().String())
 			if err != nil {
-				return fmt.Errorf("cannot create HTTP request (%w)", err)
-			}
-			resp, err := httpClient.Do(req)
-			if err == nil {
-				h.t.Logf("✅ HTTPS proxy service is up.")
-				_ = resp.Body.Close()
-				httpsUp = true
-			} else {
-				h.t.Logf("⌚ Still waiting for the HTTPS proxy service to come up...")
+				return err
 			}
 		}
 		if httpUp && httpsUp {
 			return nil
 		}
-		h.mutex.Lock()
-		if h.httpErr != nil {
-			h.mutex.Unlock()
-			return fmt.Errorf("the HTTP proxy service exited with error: %w", h.httpErr)
+		if err = h.startupCheckIfServersExited(); err != nil {
+			return err
 		}
-		if h.httpsErr != nil {
-			h.mutex.Unlock()
-			return fmt.Errorf("the HTTPS proxy service exited with error: %w", h.httpsErr)
-		}
-		h.mutex.Unlock()
 		select {
 		case <-ctx.Done():
-			if httpUp {
-				return fmt.Errorf("timeout: the HTTPS service failed to come up")
-			} else if httpsUp {
-				return fmt.Errorf("timeout: the HTTP service failed to come up")
-			} else {
+			switch {
+			case !httpUp && !httpsUp:
 				return fmt.Errorf("timeout: both the HTTP and HTTPS services failed to come up")
+			case !httpUp:
+				return fmt.Errorf("timeout: the HTTP service failed to come up")
+			case !httpsUp:
+				return fmt.Errorf("timeout: the HTTPS service failed to come up")
 			}
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+func (h *httpProxyService) startupCheckIfServersExited() error {
+	h.mutex.Lock()
+	if h.httpErr != nil {
+		h.mutex.Unlock()
+		return fmt.Errorf("the HTTP proxy service exited with error: %w", h.httpErr)
+	}
+	if h.httpsErr != nil {
+		h.mutex.Unlock()
+		return fmt.Errorf("the HTTPS proxy service exited with error: %w", h.httpsErr)
+	}
+	h.mutex.Unlock()
+	return nil
+}
+
+func (h *httpProxyService) startupCheckHTTP(ctx context.Context, httpClient *http.Client, checkAddr string) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checkAddr, nil)
+	if err != nil {
+		return false, fmt.Errorf("cannot create HTTP request (%w)", err)
+	}
+	resp, err := httpClient.Do(req)
+	if err == nil {
+		// Note: we intentionally don't care about the response code or the response itself because the proxied
+		// response may not be anything useful, we only care that the server responds at all.
+		h.t.Logf("✅ HTTP proxy service is up.")
+		_ = resp.Body.Close()
+		return true, nil
+	}
+	h.t.Logf("⌚ Still waiting for the HTTP proxy service to come up...")
+	return false, nil
 }

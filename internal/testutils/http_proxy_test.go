@@ -27,19 +27,19 @@ func TestHTTPProxy(t *testing.T) {
 	ctx := testutils.Context(t)
 
 	t.Run("Backend: HTTP", func(t *testing.T) {
-		httpAddr := testHTTPProxySetupBackingHTTPServer(t, ctx)
+		httpAddr := testHTTPProxySetupBackingHTTPServer(ctx, t)
 		t.Logf("🪧 Setting up proxy server...")
 		proxy := testutils.HTTPProxy(t, testutils.HTTPProxyOptionForceHTTPTarget(httpAddr))
 
-		testHTTPProxyRequests(t, proxy, ctx)
+		testHTTPProxyRequests(ctx, t, proxy)
 	})
 	t.Run("Backend: HTTPS", func(t *testing.T) {
 		backingCA := testutils.CA(t)
-		httpAddr := testHTTPProxySetupBackingHTTPSServer(t, ctx, backingCA)
+		httpAddr := testHTTPProxySetupBackingHTTPSServer(ctx, t, backingCA)
 		t.Logf("🪧 Setting up proxy server...")
 		proxy := testutils.HTTPProxy(t, testutils.HTTPProxyOptionForceHTTPSTarget(httpAddr, backingCA.GetPEMCACert()))
 
-		testHTTPProxyRequests(t, proxy, ctx)
+		testHTTPProxyRequests(ctx, t, proxy)
 	})
 	t.Run("Backend: TLS", func(t *testing.T) {
 		testHTTPProxyInConnectMode(t)
@@ -64,6 +64,8 @@ func testHTTPProxyInConnectMode(t *testing.T) {
 	t.Logf("🔍 Running functionality tests...")
 	var backingErr error
 	done := make(chan struct{})
+	const testResponse = "Hello world!"
+	const testRequest = "Say hi!"
 	go func() {
 		defer close(done)
 		conn, e := backingServer.Accept()
@@ -72,7 +74,7 @@ func testHTTPProxyInConnectMode(t *testing.T) {
 			return
 		}
 		t.Logf("✅ Backing server accepted the connection from the proxy.")
-		expectedBytes := len("Say hi!")
+		expectedBytes := len(testRequest)
 		request := make([]byte, expectedBytes)
 		n, e := io.ReadAtLeast(conn, request, expectedBytes)
 		if e != nil {
@@ -83,8 +85,8 @@ func testHTTPProxyInConnectMode(t *testing.T) {
 			backingErr = fmt.Errorf("incorrect number of bytes read: %d", n)
 			return
 		}
-		response := "Hello world!"
-		if string(request) != "Say hi!" {
+		response := testResponse
+		if string(request) != testRequest {
 			t.Logf("❌ Backing server read an incorrect request: %s", request)
 			response = fmt.Sprintf("Incorrect request received: %s", request)
 		} else {
@@ -123,7 +125,7 @@ func testHTTPProxyInConnectMode(t *testing.T) {
 
 	// We send our greeting:
 	t.Logf("👋 Client sending the greeting to the backing service via the proxy...")
-	_, err = proxyConn.Write([]byte("Say hi!"))
+	_, err = proxyConn.Write([]byte(testRequest))
 	if err != nil {
 		t.Fatalf("❌ Failed to send greeting through the proxy server: %v", err)
 	}
@@ -136,7 +138,7 @@ func testHTTPProxyInConnectMode(t *testing.T) {
 	}
 	t.Logf("✅ Response received.")
 
-	if string(response) != "Hello world!" {
+	if string(response) != testResponse {
 		t.Fatalf("❌ Invalid response received from proxy server: %s", string(response))
 	}
 	t.Logf("✅ Response is correct.")
@@ -149,9 +151,10 @@ func testHTTPProxyInConnectMode(t *testing.T) {
 	t.Logf("✅ Proxy server works as intended in CONNECT mode.")
 }
 
-func testHTTPProxyRequests(t *testing.T, proxy testutils.HTTPProxyService, ctx context.Context) {
+func testHTTPProxyRequests(ctx context.Context, t *testing.T, proxy testutils.HTTPProxyService) {
 	t.Logf("🔍 Running functionality tests...")
 
+	const testResponse = "Hello world!"
 	t.Run("Client: HTTP", func(t *testing.T) {
 		t.Logf("📡 Testing proxy functionality in HTTP mode...")
 
@@ -183,7 +186,7 @@ func testHTTPProxyRequests(t *testing.T, proxy testutils.HTTPProxyService, ctx c
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(body) != "Hello world!" {
+		if string(body) != testResponse {
 			t.Fatalf("❌ Incorrect response from proxy: %s", string(body))
 		}
 		t.Logf("✅ Proxy server works as intended in HTTP mode.")
@@ -225,7 +228,7 @@ func testHTTPProxyRequests(t *testing.T, proxy testutils.HTTPProxyService, ctx c
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(body) != "Hello world!" {
+		if string(body) != testResponse {
 			t.Fatalf("❌ Incorrect response from proxy: %s", string(body))
 		}
 		t.Logf("✅ Proxy server works as intended in HTTPS mode.")
@@ -233,7 +236,7 @@ func testHTTPProxyRequests(t *testing.T, proxy testutils.HTTPProxyService, ctx c
 	t.Logf("🔍 Functionality tests complete.")
 }
 
-func testHTTPProxySetupBackingHTTPServer(t *testing.T, ctx context.Context) string {
+func testHTTPProxySetupBackingHTTPServer(ctx context.Context, t *testing.T) string {
 	t.Logf("🌎 Setting up backing HTTP server...")
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -241,24 +244,25 @@ func testHTTPProxySetupBackingHTTPServer(t *testing.T, ctx context.Context) stri
 	}
 	tcpAddr := listener.Addr().(*net.TCPAddr) //nolint:errcheck //This is always a TCPAddr, see above.
 	addr := testHTTPProxyStartHTTPServer(t, tcpAddr, listener)
-	testHTTPProxyWaitForHTTPServer(t, ctx, addr, nil)
+	testHTTPProxyWaitForHTTPServer(ctx, t, addr, nil)
 	return addr
 }
 
-func testHTTPProxySetupBackingHTTPSServer(t *testing.T, ctx context.Context, ca testutils.CertificateAuthority) string {
+func testHTTPProxySetupBackingHTTPSServer(ctx context.Context, t *testing.T, ca testutils.CertificateAuthority) string {
 	t.Logf("🌎 Setting up backing HTTPS server...")
 	cert := ca.CreateLocalhostServerCert()
 	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
 		Certificates: []tls.Certificate{
 			cert.GetTLSCertificate(),
 		},
+		MinVersion: tls.VersionTLS12,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	tcpAddr := listener.Addr().(*net.TCPAddr) //nolint:errcheck //This is always a TCPAddr, see above.
 	addr := testHTTPProxyStartHTTPServer(t, tcpAddr, listener)
-	testHTTPProxyWaitForHTTPServer(t, ctx, addr, ca.GetPEMCACert())
+	testHTTPProxyWaitForHTTPServer(ctx, t, addr, ca.GetPEMCACert())
 	return addr
 }
 
@@ -285,7 +289,7 @@ func testHTTPProxyStartHTTPServer(t *testing.T, tcpAddr *net.TCPAddr, listener n
 	return addr
 }
 
-func testHTTPProxyWaitForHTTPServer(t *testing.T, ctx context.Context, addr string, caCert []byte) {
+func testHTTPProxyWaitForHTTPServer(ctx context.Context, t *testing.T, addr string, caCert []byte) {
 	var err error
 	t.Logf("⌚ Waiting for backing server to come up...")
 
