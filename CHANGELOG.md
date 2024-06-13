@@ -13,6 +13,7 @@ ENHANCEMENTS:
 * Allow to reference variable inside the `variables` block of a test file. ([1488](https://github.com/opentofu/opentofu/pull/1488))
 
 BUG FIXES:
+* Fixed validation for `enforced` flag in encryption configuration. ([#1711](https://github.com/opentofu/opentofu/pull/1711))
 * Fixed crash in gcs backend when using certain commands. ([#1618](https://github.com/opentofu/opentofu/pull/1618))
 * Fixed inmem backend crash due to missing struct field. ([#1619](https://github.com/opentofu/opentofu/pull/1619))
 * Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))
