@@ -102,7 +102,7 @@ func HTTPProxyOptionForceCONNECTTarget(target string) HTTPProxyOption {
 
 func parseTarget(target string, port string, re string) string {
 	validator := regexp.MustCompile(re)
-	if !validator.Match([]byte(target)) {
+	if !validator.MatchString(target) {
 		panic(fmt.Errorf("invalid target: %s", target))
 	}
 	matches := validator.FindStringSubmatch(target)
