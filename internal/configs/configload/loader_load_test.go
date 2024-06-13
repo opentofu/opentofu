@@ -18,6 +18,8 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
+var testRootModuleCall = configs.StaticModuleCall{}
+
 func TestLoaderLoadConfig_okay(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/already-installed")
 	loader, err := NewLoader(&Config{
@@ -27,7 +29,7 @@ func TestLoaderLoadConfig_okay(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	cfg, diags := loader.LoadConfig(fixtureDir)
+	cfg, diags := loader.LoadConfig(fixtureDir, testRootModuleCall)
 	assertNoDiagnostics(t, diags)
 	if cfg == nil {
 		t.Fatalf("config is nil; want non-nil")
@@ -75,7 +77,7 @@ func TestLoaderLoadConfig_addVersion(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, diags := loader.LoadConfig(fixtureDir)
+	_, diags := loader.LoadConfig(fixtureDir, testRootModuleCall)
 	if !diags.HasErrors() {
 		t.Fatalf("success; want error")
 	}
@@ -96,7 +98,7 @@ func TestLoaderLoadConfig_loadDiags(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	cfg, diags := loader.LoadConfig(fixtureDir)
+	cfg, diags := loader.LoadConfig(fixtureDir, testRootModuleCall)
 	if !diags.HasErrors() {
 		t.Fatal("success; want error")
 	}
@@ -120,7 +122,7 @@ func TestLoaderLoadConfig_loadDiagsFromSubmodules(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	cfg, diags := loader.LoadConfig(fixtureDir)
+	cfg, diags := loader.LoadConfig(fixtureDir, testRootModuleCall)
 	if !diags.HasErrors() {
 		t.Fatalf("loading succeeded; want an error")
 	}
@@ -170,7 +172,7 @@ func TestLoaderLoadConfig_childProviderGrandchildCount(t *testing.T) {
 			t.Fatalf("unexpected error from NewLoader: %s", err)
 		}
 
-		cfg, diags := loader.LoadConfig(fixtureDir)
+		cfg, diags := loader.LoadConfig(fixtureDir, testRootModuleCall)
 		assertNoDiagnostics(t, diags)
 		if cfg == nil {
 			t.Fatalf("config is nil; want non-nil")
@@ -200,7 +202,7 @@ func TestLoaderLoadConfig_childProviderGrandchildCount(t *testing.T) {
 			t.Fatalf("unexpected error from NewLoader: %s", err)
 		}
 
-		_, diags := loader.LoadConfig(fixtureDir)
+		_, diags := loader.LoadConfig(fixtureDir, testRootModuleCall)
 		if !diags.HasErrors() {
 			t.Fatalf("loading succeeded; want an error")
 		}

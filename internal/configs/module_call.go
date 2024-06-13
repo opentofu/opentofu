@@ -148,6 +148,10 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 }
 
 func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
+	if mc.Source == nil {
+		// Broken, will error elsewhere
+		return nil
+	}
 	diags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Call.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
 	if !diags.HasErrors() {
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built

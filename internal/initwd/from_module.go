@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getmodules"
+	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/opentofu/opentofu/internal/modsdir"
@@ -138,16 +139,18 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			fmt.Sprintf("Failed to parse module source address: %s", err),
 		))
 	}
+	rng := hcl.Range{
+		Filename: initFromModuleRootFilename,
+		Start:    hcl.InitialPos,
+		End:      hcl.InitialPos,
+	}
 	fakeRootModule := &configs.Module{
 		ModuleCalls: map[string]*configs.ModuleCall{
 			initFromModuleRootCallName: {
 				Name:       initFromModuleRootCallName,
 				SourceAddr: sourceAddr,
-				DeclRange: hcl.Range{
-					Filename: initFromModuleRootFilename,
-					Start:    hcl.InitialPos,
-					End:      hcl.InitialPos,
-				},
+				Source:     hcl.StaticExpr(cty.StringVal(sourceAddrStr), rng),
+				DeclRange:  rng,
 			},
 		},
 		ProviderRequirements: &configs.RequiredProviders{},

@@ -191,7 +191,10 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	// If we have a backend, it may have fields that require locals/vars
 	if mod.Backend != nil {
 		// We don't know the backend type / loader at this point so we save the context for later use
-		mod.Backend.ctx = ctx
+		mod.Backend.Ctx = ctx
+	}
+	if mod.CloudConfig != nil {
+		mod.CloudConfig.ctx = ctx
 	}
 
 	// Process all module calls now that we have the static context

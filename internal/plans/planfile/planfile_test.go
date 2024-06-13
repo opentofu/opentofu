@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -32,7 +33,7 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir)
+	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.StaticModuleCall{})
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
