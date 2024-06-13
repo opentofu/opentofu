@@ -104,7 +104,7 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 	}
 
 	call, vDiags := m.rootModuleCall(dir)
-	diags.Append(vDiags)
+	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -184,7 +184,7 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 	}
 
 	call, vDiags := m.rootModuleCall(dir)
-	diags.Append(vDiags)
+	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -288,7 +288,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
 
 	call, vDiags := m.rootModuleCall(rootDir)
-	diags.Append(vDiags)
+	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return true, diags
 	}
