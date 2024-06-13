@@ -34,7 +34,13 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
+// New creates an S3 backend.
 func New(enc encryption.StateEncryption) backend.Backend {
+	return NewTyped(enc)
+}
+
+// NewTyped returns a typed Backend pointer for the S3 backend.
+func NewTyped(enc encryption.StateEncryption) *Backend {
 	return &Backend{encryption: enc}
 }
 

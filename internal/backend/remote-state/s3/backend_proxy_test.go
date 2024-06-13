@@ -14,31 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/testutils"
 )
 
-var proxyTestCases = map[string]struct {
-	modifyConfig func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService)
-}{
-	// Intentionally using the HTTP proxy URL in these cases even for HTTPS to make sure we don't have to deal with
-	// certificate issues. In this case the "https" refers to the target (endpoint) URL, not the proxy itself.
-	"direct-config": {
-		modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
-			config["http_proxy"] = proxy.HTTPProxy().String()
-			config["https_proxy"] = proxy.HTTPProxy().String()
-		},
-	},
-	"env-uppercase": {
-		modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
-			t.Setenv("HTTP_PROXY", proxy.HTTPProxy().String())
-			t.Setenv("HTTPS_PROXY", proxy.HTTPProxy().String())
-		},
-	},
-	"env-lowercase": {
-		modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
-			t.Setenv("http_proxy", proxy.HTTPProxy().String())
-			t.Setenv("https_proxy", proxy.HTTPProxy().String())
-		},
-	},
-}
-
 func TestS3ProxyBehavior(t *testing.T) {
 	testutils.SetupTestLogger(t)
 
@@ -65,6 +40,31 @@ func TestS3ProxyBehavior(t *testing.T) {
 		runBackendTests(t, config)
 	})
 	t.Run("proxy", func(t *testing.T) {
+		var proxyTestCases = map[string]struct {
+			modifyConfig func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService)
+		}{
+			// Intentionally using the HTTP proxy URL in these cases even for HTTPS to make sure we don't have to deal
+			// with certificate issues. In this case the "https" refers to the target (endpoint) URL, not the proxy
+			// itself.
+			"direct-config": {
+				modifyConfig: func(_ *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
+					config["http_proxy"] = proxy.HTTPProxy().String()
+					config["https_proxy"] = proxy.HTTPProxy().String()
+				},
+			},
+			"env-uppercase": {
+				modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
+					t.Setenv("HTTP_PROXY", proxy.HTTPProxy().String())
+					t.Setenv("HTTPS_PROXY", proxy.HTTPProxy().String())
+				},
+			},
+			"env-lowercase": {
+				modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
+					t.Setenv("http_proxy", proxy.HTTPProxy().String())
+					t.Setenv("https_proxy", proxy.HTTPProxy().String())
+				},
+			},
+		}
 		for name, tc := range proxyTestCases {
 			t.Run(name, func(t *testing.T) {
 				testutils.SetupTestLogger(t)
@@ -110,7 +110,7 @@ func TestS3ProxyBehavior(t *testing.T) {
 }
 
 func runBackendTests(t *testing.T, config map[string]any) {
-	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
+	b := backend.TestTypedBackendConfig[*Backend](t, NewTyped(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
 
 	state, err := b.StateMgr(backend.DefaultStateName)
 	if err != nil {

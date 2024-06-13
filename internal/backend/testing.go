@@ -24,7 +24,14 @@ import (
 
 // TestBackendConfig validates and configures the backend with the
 // given configuration.
+// Deprecated: Use TestTypedBackendConfig instead.
 func TestBackendConfig(t *testing.T, b Backend, c hcl.Body) Backend {
+	return TestTypedBackendConfig[Backend](t, b, c)
+}
+
+// TestTypedBackendConfig validates and configures the backend with the
+// given configuration while returning a typed backend.
+func TestTypedBackendConfig[T Backend](t *testing.T, b T, c hcl.Body) T {
 	t.Helper()
 
 	t.Logf("TestBackendConfig on %T with %#v", b, c)
