@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -152,17 +153,37 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 		// Broken, will error elsewhere
 		return nil
 	}
+
+	// Setup static variable mapping
+	attr, _ := mc.Config.JustAttributes()
+	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
+		v, ok := attr[variable.Name]
+		if !ok {
+			if variable.Required() {
+				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing variable in module call",
+					Subject:  mc.Config.MissingItemRange().Ptr(),
+				}}
+			}
+			return variable.Default, nil
+		}
+
+		ident := StaticIdentifier{Module: ctx.Call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
+		return ctx.Evaluate(v.Expr, ident)
+	}
+
+	// Decode source field
 	diags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Call.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
+	//nolint:nestif // Keeping this similar to the original decode logic for easy review
 	if !diags.HasErrors() {
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built
-		var addr addrs.ModuleSource
 		var err error
 		if mc.HasVersion {
-			addr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
+			mc.SourceAddr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
 		} else {
-			addr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
+			mc.SourceAddr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
 		}
-		mc.SourceAddr = addr
 		if err != nil {
 			// NOTE: We leave SourceAddr as nil for any situation where the
 			// source attribute is invalid, so any code which tries to carefully
@@ -177,18 +198,18 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 			// still a _few_ purely-syntax errors we can catch at parsing time,
 			// though, mostly related to remote package sub-paths and local
 			// paths.
-			switch err := err.(type) {
-			case *getmodules.MaybeRelativePathErr:
+			var pathErr *getmodules.MaybeRelativePathErr
+			if errors.As(err, &pathErr) {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid module source address",
 					Detail: fmt.Sprintf(
 						"OpenTofu failed to determine your intended installation method for remote module package %q.\n\nIf you intended this as a path relative to the current module, use \"./%s\" instead. The \"./\" prefix indicates that the address is a relative filesystem path.",
-						err.Addr, err.Addr,
+						pathErr.Addr, pathErr.Addr,
 					),
 					Subject: mc.Source.Range().Ptr(),
 				})
-			default:
+			} else {
 				if mc.HasVersion {
 					// In this case we'll include some extra context that
 					// we assumed a registry source address due to the
@@ -209,25 +230,6 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 				}
 			}
 		}
-	}
-
-	attr, _ := mc.Config.JustAttributes()
-	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
-		v, ok := attr[variable.Name]
-		if !ok {
-			if variable.Required() {
-				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing variable in module call",
-					Subject:  mc.Config.MissingItemRange().Ptr(),
-				}}
-			}
-			return variable.Default, nil
-		}
-
-		// TODO addrs.ModuleCallInstanceInput?
-		ident := StaticIdentifier{Module: ctx.Call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
-		return ctx.Evaluate(v.Expr, ident)
 	}
 
 	return diags

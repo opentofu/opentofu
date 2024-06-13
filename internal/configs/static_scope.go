@@ -68,7 +68,7 @@ func (s staticScopeData) eval(ident StaticIdentifier, fn func(stack []StaticIden
 	return val, diags
 }
 
-func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
+func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ addrs.Referenceable, _ addrs.Referenceable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, ref := range refs {
 		switch subject := ref.Subject.(type) {
@@ -131,7 +131,6 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 	// TODO this is copied and trimed down from tofu/evaluate.go GetPathAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
-
 	case "cwd":
 		wd, err := os.Getwd()
 		if err != nil {
@@ -176,7 +175,7 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 		return cty.DynamicVal, diags
 	}
 }
-func (s staticScopeData) GetTerraformAttr(ident addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetTerraformAttr(_ addrs.TerraformAttr, _ tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
@@ -198,7 +197,7 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 		DeclRange: variable.DeclRange,
 	}
 
-	return s.eval(id, func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+	return s.eval(id, func(_ []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 		return s.ctx.Call.Variables(variable)
 	})
 }

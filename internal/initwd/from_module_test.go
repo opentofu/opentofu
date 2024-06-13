@@ -21,8 +21,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-var testRootModuleCall = configs.StaticModuleCall{}
-
 func TestDirFromModule_registry(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("this test accesses registry.opentofu.org and github.com; set TF_ACC=1 to run it")
@@ -111,7 +109,7 @@ func TestDirFromModule_registry(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", testRootModuleCall)
+	config, loadDiags := loader.LoadConfig(".", configs.StaticModuleCall{})
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}
@@ -193,7 +191,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", testRootModuleCall)
+	config, loadDiags := loader.LoadConfig(".", configs.StaticModuleCall{})
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}
@@ -319,7 +317,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", testRootModuleCall)
+	config, loadDiags := loader.LoadConfig(".", configs.StaticModuleCall{})
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}

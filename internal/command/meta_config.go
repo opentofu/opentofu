@@ -159,8 +159,8 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 					return variable.Default, nil
 				}
 
-				parsed, diags := v.ParseVariableValue(variable.ParsingMode)
-				return parsed.Value, diags.ToHCL()
+				parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
+				return parsed.Value, parsedDiags.ToHCL()
 			},
 
 			RootPath: rootDir,

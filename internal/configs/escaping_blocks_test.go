@@ -40,7 +40,7 @@ func TestEscapingBlockResource(t *testing.T) {
 	// they only appear nested inside resource blocks.)
 
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/resource", testRootModuleCall)
+	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/resource", StaticModuleCall{})
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -138,7 +138,7 @@ func TestEscapingBlockResource(t *testing.T) {
 
 func TestEscapingBlockData(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/data", testRootModuleCall)
+	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/data", StaticModuleCall{})
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -204,7 +204,7 @@ func TestEscapingBlockData(t *testing.T) {
 
 func TestEscapingBlockModule(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/module", testRootModuleCall)
+	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/module", StaticModuleCall{})
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -270,7 +270,7 @@ func TestEscapingBlockModule(t *testing.T) {
 
 func TestEscapingBlockProvider(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/provider", testRootModuleCall)
+	mod, diags := parser.LoadConfigDir("testdata/escaping-blocks/provider", StaticModuleCall{})
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")

@@ -178,7 +178,6 @@ func (c *PlanCommand) OperationRequest(
 }
 
 func (c *PlanCommand) GatherVariables(args *arguments.Vars) {
-
 	// FIXME the arguments package currently trivially gathers variable related
 	// arguments in a heterogenous slice, in order to minimize the number of
 	// code paths gathering variables during the transition to this structure.

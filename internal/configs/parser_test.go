@@ -48,7 +48,7 @@ func testParser(files map[string]string) *Parser {
 func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	f, diags := parser.LoadConfigFile(filename)
-	mod, modDiags := NewModule([]*File{f}, nil, testRootModuleCall, filename)
+	mod, modDiags := NewModule([]*File{f}, nil, StaticModuleCall{}, filename)
 	diags = append(diags, modDiags...)
 	cfg, moreDiags := BuildConfig(mod, nil)
 	return cfg, append(diags, moreDiags...)
@@ -58,14 +58,14 @@ func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
 // a module and returns it. This is a helper for use in unit tests.
 func testModuleFromDir(path string) (*Module, hcl.Diagnostics) {
 	parser := NewParser(nil)
-	return parser.LoadConfigDir(path, testRootModuleCall)
+	return parser.LoadConfigDir(path, StaticModuleCall{})
 }
 
 // testModuleFromDir reads configuration from the given directory path as a
 // module and returns its configuration. This is a helper for use in unit tests.
 func testModuleConfigFromDir(path string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir(path, testRootModuleCall)
+	mod, diags := parser.LoadConfigDir(path, StaticModuleCall{})
 	cfg, moreDiags := BuildConfig(mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
@@ -76,7 +76,7 @@ func testNestedModuleConfigFromDirWithTests(t *testing.T, path string) (*Config,
 	t.Helper()
 
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests(path, "tests", testRootModuleCall)
+	mod, diags := parser.LoadConfigDirWithTests(path, "tests", StaticModuleCall{})
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
 	}
@@ -94,7 +94,7 @@ func testNestedModuleConfigFromDir(t *testing.T, path string) (*Config, hcl.Diag
 	t.Helper()
 
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir(path, testRootModuleCall)
+	mod, diags := parser.LoadConfigDir(path, StaticModuleCall{})
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
 	}
@@ -123,7 +123,7 @@ func buildNestedModuleConfig(mod *Module, path string, parser *Parser) (*Config,
 			paths = append([]string{path}, paths...)
 			sourcePath := filepath.Join(paths...)
 
-			mod, diags := parser.LoadConfigDir(sourcePath, testRootModuleCall)
+			mod, diags := parser.LoadConfigDir(sourcePath, StaticModuleCall{})
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
 			return mod, version, diags
