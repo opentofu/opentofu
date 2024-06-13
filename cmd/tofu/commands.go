@@ -55,12 +55,12 @@ func initCommands(
 	ctx context.Context,
 	originalWorkingDir string,
 	streams *terminal.Streams,
-	ui cli.Ui,
 	config *cliconfig.Config,
 	services *disco.Disco,
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
+	ui cli.Ui,
 	pedanticMode bool,
 ) {
 	var inAutomation bool
