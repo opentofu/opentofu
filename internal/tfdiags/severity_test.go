@@ -19,15 +19,15 @@ func TestNewSeverity(t *testing.T) {
 		{"pedantic error", ErrorLevel, ErrorLevel, true},
 	}
 
-	for _, tc := range testCases{
-		t.Run(tc.name, func (t *testing.T){
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			PedanticMode = tc.pedanticMode
 			assert.Equal(t, tc.expected, NewSeverity(tc.input).SeverityLevel)
 		})
 	}
 
-	// Reset pedantic mode to stop chances of interfering with other tests
-	PedanticMode = true
+	// Reset pedantic mode to stop interfering with other tests
+	PedanticMode = false
 }
 
 func TestSeverityToHCL(t *testing.T) {
@@ -43,13 +43,13 @@ func TestSeverityToHCL(t *testing.T) {
 		{"pedantic hcl error", ErrorLevel, hcl.DiagError, true},
 	}
 
-	for _, tc := range testCases{
-		t.Run(tc.name, func (t *testing.T){
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			PedanticMode = tc.pedanticMode
 			assert.Equal(t, tc.expected, NewSeverity(tc.input).ToHCL())
 		})
 	}
 
-	// Reset pedantic mode to stop chances of interfering with other tests
+	// Reset pedantic mode to stop interfering with other tests
 	PedanticMode = false
 }
