@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,6 +66,8 @@ type HTTPProxyService interface {
 // HTTPProxyOptionForceHTTPTarget forces non-CONNECT (HTTP/HTTPS) requests to be sent to the specified target via an
 // HTTP request regardless of the request. You should specify the target as hostname:ip.
 func HTTPProxyOptionForceHTTPTarget(target string) HTTPProxyOption {
+	//goland:noinspection HttpUrlsUsage
+	target = parseTarget(target, "80", `^(http://|)(?P<host>([a-zA-Z0-9\-_\.]+|\[[0-9a-fA-F:]+\]))(|:(?P<port>[0-9]+))$`)
 	return func(options *httpProxyOptions) error {
 		options.httpTarget = target
 		options.targetIsHTTPS = false
@@ -75,6 +78,7 @@ func HTTPProxyOptionForceHTTPTarget(target string) HTTPProxyOption {
 // HTTPProxyOptionForceHTTPSTarget forces non-CONNECT (HTTP/HTTPS) requests to be sent to the specified target via an
 // HTTPS request. If the backing server is using a custom CA, you should pass the caCert as the second parameter.
 func HTTPProxyOptionForceHTTPSTarget(target string, caCert []byte) HTTPProxyOption {
+	target = parseTarget(target, "443", `^(https://|)(?P<host>([a-zA-Z0-9\-_\.]+|\[[0-9a-fA-F:]+\]))(|:(?P<port>[0-9]+))$`)
 	return func(options *httpProxyOptions) error {
 		options.httpTarget = target
 		options.targetIsHTTPS = true
@@ -86,10 +90,39 @@ func HTTPProxyOptionForceHTTPSTarget(target string, caCert []byte) HTTPProxyOpti
 // HTTPProxyOptionForceCONNECTTarget forces CONNECT requests to be sent to the specified target, regardless
 // of the request.
 func HTTPProxyOptionForceCONNECTTarget(target string) HTTPProxyOption {
+	// We are trimming the http:// and https:// prefixes here for conveniences, even though it won't matter because
+	// CONNECT changes to a TCP connection.
+	//goland:noinspection HttpUrlsUsage
+	target = parseTarget(target, "", `^(|http://|https://)(?P<host>([a-zA-Z0-9\-_\.]+|\[[0-9a-fA-F:]+\])):(?P<port>[0-9]+)$`)
 	return func(options *httpProxyOptions) error {
 		options.connectTarget = target
 		return nil
 	}
+}
+
+func parseTarget(target string, port string, re string) string {
+	validator := regexp.MustCompile(re)
+	if !validator.Match([]byte(target)) {
+		panic(fmt.Errorf("invalid target: %s", target))
+	}
+	matches := validator.FindStringSubmatch(target)
+	names := validator.SubexpNames()
+	hostname := ""
+	for i, name := range names {
+		switch name {
+		case "host":
+			hostname = matches[i]
+		case "port":
+			port = matches[i]
+		}
+	}
+	if hostname == "" {
+		panic(fmt.Errorf("invalid regexp passed to parseTarget: %s", re))
+	}
+	if port == "" {
+		panic(fmt.Errorf("invalid regexp or port passed to parseTarget: %s", re))
+	}
+	return net.JoinHostPort(hostname, port)
 }
 
 // HTTPProxyOption is a function that changes the settings for the proxy server. The parameter is intentionally not
@@ -167,12 +200,8 @@ func (h *httpProxyService) handleHTTP(writer http.ResponseWriter, request *http.
 	if h.proxyOptions.httpTarget != "" {
 		connectTarget := h.proxyOptions.httpTarget
 		//goland:noinspection HttpUrlsUsage
-		if strings.HasPrefix(connectTarget, "http://") {
-			connectTarget = connectTarget[7:]
-		}
-		if strings.HasPrefix(connectTarget, "https://") {
-			connectTarget = connectTarget[8:]
-		}
+		connectTarget = strings.TrimPrefix(connectTarget, "http://")
+		connectTarget = strings.TrimPrefix(connectTarget, "https://")
 
 		httpClient.Transport.(*http.Transport).DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return (&net.Dialer{}).DialContext(ctx, "tcp", connectTarget)

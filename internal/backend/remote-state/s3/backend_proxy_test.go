@@ -53,13 +53,13 @@ func TestS3ProxyBehavior(t *testing.T) {
 				},
 			},
 			"env-uppercase": {
-				modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
+				modifyConfig: func(t *testing.T, _ map[string]any, proxy testutils.HTTPProxyService) {
 					t.Setenv("HTTP_PROXY", proxy.HTTPProxy().String())
 					t.Setenv("HTTPS_PROXY", proxy.HTTPProxy().String())
 				},
 			},
 			"env-lowercase": {
-				modifyConfig: func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
+				modifyConfig: func(t *testing.T, _ map[string]any, proxy testutils.HTTPProxyService) {
 					t.Setenv("http_proxy", proxy.HTTPProxy().String())
 					t.Setenv("https_proxy", proxy.HTTPProxy().String())
 				},
@@ -72,7 +72,6 @@ func TestS3ProxyBehavior(t *testing.T) {
 				proxy := testutils.HTTPProxy(
 					t,
 					testutils.HTTPProxyOptionForceCONNECTTarget(aws.S3Endpoint()),
-					testutils.HTTPProxyOptionForceHTTPTarget(aws.S3Endpoint()),
 					testutils.HTTPProxyOptionForceHTTPSTarget(aws.S3Endpoint(), aws.CACert()),
 				)
 				config := map[string]any{
