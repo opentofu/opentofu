@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -123,6 +124,7 @@ type httpProxyService struct {
 }
 
 func (h *httpProxyService) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	h.t.Logf("➡️ Proxy received %s request to %s", request.Method, request.URL.String())
 	if request.Method == http.MethodConnect {
 		h.handleConnect(writer, request)
 	} else {
@@ -135,6 +137,7 @@ func (h *httpProxyService) handleHTTP(writer http.ResponseWriter, request *http.
 
 	requestURLParsed, err := url.Parse(requestURI)
 	if err != nil {
+		h.t.Logf("☠️ HTTP proxy received a request with an in valid request URI from the client: %s", requestURI)
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -162,18 +165,28 @@ func (h *httpProxyService) handleHTTP(writer http.ResponseWriter, request *http.
 		},
 	}
 	if h.proxyOptions.httpTarget != "" {
+		connectTarget := h.proxyOptions.httpTarget
+		//goland:noinspection HttpUrlsUsage
+		if strings.HasPrefix(connectTarget, "http://") {
+			connectTarget = connectTarget[7:]
+		}
+		if strings.HasPrefix(connectTarget, "https://") {
+			connectTarget = connectTarget[8:]
+		}
+
 		httpClient.Transport.(*http.Transport).DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "tcp", h.proxyOptions.httpTarget)
+			return (&net.Dialer{}).DialContext(ctx, "tcp", connectTarget)
 		}
 		httpClient.Transport.(*http.Transport).DialTLSContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return (&tls.Dialer{
 				NetDialer: &net.Dialer{},
 				Config:    tlsConfig,
-			}).DialContext(ctx, "tcp", h.proxyOptions.httpTarget)
+			}).DialContext(ctx, "tcp", connectTarget)
 		}
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {
+		h.t.Logf("☠️ HTTP proxy cannot send a request to the backing service %s: %v", request.URL.String(), err)
 		writer.WriteHeader(http.StatusBadGateway)
 		return
 	}

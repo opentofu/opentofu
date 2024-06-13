@@ -750,7 +750,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		// Note: we don't need to read env variables explicitly because they are read implicitly by aws-sdk-base-go:
 		// see: https://github.com/hashicorp/aws-sdk-go-base/blob/v2.0.0-beta.41/internal/config/config.go#L133
 		// which relies on: https://cs.opensource.google/go/x/net/+/refs/tags/v0.18.0:http/httpproxy/proxy.go;l=89-96
-		HTTPProxyMode:        awsbase.HTTPProxyModeSeparate,
 		HTTPProxy:            aws.String(stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY")),
 		HTTPSProxy:           aws.String(stringAttrDefaultEnvVar(obj, "https_proxy", "HTTPS_PROXY")),
 		NoProxy:              stringAttrDefaultEnvVar(obj, "no_proxy", "NO_PROXY"),
