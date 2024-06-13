@@ -234,8 +234,8 @@ func TestMetaBackend_configureInterpolation(t *testing.T) {
 
 	// Get the backend
 	_, err := m.Backend(&BackendOpts{Init: true}, encryption.StateEncryptionDisabled())
-	if err == nil {
-		t.Fatal("should error")
+	if err != nil {
+		t.Fatal("should not error")
 	}
 }
 
