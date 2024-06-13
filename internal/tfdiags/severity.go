@@ -8,7 +8,14 @@ package tfdiags
 import (
 	"fmt"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/options"
 )
+
+var pedanticMode bool
+
+func init() {
+	pedanticMode = options.IsGlobalOptionSet(options.Pedantic)
+}
 
 type SeverityLevel rune
 
@@ -37,11 +44,9 @@ func (i Severity) ToHCL() hcl.DiagnosticSeverity {
 	}
 }
 
-var PedanticMode bool
-
 // NewSeverity creates a new severity based on the level requested and whether we are running pedantic mode
 func NewSeverity(level SeverityLevel) Severity {
-	if PedanticMode && level == WarningLevel {
+	if pedanticMode && level == WarningLevel {
 		return Severity{SeverityLevel: ErrorLevel}
 	}
 	return Severity{SeverityLevel: level}

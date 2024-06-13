@@ -28,8 +28,8 @@ import (
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/options"
 	"github.com/opentofu/opentofu/internal/terminal"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/version"
 	"go.opentelemetry.io/otel/trace"
 
@@ -42,12 +42,6 @@ const (
 
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
-
-	// Global options
-	optionChDir    = "chdir"
-	optionHelp     = "help"
-	optionPedantic = "pedantic"
-	optionVersion  = "version"
 )
 
 // primaryUi wraps the primary output cli.Ui
@@ -91,15 +85,15 @@ func realMain() int {
 
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
-	options, err := getGlobalOptions(args)
+	opts, err := options.GetGlobalOptions()
 	if err != nil {
 		cliUi.Error(err.Error())
 		return 1
 	}
-	args = args[len(options):]
+	args = args[len(opts):]
 
 	// Set to the version subcommand if version has been toggled
-	if _, ok := options[optionVersion]; ok {
+	if _, ok := opts[options.Version]; ok {
 		newArgs := make([]string, len(args)+1)
 		newArgs = append(newArgs, "version")
 		copy(newArgs[1:], args)
@@ -107,14 +101,14 @@ func realMain() int {
 	}
 
 	// Attach the help option to the command or subcommand arguments to activate help if it has been toggled
-	if _, ok := options[optionHelp]; ok {
-		args = append(args, fmt.Sprintf("-%s", optionHelp))
+	if _, ok := opts[options.Help]; ok {
+		args = append(args, fmt.Sprintf("-%s", options.Help))
 	}
 
 	// Set up in pedantic mode if pedantic has been toggled
 	var pedanticMode bool
-	if _, ok := options[optionPedantic]; ok {
-		pedanticMode, cliUi.pedanticMode, tfdiags.PedanticMode = true, true, true
+	if _, ok := opts[options.Pedantic]; ok {
+		pedanticMode, cliUi.pedanticMode = true, true
 	}
 
 	err = openTelemetryInit()
@@ -270,7 +264,7 @@ func realMain() int {
 
 	// The arguments can contain the -chdir global option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work.
-	if overrideWd, ok := options[optionChDir]; ok {
+	if overrideWd, ok := opts[options.ChDir]; ok {
 		err = os.Chdir(overrideWd)
 		if err != nil {
 			cliUi.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
@@ -507,40 +501,3 @@ func mkConfigDir(configDir string) error {
 	return err
 }
 
-func getGlobalOptions(args []string) (map[string]string, error) {
-	options := make(map[string]string)
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			// Global options are processed before the subcommand
-			// Exit if we have found the subcommand
-			break
-		}
-
-		option := strings.SplitN(arg[1:], "=", 2)
-		if option[0] == optionChDir {
-			if len(option) != 2 {
-				return nil, fmt.Errorf(
-					"Invalid global option -%s: must include an equals sign followed by a value: -%s=value",
-					option[0],
-					option[0])
-			}
-		} else if option[0] == "v" || option[0] == "-version" {
-			// Capture -v and --version as version option
-			option[0] = optionVersion
-		}
-
-		switch option[0] {
-		case optionChDir, optionHelp, optionPedantic, optionVersion:
-			break
-		default:
-			return nil, fmt.Errorf("Unsupported global option -%s", option[0])
-		}
-
-		if len(option) != 2 {
-			option = append(option, "")
-		}
-		options[option[0]] = option[1]
-	}
-
-	return options, nil
-}
