@@ -79,8 +79,6 @@ func realMain() int {
 			ErrorWriter: os.Stderr,
 			Reader:      os.Stdin,
 		},
-		pedanticMode:   false,
-		warningFlagged: false,
 	}
 
 	binName := filepath.Base(os.Args[0])
