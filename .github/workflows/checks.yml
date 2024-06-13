@@ -83,7 +83,7 @@ jobs:
 
       - name: "Unit tests"
         run: |
-          go test -timeout 20m ./...
+          go test -timeout 20m -v ./...
   race-tests:
     name: "Race Tests"
     runs-on: ubuntu-latest
