@@ -97,7 +97,7 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 
 	request := testcontainers.ContainerRequest{
 		HostAccessPorts: nil,
-		Image:           "localstack/localstack",
+		Image:           "localstack/localstack:latest-amd64",
 		Env: map[string]string{
 			"USE_SSL":         "1",
 			"LOCALSTACK_HOST": fmt.Sprintf("localhost:%d", localStackPort),
