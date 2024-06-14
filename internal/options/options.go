@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	OptionChDir = "chdir"
+	OptionChDir    = "chdir"
 	OptionHelp     = "help"
 	OptionPedantic = "pedantic"
 	OptionVersion  = "version"
