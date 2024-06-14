@@ -11,11 +11,11 @@ func TestGetGlobalOptions(t *testing.T) {
 		args      []string
 		expected map[string]string
 	}{
-		{"xx", []string{"-chdir=target", "plan", "-state=file.tfstate"}, map[string]string{"chdir": "target"}},
-		{"xx", []string{"-version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
-		{"xx", []string{"--version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
-		{"xx", []string{"-random", "plan", "-state=file.tfstate"}, map[string]string{"random": ""}},
-		{"xx", []string{"plan", "-state=file.tfstate"}, map[string]string{}},
+		{"positive chdir", []string{"-chdir=target", "plan", "-state=file.tfstate"}, map[string]string{"chdir": "target"}},
+		{"positive tc 1 version", []string{"-version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
+		{"positive tc 2 version", []string{"--version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
+		{"positive tc random", []string{"-random", "plan", "-state=file.tfstate"}, map[string]string{"random": ""}},
+		{"positive tc omitted", []string{"plan", "-state=file.tfstate"}, map[string]string{}},
 	}
 
 	var opts map[string]string
@@ -29,9 +29,11 @@ func TestGetGlobalOptions(t *testing.T) {
 		})
 	}
 
-	opts, err = GetGlobalOptions([]string{"-chdir", "plan", "-state=file.tfstate"})
-	assert.Nil(t, opts)
-	assert.Error(t, err)
+	t.Run("negative tc chdir", func(t *testing.T) {
+		opts, err = GetGlobalOptions([]string{"-chdir", "plan", "-state=file.tfstate"})
+		assert.Nil(t, opts)
+		assert.Error(t, err)
+	})
 }
 
 
