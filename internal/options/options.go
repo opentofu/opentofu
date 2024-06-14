@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	ChDir    = "chdir"
-	Help     = "help"
-	Pedantic = "pedantic"
-	Version  = "version"
+	OptionChDir = "chdir"
+	OptionHelp     = "help"
+	OptionPedantic = "pedantic"
+	OptionVersion  = "version"
 )
 
 func GetGlobalOptions(args []string) (map[string]string, error) {
@@ -22,7 +22,7 @@ func GetGlobalOptions(args []string) (map[string]string, error) {
 		}
 
 		option := strings.SplitN(arg[1:], "=", 2)
-		if option[0] == ChDir {
+		if option[0] == OptionChDir {
 			if len(option) != 2 {
 				return nil, fmt.Errorf(
 					"invalid global option -%s: must include an equals sign followed by a value: -%s=value",
@@ -31,7 +31,7 @@ func GetGlobalOptions(args []string) (map[string]string, error) {
 			}
 		} else if option[0] == "v" || option[0] == "-version" {
 			// Capture -v and --version as version option
-			option[0] = Version
+			option[0] = OptionVersion
 		}
 
 		if len(option) != 2 {

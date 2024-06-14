@@ -91,7 +91,7 @@ func realMain() int {
 	args = args[len(opts):]
 
 	// Set to the version subcommand if version has been toggled
-	if _, ok := opts[options.Version]; ok {
+	if _, ok := opts[options.OptionVersion]; ok {
 		newArgs := make([]string, len(args)+1)
 		newArgs = append(newArgs, "version")
 		copy(newArgs[1:], args)
@@ -99,13 +99,13 @@ func realMain() int {
 	}
 
 	// Attach the help option to the command or subcommand arguments to activate help if it has been toggled
-	if _, ok := opts[options.Help]; ok {
-		args = append(args, fmt.Sprintf("-%s", options.Help))
+	if _, ok := opts[options.OptionHelp]; ok {
+		args = append(args, fmt.Sprintf("-%s", options.OptionHelp))
 	}
 
 	// Set up in pedantic mode if pedantic has been toggled
 	var pedanticMode bool
-	if _, ok := opts[options.Pedantic]; ok {
+	if _, ok := opts[options.OptionPedantic]; ok {
 		pedanticMode, cliUi.pedanticMode = true, true
 	}
 
@@ -262,7 +262,7 @@ func realMain() int {
 
 	// The arguments can contain the -chdir global option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work.
-	if overrideWd, ok := opts[options.ChDir]; ok {
+	if overrideWd, ok := opts[options.OptionChDir]; ok {
 		err = os.Chdir(overrideWd)
 		if err != nil {
 			cliUi.Error(fmt.Sprintf("Error handling -chdir option: %s", err))

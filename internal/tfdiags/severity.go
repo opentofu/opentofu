@@ -39,7 +39,7 @@ func (i Severity) ToHCL() hcl.DiagnosticSeverity {
 	}
 }
 
-var pedanticMode bool = options.IsGlobalOptionSet(options.Pedantic, os.Args[1:])
+var pedanticMode bool = options.IsGlobalOptionSet(options.OptionPedantic, os.Args[1:])
 
 // NewSeverity creates a new severity based on the level requested and whether we are running in pedantic mode
 func NewSeverity(level SeverityLevel) Severity {
