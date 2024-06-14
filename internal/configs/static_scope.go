@@ -18,9 +18,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func newStaticScope(s *StaticContext, ident StaticIdentifier, stack []StaticIdentifier) *lang.Scope {
+func newStaticScope(eval *StaticEvaluator, ident StaticIdentifier, stack []StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
-		Data:        staticScopeData{s, ident, stack},
+		Data:        staticScopeData{eval, ident, stack},
 		ParseRef:    addrs.ParseRef,
 		SourceAddr:  ident.Subject,
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
@@ -30,12 +30,12 @@ func newStaticScope(s *StaticContext, ident StaticIdentifier, stack []StaticIden
 }
 
 type staticScopeData struct {
-	ctx    *StaticContext
+	eval   *StaticEvaluator
 	source StaticIdentifier
 	stack  []StaticIdentifier
 }
 
-func (s staticScopeData) eval(ident StaticIdentifier, fn func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) evaluate(ident StaticIdentifier, fn func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	circular := false
@@ -103,7 +103,7 @@ func (s staticScopeData) GetResource(addrs.Resource, tfdiags.SourceRange) (cty.V
 func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	local, ok := s.ctx.cfg.Locals[ident.Name]
+	local, ok := s.eval.cfg.Locals[ident.Name]
 	if !ok {
 		return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -114,13 +114,13 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 	}
 
 	id := StaticIdentifier{
-		Module:    s.ctx.Call.Addr,
+		Module:    s.eval.call.Addr,
 		Subject:   addrs.LocalValue{Name: local.Name},
 		DeclRange: local.DeclRange,
 	}
 
-	return s.eval(id, func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-		val, diags := newStaticScope(s.ctx, id, stack).EvalExpr(local.Expr, cty.DynamicPseudoType)
+	return s.evaluate(id, func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+		val, diags := newStaticScope(s.eval, id, stack).EvalExpr(local.Expr, cty.DynamicPseudoType)
 		return val, diags.ToHCL()
 	})
 }
@@ -156,10 +156,10 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 		return cty.StringVal(filepath.ToSlash(wd)), diags
 
 	case "module":
-		return cty.StringVal(s.ctx.cfg.SourceDir), diags
+		return cty.StringVal(s.eval.cfg.SourceDir), diags
 
 	case "root":
-		return cty.StringVal(s.ctx.Call.RootPath), diags
+		return cty.StringVal(s.eval.call.RootPath), diags
 
 	default:
 		suggestion := didyoumean.NameSuggestion(addr.Name, []string{"cwd", "module", "root"})
@@ -181,7 +181,7 @@ func (s staticScopeData) GetTerraformAttr(_ addrs.TerraformAttr, _ tfdiags.Sourc
 func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	variable, ok := s.ctx.cfg.Variables[ident.Name]
+	variable, ok := s.eval.cfg.Variables[ident.Name]
 	if !ok {
 		return cty.NilVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -192,13 +192,13 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	}
 
 	id := StaticIdentifier{
-		Module:    s.ctx.Call.Addr,
+		Module:    s.eval.call.Addr,
 		Subject:   addrs.InputVariable{Name: variable.Name},
 		DeclRange: variable.DeclRange,
 	}
 
-	return s.eval(id, func(_ []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-		return s.ctx.Call.Variables(variable)
+	return s.evaluate(id, func(_ []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+		return s.eval.call.Variables(variable)
 	})
 }
 func (s staticScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {

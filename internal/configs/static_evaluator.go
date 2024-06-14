@@ -40,29 +40,29 @@ type StaticModuleCall struct {
 	RootPath string
 }
 
-type StaticContext struct {
-	Call StaticModuleCall
+type StaticEvaluator struct {
+	call StaticModuleCall
 	cfg  *Module
 }
 
 // Creates a static context based from the given module and module call
-func NewStaticContext(mod *Module, call StaticModuleCall) *StaticContext {
-	return &StaticContext{
-		Call: call,
+func NewStaticEvaluator(mod *Module, call StaticModuleCall) *StaticEvaluator {
+	return &StaticEvaluator{
+		call: call,
 		cfg:  mod,
 	}
 }
 
-func (s *StaticContext) scope(ident StaticIdentifier) *lang.Scope {
+func (s *StaticEvaluator) scope(ident StaticIdentifier) *lang.Scope {
 	return newStaticScope(s, ident, nil)
 }
 
-func (s StaticContext) Evaluate(expr hcl.Expression, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+func (s StaticEvaluator) Evaluate(expr hcl.Expression, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 	val, diags := s.scope(ident).EvalExpr(expr, cty.DynamicPseudoType)
 	return val, diags.ToHCL()
 }
 
-func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
+func (s StaticEvaluator) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	refs, refsDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
@@ -80,7 +80,7 @@ func (s StaticContext) DecodeExpression(expr hcl.Expression, ident StaticIdentif
 	return gohcl.DecodeExpression(expr, ctx, val)
 }
 
-func (s StaticContext) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+func (s StaticEvaluator) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	refs, refsDiags := lang.References(addrs.ParseRef, hcldec.Variables(body, spec))

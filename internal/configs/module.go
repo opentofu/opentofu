@@ -186,20 +186,20 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	}
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
-	ctx := NewStaticContext(mod, call)
+	eval := NewStaticEvaluator(mod, call)
 
 	// If we have a backend, it may have fields that require locals/vars
 	if mod.Backend != nil {
 		// We don't know the backend type / loader at this point so we save the context for later use
-		mod.Backend.Ctx = ctx
+		mod.Backend.Eval = eval
 	}
 	if mod.CloudConfig != nil {
-		mod.CloudConfig.ctx = ctx
+		mod.CloudConfig.eval = eval
 	}
 
 	// Process all module calls now that we have the static context
 	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.decodeStaticFields(ctx)
+		mDiags := mc.decodeStaticFields(eval)
 		diags = append(diags, mDiags...)
 	}
 

@@ -773,7 +773,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 	backendConfig := &configs.Backend{
 		Type:   "http",
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
-		Ctx:    configs.NewStaticContext(nil, configs.StaticModuleCall{}),
+		Eval:   configs.NewStaticEvaluator(nil, configs.StaticModuleCall{}),
 	}
 	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()

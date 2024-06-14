@@ -148,7 +148,7 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	return mc, diags
 }
 
-func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
+func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 	if mc.Source == nil {
 		// Broken, will error elsewhere
 		return nil
@@ -169,12 +169,12 @@ func (mc *ModuleCall) decodeStaticFields(ctx *StaticContext) hcl.Diagnostics {
 			return variable.Default, nil
 		}
 
-		ident := StaticIdentifier{Module: ctx.Call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
-		return ctx.Evaluate(v.Expr, ident)
+		ident := StaticIdentifier{Module: eval.call.Addr.Child(mc.Name), Subject: addrs.InputVariable{Name: variable.Name}}
+		return eval.Evaluate(v.Expr, ident)
 	}
 
 	// Decode source field
-	diags := ctx.DecodeExpression(mc.Source, StaticIdentifier{Module: ctx.Call.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
+	diags := eval.DecodeExpression(mc.Source, StaticIdentifier{Module: eval.call.Addr, Subject: addrs.ModuleCall{Name: mc.Name}}, &mc.SourceAddrRaw)
 	//nolint:nestif // Keeping this similar to the original decode logic for easy review
 	if !diags.HasErrors() {
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built

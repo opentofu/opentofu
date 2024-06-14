@@ -17,7 +17,7 @@ import (
 type Backend struct {
 	Type   string
 	Config hcl.Body
-	Ctx    *StaticContext
+	Eval   *StaticEvaluator
 
 	TypeRange hcl.Range
 	DeclRange hcl.Range
@@ -60,7 +60,7 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 }
 
 func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
-	return b.Ctx.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
+	return b.Eval.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   addrs.BackendAttr{Type: b.Type},
 		DeclRange: b.DeclRange,
