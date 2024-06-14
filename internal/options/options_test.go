@@ -15,6 +15,7 @@ func TestGetGlobalOptions(t *testing.T) {
 		{"positive tc 1 version", []string{"-version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
 		{"positive tc 2 version", []string{"--version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
 		{"positive tc random", []string{"-random", "plan", "-state=file.tfstate"}, map[string]string{"random": ""}},
+		{"positive tc multi", []string{"-help", "-version", "plan", "-state=file.tfstate"}, map[string]string{"help": "", "version": ""}},
 		{"positive tc omitted", []string{"plan", "-state=file.tfstate"}, map[string]string{}},
 	}
 
