@@ -8,10 +8,10 @@ import (
 func TestGetGlobalOptions(t *testing.T) {
 	testCases := []struct {
 		name     string
-		args      []string
+		args     []string
 		expected map[string]string
 	}{
-		{"positive chdir", []string{"-chdir=target", "plan", "-state=file.tfstate"}, map[string]string{"chdir": "target"}},
+		{"positive tc chdir", []string{"-chdir=target", "plan", "-state=file.tfstate"}, map[string]string{"chdir": "target"}},
 		{"positive tc 1 version", []string{"-version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
 		{"positive tc 2 version", []string{"--version", "plan", "-state=file.tfstate"}, map[string]string{"version": ""}},
 		{"positive tc random", []string{"-random", "plan", "-state=file.tfstate"}, map[string]string{"random": ""}},
@@ -35,7 +35,6 @@ func TestGetGlobalOptions(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
-
 
 func TestIsGlobalOptionSet(t *testing.T) {
 	t.Skip()
