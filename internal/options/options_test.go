@@ -38,5 +38,19 @@ func TestGetGlobalOptions(t *testing.T) {
 }
 
 func TestIsGlobalOptionSet(t *testing.T) {
-	t.Skip()
+	testCases := []struct {
+		name     string
+		find     string
+		args     []string
+		expected bool
+	}{
+		{"positive tc found", "chdir", []string{"-chdir=target", "plan", "-state=file.tfstate"}, true},
+		{"positive tc not found", "random", []string{"-chdir=target", "plan", "-state=file.tfstate"}, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.EqualValues(t, tc.expected, IsGlobalOptionSet(tc.find, tc.args))
+		})
+	}
 }
