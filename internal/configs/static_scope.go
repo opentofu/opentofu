@@ -114,7 +114,7 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 	}
 
 	id := StaticIdentifier{
-		Module:    s.eval.call.Addr,
+		Module:    s.eval.call.addr,
 		Subject:   addrs.LocalValue{Name: local.Name},
 		DeclRange: local.DeclRange,
 	}
@@ -159,7 +159,7 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 		return cty.StringVal(s.eval.cfg.SourceDir), diags
 
 	case "root":
-		return cty.StringVal(s.eval.call.RootPath), diags
+		return cty.StringVal(s.eval.call.rootPath), diags
 
 	default:
 		suggestion := didyoumean.NameSuggestion(addr.Name, []string{"cwd", "module", "root"})
@@ -192,13 +192,13 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	}
 
 	id := StaticIdentifier{
-		Module:    s.eval.call.Addr,
+		Module:    s.eval.call.addr,
 		Subject:   addrs.InputVariable{Name: variable.Name},
 		DeclRange: variable.DeclRange,
 	}
 
 	return s.evaluate(id, func(_ []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-		return s.eval.call.Variables(variable)
+		return s.eval.call.vars(variable)
 	})
 }
 func (s staticScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {

@@ -33,24 +33,24 @@ type StaticModuleVariables func(v *Variable) (cty.Value, hcl.Diagnostics)
 
 // StaticModuleCall contains the information required to call a given module
 type StaticModuleCall struct {
-	Addr      addrs.Module
-	Variables StaticModuleVariables
-	RootPath  string
+	addr     addrs.Module
+	vars     StaticModuleVariables
+	rootPath string
 }
 
 func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath string) StaticModuleCall {
 	return StaticModuleCall{
-		Addr:      addr,
-		Variables: vars,
-		RootPath:  rootPath,
+		addr:     addr,
+		vars:     vars,
+		rootPath: rootPath,
 	}
 }
 
 //nolint:gochecknoglobals // only used in testing
 var RootModuleCallForTesting = StaticModuleCall{
-	Addr:     addrs.RootModule,
-	RootPath: "<testing>",
-	Variables: func(_ *Variable) (cty.Value, hcl.Diagnostics) {
+	addr:     addrs.RootModule,
+	rootPath: "<testing>",
+	vars: func(_ *Variable) (cty.Value, hcl.Diagnostics) {
 		panic("Variables not configured for this test!")
 	},
 }
