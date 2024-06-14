@@ -69,8 +69,9 @@ Warning: Configuration requests terraform version >= 1.6!
   Please update the configuration to specify the required OpenTofu Version.  More information is available in the debug log.
 Debug: terraform required_version = 1.7.4 in main.tf:421
 ```
-
 This could also include some information on how to remedy this situation, perhaps linking to the docs.
+
+If an incompatible (>1.5.5) version is detected, OpenTofu will ignore the "Terraform Required Version".
 
 ### Technical Approach
 
@@ -84,13 +85,15 @@ Either path is easy to both implement and thoroughly test.
 
 The `configs.Module.CheckCoreVersionRequirements()` function is where we will need to emit the warnings and corresponding debug log entries.
 
+As discussed in the `.tofu` RFC, we will want to quickly work on support for this featu
+
 ### Open Questions
 
 Should there be an option (config, CLI, or ENV) to:
 * Disable the version checking altogether?
 * Don't check terraform required_versions
 * Treat both Tofu and Terraform version as identical instead of using our equivalent "terraform version" guess?
-* Do we show the guessed terraform version in `tofu -version`, maybe with a `-verbose` flag?
+* ~~Do we show the guessed terraform version in `tofu -version`, maybe with a `-verbose` flag?~~ This goes against the Technical Steering Committee's strong recommendation against a version compatibility table.
 
 ### Future Considerations
 
@@ -102,5 +105,5 @@ Don't implement this and assume that all module and project authors will adopt t
 
 Implement an option to disable required_version checking.
 
-Try to guess the equivalent OpenTofu version for a specified Terraform version.
+~~Try to guess the equivalent OpenTofu version for a specified Terraform version.~~ This goes against the Technical Steering Committee's strong recommendation against a version compatibility table.
 
