@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -281,6 +282,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		os.Chdir(oldDir)
+		runtime.GC()
 	})
 
 	hooks := &testInstallHooks{}
