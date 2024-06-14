@@ -162,12 +162,12 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
 	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
-	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.StaticModuleCall{})
+	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting)
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
 
-	config, snap, diags := loader.LoadConfigWithSnapshot(dir, configs.StaticModuleCall{})
+	config, snap, diags := loader.LoadConfigWithSnapshot(dir, configs.RootModuleCallForTesting)
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -773,7 +773,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 	backendConfig := &configs.Backend{
 		Type:   "http",
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
-		Eval:   configs.NewStaticEvaluator(nil, configs.StaticModuleCall{}),
+		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting),
 	}
 	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()

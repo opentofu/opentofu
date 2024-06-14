@@ -22,7 +22,7 @@ func TestChecksHappyPath(t *testing.T) {
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
 	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, nil)
-	_, instDiags := inst.InstallModules(context.Background(), fixtureDir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.StaticModuleCall{})
+	_, instDiags := inst.InstallModules(context.Background(), fixtureDir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting)
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
@@ -32,7 +32,7 @@ func TestChecksHappyPath(t *testing.T) {
 
 	/////////////////////////////////////////////////////////////////////////
 
-	cfg, hclDiags := loader.LoadConfig(fixtureDir, configs.StaticModuleCall{})
+	cfg, hclDiags := loader.LoadConfig(fixtureDir, configs.RootModuleCallForTesting)
 	if hclDiags.HasErrors() {
 		t.Fatalf("invalid configuration: %s", hclDiags.Error())
 	}

@@ -25,7 +25,7 @@ func TestLoadConfigWithSnapshot(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, got, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.StaticModuleCall{})
+	_, got, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting)
 	assertNoDiagnostics(t, diags)
 	if got == nil {
 		t.Fatalf("snapshot is nil; want non-nil")
@@ -92,9 +92,9 @@ func TestLoadConfigWithSnapshot_invalidSource(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, _, diags := loader.LoadConfigWithSnapshot(".", configs.StaticModuleCall{})
+	_, _, diags := loader.LoadConfigWithSnapshot(".", configs.RootModuleCallForTesting)
 	if !diags.HasErrors() {
-		t.Error("LoadConfigWithSnapshot succeeded; want errors", configs.StaticModuleCall{})
+		t.Error("LoadConfigWithSnapshot succeeded; want errors", configs.RootModuleCallForTesting)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestSnapshotRoundtrip(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, snap, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.StaticModuleCall{})
+	_, snap, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting)
 	assertNoDiagnostics(t, diags)
 	if snap == nil {
 		t.Fatalf("snapshot is nil; want non-nil")
@@ -118,7 +118,7 @@ func TestSnapshotRoundtrip(t *testing.T) {
 		t.Fatalf("loader is nil; want non-nil")
 	}
 
-	config, diags := snapLoader.LoadConfig(fixtureDir, configs.StaticModuleCall{})
+	config, diags := snapLoader.LoadConfig(fixtureDir, configs.RootModuleCallForTesting)
 	assertNoDiagnostics(t, diags)
 	if config == nil {
 		t.Fatalf("config is nil; want non-nil")
