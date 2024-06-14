@@ -16,7 +16,7 @@ Hello! It's been a busy month since the last "Weekly Update" and there is a lot 
   - Performance improvements:
     - [Write state using compact JSON representation](https://github.com/opentofu/opentofu/pull/1647)
     - [Make persist interval for remote state backend configurable](https://github.com/opentofu/opentofu/pull/1591)
-  - [Support for mocking](https://github.com/opentofu/opentofu/pull/1499) in `tofu test`
+  - [Support for overrides](https://github.com/opentofu/opentofu/pull/1499) in `tofu test`
   - [Allow variable to pass inside `variables` block](https://github.com/opentofu/opentofu/pull/1488)
 - Upcoming 1.8.0-alpha1, as early as next week!
   - Enables use of variables in backends and module sources!
