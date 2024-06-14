@@ -285,7 +285,7 @@ type Operation struct {
 	ForceReplace []addrs.AbsResourceInstance
 	// Injected by the command creating the operation (plan/apply/refresh/etc...)
 	Variables map[string]UnparsedVariableValue
-	Call      configs.StaticModuleCall
+	RootCall  configs.StaticModuleCall
 
 	// Some operations use root module variables only opportunistically or
 	// don't need them at all. If this flag is set, the backend must treat

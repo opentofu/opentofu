@@ -487,7 +487,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 	// Inject variables and root module call
 	var diags, callDiags tfdiags.Diagnostics
 	opReq.Variables, diags = m.collectVariableValues()
-	opReq.Call, callDiags = m.rootModuleCall(opReq.ConfigDir)
+	opReq.RootCall, callDiags = m.rootModuleCall(opReq.ConfigDir)
 	diags = diags.Append(callDiags)
 	if diags.HasErrors() {
 		return nil, diags
