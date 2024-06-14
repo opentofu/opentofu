@@ -307,6 +307,8 @@ type ModuleRequest struct {
 	// rather than to either its source address or its version number.
 	CallRange hcl.Range
 
+	// This is where variables and other information from the calling module
+	// are propogated to the child module for use in the static evaluator
 	Call StaticModuleCall
 }
 

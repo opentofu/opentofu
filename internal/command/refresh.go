@@ -69,6 +69,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
 
+	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration

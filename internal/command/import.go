@@ -204,6 +204,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 	opReq.Hooks = []tofu.Hook{c.uiHook()}
 	{
+		// Setup required variables/call for operation (usually done in Meta.RunOperation)
 		var moreDiags, callDiags tfdiags.Diagnostics
 		opReq.Variables, moreDiags = c.collectVariableValues()
 		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)

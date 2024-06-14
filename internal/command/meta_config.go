@@ -115,10 +115,10 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 }
 
 func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags.Diagnostics) {
-	if m.call == nil {
+	if m.rootModuleCallCache == nil {
 		variables, diags := m.collectVariableValues()
 
-		m.call = &configs.StaticModuleCall{
+		m.rootModuleCallCache = &configs.StaticModuleCall{
 			Addr: addrs.RootModule,
 			Variables: func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
 				name := variable.Name
@@ -165,10 +165,10 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 
 			RootPath: rootDir,
 		}
-		return *m.call, diags
+		return *m.rootModuleCallCache, diags
 	}
 
-	return *m.call, nil
+	return *m.rootModuleCallCache, nil
 }
 
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any

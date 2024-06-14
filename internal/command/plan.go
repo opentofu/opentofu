@@ -69,6 +69,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
+	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration

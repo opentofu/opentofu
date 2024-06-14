@@ -269,10 +269,10 @@ type Meta struct {
 
 	outputInJSON bool
 
-	// Used to cache the root module call and known variables.
+	// Used to cache the root module rootModuleCallCache and known variables.
 	// This helps prevent duplicate errors/warnings.
-	call               *configs.StaticModuleCall
-	inputVariableCache map[string]backend.UnparsedVariableValue
+	rootModuleCallCache *configs.StaticModuleCall
+	inputVariableCache  map[string]backend.UnparsedVariableValue
 }
 
 type testingOverrides struct {

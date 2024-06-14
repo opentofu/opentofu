@@ -67,6 +67,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
