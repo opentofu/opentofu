@@ -83,7 +83,7 @@ func realMain() int {
 
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
-	opts, err := options.GetGlobalOptions()
+	opts, err := options.GetGlobalOptions(args)
 	if err != nil {
 		cliUi.Error(err.Error())
 		return 1

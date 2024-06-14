@@ -2,7 +2,6 @@ package options
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -13,9 +12,9 @@ const (
 	Version  = "version"
 )
 
-func GetGlobalOptions() (map[string]string, error) {
+func GetGlobalOptions(args []string) (map[string]string, error) {
 	options := make(map[string]string)
-	for _, arg := range os.Args[1:] {
+	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the subcommand
 			// Exit if we have found the subcommand
@@ -44,8 +43,8 @@ func GetGlobalOptions() (map[string]string, error) {
 	return options, nil
 }
 
-func IsGlobalOptionSet(match string) bool {
-	for _, arg := range os.Args[1:] {
+func IsGlobalOptionSet(find string, args []string) bool {
+	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the subcommand
 			// Return if we have found the subcommand
@@ -53,7 +52,7 @@ func IsGlobalOptionSet(match string) bool {
 		}
 
 		option := strings.SplitN(arg[1:], "=", 2)
-		if option[0] == match {
+		if option[0] == find {
 			return true
 		}
 	}

@@ -9,13 +9,8 @@ import (
 	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/options"
+	"os"
 )
-
-var pedanticMode bool
-
-func init() {
-	pedanticMode = options.IsGlobalOptionSet(options.Pedantic)
-}
 
 type SeverityLevel rune
 
@@ -43,6 +38,8 @@ func (i Severity) ToHCL() hcl.DiagnosticSeverity {
 		panic(fmt.Sprintf("unknown diagnostic severity %s", i))
 	}
 }
+
+var pedanticMode bool = options.IsGlobalOptionSet(options.Pedantic, os.Args[1:])
 
 // NewSeverity creates a new severity based on the level requested and whether we are running in pedantic mode
 func NewSeverity(level SeverityLevel) Severity {
