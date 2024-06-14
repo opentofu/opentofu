@@ -463,9 +463,10 @@ func TestNewSignatureAuthentication_expired(t *testing.T) {
 // to OpenPGP failures from malformed keys or signatures.
 func TestSignatureAuthentication_failure(t *testing.T) {
 	tests := map[string]struct {
-		signature string
-		keys      []SigningKey
-		err       string
+		signature    string
+		keys         []SigningKey
+		errorType    any
+		errorMessage string
 	}{
 		"invalid key": {
 			testHashicorpSignatureGoodBase64,
@@ -474,7 +475,8 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 					ASCIIArmor: "invalid PGP armor value",
 				},
 			},
-			"error decoding signing key: openpgp: invalid argument: no armored data found",
+			openpgpErrors.InvalidArgumentError(""),
+			"no armored data found",
 		},
 		"invalid signature": {
 			testSignatureBadBase64,
@@ -483,7 +485,8 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 					ASCIIArmor: testAuthorKeyArmor,
 				},
 			},
-			"error checking signature: openpgp: invalid data: signature subpacket truncated",
+			openpgpErrors.InvalidArgumentError(""),
+			"signature subpacket truncated",
 		},
 		"no keys match signature": {
 			testAuthorSignatureGoodBase64,
@@ -492,11 +495,13 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 					ASCIIArmor: TestingPublicKey,
 				},
 			},
-			"authentication signature from unknown issuer",
+			nil,
+			ErrUnknownIssuer.Error(),
 		},
 	}
 
 	for name, test := range tests {
+		test := test
 		t.Run(name, func(t *testing.T) {
 			// Location is unused
 			location := PackageLocalArchive("testdata/my-package.zip")
@@ -512,8 +517,21 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 			if result != nil {
 				t.Errorf("wrong result: got %#v, want nil", result)
 			}
-			if gotErr := err.Error(); gotErr != test.err {
-				t.Errorf("wrong err: got %s, want %s", gotErr, test.err)
+			if test.errorType != nil {
+				if err == nil {
+					t.Errorf("expected error of type %v, got nil", test.errorType)
+				}
+				if !errors.As(err, &test.errorType) {
+					t.Errorf("wrong error type: got %v, want %v", err, test.errorType)
+				}
+			}
+			if test.errorMessage != "" {
+				if err == nil {
+					t.Errorf("expected error of type %v, got nil", test.errorType)
+				}
+				if !strings.Contains(err.Error(), test.errorMessage) {
+					t.Errorf("wrong error message: %s (expected an error message containing %s)", err.Error(), test.errorMessage)
+				}
 			}
 		})
 	}
@@ -879,10 +897,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 				t.Setenv(enforceGPGValidationEnvName, tt.envVarValue)
 			}
 
-			actual, err := sigAuth.shouldEnforceGPGValidation()
-			if err != nil {
-				t.Fatal(err)
-			}
+			actual := sigAuth.shouldEnforceGPGValidation()
 			if actual != tt.expected {
 				t.Errorf("expected %t, actual %t", tt.expected, actual)
 			}

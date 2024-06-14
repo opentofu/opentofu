@@ -63,7 +63,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 	for k := range defaults {
 		if _, ok := impliedTypes[k]; !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.NewSeverity(tfdiags.WarningLevel),
+				tfdiags.Warning,
 				fmt.Sprintf("Ignored mock/override field `%v`", k),
 				"The field is unknown. Please, ensure it is a part of resource definition.",
 			))
@@ -79,7 +79,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 	addPotentialDefaultsWarning := func(key, description string) {
 		if _, ok := defaults[key]; ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.NewSeverity(tfdiags.WarningLevel),
+				tfdiags.Warning,
 				fmt.Sprintf("Ignored mock/override field `%v`", key),
 				description,
 			))
@@ -117,7 +117,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 
 			for _, err := range typeConformanceErrs {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.NewSeverity(tfdiags.WarningLevel),
+					tfdiags.Warning,
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
 					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", err),
 				))
@@ -128,7 +128,7 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 		v, ok := mvc.getMockValueByType(impliedTypes[k])
 		if !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.NewSeverity(tfdiags.ErrorLevel),
+				tfdiags.Error,
 				"Failed to generate mock value",
 				fmt.Sprintf("Mock value cannot be generated for dynamic type. Please specify the `%v` field explicitly in the configuration.", k),
 			))
@@ -169,7 +169,7 @@ func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
 			hasDefaultVal = false
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.NewSeverity(tfdiags.WarningLevel),
+				tfdiags.Warning,
 				fmt.Sprintf("Ignored mock/override field `%v`", k),
 				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
 			))
@@ -182,7 +182,7 @@ func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 
 			if hasDefaultVal {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.NewSeverity(tfdiags.WarningLevel),
+					tfdiags.Warning,
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
 					"Cannot overridde block value, because it's not present in configuration.",
 				))
@@ -271,7 +271,7 @@ func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 	default:
 		// Shouldn't happen as long as blocks are represented by lists / maps / sets / objs.
 		return cty.NilVal, diags.Append(tfdiags.WholeContainingBody(
-			tfdiags.NewSeverity(tfdiags.ErrorLevel),
+			tfdiags.Error,
 			fmt.Sprintf("Unexpected block type: %v", targetType.FriendlyName()),
 			"Failed to generate mock value for this block type. Please, report it as an issue at OpenTofu repository, since it's not expected.",
 		))

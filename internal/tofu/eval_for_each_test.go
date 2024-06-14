@@ -189,7 +189,7 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 			if len(diags) != 1 {
 				t.Fatalf("got %d diagnostics; want 1", diags)
 			}
-			if got, want := diags[0].Severity().SeverityLevel, tfdiags.ErrorLevel; got != want {
+			if got, want := diags[0].Severity(), tfdiags.Error; got != want {
 				t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
 			}
 			if got, want := diags[0].Description().Summary, test.Summary; got != want {
@@ -296,7 +296,7 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 			}
 			for idx := range test.Wanted {
-				if got, want := diags[idx].Severity().SeverityLevel, tfdiags.ErrorLevel; got != want {
+				if got, want := diags[idx].Severity(), tfdiags.Error; got != want {
 					t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
 				}
 				if got, want := diags[idx].Description().Summary, test.Wanted[idx].Summary; got != want {

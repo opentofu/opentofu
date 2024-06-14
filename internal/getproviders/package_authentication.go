@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"log"
@@ -385,20 +386,23 @@ func NewSignatureAuthentication(meta PackageMeta, document, signature []byte, ke
 	}
 }
 
-func (s signatureAuthentication) shouldEnforceGPGValidation() (bool, error) {
+// ErrUnknownIssuer indicates an error when no valid signature for a provider could be found.
+var ErrUnknownIssuer = fmt.Errorf("authentication signature from unknown issuer")
+
+func (s signatureAuthentication) shouldEnforceGPGValidation() bool {
 	// we should enforce validation for all provider sources that are not the default provider registry
 	if s.ProviderSource != nil && s.ProviderSource.Hostname != tfaddr.DefaultProviderRegistryHost {
-		return true, nil
+		return true
 	}
 
 	// if we have been provided keys, we should enforce GPG validation
 	if len(s.Keys) > 0 {
-		return true, nil
+		return true
 	}
 
 	// otherwise if the environment variable is set to true, we should enforce GPG validation
 	enforceEnvVar, exists := os.LookupEnv(enforceGPGValidationEnvName)
-	return exists && enforceEnvVar == "true", nil
+	return exists && enforceEnvVar == "true"
 }
 func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
 	// otherwise if the environment variable is set to true, we should enforce GPG expiration
@@ -407,10 +411,7 @@ func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
 }
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
-	shouldValidate, err := s.shouldEnforceGPGValidation()
-	if err != nil {
-		return nil, fmt.Errorf("error determining if GPG validation should be enforced for pacakage %s: %w", location.String(), err)
-	}
+	shouldValidate := s.shouldEnforceGPGValidation()
 
 	if !shouldValidate {
 		// As this is a temporary measure, we will log a warning to the user making it very clear what is happening
@@ -430,7 +431,7 @@ func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (
 
 	_, keyID, err := s.findSigningKey()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("the provider is not signed with a valid signing key; please contact the provider author (%w)", err)
 	}
 
 	// We have a valid signature.
@@ -496,8 +497,8 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 		}
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), nil)
-		if !s.shouldEnforceGPGExpiration() && (err == openpgpErrors.ErrSignatureExpired || err == openpgpErrors.ErrKeyExpired) {
-			// Internally openpgp will *only* return the Expired errors if all other checks have succeded
+		if !s.shouldEnforceGPGExpiration() && (errors.Is(err, openpgpErrors.ErrKeyExpired) || errors.Is(err, openpgpErrors.ErrSignatureExpired)) {
+			// Internally openpgp will *only* return the Expired errors if all other checks have succeeded
 			// This is currently the best way to work around expired provider keys
 			fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n", s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)
 			err = nil
@@ -505,7 +506,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 		// If the signature issuer does not match the key, keep trying the
 		// rest of the provided keys.
-		if err == openpgpErrors.ErrUnknownIssuer {
+		if errors.Is(err, openpgpErrors.ErrUnknownIssuer) {
 			continue
 		}
 
@@ -525,7 +526,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 	// If none of the provided keys issued the signature, this package is
 	// unsigned. This is currently a terminal authentication error.
-	return nil, "", fmt.Errorf("authentication signature from unknown issuer")
+	return nil, "", ErrUnknownIssuer
 }
 
 // entityString extracts the key ID and identity name(s) from an openpgp.Entity
