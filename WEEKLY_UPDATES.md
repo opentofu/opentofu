@@ -1,5 +1,32 @@
 # Weekly Updates
 
+## 2024-06-14
+
+Hello! It's been a busy month since the last "Weekly Update" and there is a lot to cover!
+
+- [OpenTofu 1.7.2](https://github.com/opentofu/opentofu/releases/tag/v1.7.2) was released!
+  - This release contained a few bugfixes for new functionality introduced in the 1.7 release cycle
+- Recent Developments:
+  - A new [RFC Process](https://github.com/opentofu/opentofu/blob/main/rfc/20240524-OpenTofu-RFC-Process.md) has been adopted!
+    - This will help define larger proposals and enable more in-depth converations.
+    - Existing accepted RFCs have been backfilled to preserve history.
+  - Static Evaluation work has begun!
+    - [RFC was accepted!](https://github.com/opentofu/opentofu/pull/1649)
+    - The [first PR](https://github.com/opentofu/opentofu/pull/1718) has been opened to implement the RFC
+  - Performance improvements:
+    - [Write state using compact JSON representation](https://github.com/opentofu/opentofu/pull/1647)
+    - [Make persist interval for remote state backend configurable](https://github.com/opentofu/opentofu/pull/1591)
+  - [Support for overrides](https://github.com/opentofu/opentofu/pull/1499) in `tofu test`
+  - [Allow variable to pass inside `variables` block](https://github.com/opentofu/opentofu/pull/1488)
+- Upcoming 1.8.0-alpha1, as early as next week!
+  - Enables use of variables in backends and module sources!
+  - New [.tofu file extension](https://github.com/opentofu/opentofu/pull/1699/files)!
+  - Introduce `tofu {}` block as alternative to `terraform {}` and [change understanding of required_version](https://github.com/opentofu/opentofu/pull/1716)
+  - Full list in the [CHANGELOG](https://github.com/opentofu/opentofu/blob/568ff66/CHANGELOG.md)
+- How can I help?
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
 ## 2024-05-17
 
 Hello there! After the 1.7.1 release last week, the core team has been focusing on a few remaining issues for 1.7.2 and starting to look forward to 1.8!
