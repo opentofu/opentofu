@@ -282,6 +282,8 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		os.Chdir(oldDir)
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents "TempDir RemoveAll cleanup: The process cannot access the file because it is being used by another process" errors during TempDir cleanup.
 		runtime.GC()
 	})
 
