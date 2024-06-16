@@ -96,8 +96,6 @@ I can write OpenTofu code in my IDE, but I don't have complete support for new O
 **With this solution implemented:**  
 This problem will not be solved as part of the technical solution in this RFC, but in my opinion we should also address these issues as a part of this RFC. This is an opportunity to standardize the way IDEs and 3rd party tools support OpenTofu. If we want to support `.tofu` files, we should also make sure that IDE plugins and 3rd Party Tools can support the new files.
 
-TODO: run each user-story with the existing POC, and try to understand if we missed something that this solution is not addressing.
-
 ### Language Server and IDE plugins
 We want to give our users the best possible experience when they work with OpenTofu in their IDE. For a comfortable experience our users need features like code completion, syntax highlighting and validation, jump to definition, and others when they work with OpenTofu. If we add support for `.tofu` files, we need to make sure that the IDE plugins that support OpenTofu will also support the new file extensions.
 
@@ -120,8 +118,6 @@ There are different websites that provide a list of LSP implementations (Like, [
 ### 3rd Party Tools
 Today, some 3rd party tools officially support OpenTofu. Many of them are listed in the [awesome-opentofu repository](https://github.com/virtualroot/awesome-opentofu). Implementing the solution suggested in this RFC might affect 3rd party tools maintainers and they will have to create adjustment support the new `.tofu` extension files. As part of this RFC we should map those tools, understand if they are impacted by this change, and reach out to the maintainers and notify them about this change or contribute.
 
-TODO: add a list of 3rd party tools that are affected by this change.
-
 Furthermore, this change could potentially incentivize other tools to also support OpenTofu. With a clear strategy for managing code divergence in place, maintainers of those tools may gain a better understanding of how to provide support for OpenTofu. Additionally, they can begin by accommodating the new file extensions that we will be introducing in this RFC.
 
 ## Technical Approach
@@ -134,9 +130,7 @@ The technical change required to implement this RFC is fairly simple:
 We have a working [proof of concept](https://github.com/opentofu/opentofu/issues/1328) and the implementation will be very similar to it. So the change in the code is very minimal and isolated to specific locations in the codebase.
 
 ## Open Questions
-1. Do we also want to support overriding `.tfvars` with `.tofuvars`? I can't see how their syntax will differ that will justify creating an override for OpenTofu, but it might be a good idea to support it for consistency. I'm open to hearing your opinions on the matter.
 2. if someone starts a new project (tofu only), do we recommend going with `.tofu` files?
-TODO: List questions that should be discussed and answered during the RFC process.
 
 ## Cons
 A major drawback of this solution is that it leads to code duplication for users who need to stay compatible with both OpenTofu and Terraform (such as module maintainers). If These users want to use an OpenTofu-specific feature, they must create and manage two copies of the same file, one with the `.tf` extension and one with the `.tofu` extension. Potentially, in the future, they might have multiple duplicated files in their project. It can be confusing and error-prone, and might cause configuration drifts between the Terraform and OpenTofu configuration over time.
