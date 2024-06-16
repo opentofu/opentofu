@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -740,15 +739,10 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks)
 	assertNoDiagnostics(t, diags)
 
-	// Use backslashes (\) for Windows paths in ModuleAddr
-	expectedModuleAddr := "test.tests.main.setup"
-	if runtime.GOOS == "windows" {
-		expectedModuleAddr = "test.tests\\main.setup"
-	}
 	wantCalls := []testInstallHookCall{
 		{
 			Name:        "Install",
-			ModuleAddr:  expectedModuleAddr,
+			ModuleAddr:  "test.tests.main.setup",
 			PackageAddr: "",
 			LocalPath:   "setup",
 		},
