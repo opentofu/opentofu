@@ -45,7 +45,7 @@ OpenTofu would read all files, but replace `vars.tf` with `vars.tofu` and will i
 
 ### Supported Scenarios
 As we know, `.tf` are not the only files that OpenTofu can load, in here we will drill down into all the supported scenarios:
-1. this is the basic scenario we mentioned before, if a `.tofu` file exists, we’ll load it instead of the `.tf` file.
+1. This is the basic scenario we mentioned before, if a `.tofu` file exists, we’ll load it instead of the `.tf` file.
 2. For [JSON Configuration](https://opentofu.org/docs/language/syntax/json/), if a `.tofu.json` file exists, we’ll load it instead of the `tf.json` file. 
 3. For [test files](https://opentofu.org/docs/cli/commands/test/), if `.tofutest.hcl`/`.tofutest.json` files exist, we’ll load them instead of the `.tftest.hcl`/`.tftest.json` files. 
 4. For [override files](https://opentofu.org/docs/language/files/override/), if `_override.tofu`/`_override.tofu.json` files exist, we’ll load them instead of the `_override.tf`/`_override.tf.json` files. To further clarify, if a `main.tofu` file exists with the override file `main_override.tf`, we’ll load them both (unless `main_override.tofu` exists, and then we'll load it instead of `main_override.tf` ).
@@ -160,3 +160,4 @@ In my opinion, this is an opportunity to standardize the way IDEs and 3rd party 
 
 ## Issues waiting for this RFC
 * [Allow variables to be marked as deprecated to communicate variable removal to module consumers](https://github.com/opentofu/opentofu/issues/1005).
+* [Needs OpenTofu image version compatible with terraform version 1.7.x](https://github.com/opentofu/opentofu/issues/1708)
