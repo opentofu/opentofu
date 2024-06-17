@@ -33,16 +33,18 @@ type StaticModuleVariables func(v *Variable) (cty.Value, hcl.Diagnostics)
 
 // StaticModuleCall contains the information required to call a given module
 type StaticModuleCall struct {
-	addr     addrs.Module
-	vars     StaticModuleVariables
-	rootPath string
+	addr      addrs.Module
+	vars      StaticModuleVariables
+	rootPath  string
+	workspace string
 }
 
-func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath string) StaticModuleCall {
+func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath string, workspace string) StaticModuleCall {
 	return StaticModuleCall{
-		addr:     addr,
-		vars:     vars,
-		rootPath: rootPath,
+		addr:      addr,
+		vars:      vars,
+		rootPath:  rootPath,
+		workspace: workspace,
 	}
 }
 

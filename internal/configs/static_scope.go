@@ -79,6 +79,8 @@ func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ add
 			continue
 		case addrs.PathAttr:
 			continue
+		case addrs.TerraformAttr:
+			continue
 		default:
 			top := s.stack[len(s.stack)-1]
 			diags = diags.Append(&hcl.Diagnostic{
@@ -181,8 +183,35 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 		return cty.DynamicVal, diags
 	}
 }
-func (s staticScopeData) GetTerraformAttr(_ addrs.TerraformAttr, _ tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
-	panic("Not Available in Static Context")
+func (s staticScopeData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	// TODO this is copied and trimed down from tofu/evaluate.go GetTerraformAttr.  Ideally this should be refactored to a common location.
+	var diags tfdiags.Diagnostics
+	switch addr.Name {
+	case "workspace":
+		workspaceName := s.eval.call.workspace
+		return cty.StringVal(workspaceName), diags
+
+	case "env":
+		// Prior to Terraform 0.12 there was an attribute "env", which was
+		// an alias name for "workspace". This was deprecated and is now
+		// removed.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid "terraform" attribute`,
+			Detail:   `The terraform.env attribute was deprecated in v0.10 and removed in v0.12. The "state environment" concept was renamed to "workspace" in v0.12, and so the workspace name can now be accessed using the terraform.workspace attribute.`,
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
+
+	default:
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid "terraform" attribute`,
+			Detail:   fmt.Sprintf(`The "terraform" object does not have an attribute named %q. The only supported attribute is terraform.workspace, the name of the currently-selected workspace.`, addr.Name),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
+	}
 }
 func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics

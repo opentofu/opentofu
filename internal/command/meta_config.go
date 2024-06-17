@@ -120,6 +120,11 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 	}
 	variables, diags := m.collectVariableValues()
 
+	workspace, err := m.Workspace()
+	if err != nil {
+		diags = diags.Append(err)
+	}
+
 	call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
 		name := variable.Name
 		v, ok := variables[name]
@@ -161,7 +166,7 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 
 		parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
 		return parsed.Value, parsedDiags.ToHCL()
-	}, rootDir)
+	}, rootDir, workspace)
 	m.rootModuleCallCache = &call
 	return call, diags
 }

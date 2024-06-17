@@ -73,6 +73,9 @@ locals {
 	# Missing References
 	local_missing = local.missing
 	var_missing = var.missing
+
+	# Terraform 
+	ws = terraform.workspace
 }
 
 resource "foo" "bar" {}
@@ -147,7 +150,7 @@ resource "foo" "bar" {}
 				return in, nil
 			}
 			return v.Default, nil
-		}, "<testing>")
+		}, "<testing>", "")
 		mod, _ := NewModule([]*File{file}, nil, call, "dir")
 		eval := NewStaticEvaluator(mod, call)
 
@@ -230,7 +233,7 @@ resource "foo" "bar" {}
 				Detail:   fmt.Sprintf("var.%s not included", v.Name),
 				Subject:  v.DeclRange.Ptr(),
 			}}
-		}, "<testing>")
+		}, "<testing>", "")
 		mod, _ := NewModule([]*File{file}, nil, call, "dir")
 		eval := NewStaticEvaluator(mod, call)
 

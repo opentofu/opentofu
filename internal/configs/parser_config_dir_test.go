@@ -112,7 +112,7 @@ func TestParserLoadConfigDirSuccess(t *testing.T) {
 						return v.Default, nil
 					}
 					panic("Variables not configured for this test!")
-				}, "<testing>"))
+				}, "<testing>", ""))
 			if diags.HasErrors() {
 				t.Errorf("unexpected error diagnostics")
 				for _, diag := range diags {

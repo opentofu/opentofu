@@ -143,7 +143,7 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
-			Call:              NewStaticModuleCall(path, call.Variables, parent.Root.Module.SourceDir),
+			Call:              NewStaticModuleCall(path, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
 		}
 		child, modDiags := loadModule(parent.Root, &req, walker)
 		diags = append(diags, modDiags...)

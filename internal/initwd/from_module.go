@@ -216,7 +216,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			// and must thus be rewritten to be absolute addresses again.
 			// For now we can't do this rewriting automatically, but we'll
 			// generate an error to help the user do it manually.
-			mod, _ := loader.Parser().LoadConfigDir(rootDir, configs.NewStaticModuleCall(addrs.RootModule, nil, rootDir)) // ignore diagnostics since we're just doing value-add here anyway
+			mod, _ := loader.Parser().LoadConfigDir(rootDir, configs.NewStaticModuleCall(addrs.RootModule, nil, rootDir, "")) // ignore diagnostics since we're just doing value-add here anyway
 			if mod != nil {
 				for _, mc := range mod.ModuleCalls {
 					if pathTraversesUp(mc.SourceAddrRaw) {

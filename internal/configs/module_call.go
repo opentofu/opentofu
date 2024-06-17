@@ -26,7 +26,9 @@ type ModuleCall struct {
 	SourceAddr    addrs.ModuleSource
 	SourceSet     bool
 
+	// Used when building the corresponding StaticModuleCall
 	Variables StaticModuleVariables
+	Workspace string
 
 	Config hcl.Body
 
@@ -145,10 +147,12 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 }
 
 func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	mc.Workspace = eval.call.workspace
+	mc.decodeStaticVariables(eval)
+
 	var diags hcl.Diagnostics
 	diags = diags.Extend(mc.decodeStaticSource(eval))
 	diags = diags.Extend(mc.decodeStaticVersion(eval))
-	mc.decodeStaticVariables(eval)
 	return diags
 }
 
