@@ -18,11 +18,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func newStaticScope(eval *StaticEvaluator, ident StaticIdentifier, stack []StaticIdentifier) *lang.Scope {
+// Creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
+func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
-		Data:        staticScopeData{eval, ident, stack},
+		Data:        staticScopeData{eval, stack},
 		ParseRef:    addrs.ParseRef,
-		SourceAddr:  ident.Subject,
+		SourceAddr:  stack[len(stack)-1].Subject,
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
 		PureOnly:    false,
 		ConsoleMode: false,
@@ -30,47 +31,45 @@ func newStaticScope(eval *StaticEvaluator, ident StaticIdentifier, stack []Stati
 }
 
 type staticScopeData struct {
-	eval   *StaticEvaluator
-	source StaticIdentifier
-	stack  []StaticIdentifier
+	eval  *StaticEvaluator
+	stack []StaticIdentifier
 }
 
 // staticScopeData must implement lang.Data
 var _ lang.Data = (*staticScopeData)(nil)
 
-func (s staticScopeData) evaluate(ident StaticIdentifier, fn func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)) (cty.Value, tfdiags.Diagnostics) {
+// Creates a nested scope to evaluate nested references
+func (s staticScopeData) scope(ident StaticIdentifier) (*lang.Scope, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	circular := false
 	for _, frame := range s.stack {
 		if frame.String() == ident.String() {
-			circular = true
-			break
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Circular reference",
+				Detail:   fmt.Sprintf("%s is self referential", ident.String()), // TODO use stack in error message
+				Subject:  ident.DeclRange.Ptr(),
+			})
 		}
 	}
-	if circular {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Circular reference",
-			Detail:   fmt.Sprintf("%s is self referential", ident.String()), // TODO use stack in error message
-			Subject:  ident.DeclRange.Ptr(),
-		})
-		return cty.DynamicVal, diags
-	}
+	return newStaticScope(s.eval, append(s.stack, ident)...), diags
+}
 
-	val, vDiags := fn(append(s.stack, ident))
-	diags = diags.Append(vDiags)
-	if vDiags.HasErrors() {
+// If an error occurs when resolving a dependent value, we need to add additional context to the diagnostics
+func (s staticScopeData) enhanceDiagnostics(ident StaticIdentifier, diags tfdiags.Diagnostics) tfdiags.Diagnostics {
+	if diags.HasErrors() {
+		top := s.stack[len(s.stack)-1]
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to compute static value",
-			Detail:   fmt.Sprintf("%s depends on %s which is not available", s.source.String(), ident.String()),
-			Subject:  ident.DeclRange.Ptr(),
+			Detail:   fmt.Sprintf("%s depends on %s which is not available", top, ident.String()),
+			Subject:  top.DeclRange.Ptr(),
 		})
 	}
-	return val, diags
+	return diags
 }
 
+// Early check to only allow references we expect in a static context
 func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ addrs.Referenceable, _ addrs.Referenceable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, ref := range refs {
@@ -82,12 +81,13 @@ func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ add
 		case addrs.PathAttr:
 			continue
 		default:
-			diags = diags.Append(hcl.Diagnostics{&hcl.Diagnostic{
+			top := s.stack[len(s.stack)-1]
+			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Dynamic value in static context",
-				Detail:   fmt.Sprintf("Unable to use %s in static context", subject.String()),
+				Detail:   fmt.Sprintf("Unable to use %s in static context, which is required by %s", subject.String(), top.String()),
 				Subject:  ref.SourceRange.ToHCL().Ptr(),
-			}})
+			})
 		}
 	}
 	return diags
@@ -122,10 +122,14 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 		DeclRange: local.DeclRange,
 	}
 
-	return s.evaluate(id, func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-		val, diags := newStaticScope(s.eval, id, stack).EvalExpr(local.Expr, cty.DynamicPseudoType)
-		return val, diags.ToHCL()
-	})
+	scope, scopeDiags := s.scope(id)
+	diags = diags.Append(scopeDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+
+	val, valDiags := scope.EvalExpr(local.Expr, cty.DynamicPseudoType)
+	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
 func (s staticScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
@@ -200,9 +204,8 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 		DeclRange: variable.DeclRange,
 	}
 
-	return s.evaluate(id, func(_ []StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-		return s.eval.call.vars(variable)
-	})
+	val, valDiags := s.eval.call.vars(variable)
+	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
 func (s staticScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")

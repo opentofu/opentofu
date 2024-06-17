@@ -86,12 +86,14 @@ resource "foo" "bar" {}
 		t.Fatal(fileDiags)
 	}
 
+	dummyIdentifier := StaticIdentifier{Subject: addrs.LocalValue{Name: "test"}}
+
 	t.Run("Empty Eval", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
-		value, diags := emptyEval.Evaluate(mod.Locals["static"].Expr, StaticIdentifier{})
+		value, diags := emptyEval.Evaluate(mod.Locals["static"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -106,7 +108,7 @@ resource "foo" "bar" {}
 				t.Fatalf("should panic")
 			}
 		}()
-		_, _ = emptyEval.Evaluate(mod.Locals["static_ref"].Expr, StaticIdentifier{})
+		_, _ = emptyEval.Evaluate(mod.Locals["static_ref"].Expr, dummyIdentifier)
 	})
 
 	t.Run("Simple static cases", func(t *testing.T) {
@@ -125,7 +127,7 @@ resource "foo" "bar" {}
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
-				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, StaticIdentifier{})
+				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, dummyIdentifier)
 				if diags.HasErrors() {
 					t.Error(diags)
 				}
@@ -161,7 +163,7 @@ resource "foo" "bar" {}
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
-				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, StaticIdentifier{})
+				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, dummyIdentifier)
 				if diags.HasErrors() {
 					t.Error(diags)
 				}
@@ -180,8 +182,8 @@ resource "foo" "bar" {}
 			ident string
 			diag  string
 		}{
-			{"invalid_ref", "eval.tf:37,16-33: Dynamic value in static context; Unable to use invalid.attribute in static context"},
-			{"unavailable_ref", "eval.tf:38,20-27: Dynamic value in static context; Unable to use foo.bar in static context"},
+			{"invalid_ref", "eval.tf:37,16-33: Dynamic value in static context; Unable to use invalid.attribute in static context, which is required by local.invalid_ref"},
+			{"unavailable_ref", "eval.tf:38,20-27: Dynamic value in static context; Unable to use foo.bar in static context, which is required by local.unavailable_ref"},
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
@@ -202,16 +204,14 @@ resource "foo" "bar" {}
 		}{
 			{"circular", []string{
 				"eval.tf:41,2-27: Circular reference; local.circular is self referential",
-				"eval.tf:41,2-27: Unable to compute static value; local.circular depends on local.circular which is not available",
 			}},
 			{"circular_ref", []string{
 				"eval.tf:41,2-27: Circular reference; local.circular is self referential",
-				"eval.tf:41,2-27: Unable to compute static value; local.circular_ref depends on local.circular which is not available",
+				"eval.tf:42,2-31: Unable to compute static value; local.circular_ref depends on local.circular which is not available",
 			}},
 			{"circular_a", []string{
-				"eval.tf:44,2-31: Circular reference; local.circular_b is self referential",
-				"eval.tf:43,2-31: Unable to compute static value; local.circular_b depends on local.circular_a which is not available",
-				"eval.tf:44,2-31: Unable to compute static value; local.circular_a depends on local.circular_b which is not available",
+				"eval.tf:43,2-31: Unable to compute static value; local.circular_a depends on local.circular_b which is not available",
+				"eval.tf:43,2-31: Circular reference; local.circular_a is self referential",
 			}},
 		}
 		for _, local := range locals {
@@ -239,9 +239,9 @@ resource "foo" "bar" {}
 		_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: addrs.LocalValue{Name: badref.Name}, DeclRange: badref.DeclRange})
 		assertExactDiagnostics(t, diags, []string{
 			"eval.tf:2,1-15: Variable value not provided; var.str not included",
-			"eval.tf:2,1-15: Unable to compute static value; local.ref_a depends on var.str which is not available",
-			"eval.tf:47,2-17: Unable to compute static value; local.ref_b depends on local.ref_a which is not available",
-			"eval.tf:48,2-21: Unable to compute static value; local.ref_c depends on local.ref_b which is not available",
+			"eval.tf:47,2-17: Unable to compute static value; local.ref_a depends on var.str which is not available",
+			"eval.tf:48,2-21: Unable to compute static value; local.ref_b depends on local.ref_a which is not available",
+			"eval.tf:49,2-21: Unable to compute static value; local.ref_c depends on local.ref_b which is not available",
 		})
 	})
 
@@ -267,6 +267,7 @@ resource "foo" "bar" {}
 }
 
 func TestStaticEvaluator_DecodeExpression(t *testing.T) {
+	dummyIdentifier := StaticIdentifier{Subject: addrs.LocalValue{Name: "test"}}
 	parser := testParser(map[string]string{"eval.tf": ""})
 	file, fileDiags := parser.LoadConfigFile("eval.tf")
 	if fileDiags.HasErrors() {
@@ -285,14 +286,14 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		diags: []string{`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`},
 	}, {
 		expr:  `module.foo.bar`,
-		diags: []string{`eval.tf:1,1-15: Dynamic value in static context; Unable to use module.foo.bar in static context`},
+		diags: []string{`eval.tf:1,1-15: Dynamic value in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.expr, func(t *testing.T) {
 			expr, _ := hclsyntax.ParseExpression([]byte(tc.expr), "eval.tf", hcl.InitialPos)
 			var str string
-			diags := eval.DecodeExpression(expr, StaticIdentifier{}, &str)
+			diags := eval.DecodeExpression(expr, dummyIdentifier, &str)
 			assertExactDiagnostics(t, diags, tc.diags)
 		})
 	}
@@ -331,7 +332,7 @@ terraform {
 		thing = module.foo.bar
 	}
 }`,
-		diags: []string{`eval.tf:4,11-25: Dynamic value in static context; Unable to use module.foo.bar in static context`},
+		diags: []string{`eval.tf:4,11-25: Dynamic value in static context; Unable to use module.foo.bar in static context, which is required by backend.badeval`},
 	}}
 
 	for _, tc := range cases {

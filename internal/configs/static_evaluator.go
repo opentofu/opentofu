@@ -24,7 +24,7 @@ type StaticIdentifier struct {
 func (ref StaticIdentifier) String() string {
 	val := ref.Subject.String()
 	if len(ref.Module) != 0 {
-		val = ref.Module.String() + "." + val
+		val = ref.Module.String() + ":" + val
 	}
 	return val
 }
@@ -69,7 +69,7 @@ func NewStaticEvaluator(mod *Module, call StaticModuleCall) *StaticEvaluator {
 }
 
 func (s *StaticEvaluator) scope(ident StaticIdentifier) *lang.Scope {
-	return newStaticScope(s, ident, nil)
+	return newStaticScope(s, ident)
 }
 
 func (s StaticEvaluator) Evaluate(expr hcl.Expression, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
