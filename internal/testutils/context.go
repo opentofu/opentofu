@@ -8,14 +8,21 @@ package testutils
 import (
 	"context"
 	"testing"
+	"time"
 )
 
-// Context returns a context configured for the test deadline. See testing.T.Deadline.
+const minCleanupSafety = time.Second * 30
+const maxCleanupSafety = time.Minute * 5
+
+// Context returns a context configured for the test deadline. This function configures a context with 25% safety for
+// any cleanup tasks to finish.
 func Context(t *testing.T) context.Context {
 	ctx := context.Background()
 	if deadline, ok := t.Deadline(); ok {
 		var cancel func()
-		ctx, cancel = context.WithDeadline(ctx, deadline)
+		timeoutDuration := time.Until(deadline)
+		cleanupSafety := min(max(timeoutDuration/4, minCleanupSafety), maxCleanupSafety)
+		ctx, cancel = context.WithDeadline(ctx, deadline.Add(-1*cleanupSafety))
 		t.Cleanup(cancel)
 	}
 	return ctx
