@@ -9,6 +9,7 @@ import (
 	"hash/crc64"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -16,7 +17,8 @@ import (
 // The functions below contain an assortment of random ID generation functions, partially ported and improved from the
 // internal/legacy/helper/acctest package.
 
-var randomSources = map[string]*rand.Rand{}
+var randomSources = map[string]*rand.Rand{} //nolint:gochecknoglobals //This variable stores the randomness sources for DeterministicRandomID and needs to be global.
+var randomLock = &sync.Mutex{}              //nolint:gochecknoglobals //This variable is required to lock the randomSources above.
 
 // CharacterSpace defines which characters to use for generating a random ID.
 type CharacterSpace string
@@ -37,15 +39,19 @@ func DeterministicRandomID(t *testing.T, length uint, characterSpace CharacterSp
 	var random *rand.Rand
 	name := t.Name()
 	var ok bool
+	randomLock.Lock()
 	random, ok = randomSources[name]
 	if !ok {
 		seed := crc64.Checksum([]byte(name), crc64.MakeTable(crc64.ECMA))
-		random = rand.New(rand.NewSource(int64(seed)))
+		random = rand.New(rand.NewSource(int64(seed))) //nolint:gosec //This random number generator is intentionally deterministic.
 		randomSources[name] = random
 		t.Cleanup(func() {
+			randomLock.Lock()
+			defer randomLock.Unlock()
 			delete(randomSources, name)
 		})
 	}
+	randomLock.Unlock()
 	return RandomIDFromSource(random, length, characterSpace)
 }
 

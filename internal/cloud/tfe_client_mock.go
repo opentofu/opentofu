@@ -1936,5 +1936,6 @@ func (m *MockWorkspaces) RemoveTags(ctx context.Context, workspaceID string, opt
 }
 
 func generateID(s string) string {
-	return testutils.RandomIDPrefix(s, 16, testutils.CharacterSpaceAlphaNumeric)
+	const idLength = 16
+	return testutils.RandomIDPrefix(s, idLength, testutils.CharacterSpaceAlphaNumeric)
 }
