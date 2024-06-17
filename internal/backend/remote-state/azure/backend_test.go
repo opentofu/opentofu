@@ -12,7 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
+	"github.com/opentofu/opentofu/internal/testutils"
 )
 
 func TestBackend_impl(t *testing.T) {
@@ -47,7 +47,7 @@ func TestBackendConfig(t *testing.T) {
 
 func TestAccBackendAccessKeyBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -73,7 +73,7 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 
 func TestAccBackendSASTokenBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -103,7 +103,7 @@ func TestAccBackendSASTokenBasic(t *testing.T) {
 
 func TestAccBackendOIDCBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -131,7 +131,7 @@ func TestAccBackendOIDCBasic(t *testing.T) {
 
 func TestAccBackendManagedServiceIdentityBasic(t *testing.T) {
 	testAccAzureBackendRunningInAzure(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -166,7 +166,7 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 		t.Skip("Skipping since `ARM_CLIENT_CERTIFICATE_PATH` is not specified!")
 	}
 
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -196,7 +196,7 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 
 func TestAccBackendServicePrincipalClientSecretBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -232,7 +232,7 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 		t.Skip("Skipping as ARM_ENDPOINT isn't configured")
 	}
 
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -261,7 +261,7 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 
 func TestAccBackendAccessKeyLocked(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -299,7 +299,7 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 
 func TestAccBackendServicePrincipalLocked(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 

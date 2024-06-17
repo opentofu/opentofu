@@ -13,17 +13,21 @@ import (
 	"time"
 )
 
+// The functions below contain an assortment of random ID generation functions, partially ported and improved from the
+// internal/legacy/helper/acctest package.
+
 var randomSources = map[string]*rand.Rand{}
 
+// CharacterSpace defines which characters to use for generating a random ID.
 type CharacterSpace string
 
 const (
-	CharacterSpaceAlphaNumericUpperLower CharacterSpace = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CharacterSpaceAlphaNumericLower      CharacterSpace = "abcdefghijklmnopqrstuvwxyz0123456789"
-	CharacterSpaceAlphaNumericUpper      CharacterSpace = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CharacterSpaceAlphaUpperLower        CharacterSpace = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	CharacterSpaceAlphaLower             CharacterSpace = "abcdefghijklmnopqrstuvwxyz"
-	CharacterSpaceAlphaUpper             CharacterSpace = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	CharacterSpaceAlphaNumeric      CharacterSpace = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	CharacterSpaceAlphaNumericLower CharacterSpace = "abcdefghijklmnopqrstuvwxyz0123456789"
+	CharacterSpaceAlphaNumericUpper CharacterSpace = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	CharacterSpaceAlpha             CharacterSpace = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	CharacterSpaceAlphaLower        CharacterSpace = "abcdefghijklmnopqrstuvwxyz"
+	CharacterSpaceAlphaUpper        CharacterSpace = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 // DeterministicRandomID generates a pseudo-random identifier for the given test, using its name as a seed for

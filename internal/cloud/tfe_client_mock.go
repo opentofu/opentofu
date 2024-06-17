@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +20,7 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/copystructure"
+	"github.com/opentofu/opentofu/internal/testutils"
 
 	tfversion "github.com/opentofu/opentofu/version"
 )
@@ -91,7 +91,7 @@ func (m *MockApplies) create(cvID, workspaceID string) (*tfe.Apply, error) {
 		return nil, nil
 	}
 
-	id := GenerateID("apply-")
+	id := generateID("apply-")
 	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	a := &tfe.Apply{
@@ -206,7 +206,7 @@ func (m *MockConfigurationVersions) List(ctx context.Context, workspaceID string
 }
 
 func (m *MockConfigurationVersions) Create(ctx context.Context, workspaceID string, options tfe.ConfigurationVersionCreateOptions) (*tfe.ConfigurationVersion, error) {
-	id := GenerateID("cv-")
+	id := generateID("cv-")
 	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	cv := &tfe.ConfigurationVersion{
@@ -285,7 +285,7 @@ func newMockCostEstimates(client *MockClient) *MockCostEstimates {
 // create is a helper function to create a mock cost estimation that uses the
 // configured working directory to find the logfile.
 func (m *MockCostEstimates) create(cvID, workspaceID string) (*tfe.CostEstimate, error) {
-	id := GenerateID("ce-")
+	id := generateID("ce-")
 
 	ce := &tfe.CostEstimate{
 		ID:                    id,
@@ -544,7 +544,7 @@ func newMockPlans(client *MockClient) *MockPlans {
 // create is a helper function to create a mock plan that uses the configured
 // working directory to find the logfile.
 func (m *MockPlans) create(cvID, workspaceID string) (*tfe.Plan, error) {
-	id := GenerateID("plan-")
+	id := generateID("plan-")
 	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
 	p := &tfe.Plan{
@@ -812,7 +812,7 @@ func newMockPolicyChecks(client *MockClient) *MockPolicyChecks {
 // create is a helper function to create a mock policy check that uses the
 // configured working directory to find the logfile.
 func (m *MockPolicyChecks) create(cvID, workspaceID string) (*tfe.PolicyCheck, error) {
-	id := GenerateID("pc-")
+	id := generateID("pc-")
 
 	pc := &tfe.PolicyCheck{
 		ID:          id,
@@ -967,7 +967,7 @@ func newMockProjects(client *MockClient) *MockProjects {
 }
 
 func (m *MockProjects) Create(ctx context.Context, organization string, options tfe.ProjectCreateOptions) (*tfe.Project, error) {
-	id := GenerateID("prj-")
+	id := generateID("prj-")
 
 	p := &tfe.Project{
 		ID:   id,
@@ -1124,7 +1124,7 @@ func (m *MockRuns) Create(ctx context.Context, options tfe.RunCreateOptions) (*t
 	}
 
 	r := &tfe.Run{
-		ID:                    GenerateID("run-"),
+		ID:                    generateID("run-"),
 		Actions:               &tfe.RunActions{IsCancelable: true},
 		Apply:                 a,
 		CostEstimate:          ce,
@@ -1329,7 +1329,7 @@ func (m *MockRunEvents) Read(ctx context.Context, runEventID string) (*tfe.RunEv
 
 func (m *MockRunEvents) ReadWithOptions(ctx context.Context, runEventID string, options *tfe.RunEventReadOptions) (*tfe.RunEvent, error) {
 	return &tfe.RunEvent{
-		ID:        GenerateID("re-"),
+		ID:        generateID("re-"),
 		Action:    "created",
 		CreatedAt: time.Now(),
 	}, nil
@@ -1371,7 +1371,7 @@ func (m *MockStateVersions) List(ctx context.Context, options *tfe.StateVersionL
 }
 
 func (m *MockStateVersions) Create(ctx context.Context, workspaceID string, options tfe.StateVersionCreateOptions) (*tfe.StateVersion, error) {
-	id := GenerateID("sv-")
+	id := generateID("sv-")
 	runID := os.Getenv("TFE_RUN_ID")
 	url := fmt.Sprintf("https://%s/_archivist/%s", tfeHost, id)
 
@@ -1516,7 +1516,7 @@ func (m *MockVariables) List(ctx context.Context, workspaceID string, options *t
 
 func (m *MockVariables) Create(ctx context.Context, workspaceID string, options tfe.VariableCreateOptions) (*tfe.Variable, error) {
 	v := &tfe.Variable{
-		ID:       GenerateID("var-"),
+		ID:       generateID("var-"),
 		Key:      *options.Key,
 		Category: *options.Category,
 	}
@@ -1652,7 +1652,7 @@ func (m *MockWorkspaces) Create(ctx context.Context, organization string, option
 		options.ExecutionMode = tfe.String("remote")
 	}
 	w := &tfe.Workspace{
-		ID:                         GenerateID("ws-"),
+		ID:                         generateID("ws-"),
 		Name:                       *options.Name,
 		ExecutionMode:              *options.ExecutionMode,
 		Operations:                 *options.Operations,
@@ -1935,12 +1935,6 @@ func (m *MockWorkspaces) RemoveTags(ctx context.Context, workspaceID string, opt
 	panic("not implemented")
 }
 
-const alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-func GenerateID(s string) string {
-	b := make([]byte, 16)
-	for i := range b {
-		b[i] = alphanumeric[rand.Intn(len(alphanumeric))]
-	}
-	return s + string(b)
+func generateID(s string) string {
+	return testutils.RandomIDPrefix(s, 16, testutils.CharacterSpaceAlphaNumeric)
 }

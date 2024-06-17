@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/testutils"
 )
 
 func TestRemoteClient_impl(t *testing.T) {
@@ -45,7 +45,7 @@ func TestRemoteClient_stateLock(t *testing.T) {
 
 func TestRemoteClient_Put_withRunID(t *testing.T) {
 	// Set the TFE_RUN_ID environment variable before creating the client!
-	t.Setenv("TFE_RUN_ID", cloud.GenerateID("run-"))
+	t.Setenv("TFE_RUN_ID", testutils.RandomIDPrefix("run-", 16, testutils.CharacterSpaceAlphaNumeric))
 
 	// Create a new test client.
 	client := testRemoteClient(t)

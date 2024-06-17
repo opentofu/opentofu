@@ -12,8 +12,8 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
 	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/testutils"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
 )
 
@@ -24,7 +24,7 @@ func TestRemoteClient_impl(t *testing.T) {
 
 func TestRemoteClientAccessKeyBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -54,7 +54,7 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 
 func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 	testAccAzureBackendRunningInAzure(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -87,7 +87,7 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 
 func TestRemoteClientSasTokenBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -122,7 +122,7 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 
 func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -156,7 +156,7 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 
 func TestRemoteClientAccessKeyLocks(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -200,7 +200,7 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 
 func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -252,7 +252,7 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 
 func TestPutMaintainsMetaData(t *testing.T) {
 	testAccAzureBackend(t)
-	rs := acctest.RandString(4)
+	rs := testutils.RandomID(uint(4), testutils.CharacterSpaceAlphaNumericLower)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
@@ -299,7 +299,7 @@ func TestPutMaintainsMetaData(t *testing.T) {
 		giovanniBlobClient: *client,
 	}
 
-	bytes := []byte(acctest.RandString(20))
+	bytes := []byte(testutils.RandomID(uint(20), testutils.CharacterSpaceAlphaNumericLower))
 	err = remoteClient.Put(bytes)
 	if err != nil {
 		t.Fatalf("Error putting data: %+v", err)

@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/testutils"
 )
 
 func TestRemoteClient_impl(t *testing.T) {
@@ -211,19 +212,11 @@ func TestConsul_largeState(t *testing.T) {
 
 	// We use a fixed seed so the test can be reproductible
 	randomizer := rand.New(rand.NewSource(1234))
-	RandStringRunes := func(n int) string {
-		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-		b := make([]rune, n)
-		for i := range b {
-			b[i] = letterRunes[randomizer.Intn(len(letterRunes))]
-		}
-		return string(b)
-	}
 
 	testPayload(
 		t,
 		map[string]string{
-			"bar": RandStringRunes(5 * (524288 + 2)),
+			"bar": testutils.RandomIDFromSource(randomizer, 5*(524288+2), testutils.CharacterSpaceAlpha),
 		},
 		[]string{
 			"tf-unit/test-large-state",
