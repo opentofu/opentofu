@@ -68,9 +68,8 @@ func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
 }
 
 func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Traversal) (AbsResourceInstance, tfdiags.Diagnostics) {
-	// Note that this helper is used as part of both ParseTarget and
-	// ParseMoveEndpoint, so its error messages should be generic
-	// enough to suit both situations.
+	// Note that this helper is used as part of multiple public functions
+	// so its error messages should be generic enough to suit all the situations.
 
 	var diags tfdiags.Diagnostics
 

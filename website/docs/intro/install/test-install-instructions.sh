@@ -1,4 +1,9 @@
 #!/bin/bash
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 # This script tests the installation instructions on all relevant Linux operating systems listed in docker-compose.yaml.
 
@@ -28,7 +33,7 @@ for SERVICE in $SERVICES; do
     echo -e "::group::\033[0;32m✅  ${SERVICE}\033[0m"
   else
     echo -e "::group::\033[0;31m❌  ${SERVICE}\033[0m"
-    FAILED=$(("${FAILED}"+1))
+    FAILED=$((${FAILED}+1))
   fi
   cat $TEMPFILE | grep -a -E "^[a-zA-Z]+-${SERVICE}-1\s+\| " | sed -E "s/^[a-zA-Z]+-${SERVICE}-1\s+\| //"
   echo "::endgroup::"

@@ -110,6 +110,9 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 	// We'll also do a quick validation of the OpenTofu test files. These live
 	// outside the OpenTofu graph so we have to do this separately.
 	for _, file := range cfg.Module.Tests {
+
+		diags = diags.Append(file.Validate())
+
 		for _, run := range file.Runs {
 
 			if run.Module != nil {

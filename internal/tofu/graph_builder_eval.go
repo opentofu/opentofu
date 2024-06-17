@@ -109,7 +109,9 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		&CloseProviderTransformer{},
 
 		// Close root module
-		&CloseRootModuleTransformer{},
+		&CloseRootModuleTransformer{
+			RootConfig: b.Config,
+		},
 
 		// Remove redundant edges to simplify the graph.
 		&TransitiveReductionTransformer{},
