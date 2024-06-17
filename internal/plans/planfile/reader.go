@@ -213,7 +213,7 @@ func (r *Reader) ReadConfigSnapshot() (*configload.Snapshot, error) {
 // Internally this function delegates to the configs/configload package to
 // parse the embedded configuration and so it returns diagnostics (rather than
 // a native Go error as with other methods on Reader).
-func (r *Reader) ReadConfig() (*configs.Config, tfdiags.Diagnostics) {
+func (r *Reader) ReadConfig(rootCall configs.StaticModuleCall) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	snap, err := r.ReadConfigSnapshot()
@@ -228,8 +228,7 @@ func (r *Reader) ReadConfig() (*configs.Config, tfdiags.Diagnostics) {
 
 	loader := configload.NewLoaderFromSnapshot(snap)
 	rootDir := snap.Modules[""].Dir // Root module base directory
-	// TODO should we pass static variables in from the command package or store them in the plan?
-	config, configDiags := loader.LoadConfig(rootDir, configs.RootModuleCallForTesting)
+	config, configDiags := loader.LoadConfig(rootDir, rootCall)
 	diags = diags.Append(configDiags)
 
 	return config, diags

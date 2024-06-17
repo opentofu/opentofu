@@ -161,7 +161,7 @@ func TestRoundtrip(t *testing.T) {
 		// Reading from snapshots is tested in the configload package, so
 		// here we'll just test that we can successfully do it, to see if the
 		// glue code in _this_ package is correct.
-		_, diags := pr.ReadConfig()
+		_, diags := pr.ReadConfig(configs.RootModuleCallForTesting)
 		if diags.HasErrors() {
 			t.Errorf("when reading config: %s", diags.Err())
 		}
