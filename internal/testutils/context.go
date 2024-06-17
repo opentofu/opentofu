@@ -21,7 +21,7 @@ func Context(t *testing.T) context.Context {
 	if deadline, ok := t.Deadline(); ok {
 		var cancel func()
 		timeoutDuration := time.Until(deadline)
-		cleanupSafety := min(max(timeoutDuration/4, minCleanupSafety), maxCleanupSafety)
+		cleanupSafety := min(max(timeoutDuration/4, minCleanupSafety), maxCleanupSafety) //nolint:mnd //This will never change.
 		ctx, cancel = context.WithDeadline(ctx, deadline.Add(-1*cleanupSafety))
 		t.Cleanup(cancel)
 	}
