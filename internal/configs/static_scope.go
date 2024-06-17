@@ -35,6 +35,9 @@ type staticScopeData struct {
 	stack  []StaticIdentifier
 }
 
+// staticScopeData must implement lang.Data
+var _ lang.Data = (*staticScopeData)(nil)
+
 func (s staticScopeData) evaluate(ident StaticIdentifier, fn func(stack []StaticIdentifier) (cty.Value, hcl.Diagnostics)) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 

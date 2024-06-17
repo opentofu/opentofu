@@ -150,7 +150,8 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 
 func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 	if mc.Source == nil {
-		// Broken, will error elsewhere
+		// This is an invalid module.  We already have error handling that has more context and can produce better errors in this
+		// scenario.  Follow the trail of mc.SourceAddr -> req.SourceAddr through the command package.
 		return nil
 	}
 

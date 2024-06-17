@@ -222,7 +222,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 	}
 }
 
-// Verify that interpolations result in an error
+// Verify that interpolations are allowed
 func TestMetaBackend_configureInterpolation(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
