@@ -37,6 +37,7 @@ type encryption struct {
 	reg registry.Registry
 }
 
+// TODO: Make static evaluator optional?
 // New creates a new Encryption provider from the given configuration and registry.
 func New(reg registry.Registry, cfg *config.EncryptionConfig, staticEval *configs.StaticEvaluator) (Encryption, hcl.Diagnostics) {
 	if cfg == nil {
