@@ -153,11 +153,10 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 
-	// TODO: Is StaticIdentifier correctly composed?
 	evalCtx, evalDiags := e.staticEval.EvalContext(configs.StaticIdentifier{
 		Module: addrs.RootModule,
 		Subject: addrs.TerraformAttr{
-			Name: "encryption",
+			Name: fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
 		},
 		DeclRange: e.cfg.DeclRange,
 	}, refs)

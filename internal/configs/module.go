@@ -65,7 +65,7 @@ type Module struct {
 	// testing framework to not call the underlying module.
 	IsOverridden bool
 
-	// TODO: is it a good idea to put StaticEvaluator inside a Module?
+	// StaticEvaluator is used to evaluate static expressions in the scope of the Module.
 	StaticEvaluator *StaticEvaluator
 }
 
