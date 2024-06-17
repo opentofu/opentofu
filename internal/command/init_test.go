@@ -2921,6 +2921,7 @@ func TestInit_testsWithModule(t *testing.T) {
 	}
 }
 
+// Test variables are handled correctly when interacting with module sources
 func TestInit_moduleSource(t *testing.T) {
 	t.Run("missing", func(t *testing.T) {
 		td := t.TempDir()
