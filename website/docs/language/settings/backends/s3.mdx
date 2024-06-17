@@ -177,7 +177,6 @@ The following configuration is optional:
 * `token` - (Optional) Multi-Factor Authentication (MFA) token. This can also be sourced from the `AWS_SESSION_TOKEN` environment variable.
 * `allowed_account_ids` (Optional): A list of permitted AWS account IDs to safeguard against accidental disruption of a live environment. This option conflicts with `forbidden_account_ids`.
 * `forbidden_account_ids` (Optional): A list of prohibited AWS account IDs to prevent unintentional disruption of a live environment. This option conflicts with `allowed_account_ids`.
-* `use_legacy_workflow` - (Optional) **Deprecated** Prefer environment variables for legacy authentication; default is 'false'. This method doesn't match AWS CLI or SDK authentication and will be removed in the future.
 * `custom_ca_bundle` - File containing custom root and intermediate certificates. Can also be configured using the `AWS_CA_BUNDLE` environment variable.
 * `ec2_metadata_service_endpoint` - Address of the EC2 metadata service (IMDS) endpoint to use. This can also be sourced from the `AWS_EC2_METADATA_SERVICE_ENDPOINT` environment variable.
 * `ec2_metadata_service_endpoint_mode` - Mode to use in communicating with the metadata service. Valid values are `IPv4` and `IPv6`. This can also be sourced from the `AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE` environment variable.
