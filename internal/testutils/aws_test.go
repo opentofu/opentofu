@@ -12,6 +12,7 @@ import (
 )
 
 func TestAWS(t *testing.T) {
+	t.Parallel()
 	awsService := testutils.AWS(t)
 	t.Run("DynamoDB", func(t *testing.T) {
 		t.Parallel()

@@ -23,6 +23,7 @@ import (
 
 // TestHTTPProxy tests the HTTPProxy functionality using traditional HTTP and HTTPS connections.
 func TestHTTPProxy(t *testing.T) {
+	t.Parallel()
 	t.Run("Backend: HTTP", func(t *testing.T) {
 		t.Parallel()
 		testutils.SetupTestLogger(t)
