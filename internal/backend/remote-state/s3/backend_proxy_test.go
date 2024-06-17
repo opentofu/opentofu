@@ -20,6 +20,7 @@ func TestS3ProxyBehavior(t *testing.T) {
 	aws := testutils.AWS(t)
 
 	t.Run("direct-connect", func(t *testing.T) {
+		// This is a baseline test that confirms the connection works against the AWS testutils without a proxy.
 		testutils.SetupTestLogger(t)
 		config := map[string]any{
 			"access_key":       aws.AccessKey(),
@@ -40,6 +41,8 @@ func TestS3ProxyBehavior(t *testing.T) {
 		runBackendTests(t, config)
 	})
 	t.Run("proxy", func(t *testing.T) {
+		// This test case tests with a proxy.
+		testutils.SetupTestLogger(t)
 		var proxyTestCases = map[string]struct {
 			modifyConfig func(t *testing.T, config map[string]any, proxy testutils.HTTPProxyService)
 		}{
@@ -49,6 +52,8 @@ func TestS3ProxyBehavior(t *testing.T) {
 			"direct-config": {
 				modifyConfig: func(_ *testing.T, config map[string]any, proxy testutils.HTTPProxyService) {
 					config["http_proxy"] = proxy.HTTPProxy().String()
+					// Note: this is using the HTTP proxy intentionally since the "https_proxy" refers to the
+					// environment variables!
 					config["https_proxy"] = proxy.HTTPProxy().String()
 				},
 			},

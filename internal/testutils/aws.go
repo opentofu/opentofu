@@ -99,7 +99,6 @@ func newAWSTestService(t *testing.T, services []awsServiceFixture) AWSTestServic
 		HostAccessPorts: nil,
 		Image:           "localstack/localstack",
 		Env: map[string]string{
-			"USE_SSL":         "1",
 			"LOCALSTACK_HOST": fmt.Sprintf("localhost:%d", localStackPort),
 			"SERVICES":        strings.Join(ids, ","),
 			// Eager loading is on because we need to provision test fixtures anyway.

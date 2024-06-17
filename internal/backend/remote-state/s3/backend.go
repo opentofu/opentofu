@@ -752,9 +752,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		StsEndpoint:             customEndpoints["sts"].String(obj),
 		StsRegion:               stringAttr(obj, "sts_region"),
 		Token:                   stringAttr(obj, "token"),
-		HTTPProxy:               aws.String(stringAttrDefaultEnvVar(obj, "http_proxy", "http_proxy", "HTTP_PROXY")),
-		HTTPSProxy:              aws.String(stringAttrDefaultEnvVar(obj, "https_proxy", "https_proxy", "HTTPS_PROXY")),
-		NoProxy:                 stringAttrDefaultEnvVar(obj, "no_proxy", "no_proxy", "NO_PROXY"),
+		HTTPProxyMode:           awsbase.HTTPProxyModeSeparate,
 		Insecure:                boolAttr(obj, "insecure"),
 		UseDualStackEndpoint:    boolAttr(obj, "use_dualstack_endpoint"),
 		UseFIPSEndpoint:         boolAttr(obj, "use_fips_endpoint"),
@@ -780,6 +778,16 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	if val, ok := stringAttrOk(obj, "shared_credentials_file"); ok {
 		cfg.SharedCredentialsFiles = []string{val}
+	}
+
+	if val, ok := stringAttrOk(obj, "http_proxy"); ok {
+		cfg.HTTPProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "https_proxy"); ok {
+		cfg.HTTPSProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "no_proxy"); ok {
+		cfg.NoProxy = val
 	}
 
 	if value := obj.GetAttr("assume_role"); !value.IsNull() {
