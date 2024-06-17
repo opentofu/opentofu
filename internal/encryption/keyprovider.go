@@ -115,6 +115,38 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 
+	// Setting up key providers from deps.
+	for _, dep := range deps {
+		// Key Provider references should be in the form key_provider.type.name
+		if len(dep) != 3 {
+			continue
+		}
+
+		// TODO this should be more defensive
+		depRoot := (dep[0].(hcl.TraverseRoot)).Name
+		depType := (dep[1].(hcl.TraverseAttr)).Name
+		depName := (dep[2].(hcl.TraverseAttr)).Name
+
+		if depRoot != "key_provider" {
+			continue
+		}
+
+		kpc, ok := e.cfg.GetKeyProvider(depType, depName)
+		if !ok {
+			continue
+		}
+
+		depDiags := e.setupKeyProvider(kpc, stack)
+		diags = append(diags, depDiags...)
+	}
+	if diags.HasErrors() {
+		// We should not continue now if we have any diagnostics that are errors
+		// as we may end up in an inconsistent state.
+		// The reason we collate the diags here and then show them instead of showing them as they arise
+		// is to ensure that the end user does not have to play whack-a-mole with the errors one at a time.
+		return diags
+	}
+
 	refs, refDiags := lang.References(addrs.ParseRef, deps)
 	diags = append(diags, refDiags.ToHCL()...)
 	if diags.HasErrors() {
