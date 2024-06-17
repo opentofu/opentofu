@@ -2942,7 +2942,7 @@ func TestInit_moduleSource(t *testing.T) {
 		}
 
 		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Variable not provided via cli flags or *.tfvars`) {
+		if !strings.Contains(errStr, `Variable not provided`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})

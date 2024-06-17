@@ -157,7 +157,7 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 				// Not specified on CLI or in var files, without a valid default.
 				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Variable not provided via cli flags or *.tfvars",
+					Summary:  "Variable not provided via -var, tfvars files, or env",
 					Subject:  variable.DeclRange.Ptr(),
 				}}
 			}
