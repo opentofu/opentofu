@@ -1,6 +1,7 @@
 ## 1.8.0 (Unreleased)
 
 UPGRADE NOTES:
+BREAKING CHANGE - `use_legacy_workflow` field has been removing from the S3 backend configuration. ([#1730](https://github.com/opentofu/opentofu/pull/1730))
 
 NEW FEATURES:
 * Added support for `override_resource`, `override_data` and `override_module` blocks in testing framework. ([1499](https://github.com/opentofu/opentofu/pull/1499))
