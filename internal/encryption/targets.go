@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
@@ -31,6 +32,7 @@ type targetBuilder struct {
 	keyValues    map[string]map[string]cty.Value
 	methodValues map[string]map[string]cty.Value
 	methods      map[method.Addr]method.Method
+	staticEval   *configs.StaticEvaluator
 }
 
 func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
@@ -40,6 +42,7 @@ func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte)
 		cfg: base.enc.cfg,
 		reg: base.enc.reg,
 
+		staticEval: base.staticEval,
 		ctx: &hcl.EvalContext{
 			Variables: map[string]cty.Value{},
 		},

@@ -10,7 +10,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -88,17 +91,17 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	keyProviderDescriptor, err := e.reg.GetKeyProviderDescriptor(id)
 	if err != nil {
 		if errors.Is(err, &registry.KeyProviderNotFoundError{}) {
-			return hcl.Diagnostics{&hcl.Diagnostic{
+			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unknown key_provider type",
 				Detail:   fmt.Sprintf("Can not find %q", cfg.Type),
-			}}
+			})
 		}
-		return hcl.Diagnostics{&hcl.Diagnostic{
+		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Error fetching key_provider %q", cfg.Type),
 			Detail:   err.Error(),
-		}}
+		})
 	}
 
 	// Now that we know we have the correct Descriptor, we can decode the configuration
@@ -106,58 +109,39 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
 
 	// Locate all the dependencies
-	deps, diags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	diags = append(diags, varDiags...)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	// Required Dependencies
-	for _, dep := range deps {
-		// Key Provider references should be in the form key_provider.type.name
-		if len(dep) != 3 {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid key_provider reference",
-				Detail:   "Expected reference in form key_provider.type.name",
-				Subject:  dep.SourceRange().Ptr(),
-			})
-			continue
-		}
-
-		// TODO this should be more defensive
-		depRoot := (dep[0].(hcl.TraverseRoot)).Name
-		depType := (dep[1].(hcl.TraverseAttr)).Name
-		depName := (dep[2].(hcl.TraverseAttr)).Name
-
-		if depRoot != "key_provider" {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid key_provider reference",
-				Detail:   "Expected reference in form key_provider.type.name",
-				Subject:  dep.SourceRange().Ptr(),
-			})
-			continue
-		}
-
-		for _, kpc := range e.cfg.KeyProviderConfigs {
-			// Find the key provider in the config
-			if kpc.Type == depType && kpc.Name == depName {
-				depDiags := e.setupKeyProvider(kpc, stack)
-				diags = append(diags, depDiags...)
-				break
-			}
-		}
-	}
+	refs, refDiags := lang.References(addrs.ParseRef, deps)
+	diags = append(diags, refDiags.ToHCL()...)
 	if diags.HasErrors() {
-		// We should not continue now if we have any diagnostics that are errors
-		// as we may end up in an inconsistent state.
-		// The reason we collate the diags here and then show them instead of showing them as they arise
-		// is to ensure that the end user does not have to play whack-a-mole with the errors one at a time.
 		return diags
 	}
+
+	// TODO: Is StaticIdentifier correctly composed?
+	evalCtx, evalDiags := e.staticEval.EvalContext(configs.StaticIdentifier{
+		Module: addrs.RootModule,
+		Subject: addrs.TerraformAttr{
+			Name: "encryption",
+		},
+		DeclRange: e.cfg.DeclRange,
+	}, refs)
+	diags = append(diags, evalDiags.ToHCL()...)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// Injecting configured encryption values
+	// into the evalCtx to be usable.
+	evalCtx = evalCtx.NewChild()
+	evalCtx.Functions = e.ctx.Functions
+	evalCtx.Variables = e.ctx.Variables
 
 	// Initialize the Key Provider
-	decodeDiags := gohcl.DecodeBody(cfg.Body, e.ctx, keyProviderConfig)
+	decodeDiags := gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
 		return diags

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -116,4 +117,8 @@ func (s StaticEvaluator) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident Stat
 	val, valDiags := hcldec.Decode(body, spec, ctx)
 	diags = append(diags, valDiags...)
 	return val, diags
+}
+
+func (s StaticEvaluator) EvalContext(ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.scope(ident).EvalContext(refs)
 }

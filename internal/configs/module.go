@@ -64,6 +64,9 @@ type Module struct {
 	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
 	IsOverridden bool
+
+	// TODO: is it a good idea to put StaticEvaluator inside a Module?
+	StaticEvaluator *StaticEvaluator
 }
 
 // File describes the contents of a single configuration file.
@@ -186,20 +189,20 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 	}
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
-	eval := NewStaticEvaluator(mod, call)
+	mod.StaticEvaluator = NewStaticEvaluator(mod, call)
 
 	// If we have a backend, it may have fields that require locals/vars
 	if mod.Backend != nil {
 		// We don't know the backend type / loader at this point so we save the context for later use
-		mod.Backend.Eval = eval
+		mod.Backend.Eval = mod.StaticEvaluator
 	}
 	if mod.CloudConfig != nil {
-		mod.CloudConfig.eval = eval
+		mod.CloudConfig.eval = mod.StaticEvaluator
 	}
 
 	// Process all module calls now that we have the static context
 	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.decodeStaticFields(eval)
+		mDiags := mc.decodeStaticFields(mod.StaticEvaluator)
 		diags = append(diags, mDiags...)
 	}
 
