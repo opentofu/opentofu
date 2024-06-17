@@ -115,10 +115,15 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 
+	// lang.References is going to fail parsing key_provider deps
+	// so we filter them out in nonKeyProviderDeps.
+	var nonKeyProviderDeps []hcl.Traversal
+
 	// Setting up key providers from deps.
 	for _, dep := range deps {
 		// Key Provider references should be in the form key_provider.type.name
 		if len(dep) != 3 {
+			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
 			continue
 		}
 
@@ -128,11 +133,13 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		depName := (dep[2].(hcl.TraverseAttr)).Name
 
 		if depRoot != "key_provider" {
+			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
 			continue
 		}
 
 		kpc, ok := e.cfg.GetKeyProvider(depType, depName)
 		if !ok {
+			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
 			continue
 		}
 
@@ -147,7 +154,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 
-	refs, refDiags := lang.References(addrs.ParseRef, deps)
+	refs, refDiags := lang.References(addrs.ParseRef, nonKeyProviderDeps)
 	diags = append(diags, refDiags.ToHCL()...)
 	if diags.HasErrors() {
 		return diags
