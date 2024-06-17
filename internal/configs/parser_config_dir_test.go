@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // TestParseLoadConfigDirSuccess is a simple test that just verifies that
@@ -103,7 +105,14 @@ func TestParserLoadConfigDirSuccess(t *testing.T) {
 				"mod/" + name: string(src),
 			})
 
-			_, diags := parser.LoadConfigDir("mod", RootModuleCallForTesting)
+			_, diags := parser.LoadConfigDir("mod", NewStaticModuleCall(addrs.RootModule,
+				func(v *Variable) (cty.Value, hcl.Diagnostics) {
+					if !v.Required() {
+						// Allow defaults in this test
+						return v.Default, nil
+					}
+					panic("Variables not configured for this test!")
+				}, "<testing>"))
 			if diags.HasErrors() {
 				t.Errorf("unexpected error diagnostics")
 				for _, diag := range diags {

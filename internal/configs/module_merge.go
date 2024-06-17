@@ -181,10 +181,9 @@ func (mc *ModuleCall) merge(omc *ModuleCall) hcl.Diagnostics {
 		mc.ForEach = omc.ForEach
 	}
 
-	if len(omc.Version.Required) != 0 {
-		mc.Version = omc.Version
+	if omc.VersionAttr != nil {
+		mc.VersionAttr = omc.VersionAttr
 	}
-	mc.HasVersion = mc.HasVersion || omc.HasVersion
 
 	mc.Config = MergeBodies(mc.Config, omc.Config)
 

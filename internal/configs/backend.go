@@ -6,6 +6,8 @@
 package configs
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -62,7 +64,7 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
 	return b.Eval.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
 		Module:    addrs.RootModule,
-		Subject:   addrs.BackendAttr{Type: b.Type},
+		Subject:   fmt.Sprintf("backend.%s", b.Type),
 		DeclRange: b.DeclRange,
 	})
 }

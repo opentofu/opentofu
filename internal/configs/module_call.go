@@ -30,8 +30,8 @@ type ModuleCall struct {
 
 	Config hcl.Body
 
-	HasVersion bool
-	Version    VersionConstraint
+	VersionAttr *hcl.Attribute
+	Version     VersionConstraint
 
 	Count   hcl.Expression
 	ForEach hcl.Expression
@@ -69,12 +69,8 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		})
 	}
 
-	mc.HasVersion = false
 	if attr, exists := content.Attributes["version"]; exists {
-		var versionDiags hcl.Diagnostics
-		mc.Version, versionDiags = decodeVersionConstraint(attr)
-		diags = append(diags, versionDiags...)
-		mc.HasVersion = true
+		mc.VersionAttr = attr
 	}
 
 	if attr, exists := content.Attributes["source"]; exists {
@@ -149,42 +145,27 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 }
 
 func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	diags = diags.Extend(mc.decodeStaticSource(eval))
+	diags = diags.Extend(mc.decodeStaticVersion(eval))
+	mc.decodeStaticVariables(eval)
+	return diags
+}
+
+func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics {
 	if mc.Source == nil {
 		// This is an invalid module.  We already have error handling that has more context and can produce better errors in this
 		// scenario.  Follow the trail of mc.SourceAddr -> req.SourceAddr through the command package.
 		return nil
 	}
 
-	// Setup static variable mapping
-	attr, _ := mc.Config.JustAttributes()
-	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
-		v, ok := attr[variable.Name]
-		if !ok {
-			if variable.Required() {
-				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing variable in module call",
-					Subject:  mc.Config.MissingItemRange().Ptr(),
-				}}
-			}
-			return variable.Default, nil
-		}
-
-		ident := StaticIdentifier{
-			Module:    eval.call.addr.Child(mc.Name),
-			Subject:   addrs.InputVariable{Name: variable.Name},
-			DeclRange: v.Range,
-		}
-		return eval.Evaluate(v.Expr, ident)
-	}
-
 	// Decode source field
-	diags := eval.DecodeExpression(mc.Source, StaticIdentifier{Module: eval.call.addr, Subject: addrs.ModuleCall{Name: mc.Name}, DeclRange: mc.Source.Range()}, &mc.SourceAddrRaw)
+	diags := eval.DecodeExpression(mc.Source, StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("module.%s.source", mc.Name), DeclRange: mc.Source.Range()}, &mc.SourceAddrRaw)
 	//nolint:nestif // Keeping this similar to the original decode logic for easy review
 	if !diags.HasErrors() {
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built
 		var err error
-		if mc.HasVersion {
+		if mc.VersionAttr != nil {
 			mc.SourceAddr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
 		} else {
 			mc.SourceAddr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
@@ -215,7 +196,7 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 					Subject: mc.Source.Range().Ptr(),
 				})
 			} else {
-				if mc.HasVersion {
+				if mc.VersionAttr != nil {
 					// In this case we'll include some extra context that
 					// we assumed a registry source address due to the
 					// version argument.
@@ -238,6 +219,53 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 	}
 
 	return diags
+}
+
+func (mc *ModuleCall) decodeStaticVersion(eval *StaticEvaluator) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	if mc.VersionAttr == nil {
+		return diags
+	}
+
+	val, valDiags := eval.Evaluate(mc.VersionAttr.Expr, StaticIdentifier{
+		Module:    eval.call.addr,
+		Subject:   fmt.Sprintf("module.%s.version", mc.Name),
+		DeclRange: mc.VersionAttr.Range,
+	})
+	diags = diags.Extend(valDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	var verDiags hcl.Diagnostics
+	mc.Version, verDiags = decodeVersionConstraintValue(mc.VersionAttr, val)
+	return diags.Extend(verDiags)
+}
+
+func (mc *ModuleCall) decodeStaticVariables(eval *StaticEvaluator) {
+	attr, _ := mc.Config.JustAttributes()
+
+	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
+		v, ok := attr[variable.Name]
+		if !ok {
+			if variable.Required() {
+				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing variable in module call",
+					Subject:  mc.Config.MissingItemRange().Ptr(),
+				}}
+			}
+			return variable.Default, nil
+		}
+
+		ident := StaticIdentifier{
+			Module:    eval.call.addr.Child(mc.Name),
+			Subject:   fmt.Sprintf("var.%s", variable.Name),
+			DeclRange: v.Range,
+		}
+		return eval.Evaluate(v.Expr, ident)
+	}
 }
 
 // EntersNewPackage returns true if this call is to an external module, either

@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -86,7 +85,7 @@ resource "foo" "bar" {}
 		t.Fatal(fileDiags)
 	}
 
-	dummyIdentifier := StaticIdentifier{Subject: addrs.LocalValue{Name: "test"}}
+	dummyIdentifier := StaticIdentifier{Subject: "local.test"}
 
 	t.Run("Empty Eval", func(t *testing.T) {
 		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
@@ -188,7 +187,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: addrs.LocalValue{Name: badref.Name}, DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, []string{local.diag})
 			})
 		}
@@ -217,7 +216,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: addrs.LocalValue{Name: badref.Name}, DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, local.diags)
 			})
 		}
@@ -236,7 +235,7 @@ resource "foo" "bar" {}
 		eval := NewStaticEvaluator(mod, call)
 
 		badref := mod.Locals["ref_c"]
-		_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: addrs.LocalValue{Name: badref.Name}, DeclRange: badref.DeclRange})
+		_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 		assertExactDiagnostics(t, diags, []string{
 			"eval.tf:2,1-15: Variable value not provided; var.str not included",
 			"eval.tf:47,2-17: Unable to compute static value; local.ref_a depends on var.str which is not available",
@@ -259,7 +258,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: addrs.LocalValue{Name: badref.Name}, DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, []string{local.diag})
 			})
 		}
@@ -267,7 +266,7 @@ resource "foo" "bar" {}
 }
 
 func TestStaticEvaluator_DecodeExpression(t *testing.T) {
-	dummyIdentifier := StaticIdentifier{Subject: addrs.LocalValue{Name: "test"}}
+	dummyIdentifier := StaticIdentifier{Subject: "local.test"}
 	parser := testParser(map[string]string{"eval.tf": ""})
 	file, fileDiags := parser.LoadConfigFile("eval.tf")
 	if fileDiags.HasErrors() {

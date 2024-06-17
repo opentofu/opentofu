@@ -23,7 +23,6 @@ func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scop
 	return &lang.Scope{
 		Data:        staticScopeData{eval, stack},
 		ParseRef:    addrs.ParseRef,
-		SourceAddr:  stack[len(stack)-1].Subject,
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
 		PureOnly:    false,
 		ConsoleMode: false,
@@ -118,7 +117,7 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 
 	id := StaticIdentifier{
 		Module:    s.eval.call.addr,
-		Subject:   addrs.LocalValue{Name: local.Name},
+		Subject:   fmt.Sprintf("local.%s", local.Name),
 		DeclRange: local.DeclRange,
 	}
 
@@ -200,7 +199,7 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 
 	id := StaticIdentifier{
 		Module:    s.eval.call.addr,
-		Subject:   addrs.InputVariable{Name: variable.Name},
+		Subject:   fmt.Sprintf("var.%s", variable.Name),
 		DeclRange: variable.DeclRange,
 	}
 

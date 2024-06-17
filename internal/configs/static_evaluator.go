@@ -17,12 +17,12 @@ import (
 // StaticIdentifier holds a Referencable item and where it was declared
 type StaticIdentifier struct {
 	Module    addrs.Module
-	Subject   addrs.Referenceable
+	Subject   string
 	DeclRange hcl.Range
 }
 
 func (ref StaticIdentifier) String() string {
-	val := ref.Subject.String()
+	val := ref.Subject
 	if len(ref.Module) != 0 {
 		val = ref.Module.String() + ":" + val
 	}
