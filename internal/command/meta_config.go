@@ -115,56 +115,55 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 }
 
 func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags.Diagnostics) {
-	if m.rootModuleCallCache == nil {
-		variables, diags := m.collectVariableValues()
-
-		call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
-			name := variable.Name
-			v, ok := variables[name]
-			if !ok {
-				/* This is an example of how we might be able to interactively ask for user input for static vars.  It is disabled due to complex interactions between variable in different code paths (apply existing plan for example)
-				// TODO this is copied from backend_local.go:interactiveCollectVariables()
-				rawValue, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
-					Id:          fmt.Sprintf("var.%s", name),
-					Query:       fmt.Sprintf("var.%s", name),
-					Description: variable.Description,
-					Secret:      variable.Sensitive,
-				})
-				if err != nil {
-					// Since interactive prompts are best-effort, we'll just continue
-					// here and let subsequent validation report this as a variable
-					// not specified.
-					log.Printf("[WARN] backend/local: Failed to request user input for variable %q: %s", name, err)
-					return configs.StaticReference{}, false
-				}
-				v = unparsedVariableValueString{
-					str:        rawValue,
-					name:       name,
-					sourceType: tofu.ValueFromInput,
-				}
-				// This intentionally modifies the input cache map
-				// This is a bad hack and should be replaced with a common input variable cache
-				variables[name] = v
-				*/
-				if variable.Required() {
-					// Not specified on CLI or in var files, without a valid default.
-					return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Variable not provided via cli flags or *.tfvars",
-						Subject:  variable.DeclRange.Ptr(),
-					}}
-				}
-				return variable.Default, nil
-			}
-
-			parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
-			return parsed.Value, parsedDiags.ToHCL()
-		}, rootDir)
-		m.rootModuleCallCache = &call
-		return call, diags
+	if m.rootModuleCallCache != nil {
+		return *m.rootModuleCallCache, nil
 	}
+	variables, diags := m.collectVariableValues()
 
-	return *m.rootModuleCallCache, nil
+	call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		name := variable.Name
+		v, ok := variables[name]
+		if !ok {
+			/* This is an example of how we might be able to interactively ask for user input for static vars.  It is disabled due to complex interactions between variable in different code paths (apply existing plan for example)
+			// TODO this is copied from backend_local.go:interactiveCollectVariables()
+			rawValue, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
+				Id:          fmt.Sprintf("var.%s", name),
+				Query:       fmt.Sprintf("var.%s", name),
+				Description: variable.Description,
+				Secret:      variable.Sensitive,
+			})
+			if err != nil {
+				// Since interactive prompts are best-effort, we'll just continue
+				// here and let subsequent validation report this as a variable
+				// not specified.
+				log.Printf("[WARN] backend/local: Failed to request user input for variable %q: %s", name, err)
+				return configs.StaticReference{}, false
+			}
+			v = unparsedVariableValueString{
+				str:        rawValue,
+				name:       name,
+				sourceType: tofu.ValueFromInput,
+			}
+			// This intentionally modifies the input cache map
+			// This is a bad hack and should be replaced with a common input variable cache
+			variables[name] = v
+			*/
+			if variable.Required() {
+				// Not specified on CLI or in var files, without a valid default.
+				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Variable not provided via cli flags or *.tfvars",
+					Subject:  variable.DeclRange.Ptr(),
+				}}
+			}
+			return variable.Default, nil
+		}
+
+		parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
+		return parsed.Value, parsedDiags.ToHCL()
+	}, rootDir)
+	m.rootModuleCallCache = &call
+	return call, diags
 }
 
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any
