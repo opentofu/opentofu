@@ -13,9 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/testutils"
 )
 
-func TestKMSService(t *testing.T) {
+func testKMSService(t *testing.T, kmsService testutils.AWSKMSTestService) {
 	ctx := testutils.Context(t)
-	var kmsService testutils.AWSKMSTestService = testutils.AWS(t)
 	kmsClient := kms.NewFromConfig(kmsService.ConfigV2())
 	t.Logf("🔍 Checking if the KMS key from the AWS test service can be described...")
 	if _, err := kmsClient.DescribeKey(ctx, &kms.DescribeKeyInput{

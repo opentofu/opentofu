@@ -23,10 +23,10 @@ import (
 
 // TestHTTPProxy tests the HTTPProxy functionality using traditional HTTP and HTTPS connections.
 func TestHTTPProxy(t *testing.T) {
-	testutils.SetupTestLogger(t)
-	ctx := testutils.Context(t)
-
 	t.Run("Backend: HTTP", func(t *testing.T) {
+		t.Parallel()
+		testutils.SetupTestLogger(t)
+		ctx := testutils.Context(t)
 		httpAddr := testHTTPProxySetupBackingHTTPServer(ctx, t)
 		t.Logf("🪧 Setting up proxy server...")
 		proxy := testutils.HTTPProxy(t, testutils.HTTPProxyOptionForceHTTPTarget(httpAddr))
@@ -34,6 +34,9 @@ func TestHTTPProxy(t *testing.T) {
 		testHTTPProxyRequests(ctx, t, proxy)
 	})
 	t.Run("Backend: HTTPS", func(t *testing.T) {
+		t.Parallel()
+		testutils.SetupTestLogger(t)
+		ctx := testutils.Context(t)
 		backingCA := testutils.CA(t)
 		httpAddr := testHTTPProxySetupBackingHTTPSServer(ctx, t, backingCA)
 		t.Logf("🪧 Setting up proxy server...")
@@ -42,6 +45,8 @@ func TestHTTPProxy(t *testing.T) {
 		testHTTPProxyRequests(ctx, t, proxy)
 	})
 	t.Run("Backend: TLS", func(t *testing.T) {
+		t.Parallel()
+		testutils.SetupTestLogger(t)
 		testHTTPProxyInConnectMode(t)
 	})
 }

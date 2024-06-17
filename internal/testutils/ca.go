@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const caKeySize = 4096
+const caKeySize = 1024
 const expirationYears = 10
 
 // CA creates an x509 CA certificate that can produce certificates for testing purposes.

@@ -12,9 +12,8 @@ import (
 	"github.com/opentofu/opentofu/internal/testutils"
 )
 
-func TestIAMService(t *testing.T) {
+func testIAMService(t *testing.T, iamService testutils.AWSIAMTestService) {
 	ctx := testutils.Context(t)
-	var iamService testutils.AWSIAMTestService = testutils.AWS(t)
 	iamClient := iam.NewFromConfig(iamService.ConfigV2())
 	t.Logf("\U0001FAAA Checking if the caller identity can be retrieved...")
 	roles, err := iamClient.ListRoles(ctx, &iam.ListRolesInput{})

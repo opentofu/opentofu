@@ -18,8 +18,7 @@ import (
 const s3TestFileName = "test.txt"
 const s3TestFileContents = "Hello OpenTofu!"
 
-func TestS3Service(t *testing.T) {
-	var s3TestBackend testutils.AWSS3TestService = testutils.AWS(t)
+func testS3Service(t *testing.T, s3TestBackend testutils.AWSS3TestService) {
 	s3Connection := s3.NewFromConfig(s3TestBackend.ConfigV2(), func(options *s3.Options) {
 		options.UsePathStyle = s3TestBackend.S3UsePathStyle()
 	})

@@ -12,9 +12,8 @@ import (
 	"github.com/opentofu/opentofu/internal/testutils"
 )
 
-func TestSTSService(t *testing.T) {
+func testSTSService(t *testing.T, stsService testutils.AWSSTSTestService) {
 	ctx := testutils.Context(t)
-	var stsService testutils.AWSSTSTestService = testutils.AWS(t)
 	stsClient := sts.NewFromConfig(stsService.ConfigV2())
 	t.Logf("\U0001FAAA Checking if the caller identity can be retrieved...")
 	output, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})

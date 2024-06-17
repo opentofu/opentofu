@@ -13,9 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/testutils"
 )
 
-func TestDynamoDBService(t *testing.T) {
+func testDynamoDBService(t *testing.T, dynamoDBService testutils.AWSDynamoDBTestService) {
 	ctx := testutils.Context(t)
-	var dynamoDBService testutils.AWSDynamoDBTestService = testutils.AWS(t)
 	var dynamoDBClient = dynamodb.NewFromConfig(dynamoDBService.ConfigV2())
 	t.Logf("🔍 Checking if the DynamoDB table from the AWS test service can be described...")
 	if _, err := dynamoDBClient.DescribeTable(ctx, &dynamodb.DescribeTableInput{
