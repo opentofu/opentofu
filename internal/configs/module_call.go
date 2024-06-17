@@ -252,7 +252,7 @@ func (mc *ModuleCall) decodeStaticVariables(eval *StaticEvaluator) {
 			if variable.Required() {
 				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Missing variable in module call",
+					Summary:  "Missing required variable in module call",
 					Subject:  mc.Config.MissingItemRange().Ptr(),
 				}}
 			}
