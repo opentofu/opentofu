@@ -18,7 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// Creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
+// newStaticScope Creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
 func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
 		Data:        staticScopeData{eval, stack},

@@ -51,7 +51,7 @@ var RootModuleCallForTesting = StaticModuleCall{
 	addr:     addrs.RootModule,
 	rootPath: "<testing>",
 	vars: func(_ *Variable) (cty.Value, hcl.Diagnostics) {
-		panic("Variables not configured for this test!")
+		panic("Variables have not been configured for this test!")
 	},
 }
 
