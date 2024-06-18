@@ -233,9 +233,9 @@ func (h *httpServer) handler() http.Handler {
 	return h.r
 }
 
-// NewHttpTestServer creates an HTTP test server for backend testing. Additionally, it returns a certificate authority
+// NewHTTPTestServer creates an HTTP test server for backend testing. Additionally, it returns a certificate authority
 // to create client certificates.
-func NewHttpTestServer(t *testing.T, opts ...httpServerOpt) (server *httptest.Server, serverCA testutils.CertificateAuthority, clientCA testutils.CertificateAuthority, err error) {
+func NewHTTPTestServer(t *testing.T, opts ...httpServerOpt) (server *httptest.Server, serverCA testutils.CertificateAuthority, clientCA testutils.CertificateAuthority, err error) {
 	serverCA = testutils.CA(t)
 	clientCA = testutils.CA(t)
 
@@ -258,7 +258,7 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 	mockCallback := NewMockHttpServerCallback(ctrl)
 
 	// Fire up a test server
-	ts, _, _, err := NewHttpTestServer(t, withHttpServerCallback(mockCallback))
+	ts, _, _, err := NewHTTPTestServer(t, withHttpServerCallback(mockCallback))
 	if err != nil {
 		t.Fatalf("unexpected error creating test server: %v", err)
 	}
@@ -313,7 +313,7 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 		StatePOST(gomock.Any())
 
 	// Fire up a test server
-	ts, serverCA, clientCA, err := NewHttpTestServer(t, withHttpServerCallback(mockCallback))
+	ts, serverCA, clientCA, err := NewHTTPTestServer(t, withHttpServerCallback(mockCallback))
 	if err != nil {
 		t.Fatalf("unexpected error creating test server: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestRunServer(t *testing.T) {
 	if _, ok := os.LookupEnv("TEST_RUN_SERVER"); !ok {
 		t.Skip("TEST_RUN_SERVER not set")
 	}
-	s, _, _, err := NewHttpTestServer(t)
+	s, _, _, err := NewHTTPTestServer(t)
 	if err != nil {
 		t.Fatalf("unexpected error creating test server: %v", err)
 	}
