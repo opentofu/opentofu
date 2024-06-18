@@ -161,10 +161,8 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	evalCtx, evalDiags := e.staticEval.EvalContext(configs.StaticIdentifier{
-		Module: addrs.RootModule,
-		Subject: addrs.TerraformAttr{
-			Name: fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
-		},
+		Module:    addrs.RootModule,
+		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: e.cfg.DeclRange,
 	}, refs)
 	diags = append(diags, evalDiags.ToHCL()...)
