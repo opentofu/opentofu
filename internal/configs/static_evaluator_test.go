@@ -302,7 +302,7 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		diags: []string{`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`},
 	}, {
 		expr:  `module.foo.bar`,
-		diags: []string{`eval.tf:1,1-15: Dynamic value in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
+		diags: []string{`eval.tf:1,1-15: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
 	}}
 
 	for _, tc := range cases {
@@ -348,7 +348,7 @@ terraform {
 		thing = module.foo.bar
 	}
 }`,
-		diags: []string{`eval.tf:4,11-25: Dynamic value in static context; Unable to use module.foo.bar in static context, which is required by backend.badeval`},
+		diags: []string{`eval.tf:4,11-25: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by backend.badeval`},
 	}}
 
 	for _, tc := range cases {

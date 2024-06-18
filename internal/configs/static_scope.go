@@ -71,6 +71,7 @@ func (s staticScopeData) enhanceDiagnostics(ident StaticIdentifier, diags tfdiag
 // Early check to only allow references we expect in a static context
 func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ addrs.Referenceable, _ addrs.Referenceable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
+	top := s.stack[len(s.stack)-1]
 	for _, ref := range refs {
 		switch subject := ref.Subject.(type) {
 		case addrs.LocalValue:
@@ -81,8 +82,21 @@ func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ add
 			continue
 		case addrs.TerraformAttr:
 			continue
+		case addrs.ModuleCallInstanceOutput:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Module output not supported in static context",
+				Detail:   fmt.Sprintf("Unable to use %s in static context, which is required by %s", subject.String(), top.String()),
+				Subject:  ref.SourceRange.ToHCL().Ptr(),
+			})
+		case addrs.ProviderFunction:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Provider function in static context",
+				Detail:   fmt.Sprintf("Unable to use %s in static context, which is required by %s", subject.String(), top.String()),
+				Subject:  ref.SourceRange.ToHCL().Ptr(),
+			})
 		default:
-			top := s.stack[len(s.stack)-1]
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Dynamic value in static context",
