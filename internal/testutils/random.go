@@ -41,7 +41,7 @@ func DeterministicRandomID(t *testing.T, length uint, characterSpace CharacterRa
 
 // RandomID returns a non-deterministic, pseudo-random identifier.
 func RandomID(length uint, characterSpace CharacterRange) string {
-	return RandomIDFromSource(RandomSource(), length, characterSpace) //nolint:gosec // Disabling gosec linting because this ID is for testing only.
+	return RandomIDFromSource(RandomSource(), length, characterSpace)
 }
 
 // RandomIDPrefix returns a random identifier with a given prefix. The prefix length does not count towards the
