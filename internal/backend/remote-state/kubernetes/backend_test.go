@@ -8,6 +8,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
@@ -84,7 +85,6 @@ func TestBackendLocksSoak(t *testing.T) {
 
 	clientCount := 100
 	lockAttempts := 100
-	const lockWaitTime = 10 * time.Microsecond
 
 	lockers := []statemgr.Locker{}
 	for i := 0; i < clientCount; i++ {
@@ -117,7 +117,7 @@ func TestBackendLocksSoak(t *testing.T) {
 				}
 
 				// hold onto the lock for a little bit
-				time.Sleep(lockWaitTime)
+				time.Sleep(time.Duration(rand.Intn(10)) * time.Microsecond)
 
 				err = locker.Unlock(id)
 				if err != nil {
