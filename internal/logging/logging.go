@@ -57,21 +57,36 @@ func init() {
 	log.SetOutput(logWriter)
 }
 
-// SetupTempLog adds a new log sink which writes all logs to the given file.
+// RegisterSink adds a new log sink which writes all logs to the given file.
 func RegisterSink(f *os.File) {
+	if f == nil {
+		return
+	}
+
+	RegisterSinkAdapter(hclog.NewSinkAdapter(&hclog.LoggerOptions{
+		Level:  hclog.Trace,
+		Output: f,
+	}))
+}
+
+// RegisterSinkAdapter adds a new log sink using a hclog.SinkAdapter.
+func RegisterSinkAdapter(adapter hclog.SinkAdapter) {
 	l, ok := logger.(hclog.InterceptLogger)
 	if !ok {
 		panic("global logger is not an InterceptLogger")
 	}
 
-	if f == nil {
-		return
+	l.RegisterSink(adapter)
+}
+
+// DeregisterSinkAdapter removes a log sink using a hclog.SinkAdapter.
+func DeregisterSinkAdapter(adapter hclog.SinkAdapter) {
+	l, ok := logger.(hclog.InterceptLogger)
+	if !ok {
+		panic("global logger is not an InterceptLogger")
 	}
 
-	l.RegisterSink(hclog.NewSinkAdapter(&hclog.LoggerOptions{
-		Level:  hclog.Trace,
-		Output: f,
-	}))
+	l.DeregisterSink(adapter)
 }
 
 // LogOutput return the default global log io.Writer
