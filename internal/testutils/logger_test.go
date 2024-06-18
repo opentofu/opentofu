@@ -81,7 +81,7 @@ func TestGlobalTestLogger(t *testing.T) {
 	setupTestLogger(t2)
 
 	// Intentionally write without t.Logf:
-	log.Printf(testString)
+	log.Print(testString)
 
 	if len(t2.lines) != 1 {
 		t.Fatalf("❌ Expected 1 line, got %d", len(t2.lines))
