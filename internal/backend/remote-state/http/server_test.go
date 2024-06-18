@@ -235,7 +235,7 @@ func (h *httpServer) handler() http.Handler {
 
 // NewHTTPTestServer creates an HTTP test server for backend testing. Additionally, it returns a certificate authority
 // to create client certificates.
-func NewHTTPTestServer(t *testing.T, opts ...httpServerOpt) (server *httptest.Server, serverCA testutils.CertificateAuthority, clientCA testutils.CertificateAuthority, err error) {
+func NewHTTPTestServer(t *testing.T, opts ...httpServerOpt) (server *httptest.Server, serverCA testutils.CertificateAuthority, clientCA testutils.CertificateAuthority, err error) { //nolint:nonamedreturns // The named returns serve a documentation purpose here.
 	serverCA = testutils.CA(t)
 	clientCA = testutils.CA(t)
 
