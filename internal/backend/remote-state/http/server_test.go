@@ -10,7 +10,6 @@ package http
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +32,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/testutils"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -233,29 +233,22 @@ func (h *httpServer) handler() http.Handler {
 	return h.r
 }
 
-func NewHttpTestServer(opts ...httpServerOpt) (*httptest.Server, error) {
-	clientCAData, err := os.ReadFile("testdata/certs/ca.cert.pem")
-	if err != nil {
-		return nil, err
-	}
-	clientCAs := x509.NewCertPool()
-	clientCAs.AppendCertsFromPEM(clientCAData)
+// NewHttpTestServer creates an HTTP test server for backend testing. Additionally, it returns a certificate authority
+// to create client certificates.
+func NewHttpTestServer(t *testing.T, opts ...httpServerOpt) (server *httptest.Server, serverCA testutils.CertificateAuthority, clientCA testutils.CertificateAuthority, err error) {
+	serverCA = testutils.CA(t)
+	clientCA = testutils.CA(t)
 
-	cert, err := tls.LoadX509KeyPair("testdata/certs/server.crt", "testdata/certs/server.key")
-	if err != nil {
-		return nil, err
-	}
+	serverKey := serverCA.CreateLocalhostServerCert()
 
 	h := newHttpServer(opts...)
-	s := httptest.NewUnstartedServer(h.handler())
-	s.TLS = &tls.Config{
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    clientCAs,
-		Certificates: []tls.Certificate{cert},
-	}
+	server = httptest.NewUnstartedServer(h.handler())
+	server.TLS = serverKey.GetServerTLSConfig()
+	server.TLS.ClientAuth = tls.RequireAndVerifyClientCert
+	server.TLS.ClientCAs = clientCA.GetCertPool()
 
-	s.StartTLS()
-	return s, nil
+	server.StartTLS()
+	return server, serverCA, clientCA, nil
 }
 
 func TestMTLSServer_NoCertFails(t *testing.T) {
@@ -265,7 +258,7 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 	mockCallback := NewMockHttpServerCallback(ctrl)
 
 	// Fire up a test server
-	ts, err := NewHttpTestServer(withHttpServerCallback(mockCallback))
+	ts, _, _, err := NewHttpTestServer(t, withHttpServerCallback(mockCallback))
 	if err != nil {
 		t.Fatalf("unexpected error creating test server: %v", err)
 	}
@@ -320,7 +313,7 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 		StatePOST(gomock.Any())
 
 	// Fire up a test server
-	ts, err := NewHttpTestServer(withHttpServerCallback(mockCallback))
+	ts, serverCA, clientCA, err := NewHttpTestServer(t, withHttpServerCallback(mockCallback))
 	if err != nil {
 		t.Fatalf("unexpected error creating test server: %v", err)
 	}
@@ -328,25 +321,14 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 
 	// Configure the backend to the pre-populated sample state, and with all the test certs lined up
 	url := ts.URL + "/state/sample"
-	caData, err := os.ReadFile("testdata/certs/ca.cert.pem")
-	if err != nil {
-		t.Fatalf("error reading ca certs: %v", err)
-	}
-	clientCertData, err := os.ReadFile("testdata/certs/client.crt")
-	if err != nil {
-		t.Fatalf("error reading client cert: %v", err)
-	}
-	clientKeyData, err := os.ReadFile("testdata/certs/client.key")
-	if err != nil {
-		t.Fatalf("error reading client key: %v", err)
-	}
+	clientCert := clientCA.CreateLocalhostClientCert()
 	conf := map[string]cty.Value{
 		"address":                   cty.StringVal(url),
 		"lock_address":              cty.StringVal(url),
 		"unlock_address":            cty.StringVal(url),
-		"client_ca_certificate_pem": cty.StringVal(string(caData)),
-		"client_certificate_pem":    cty.StringVal(string(clientCertData)),
-		"client_private_key_pem":    cty.StringVal(string(clientKeyData)),
+		"client_ca_certificate_pem": cty.StringVal(string(serverCA.GetPEMCACert())),
+		"client_certificate_pem":    cty.StringVal(string(clientCert.Certificate)),
+		"client_private_key_pem":    cty.StringVal(string(clientCert.PrivateKey)),
 	}
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	if nil == b {
@@ -425,7 +407,7 @@ func TestRunServer(t *testing.T) {
 	if _, ok := os.LookupEnv("TEST_RUN_SERVER"); !ok {
 		t.Skip("TEST_RUN_SERVER not set")
 	}
-	s, err := NewHttpTestServer()
+	s, _, _, err := NewHttpTestServer(t)
 	if err != nil {
 		t.Fatalf("unexpected error creating test server: %v", err)
 	}

@@ -128,13 +128,18 @@ func (k KeyPair) GetServerTLSConfig() *tls.Config {
 type CertificateAuthority interface {
 	// GetPEMCACert returns the CA certificate in PEM format.
 	GetPEMCACert() []byte
+	// GetCertPool returns an x509.CertPool configured for this CA.
+	GetCertPool() *x509.CertPool
 	// GetClientTLSConfig returns a *tls.Config with a valid cert pool configured for this CA.
 	GetClientTLSConfig() *tls.Config
-	// CreateLocalhostServerCert creates a certificate pre-configured for "localhost", which is sufficient for most test
-	// cases.
+	// CreateLocalhostServerCert creates a server certificate pre-configured for "localhost", which is sufficient for
+	// most test cases.
 	CreateLocalhostServerCert() KeyPair
-	// CreateConfiguredServerCert creates a server certificate with a specialized configuration.
-	CreateConfiguredServerCert(config CertConfig) KeyPair
+	// CreateLocalhostClientCert creates a client certificate pre-configured for "localhost", which is sufficient for
+	// most test cases.
+	CreateLocalhostClientCert() KeyPair
+	// CreateConfiguredCert creates a certificate with a specialized configuration.
+	CreateConfiguredCert(config CertConfig) KeyPair
 }
 
 type ca struct {
@@ -148,8 +153,7 @@ type ca struct {
 }
 
 func (c *ca) GetClientTLSConfig() *tls.Config {
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(c.caCertPEM)
+	certPool := c.GetCertPool()
 
 	return &tls.Config{
 		RootCAs:    certPool,
@@ -157,11 +161,17 @@ func (c *ca) GetClientTLSConfig() *tls.Config {
 	}
 }
 
+func (c *ca) GetCertPool() *x509.CertPool {
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(c.caCertPEM)
+	return certPool
+}
+
 func (c *ca) GetPEMCACert() []byte {
 	return c.caCertPEM
 }
 
-func (c *ca) CreateConfiguredServerCert(config CertConfig) KeyPair {
+func (c *ca) CreateConfiguredCert(config CertConfig) KeyPair {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.serial.Add(c.serial, big.NewInt(1))
@@ -216,7 +226,7 @@ func (c *ca) CreateConfiguredServerCert(config CertConfig) KeyPair {
 }
 
 func (c *ca) CreateLocalhostServerCert() KeyPair {
-	return c.CreateConfiguredServerCert(CertConfig{
+	return c.CreateConfiguredCert(CertConfig{
 		IPAddresses: []string{"127.0.0.1", "::1"},
 		Subject: pkix.Name{
 			Country:      []string{"US"},
@@ -224,6 +234,21 @@ func (c *ca) CreateLocalhostServerCert() KeyPair {
 			CommonName:   "localhost",
 		},
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		Hosts: []string{
+			"localhost",
+		},
+	})
+}
+
+func (c *ca) CreateLocalhostClientCert() KeyPair {
+	return c.CreateConfiguredCert(CertConfig{
+		IPAddresses: []string{"127.0.0.1", "::1"},
+		Subject: pkix.Name{
+			Country:      []string{"US"},
+			Organization: []string{"OpenTofu a Series of LF Projects, LLC"},
+			CommonName:   "localhost",
+		},
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		Hosts: []string{
 			"localhost",
 		},
