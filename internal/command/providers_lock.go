@@ -41,6 +41,7 @@ func (c *ProvidersLockCommand) Synopsis() string {
 func (c *ProvidersLockCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers lock")
+	c.Meta.varFlagSet(cmdFlags)
 	var optPlatforms FlagStringSlice
 	var fsMirrorDir string
 	var netMirrorURL string

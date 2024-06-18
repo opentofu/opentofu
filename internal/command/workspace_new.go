@@ -35,6 +35,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	var stateLockTimeout time.Duration
 	var statePath string
 	cmdFlags := c.Meta.defaultFlagSet("workspace new")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&stateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&stateLockTimeout, "lock-timeout", 0, "lock timeout")
 	cmdFlags.StringVar(&statePath, "state", "", "tofu state file")

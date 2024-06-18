@@ -33,6 +33,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	var stateLock bool
 	var stateLockTimeout time.Duration
 	cmdFlags := c.Meta.defaultFlagSet("workspace delete")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&force, "force", false, "force removal of a non-empty workspace")
 	cmdFlags.BoolVar(&stateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&stateLockTimeout, "lock-timeout", 0, "lock timeout")

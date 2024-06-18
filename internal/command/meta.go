@@ -586,9 +586,21 @@ func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
 func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
+	m.varFlagSet(f)
+
 	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 
 	return f
+}
+
+func (m *Meta) varFlagSet(f *flag.FlagSet) {
+	if m.variableArgs.items == nil {
+		m.variableArgs = newRawFlags("-var")
+	}
+	varValues := m.variableArgs.Alias("-var")
+	varFiles := m.variableArgs.Alias("-var-file")
+	f.Var(varValues, "var", "variables")
+	f.Var(varFiles, "var-file", "variable file")
 }
 
 // extendedFlagSet adds custom flags that are mostly used by commands
@@ -600,13 +612,7 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 
-	if m.variableArgs.items == nil {
-		m.variableArgs = newRawFlags("-var")
-	}
-	varValues := m.variableArgs.Alias("-var")
-	varFiles := m.variableArgs.Alias("-var-file")
-	f.Var(varValues, "var", "variables")
-	f.Var(varFiles, "var-file", "variable file")
+	m.varFlagSet(f)
 
 	// commands that bypass locking will supply their own flag on this var,
 	// but set the initial meta value to true as a failsafe.
