@@ -45,7 +45,7 @@ func TestRemoteClient_stateLock(t *testing.T) {
 
 func TestRemoteClient_Put_withRunID(t *testing.T) {
 	// Set the TFE_RUN_ID environment variable before creating the client!
-	t.Setenv("TFE_RUN_ID", testutils.RandomIDPrefix("run-", 16, testutils.CharacterSpaceAlphaNumeric))
+	t.Setenv("TFE_RUN_ID", testutils.RandomIDPrefix("run-", 16, testutils.CharacterRangeAlphaNumeric))
 
 	// Create a new test client.
 	client := testRemoteClient(t)

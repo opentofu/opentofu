@@ -216,7 +216,7 @@ func TestConsul_largeState(t *testing.T) {
 	testPayload(
 		t,
 		map[string]string{
-			"bar": testutils.RandomIDFromSource(randomizer, 5*(524288+2), testutils.CharacterSpaceAlpha),
+			"bar": testutils.RandomIDFromSource(randomizer, 5*(524288+2), testutils.CharacterRangeAlpha),
 		},
 		[]string{
 			"tf-unit/test-large-state",

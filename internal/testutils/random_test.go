@@ -23,7 +23,7 @@ func TestDeterministicRandomID(t *testing.T) {
 	if id := testutils.DeterministicRandomID(
 		t,
 		idLength,
-		testutils.CharacterSpaceAlphaNumeric,
+		testutils.CharacterRangeAlphaNumeric,
 	); id != "MFXow4tIaSnd" {
 		t.Fatalf(
 			"Incorrect first pseudo-random ID returned: %s (the returned ID depends on the test name, make "+
@@ -34,7 +34,7 @@ func TestDeterministicRandomID(t *testing.T) {
 	if id := testutils.DeterministicRandomID(
 		t,
 		idLength,
-		testutils.CharacterSpaceAlphaNumeric,
+		testutils.CharacterRangeAlphaNumeric,
 	); id != "9LSAyPisw01j" {
 		t.Fatalf(
 			"Incorrect second pseudo-random ID returned: %s (the returned ID depends on the test name, make "+
@@ -47,7 +47,7 @@ func TestDeterministicRandomID(t *testing.T) {
 func TestRandomIDPrefix(t *testing.T) {
 	const testPrefix = "test-"
 	const idLength = 12
-	id := testutils.RandomIDPrefix(testPrefix, idLength, testutils.CharacterSpaceAlphaNumeric)
+	id := testutils.RandomIDPrefix(testPrefix, idLength, testutils.CharacterRangeAlphaNumeric)
 	if len(id) != idLength+len(testPrefix) {
 		t.Fatalf("Incorrect random ID length: %s", id)
 	}
@@ -58,7 +58,7 @@ func TestRandomIDPrefix(t *testing.T) {
 
 func TestRandomID(t *testing.T) {
 	const idLength = 12
-	id := testutils.RandomID(idLength, testutils.CharacterSpaceAlphaNumeric)
+	id := testutils.RandomID(idLength, testutils.CharacterRangeAlphaNumeric)
 	if len(id) != idLength {
 		t.Fatalf("Incorrect random ID length: %s", id)
 	}

@@ -20,22 +20,22 @@ import (
 var randomSources = map[string]*rand.Rand{} //nolint:gochecknoglobals //This variable stores the randomness sources for DeterministicRandomID and needs to be global.
 var randomLock = &sync.Mutex{}              //nolint:gochecknoglobals //This variable is required to lock the randomSources above.
 
-// CharacterSpace defines which characters to use for generating a random ID.
-type CharacterSpace string
+// CharacterRange defines which characters to use for generating a random ID.
+type CharacterRange string
 
 const (
-	CharacterSpaceAlphaNumeric      CharacterSpace = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CharacterSpaceAlphaNumericLower CharacterSpace = "abcdefghijklmnopqrstuvwxyz0123456789"
-	CharacterSpaceAlphaNumericUpper CharacterSpace = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	CharacterSpaceAlpha             CharacterSpace = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	CharacterSpaceAlphaLower        CharacterSpace = "abcdefghijklmnopqrstuvwxyz"
-	CharacterSpaceAlphaUpper        CharacterSpace = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	CharacterRangeAlphaNumeric      CharacterRange = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	CharacterRangeAlphaNumericLower CharacterRange = "abcdefghijklmnopqrstuvwxyz0123456789"
+	CharacterRangeAlphaNumericUpper CharacterRange = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	CharacterRangeAlpha             CharacterRange = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	CharacterRangeAlphaLower        CharacterRange = "abcdefghijklmnopqrstuvwxyz"
+	CharacterRangeAlphaUpper        CharacterRange = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 // DeterministicRandomID generates a pseudo-random identifier for the given test, using its name as a seed for
 // randomness. This function guarantees that when queried in order, the values are always the same as long as the name
 // of the test doesn't change.
-func DeterministicRandomID(t *testing.T, length uint, characterSpace CharacterSpace) string {
+func DeterministicRandomID(t *testing.T, length uint, characterSpace CharacterRange) string {
 	var random *rand.Rand
 	name := t.Name()
 	var ok bool
@@ -56,18 +56,18 @@ func DeterministicRandomID(t *testing.T, length uint, characterSpace CharacterSp
 }
 
 // RandomID returns a non-deterministic, pseudo-random identifier.
-func RandomID(length uint, characterSpace CharacterSpace) string {
+func RandomID(length uint, characterSpace CharacterRange) string {
 	return RandomIDFromSource(rand.New(rand.NewSource(time.Now().UnixNano())), length, characterSpace) //nolint:gosec // Disabling gosec linting because this ID is for testing only.
 }
 
 // RandomIDPrefix returns a random identifier with a given prefix. The prefix length does not count towards the
 // length.
-func RandomIDPrefix(prefix string, length uint, characterSpace CharacterSpace) string {
+func RandomIDPrefix(prefix string, length uint, characterSpace CharacterRange) string {
 	return prefix + RandomID(length, characterSpace)
 }
 
 // RandomIDFromSource generates a random ID with the specified length based on the provided random parameter.
-func RandomIDFromSource(random *rand.Rand, length uint, characterSpace CharacterSpace) string {
+func RandomIDFromSource(random *rand.Rand, length uint, characterSpace CharacterRange) string {
 	runes := []rune(characterSpace)
 	var builder strings.Builder
 	for i := uint(0); i < length; i++ {
