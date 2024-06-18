@@ -155,13 +155,7 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 	}
 
 	getVars := func(v *configs.Variable) (cty.Value, hcl.Diagnostics) {
-		if v, ok := mod.Variables[v.Name]; ok {
-			return v.Default, nil
-		}
-		return cty.NilVal, hcl.Diagnostics{{
-			Severity: hcl.DiagError,
-			Summary:  "Variable not found",
-		}}
+		return v.Default, nil
 	}
 
 	modCall := configs.NewStaticModuleCall(addrs.RootModule, getVars, "<testing>", "")
