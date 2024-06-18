@@ -61,7 +61,7 @@ func TestModuleInstaller(t *testing.T) {
 			Name:        "Install",
 			ModuleAddr:  "child_a.child_b",
 			PackageAddr: "",
-			LocalPath:   "child_a/child_b",
+			LocalPath:   filepath.Join("child_a", "child_b"),
 		},
 	}
 
@@ -393,7 +393,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 			Name:        "Install",
 			ModuleAddr:  "child_a.child_b",
 			PackageAddr: "",
-			LocalPath:   "child_a/child_b",
+			LocalPath:   filepath.Join("child_a", "child_b"),
 		},
 	}
 
@@ -764,7 +764,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 	config, loadDiags := loader.LoadConfigWithTests(".", "tests")
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
-	if config.Module.Tests["tests/main.tftest.hcl"].Runs[0].ConfigUnderTest == nil {
+	if config.Module.Tests[filepath.Join("tests", "main.tftest.hcl")].Runs[0].ConfigUnderTest == nil {
 		t.Fatalf("should have loaded config into the relevant run block but did not")
 	}
 }
