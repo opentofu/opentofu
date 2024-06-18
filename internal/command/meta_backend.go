@@ -499,7 +499,11 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
-	configHash := c.Hash(configSchema)
+	configHash, cfgDiags := c.Hash(configSchema)
+	diags = diags.Append(cfgDiags)
+	if diags.HasErrors() {
+		return nil, 0, diags
+	}
 
 	// If we have an override configuration body then we must apply it now.
 	if opts.ConfigOverride != nil {
