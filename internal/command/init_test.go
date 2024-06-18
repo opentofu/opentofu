@@ -2925,7 +2925,7 @@ func TestInit_testsWithModule(t *testing.T) {
 func TestInit_moduleSource(t *testing.T) {
 	t.Run("missing", func(t *testing.T) {
 		td := t.TempDir()
-		testCopyDir(t, testFixturePath("init-module-variable"), td)
+		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
 		defer testChdir(t, td)()
 
 		ui := cli.NewMockUi()
@@ -2949,7 +2949,7 @@ func TestInit_moduleSource(t *testing.T) {
 
 	t.Run("provided", func(t *testing.T) {
 		td := t.TempDir()
-		testCopyDir(t, testFixturePath("init-module-variable"), td)
+		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
 		defer testChdir(t, td)()
 
 		ui := cli.NewMockUi()
@@ -2962,6 +2962,33 @@ func TestInit_moduleSource(t *testing.T) {
 		}
 
 		args := []string{"-var", "src=./mod"}
+		if code := c.Run(args); code != 0 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+}
+
+// Test variables are handled correctly when interacting with module versions
+func TestInit_moduleVersion(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("network access not allowed; use TF_ACC=1 to enable")
+	}
+
+	t.Run("provided", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-version"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
+		}
+
+		args := []string{"-var", "modver=0.0.1"}
 		if code := c.Run(args); code != 0 {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
