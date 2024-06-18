@@ -266,6 +266,20 @@ resource "foo" "bar" {}
 			})
 		}
 	})
+
+	t.Run("Workspace", func(t *testing.T) {
+		call := NewStaticModuleCall(nil, nil, "<testing>", "my-workspace")
+		mod, _ := NewModule([]*File{file}, nil, call, "dir")
+		eval := NewStaticEvaluator(mod, call)
+
+		value, diags := eval.Evaluate(mod.Locals["ws"].Expr, dummyIdentifier)
+		if diags.HasErrors() {
+			t.Error(diags)
+		}
+		if value.AsString() != "my-workspace" {
+			t.Errorf("Expected %s got %s", "my-workspace", value.AsString())
+		}
+	})
 }
 
 func TestStaticEvaluator_DecodeExpression(t *testing.T) {
