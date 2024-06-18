@@ -732,9 +732,10 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		// Note: we don't need to read env variables explicitly because they are read implicitly by aws-sdk-base-go:
 		// see: https://github.com/hashicorp/aws-sdk-go-base/blob/v2.0.0-beta.41/internal/config/config.go#L133
 		// which relies on: https://cs.opensource.google/go/x/net/+/refs/tags/v0.18.0:http/httpproxy/proxy.go;l=89-96
-		HTTPProxy:            aws.String(stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY")),
-		HTTPSProxy:           aws.String(stringAttrDefaultEnvVar(obj, "https_proxy", "HTTPS_PROXY")),
-		NoProxy:              stringAttrDefaultEnvVar(obj, "no_proxy", "NO_PROXY"),
+		//
+		// Note: we are switching to "separate" mode here since the legacy mode is deprecated and should no longer be
+		// used.
+		HTTPProxyMode:        awsbase.HTTPProxyModeSeparate,
 		Insecure:             boolAttr(obj, "insecure"),
 		UseDualStackEndpoint: boolAttr(obj, "use_dualstack_endpoint"),
 		UseFIPSEndpoint:      boolAttr(obj, "use_fips_endpoint"),
@@ -746,6 +747,16 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
 		EC2MetadataServiceEndpointMode: stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint_mode", "AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE"),
 		Logger:                         baselog,
+	}
+
+	if val, ok := stringAttrOk(obj, "http_proxy"); ok {
+		cfg.HTTPProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "https_proxy"); ok {
+		cfg.HTTPSProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "no_proxy"); ok {
+		cfg.NoProxy = val
 	}
 
 	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
