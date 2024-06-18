@@ -96,5 +96,4 @@ func (b *Backend) referenceDiagnostics(schema *configschema.Block) hcl.Diagnosti
 	diags = append(diags, ctxDiags.ToHCL()...)
 
 	return diags
-
 }
