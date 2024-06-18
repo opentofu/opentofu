@@ -63,3 +63,41 @@ func TestRandomID(t *testing.T) {
 		t.Fatalf("Incorrect random ID length: %s", id)
 	}
 }
+
+func TestDeterministicRandomInt(t *testing.T) {
+	if t.Name() != "TestDeterministicRandomInt" {
+		t.Fatalf(
+			"The test name has changed, please update the test as it is used for seeding the random number " +
+				"generator.",
+		)
+	}
+	if i := testutils.DeterministicRandomInt(
+		t,
+		1,
+		42,
+	); i != 31 {
+		t.Fatalf(
+			"Incorrect first pseudo-random int returned: %d (the returned int depends on the test name, make "+
+				"sure to verify and update if you changed the test name)",
+			i,
+		)
+	}
+	if i := testutils.DeterministicRandomInt(
+		t,
+		1,
+		42,
+	); i != 29 {
+		t.Fatalf(
+			"Incorrect second pseudo-random int returned: %d (the returned int depends on the test name, make "+
+				"sure to verify and update if you changed the test name)",
+			i,
+		)
+	}
+}
+
+func TestRandomInt(t *testing.T) {
+	i := testutils.RandomInt(1, 42)
+	if i < 1 || i > 42 {
+		t.Fatalf("Invalid random integer returned %d (out of range)", i)
+	}
+}

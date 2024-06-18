@@ -36,28 +36,12 @@ const (
 // randomness. This function guarantees that when queried in order, the values are always the same as long as the name
 // of the test doesn't change.
 func DeterministicRandomID(t *testing.T, length uint, characterSpace CharacterRange) string {
-	var random *rand.Rand
-	name := t.Name()
-	var ok bool
-	randomLock.Lock()
-	random, ok = randomSources[name]
-	if !ok {
-		seed := crc64.Checksum([]byte(name), crc64.MakeTable(crc64.ECMA))
-		random = rand.New(rand.NewSource(int64(seed))) //nolint:gosec //This random number generator is intentionally deterministic.
-		randomSources[name] = random
-		t.Cleanup(func() {
-			randomLock.Lock()
-			defer randomLock.Unlock()
-			delete(randomSources, name)
-		})
-	}
-	randomLock.Unlock()
-	return RandomIDFromSource(random, length, characterSpace)
+	return RandomIDFromSource(DeterministicRandomSource(t), length, characterSpace)
 }
 
 // RandomID returns a non-deterministic, pseudo-random identifier.
 func RandomID(length uint, characterSpace CharacterRange) string {
-	return RandomIDFromSource(rand.New(rand.NewSource(time.Now().UnixNano())), length, characterSpace) //nolint:gosec // Disabling gosec linting because this ID is for testing only.
+	return RandomIDFromSource(RandomSource(), length, characterSpace) //nolint:gosec // Disabling gosec linting because this ID is for testing only.
 }
 
 // RandomIDPrefix returns a random identifier with a given prefix. The prefix length does not count towards the
@@ -74,4 +58,48 @@ func RandomIDFromSource(random *rand.Rand, length uint, characterSpace Character
 		builder.WriteRune(runes[random.Intn(len(runes))])
 	}
 	return builder.String()
+}
+
+// DeterministicRandomInt produces a deterministic random integer based on the test name between the specified min and
+// max value (inclusive).
+func DeterministicRandomInt(t *testing.T, min int, max int) int {
+	return RandomIntFromSource(DeterministicRandomSource(t), min, max)
+}
+
+// RandomInt produces a random integer between the specified min and max value (inclusive).
+func RandomInt(min int, max int) int {
+	return RandomIntFromSource(RandomSource(), min, max)
+}
+
+// RandomIntFromSource produces a random integer between the specified min and max value (inclusive).
+func RandomIntFromSource(source *rand.Rand, min int, max int) int {
+	// The logic for this function was moved from mock_value_composer.go
+	return source.Intn(max+1-min) + min
+}
+
+// RandomSource produces a rand.Rand randomness source that is non-deterministic.
+func RandomSource() *rand.Rand {
+	return rand.New(rand.NewSource(time.Now().UnixNano())) //nolint:gosec // Disabling gosec linting because this ID is for testing only.
+}
+
+// DeterministicRandomSource produces a rand.Rand that is deterministic based on the provided test name. It will always
+// supply the same values as long as the test name doesn't change.
+func DeterministicRandomSource(t *testing.T) *rand.Rand {
+	var random *rand.Rand
+	name := t.Name()
+	var ok bool
+	randomLock.Lock()
+	random, ok = randomSources[name]
+	if !ok {
+		seed := crc64.Checksum([]byte(name), crc64.MakeTable(crc64.ECMA))
+		random = rand.New(rand.NewSource(int64(seed))) //nolint:gosec //This random number generator is intentionally deterministic.
+		randomSources[name] = random
+		t.Cleanup(func() {
+			randomLock.Lock()
+			defer randomLock.Unlock()
+			delete(randomSources, name)
+		})
+	}
+	randomLock.Unlock()
+	return random
 }
