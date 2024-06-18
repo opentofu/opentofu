@@ -7,6 +7,7 @@ package local
 
 import (
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
@@ -40,6 +41,13 @@ func TestLocal(t *testing.T) *Local {
 	local.StateWorkspaceDir = filepath.Join(tempDir, "state.tfstate.d")
 	local.ContextOpts = &tofu.ContextOpts{}
 
+	// Trigger garbage collection to ensure that all open file handles are closed.
+	// This prevents TempDir cleanup errors on Windows.
+	t.Cleanup(func() {
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	})
 	return local
 }
 
