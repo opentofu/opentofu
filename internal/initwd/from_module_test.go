@@ -283,8 +283,12 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	t.Cleanup(func() {
 		os.Chdir(oldDir)
 		// Trigger garbage collection to ensure that all open file handles are closed.
+<<<<<<< HEAD
 		// This prevents "TempDir RemoveAll cleanup: The process cannot access the file
 		//because it is being used by another process" errors during TempDir cleanup on Windows.
+=======
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+>>>>>>> 502877dbf7 (initwd Windows tests fixes (#1723))
 		if runtime.GOOS == "windows" {
 			runtime.GC()
 		}
