@@ -139,7 +139,11 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 
 		kpc, ok := e.cfg.GetKeyProvider(depType, depName)
 		if !ok {
-			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Undefined Key Provider",
+				Detail:   fmt.Sprintf("Key provider %s.%s not found in the encryption configuration. Please, ensure you are referencing previously configured key provider.", depType, depName),
+			})
 			continue
 		}
 
