@@ -16,7 +16,7 @@ At the time of writing this RFC, OpenTofu 1.7.x has very similar features to Ter
 
 ## Proposed Solution
 
-As we introduce support for `.tofu` files, we open up the ability to add new language features without worrying as much about compatibility in shared modules. If we can differentiate between "OpenTofu Version" and "Terraform Version", the above scenarios become much easier.
+As we [introduce support](20240529-OpenTofu-Specific-Code-Override.md) for `.tofu` files, we open up the ability to add new language features without worrying as much about compatibility in shared modules. If we can differentiate between "OpenTofu Version" and "Terraform Version", the above scenarios become much easier.
 
 As the [provider compatibility check is deprecated](https://github.com/hashicorp/terraform-plugin-framework/blob/8a09cef0bb892e2d90c89cad551ce12a959f1a2d/provider/configure.go#L28-L32) and the state's "terraform_version" field is not currently used in OpenTofu, we will not discuss them in this RFC.
 
@@ -85,7 +85,7 @@ Either path is easy to both implement and thoroughly test.
 
 The `configs.Module.CheckCoreVersionRequirements()` function is where we will need to emit the warnings and corresponding debug log entries.
 
-As discussed in the `.tofu` RFC, we will want to quickly work on support for this featu
+As discussed in the `.tofu` RFC, we will want to quickly work on support for this feature.
 
 ### Open Questions
 
