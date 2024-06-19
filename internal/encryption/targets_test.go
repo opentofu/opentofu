@@ -131,6 +131,20 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 				aesgcm.Is,
 			},
 		},
+		"undefined-key-from-vars": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = var.undefinedkey
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantErr: "Test Config Source:3,12-28: Undefined variable; Undefined variable var.undefinedkey",
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
