@@ -165,7 +165,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: e.cfg.DeclRange,
 	}, refs)
-	diags = append(diags, evalDiags.ToHCL()...)
+	diags = append(diags, evalDiags...)
 	if diags.HasErrors() {
 		return diags
 	}
