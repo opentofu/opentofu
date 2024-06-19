@@ -119,6 +119,10 @@ func (s StaticEvaluator) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident Stat
 }
 
 func (s StaticEvaluator) EvalContext(ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, hcl.Diagnostics) {
-	evalCtx, diags := s.scope(ident).EvalContext(refs)
+	return s.EvalContextWithParent(nil, ident, refs)
+}
+
+func (s StaticEvaluator) EvalContextWithParent(parent *hcl.EvalContext, ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, hcl.Diagnostics) {
+	evalCtx, diags := s.scope(ident).EvalContextWithParent(parent, refs)
 	return evalCtx, diags.ToHCL()
 }

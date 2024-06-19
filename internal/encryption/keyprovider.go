@@ -142,8 +142,8 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Undefined Key Provider",
-Detail:   fmt.Sprintf("Key provider %s.%s is missing from the encryption configuration.", depType, depName),
-Subject:  dep.SourceRange().Ptr(),
+				Detail:   fmt.Sprintf("Key provider %s.%s is missing from the encryption configuration.", depType, depName),
+				Subject:  dep.SourceRange().Ptr(),
 			})
 			continue
 		}
@@ -165,7 +165,7 @@ Subject:  dep.SourceRange().Ptr(),
 		return diags
 	}
 
-	evalCtx, evalDiags := e.staticEval.EvalContext(configs.StaticIdentifier{
+	evalCtx, evalDiags := e.staticEval.EvalContextWithParent(e.ctx, configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: e.cfg.DeclRange,
@@ -174,12 +174,6 @@ Subject:  dep.SourceRange().Ptr(),
 	if diags.HasErrors() {
 		return diags
 	}
-
-	// Injecting configured encryption values
-	// into the evalCtx to be usable.
-	evalCtx = evalCtx.NewChild()
-	evalCtx.Functions = e.ctx.Functions
-	evalCtx.Variables = e.ctx.Variables
 
 	// Initialize the Key Provider
 	decodeDiags := gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
