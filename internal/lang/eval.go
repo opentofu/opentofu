@@ -298,6 +298,7 @@ func (s *Scope) EvalContextWithParent(p *hcl.EvalContext, refs []*addrs.Referenc
 	return s.evalContext(p, refs, s.SelfAddr)
 }
 
+//nolint:funlen // TODO: refactor this function to match linting requirements
 func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	if s == nil {
 		panic("attempt to construct EvalContext for nil Scope")
