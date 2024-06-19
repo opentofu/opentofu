@@ -302,15 +302,16 @@ func fileExt(path string) string {
 // tfFileExt returns the OpenTofu .tf configuration extension of the given
 // path, or a blank string if it is not a recognized .tf extension.
 func tfFileExt(path string) string {
-	if strings.HasSuffix(path, ".tf") {
+	switch {
+	case strings.HasSuffix(path, ".tf"):
 		return ".tf"
-	} else if strings.HasSuffix(path, ".tf.json") {
+	case strings.HasSuffix(path, ".tf.json"):
 		return ".tf.json"
-	} else if strings.HasSuffix(path, ".tftest.hcl") {
+	case strings.HasSuffix(path, ".tftest.hcl"):
 		return ".tftest.hcl"
-	} else if strings.HasSuffix(path, ".tftest.json") {
+	case strings.HasSuffix(path, ".tftest.json"):
 		return ".tftest.json"
-	} else {
+	default:
 		return ""
 	}
 }
@@ -326,9 +327,9 @@ func tofuFileExt(path string) string {
 		return ".tofutest.hcl"
 	} else if strings.HasSuffix(path, ".tofutest.json") {
 		return ".tofutest.json"
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func isTestFileExtension(ext string) bool {

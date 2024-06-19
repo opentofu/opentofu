@@ -273,10 +273,8 @@ func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
 			variableInConfiguration := mod.Variables[expectedVariable]
 			if variableInConfiguration == nil {
 				t.Errorf("expected to load %s variable as part of configuration but it is missing", expectedVariable)
-			} else {
-				if variableInConfiguration.Default.AsString() != "overridden" {
-					t.Errorf("expected variable default value %s to be overridden", expectedVariable)
-				}
+			} else if variableInConfiguration.Default.AsString() != "overridden" {
+				t.Errorf("expected variable default value %s to be overridden", expectedVariable)
 			}
 		}
 
@@ -327,10 +325,8 @@ func TestParserLoadConfigDirWithTests_TofuAndTfFiles(t *testing.T) {
 			variableInConfiguration := mod.Variables[expectedVariable]
 			if variableInConfiguration == nil {
 				t.Errorf("expected to load %s variable as part of configuration but it is missing", expectedVariable)
-			} else {
-				if variableInConfiguration.Default.AsString() != "overridden by tofu file" {
-					t.Errorf("expected variable default value %s to be overridden", expectedVariable)
-				}
+			} else if variableInConfiguration.Default.AsString() != "overridden by tofu file" {
+				t.Errorf("expected variable default value %s to be overridden", expectedVariable)
 			}
 		}
 
