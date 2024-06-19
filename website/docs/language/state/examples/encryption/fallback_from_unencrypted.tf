@@ -1,6 +1,6 @@
-locals {
+variable "passphrase" {
   # Change passphrase to be at least 16 characters long:
-  passphrase = "changeme!"
+  default = "changeme!"
 }
 
 terraform {
@@ -10,8 +10,7 @@ terraform {
 
     ## Step 2: Add the desired key provider:
     key_provider "pbkdf2" "mykey" {
-      ## You can also use variables here!
-      passphrase = local.passphrase
+      passphrase = var.passphrase
     }
 
     ## Step 3: Add the desired encryption method:
