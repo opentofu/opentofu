@@ -142,7 +142,8 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Undefined Key Provider",
-				Detail:   fmt.Sprintf("Key provider %s.%s not found in the encryption configuration. Please, ensure you are referencing previously configured key provider.", depType, depName),
+Detail:   fmt.Sprintf("Key provider %s.%s is missing from the encryption configuration.", depType, depName),
+Subject:  dep.SourceRange().Ptr(),
 			})
 			continue
 		}
