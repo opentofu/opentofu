@@ -1,0 +1,29 @@
+{
+  "variables": {
+    "input": "default"
+  },
+  "run": {
+    "test_run_one": {
+      "command": "plan",
+      "plan_options": {
+        "target": [
+          "test_object.a"
+        ]
+      },
+      "assert": [
+        {
+          "condition": "${test_object.a.test_string} == hello",
+          "error_message": "invalid value"
+        }
+      ]
+    },
+    "test_run_two": {
+      "assert": [
+        {
+          "condition": "${test_object.b.test_string} == world",
+          "error_message": "invalid value"
+        }
+      ]
+    }
+  }
+}

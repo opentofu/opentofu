@@ -1,0 +1,14 @@
+{
+  "resource": {
+    "test_object": {
+      "a": {
+        "count": 1,
+        "test_string": "hello"
+      },
+      "b": {
+        "count": 1,
+        "test_string": "world"
+      }
+    }
+  }
+}

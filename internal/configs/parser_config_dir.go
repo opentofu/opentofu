@@ -7,9 +7,11 @@ package configs
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -178,7 +180,8 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 					continue
 				}
 
-				if strings.HasSuffix(testInfo.Name(), ".tftest.hcl") || strings.HasSuffix(testInfo.Name(), ".tftest.json") {
+				ext := fileExt(testInfo.Name())
+				if isTestFileExtension(ext) {
 					tests = append(tests, filepath.Join(testPath, testInfo.Name()))
 				}
 			}
@@ -208,7 +211,7 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 			continue
 		}
 
-		if ext == ".tftest.hcl" || ext == ".tftest.json" {
+		if isTestFileExtension(ext) {
 			if includeTests {
 				tests = append(tests, filepath.Join(dir, name))
 			}
@@ -226,7 +229,36 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 		}
 	}
 
-	return
+	return filterTfPathsWithTofuAlternatives(primary), filterTfPathsWithTofuAlternatives(override), filterTfPathsWithTofuAlternatives(tests), diags
+}
+
+func filterTfPathsWithTofuAlternatives(paths []string) []string {
+	var ignoredPaths []string
+	var relevantPaths []string
+
+	for _, p := range paths {
+		if ext := tfFileExt(p); ext != "" {
+			parallelTofuExt := strings.ReplaceAll(ext, ".tf", ".tofu")
+			pathWithoutExt, _ := strings.CutSuffix(p, ext)
+			parallelTofuPath := pathWithoutExt + parallelTofuExt
+
+			// If the .tf file has a parallel .tofu file in the directory,
+			// we'll ignore the .tf file and only use the .tofu file
+			if slices.Contains(paths, parallelTofuPath) {
+				ignoredPaths = append(ignoredPaths, p)
+			} else {
+				relevantPaths = append(relevantPaths, p)
+			}
+		} else {
+			relevantPaths = append(relevantPaths, p)
+		}
+	}
+
+	if len(ignoredPaths) > 0 {
+		log.Printf("[INFO] filterTfPathsWithTofuAlternatives: Ignored the following .tf files because a .tofu file alternative exists: %q", ignoredPaths)
+	}
+
+	return relevantPaths
 }
 
 func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*TestFile, hcl.Diagnostics) {
@@ -258,6 +290,18 @@ func (p *Parser) loadTestFiles(basePath string, paths []string) (map[string]*Tes
 // fileExt returns the OpenTofu configuration extension of the given
 // path, or a blank string if it is not a recognized extension.
 func fileExt(path string) string {
+	extension := tfFileExt(path)
+
+	if extension == "" {
+		extension = tofuFileExt(path)
+	}
+
+	return extension
+}
+
+// tfFileExt returns the OpenTofu .tf configuration extension of the given
+// path, or a blank string if it is not a recognized .tf extension.
+func tfFileExt(path string) string {
 	if strings.HasSuffix(path, ".tf") {
 		return ".tf"
 	} else if strings.HasSuffix(path, ".tf.json") {
@@ -269,6 +313,26 @@ func fileExt(path string) string {
 	} else {
 		return ""
 	}
+}
+
+// tofuFileExt returns the OpenTofu .tofu configuration extension of the given
+// path, or a blank string if it is not a recognized .tofu extension.
+func tofuFileExt(path string) string {
+	if strings.HasSuffix(path, ".tofu") {
+		return ".tofu"
+	} else if strings.HasSuffix(path, ".tofu.json") {
+		return ".tofu.json"
+	} else if strings.HasSuffix(path, ".tofutest.hcl") {
+		return ".tofutest.hcl"
+	} else if strings.HasSuffix(path, ".tofutest.json") {
+		return ".tofutest.json"
+	} else {
+		return ""
+	}
+}
+
+func isTestFileExtension(ext string) bool {
+	return ext == ".tftest.hcl" || ext == ".tftest.json" || ext == ".tofutest.hcl" || ext == ".tofutest.json"
 }
 
 // IsIgnoredFile returns true if the given filename (which must not have a
