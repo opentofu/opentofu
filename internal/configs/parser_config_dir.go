@@ -319,13 +319,14 @@ func tfFileExt(path string) string {
 // tofuFileExt returns the OpenTofu .tofu configuration extension of the given
 // path, or a blank string if it is not a recognized .tofu extension.
 func tofuFileExt(path string) string {
-	if strings.HasSuffix(path, ".tofu") {
+	switch {
+	case strings.HasSuffix(path, ".tofu"):
 		return ".tofu"
-	} else if strings.HasSuffix(path, ".tofu.json") {
+	case strings.HasSuffix(path, ".tofu.json"):
 		return ".tofu.json"
-	} else if strings.HasSuffix(path, ".tofutest.hcl") {
+	case strings.HasSuffix(path, ".tofutest.hcl"):
 		return ".tofutest.hcl"
-	} else if strings.HasSuffix(path, ".tofutest.json") {
+	case strings.HasSuffix(path, ".tofutest.json"):
 		return ".tofutest.json"
 	}
 
