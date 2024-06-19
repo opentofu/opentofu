@@ -129,30 +129,9 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 		name := variable.Name
 		v, ok := variables[name]
 		if !ok {
-			/* This is an example of how we might be able to interactively ask for user input for static vars.  It is disabled due to complex interactions between variable in different code paths (apply existing plan for example)
-			// TODO this is copied from backend_local.go:interactiveCollectVariables()
-			rawValue, err := m.UIInput().Input(context.Background(), &tofu.InputOpts{
-				Id:          fmt.Sprintf("var.%s", name),
-				Query:       fmt.Sprintf("var.%s", name),
-				Description: variable.Description,
-				Secret:      variable.Sensitive,
-			})
-			if err != nil {
-				// Since interactive prompts are best-effort, we'll just continue
-				// here and let subsequent validation report this as a variable
-				// not specified.
-				log.Printf("[WARN] backend/local: Failed to request user input for variable %q: %s", name, err)
-				return configs.StaticReference{}, false
-			}
-			v = unparsedVariableValueString{
-				str:        rawValue,
-				name:       name,
-				sourceType: tofu.ValueFromInput,
-			}
-			// This intentionally modifies the input cache map
-			// This is a bad hack and should be replaced with a common input variable cache
-			variables[name] = v
-			*/
+			// For now, we are simply failing when the user omits a required variable. This is due to complex interactions between variables in different code paths (apply existing plan for example)
+			// Ideally, we should be able to use something like backend_local.go:interactiveCollectVariables() in the future to allow users to provide values if input is enabled
+			// This is probably blocked by command package refactoring
 			if variable.Required() {
 				// Not specified on CLI or in var files, without a valid default.
 				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
