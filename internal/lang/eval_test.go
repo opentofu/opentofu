@@ -421,6 +421,47 @@ func TestScopeEvalContext(t *testing.T) {
 	}
 }
 
+// TestScopeEvalContextWithParent tests if the resulting EvalCtx has correct parent.
+func TestScopeEvalContextWithParent(t *testing.T) {
+	t.Run("with-parent", func(t *testing.T) {
+		scope, parent := &Scope{}, &hcl.EvalContext{}
+
+		child, diags := scope.EvalContextWithParent(parent, nil)
+		if len(diags) != 0 {
+			t.Errorf("Unexpected diagnostics:")
+			for _, diag := range diags {
+				t.Errorf("- %s", diag)
+			}
+			return
+		}
+
+		if child.Parent() == nil {
+			t.Fatalf("Child EvalCtx has no parent")
+		}
+
+		if child.Parent() != parent {
+			t.Fatalf("Child EvalCtx has different parent:\n GOT:%v\nWANT:%v", child.Parent(), parent)
+		}
+	})
+
+	t.Run("zero-parent", func(t *testing.T) {
+		scope := &Scope{}
+
+		root, diags := scope.EvalContextWithParent(nil, nil)
+		if len(diags) != 0 {
+			t.Errorf("Unexpected diagnostics:")
+			for _, diag := range diags {
+				t.Errorf("- %s", diag)
+			}
+			return
+		}
+
+		if root.Parent() != nil {
+			t.Fatalf("Resulting EvalCtx has unexpected parent: %v", root.Parent())
+		}
+	})
+}
+
 func TestScopeExpandEvalBlock(t *testing.T) {
 	nestedObjTy := cty.Object(map[string]cty.Type{
 		"boop": cty.String,
