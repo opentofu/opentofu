@@ -971,16 +971,16 @@ func (n *NodeAbstractResourceInstance) plan(
 		}
 	}
 
-	// The test assertion error handling above could've changed the plannedNewVal
-	// so we should store the unmarked version before we go ahead and re-mark it again
-	unmarkedPlannedNewVal = plannedNewVal
-
 	// Add the marks back to the planned new value -- this must happen after ignore changes
 	// have been processed
 	marks := combinePathValueMarks(unmarkedPaths, schema.ValueMarks(plannedNewVal, nil))
 	if len(marks) > 0 {
 		plannedNewVal = plannedNewVal.MarkWithPaths(marks)
 	}
+
+	// The test assertion error handling above could've changed the plannedNewVal
+	// so we should store the unmarked version before we go ahead and re-mark it again
+	unmarkedPlannedNewVal, _ = plannedNewVal.UnmarkDeep()
 
 	// The provider produces a list of paths to attributes whose changes mean
 	// that we must replace rather than update an existing remote object.
