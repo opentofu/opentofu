@@ -27,3 +27,15 @@ func Context(t *testing.T) context.Context {
 	}
 	return ctx
 }
+
+// CleanupContext returns a context that provides a deadline until the test finishes, but maximum of maxCleanupSafety.
+func CleanupContext(t *testing.T) context.Context {
+	ctx, cancel := context.WithTimeout(context.Background(), maxCleanupSafety)
+	t.Cleanup(cancel)
+	if deadline, ok := t.Deadline(); ok {
+		var cancelDeadline func()
+		ctx, cancelDeadline = context.WithDeadline(ctx, deadline)
+		t.Cleanup(cancelDeadline)
+	}
+	return ctx
+}
