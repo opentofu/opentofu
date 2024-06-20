@@ -325,3 +325,73 @@ func TestOutput_stateDefault(t *testing.T) {
 		t.Fatalf("bad: %#v", actual)
 	}
 }
+
+func TestOutput_showSensitiveArg(t *testing.T) {
+	originalState := stateWithSensitiveValueForOutput()
+
+	statePath := testStateFile(t, originalState)
+
+	view, done := testView(t)
+	c := &OutputCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	if actual != "foo = \"bar\"" {
+		t.Fatalf("bad: %#v", actual)
+	}
+}
+
+func TestOutput_withoutShowSensitiveArg(t *testing.T) {
+	originalState := stateWithSensitiveValueForOutput()
+
+	statePath := testStateFile(t, originalState)
+
+	view, done := testView(t)
+	c := &OutputCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	if actual != "foo = <sensitive>" {
+		t.Fatalf("bad: %#v", actual)
+	}
+}
+
+// stateWithSensitiveValueForOutput return a state with an output value
+// marked as sensitive.
+func stateWithSensitiveValueForOutput() *states.State {
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetOutputValue(
+			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
+			cty.StringVal("bar"),
+			true,
+		)
+	})
+	return state
+}

@@ -33,6 +33,10 @@ func (c *StateShowCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
+
+	showSensitive := false
+	cmdFlags.BoolVar(&showSensitive, "show-sensitive", false, "displays sensitive values")
+
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
 		return 1
@@ -179,6 +183,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		Streams:             c.Streams,
 		Colorize:            c.Colorize(),
 		RunningInAutomation: c.RunningInAutomation,
+		ShowSensitive:       showSensitive,
 	}
 
 	renderer.RenderHumanState(jstate)
@@ -201,6 +206,7 @@ Options:
                       up OpenTofu-managed resources. By default it will
                       use the state "terraform.tfstate" if it exists.
 
+  -show-sensitive     If specified, sensitive values will be displayed.
 `
 	return strings.TrimSpace(helpText)
 }

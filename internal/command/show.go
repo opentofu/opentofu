@@ -66,6 +66,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 	c.viewType = args.ViewType
+	c.View.SetShowSensitive(args.ShowSensitive)
 
 	// Set up view
 	view := views.NewShow(args.ViewType, c.View)
@@ -108,8 +109,11 @@ Usage: tofu [global options] show [options] [path]
 Options:
 
   -no-color           If specified, output won't contain any color.
+
   -json               If specified, output the OpenTofu plan or state in
                       a machine-readable form.
+
+  -show-sensitive     If specified, sensitive values will be displayed.
 
 `
 	return strings.TrimSpace(helpText)

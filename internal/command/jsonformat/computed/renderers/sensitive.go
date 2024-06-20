@@ -30,6 +30,11 @@ type sensitiveRenderer struct {
 }
 
 func (renderer sensitiveRenderer) RenderHuman(diff computed.Diff, indent int, opts computed.RenderHumanOpts) string {
+	// If the -show-sensitive argument is set, then invoke RenderHuman with the inner computed.Diff to display sensitive values.
+	if opts.ShowSensitive {
+		return renderer.inner.RenderHuman(indent, opts)
+	}
+
 	return fmt.Sprintf("(sensitive value)%s%s", nullSuffix(diff.Action, opts), forcesReplacement(diff.Replace, opts))
 }
 

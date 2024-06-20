@@ -19,6 +19,9 @@ type View struct {
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
 	Concise bool
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 }
 
 // ParseView processes CLI arguments, returning a View value and a

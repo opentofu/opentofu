@@ -96,13 +96,17 @@ type RenderHumanOpts struct {
 	// HideDiffActionSymbols tells the renderer not to show the '+'/'-' symbols
 	// and to skip the places where the symbols would result in an offset.
 	HideDiffActionSymbols bool
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 }
 
 // NewRenderHumanOpts creates a new RenderHumanOpts struct with the required
 // fields set.
-func NewRenderHumanOpts(colorize *colorstring.Colorize) RenderHumanOpts {
+func NewRenderHumanOpts(colorize *colorstring.Colorize, showSensitive bool) RenderHumanOpts {
 	return RenderHumanOpts{
-		Colorize: colorize,
+		Colorize:      colorize,
+		ShowSensitive: showSensitive,
 	}
 }
 
@@ -121,5 +125,6 @@ func (opts RenderHumanOpts) Clone() RenderHumanOpts {
 		// children should override their internal Replace logic, instead of
 		// an ancestor making the switch and affecting the entire tree.
 		OverrideForcesReplacement: false,
+		ShowSensitive:             opts.ShowSensitive,
 	}
 }

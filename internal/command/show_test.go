@@ -1000,6 +1000,74 @@ func TestShow_corruptStatefile(t *testing.T) {
 	}
 }
 
+func TestShow_showSensitiveArg(t *testing.T) {
+	originalState := stateWithSensitiveValueForShow()
+
+	testStateFileDefault(t, originalState)
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	expected := "Outputs:\n\nfoo = \"bar\""
+	if actual != expected {
+		t.Fatalf("got incorrect output: %#v", actual)
+	}
+}
+
+func TestShow_withoutShowSensitiveArg(t *testing.T) {
+	originalState := stateWithSensitiveValueForShow()
+
+	testStateFileDefault(t, originalState)
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	code := c.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	expected := "Outputs:\n\nfoo = (sensitive value)"
+	if actual != expected {
+		t.Fatalf("got incorrect output: %#v", actual)
+	}
+}
+
+// stateWithSensitiveValueForShow return a state with an output value
+// marked as sensitive.
+func stateWithSensitiveValueForShow() *states.State {
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetOutputValue(
+			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
+			cty.StringVal("bar"),
+			true,
+		)
+	})
+	return state
+}
+
 // showFixtureSchema returns a schema suitable for processing the configuration
 // in testdata/show. This schema should be assigned to a mock provider
 // named "test".

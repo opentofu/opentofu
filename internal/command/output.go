@@ -35,6 +35,8 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	c.View.SetShowSensitive(args.ShowSensitive)
+
 	view := views.NewOutput(args.ViewType, c.View)
 
 	// Load the encryption configuration
@@ -128,6 +130,8 @@ Options:
                    converted to a string, will print the raw
                    string directly, rather than a human-oriented
                    representation of the value.
+
+  -show-sensitive  If specified, sensitive values will be displayed.
 `
 	return strings.TrimSpace(helpText)
 }

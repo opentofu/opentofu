@@ -1655,6 +1655,60 @@ func planFixtureSchema() *providers.GetProviderSchemaResponse {
 	}
 }
 
+func TestPlan_showSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	if got, want := output.Stdout(), "sensitive    = \"Hello world\""; !strings.Contains(got, want) {
+		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
+	}
+}
+
+func TestPlan_withoutShowSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	if got, want := output.Stdout(), "sensitive    = (sensitive value)"; !strings.Contains(got, want) {
+		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
+	}
+}
+
 // planFixtureProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/plan. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan

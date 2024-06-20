@@ -17,6 +17,9 @@ type Show struct {
 
 	// ViewType specifies which output format to use: human, JSON, or "raw".
 	ViewType ViewType
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 }
 
 // ParseShow processes CLI arguments, returning a Show value and errors.
@@ -31,6 +34,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 	var jsonOutput bool
 	cmdFlags := defaultFlagSet("show")
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
+	cmdFlags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
