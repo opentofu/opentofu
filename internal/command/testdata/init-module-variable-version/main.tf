@@ -6,5 +6,5 @@ variable "modver" {
 
 module "acctest_root" {
   source  = "hashicorp/module-installer-acctest/aws"
-  version = var.modver
+  version = nonsensitive(var.modver)
 }
