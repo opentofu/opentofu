@@ -1,3 +1,13 @@
+## 1.7.3 (unreleased)
+
+NEW FEATURES:
+
+ENHANCEMENTS:
+
+BUG FIXES:
+
+* Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
+
 ## 1.7.2
 
 NEW FEATURES:
