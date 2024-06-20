@@ -298,9 +298,9 @@ resource "foo" "bar" {}
 			t.Errorf("Expected %s got %s", "f887f41a53a46e2d40a3f8f86cacaaa2", value.AsString())
 		}
 
-		value, diags = eval.Evaluate(mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
+		_, diags = eval.Evaluate(mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
 		assertExactDiagnostics(t, diags, []string{`eval.tf:60,17-27: Call to unknown function; There is no function named "missing_fn".`})
-		value, diags = eval.Evaluate(mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
+		_, diags = eval.Evaluate(mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
 		assertExactDiagnostics(t, diags, []string{`eval.tf:61,18-36: Provider function in static context; Unable to use provider::type::fn in static context, which is required by local.provider_func`})
 	})
 }
