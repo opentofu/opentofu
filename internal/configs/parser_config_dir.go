@@ -243,6 +243,11 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 	return filterTfPathsWithTofuAlternatives(primary), filterTfPathsWithTofuAlternatives(override), filterTfPathsWithTofuAlternatives(tests), diags
 }
 
+// filterTfPathsWithTofuAlternatives filters out .tf files if they have an
+// alternative .tofu file with the same name.
+// For example, if there are both 'resources.tf.json' and
+// 'resources.tofu.json' files, the 'resources.tf.json' file will be ignored,
+// and only the 'resources.tofu.json' file will be returned as a relevant path.
 func filterTfPathsWithTofuAlternatives(paths []string) []string {
 	var ignoredPaths []string
 	var relevantPaths []string
