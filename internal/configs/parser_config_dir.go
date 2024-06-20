@@ -248,18 +248,21 @@ func filterTfPathsWithTofuAlternatives(paths []string) []string {
 	var relevantPaths []string
 
 	for _, p := range paths {
-		if ext := tfFileExt(p); ext != "" {
-			parallelTofuExt := strings.ReplaceAll(ext, ".tf", ".tofu")
-			pathWithoutExt, _ := strings.CutSuffix(p, ext)
-			parallelTofuPath := pathWithoutExt + parallelTofuExt
+		ext := tfFileExt(p)
 
-			// If the .tf file has a parallel .tofu file in the directory,
-			// we'll ignore the .tf file and only use the .tofu file
-			if slices.Contains(paths, parallelTofuPath) {
-				ignoredPaths = append(ignoredPaths, p)
-			} else {
-				relevantPaths = append(relevantPaths, p)
-			}
+		if ext == "" {
+			relevantPaths = append(relevantPaths, p)
+			continue
+		}
+
+		parallelTofuExt := strings.ReplaceAll(ext, ".tf", ".tofu")
+		pathWithoutExt, _ := strings.CutSuffix(p, ext)
+		parallelTofuPath := pathWithoutExt + parallelTofuExt
+
+		// If the .tf file has a parallel .tofu file in the directory,
+		// we'll ignore the .tf file and only use the .tofu file
+		if slices.Contains(paths, parallelTofuPath) {
+			ignoredPaths = append(ignoredPaths, p)
 		} else {
 			relevantPaths = append(relevantPaths, p)
 		}
