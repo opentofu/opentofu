@@ -23,7 +23,7 @@ import (
 
 func TestBuildConfig(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/config-build", RootModuleCallForTesting)
+	mod, diags := parser.LoadConfigDir("testdata/config-build", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -79,7 +79,7 @@ func TestBuildConfig(t *testing.T) {
 
 func TestBuildConfigDiags(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/nested-errors", RootModuleCallForTesting)
+	mod, diags := parser.LoadConfigDir("testdata/nested-errors", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -124,7 +124,7 @@ func TestBuildConfigDiags(t *testing.T) {
 
 func TestBuildConfigChildModuleBackend(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/nested-backend-warning", RootModuleCallForTesting)
+	mod, diags := parser.LoadConfigDir("testdata/nested-backend-warning", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -175,7 +175,7 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 			parser := NewParser(nil)
 			path := filepath.Join(testDir, name)
 
-			mod, diags := parser.LoadConfigDirWithTests(path, "tests", RootModuleCallForTesting)
+			mod, diags := parser.LoadConfigDirWithTests(path, "tests", RootModuleCallForTesting())
 			if diags.HasErrors() {
 				// these tests should only trigger errors that are caught in
 				// the config loader.
@@ -296,7 +296,7 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 
 func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-nested-module", "tests", RootModuleCallForTesting)
+	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-nested-module", "tests", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -376,7 +376,7 @@ func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 
 func TestBuildConfig_WithTestModule(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-module", "tests", RootModuleCallForTesting)
+	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-module", "tests", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")

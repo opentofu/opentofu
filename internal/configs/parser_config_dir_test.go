@@ -39,7 +39,7 @@ func TestParserLoadConfigDirSuccess(t *testing.T) {
 			parser := NewParser(nil)
 			path := filepath.Join("testdata/valid-modules", name)
 
-			mod, diags := parser.LoadConfigDir(path, RootModuleCallForTesting)
+			mod, diags := parser.LoadConfigDir(path, RootModuleCallForTesting())
 			if len(diags) != 0 && len(mod.ActiveExperiments) != 0 {
 				// As a special case to reduce churn while we're working
 				// through experimental features, we'll ignore the warning
@@ -142,7 +142,7 @@ func TestParserLoadConfigDirWithTests(t *testing.T) {
 			}
 
 			parser := NewParser(nil)
-			mod, diags := parser.LoadConfigDirWithTests(directory, testDirectory, RootModuleCallForTesting)
+			mod, diags := parser.LoadConfigDirWithTests(directory, testDirectory, RootModuleCallForTesting())
 			if len(diags) > 0 { // We don't want any warnings or errors.
 				t.Errorf("unexpected diagnostics")
 				for _, diag := range diags {
@@ -159,7 +159,7 @@ func TestParserLoadConfigDirWithTests(t *testing.T) {
 
 func TestParserLoadConfigDirWithTests_ReturnsWarnings(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests", "not_real", RootModuleCallForTesting)
+	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests", "not_real", RootModuleCallForTesting())
 	if len(diags) != 1 {
 		t.Errorf("expected exactly 1 diagnostic, but found %d", len(diags))
 	} else {
@@ -206,7 +206,7 @@ func TestParserLoadConfigDirFailure(t *testing.T) {
 			parser := NewParser(nil)
 			path := filepath.Join("testdata/invalid-modules", name)
 
-			_, diags := parser.LoadConfigDir(path, RootModuleCallForTesting)
+			_, diags := parser.LoadConfigDir(path, RootModuleCallForTesting())
 			if !diags.HasErrors() {
 				t.Errorf("no errors; want at least one")
 				for _, diag := range diags {
@@ -235,7 +235,7 @@ func TestParserLoadConfigDirFailure(t *testing.T) {
 				"mod/" + name: string(src),
 			})
 
-			_, diags := parser.LoadConfigDir("mod", RootModuleCallForTesting)
+			_, diags := parser.LoadConfigDir("mod", RootModuleCallForTesting())
 			if !diags.HasErrors() {
 				t.Errorf("no errors; want at least one")
 				for _, diag := range diags {

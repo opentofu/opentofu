@@ -48,13 +48,11 @@ func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath
 	}
 }
 
-//nolint:gochecknoglobals // only used in testing
-var RootModuleCallForTesting = StaticModuleCall{
-	addr:     addrs.RootModule,
-	rootPath: "<testing>",
-	vars: func(_ *Variable) (cty.Value, hcl.Diagnostics) {
+// only used in testing
+func RootModuleCallForTesting() StaticModuleCall {
+	return NewStaticModuleCall(addrs.RootModule, func(_ *Variable) (cty.Value, hcl.Diagnostics) {
 		panic("Variables have not been configured for this test!")
-	},
+	}, "<testing>", "")
 }
 
 // A static evaluator contains the information required to build a EvalContext

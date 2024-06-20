@@ -96,7 +96,7 @@ resource "foo" "bar" {}
 	dummyIdentifier := StaticIdentifier{Subject: "local.test"}
 
 	t.Run("Empty Eval", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
@@ -119,8 +119,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Simple static cases", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
-		eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
 			ident string
@@ -182,8 +182,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Bad References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
-		eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
 			ident string
@@ -202,8 +202,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Circular References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
-		eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
 			ident string
@@ -253,8 +253,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Missing References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
-		eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
 			ident string
@@ -287,8 +287,8 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Functions", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
-		eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		value, diags := eval.Evaluate(mod.Locals["func"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
@@ -312,8 +312,8 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 	if fileDiags.HasErrors() {
 		t.Fatal(fileDiags)
 	}
-	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
-	eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+	eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 	cases := []struct {
 		expr  string
@@ -382,7 +382,7 @@ terraform {
 				t.Fatal(fileDiags)
 			}
 
-			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
+			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
 			_, diags := mod.Backend.Decode(&configschema.Block{
 				Attributes: map[string]*configschema.Attribute{
 					"thing": &configschema.Attribute{
