@@ -23,6 +23,7 @@ BUG FIXES:
 * Added a better error message on `for_each` block with sensitive value of unsuitable type. ([#1485](https://github.com/opentofu/opentofu/pull/1485))
 * Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
 * Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
+* Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
 
 ## Previous Releases
 
