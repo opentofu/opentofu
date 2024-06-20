@@ -76,6 +76,11 @@ locals {
 
 	# Terraform 
 	ws = terraform.workspace
+
+	# Functions
+	func = md5("my-string")
+	missing_func = missing_fn("my-string")
+	provider_func = provider::type::fn("my-string")
 }
 
 resource "foo" "bar" {}
@@ -279,6 +284,24 @@ resource "foo" "bar" {}
 		if value.AsString() != "my-workspace" {
 			t.Errorf("Expected %s got %s", "my-workspace", value.AsString())
 		}
+	})
+
+	t.Run("Functions", func(t *testing.T) {
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting, "dir")
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting)
+
+		value, diags := eval.Evaluate(mod.Locals["func"].Expr, dummyIdentifier)
+		if diags.HasErrors() {
+			t.Error(diags)
+		}
+		if value.AsString() != "f887f41a53a46e2d40a3f8f86cacaaa2" {
+			t.Errorf("Expected %s got %s", "f887f41a53a46e2d40a3f8f86cacaaa2", value.AsString())
+		}
+
+		value, diags = eval.Evaluate(mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
+		assertExactDiagnostics(t, diags, []string{`eval.tf:60,17-27: Call to unknown function; There is no function named "missing_fn".`})
+		value, diags = eval.Evaluate(mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
+		assertExactDiagnostics(t, diags, []string{`eval.tf:61,18-36: Provider function in static context; Unable to use provider::type::fn in static context, which is required by local.provider_func`})
 	})
 }
 
