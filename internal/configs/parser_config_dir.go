@@ -192,7 +192,7 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 				}
 
 				ext := fileExt(testInfo.Name())
-				if isTestFileExtension(ext) {
+				if isTestFileExt(ext) {
 					tests = append(tests, filepath.Join(testPath, testInfo.Name()))
 				}
 			}
@@ -222,7 +222,7 @@ func (p *Parser) dirFiles(dir string, testsDir string) (primary, override, tests
 			continue
 		}
 
-		if isTestFileExtension(ext) {
+		if isTestFileExt(ext) {
 			if includeTests {
 				tests = append(tests, filepath.Join(dir, name))
 			}
@@ -344,7 +344,7 @@ func tofuFileExt(path string) string {
 	return ""
 }
 
-func isTestFileExtension(ext string) bool {
+func isTestFileExt(ext string) bool {
 	return ext == tfTestExt || ext == tfTestJSONExt || ext == tofuTestExt || ext == tofuTestJSONExt
 }
 
