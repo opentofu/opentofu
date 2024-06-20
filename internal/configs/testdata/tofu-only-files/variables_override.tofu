@@ -1,3 +1,3 @@
 variable "should_override" {
-    default = "overridden"
+    default = "overridden by tofu file"
 }

@@ -239,107 +239,76 @@ func TestParserLoadConfigDirFailure(t *testing.T) {
 }
 
 func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
-	expectedResources := []string{"aws_security_group.firewall_tofu", "aws_instance.web_tofu", "test_object.a_tofu", "test_object.b_tofu"}
 	expectedVariablesToOverride := []string{"should_override", "should_override_json"}
 	expectedLoadedTestFiles := []string{"test/resources_test.tofutest.hcl", "test/resources_test_json.tofutest.json"}
 
-	t.Run("testdata/tofu-only-files", func(t *testing.T) {
-		parser := NewParser(nil)
-		path := "testdata/tofu-only-files"
+	tests := []struct {
+		name              string
+		path              string
+		expectedResources []string
+	}{
+		{
+			name:              "only .tofu files",
+			path:              "testdata/tofu-only-files",
+			expectedResources: []string{"aws_security_group.firewall_tofu", "aws_instance.web_tofu", "test_object.a_tofu", "test_object.b_tofu"},
+		},
+		{
+			name:              ".tofu and .tf files",
+			path:              "testdata/tofu-and-tf-files",
+			expectedResources: []string{"aws_security_group.firewall_tofu", "aws_instance.web_tofu", "test_object.a_tofu", "test_object.b_tofu", "tf_resource.first", "tf_json_resource.a"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parser := NewParser(nil)
+			path := tt.path
 
-		mod, diags := parser.LoadConfigDirWithTests(path, "test")
-		if len(diags) != 0 {
-			t.Errorf("unexpected diagnostics")
-			for _, diag := range diags {
-				t.Logf("- %s", diag)
+			mod, diags := parser.LoadConfigDirWithTests(path, "test")
+			if len(diags) != 0 {
+				t.Errorf("unexpected diagnostics")
+				for _, diag := range diags {
+					t.Logf("- %s", diag)
+				}
 			}
-		}
 
-		if mod.SourceDir != path {
-			t.Errorf("wrong SourceDir value %q; want %s", mod.SourceDir, path)
-		}
-
-		if len(expectedResources) != len(mod.ManagedResources) {
-			t.Errorf("expected to find %d resources but instead got %d resources", len(expectedResources), len(mod.ManagedResources))
-		}
-
-		for _, expectedResource := range expectedResources {
-			if mod.ManagedResources[expectedResource] == nil {
-				t.Errorf("expected to load %s resource as part of configuration but it is missing", expectedResource)
+			if mod.SourceDir != path {
+				t.Errorf("wrong SourceDir value %q; want %s", mod.SourceDir, path)
 			}
-		}
 
-		for _, expectedVariable := range expectedVariablesToOverride {
-			variableInConfiguration := mod.Variables[expectedVariable]
-			if variableInConfiguration == nil {
-				t.Errorf("expected to load %s variable as part of configuration but it is missing", expectedVariable)
-			} else if variableInConfiguration.Default.AsString() != "overridden" {
-				t.Errorf("expected variable default value %s to be overridden", expectedVariable)
+			if len(tt.expectedResources) != len(mod.ManagedResources) {
+				t.Errorf("expected to find %d resources but instead got %d resources", len(tt.expectedResources), len(mod.ManagedResources))
 			}
-		}
 
-		if len(mod.Tests) != 2 {
-			t.Errorf("incorrect number of test files found: %d", len(mod.Tests))
-		}
-
-		for _, expectedTest := range expectedLoadedTestFiles {
-			if mod.Tests[expectedTest] == nil {
-				t.Errorf("expected to load %s test as part of configuration but it is missing", expectedTest)
+			for _, expectedResource := range tt.expectedResources {
+				if mod.ManagedResources[expectedResource] == nil {
+					t.Errorf("expected to load %s resource as part of configuration but it is missing", expectedResource)
+				}
 			}
-		}
-	})
-}
 
-func TestParserLoadConfigDirWithTests_TofuAndTfFiles(t *testing.T) {
-	expectedResources := []string{"aws_security_group.firewall_tofu", "aws_instance.web_tofu", "test_object.a_tofu", "test_object.b_tofu"}
-	expectedVariablesToOverride := []string{"should_override", "should_override_json"}
-	expectedLoadedTestFiles := []string{"test/resources_test.tofutest.hcl", "test/resources_test_json.tofutest.json"}
-
-	t.Run("testdata/tofu-only-files", func(t *testing.T) {
-		parser := NewParser(nil)
-		path := "testdata/tofu-and-tf-files"
-
-		mod, diags := parser.LoadConfigDirWithTests(path, "test")
-		if len(diags) != 0 {
-			t.Errorf("unexpected diagnostics")
-			for _, diag := range diags {
-				t.Logf("- %s", diag)
+			if len(expectedVariablesToOverride) != len(mod.Variables) {
+				t.Errorf("expected to find %d variables but instead got %d resources", len(expectedVariablesToOverride), len(mod.Variables))
 			}
-		}
 
-		if mod.SourceDir != path {
-			t.Errorf("wrong SourceDir value %q; want %s", mod.SourceDir, path)
-		}
-
-		if len(expectedResources) != len(mod.ManagedResources) {
-			t.Errorf("expected to find %d resources but instead got %d resources", len(expectedResources), len(mod.ManagedResources))
-		}
-
-		for _, expectedResource := range expectedResources {
-			if mod.ManagedResources[expectedResource] == nil {
-				t.Errorf("expected to load %s resource as part of configuration but it is missing", expectedResource)
+			for _, expectedVariable := range expectedVariablesToOverride {
+				variableInConfiguration := mod.Variables[expectedVariable]
+				if variableInConfiguration == nil {
+					t.Errorf("expected to load %s variable as part of configuration but it is missing", expectedVariable)
+				} else if variableInConfiguration.Default.AsString() != "overridden by tofu file" {
+					t.Errorf("expected variable default value %s to be overridden", expectedVariable)
+				}
 			}
-		}
 
-		for _, expectedVariable := range expectedVariablesToOverride {
-			variableInConfiguration := mod.Variables[expectedVariable]
-			if variableInConfiguration == nil {
-				t.Errorf("expected to load %s variable as part of configuration but it is missing", expectedVariable)
-			} else if variableInConfiguration.Default.AsString() != "overridden by tofu file" {
-				t.Errorf("expected variable default value %s to be overridden", expectedVariable)
+			if len(mod.Tests) != 2 {
+				t.Errorf("incorrect number of test files found: %d", len(mod.Tests))
 			}
-		}
 
-		if len(mod.Tests) != 2 {
-			t.Errorf("incorrect number of test files found: %d", len(mod.Tests))
-		}
-
-		for _, expectedTest := range expectedLoadedTestFiles {
-			if mod.Tests[expectedTest] == nil {
-				t.Errorf("expected to load %s test as part of configuration but it is missing", expectedTest)
+			for _, expectedTest := range expectedLoadedTestFiles {
+				if mod.Tests[expectedTest] == nil {
+					t.Errorf("expected to load %s test as part of configuration but it is missing", expectedTest)
+				}
 			}
-		}
-	})
+		})
+	}
 }
 
 func TestIsEmptyDir(t *testing.T) {

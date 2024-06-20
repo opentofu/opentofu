@@ -1,7 +1,7 @@
 {
   "variable": {
     "should_override_json": {
-      "default": "overridden"
+      "default": "overridden by tofu file"
     }
   }
 }
