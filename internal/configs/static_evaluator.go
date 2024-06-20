@@ -57,12 +57,15 @@ var RootModuleCallForTesting = StaticModuleCall{
 	},
 }
 
+// A static evaluator contains the information required to build a EvalContext
+// which only understands "static" (non-state) data. Internally, it relies
+// on staticData
 type StaticEvaluator struct {
 	call StaticModuleCall
 	cfg  *Module
 }
 
-// Creates a static context based from the given module and module call
+// Creates a static evaluator based from the given module and module call
 func NewStaticEvaluator(mod *Module, call StaticModuleCall) *StaticEvaluator {
 	return &StaticEvaluator{
 		call: call,

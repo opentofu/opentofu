@@ -18,7 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// newStaticScope Creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
+// newStaticScope creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
 func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
 		Data:        staticScopeData{eval, stack},
@@ -29,6 +29,8 @@ func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scop
 	}
 }
 
+// This structure represents the data required to evaluate a specific identifier reference (top of the stack)
+// It is used by lang.Scope to link the given StaticEvaluator data to addrs.References in the current scope.
 type staticScopeData struct {
 	eval  *StaticEvaluator
 	stack []StaticIdentifier
@@ -111,9 +113,11 @@ func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ add
 func (s staticScopeData) GetCountAttr(addrs.CountAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
+
 func (s staticScopeData) GetForEachAttr(addrs.ForEachAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
+
 func (s staticScopeData) GetResource(addrs.Resource, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
@@ -146,9 +150,11 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 	val, valDiags := scope.EvalExpr(local.Expr, cty.DynamicPseudoType)
 	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
+
 func (s staticScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
+
 func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// TODO this is copied and trimed down from tofu/evaluate.go GetPathAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
@@ -197,6 +203,7 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 		return cty.DynamicVal, diags
 	}
 }
+
 func (s staticScopeData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// TODO this is copied and trimed down from tofu/evaluate.go GetTerraformAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
@@ -227,6 +234,7 @@ func (s staticScopeData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.
 		return cty.DynamicVal, diags
 	}
 }
+
 func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -249,9 +257,11 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	val, valDiags := s.eval.call.vars(variable)
 	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
+
 func (s staticScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
+
 func (s staticScopeData) GetCheckBlock(addrs.Check, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
