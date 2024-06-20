@@ -21,6 +21,17 @@ const (
 	DefaultTestDirectory = "tests"
 )
 
+const (
+	tfExt           = ".tf"
+	tofuExt         = ".tofu"
+	tfJSONExt       = ".tf.json"
+	tofuJSONExt     = ".tofu.json"
+	tfTestExt       = ".tftest.hcl"
+	tofuTestExt     = ".tofutest.hcl"
+	tfTestJSONExt   = ".tftest.json"
+	tofuTestJSONExt = ".tofutest.json"
+)
+
 // LoadConfigDir reads the .tf and .tf.json files in the given directory
 // as config files (using LoadConfigFile) and then combines these files into
 // a single Module.
@@ -303,14 +314,14 @@ func fileExt(path string) string {
 // path, or a blank string if it is not a recognized .tf extension.
 func tfFileExt(path string) string {
 	switch {
-	case strings.HasSuffix(path, ".tf"):
-		return ".tf"
-	case strings.HasSuffix(path, ".tf.json"):
-		return ".tf.json"
-	case strings.HasSuffix(path, ".tftest.hcl"):
-		return ".tftest.hcl"
-	case strings.HasSuffix(path, ".tftest.json"):
-		return ".tftest.json"
+	case strings.HasSuffix(path, tfExt):
+		return tfExt
+	case strings.HasSuffix(path, tfJSONExt):
+		return tfJSONExt
+	case strings.HasSuffix(path, tfTestExt):
+		return tfTestExt
+	case strings.HasSuffix(path, tfTestJSONExt):
+		return tfTestJSONExt
 	default:
 		return ""
 	}
@@ -320,21 +331,21 @@ func tfFileExt(path string) string {
 // path, or a blank string if it is not a recognized .tofu extension.
 func tofuFileExt(path string) string {
 	switch {
-	case strings.HasSuffix(path, ".tofu"):
-		return ".tofu"
-	case strings.HasSuffix(path, ".tofu.json"):
-		return ".tofu.json"
-	case strings.HasSuffix(path, ".tofutest.hcl"):
-		return ".tofutest.hcl"
-	case strings.HasSuffix(path, ".tofutest.json"):
-		return ".tofutest.json"
+	case strings.HasSuffix(path, tofuExt):
+		return tofuExt
+	case strings.HasSuffix(path, tofuJSONExt):
+		return tofuJSONExt
+	case strings.HasSuffix(path, tofuTestExt):
+		return tofuTestExt
+	case strings.HasSuffix(path, tofuTestJSONExt):
+		return tofuTestJSONExt
 	}
 
 	return ""
 }
 
 func isTestFileExtension(ext string) bool {
-	return ext == ".tftest.hcl" || ext == ".tftest.json" || ext == ".tofutest.hcl" || ext == ".tofutest.json"
+	return ext == tfTestExt || ext == tfTestJSONExt || ext == tofuTestExt || ext == tofuTestJSONExt
 }
 
 // IsIgnoredFile returns true if the given filename (which must not have a
