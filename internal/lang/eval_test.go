@@ -427,7 +427,7 @@ func TestScopeEvalContext(t *testing.T) {
 func TestScopeEvalContextWithParent(t *testing.T) {
 	t.Run("with-parent", func(t *testing.T) {
 		barStr, barFunc := cty.StringVal("bar"), function.New(&function.Spec{
-			Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			Impl: func(_ []cty.Value, _ cty.Type) (cty.Value, error) {
 				return cty.NilVal, nil
 			},
 		})
