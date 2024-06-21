@@ -36,7 +36,7 @@ func EncryptionDirect(configData string) encryption.Encryption {
 
 	handleDiags(diags)
 
-	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting)
+	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
 	enc, diags := encryption.New(reg, cfg, staticEval)
 	handleDiags(diags)

@@ -59,7 +59,7 @@ func Example() {
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
 	// Construct static evaluator to pass additional values into encryption configuration.
-	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting)
+	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
 	// Construct the encryption object
 	enc, diags := encryption.New(reg, cfg, staticEval)

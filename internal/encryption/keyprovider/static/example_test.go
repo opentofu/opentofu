@@ -45,7 +45,7 @@ func Example() {
 		panic(diags)
 	}
 
-	staticEvaluator := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting)
+	staticEvaluator := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
 	enc, diags := encryption.New(registry, cfg, staticEvaluator)
 	if diags.HasErrors() {
