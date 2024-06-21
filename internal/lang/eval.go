@@ -293,7 +293,9 @@ func (s *Scope) EvalContext(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.
 }
 
 // EvalContextWithParent is exactly the same as EvalContext except the resulting hcl.EvalContext
-// will be derived from the given parental hcl.EvalContext.
+// will be derived from the given parental hcl.EvalContext. It will enable different hcl mechanisms
+// to iteratively lookup target functions and variables in EvalContext's parent.
+// See Traversal.TraverseAbs (hcl) or FunctionCallExpr.Value (hcl/hclsyntax) for more details.
 func (s *Scope) EvalContextWithParent(p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	return s.evalContext(p, refs, s.SelfAddr)
 }
