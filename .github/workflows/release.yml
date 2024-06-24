@@ -80,7 +80,7 @@ jobs:
               "${{ steps.validate_tag.outputs.IS_TAG_ON_VERSION }}" == "true") 
             ]] && echo false || echo true
           )
-          echo "PUSH_ARCHIVE=${PUSH_ARCHIVE}" >> $GITHUB_ENV
+          echo "PUSH_ARCHIVE=${PUSH_ARCHIVE}" >> $GITHUB_OUTPUT
 
       - name: Determine Go version
         id: go

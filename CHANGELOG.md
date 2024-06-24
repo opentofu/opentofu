@@ -4,16 +4,17 @@ UPGRADE NOTES:
 BREAKING CHANGE - `use_legacy_workflow` field has been removing from the S3 backend configuration. ([#1730](https://github.com/opentofu/opentofu/pull/1730))
 
 NEW FEATURES:
-* Added support for `override_resource`, `override_data` and `override_module` blocks in testing framework. ([1499](https://github.com/opentofu/opentofu/pull/1499))
-* Variables and Locals allowed in module sources and backend configurations (with limitations) ([1718](https://github.com/opentofu/opentofu/pull/1718))
+* Added support for `override_resource`, `override_data` and `override_module` blocks in testing framework. ([#1499](https://github.com/opentofu/opentofu/pull/1499))
+* Variables and Locals allowed in module sources and backend configurations (with limitations) ([#1718](https://github.com/opentofu/opentofu/pull/1718))
+* Added support to new .tofu extensions to allow tofu-specific overrides of .tf files ([#1738](https://github.com/opentofu/opentofu/pull/1738))
 
 ENHANCEMENTS:
-* Added `tofu test -json` types to website Machine-Readable UI documentation. ([1408](https://github.com/opentofu/opentofu/issues/1408))
+* Added `tofu test -json` types to website Machine-Readable UI documentation. ([#1408](https://github.com/opentofu/opentofu/issues/1408))
 * Made `tofu plan` with `generate-config-out` flag replace JSON strings with `jsonencode` functions calls. ([#1595](https://github.com/opentofu/opentofu/pull/1595))
 * Make state persistence interval configurable via `TF_STATE_PERSIST_INTERVAL` environment variable ([#1591](https://github.com/opentofu/opentofu/pull/1591))
 * Improved performance of writing state files and reduced their size using compact json encoding. ([#1647](https://github.com/opentofu/opentofu/pull/1647))
-* Allow to reference variable inside the `variables` block of a test file. ([1488](https://github.com/opentofu/opentofu/pull/1488))
-* Allow variables and other static values to be used in encryption configuration. ([1728](https://github.com/opentofu/opentofu/pull/1728))
+* Allow to reference variable inside the `variables` block of a test file. ([#1488](https://github.com/opentofu/opentofu/pull/1488))
+* Allow variables and other static values to be used in encryption configuration. ([#1728](https://github.com/opentofu/opentofu/pull/1728))
 
 BUG FIXES:
 * Fixed validation for `enforced` flag in encryption configuration. ([#1711](https://github.com/opentofu/opentofu/pull/1711))
