@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
@@ -28,15 +29,17 @@ type baseEncryption struct {
 	name       string
 	encMethods []method.Method
 	encMeta    map[keyprovider.Addr][]byte
+	staticEval *configs.StaticEvaluator
 }
 
-func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (*baseEncryption, hcl.Diagnostics) {
+func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (*baseEncryption, hcl.Diagnostics) {
 	base := &baseEncryption{
-		enc:      enc,
-		target:   target,
-		enforced: enforced,
-		name:     name,
-		encMeta:  make(map[keyprovider.Addr][]byte),
+		enc:        enc,
+		target:     target,
+		enforced:   enforced,
+		name:       name,
+		encMeta:    make(map[keyprovider.Addr][]byte),
+		staticEval: staticEval,
 	}
 	// Setup the encryptor
 	//

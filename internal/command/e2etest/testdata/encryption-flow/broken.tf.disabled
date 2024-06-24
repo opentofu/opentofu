@@ -1,8 +1,17 @@
+variable "passphrase" {
+  type = string
+  default = "aaaaaaaa-83f1-47ec-9b2d-2aebf6417167"
+}
+
+locals {
+  key_length = 32
+}
+
 terraform {
   encryption {
     key_provider "pbkdf2" "basic" {
-      passphrase    = "aaaaaaaa-83f1-47ec-9b2d-2aebf6417167"
-      key_length    = 32
+      passphrase    = var.passphrase
+      key_length    = local.key_length
       iterations    = 200000
       hash_function = "sha512"
       salt_length   = 12

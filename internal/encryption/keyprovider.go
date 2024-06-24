@@ -10,7 +10,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -88,17 +91,17 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	keyProviderDescriptor, err := e.reg.GetKeyProviderDescriptor(id)
 	if err != nil {
 		if errors.Is(err, &registry.KeyProviderNotFoundError{}) {
-			return hcl.Diagnostics{&hcl.Diagnostic{
+			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unknown key_provider type",
 				Detail:   fmt.Sprintf("Can not find %q", cfg.Type),
-			}}
+			})
 		}
-		return hcl.Diagnostics{&hcl.Diagnostic{
+		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Error fetching key_provider %q", cfg.Type),
 			Detail:   err.Error(),
-		}}
+		})
 	}
 
 	// Now that we know we have the correct Descriptor, we can decode the configuration
@@ -106,21 +109,21 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
 
 	// Locate all the dependencies
-	deps, diags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	diags = append(diags, varDiags...)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	// Required Dependencies
+	// lang.References is going to fail parsing key_provider deps
+	// so we filter them out in nonKeyProviderDeps.
+	var nonKeyProviderDeps []hcl.Traversal
+
+	// Setting up key providers from deps.
 	for _, dep := range deps {
 		// Key Provider references should be in the form key_provider.type.name
 		if len(dep) != 3 {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid key_provider reference",
-				Detail:   "Expected reference in form key_provider.type.name",
-				Subject:  dep.SourceRange().Ptr(),
-			})
+			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
 			continue
 		}
 
@@ -130,23 +133,23 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		depName := (dep[2].(hcl.TraverseAttr)).Name
 
 		if depRoot != "key_provider" {
+			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
+			continue
+		}
+
+		kpc, ok := e.cfg.GetKeyProvider(depType, depName)
+		if !ok {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid key_provider reference",
-				Detail:   "Expected reference in form key_provider.type.name",
+				Summary:  "Undefined Key Provider",
+				Detail:   fmt.Sprintf("Key provider %s.%s is missing from the encryption configuration.", depType, depName),
 				Subject:  dep.SourceRange().Ptr(),
 			})
 			continue
 		}
 
-		for _, kpc := range e.cfg.KeyProviderConfigs {
-			// Find the key provider in the config
-			if kpc.Type == depType && kpc.Name == depName {
-				depDiags := e.setupKeyProvider(kpc, stack)
-				diags = append(diags, depDiags...)
-				break
-			}
-		}
+		depDiags := e.setupKeyProvider(kpc, stack)
+		diags = append(diags, depDiags...)
 	}
 	if diags.HasErrors() {
 		// We should not continue now if we have any diagnostics that are errors
@@ -156,8 +159,24 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 
+	refs, refDiags := lang.References(addrs.ParseRef, nonKeyProviderDeps)
+	diags = append(diags, refDiags.ToHCL()...)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	evalCtx, evalDiags := e.staticEval.EvalContextWithParent(e.ctx, configs.StaticIdentifier{
+		Module:    addrs.RootModule,
+		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
+		DeclRange: e.cfg.DeclRange,
+	}, refs)
+	diags = append(diags, evalDiags...)
+	if diags.HasErrors() {
+		return diags
+	}
+
 	// Initialize the Key Provider
-	decodeDiags := gohcl.DecodeBody(cfg.Body, e.ctx, keyProviderConfig)
+	decodeDiags := gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
 		return diags

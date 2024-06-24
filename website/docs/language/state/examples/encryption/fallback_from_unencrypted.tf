@@ -1,3 +1,8 @@
+variable "passphrase" {
+  # Change passphrase to be at least 16 characters long:
+  default = "changeme!"
+}
+
 terraform {
   encryption {
     ## Step 1: Add the unencrypted method:
@@ -5,8 +10,7 @@ terraform {
 
     ## Step 2: Add the desired key provider:
     key_provider "pbkdf2" "mykey" {
-      # Change this to be at least 16 characters long:
-      passphrase = "changeme!"
+      passphrase = var.passphrase
     }
 
     ## Step 3: Add the desired encryption method:
