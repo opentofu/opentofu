@@ -272,7 +272,7 @@ func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
 			parser := NewParser(nil)
 			path := tt.path
 
-			mod, diags := parser.LoadConfigDirWithTests(path, "test")
+			mod, diags := parser.LoadConfigDirWithTests(path, "test", RootModuleCallForTesting())
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics")
 				for _, diag := range diags {
