@@ -102,7 +102,10 @@ func evaluateImportAddress(ctx EvalContext, expr hcl.Expression, keyData instanc
 	return addrs.ParseAbsResourceInstance(traversal)
 }
 
-func traversalForImportExpr(ctx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (traversal hcl.Traversal, diags tfdiags.Diagnostics) {
+func traversalForImportExpr(ctx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.Traversal, tfdiags.Diagnostics) {
+	var traversal hcl.Traversal
+	var diags tfdiags.Diagnostics
+
 	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
 		t, d := traversalForImportExpr(ctx, e.Collection, keyData)
@@ -128,7 +131,8 @@ func traversalForImportExpr(ctx EvalContext, expr hcl.Expression, keyData instan
 			Subject:  expr.Range().Ptr(),
 		})
 	}
-	return
+
+	return traversal, diags
 }
 
 // parseImportIndexKeyExpr parses an expression that is used as a key in an index, of an HCL expression representing an
