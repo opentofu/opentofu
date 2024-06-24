@@ -256,13 +256,9 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 				// Let's make a little fake module call that we can use to call
 				// into validateProviderConfigs.
 				mc := &ModuleCall{
-					Name:            run.Name,
-					SourceAddr:      run.Module.Source,
-					SourceAddrRange: run.Module.SourceDeclRange,
-					SourceSet:       true,
-					Version:         run.Module.Version,
-					Providers:       providers,
-					DeclRange:       run.Module.DeclRange,
+					Name:      run.Name,
+					Providers: providers,
+					DeclRange: run.Module.DeclRange,
 				}
 
 				diags = append(diags, validateProviderConfigs(mc, run.ConfigUnderTest, nil)...)

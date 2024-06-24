@@ -14,6 +14,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 )
 
@@ -26,7 +27,7 @@ func TestConfigSnapshotRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir)
+	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}

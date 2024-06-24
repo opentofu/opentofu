@@ -51,7 +51,7 @@ const (
 //
 // .tf files are parsed using the HCL native syntax while .tf.json files are
 // parsed using the HCL JSON syntax.
-func (p *Parser) LoadConfigDir(path string) (*Module, hcl.Diagnostics) {
+func (p *Parser) LoadConfigDir(path string, call StaticModuleCall) (*Module, hcl.Diagnostics) {
 	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
 	if diags.HasErrors() {
 		return nil, diags
@@ -62,17 +62,15 @@ func (p *Parser) LoadConfigDir(path string) (*Module, hcl.Diagnostics) {
 	override, fDiags := p.loadFiles(overridePaths, true)
 	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModule(primary, override)
+	mod, modDiags := NewModule(primary, override, call, path)
 	diags = append(diags, modDiags...)
-
-	mod.SourceDir = path
 
 	return mod, diags
 }
 
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
-func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Module, hcl.Diagnostics) {
+func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, call StaticModuleCall) (*Module, hcl.Diagnostics) {
 	primaryPaths, overridePaths, testPaths, diags := p.dirFiles(path, testDirectory)
 	if diags.HasErrors() {
 		return nil, diags
@@ -85,10 +83,8 @@ func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string) (*Mod
 	tests, fDiags := p.loadTestFiles(path, testPaths)
 	diags = append(diags, fDiags...)
 
-	mod, modDiags := NewModuleWithTests(primary, override, tests)
+	mod, modDiags := NewModuleWithTests(primary, override, tests, call, path)
 	diags = append(diags, modDiags...)
-
-	mod.SourceDir = path
 
 	return mod, diags
 }

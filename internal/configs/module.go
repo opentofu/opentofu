@@ -107,8 +107,8 @@ type File struct {
 
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles)
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -123,7 +123,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File) (*Module, hcl.Diagnostics) {
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -137,6 +137,7 @@ func NewModule(primaryFiles, overrideFiles []*File) (*Module, hcl.Diagnostics) {
 		Checks:             map[string]*Check{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
+		SourceDir:          sourceDir,
 	}
 
 	// Process the required_providers blocks first, to ensure that all
@@ -182,6 +183,24 @@ func NewModule(primaryFiles, overrideFiles []*File) (*Module, hcl.Diagnostics) {
 	for _, file := range overrideFiles {
 		fileDiags := mod.mergeFile(file)
 		diags = append(diags, fileDiags...)
+	}
+
+	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
+	eval := NewStaticEvaluator(mod, call)
+
+	// If we have a backend, it may have fields that require locals/vars
+	if mod.Backend != nil {
+		// We don't know the backend type / loader at this point so we save the context for later use
+		mod.Backend.Eval = eval
+	}
+	if mod.CloudConfig != nil {
+		mod.CloudConfig.eval = eval
+	}
+
+	// Process all module calls now that we have the static context
+	for _, mc := range mod.ModuleCalls {
+		mDiags := mc.decodeStaticFields(eval)
+		diags = append(diags, mDiags...)
 	}
 
 	diags = append(diags, checkModuleExperiments(mod)...)

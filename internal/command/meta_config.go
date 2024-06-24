@@ -19,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -50,7 +51,13 @@ func (m *Meta) loadConfig(rootDir string) (*configs.Config, tfdiags.Diagnostics)
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfig(rootDir)
+	call, callDiags := m.rootModuleCall(rootDir)
+	diags = diags.Append(callDiags)
+	if callDiags.HasErrors() {
+		return nil, diags
+	}
+
+	config, hclDiags := loader.LoadConfig(rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -67,7 +74,13 @@ func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tf
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir)
+	call, vDiags := m.rootModuleCall(rootDir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -90,9 +103,51 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDir(dir)
+	call, vDiags := m.rootModuleCall(dir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	module, hclDiags := loader.Parser().LoadConfigDir(dir, call)
 	diags = diags.Append(hclDiags)
 	return module, diags
+}
+
+func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags.Diagnostics) {
+	if m.rootModuleCallCache != nil {
+		return *m.rootModuleCallCache, nil
+	}
+	variables, diags := m.collectVariableValues()
+
+	workspace, err := m.Workspace()
+	if err != nil {
+		diags = diags.Append(err)
+	}
+
+	call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		name := variable.Name
+		v, ok := variables[name]
+		if !ok {
+			// For now, we are simply failing when the user omits a required variable. This is due to complex interactions between variables in different code paths (apply existing plan for example)
+			// Ideally, we should be able to use something like backend_local.go:interactiveCollectVariables() in the future to allow users to provide values if input is enabled
+			// This is probably blocked by command package refactoring
+			if variable.Required() {
+				// Not specified on CLI or in var files, without a valid default.
+				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Variable not provided via -var, tfvars files, or env",
+					Subject:  variable.DeclRange.Ptr(),
+				}}
+			}
+			return variable.Default, nil
+		}
+
+		parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
+		return parsed.Value, parsedDiags.ToHCL()
+	}, rootDir, workspace)
+	m.rootModuleCallCache = &call
+	return call, diags
 }
 
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any
@@ -107,7 +162,13 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir)
+	call, vDiags := m.rootModuleCall(dir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -205,7 +266,13 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 
 	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
 
-	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks)
+	call, vDiags := m.rootModuleCall(rootDir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return true, diags
+	}
+
+	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks, call)
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {

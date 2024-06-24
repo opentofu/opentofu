@@ -62,8 +62,7 @@ Module calls use the following kinds of arguments:
 All modules **require** a `source` argument, which is a meta-argument defined by
 OpenTofu. Its value is either the path to a local directory containing the
 module's configuration files, or a remote module source that OpenTofu should
-download and use. This value must be a literal string with no template
-sequences; arbitrary expressions are not allowed. For more information on
+download and use. For more information on
 possible values for this argument, see [Module Sources](../../language/modules/sources.mdx).
 
 The same source address can be specified in multiple `module` blocks to create

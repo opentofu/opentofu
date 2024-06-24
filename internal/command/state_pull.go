@@ -24,6 +24,7 @@ type StatePullCommand struct {
 func (c *StatePullCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state pull")
+	c.Meta.varFlagSet(cmdFlags)
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
 		return 1

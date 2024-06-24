@@ -24,14 +24,19 @@ type VersionConstraint struct {
 }
 
 func decodeVersionConstraint(attr *hcl.Attribute) (VersionConstraint, hcl.Diagnostics) {
+	val, diags := attr.Expr.Value(nil)
+	if diags.HasErrors() {
+		return VersionConstraint{}, diags
+	}
+	return decodeVersionConstraintValue(attr, val)
+}
+func decodeVersionConstraintValue(attr *hcl.Attribute, val cty.Value) (VersionConstraint, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
 	ret := VersionConstraint{
 		DeclRange: attr.Range,
 	}
 
-	val, diags := attr.Expr.Value(nil)
-	if diags.HasErrors() {
-		return ret, diags
-	}
 	var err error
 	val, err = convert.Convert(val, cty.String)
 	if err != nil {

@@ -32,6 +32,7 @@ func (c *ProvidersSchemaCommand) Synopsis() string {
 func (c *ProvidersSchemaCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers schema")
+	c.Meta.varFlagSet(cmdFlags)
 	var jsonOutput bool
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "produce JSON output")
 

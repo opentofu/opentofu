@@ -94,11 +94,11 @@ func NewModuleInstaller(modsDir string, loader *configload.Loader, reg *registry
 // If successful (the returned diagnostics contains no errors) then the
 // first return value is the early configuration tree that was constructed by
 // the installation process.
-func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks ModuleInstallHooks) (*configs.Config, tfdiags.Diagnostics) {
+func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks ModuleInstallHooks, call configs.StaticModuleCall) (*configs.Config, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] ModuleInstaller: installing child modules for %s into %s", rootDir, i.modsDir)
 	var diags tfdiags.Diagnostics
 
-	rootMod, mDiags := i.loader.Parser().LoadConfigDirWithTests(rootDir, testsDir)
+	rootMod, mDiags := i.loader.Parser().LoadConfigDirWithTests(rootDir, testsDir, call)
 	if rootMod == nil {
 		// We drop the diagnostics here because we only want to report module
 		// loading errors after checking the core version constraints, which we
@@ -240,7 +240,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 				// keep our existing record.
 				info, err := os.Stat(record.Dir)
 				if err == nil && info.IsDir() {
-					mod, mDiags := i.loader.Parser().LoadConfigDir(record.Dir)
+					mod, mDiags := i.loader.Parser().LoadConfigDir(record.Dir, req.Call)
 					if mod == nil {
 						// nil indicates an unreadable module, which should never happen,
 						// so we return the full loader diagnostics here.
@@ -381,7 +381,7 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 	}
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(newDir)
+	mod, mDiags := i.loader.Parser().LoadConfigDir(newDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
@@ -663,7 +663,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s should now be at %s", key, modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir)
+	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
@@ -764,7 +764,7 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, addr, modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir)
+	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific

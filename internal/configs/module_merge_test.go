@@ -96,20 +96,7 @@ func TestModuleOverrideModule(t *testing.T) {
 		Name:          "example",
 		SourceAddr:    addrs.ModuleSourceLocal("./example2-a_override"),
 		SourceAddrRaw: "./example2-a_override",
-		SourceAddrRange: hcl.Range{
-			Filename: filepath.FromSlash("testdata/valid-modules/override-module/a_override.tf"),
-			Start: hcl.Pos{
-				Line:   3,
-				Column: 12,
-				Byte:   31,
-			},
-			End: hcl.Pos{
-				Line:   3,
-				Column: 35,
-				Byte:   54,
-			},
-		},
-		SourceSet: true,
+		SourceSet:     true,
 		DeclRange: hcl.Range{
 			Filename: filepath.FromSlash("testdata/valid-modules/override-module/primary.tf"),
 			Start: hcl.Pos{
@@ -175,6 +162,8 @@ func TestModuleOverrideModule(t *testing.T) {
 	// is not a useful way to assert on that.
 	gotConfig := got.Config
 	got.Config = nil
+	got.Source = nil
+	got.Variables = nil
 
 	assertResultDeepEqual(t, got, want)
 

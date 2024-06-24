@@ -268,6 +268,11 @@ type Meta struct {
 	ignoreRemoteVersion bool
 
 	outputInJSON bool
+
+	// Used to cache the root module rootModuleCallCache and known variables.
+	// This helps prevent duplicate errors/warnings.
+	rootModuleCallCache *configs.StaticModuleCall
+	inputVariableCache  map[string]backend.UnparsedVariableValue
 }
 
 type testingOverrides struct {
@@ -471,7 +476,7 @@ func (m *Meta) CommandContext() context.Context {
 // If the operation runs to completion then no error is returned even if the
 // operation itself is unsuccessful. Use the "Result" field of the
 // returned operation object to recognize operation-level failure.
-func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, error) {
+func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, tfdiags.Diagnostics) {
 	if opReq.View == nil {
 		panic("RunOperation called with nil View")
 	}
@@ -479,9 +484,18 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 		opReq.ConfigDir = m.normalizePath(opReq.ConfigDir)
 	}
 
+	// Inject variables and root module call
+	var diags, callDiags tfdiags.Diagnostics
+	opReq.Variables, diags = m.collectVariableValues()
+	opReq.RootCall, callDiags = m.rootModuleCall(opReq.ConfigDir)
+	diags = diags.Append(callDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	op, err := b.Operation(context.Background(), opReq)
 	if err != nil {
-		return nil, fmt.Errorf("error starting operation: %w", err)
+		return nil, diags.Append(fmt.Errorf("error starting operation: %w", err))
 	}
 
 	// Wait for the operation to complete or an interrupt to occur
@@ -508,7 +522,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 			case <-time.After(5 * time.Second):
 			}
 
-			return nil, errors.New("operation canceled")
+			return nil, diags.Append(errors.New("operation canceled"))
 
 		case <-op.Done():
 			// operation completed after Stop
@@ -517,7 +531,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 		// operation completed normally
 	}
 
-	return op, nil
+	return op, diags
 }
 
 // contextOpts returns the options to use to initialize a OpenTofu
@@ -572,9 +586,21 @@ func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
 func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
+	m.varFlagSet(f)
+
 	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 
 	return f
+}
+
+func (m *Meta) varFlagSet(f *flag.FlagSet) {
+	if m.variableArgs.items == nil {
+		m.variableArgs = newRawFlags("-var")
+	}
+	varValues := m.variableArgs.Alias("-var")
+	varFiles := m.variableArgs.Alias("-var-file")
+	f.Var(varValues, "var", "variables")
+	f.Var(varFiles, "var-file", "variable file")
 }
 
 // extendedFlagSet adds custom flags that are mostly used by commands
@@ -586,13 +612,7 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 
-	if m.variableArgs.items == nil {
-		m.variableArgs = newRawFlags("-var")
-	}
-	varValues := m.variableArgs.Alias("-var")
-	varFiles := m.variableArgs.Alias("-var-file")
-	f.Var(varValues, "var", "variables")
-	f.Var(varFiles, "var-file", "variable file")
+	m.varFlagSet(f)
 
 	// commands that bypass locking will supply their own flag on this var,
 	// but set the initial meta value to true as a failsafe.
@@ -837,7 +857,13 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 		return diags
 	}
 
-	config, configDiags := loader.LoadConfig(pwd)
+	call, callDiags := m.rootModuleCall(pwd)
+	if callDiags.HasErrors() {
+		diags = diags.Append(callDiags)
+		return diags
+	}
+
+	config, configDiags := loader.LoadConfig(pwd, call)
 	if configDiags.HasErrors() {
 		diags = diags.Append(configDiags)
 		return diags

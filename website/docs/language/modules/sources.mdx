@@ -463,3 +463,28 @@ OpenTofu will still extract the entire package to local disk, but will read
 the module from the subdirectory. As a result, it is safe for a module in
 a sub-directory of a package to use [a local path](#local-paths) to another
 module as long as it is in the _same_ package.
+
+## Support for Variable and Local Interpolation
+
+As projects grow in complexity and requirements, it is prudent to consider using locals and variables in the module source and version fields.
+
+Many organizations utilize the mono-repo pattern for modules:
+```hcl
+locals {
+	modules_repo = "github.com/myorg/tofu-modules/"
+	modules_version = "?ref=v1.20.4"
+}
+
+module "storage" {
+  source = "${local.modules_repo}/storage${local.modules_version}"
+}
+
+module "compute" {
+  source = "${local.modules_repo}/compute${local.modules_version}"
+}
+```
+It is quite easy to then update the version for a patch release, or to switch to a fork of the repository.
+
+:::note
+The source and version fields may not contain any references to data in the state or provider defined functions. All value must be able to be resolved during `tofu init` before the state is available.
+:::

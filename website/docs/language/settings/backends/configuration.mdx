@@ -41,7 +41,7 @@ terraform {
 There are some important limitations on backend configuration:
 
 - A configuration can only provide one backend block.
-- A backend block cannot refer to named values (like input variables, locals, or data source attributes).
+- A backend block cannot refer to values in the state or locals derived from the state (data source attributes).
 
 ### Credentials and Sensitive Data
 
