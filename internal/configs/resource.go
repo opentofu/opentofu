@@ -668,6 +668,24 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 	expr, shimDiags = shimTraversalInString(expr, false)
 	diags = append(diags, shimDiags...)
 
+	if idxexpr, ok := expr.(*hclsyntax.IndexExpr); ok {
+		// TODO this is super unsafe and needs guardrails
+
+		name, nameDiags := hcl.AbsTraversalForExpr(idxexpr.Collection)
+		diags = append(diags, nameDiags...)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		alias, aliasDiags := idxexpr.Key.Value(nil)
+		diags = append(diags, aliasDiags...)
+		return &ProviderConfigRef{
+			Name:       name[0].(hcl.TraverseRoot).Name,
+			NameRange:  idxexpr.Collection.Range(),
+			Alias:      alias.AsString(),
+			AliasRange: idxexpr.Key.Range().Ptr(),
+		}, diags
+	}
+
 	traversal, travDiags := hcl.AbsTraversalForExpr(expr)
 
 	// AbsTraversalForExpr produces only generic errors, so we'll discard
@@ -716,8 +734,13 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 	}
 
 	if len(traversal) > 1 {
-		aliasStep, ok := traversal[1].(hcl.TraverseAttr)
-		if !ok {
+		if aliasStep, ok := traversal[1].(hcl.TraverseAttr); ok {
+			ret.Alias = aliasStep.Name
+			ret.AliasRange = aliasStep.SourceRange().Ptr()
+		} else if aliasStep, ok := traversal[1].(hcl.TraverseIndex); ok {
+			ret.Alias = aliasStep.Key.AsString()
+			ret.AliasRange = aliasStep.SourceRange().Ptr()
+		} else {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration reference",
@@ -726,9 +749,6 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 			})
 			return ret, diags
 		}
-
-		ret.Alias = aliasStep.Name
-		ret.AliasRange = aliasStep.SourceRange().Ptr()
 	}
 
 	return ret, diags
