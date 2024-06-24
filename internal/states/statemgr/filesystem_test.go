@@ -189,9 +189,10 @@ func TestFilesystem_backup(t *testing.T) {
 // not the contents of the input file (which is left unchanged).
 func TestFilesystem_backupAndReadPath(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
+	info := NewLockInfo()
+	info.Operation = "test"
 
 	workDir := t.TempDir()
-
 	markerOutput := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
 	outState := states.BuildState(func(ss *states.SyncState) {
@@ -255,6 +256,15 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		t.Fatalf("failed to write new state: %s", err)
 	}
 
+	lockID, err := ls.Lock(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ls.Unlock(lockID); err != nil {
+		t.Fatal(err)
+	}
+
 	// The backup functionality should've saved a copy of the original contents
 	// of the _output_ file, even though the first snapshot was read from
 	// the _input_ file.
@@ -263,6 +273,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer bfh.Close()
 		bf, err := statefile.Read(bfh, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatal(err)
@@ -277,6 +288,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer ofh.Close()
 		of, err := statefile.Read(ofh, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatal(err)

@@ -288,12 +288,6 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "The maximum number of times an AWS API request is retried on retryable failure.",
 			},
-			"use_legacy_workflow": {
-				Type:        cty.Bool,
-				Optional:    true,
-				Description: "Use the legacy authentication workflow, preferring environment variables over backend configuration.",
-				Deprecated:  true,
-			},
 			"custom_ca_bundle": {
 				Type:        cty.String,
 				Optional:    true,
@@ -575,18 +569,6 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 			attrPath))
 	}
 
-	if val := obj.GetAttr("use_legacy_workflow"); !val.IsNull() {
-		attrPath := cty.GetAttrPath("use_legacy_workflow")
-		detail := fmt.Sprintf(
-			`Parameter "%s" is deprecated and will be removed in an upcoming minor version.`,
-			pathString(attrPath))
-
-		diags = diags.Append(attributeWarningDiag(
-			"Deprecated Parameter",
-			detail,
-			attrPath))
-	}
-
 	validateAttributesConflict(
 		cty.GetAttrPath("force_path_style"),
 		cty.GetAttrPath("use_path_style"),
@@ -750,9 +732,10 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		// Note: we don't need to read env variables explicitly because they are read implicitly by aws-sdk-base-go:
 		// see: https://github.com/hashicorp/aws-sdk-go-base/blob/v2.0.0-beta.41/internal/config/config.go#L133
 		// which relies on: https://cs.opensource.google/go/x/net/+/refs/tags/v0.18.0:http/httpproxy/proxy.go;l=89-96
-		HTTPProxy:            aws.String(stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY")),
-		HTTPSProxy:           aws.String(stringAttrDefaultEnvVar(obj, "https_proxy", "HTTPS_PROXY")),
-		NoProxy:              stringAttrDefaultEnvVar(obj, "no_proxy", "NO_PROXY"),
+		//
+		// Note: we are switching to "separate" mode here since the legacy mode is deprecated and should no longer be
+		// used.
+		HTTPProxyMode:        awsbase.HTTPProxyModeSeparate,
 		Insecure:             boolAttr(obj, "insecure"),
 		UseDualStackEndpoint: boolAttr(obj, "use_dualstack_endpoint"),
 		UseFIPSEndpoint:      boolAttr(obj, "use_fips_endpoint"),
@@ -766,7 +749,15 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Logger:                         baselog,
 	}
 
-	cfg.UseLegacyWorkflow = boolAttr(obj, "use_legacy_workflow")
+	if val, ok := stringAttrOk(obj, "http_proxy"); ok {
+		cfg.HTTPProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "https_proxy"); ok {
+		cfg.HTTPSProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "no_proxy"); ok {
+		cfg.NoProxy = val
+	}
 
 	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
 		if val {

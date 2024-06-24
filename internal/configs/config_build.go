@@ -7,7 +7,7 @@ package configs
 
 import (
 	"fmt"
-	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -64,8 +64,8 @@ func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
 			//    - file: main.tftest.hcl, run: setup - test.main.setup
 			//    - file: tests/main.tftest.hcl, run: setup - test.tests.main.setup
 
-			dir := path.Dir(name)
-			base := path.Base(name)
+			dir := filepath.Dir(name)
+			base := filepath.Base(name)
 
 			path := addrs.Module{}
 			path = append(path, "test")
@@ -73,7 +73,6 @@ func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
 				path = append(path, strings.Split(dir, "/")...)
 			}
 			path = append(path, strings.TrimSuffix(base, ".tftest.hcl"), run.Name)
-
 			req := ModuleRequest{
 				Name:              run.Name,
 				Path:              path,
