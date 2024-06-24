@@ -4,6 +4,8 @@ ENHANCEMENTS:
 
 BUG FIXES:
 
+* Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
+
 ## 1.6.2
 
 ENHANCEMENTS:
