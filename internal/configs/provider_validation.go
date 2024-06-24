@@ -81,7 +81,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 				// the configuration match the types defined by our test file.
 
 				for _, requirement := range cfg.Module.ProviderRequirements.RequiredProviders {
-					if provider, exists := test.Providers[requirement.Name]; exists {
+					if provider, exists := test.Providers[addrs.LocalProviderConfig{LocalName: requirement.Name}]; exists {
 
 						providerType := provider.providerType
 						if providerType.IsZero() {
@@ -94,14 +94,14 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-									provider.moduleUniqueKey(), name, providerType, requirement.Name, requirement.Type, provider.moduleUniqueKey(), name),
+									provider.Addr().StringCompact(), name, providerType, requirement.Name, requirement.Type, provider.Addr().StringCompact(), name),
 								Subject: provider.DeclRange.Ptr(),
 							})
 						}
 					}
 
 					for _, alias := range requirement.Aliases {
-						if provider, exists := test.Providers[alias.StringCompact()]; exists {
+						if provider, exists := test.Providers[alias]; exists {
 
 							providerType := provider.providerType
 							if providerType.IsZero() {
@@ -114,7 +114,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Summary:  "Provider type mismatch",
 									Detail: fmt.Sprintf(
 										"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-										provider.moduleUniqueKey(), name, providerType, alias.StringCompact(), requirement.Type, provider.moduleUniqueKey(), name),
+										provider.Addr().StringCompact(), name, providerType, alias.StringCompact(), requirement.Type, provider.Addr().StringCompact(), name),
 									Subject: provider.DeclRange.Ptr(),
 								})
 							}
@@ -122,14 +122,14 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					}
 				}
 
-				for _, provider := range cfg.Module.ProviderConfigs {
+				for key, provider := range cfg.Module.ProviderConfigs {
 
 					providerType := provider.providerType
 					if providerType.IsZero() {
 						providerType = addrs.NewDefaultProvider(provider.Name)
 					}
 
-					if testProvider, exists := test.Providers[provider.moduleUniqueKey()]; exists {
+					if testProvider, exists := test.Providers[key]; exists {
 
 						testProviderType := testProvider.providerType
 						if testProviderType.IsZero() {
@@ -142,7 +142,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s has been referenced by multiple run blocks and assigned to different provider types.",
-									testProvider.moduleUniqueKey(), name, testProviderType, provider.moduleUniqueKey(), providerType, testProvider.moduleUniqueKey(), name),
+									testProvider.Addr().StringCompact(), name, testProviderType, provider.Addr().StringCompact(), providerType, testProvider.Addr().StringCompact(), name),
 								Subject: testProvider.DeclRange.Ptr(),
 							})
 						}
@@ -159,7 +159,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					// to use, we'll build our own. This is so that we can fit
 					// into the schema expected by validateProviderConfigs.
 
-					matchedProviders := make(map[string]PassedProviderConfig)
+					matchedProviders := make(map[addrs.LocalProviderConfig]PassedProviderConfig)
 
 					// We'll go over all the requirements in the module first
 					// and see if we have defined any providers for that
@@ -167,8 +167,8 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 
 					for _, requirement := range cfg.Module.ProviderRequirements.RequiredProviders {
 
-						if provider, exists := test.Providers[requirement.Name]; exists {
-							matchedProviders[requirement.Name] = PassedProviderConfig{
+						if provider, exists := test.Providers[addrs.LocalProviderConfig{LocalName: requirement.Name}]; exists {
+							matchedProviders[addrs.LocalProviderConfig{LocalName: requirement.Name}] = PassedProviderConfig{
 								InChild: &ProviderConfigRef{
 									Name:         requirement.Name,
 									NameRange:    requirement.DeclRange,
@@ -188,10 +188,8 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 						// expects.
 
 						for _, alias := range requirement.Aliases {
-							key := alias.StringCompact()
-
-							if provider, exists := test.Providers[key]; exists {
-								matchedProviders[key] = PassedProviderConfig{
+							if provider, exists := test.Providers[alias]; exists {
+								matchedProviders[alias] = PassedProviderConfig{
 									InChild: &ProviderConfigRef{
 										Name:         requirement.Name,
 										NameRange:    requirement.DeclRange,
@@ -222,9 +220,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					// DeclRange objects from provider blocks so it makes for
 					// better error messages to use these.
 
-					for _, provider := range cfg.Module.ProviderConfigs {
-						key := provider.moduleUniqueKey()
-
+					for key, provider := range cfg.Module.ProviderConfigs {
 						if testProvider, exists := test.Providers[key]; exists {
 							matchedProviders[key] = PassedProviderConfig{
 								InChild: &ProviderConfigRef{

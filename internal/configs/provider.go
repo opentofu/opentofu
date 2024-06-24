@@ -23,7 +23,8 @@ type Provider struct {
 	Name       string
 	NameRange  hcl.Range
 	Alias      string
-	AliasRange *hcl.Range // nil if no alias set
+	AliasExpr  hcl.Expression // nil if no alias set
+	AliasRange *hcl.Range     // nil if no alias set
 
 	Version VersionConstraint
 
@@ -65,17 +66,8 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
-		diags = append(diags, valDiags...)
+		provider.AliasExpr = attr.Expr
 		provider.AliasRange = attr.Expr.Range().Ptr()
-
-		if !hclsyntax.ValidIdentifier(provider.Alias) {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration alias",
-				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
-			})
-		}
 	}
 
 	if attr, exists := content.Attributes["version"]; exists {
@@ -140,6 +132,35 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	return provider, diags
 }
 
+func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	if p.AliasExpr != nil {
+		if eval != nil {
+			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   fmt.Sprintf("provider.%s", p.Name),
+				DeclRange: p.AliasExpr.Range(),
+			}, &p.Alias)
+			diags = append(diags, valDiags...)
+		} else {
+			// Test files don't have a static context
+			valDiags := gohcl.DecodeExpression(p.AliasExpr, nil, &p.Alias)
+			diags = append(diags, valDiags...)
+		}
+
+		// TODO we should probably skip this if diags are already error'd
+		if !hclsyntax.ValidIdentifier(p.Alias) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration alias",
+				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
+				Subject:  p.AliasExpr.Range().Ptr(),
+			})
+		}
+	}
+	return diags
+}
+
 // Addr returns the address of the receiving provider configuration, relative
 // to its containing module.
 func (p *Provider) Addr() addrs.LocalProviderConfig {
@@ -147,13 +168,6 @@ func (p *Provider) Addr() addrs.LocalProviderConfig {
 		LocalName: p.Name,
 		Alias:     p.Alias,
 	}
-}
-
-func (p *Provider) moduleUniqueKey() string {
-	if p.Alias != "" {
-		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
-	}
-	return p.Name
 }
 
 // ParseProviderConfigCompact parses the given absolute traversal as a relative

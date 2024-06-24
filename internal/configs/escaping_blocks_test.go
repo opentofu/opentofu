@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -276,7 +277,7 @@ func TestEscapingBlockProvider(t *testing.T) {
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	pc := mod.ProviderConfigs["foo.bar"]
+	pc := mod.ProviderConfigs[addrs.LocalProviderConfig{LocalName: "foo", Alias: "bar"}]
 	if pc == nil {
 		t.Fatal("no provider configuration named foo.bar")
 	}

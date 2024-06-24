@@ -57,7 +57,7 @@ type TestFile struct {
 	//
 	// If empty, tests should use the default providers for the module under
 	// test.
-	Providers map[string]*Provider
+	Providers map[addrs.LocalProviderConfig]*Provider
 
 	// Runs defines the sequential list of run blocks that should be executed in
 	// order.
@@ -280,7 +280,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 	diags = append(diags, contentDiags...)
 
 	tf := TestFile{
-		Providers: make(map[string]*Provider),
+		Providers: make(map[addrs.LocalProviderConfig]*Provider),
 	}
 
 	for _, block := range content.Blocks {
@@ -316,7 +316,13 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
-				tf.Providers[provider.moduleUniqueKey()] = provider
+				decodeDiags := provider.decodeStaticFields(nil)
+				diags = append(diags, decodeDiags...)
+				if decodeDiags.HasErrors() {
+					continue
+				}
+
+				tf.Providers[provider.Addr()] = provider
 			}
 
 		case blockNameOverrideResource:

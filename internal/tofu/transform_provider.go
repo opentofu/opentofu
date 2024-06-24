@@ -669,7 +669,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 	// access when passing around configuration and inheritance.
 	if path.IsRoot() && c.Module.ProviderRequirements != nil {
 		for name, p := range c.Module.ProviderRequirements.RequiredProviders {
-			if _, configured := mod.ProviderConfigs[name]; configured {
+			if _, configured := mod.ProviderConfigs[addrs.LocalProviderConfig{LocalName: name}]; configured {
 				continue
 			}
 

@@ -940,7 +940,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	// providers that will be used by the test. `next` starts with the set of
 	// providers from the original config.
 	previous := c.Module.ProviderConfigs
-	next := make(map[string]*Provider)
+	next := make(map[addrs.LocalProviderConfig]*Provider)
 	for key, value := range previous {
 		next[key] = value
 	}
@@ -951,7 +951,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 
 		for _, ref := range run.Providers {
 
-			testProvider, ok := file.Providers[ref.InParent.String()]
+			testProvider, ok := file.Providers[ref.InParent.Addr()]
 			if !ok {
 				// Then this reference was invalid as we didn't have the
 				// specified provider in the parent. This should have been
@@ -964,8 +964,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 				})
 				continue
 			}
-
-			next[ref.InChild.String()] = &Provider{
+			next[ref.InChild.Addr()] = &Provider{
 				Name:       ref.InChild.Name,
 				NameRange:  ref.InChild.NameRange,
 				Alias:      ref.InChild.Alias,
@@ -979,6 +978,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	} else {
 		// Otherwise, let's copy over and overwrite all providers specified by
 		// the test file itself.
+
 		for key, provider := range file.Providers {
 			next[key] = provider
 		}

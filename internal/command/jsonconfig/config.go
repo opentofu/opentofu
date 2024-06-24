@@ -184,7 +184,7 @@ func marshalProviderConfigs(
 			p.VersionConstraint = getproviders.VersionConstraintsString(vc)
 		}
 
-		key := opaqueProviderKey(k, c.Path.String())
+		key := opaqueProviderKey(k.StringCompact(), c.Path.String())
 
 		m[key] = p
 	}

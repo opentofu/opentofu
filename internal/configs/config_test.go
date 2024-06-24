@@ -616,10 +616,10 @@ func TestTransformForTest(t *testing.T) {
 		return buffer.String()
 	}
 
-	convertToProviders := func(t *testing.T, contents map[string]string) map[string]*Provider {
+	convertToProviders := func(t *testing.T, contents map[string]string) map[addrs.LocalProviderConfig]*Provider {
 		t.Helper()
 
-		providers := make(map[string]*Provider)
+		providers := make(map[addrs.LocalProviderConfig]*Provider)
 		for key, content := range contents {
 			parser := hclparse.NewParser()
 			file, diags := parser.ParseHCL([]byte(content), fmt.Sprintf("%s.hcl", key))
@@ -637,12 +637,12 @@ func TestTransformForTest(t *testing.T) {
 				provider.Alias = parts[1]
 			}
 
-			providers[key] = provider
+			providers[provider.Addr()] = provider
 		}
 		return providers
 	}
 
-	validate := func(t *testing.T, msg string, expected map[string]string, actual map[string]*Provider) {
+	validate := func(t *testing.T, msg string, expected map[string]string, actual map[addrs.LocalProviderConfig]*Provider) {
 		t.Helper()
 
 		converted := make(map[string]string)
@@ -660,7 +660,7 @@ func TestTransformForTest(t *testing.T) {
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}
-			converted[key] = fmt.Sprintf("source = %q", source.AsString())
+			converted[key.StringCompact()] = fmt.Sprintf("source = %q", source.AsString())
 		}
 
 		if diff := cmp.Diff(expected, converted); len(diff) > 0 {
