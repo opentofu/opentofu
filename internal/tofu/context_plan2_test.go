@@ -5055,45 +5055,18 @@ import {
 		},
 		{
 			Description:   "for_each expression is null",
-			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A map, set of strings, or a tuple is allowed.`,
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the "for_each" argument must be a map, set of strings, or a tuple, and you have provided a value of type dynamic.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
-locals {
-  map = null
+variable "map" {
+  default = null
 }
 
 resource "test_object" "a" {
-  for_each = local.map
 }
 
 import {
-  for_each = local.map
-  to = test_object.a[each.key]
-  id = each.value
-}
-`,
-			},
-		},
-		{
-			Description:   "for_each value is unknown",
-			expectedError: `Invalid import id argument: The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
-			inlineConfiguration: map[string]string{
-				"main.tf": `
-resource "test_object" "reference" {
-}
-
-locals {
-  map = {
-    "key1" = test_object.reference.id
-  }
-}
-
-resource "test_object" "a" {
-  for_each = local.map
-}
-
-import {
-  for_each = local.map
+  for_each = var.map
   to = test_object.a[each.key]
   id = each.value
 }
@@ -5127,19 +5100,45 @@ import {
 			},
 		},
 		{
-			Description:   "for_each expression is unknown",
-			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A map, set of strings, or a tuple is allowed.`,
+			Description:   "for_each value is unknown",
+			expectedError: `Invalid import id argument: The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
 }
 
 locals {
-  map = null
+  map = {
+    "key1" = (test_object.reference.id)
+  }
 }
 
 resource "test_object" "a" {
-  count = 0
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is unknown",
+			expectedError: `Invalid for_each argument: The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = (test_object.reference.id)
+}
+
+resource "test_object" "a" {
+  count = 1
 }
 
 import {
