@@ -1,0 +1,7 @@
+{
+  "variable": {
+    "should_override_json": {
+      "default": "not overridden"
+    }
+  }
+}
