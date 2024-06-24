@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -25,6 +26,8 @@ type Provider struct {
 	Alias      string
 	AliasExpr  hcl.Expression // nil if no alias set
 	AliasRange *hcl.Range     // nil if no alias set
+	ForEach    hcl.Expression
+	EachValue  *cty.Value
 
 	Version VersionConstraint
 
@@ -70,6 +73,19 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		provider.AliasRange = attr.Expr.Range().Ptr()
 	}
 
+	if attr, exists := content.Attributes["for_each"]; exists {
+		provider.ForEach = attr.Expr
+	}
+
+	if provider.ForEach != nil && provider.AliasExpr != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "alias" and "for_each"`,
+			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
+			Subject:  provider.AliasExpr.Range().Ptr(),
+		})
+	}
+
 	if attr, exists := content.Attributes["version"]; exists {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
@@ -83,7 +99,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	// Reserved attribute names
-	for _, name := range []string{"count", "depends_on", "for_each", "source"} {
+	for _, name := range []string{"count", "depends_on", "source"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -132,13 +148,44 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	return provider, diags
 }
 
-func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+func (p *Provider) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+	if p.ForEach != nil {
+		if eval == nil {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Iteration not allowed in test files",
+				Detail:   "for_each was declared as an provider attribute in a test file",
+				Subject:  p.AliasExpr.Range().Ptr(),
+			})
+		}
+		var out []*Provider
+		forVal, evalDiags := eval.Evaluate(p.ForEach, StaticIdentifier{
+			Module:    eval.call.addr,
+			Subject:   fmt.Sprintf("provider.%s.for_each", p.Name),
+			DeclRange: p.ForEach.Range(),
+		})
+		diags = append(diags, evalDiags...)
+		if evalDiags.HasErrors() {
+			return nil, diags
+		}
+		// TODO internal/tofu/eval_for_each.go protections
+		for k, v := range forVal.AsValueMap() {
+			v := v
+
+			iter := *p
+			iter.Alias = k
+			iter.EachValue = &v
+			iter.ForEach = nil
+			out = append(out, &iter)
+		}
+		return out, diags
+	}
 	if p.AliasExpr != nil {
 		if eval != nil {
 			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
 				Module:    eval.call.addr,
-				Subject:   fmt.Sprintf("provider.%s", p.Name),
+				Subject:   fmt.Sprintf("provider.%s.alias", p.Name),
 				DeclRange: p.AliasExpr.Range(),
 			}, &p.Alias)
 			diags = append(diags, valDiags...)
@@ -158,7 +205,7 @@ func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 			})
 		}
 	}
-	return diags
+	return []*Provider{p}, diags
 }
 
 // Addr returns the address of the receiving provider configuration, relative

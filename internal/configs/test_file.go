@@ -316,7 +316,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
-				decodeDiags := provider.decodeStaticFields(nil)
+				_, decodeDiags := provider.decodeStaticFields(nil)
 				diags = append(diags, decodeDiags...)
 				if decodeDiags.HasErrors() {
 					continue
