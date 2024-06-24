@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -49,8 +50,8 @@ type planEncryption struct {
 	base *baseEncryption
 }
 
-func newPlanEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (PlanEncryption, hcl.Diagnostics) {
-	base, diags := newBaseEncryption(enc, target, enforced, name)
+func newPlanEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (PlanEncryption, hcl.Diagnostics) {
+	base, diags := newBaseEncryption(enc, target, enforced, name, staticEval)
 	return &planEncryption{base}, diags
 }
 

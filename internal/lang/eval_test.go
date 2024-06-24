@@ -8,6 +8,7 @@ package lang
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -419,6 +421,76 @@ func TestScopeEvalContext(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestScopeEvalContextWithParent tests if the resulting EvalCtx has correct parent.
+func TestScopeEvalContextWithParent(t *testing.T) {
+	t.Run("with-parent", func(t *testing.T) {
+		barStr, barFunc := cty.StringVal("bar"), function.New(&function.Spec{
+			Impl: func(_ []cty.Value, _ cty.Type) (cty.Value, error) {
+				return cty.NilVal, nil
+			},
+		})
+
+		scope, parent := &Scope{}, &hcl.EvalContext{
+			Variables: map[string]cty.Value{
+				"foo": barStr,
+			},
+			Functions: map[string]function.Function{
+				"foo": barFunc,
+			},
+		}
+
+		child, diags := scope.EvalContextWithParent(parent, nil)
+		if len(diags) != 0 {
+			t.Errorf("Unexpected diagnostics:")
+			for _, diag := range diags {
+				t.Errorf("- %s", diag)
+			}
+			return
+		}
+
+		if child.Parent() == nil {
+			t.Fatalf("Child EvalCtx has no parent")
+		}
+
+		if child.Parent() != parent {
+			t.Fatalf("Child EvalCtx has different parent:\n GOT:%v\nWANT:%v", child.Parent(), parent)
+		}
+
+		if ln := len(child.Parent().Variables); ln != 1 {
+			t.Fatalf("EvalContextWithParent modified parent's variables: incorrent length: %d", ln)
+		}
+
+		if v := child.Parent().Variables["foo"]; !v.RawEquals(barStr) {
+			t.Fatalf("EvalContextWithParent modified parent's variables:\n GOT:%v\nWANT:%v", v, barStr)
+		}
+
+		if ln := len(child.Parent().Functions); ln != 1 {
+			t.Fatalf("EvalContextWithParent modified parent's functions: incorrent length: %d", ln)
+		}
+
+		if v := child.Parent().Functions["foo"]; !reflect.DeepEqual(v, barFunc) {
+			t.Fatalf("EvalContextWithParent modified parent's functions:\n GOT:%v\nWANT:%v", v, barFunc)
+		}
+	})
+
+	t.Run("zero-parent", func(t *testing.T) {
+		scope := &Scope{}
+
+		root, diags := scope.EvalContextWithParent(nil, nil)
+		if len(diags) != 0 {
+			t.Errorf("Unexpected diagnostics:")
+			for _, diag := range diags {
+				t.Errorf("- %s", diag)
+			}
+			return
+		}
+
+		if root.Parent() != nil {
+			t.Fatalf("Resulting EvalCtx has unexpected parent: %v", root.Parent())
+		}
+	})
 }
 
 func TestScopeExpandEvalBlock(t *testing.T) {

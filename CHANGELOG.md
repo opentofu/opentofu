@@ -13,6 +13,7 @@ ENHANCEMENTS:
 * Make state persistence interval configurable via `TF_STATE_PERSIST_INTERVAL` environment variable ([#1591](https://github.com/opentofu/opentofu/pull/1591))
 * Improved performance of writing state files and reduced their size using compact json encoding. ([#1647](https://github.com/opentofu/opentofu/pull/1647))
 * Allow to reference variable inside the `variables` block of a test file. ([1488](https://github.com/opentofu/opentofu/pull/1488))
+* Allow variables and other static values to be used in encryption configuration. ([1728](https://github.com/opentofu/opentofu/pull/1728))
 
 BUG FIXES:
 * Fixed validation for `enforced` flag in encryption configuration. ([#1711](https://github.com/opentofu/opentofu/pull/1711))

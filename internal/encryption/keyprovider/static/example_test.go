@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
@@ -44,7 +45,9 @@ func Example() {
 		panic(diags)
 	}
 
-	enc, diags := encryption.New(registry, cfg)
+	staticEvaluator := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+
+	enc, diags := encryption.New(registry, cfg, staticEvaluator)
 	if diags.HasErrors() {
 		panic(diags)
 	}

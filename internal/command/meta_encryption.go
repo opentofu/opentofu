@@ -52,7 +52,7 @@ func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encrypti
 		cfg = cfg.Merge(envCfg)
 	}
 
-	enc, encDiags := encryption.New(encryption.DefaultRegistry, cfg)
+	enc, encDiags := encryption.New(encryption.DefaultRegistry, cfg, module.StaticEvaluator)
 	diags = diags.Append(encDiags)
 
 	return enc, diags
