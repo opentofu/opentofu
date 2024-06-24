@@ -78,6 +78,9 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Inject variables from args into meta for static evaluation
+	c.GatherVariables(args.Vars)
+
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
@@ -117,6 +120,23 @@ Options:
 
 func (c *ShowCommand) Synopsis() string {
 	return "Show the current state or a saved plan"
+}
+
+func (c *ShowCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogenous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]rawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
 func (c *ShowCommand) show(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
@@ -202,11 +222,17 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 	var stateFile *statefile.File
 	var config *configs.Config
 
+	rootCall, callDiags := c.rootModuleCall(".")
+	diags = diags.Append(callDiags)
+	if diags.HasErrors() {
+		return nil, nil, nil, nil, diags
+	}
+
 	// Path might be a local plan file, a bookmark to a saved cloud plan, or a
 	// state file. First, try to get a plan and associated data from a local
 	// plan file. If that fails, try to get a json plan from the path argument.
 	// If that fails, try to get the statefile from the path argument.
-	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(path, enc)
+	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(path, enc, rootCall)
 	if planErr != nil {
 		stateFile, stateErr = getStateFromPath(path, enc)
 		if stateErr != nil {
@@ -274,7 +300,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 // yield a json plan, and cloud plans do not yield real plan/state/config
 // structs. An error generally suggests that the given path is either a
 // directory or a statefile.
-func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
+func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption, rootCall configs.StaticModuleCall) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
 	var err error
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
@@ -287,7 +313,7 @@ func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption) (*
 	}
 
 	if lp, ok := pf.Local(); ok {
-		plan, stateFile, config, err = getDataFromPlanfileReader(lp)
+		plan, stateFile, config, err = getDataFromPlanfileReader(lp, rootCall)
 	} else if cp, ok := pf.Cloud(); ok {
 		redacted := c.viewType != arguments.ViewJSON
 		jsonPlan, err = c.getDataFromCloudPlan(cp, redacted, enc)
@@ -316,7 +342,7 @@ func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, re
 }
 
 // getDataFromPlanfileReader returns a plan, statefile, and config, extracted from a local plan file.
-func getDataFromPlanfileReader(planReader *planfile.Reader) (*plans.Plan, *statefile.File, *configs.Config, error) {
+func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.StaticModuleCall) (*plans.Plan, *statefile.File, *configs.Config, error) {
 	// Get plan
 	plan, err := planReader.ReadPlan()
 	if err != nil {
@@ -330,7 +356,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader) (*plans.Plan, *state
 	}
 
 	// Get config
-	config, diags := planReader.ReadConfig()
+	config, diags := planReader.ReadConfig(rootCall)
 	if diags.HasErrors() {
 		return nil, nil, nil, errUnusable(diags.Err(), "local plan")
 	}

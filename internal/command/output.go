@@ -37,6 +37,9 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 
 	view := views.NewOutput(args.ViewType, c.View)
 
+	// Inject variables from args into meta for static evaluation
+	c.GatherVariables(args.Vars)
+
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
@@ -102,6 +105,23 @@ func (c *OutputCommand) Outputs(statePath string, enc encryption.Encryption) (ma
 	}
 
 	return output, diags
+}
+
+func (c *OutputCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogenous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]rawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
 func (c *OutputCommand) Help() string {

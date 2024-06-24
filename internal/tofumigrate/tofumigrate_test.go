@@ -219,7 +219,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 			var cfg *configs.Config
 			if tt.args.configDir != "" {
 				var hclDiags hcl.Diagnostics
-				cfg, hclDiags = loader.LoadConfig(tt.args.configDir)
+				cfg, hclDiags = loader.LoadConfig(tt.args.configDir, configs.RootModuleCallForTesting())
 				if hclDiags.HasErrors() {
 					t.Fatalf("invalid configuration: %s", hclDiags.Error())
 				}

@@ -32,6 +32,7 @@ type StateShowCommand struct {
 func (c *StateShowCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state show")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())

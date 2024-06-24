@@ -5,6 +5,7 @@ BREAKING CHANGE - `use_legacy_workflow` field has been removing from the S3 back
 
 NEW FEATURES:
 * Added support for `override_resource`, `override_data` and `override_module` blocks in testing framework. ([1499](https://github.com/opentofu/opentofu/pull/1499))
+* Variables and Locals allowed in module sources and backend configurations (with limitations) ([1718](https://github.com/opentofu/opentofu/pull/1718))
 
 ENHANCEMENTS:
 * Added `tofu test -json` types to website Machine-Readable UI documentation. ([1408](https://github.com/opentofu/opentofu/issues/1408))

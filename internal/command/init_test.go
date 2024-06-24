@@ -2921,6 +2921,80 @@ func TestInit_testsWithModule(t *testing.T) {
 	}
 }
 
+// Test variables are handled correctly when interacting with module sources
+func TestInit_moduleSource(t *testing.T) {
+	t.Run("missing", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
+		}
+
+		if code := c.Run(nil); code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+
+		errStr := ui.ErrorWriter.String()
+		if !strings.Contains(errStr, `Variable not provided`) {
+			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
+		}
+	})
+
+	t.Run("provided", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
+		}
+
+		args := []string{"-var", "src=./mod"}
+		if code := c.Run(args); code != 0 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+}
+
+// Test variables are handled correctly when interacting with module versions
+func TestInit_moduleVersion(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("network access not allowed; use TF_ACC=1 to enable")
+	}
+
+	t.Run("provided", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-version"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
+		}
+
+		args := []string{"-var", "modver=0.0.1"}
+		if code := c.Run(args); code != 0 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+}
+
 // newMockProviderSource is a helper to succinctly construct a mock provider
 // source that contains a set of packages matching the given provider versions
 // that are available for installation (from temporary local files).

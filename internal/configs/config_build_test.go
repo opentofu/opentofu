@@ -23,7 +23,7 @@ import (
 
 func TestBuildConfig(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/config-build")
+	mod, diags := parser.LoadConfigDir("testdata/config-build", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -38,10 +38,10 @@ func TestBuildConfig(t *testing.T) {
 			// various different source address syntaxes OpenTofu supports.
 			sourcePath := filepath.Join("testdata/config-build", req.SourceAddr.String())
 
-			mod, diags := parser.LoadConfigDir(sourcePath)
+			mod, modDiags := parser.LoadConfigDir(sourcePath, req.Call)
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
-			return mod, version, diags
+			return mod, version, modDiags
 		},
 	))
 	assertNoDiagnostics(t, diags)
@@ -79,7 +79,7 @@ func TestBuildConfig(t *testing.T) {
 
 func TestBuildConfigDiags(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/nested-errors")
+	mod, diags := parser.LoadConfigDir("testdata/nested-errors", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -94,10 +94,10 @@ func TestBuildConfigDiags(t *testing.T) {
 			// various different source address syntaxes OpenTofu supports.
 			sourcePath := filepath.Join("testdata/nested-errors", req.SourceAddr.String())
 
-			mod, diags := parser.LoadConfigDir(sourcePath)
+			mod, modDiags := parser.LoadConfigDir(sourcePath, req.Call)
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
-			return mod, version, diags
+			return mod, version, modDiags
 		},
 	))
 
@@ -124,7 +124,7 @@ func TestBuildConfigDiags(t *testing.T) {
 
 func TestBuildConfigChildModuleBackend(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir("testdata/nested-backend-warning")
+	mod, diags := parser.LoadConfigDir("testdata/nested-backend-warning", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -138,9 +138,9 @@ func TestBuildConfigChildModuleBackend(t *testing.T) {
 			// various different source address syntaxes OpenTofu supports.
 			sourcePath := filepath.Join("testdata/nested-backend-warning", req.SourceAddr.String())
 
-			mod, diags := parser.LoadConfigDir(sourcePath)
+			mod, modDiags := parser.LoadConfigDir(sourcePath, req.Call)
 			version, _ := version.NewVersion("1.0.0")
-			return mod, version, diags
+			return mod, version, modDiags
 		},
 	))
 
@@ -175,7 +175,7 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 			parser := NewParser(nil)
 			path := filepath.Join(testDir, name)
 
-			mod, diags := parser.LoadConfigDirWithTests(path, "tests")
+			mod, diags := parser.LoadConfigDirWithTests(path, "tests", RootModuleCallForTesting())
 			if diags.HasErrors() {
 				// these tests should only trigger errors that are caught in
 				// the config loader.
@@ -221,7 +221,7 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 					// for simplicity, these tests will treat all source
 					// addresses as relative to the root module
 					sourcePath := filepath.Join(path, req.SourceAddr.String())
-					mod, diags := parser.LoadConfigDir(sourcePath)
+					mod, diags := parser.LoadConfigDir(sourcePath, req.Call)
 					version, _ := version.NewVersion("1.0.0")
 					return mod, version, diags
 				},
@@ -296,7 +296,7 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 
 func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-nested-module", "tests")
+	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-nested-module", "tests", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -317,9 +317,9 @@ func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 			}
 			sourcePath := filepath.Join("testdata/valid-modules/with-tests-nested-module", addr)
 
-			mod, diags := parser.LoadConfigDir(sourcePath)
+			mod, modDiags := parser.LoadConfigDir(sourcePath, req.Call)
 			version, _ := version.NewVersion("1.0.0")
-			return mod, version, diags
+			return mod, version, modDiags
 		},
 	))
 	assertNoDiagnostics(t, diags)
@@ -376,7 +376,7 @@ func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 
 func TestBuildConfig_WithTestModule(t *testing.T) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-module", "tests")
+	mod, diags := parser.LoadConfigDirWithTests("testdata/valid-modules/with-tests-module", "tests", RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
@@ -390,9 +390,9 @@ func TestBuildConfig_WithTestModule(t *testing.T) {
 			// various different source address syntaxes OpenTofu supports.
 			sourcePath := filepath.Join("testdata/valid-modules/with-tests-module", req.SourceAddr.String())
 
-			mod, diags := parser.LoadConfigDir(sourcePath)
+			mod, modDiags := parser.LoadConfigDir(sourcePath, req.Call)
 			version, _ := version.NewVersion("1.0.0")
-			return mod, version, diags
+			return mod, version, modDiags
 		},
 	))
 	assertNoDiagnostics(t, diags)

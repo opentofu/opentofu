@@ -191,10 +191,6 @@ func TestModuleWithIncorrectNameShouldFail(t *testing.T) {
 	if !strings.Contains(output.Stderr(), wantError) {
 		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
 	}
-	wantError = `Error: Variables not allowed`
-	if !strings.Contains(output.Stderr(), wantError) {
-		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
-	}
 }
 
 func TestWronglyUsedInterpolationShouldFail(t *testing.T) {

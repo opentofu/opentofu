@@ -499,7 +499,11 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
-	configHash := c.Hash(configSchema)
+	configHash, cfgDiags := c.Hash(configSchema)
+	diags = diags.Append(cfgDiags)
+	if diags.HasErrors() {
+		return nil, 0, diags
+	}
 
 	// If we have an override configuration body then we must apply it now.
 	if opts.ConfigOverride != nil {
@@ -1396,8 +1400,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend, enc encryption.StateEnc
 	b := f(enc)
 
 	schema := b.ConfigSchema()
-	decSpec := schema.NoneRequired().DecoderSpec()
-	configVal, hclDiags := hcldec.Decode(c.Config, decSpec, nil)
+	configVal, hclDiags := c.Decode(schema.NoneRequired())
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return nil, cty.NilVal, diags

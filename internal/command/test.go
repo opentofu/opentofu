@@ -105,6 +105,24 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	view := views.NewTest(args.ViewType, c.View)
 
+	// Users can also specify variables via the command line, so we'll parse
+	// all that here.
+	var items []rawFlag
+	for _, variable := range args.Vars.All() {
+		items = append(items, rawFlag{
+			Name:  variable.Name,
+			Value: variable.Value,
+		})
+	}
+	c.variableArgs = rawFlags{items: &items}
+
+	variables, variableDiags := c.collectVariableValues()
+	diags = diags.Append(variableDiags)
+	if variableDiags.HasErrors() {
+		view.Diagnostics(nil, nil, diags)
+		return 1
+	}
+
 	config, configDiags := c.loadConfigWithTests(".", args.TestDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
@@ -184,24 +202,6 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	diags = diags.Append(fileDiags)
 	if fileDiags.HasErrors() {
-		view.Diagnostics(nil, nil, diags)
-		return 1
-	}
-
-	// Users can also specify variables via the command line, so we'll parse
-	// all that here.
-	var items []rawFlag
-	for _, variable := range args.Vars.All() {
-		items = append(items, rawFlag{
-			Name:  variable.Name,
-			Value: variable.Value,
-		})
-	}
-	c.variableArgs = rawFlags{items: &items}
-
-	variables, variableDiags := c.collectVariableValues()
-	diags = diags.Append(variableDiags)
-	if variableDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}

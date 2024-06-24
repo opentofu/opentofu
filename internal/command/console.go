@@ -100,9 +100,11 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	{
-		var moreDiags tfdiags.Diagnostics
+		// Setup required variables/call for operation (usually done in Meta.RunOperation)
+		var moreDiags, callDiags tfdiags.Diagnostics
 		opReq.Variables, moreDiags = c.collectVariableValues()
-		diags = diags.Append(moreDiags)
+		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+		diags = diags.Append(moreDiags).Append(callDiags)
 		if moreDiags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1

@@ -169,9 +169,7 @@ func (mc *ModuleCall) merge(omc *ModuleCall) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if omc.SourceSet {
-		mc.SourceAddr = omc.SourceAddr
-		mc.SourceAddrRaw = omc.SourceAddrRaw
-		mc.SourceAddrRange = omc.SourceAddrRange
+		mc.Source = omc.Source
 		mc.SourceSet = omc.SourceSet
 	}
 
@@ -183,8 +181,8 @@ func (mc *ModuleCall) merge(omc *ModuleCall) hcl.Diagnostics {
 		mc.ForEach = omc.ForEach
 	}
 
-	if len(omc.Version.Required) != 0 {
-		mc.Version = omc.Version
+	if omc.VersionAttr != nil {
+		mc.VersionAttr = omc.VersionAttr
 	}
 
 	mc.Config = MergeBodies(mc.Config, omc.Config)
