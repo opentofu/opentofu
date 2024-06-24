@@ -32,6 +32,9 @@ linters-settings:
   cyclop:
     max-complexity: 15
 
+  gocognit:
+    min-complexity: 50
+
 issues:
   exclude-rules:
     - path: (.+)_test.go
