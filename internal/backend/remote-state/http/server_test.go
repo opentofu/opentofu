@@ -361,6 +361,10 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 	if err = sm.RefreshState(); err != nil {
 		t.Fatalf("unexpected error calling RefreshState: %v", err)
 	}
+
+	// Ensure state is not nil by building and writing a test state.
+	testState := states.BuildState(func(ss *states.SyncState) {})
+	sm.WriteState(testState)
 	state := sm.State()
 	if nil == state {
 		t.Fatal("nil state")
