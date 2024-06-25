@@ -9,9 +9,11 @@ import (
 	"io"
 	"os"
 	"os/user"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/hectane/go-acl"
 	"github.com/mitchellh/go-homedir"
 )
 
@@ -76,12 +78,19 @@ func TestRead_PathNoPermission(t *testing.T) {
 	}
 	f.Close()
 
-	if err := os.Chmod(f.Name(), 0); err != nil {
-		t.Fatalf("err: %s", err)
+	if runtime.GOOS == "windows" {
+		//Use go-acl pacakge to control file permissions for Windows
+		if err := acl.Chmod(f.Name(), 000); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+	} else {
+		if err := os.Chmod(f.Name(), 000); err != nil {
+			t.Fatalf("err: %s", err)
+		}
 	}
 
 	contents, err := ReadPathOrContents(f.Name())
-
+	t.Log(contents)
 	if err == nil {
 		t.Fatal("Expected error, got none!")
 	}
