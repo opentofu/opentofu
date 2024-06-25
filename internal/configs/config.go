@@ -485,7 +485,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					continue
 				}
 
-				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.Alias {
+				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias[""] != target.ProviderConfigRef.Alias[""] {
 					// This means we have a provider specified in both the
 					// import block and the resource block, and they disagree.
 					// This is bad as OpenTofu now has different instructions
@@ -562,7 +562,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 func (c *Config) addProviderRequirementsFromProviderBlock(reqs getproviders.Requirements, provider *Provider) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	fqn := c.Module.ProviderForLocalConfig(addrs.LocalProviderConfig{LocalName: provider.Name})
+	fqn := c.Module.ImpliedProviderForUnqualifiedType(provider.Name)
 	if _, ok := reqs[fqn]; !ok {
 		// We'll at least have an unconstrained dependency then, but might
 		// add to this in the loop below.
@@ -949,32 +949,40 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// Then we'll only copy over and overwrite the specific providers asked
 		// for by this run block.
 
-		for _, ref := range run.Providers {
+		panic("TODO")
+		/*
 
-			testProvider, ok := file.Providers[ref.InParent.Addr()]
-			if !ok {
-				// Then this reference was invalid as we didn't have the
-				// specified provider in the parent. This should have been
-				// caught earlier in validation anyway so is unlikely to happen.
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
-					Detail:   "This provider block references a provider definition that does not exist.",
-					Subject:  ref.InParent.NameRange.Ptr(),
-				})
-				continue
-			}
-			next[ref.InChild.Addr()] = &Provider{
-				Name:       ref.InChild.Name,
-				NameRange:  ref.InChild.NameRange,
-				Alias:      ref.InChild.Alias,
-				AliasRange: ref.InChild.AliasRange,
-				Version:    testProvider.Version,
-				Config:     testProvider.Config,
-				DeclRange:  testProvider.DeclRange,
-			}
+			for _, ref := range run.Providers {
 
-		}
+				testProvider, ok := file.Providers[ref.InParent.Addr()]
+				if !ok {
+					// Then this reference was invalid as we didn't have the
+					// specified provider in the parent. This should have been
+					// caught earlier in validation anyway so is unlikely to happen.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
+						Detail:   "This provider block references a provider definition that does not exist.",
+						Subject:  ref.InParent.NameRange.Ptr(),
+					})
+					continue
+				}
+				alias, aliasDiags := ref.InChild.Alias(nil)
+				if aliasDiags.HasErrors() {
+					panic(aliasDiags)
+				}
+
+				next[ref.InChild.Addr()] = &Provider{
+					Name:       ref.InChild.Name,
+					NameRange:  ref.InChild.NameRange,
+					Alias:      alias,
+					AliasRange: ref.InChild.AliasRange,
+					Version:    testProvider.Version,
+					Config:     testProvider.Config,
+					DeclRange:  testProvider.DeclRange,
+				}
+
+			}*/
 	} else {
 		// Otherwise, let's copy over and overwrite all providers specified by
 		// the test file itself.

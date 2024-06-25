@@ -91,10 +91,22 @@ func (r *Resource) Addr() addrs.Resource {
 	}
 }
 
+func (r *Resource) ProviderConfigLocalName() string {
+	if r.ProviderConfigRef == nil {
+		return r.Addr().ImpliedProvider()
+	}
+	return r.ProviderConfigRef.Name
+}
+
+func (r *Resource) HasAlias() bool {
+	// TODO this is broken!
+	return r.ProviderConfigRef != nil && r.ProviderConfigRef.Alias != nil
+}
+
 // ProviderConfigAddr returns the address for the provider configuration that
 // should be used for this resource. This function returns a default provider
 // config addr if an explicit "provider" argument was not provided.
-func (r *Resource) ProviderConfigAddr() addrs.LocalProviderConfig {
+func (r *Resource) ProviderConfigAddr(key string) addrs.LocalProviderConfig {
 	if r.ProviderConfigRef == nil {
 		// If no specific "provider" argument is given, we want to look up the
 		// provider config where the local name matches the implied provider
@@ -107,7 +119,7 @@ func (r *Resource) ProviderConfigAddr() addrs.LocalProviderConfig {
 
 	return addrs.LocalProviderConfig{
 		LocalName: r.ProviderConfigRef.Name,
-		Alias:     r.ProviderConfigRef.Alias,
+		Alias:     r.ProviderConfigRef.Alias[key],
 	}
 }
 
@@ -167,8 +179,9 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
-		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		ref, providerDiags := decodeProviderConfigRef(attr.Expr, "provider")
+		diags = append(diags, providerDiags...)
+		r.ProviderConfigRef, providerDiags = ref.Single() // TODO for each
 		diags = append(diags, providerDiags...)
 	}
 
@@ -436,8 +449,9 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
-		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		ref, providerDiags := decodeProviderConfigRef(attr.Expr, "provider")
+		diags = append(diags, providerDiags...)
+		r.ProviderConfigRef, providerDiags = ref.Single() // TODO
 		diags = append(diags, providerDiags...)
 	}
 
@@ -647,10 +661,71 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 	return exprs, diags
 }
 
+type ProviderConfigRefAbstract struct {
+	Name       string
+	NameRange  hcl.Range
+	AliasExpr  hcl.Expression
+	AliasRaw   string
+	AliasRange *hcl.Range // nil if alias not set
+}
+
+// TODO allow StaticEvaluator for locals?
+func (p *ProviderConfigRefAbstract) Single() (*ProviderConfigRef, hcl.Diagnostics) {
+	if p.AliasExpr != nil {
+		return nil, hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration reference",
+			Detail:   "TODO",
+			Subject:  p.AliasRange.Ptr(),
+		}}
+	}
+	return &ProviderConfigRef{
+		Name:       p.Name,
+		NameRange:  p.NameRange,
+		Alias:      map[string]string{"": p.AliasRaw},
+		AliasRange: p.AliasRange,
+	}, nil
+}
+
+// TODO allow StaticEvaluator for locals?
+func (p *ProviderConfigRefAbstract) Iterate(values map[string]cty.Value) (*ProviderConfigRef, hcl.Diagnostics) {
+	if p.AliasExpr == nil {
+		return nil, hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration reference",
+			Detail:   "TODO",
+			Subject:  p.AliasRange.Ptr(),
+		}}
+	}
+
+	var diags hcl.Diagnostics
+
+	out := &ProviderConfigRef{
+		Name:       p.Name,
+		NameRange:  p.NameRange,
+		Alias:      make(map[string]string),
+		AliasRange: p.AliasRange,
+	}
+
+	for k, v := range values {
+		eval := &hcl.EvalContext{Variables: map[string]cty.Value{
+			"each": cty.ObjectVal(map[string]cty.Value{
+				"key":   cty.StringVal(k),
+				"value": v,
+			}),
+		}}
+		alias, aliasDiags := p.AliasExpr.Value(eval)
+		diags = append(diags, aliasDiags...)
+		out.Alias[k] = alias.AsString()
+	}
+
+	return out, diags
+}
+
 type ProviderConfigRef struct {
 	Name       string
 	NameRange  hcl.Range
-	Alias      string
+	Alias      map[string]string
 	AliasRange *hcl.Range // nil if alias not set
 
 	// TODO: this may not be set in some cases, so it is not yet suitable for
@@ -661,7 +736,7 @@ type ProviderConfigRef struct {
 	providerType addrs.Provider
 }
 
-func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConfigRef, hcl.Diagnostics) {
+func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConfigRefAbstract, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	var shimDiags hcl.Diagnostics
@@ -676,12 +751,10 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		if diags.HasErrors() {
 			return nil, diags
 		}
-		alias, aliasDiags := idxexpr.Key.Value(nil)
-		diags = append(diags, aliasDiags...)
-		return &ProviderConfigRef{
+		return &ProviderConfigRefAbstract{
 			Name:       name[0].(hcl.TraverseRoot).Name,
 			NameRange:  idxexpr.Collection.Range(),
-			Alias:      alias.AsString(),
+			AliasExpr:  idxexpr.Key,
 			AliasRange: idxexpr.Key.Range().Ptr(),
 		}, diags
 	}
@@ -728,17 +801,17 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		return nil, diags
 	}
 
-	ret := &ProviderConfigRef{
+	ret := &ProviderConfigRefAbstract{
 		Name:      name,
 		NameRange: traversal[0].SourceRange(),
 	}
 
 	if len(traversal) > 1 {
 		if aliasStep, ok := traversal[1].(hcl.TraverseAttr); ok {
-			ret.Alias = aliasStep.Name
+			ret.AliasRaw = aliasStep.Name
 			ret.AliasRange = aliasStep.SourceRange().Ptr()
 		} else if aliasStep, ok := traversal[1].(hcl.TraverseIndex); ok {
-			ret.Alias = aliasStep.Key.AsString()
+			ret.AliasRaw = aliasStep.Key.AsString()
 			ret.AliasRange = aliasStep.SourceRange().Ptr()
 		} else {
 			diags = append(diags, &hcl.Diagnostic{
@@ -759,19 +832,20 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 //
 // This is a trivial conversion, essentially just discarding the source
 // location information and keeping just the addressing information.
-func (r *ProviderConfigRef) Addr() addrs.LocalProviderConfig {
+/*func (r *ProviderConfigRef) Addr() addrs.LocalProviderConfig {
 	return addrs.LocalProviderConfig{
 		LocalName: r.Name,
 		Alias:     r.Alias,
 	}
-}
+}*/
 
 func (r *ProviderConfigRef) String() string {
 	if r == nil {
 		return "<nil>"
 	}
-	if r.Alias != "" {
-		return fmt.Sprintf("%s.%s", r.Name, r.Alias)
+	if r.Alias[""] != "" {
+		// TODO BORK BORK BORK
+		return fmt.Sprintf("%s.%s", r.Name, r.Alias[""])
 	}
 	return r.Name
 }

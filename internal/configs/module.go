@@ -285,7 +285,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	for _, pm := range file.ProviderMetas {
-		provider := m.ProviderForLocalConfig(addrs.LocalProviderConfig{LocalName: pm.Provider})
+		provider := m.ImpliedProviderForUnqualifiedType(pm.Provider)
 		if existing, exists := m.ProviderMetas[provider]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -373,7 +373,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 
 		// set the provider FQN for the resource
 		if r.ProviderConfigRef != nil {
-			r.Provider = m.ProviderForLocalConfig(r.ProviderConfigAddr())
+			r.Provider = m.ImpliedProviderForUnqualifiedType(r.ProviderConfigLocalName())
 		} else {
 			// an invalid resource name (for e.g. "null resource" instead of
 			// "null_resource") can cause a panic down the line in addrs:
@@ -435,7 +435,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	for _, r := range m.DataResources {
 		// set the provider FQN for the resource
 		if r.ProviderConfigRef != nil {
-			r.Provider = m.ProviderForLocalConfig(r.ProviderConfigAddr())
+			r.Provider = m.ImpliedProviderForUnqualifiedType(r.ProviderConfigLocalName())
 		} else {
 			// an invalid data source name (for e.g. "null resource" instead of
 			// "null_resource") can cause a panic down the line in addrs:
@@ -468,10 +468,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		}
 
 		if i.ProviderConfigRef != nil {
-			i.Provider = m.ProviderForLocalConfig(addrs.LocalProviderConfig{
-				LocalName: i.ProviderConfigRef.Name,
-				Alias:     i.ProviderConfigRef.Alias,
-			})
+			i.Provider = m.ImpliedProviderForUnqualifiedType(i.ProviderConfigRef.Name)
 		} else {
 			implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
 			if err == nil {
@@ -773,12 +770,6 @@ func (m *Module) LocalNameForProvider(p addrs.Provider) string {
 		// Type = LocalName
 		return p.Type
 	}
-}
-
-// ProviderForLocalConfig returns the provider FQN for a given
-// LocalProviderConfig, based on its local name.
-func (m *Module) ProviderForLocalConfig(pc addrs.LocalProviderConfig) addrs.Provider {
-	return m.ImpliedProviderForUnqualifiedType(pc.LocalName)
 }
 
 // ImpliedProviderForUnqualifiedType returns the provider FQN for a given type,

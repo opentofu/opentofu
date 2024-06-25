@@ -235,14 +235,20 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				g.Remove(p)
-				target = p.Target()
-			}
 
-			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-			if pv, ok := v.(GraphNodeProviderConsumer); ok {
-				pv.SetProvider(target.ProviderAddr())
+				if pv, ok := v.(GraphNodeProviderConsumer); ok {
+					pv.SetProvider(p.targets)
+				}
+				for _, target := range p.targets {
+					g.Connect(dag.BasicEdge(v, target))
+				}
+			} else {
+				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
+				if pv, ok := v.(GraphNodeProviderConsumer); ok {
+					pv.SetProvider(target)
+				}
+				g.Connect(dag.BasicEdge(v, target))
 			}
-			g.Connect(dag.BasicEdge(v, target))
 		}
 	}
 
@@ -355,9 +361,10 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					}
 
 					// see if this is a proxy provider pointing to another concrete config
-					if p, ok := provider.(*graphNodeProxyProvider); ok {
-						g.Remove(p)
-						provider = p.Target()
+					if _, ok := provider.(*graphNodeProxyProvider); ok {
+						//g.Remove(p)
+						//provider = p.Target()
+						panic("BUG")
 					}
 
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
@@ -574,8 +581,8 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 // configurations, and are removed after all the resources have been connected
 // to their providers.
 type graphNodeProxyProvider struct {
-	addr   addrs.AbsProviderConfig
-	target GraphNodeProvider
+	addr    addrs.AbsProviderConfig
+	targets []ProviderKeyTarget
 }
 
 var (
@@ -595,14 +602,9 @@ func (n *graphNodeProxyProvider) Name() string {
 	return n.addr.String() + " (proxy)"
 }
 
-// find the concrete provider instance
-func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
-	switch t := n.target.(type) {
-	case *graphNodeProxyProvider:
-		return t.Target()
-	default:
-		return n.target
-	}
+type ProviderKeyTarget struct {
+	path   []string
+	target GraphNodeProvider
 }
 
 // ProviderConfigTransformer adds all provider nodes from the configuration and
@@ -703,7 +705,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 
 	// add all providers from the configuration
 	for _, p := range mod.ProviderConfigs {
-		fqn := mod.ProviderForLocalConfig(p.Addr())
+		fqn := mod.ImpliedProviderForUnqualifiedType(p.Name)
 		addr := addrs.AbsProviderConfig{
 			Provider: fqn,
 			Alias:    p.Alias,
@@ -782,17 +784,17 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 	// Go through all the providers the parent is passing in, and add proxies to
 	// the parent provider nodes.
 	for _, pair := range parentCfg.Providers {
-		fqn := c.Module.ProviderForLocalConfig(pair.InChild.Addr())
+		fqn := c.Module.ImpliedProviderForUnqualifiedType(pair.InChild.Name)
 		fullAddr := addrs.AbsProviderConfig{
 			Provider: fqn,
 			Module:   path,
-			Alias:    pair.InChild.Addr().Alias,
+			Alias:    pair.InChild.Alias[""], // Single
 		}
 
 		fullParentAddr := addrs.AbsProviderConfig{
 			Provider: fqn,
 			Module:   parentPath,
-			Alias:    pair.InParent.Addr().Alias,
+			Alias:    pair.InParent.Alias[""], // TODO
 		}
 
 		fullName := fullAddr.String()
@@ -803,6 +805,32 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 		if parentProvider == nil {
 			return fmt.Errorf("missing provider %s", fullParentName)
 		}
+
+		/*
+			// find the concrete provider instance
+			func (n *graphNodeProxyProvider) Targets() []ProviderKeyTarget {
+				if n.proxys != nil {
+					res := make([]ProviderKeyTarget, 0)
+
+					for k, v := range n.proxys {
+						targets := v.Targets()
+						for _, t := range targets {
+							path := make([]string, len(t.path)+1)
+							copy(t.path, path)
+							path[len(path)-1] = k
+							res = append(res, ProviderKeyTarget{
+								path:   path,
+								target: t.target,
+							})
+						}
+					}
+
+					return res
+				}
+
+				return []ProviderKeyTarget{{target: n.target}}
+			}
+		*/
 
 		proxy := &graphNodeProxyProvider{
 			addr:   fullAddr,

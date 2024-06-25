@@ -85,10 +85,10 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 		// These won't have *configs.Provider objects, but they will still
 		// exist in the map and we'll just treat them as empty below.
 		for _, rc := range config.Module.ManagedResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
+			if rc.HasAlias() {
 				continue // alias configurations cannot be implied
 			}
+			pa := addrs.LocalProviderConfig{LocalName: rc.ProviderConfigLocalName()}
 			if _, exists := pcs[pa.String()]; !exists {
 				pcs[pa.String()] = nil
 				pas[pa.String()] = pa
@@ -96,10 +96,10 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 			}
 		}
 		for _, rc := range config.Module.DataResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
+			if rc.HasAlias() {
 				continue // alias configurations cannot be implied
 			}
+			pa := addrs.LocalProviderConfig{LocalName: rc.ProviderConfigLocalName()}
 			if _, exists := pcs[pa.String()]; !exists {
 				pcs[pa.String()] = nil
 				pas[pa.String()] = pa
@@ -117,7 +117,7 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 				UIInput:     c.uiInput,
 			}
 
-			providerFqn := config.Module.ProviderForLocalConfig(pa)
+			providerFqn := config.Module.ImpliedProviderForUnqualifiedType(pa.LocalName)
 			schema := schemas.ProviderConfig(providerFqn)
 			if schema == nil {
 				// Could either be an incorrect config or just an incomplete

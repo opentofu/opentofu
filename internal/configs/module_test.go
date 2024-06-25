@@ -111,8 +111,7 @@ func TestProviderForLocalConfig(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
-	lc := addrs.LocalProviderConfig{LocalName: "foo-test"}
-	got := mod.ProviderForLocalConfig(lc)
+	got := mod.ImpliedProviderForUnqualifiedType("foo-test")
 	want := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test")
 	if !got.Equals(want) {
 		t.Fatalf("wrong result! got %#v, want %#v\n", got, want)

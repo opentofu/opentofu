@@ -104,7 +104,7 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["providers"]; exists {
-		providers, providerDiags := decodePassedProviderConfigs(attr)
+		providers, providerDiags := decodePassedProviderConfigs(attr, mc.ForEach)
 		diags = append(diags, providerDiags...)
 		mc.Providers = append(mc.Providers, providers...)
 	}
@@ -292,7 +292,7 @@ type PassedProviderConfig struct {
 	InParent *ProviderConfigRef
 }
 
-func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, hcl.Diagnostics) {
+func decodePassedProviderConfigs(attr *hcl.Attribute, forEach hcl.Expression) ([]PassedProviderConfig, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	var providers []PassedProviderConfig
 
@@ -300,27 +300,46 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 	pairs, pDiags := hcl.ExprMap(attr.Expr)
 	diags = append(diags, pDiags...)
 	for _, pair := range pairs {
-		key, keyDiags := decodeProviderConfigRef(pair.Key, "providers")
+		keyRef, keyDiags := decodeProviderConfigRef(pair.Key, "providers")
 		diags = append(diags, keyDiags...)
-		value, valueDiags := decodeProviderConfigRef(pair.Value, "providers")
+		valueRef, valueDiags := decodeProviderConfigRef(pair.Value, "providers")
 		diags = append(diags, valueDiags...)
 		if keyDiags.HasErrors() || valueDiags.HasErrors() {
 			continue
 		}
 
-		matchKey := key.String()
-		if prev, exists := seen[matchKey]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Duplicate provider address",
-				Detail:   fmt.Sprintf("A provider configuration was already passed to %s at %s. Each child provider configuration can be assigned only once.", matchKey, prev),
-				Subject:  pair.Value.Range().Ptr(),
-			})
-			continue
-		}
+		key, keyDiags := keyRef.Single()
+		diags = append(diags, keyDiags...)
 
-		rng := hcl.RangeBetween(pair.Key.Range(), pair.Value.Range())
-		seen[matchKey] = rng
+		var value *ProviderConfigRef
+		if valueRef.AliasExpr != nil && forEach != nil {
+			// TODO static evaluator
+			fe, feDiags := forEach.Value(nil)
+			diags = append(diags, feDiags...)
+			if feDiags.HasErrors() {
+				continue
+			}
+			value, valueDiags = valueRef.Iterate(fe.AsValueMap())
+		} else {
+			value, valueDiags = valueRef.Single()
+		}
+		diags = append(diags, valueDiags...)
+
+		for _, alias := range key.Alias {
+			matchKey := key.Name + "." + alias
+			if prev, exists := seen[matchKey]; exists {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate provider address",
+					Detail:   fmt.Sprintf("A provider configuration was already passed to %s at %s. Each child provider configuration can be assigned only once.", matchKey, prev),
+					Subject:  pair.Value.Range().Ptr(),
+				})
+				continue
+			}
+
+			rng := hcl.RangeBetween(pair.Key.Range(), pair.Value.Range())
+			seen[matchKey] = rng
+		}
 		providers = append(providers, PassedProviderConfig{
 			InChild:  key,
 			InParent: value,

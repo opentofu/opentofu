@@ -108,10 +108,12 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 			})
 		}
 
-		var providerDiags hcl.Diagnostics
-		imp.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
-		imp.ProviderDeclRange = attr.Range
+		ref, providerDiags := decodeProviderConfigRef(attr.Expr, "provider")
 		diags = append(diags, providerDiags...)
+		imp.ProviderConfigRef, providerDiags = ref.Single()
+		diags = append(diags, providerDiags...)
+
+		imp.ProviderDeclRange = attr.Range
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
