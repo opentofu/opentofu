@@ -283,7 +283,9 @@ type Operation struct {
 	AutoApprove  bool
 	Targets      []addrs.Targetable
 	ForceReplace []addrs.AbsResourceInstance
-	Variables    map[string]UnparsedVariableValue
+	// Injected by the command creating the operation (plan/apply/refresh/etc...)
+	Variables map[string]UnparsedVariableValue
+	RootCall  configs.StaticModuleCall
 
 	// Some operations use root module variables only opportunistically or
 	// don't need them at all. If this flag is set, the backend must treat
@@ -324,15 +326,6 @@ type Operation struct {
 // file.
 func (o *Operation) HasConfig() bool {
 	return o.ConfigLoader.IsConfigDir(o.ConfigDir)
-}
-
-// Config loads the configuration that the operation applies to, using the
-// ConfigDir and ConfigLoader fields within the receiving operation.
-func (o *Operation) Config() (*configs.Config, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	config, hclDiags := o.ConfigLoader.LoadConfig(o.ConfigDir)
-	diags = diags.Append(hclDiags)
-	return config, diags
 }
 
 // ReportResult is a helper for the common chore of setting the status of

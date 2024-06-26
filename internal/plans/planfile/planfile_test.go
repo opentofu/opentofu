@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -32,7 +33,7 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir)
+	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -160,7 +161,7 @@ func TestRoundtrip(t *testing.T) {
 		// Reading from snapshots is tested in the configload package, so
 		// here we'll just test that we can successfully do it, to see if the
 		// glue code in _this_ package is correct.
-		_, diags := pr.ReadConfig()
+		_, diags := pr.ReadConfig(configs.RootModuleCallForTesting())
 		if diags.HasErrors() {
 			t.Errorf("when reading config: %s", diags.Err())
 		}

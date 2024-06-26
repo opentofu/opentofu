@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
@@ -57,8 +58,11 @@ func Example() {
 	// Merge the configurations
 	cfg := config.MergeConfigs(cfgA, cfgB)
 
+	// Construct static evaluator to pass additional values into encryption configuration.
+	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+
 	// Construct the encryption object
-	enc, diags := encryption.New(reg, cfg)
+	enc, diags := encryption.New(reg, cfg, staticEval)
 	handleDiags(diags)
 
 	sfe := enc.State()

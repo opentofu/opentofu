@@ -26,6 +26,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 
 	var orCreate bool
 	cmdFlags := c.Meta.defaultFlagSet("workspace select")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&orCreate, "or-create", false, "create workspace if it does not exist")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {

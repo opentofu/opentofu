@@ -29,7 +29,7 @@ func TestExperimentsConfig(t *testing.T) {
 	t.Run("current", func(t *testing.T) {
 		parser := NewParser(nil)
 		parser.AllowLanguageExperiments(true)
-		mod, diags := parser.LoadConfigDir("testdata/experiments/current")
+		mod, diags := parser.LoadConfigDir("testdata/experiments/current", RootModuleCallForTesting())
 		if got, want := len(diags), 1; got != want {
 			t.Fatalf("wrong number of diagnostics %d; want %d", got, want)
 		}
@@ -57,7 +57,7 @@ func TestExperimentsConfig(t *testing.T) {
 	t.Run("concluded", func(t *testing.T) {
 		parser := NewParser(nil)
 		parser.AllowLanguageExperiments(true)
-		_, diags := parser.LoadConfigDir("testdata/experiments/concluded")
+		_, diags := parser.LoadConfigDir("testdata/experiments/concluded", RootModuleCallForTesting())
 		if got, want := len(diags), 1; got != want {
 			t.Fatalf("wrong number of diagnostics %d; want %d", got, want)
 		}
@@ -79,7 +79,7 @@ func TestExperimentsConfig(t *testing.T) {
 	t.Run("concluded", func(t *testing.T) {
 		parser := NewParser(nil)
 		parser.AllowLanguageExperiments(true)
-		_, diags := parser.LoadConfigDir("testdata/experiments/unknown")
+		_, diags := parser.LoadConfigDir("testdata/experiments/unknown", RootModuleCallForTesting())
 		if got, want := len(diags), 1; got != want {
 			t.Fatalf("wrong number of diagnostics %d; want %d", got, want)
 		}
@@ -101,7 +101,7 @@ func TestExperimentsConfig(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		parser := NewParser(nil)
 		parser.AllowLanguageExperiments(true)
-		_, diags := parser.LoadConfigDir("testdata/experiments/invalid")
+		_, diags := parser.LoadConfigDir("testdata/experiments/invalid", RootModuleCallForTesting())
 		if got, want := len(diags), 1; got != want {
 			t.Fatalf("wrong number of diagnostics %d; want %d", got, want)
 		}
@@ -123,7 +123,7 @@ func TestExperimentsConfig(t *testing.T) {
 	t.Run("disallowed", func(t *testing.T) {
 		parser := NewParser(nil)
 		parser.AllowLanguageExperiments(false) // The default situation for release builds
-		_, diags := parser.LoadConfigDir("testdata/experiments/current")
+		_, diags := parser.LoadConfigDir("testdata/experiments/current", RootModuleCallForTesting())
 		if got, want := len(diags), 1; got != want {
 			t.Fatalf("wrong number of diagnostics %d; want %d", got, want)
 		}

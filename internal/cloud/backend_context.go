@@ -81,7 +81,7 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 	ret.InputState = stateMgr.State()
 
 	log.Printf("[TRACE] cloud: loading configuration for the current working directory")
-	config, configDiags := op.ConfigLoader.LoadConfig(op.ConfigDir)
+	config, configDiags := op.ConfigLoader.LoadConfig(op.ConfigDir, op.RootCall)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, diags

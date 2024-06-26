@@ -32,6 +32,17 @@ To pull platform-specific images (`amd64`, `arm`, `arm64`, `386`) use:
 
 ## Usage
 
+:::note
+If you run into rate limiting issues with GitHub, create a
+[Personal Access Token](https://github.com/settings/tokens) and
+[log in](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
+to the registry.
+:::
+
+:::note
+In the examples below you should have at least one `.tf` file located in the folder you are running the `docker` command.
+:::
+
 To pull the image from GitHub Packages registry:
 
 <CodeBlock language="bash">{DockerPullScript}</CodeBlock>
@@ -39,12 +50,3 @@ To pull the image from GitHub Packages registry:
 To run OpenTofu as a Docker container:
 
 <CodeBlock language="bash">{DockerRunScript}</CodeBlock>
-
-:::tip
-
-If you run into rate limiting issues with GitHub, create a
-[Personal Access Token](https://github.com/settings/tokens) and
-[log in](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry)
-to the registry.
-
-:::

@@ -260,7 +260,7 @@ func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Valu
 	// We cheat a bit here and just build an EvalContext for our requested
 	// reference with the "self" address overridden, and then pull the "self"
 	// result out of it to return.
-	ctx, ctxDiags := s.evalContext([]*addrs.Reference{ref}, ref.Subject)
+	ctx, ctxDiags := s.evalContext(nil, []*addrs.Reference{ref}, ref.Subject)
 	diags = diags.Append(ctxDiags)
 	val := ctx.Variables["self"]
 	if val == cty.NilVal {
@@ -289,21 +289,34 @@ func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Valu
 // this type offers, but this is here for less common situations where the
 // caller will handle the evaluation calls itself.
 func (s *Scope) EvalContext(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(refs, s.SelfAddr)
+	return s.evalContext(nil, refs, s.SelfAddr)
 }
 
-func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
+// EvalContextWithParent is exactly the same as EvalContext except the resulting hcl.EvalContext
+// will be derived from the given parental hcl.EvalContext. It will enable different hcl mechanisms
+// to iteratively lookup target functions and variables in EvalContext's parent.
+// See Traversal.TraverseAbs (hcl) or FunctionCallExpr.Value (hcl/hclsyntax) for more details.
+func (s *Scope) EvalContextWithParent(p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(p, refs, s.SelfAddr)
+}
+
+//nolint:funlen,gocyclo,cyclop // TODO: refactor this function to match linting requirements
+func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	if s == nil {
 		panic("attempt to construct EvalContext for nil Scope")
 	}
 
 	var diags tfdiags.Diagnostics
+
 	vals := make(map[string]cty.Value)
 	funcs := make(map[string]function.Function)
-	ctx := &hcl.EvalContext{
-		Variables: vals,
-		Functions: funcs,
-	}
+
+	// Calling NewChild() on a nil parent will
+	// produce an EvalContext with no parent.
+	ctx := parent.NewChild()
+	ctx.Variables = vals
+	ctx.Functions = funcs
+
 	for name, fn := range s.Functions() {
 		funcs[name] = fn
 	}

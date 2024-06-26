@@ -6,9 +6,13 @@
 package configs
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -17,6 +21,7 @@ import (
 type Backend struct {
 	Type   string
 	Config hcl.Body
+	Eval   *StaticEvaluator
 
 	TypeRange hcl.Range
 	DeclRange hcl.Range
@@ -41,12 +46,18 @@ func decodeBackendBlock(block *hcl.Block) (*Backend, hcl.Diagnostics) {
 // for the purpose of hashing, so that an incomplete configuration can still
 // be hashed. Other errors, such as extraneous attributes, have no such special
 // case.
-func (b *Backend) Hash(schema *configschema.Block) int {
+func (b *Backend) Hash(schema *configschema.Block) (int, hcl.Diagnostics) {
 	// Don't fail if required attributes are not set. Instead, we'll just
 	// hash them as nulls.
 	schema = schema.NoneRequired()
-	spec := schema.DecoderSpec()
-	val, _ := hcldec.Decode(b.Config, spec, nil)
+
+	// This is a bit of an odd workaround, but the decode below intentionally ignores
+	// errors.  I don't want to try to change that at this point, but it may be worth doing
+	// at some point. For now, I'm just looking to see if there are any references that are
+	// not valid that the user should look at, instead of just producing an invalid backend object.
+	diags := b.referenceDiagnostics(schema)
+
+	val, _ := b.Decode(schema)
 	if val == cty.NilVal {
 		val = cty.UnknownVal(schema.ImpliedType())
 	}
@@ -56,5 +67,33 @@ func (b *Backend) Hash(schema *configschema.Block) int {
 		val,
 	})
 
-	return toHash.Hash()
+	return toHash.Hash(), diags
+}
+
+func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
+	return b.Eval.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
+		Module:    addrs.RootModule,
+		Subject:   fmt.Sprintf("backend.%s", b.Type),
+		DeclRange: b.DeclRange,
+	})
+}
+
+// This is a hack that may not be needed, but preserves the idea that invalid backends will show a cryptic error about running init duing plan/apply startup.
+func (b *Backend) referenceDiagnostics(schema *configschema.Block) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	refs, refsDiags := lang.References(addrs.ParseRef, hcldec.Variables(b.Config, schema.DecoderSpec()))
+	diags = append(diags, refsDiags.ToHCL()...)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	_, ctxDiags := b.Eval.scope(StaticIdentifier{
+		Module:    addrs.RootModule,
+		Subject:   fmt.Sprintf("backend.%s", b.Type),
+		DeclRange: b.DeclRange,
+	}).EvalContext(refs)
+	diags = append(diags, ctxDiags.ToHCL()...)
+
+	return diags
 }

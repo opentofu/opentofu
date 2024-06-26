@@ -11,6 +11,10 @@ OpenTofu has detailed logs that you can enable by setting the `TF_LOG` environme
 
 You can set `TF_LOG` to one of the log levels (in order of decreasing verbosity) `TRACE`, `DEBUG`, `INFO`, `WARN` or `ERROR` to change the verbosity of the logs.
 
+:::warning
+Logs produced with the `TRACE` level may contain sensitive details such as credentials and should be treated with care.
+:::
+
 Setting `TF_LOG` to `JSON` outputs logs at the `TRACE` level or higher, and uses a parseable JSON encoding as the formatting.
 
 :::warning

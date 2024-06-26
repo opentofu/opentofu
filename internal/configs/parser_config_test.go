@@ -272,7 +272,15 @@ func TestParserLoadConfigFileError(t *testing.T) {
 				name: string(src),
 			})
 
-			_, diags := parser.LoadConfigFile(name)
+			file, diags := parser.LoadConfigFile(name)
+			// TODO many of these errors are now deferred until module loading
+			// This is a structural issue which existed before static evaluation, but has been made worse by it
+			// See https://github.com/opentofu/opentofu/issues/1467 for more details
+			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
+			for _, mc := range file.ModuleCalls {
+				mDiags := mc.decodeStaticFields(eval)
+				diags = append(diags, mDiags...)
+			}
 
 			gotErrors := make(map[int]string)
 			for _, diag := range diags {

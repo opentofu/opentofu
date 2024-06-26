@@ -223,7 +223,7 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 // remote system's responsibility to do final validation of the input.
 func (b *Remote) hasExplicitVariableValues(op *backend.Operation) bool {
 	// Load the configuration using the caller-provided configuration loader.
-	config, _, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(op.ConfigDir)
+	config, _, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(op.ConfigDir, op.RootCall)
 	if configDiags.HasErrors() {
 		// If we can't load the configuration then we'll assume no explicit
 		// variable values just to let the remote operation start and let

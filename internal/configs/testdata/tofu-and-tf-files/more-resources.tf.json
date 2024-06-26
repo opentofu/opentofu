@@ -1,0 +1,10 @@
+{
+  "resource": {
+    "tf_json_resource": {
+      "a": {
+        "count": 1,
+        "test_string": "first"
+      }
+    }
+  }
+}

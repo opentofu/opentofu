@@ -36,6 +36,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {

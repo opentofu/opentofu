@@ -13,6 +13,7 @@ import (
 // or file.
 type CloudConfig struct {
 	Config hcl.Body
+	eval   *StaticEvaluator
 
 	DeclRange hcl.Range
 }
@@ -28,5 +29,6 @@ func (c *CloudConfig) ToBackendConfig() Backend {
 	return Backend{
 		Type:   "cloud",
 		Config: c.Config,
+		Eval:   c.eval,
 	}
 }

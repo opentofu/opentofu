@@ -9,6 +9,7 @@ package enctest
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
@@ -35,7 +36,9 @@ func EncryptionDirect(configData string) encryption.Encryption {
 
 	handleDiags(diags)
 
-	enc, diags := encryption.New(reg, cfg)
+	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+
+	enc, diags := encryption.New(reg, cfg, staticEval)
 	handleDiags(diags)
 
 	return enc

@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
@@ -18,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestBaseEncryption_buildTargetMethods(t *testing.T) {
@@ -112,6 +115,36 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 			`,
 			wantErr: "<nil>: Unencrypted method is forbidden; Unable to use `unencrypted` method since the `enforced` flag is used.",
 		},
+		"key-from-vars": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = var.key
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"undefined-key-from-vars": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = var.undefinedkey
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantErr: "Test Config Source:3,12-28: Undefined variable; Undefined variable var.undefinedkey",
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
@@ -125,8 +158,26 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 		panic(err)
 	}
 
+	mod := &configs.Module{
+		Variables: map[string]*configs.Variable{
+			"key": {
+				Name:    "key",
+				Default: cty.StringVal("6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"),
+				Type:    cty.String,
+			},
+		},
+	}
+
+	getVars := func(v *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		return v.Default, nil
+	}
+
+	modCall := configs.NewStaticModuleCall(addrs.RootModule, getVars, "<testing>", "")
+
+	staticEval := configs.NewStaticEvaluator(mod, modCall)
+
 	for name, test := range tests {
-		t.Run(name, test.newTestRun(reg))
+		t.Run(name, test.newTestRun(reg, staticEval))
 	}
 }
 
@@ -136,7 +187,7 @@ type btmTestCase struct {
 	wantErr     string
 }
 
-func (testCase btmTestCase) newTestRun(reg registry.Registry) func(t *testing.T) {
+func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *configs.StaticEvaluator) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Parallel()
 
@@ -150,10 +201,11 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry) func(t *testing.T)
 				cfg: cfg,
 				reg: reg,
 			},
-			target:   cfg.State.AsTargetConfig(),
-			enforced: cfg.State.Enforced,
-			name:     "test",
-			encMeta:  make(map[keyprovider.Addr][]byte),
+			target:     cfg.State.AsTargetConfig(),
+			enforced:   cfg.State.Enforced,
+			name:       "test",
+			encMeta:    make(map[keyprovider.Addr][]byte),
+			staticEval: staticEval,
 		}
 
 		methods, diags := base.buildTargetMethods(base.encMeta)

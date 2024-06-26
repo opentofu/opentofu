@@ -31,6 +31,16 @@ func (c *EncryptionConfig) Merge(override *EncryptionConfig) *EncryptionConfig {
 	return MergeConfigs(c, override)
 }
 
+// GetKeyProvider takes type and name arguments to find a respective KeyProviderConfig in the list.
+func (c *EncryptionConfig) GetKeyProvider(kpType, kpName string) (KeyProviderConfig, bool) {
+	for _, kp := range c.KeyProviderConfigs {
+		if kp.Type == kpType && kp.Name == kpName {
+			return kp, true
+		}
+	}
+	return KeyProviderConfig{}, false
+}
+
 // KeyProviderConfig describes the terraform.encryption.key_provider.* block you can use to declare a key provider for
 // encryption. The Body field will contain the remaining undeclared fields the key provider can consume.
 type KeyProviderConfig struct {

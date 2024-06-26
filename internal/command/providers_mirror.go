@@ -35,6 +35,7 @@ func (c *ProvidersMirrorCommand) Synopsis() string {
 func (c *ProvidersMirrorCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers mirror")
+	c.Meta.varFlagSet(cmdFlags)
 	var optPlatforms FlagStringSlice
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
