@@ -80,14 +80,14 @@ func realMain() int {
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
-	// Fetch the global options from the command args
+	// Get the global options from the command args
 	opts, err := parseGlobalOptions(args)
 	if err != nil {
 		Ui.Error(err.Error())
 		return 1
 	}
 
-	// Parse the command args with removing the global options
+	// Parse the command args and remove any global options that are present
 	args = parseCommandArgs(args)
 
 	// Set to the version command if version has been toggled
