@@ -80,14 +80,14 @@ func realMain() int {
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
-	// Extract global options
+	// Fetch the global options from the command args
 	opts, err := parseGlobalOptions(args)
 	if err != nil {
 		Ui.Error(err.Error())
 		return 1
 	}
 
-	// Configure the remaining args to be the command args
+	// Parse the command args with removing the global options
 	args = parseCommandArgs(args)
 
 	// Set to the version command if version has been toggled
@@ -548,19 +548,14 @@ func parseGlobalOptions(args []string) (map[string]string, error) {
 
 func parseCommandArgs(args []string) []string {
 	newArgs := make([]string, 0)
-	commandFound := false
-
 	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") && !commandFound {
-			// Global options are processed before the command
-			// Flag that we have found the command
-			commandFound = true
+		if strings.HasPrefix(arg, "-") {
+			testArg := arg[1:]
+			if testArg == optionChDir || testArg == optionHelp || testArg == optionPedantic || testArg == optionVersion {
+				continue
+			}
 		}
-
-		if commandFound {
-			newArgs = append(newArgs, arg)
-		}
+		newArgs = append(newArgs, arg)
 	}
-
 	return newArgs
 }
