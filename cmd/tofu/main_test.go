@@ -405,3 +405,8 @@ func TestParseGlobalOptions(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// TODO: Placeholder
+func TestParseCommandArgs(t *testing.T) {
+
+}
