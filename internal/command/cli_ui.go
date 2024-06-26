@@ -54,3 +54,11 @@ func (u *ColorizeUi) colorize(message string, color string) string {
 
 	return u.Colorize.Color(fmt.Sprintf("%s%s[reset]", color, message))
 }
+
+type PedanticUi struct {
+	cli.Ui
+}
+
+func (u *PedanticUi) Warn(msg string) {
+	u.Ui.Warn(msg)
+}
