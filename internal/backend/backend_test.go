@@ -79,7 +79,7 @@ func TestRead_PathNoPermission(t *testing.T) {
 	f.Close()
 
 	if runtime.GOOS == "windows" {
-		//Use go-acl pacakge to control file permissions for Windows
+		// Use go-acl pacakge to control file permissions for Windows
 		if err := acl.Chmod(f.Name(), 000); err != nil {
 			t.Fatalf("err: %s", err)
 		}
