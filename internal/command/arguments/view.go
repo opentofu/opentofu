@@ -20,7 +20,7 @@ type View struct {
 	// only the important details.
 	Concise bool
 
-	// Pedantic mode is used to display warnings as errors
+	// Pedantic mode is used to treat warnings as errors
 	PedanticMode bool
 }
 
