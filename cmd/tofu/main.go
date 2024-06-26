@@ -98,12 +98,12 @@ func realMain() int {
 		args = newArgs
 	}
 
-	// Attach the help option to the command arguments to activate help if it has been toggled
+	// Attach the help option to the command args to activate help if it has been toggled
 	if _, ok := opts[optionHelp]; ok {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
 
-	// Set up in pedantic mode if pedantic has been toggled
+	// Configure pedantic mode if it has been toggled
 	var pedanticMode bool
 	if _, ok := opts[optionPedantic]; ok {
 		pedanticMode = true
