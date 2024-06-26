@@ -51,9 +51,6 @@ var primaryCommands []string
 // hiddenCommands set, because that would be rather silly.
 var hiddenCommands map[string]struct{}
 
-// Ui is the cli.Ui used for communicating to the outside world.
-var Ui cli.Ui
-
 func initCommands(
 	ctx context.Context,
 	originalWorkingDir string,
@@ -63,6 +60,8 @@ func initCommands(
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
+	ui cli.Ui,
+	pedanticMode bool,
 ) {
 	var inAutomation bool
 	if v := os.Getenv(runningInAutomationEnvName); v != "" {
@@ -93,7 +92,7 @@ func initCommands(
 
 		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),
-		Ui:               Ui,
+		Ui:               ui,
 
 		Services:        services,
 		BrowserLauncher: webbrowser.NewNativeLauncher(),
@@ -112,6 +111,8 @@ func initCommands(
 		UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
+
+		PedanticMode: pedanticMode,
 	}
 
 	// The command list is included in the tofu -help

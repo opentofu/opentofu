@@ -12,6 +12,11 @@ import (
 	"github.com/mitchellh/colorstring"
 )
 
+const (
+	ErrorColour = "[red]"
+	WarningColour = "[yellow]"
+)
+
 // ColorizeUi is a Ui implementation that colors its output according
 // to the given color schemes for the given type of output.
 type ColorizeUi struct {
