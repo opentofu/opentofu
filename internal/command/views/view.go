@@ -115,7 +115,12 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		if useCompact {
 			msg := format.DiagnosticWarningsCompact(diags, v.colorize)
 			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTofu without -compact-warnings.\n"
-			v.streams.Print(msg)
+
+			if v.pedanticMode {
+				v.streams.Eprint(msg)
+			} else {
+				v.streams.Print(msg)
+			}
 			return
 		}
 	}
@@ -128,7 +133,8 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			msg = format.Diagnostic(diag, v.configSources(), v.colorize, v.streams.Stderr.Columns())
 		}
 
-		if diag.Severity() == tfdiags.Error {
+		severity := diag.Severity()
+		if severity == tfdiags.Error || v.pedanticMode && severity == tfdiags.Warning {
 			v.streams.Eprint(msg)
 		} else {
 			v.streams.Print(msg)
