@@ -509,8 +509,9 @@ func mkConfigDir(configDir string) error {
 func parseGlobalOptions(args []string) (map[string]string, error) {
 	options := make(map[string]string)
 	commandFound := false
+
 	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") && !commandFound {
+		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the command
 			// Flag that we have found the command
 			commandFound = true
@@ -548,8 +549,16 @@ func parseGlobalOptions(args []string) (map[string]string, error) {
 
 func parseCommandArgs(args []string) []string {
 	newArgs := make([]string, 0)
+	commandFound := false
+
 	for _, arg := range args {
-		if strings.HasPrefix(arg, "-") {
+		if !strings.HasPrefix(arg, "-") {
+			// Global options are processed before the command
+			// Flag that we have found the command
+			commandFound = true
+		}
+
+		if strings.HasPrefix(arg, "-") && !commandFound {
 			testArg := arg[1:]
 			if testArg == optionChDir || testArg == optionHelp || testArg == optionPedantic || testArg == optionVersion {
 				continue
@@ -557,5 +566,6 @@ func parseCommandArgs(args []string) []string {
 		}
 		newArgs = append(newArgs, arg)
 	}
+
 	return newArgs
 }
