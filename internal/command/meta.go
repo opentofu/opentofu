@@ -180,6 +180,9 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
+	// Pedantic mode is used to display warnings as errors
+	PedanticMode bool
+
 	//----------------------------------------------------------
 	// Protected: commands can set these
 	//----------------------------------------------------------
@@ -646,13 +649,20 @@ func (m *Meta) process(args []string) []string {
 	}
 	args = args[:i]
 
+	var warningColour string
+	if m.PedanticMode {
+		warningColour = ErrorColour
+	} else {
+		warningColour = WarningColour
+	}
+
 	// Set the UI
 	m.oldUi = m.Ui
 	m.Ui = &cli.ConcurrentUi{
 		Ui: &ColorizeUi{
 			Colorize:   m.Colorize(),
-			ErrorColor: "[red]",
-			WarnColor:  "[yellow]",
+			ErrorColor: ErrorColour,
+			WarnColor:  warningColour,
 			Ui:         m.oldUi,
 		},
 	}
@@ -663,6 +673,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
+			PedanticMode:    m.PedanticMode,
 		})
 	}
 
