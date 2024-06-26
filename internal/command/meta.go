@@ -180,7 +180,7 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
-	// Pedantic mode is used to display warnings as errors
+	// Pedantic mode is used to treat warnings as errors
 	PedanticMode bool
 
 	//----------------------------------------------------------
