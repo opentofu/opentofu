@@ -318,7 +318,7 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 
 	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
-		// We didn't populated variables yet so we just leave it empty.
+		// We didn't populate variables yet so we just leave it empty.
 		ctx.Variables = make(map[string]cty.Value)
 		return ctx, diags
 	}
@@ -339,12 +339,12 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 	// We will still visit every reference here and ask our data source for
 	// it, since that allows us to gather a full set of any errors and
 	// warnings, but once we've gathered all the data we'll then skip anything
-	// that's redundant in the process of populating our values map (referencedValues).
-	refValues := s.newReferencedValues()
+	// that's redundant in the process of populating our values map.
+	varBuilder := s.newEvalVarBuilder()
 
 	for _, ref := range refs {
 		if ref.Subject == addrs.Self {
-			diags.Append(refValues.putSelfValue(selfAddr, ref))
+			diags.Append(varBuilder.putSelfValue(selfAddr, ref))
 			continue
 		}
 
@@ -362,15 +362,15 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 			continue
 		}
 
-		diags = diags.Append(refValues.putValueBySubject(ref))
+		diags = diags.Append(varBuilder.putValueBySubject(ref))
 	}
 
-	ctx.Variables = refValues.composeAllVariables()
+	ctx.Variables = varBuilder.buildAllVariables()
 
 	return ctx, diags
 }
 
-type referencedValues struct {
+type evalVarBuilder struct {
 	s *Scope
 
 	dataResources    map[string]map[string]cty.Value
@@ -387,8 +387,8 @@ type referencedValues struct {
 	self             cty.Value
 }
 
-func (s *Scope) newReferencedValues() *referencedValues {
-	return &referencedValues{
+func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
+	return &evalVarBuilder{
 		s: s,
 
 		dataResources:    map[string]map[string]cty.Value{},
@@ -405,7 +405,7 @@ func (s *Scope) newReferencedValues() *referencedValues {
 	}
 }
 
-func (rv *referencedValues) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if selfAddr == nil {
@@ -441,7 +441,7 @@ func (rv *referencedValues) putSelfValue(selfAddr addrs.Referenceable, ref *addr
 		})
 	}
 
-	val, valDiags := normalizeRefValue(rv.s.Data.GetResource(subj.ContainingResource(), ref.SourceRange))
+	val, valDiags := normalizeRefValue(b.s.Data.GetResource(subj.ContainingResource(), ref.SourceRange))
 
 	diags = diags.Append(valDiags)
 
@@ -453,18 +453,18 @@ func (rv *referencedValues) putSelfValue(selfAddr addrs.Referenceable, ref *addr
 	// the case of an error, self may end up as a cty.DynamicValue.
 	switch k := subj.Key.(type) {
 	case addrs.IntKey:
-		rv.self, hclDiags = hcl.Index(val, cty.NumberIntVal(int64(k)), ref.SourceRange.ToHCL().Ptr())
+		b.self, hclDiags = hcl.Index(val, cty.NumberIntVal(int64(k)), ref.SourceRange.ToHCL().Ptr())
 	case addrs.StringKey:
-		rv.self, hclDiags = hcl.Index(val, cty.StringVal(string(k)), ref.SourceRange.ToHCL().Ptr())
+		b.self, hclDiags = hcl.Index(val, cty.StringVal(string(k)), ref.SourceRange.ToHCL().Ptr())
 	default:
-		rv.self = val
+		b.self = val
 	}
 	diags = diags.Append(hclDiags)
 
 	return diags
 }
 
-func (rv *referencedValues) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	rawSubj := ref.Subject
@@ -490,34 +490,34 @@ func (rv *referencedValues) putValueBySubject(ref *addrs.Reference) tfdiags.Diag
 
 	switch subj := rawSubj.(type) {
 	case addrs.Resource:
-		diags = diags.Append(rv.putResourceValue(subj, rng))
+		diags = diags.Append(b.putResourceValue(subj, rng))
 
 	case addrs.ModuleCall:
-		rv.wholeModules[subj.Name] = normalizeRefValue(rv.s.Data.GetModule(subj, rng))
+		b.wholeModules[subj.Name] = normalizeRefValue(b.s.Data.GetModule(subj, rng))
 
 	case addrs.InputVariable:
-		rv.inputVariables[subj.Name] = normalizeRefValue(rv.s.Data.GetInputVariable(subj, rng))
+		b.inputVariables[subj.Name] = normalizeRefValue(b.s.Data.GetInputVariable(subj, rng))
 
 	case addrs.LocalValue:
-		rv.localValues[subj.Name] = normalizeRefValue(rv.s.Data.GetLocalValue(subj, rng))
+		b.localValues[subj.Name] = normalizeRefValue(b.s.Data.GetLocalValue(subj, rng))
 
 	case addrs.PathAttr:
-		rv.pathAttrs[subj.Name] = normalizeRefValue(rv.s.Data.GetPathAttr(subj, rng))
+		b.pathAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetPathAttr(subj, rng))
 
 	case addrs.TerraformAttr:
-		rv.terraformAttrs[subj.Name] = normalizeRefValue(rv.s.Data.GetTerraformAttr(subj, rng))
+		b.terraformAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetTerraformAttr(subj, rng))
 
 	case addrs.CountAttr:
-		rv.countAttrs[subj.Name] = normalizeRefValue(rv.s.Data.GetCountAttr(subj, rng))
+		b.countAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetCountAttr(subj, rng))
 
 	case addrs.ForEachAttr:
-		rv.forEachAttrs[subj.Name] = normalizeRefValue(rv.s.Data.GetForEachAttr(subj, rng))
+		b.forEachAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetForEachAttr(subj, rng))
 
 	case addrs.OutputValue:
-		rv.outputValues[subj.Name] = normalizeRefValue(rv.s.Data.GetOutput(subj, rng))
+		b.outputValues[subj.Name] = normalizeRefValue(b.s.Data.GetOutput(subj, rng))
 
 	case addrs.Check:
-		rv.outputValues[subj.Name] = normalizeRefValue(rv.s.Data.GetCheckBlock(subj, rng))
+		b.outputValues[subj.Name] = normalizeRefValue(b.s.Data.GetCheckBlock(subj, rng))
 
 	default:
 		// Should never happen
@@ -527,20 +527,20 @@ func (rv *referencedValues) putValueBySubject(ref *addrs.Reference) tfdiags.Diag
 	return diags
 }
 
-func (rv *referencedValues) putResourceValue(res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	var into map[string]map[string]cty.Value
 
 	//nolint:exhaustive // InvalidResourceMode is checked in default.
 	switch res.Mode {
 	case addrs.ManagedResourceMode:
-		into = rv.managedResources
+		into = b.managedResources
 	case addrs.DataResourceMode:
-		into = rv.dataResources
+		into = b.dataResources
 	default:
 		panic(fmt.Errorf("unsupported ResourceMode %s", res.Mode))
 	}
 
-	val, diags := normalizeRefValue(rv.s.Data.GetResource(res, rng))
+	val, diags := normalizeRefValue(b.s.Data.GetResource(res, rng))
 
 	if into[res.Type] == nil {
 		into[res.Type] = make(map[string]cty.Value)
@@ -550,7 +550,7 @@ func (rv *referencedValues) putResourceValue(res addrs.Resource, rng tfdiags.Sou
 	return diags
 }
 
-func (rv *referencedValues) composeAllVariables() map[string]cty.Value {
+func (b *evalVarBuilder) buildAllVariables() map[string]cty.Value {
 	vals := make(map[string]cty.Value)
 
 	// Managed resources are exposed in two different locations. The primary
@@ -558,32 +558,32 @@ func (rv *referencedValues) composeAllVariables() map[string]cty.Value {
 	// traversal, but we also expose them under "resource" as an escaping
 	// technique if we add a reserved name in a future language edition which
 	// conflicts with someone's existing provider.
-	for k, v := range buildResourceObjects(rv.managedResources) {
+	for k, v := range buildResourceObjects(b.managedResources) {
 		vals[k] = v
 	}
-	vals["resource"] = cty.ObjectVal(buildResourceObjects(rv.managedResources))
+	vals["resource"] = cty.ObjectVal(buildResourceObjects(b.managedResources))
 
-	vals["data"] = cty.ObjectVal(buildResourceObjects(rv.dataResources))
-	vals["module"] = cty.ObjectVal(rv.wholeModules)
-	vals["var"] = cty.ObjectVal(rv.inputVariables)
-	vals["local"] = cty.ObjectVal(rv.localValues)
-	vals["path"] = cty.ObjectVal(rv.pathAttrs)
-	vals["terraform"] = cty.ObjectVal(rv.terraformAttrs)
-	vals["count"] = cty.ObjectVal(rv.countAttrs)
-	vals["each"] = cty.ObjectVal(rv.forEachAttrs)
+	vals["data"] = cty.ObjectVal(buildResourceObjects(b.dataResources))
+	vals["module"] = cty.ObjectVal(b.wholeModules)
+	vals["var"] = cty.ObjectVal(b.inputVariables)
+	vals["local"] = cty.ObjectVal(b.localValues)
+	vals["path"] = cty.ObjectVal(b.pathAttrs)
+	vals["terraform"] = cty.ObjectVal(b.terraformAttrs)
+	vals["count"] = cty.ObjectVal(b.countAttrs)
+	vals["each"] = cty.ObjectVal(b.forEachAttrs)
 
 	// Checks and outputs are conditionally included in the available scope, so
 	// we'll only write out their values if we actually have something for them.
-	if len(rv.checkBlocks) > 0 {
-		vals["check"] = cty.ObjectVal(rv.checkBlocks)
+	if len(b.checkBlocks) > 0 {
+		vals["check"] = cty.ObjectVal(b.checkBlocks)
 	}
 
-	if len(rv.outputValues) > 0 {
-		vals["output"] = cty.ObjectVal(rv.outputValues)
+	if len(b.outputValues) > 0 {
+		vals["output"] = cty.ObjectVal(b.outputValues)
 	}
 
-	if rv.self != cty.NilVal {
-		vals["self"] = rv.self
+	if b.self != cty.NilVal {
+		vals["self"] = b.self
 	}
 
 	return vals
