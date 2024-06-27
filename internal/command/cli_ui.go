@@ -60,5 +60,5 @@ type PedanticUi struct {
 }
 
 func (u *PedanticUi) Warn(msg string) {
-	u.Ui.Warn(msg)
+	u.Ui.Error(msg)
 }
