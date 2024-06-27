@@ -652,7 +652,8 @@ func (m *Meta) process(args []string) []string {
 	// Set the UI
 	m.oldUi = m.Ui
 
-	newUi := &ColorizeUi{
+	var newUi cli.Ui
+	newUi = &ColorizeUi{
 		Colorize:   m.Colorize(),
 		ErrorColor: "[red]",
 		WarnColor:  "[yellow]",
@@ -660,10 +661,10 @@ func (m *Meta) process(args []string) []string {
 	}
 
 	if m.PedanticMode {
-		m.Ui = &cli.ConcurrentUi{Ui: &PedanticUi{Ui: newUi}}
-	} else {
-		m.Ui = &cli.ConcurrentUi{Ui: newUi}
+		newUi = &PedanticUi{Ui: newUi}
 	}
+
+	m.Ui = &cli.ConcurrentUi{Ui: newUi}
 
 	// Reconfigure the view. This is necessary for commands which use both
 	// views.View and cli.Ui during the migration phase.
