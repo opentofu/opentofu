@@ -524,16 +524,14 @@ func parseGlobalOptions(args []string) (map[string]string, error) {
 			// Capture -version, -v and --version as the version option
 			option[0] = optionVersion
 		} else {
-			if commandFound {
+			if commandFound || option[0] != optionChDir && option[0] != optionHelp && option[0] != optionPedantic {
 				continue
 			}
 
 			if option[0] == optionChDir {
 				if len(option) != 2 {
 					return nil, fmt.Errorf(
-						"invalid global option -%s: must include an equals sign followed by a value: -%s=value",
-						option[0],
-						option[0])
+						"invalid global option -%[1]s: must include an equals sign followed by a value: -%[1]s=value", option[0])
 				}
 			}
 		}
