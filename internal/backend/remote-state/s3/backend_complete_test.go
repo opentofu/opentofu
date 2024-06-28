@@ -1864,6 +1864,8 @@ web_identity_token_file = no-such-file
 
 			tc.config["sts_endpoint"] = ts.URL
 
+			t.Setenv("TMPDIR", t.TempDir())
+
 			tokenFile, err := os.CreateTemp("", "aws-sdk-go-base-web-identity-token-file")
 			if err != nil {
 				t.Fatalf("unexpected error creating temporary web identity token file: %s", err)
@@ -1879,16 +1881,20 @@ web_identity_token_file = no-such-file
 			}
 
 			if tc.ExpandEnvVars {
+				var prefix string
 				tmpdir := os.Getenv("TMPDIR")
 				if runtime.GOOS == "windows" {
 					tmpdir = os.Getenv("TEMP")
+					prefix = tmpdir
+				} else {
+					prefix = "$TMPDIR"
 				}
 				rel, err := filepath.Rel(tmpdir, tokenFileName)
 				if err != nil {
 					t.Fatalf("error making path relative: %s", err)
 				}
 				t.Logf("relative: %s", rel)
-				tokenFileName = filepath.Join(tmpdir, rel)
+				tokenFileName = filepath.Join(prefix, rel)
 				t.Logf("env tempfile: %s", tokenFileName)
 			}
 
