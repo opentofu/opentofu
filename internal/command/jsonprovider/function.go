@@ -15,6 +15,7 @@ const (
 	tupleTypeName = "tuple"
 )
 
+// Function is the top-level object returned when exporting function schemas
 type Function struct {
 	Description       string           `json:"description"`
 	Summary           string           `json:"summary"`
@@ -23,6 +24,7 @@ type Function struct {
 	VariadicParameter *FunctionParam   `json:"variadic_parameter,omitempty"`
 }
 
+// FunctionParam is the object for wrapping the functions parameters and return types
 type FunctionParam struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
