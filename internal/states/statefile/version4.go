@@ -347,7 +347,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to serialize output value in state",
-				fmt.Sprintf("An error occured while serializing output value %q: %s.", name, err),
+				fmt.Sprintf("An error occurred while serializing output value %q: %s.", name, err),
 			))
 			continue
 		}
@@ -357,7 +357,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to serialize output value in state",
-				fmt.Sprintf("An error occured while serializing the type of output value %q: %s.", name, err),
+				fmt.Sprintf("An error occurred while serializing the type of output value %q: %s.", name, err),
 			))
 			continue
 		}
