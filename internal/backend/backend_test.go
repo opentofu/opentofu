@@ -8,12 +8,12 @@ package backend
 import (
 	"io"
 	"os"
+	"os/exec"
 	"os/user"
 	"runtime"
 	"strings"
 	"testing"
 
-	"github.com/hectane/go-acl"
 	"github.com/mitchellh/go-homedir"
 )
 
@@ -79,18 +79,18 @@ func TestRead_PathNoPermission(t *testing.T) {
 	f.Close()
 
 	if runtime.GOOS == "windows" {
-		// Use go-acl pacakge to control file permissions for Windows
-		if err := acl.Chmod(f.Name(), 000); err != nil {
-			t.Fatalf("err: %s", err)
+		// Use cacls to remove all permissions for this file on Windows
+		cmd := exec.Command("cmd", "/c", "cacls", f.Name(), "/E", "/R", os.Getenv("USERNAME"))
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to set file permissions with cacls: %s", err)
 		}
 	} else {
-		if err := os.Chmod(f.Name(), 000); err != nil {
-			t.Fatalf("err: %s", err)
+		if err := os.Chmod(f.Name(), 0); err != nil {
+			t.Fatalf("Failed to chmod file: %s", err)
 		}
 	}
 
 	contents, err := ReadPathOrContents(f.Name())
-	t.Log(contents)
 	if err == nil {
 		t.Fatal("Expected error, got none!")
 	}

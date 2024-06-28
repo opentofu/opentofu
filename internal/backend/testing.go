@@ -224,18 +224,6 @@ func TestBackendStates(t *testing.T, b Backend) {
 		}
 	}
 
-	// On Windows, lock and unlock the state to ensure no process is holding the file,
-	// which would prevent its deletion. This step avoids Tempdir cleanup errors.
-	if runtime.GOOS == "windows" {
-		fooInfo := statemgr.NewLockInfo()
-		fooInfo.Operation = "test"
-		var fooLock string
-		if fooLock, err = foo.Lock(fooInfo); err != nil {
-			t.Error("Failed to lock foo state in Windows test cleanup", err)
-		}
-		foo.Unlock(fooLock)
-	}
-
 	// Delete some workspaces
 	if err := b.DeleteWorkspace("foo", true); err != nil {
 		t.Fatalf("err: %s", err)
@@ -260,17 +248,6 @@ func TestBackendStates(t *testing.T, b Backend) {
 		t.Fatalf("should be empty: %s", v)
 	}
 
-	// On Windows, lock and unlock the state to ensure no process is holding the file,
-	// which would prevent its deletion. This step avoids Tempdir cleanup errors.
-	if runtime.GOOS == "windows" {
-		fooInfo := statemgr.NewLockInfo()
-		fooInfo.Operation = "test"
-		var fooLock string
-		if fooLock, err = foo.Lock(fooInfo); err != nil {
-			t.Error("Failed to lock foo state in Windows test cleanup", err)
-		}
-		foo.Unlock(fooLock)
-	}
 	// and delete it again
 	if err := b.DeleteWorkspace("foo", true); err != nil {
 		t.Fatalf("err: %s", err)
