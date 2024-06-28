@@ -172,7 +172,15 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
+
+	// Sync and close the file handle after all operations are complete
+	defer func() {
+		if s.stateFileOut != nil {
+			s.stateFileOut.Sync()
+			s.stateFileOut.Close()
+			s.stateFileOut = nil
+		}
+	}()
 
 	if s.file == nil {
 		s.file = NewStateFile()
