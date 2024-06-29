@@ -175,7 +175,10 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 
 	// Sync and close the file handle after all operations are complete
 	defer func() {
-		s.stateFileOut.Sync()
+		if err := s.stateFileOut.Sync(); err != nil {
+			log.Printf("Error syncing statefile: %s", err)
+		}
+
 		s.stateFileOut.Close()
 		s.stateFileOut = nil
 	}()
@@ -396,6 +399,7 @@ func (s *Filesystem) Unlock(id string) error {
 		log.Printf("[TRACE] statemgr.Filesystem: removed lock metadata file %s", lockInfoPath)
 	}
 	unlockErr := s.unlock()
+	// Perform cleanup if stateFileOut is not nil.
 	if s.stateFileOut != nil {
 		fileName := s.stateFileOut.Name()
 
@@ -403,7 +407,7 @@ func (s *Filesystem) Unlock(id string) error {
 		s.stateFileOut = nil
 		s.lockID = ""
 
-		// clean up the state file if we created it an never wrote to it
+		// Clean up the state file if we created it an never wrote to it
 		stat, err := os.Stat(fileName)
 		if err == nil && stat.Size() == 0 && s.created {
 			err = os.Remove(fileName)

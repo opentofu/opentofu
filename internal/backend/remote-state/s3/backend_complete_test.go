@@ -648,7 +648,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				// This prevents TempDir RemoveAll cleanup errors on Windows.
 				t.Cleanup(func() {
 					runtime.GC()
-
 				})
 			}
 
@@ -1131,7 +1130,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				// This prevents TempDir RemoveAll cleanup errors on Windows.
 				t.Cleanup(func() {
 					runtime.GC()
-
 				})
 			}
 
@@ -1550,7 +1548,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				// This prevents TempDir RemoveAll cleanup errors on Windows.
 				t.Cleanup(func() {
 					runtime.GC()
-
 				})
 			}
 
@@ -1840,7 +1837,6 @@ web_identity_token_file = no-such-file
 				// This prevents TempDir RemoveAll cleanup errors on Windows.
 				t.Cleanup(func() {
 					runtime.GC()
-
 				})
 			}
 
@@ -2123,7 +2119,6 @@ region = us-west-2
 				// This prevents TempDir RemoveAll cleanup errors on Windows.
 				t.Cleanup(func() {
 					runtime.GC()
-
 				})
 			}
 
@@ -2249,7 +2244,6 @@ func TestBackendConfig_RetryMode(t *testing.T) {
 				// This prevents TempDir RemoveAll cleanup errors on Windows.
 				t.Cleanup(func() {
 					runtime.GC()
-
 				})
 			}
 

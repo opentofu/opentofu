@@ -363,8 +363,11 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 	}
 
 	// Ensure state is not nil by building and writing a test state.
-	testState := states.BuildState(func(ss *states.SyncState) {})
-	sm.WriteState(testState)
+	testState := states.BuildState(func(_ *states.SyncState) {})
+	err = sm.WriteState(testState)
+	if err != nil {
+		t.Errorf("error writing test state: %s", err)
+	}
 	state := sm.State()
 	if nil == state {
 		t.Fatal("nil state")
