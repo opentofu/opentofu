@@ -395,23 +395,25 @@ func (s *Filesystem) Unlock(id string) error {
 	} else {
 		log.Printf("[TRACE] statemgr.Filesystem: removed lock metadata file %s", lockInfoPath)
 	}
-	fileName := s.stateFileOut.Name()
-
 	unlockErr := s.unlock()
+	if s.stateFileOut != nil {
+		fileName := s.stateFileOut.Name()
 
-	s.stateFileOut.Close()
-	s.stateFileOut = nil
-	s.lockID = ""
+		s.stateFileOut.Close()
+		s.stateFileOut = nil
+		s.lockID = ""
 
-	// clean up the state file if we created it an never wrote to it
-	stat, err := os.Stat(fileName)
-	if err == nil && stat.Size() == 0 && s.created {
-		err = os.Remove(fileName)
-		if err != nil {
-			log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
+		// clean up the state file if we created it an never wrote to it
+		stat, err := os.Stat(fileName)
+		if err == nil && stat.Size() == 0 && s.created {
+			err = os.Remove(fileName)
+			if err != nil {
+				log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
+			}
 		}
-	}
 
+	}
+	s.lockID = ""
 	return unlockErr
 }
 

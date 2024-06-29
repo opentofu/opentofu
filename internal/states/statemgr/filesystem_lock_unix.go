@@ -30,6 +30,17 @@ func (s *Filesystem) lock() error {
 }
 
 func (s *Filesystem) unlock() error {
+
+	if s.stateFileOut == nil {
+		log.Print("TRACE] statemgr.Filesystem: statefileout is nil ")
+		return nil
+	}
+
+	fd := s.stateFileOut.Fd()
+	if fd == ^uintptr(0) {
+		log.Print("TRACE] statemgr.Filesystem: fd is 0 ")
+		return nil
+	}
 	log.Printf("[TRACE] statemgr.Filesystem: unlocking %s using fcntl flock", s.path)
 	flock := &syscall.Flock_t{
 		Type:   syscall.F_UNLCK,
@@ -38,6 +49,5 @@ func (s *Filesystem) unlock() error {
 		Len:    0,
 	}
 
-	fd := s.stateFileOut.Fd()
 	return syscall.FcntlFlock(fd, syscall.F_SETLK, flock)
 }
