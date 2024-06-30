@@ -103,7 +103,7 @@ func realMain() int {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
 
-	// Configure pedantic mode if it has been toggled
+	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
 	if _, ok := opts[optionPedantic]; ok {
 		args = append(args, fmt.Sprintf("-%s", optionPedantic))
 	}
