@@ -127,6 +127,12 @@ func (c *ConsoleCommand) Run(args []string) int {
 		}
 	}()
 
+	// Set up the UI so we can output directly to stdout
+	ui := &cli.BasicUi{
+		Writer:      os.Stdout,
+		ErrorWriter: os.Stderr,
+	}
+
 	evalOpts := &tofu.EvalOpts{}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
@@ -166,10 +172,10 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, c.Ui)
+		return c.modePiped(session, ui)
 	}
 
-	return c.modeInteractive(session, c.Ui)
+	return c.modeInteractive(session, ui)
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
@@ -177,7 +183,7 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		result, exit, diags := session.Handle(strings.TrimSpace(scanner.Text()))
-		if diags.HasErrors() {
+		if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 			// In piped mode we'll exit immediately on error.
 			c.showDiagnostics(diags)
 			return 1
