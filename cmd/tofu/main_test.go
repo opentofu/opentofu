@@ -415,7 +415,7 @@ func TestParseCommandArgs(t *testing.T) {
 		{"positive tc cmd and args", []string{"plan", "-state=file.tfstate"}, []string{"plan", "-state=file.tfstate"}},
 		{
 			"positive tc no options",
-			[]string{"-help", "-pedantic", "-chdir=target", "-version", "--version", "-v", "plan", "-state=file.tfstate"},
+			[]string{"-help", "-pedantic", "-chdir=target", "-version", "-v", "--version", "plan", "-state=file.tfstate"},
 			[]string{"plan", "-state=file.tfstate"},
 		},
 	}
