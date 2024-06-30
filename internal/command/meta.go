@@ -277,8 +277,8 @@ type Meta struct {
 	// Pedantic mode is used to treat warnings as errors
 	pedanticMode bool
 
-	// warningTriggered is used to indicate if a 'ui' warning has been triggered when in pedantic mode
-	warningTriggered bool
+	// warningFlagged is used to indicate if a warning has been triggered when in pedantic mode
+	warningFlagged bool
 }
 
 type testingOverrides struct {
@@ -669,7 +669,7 @@ func (m *Meta) process(args []string) []string {
 		newUi = &PedanticUi{
 			Ui: newUi,
 			WarningTrigger: func() {
-				m.warningTriggered = true
+				m.warningFlagged = true
 			},
 		}
 	}
@@ -744,6 +744,19 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	outputWidth := m.ErrorColumns()
 
 	diags = diags.ConsolidateWarnings(1)
+
+	// Convert warnings to errors if we are in pedantic mode
+	// We do this after consolidation of warnings to reduce the verbosity of the output
+	if m.pedanticMode {
+		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
+		for _, diag := range diags {
+			if diag.Severity() == tfdiags.Warning {
+				diag = tfdiags.Override(diag, tfdiags.Error, nil)
+			}
+			newDiags = newDiags.Append(diag)
+		}
+		diags = newDiags
+	}
 
 	// Since warning messages are generally competing
 	if m.compactWarnings {

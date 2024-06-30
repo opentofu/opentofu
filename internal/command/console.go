@@ -55,14 +55,14 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if encDiags.HasErrors() || c.pedanticMode && encDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if diags.HasErrors() {
+	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -72,7 +72,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if backendDiags.HasErrors() || c.pedanticMode && backendDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -105,7 +105,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		opReq.Variables, moreDiags = c.collectVariableValues()
 		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
-		if moreDiags.HasErrors() {
+		if moreDiags.HasErrors() || c.pedanticMode && moreDiags.HasWarnings() {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -114,7 +114,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if ctxDiags.HasErrors() {
+	if ctxDiags.HasErrors() || c.pedanticMode && ctxDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -122,16 +122,10 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Successfully creating the context can result in a lock, so ensure we release it
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
-		if diags.HasErrors() {
+		if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 			c.showDiagnostics(diags)
 		}
 	}()
-
-	// Set up the UI so we can output directly to stdout
-	ui := &cli.BasicUi{
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-	}
 
 	evalOpts := &tofu.EvalOpts{}
 	if lr.PlanOpts != nil {
@@ -156,7 +150,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// set the ConsoleMode to true so any available console-only functions included.
 	scope.ConsoleMode = true
 
-	if diags.HasErrors() {
+	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 		diags = diags.Append(tfdiags.SimpleWarning("Due to the problems above, some expressions may produce unexpected results."))
 	}
 
@@ -172,10 +166,10 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, ui)
+		return c.modePiped(session, c.Ui)
 	}
 
-	return c.modeInteractive(session, ui)
+	return c.modeInteractive(session, c.Ui)
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
