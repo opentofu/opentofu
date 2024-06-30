@@ -546,6 +546,7 @@ func parseGlobalOptions(args []string) (map[string]string, error) {
 func parseCommandArgs(args []string) []string {
 	var commandFound bool
 
+
 	newArgs := make([]string, 0)
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
@@ -555,7 +556,12 @@ func parseCommandArgs(args []string) []string {
 		}
 
 		if strings.HasPrefix(arg, "-") && !commandFound {
-			testArg := arg[1:]
+			testArg := strings.SplitN(arg[1:], "=", 2)[0]
+			if testArg == "v" || testArg == "-version" {
+				// Capture -version, -v and --version as the version option
+				testArg = optionVersion
+			}
+
 			if testArg == optionChDir || testArg == optionHelp || testArg == optionPedantic || testArg == optionVersion {
 				continue
 			}

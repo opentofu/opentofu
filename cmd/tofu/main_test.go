@@ -406,7 +406,25 @@ func TestParseGlobalOptions(t *testing.T) {
 	})
 }
 
-// TODO: Placeholder
 func TestParseCommandArgs(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected []string
+	}{
+		{"positive tc cmd and args", []string{"plan", "-state=file.tfstate"}, []string{"plan", "-state=file.tfstate"}},
+		{
+			"positive tc no options",
+			[]string{"-help", "-pedantic", "-chdir=target", "-version", "--version", "-v", "plan", "-state=file.tfstate"},
+			[]string{"plan", "-state=file.tfstate"},
+		},
+	}
 
+	var args []string
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			args = parseCommandArgs(tc.args)
+			assert.EqualValues(t, tc.expected, args)
+		})
+	}
 }
