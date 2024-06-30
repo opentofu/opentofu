@@ -39,7 +39,9 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// migrated to views.
 	c.Meta.color = !common.NoColor
 	c.Meta.Color = c.Meta.color
-	c.Meta.pedanticMode = common.PedanticMode
+
+	// Toggle pedantic mode
+	c.pedanticMode = common.PedanticMode
 
 	// Parse and validate flags
 	var args *arguments.Apply
