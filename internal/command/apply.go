@@ -155,8 +155,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	view.Diagnostics(diags)
-
-	if diags.HasErrors() || c.pedanticMode && (diags.HasWarnings() || c.warningTriggered) {
+	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 		return 1
 	}
 
