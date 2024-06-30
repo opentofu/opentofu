@@ -276,6 +276,9 @@ type Meta struct {
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// warningTriggered is used to indicate if a 'ui' warning has been triggered when in pedantic mode
+	warningTriggered bool
 }
 
 type testingOverrides struct {
@@ -652,16 +655,20 @@ func (m *Meta) process(args []string) []string {
 	// Set the UI
 	m.oldUi = m.Ui
 
-	var newUi cli.Ui
-	newUi = &ColorizeUi{
+	newUi := cli.Ui(&ColorizeUi{
 		Colorize:   m.Colorize(),
 		ErrorColor: "[red]",
 		WarnColor:  "[yellow]",
 		Ui:         m.oldUi,
-	}
+	})
 
 	if m.PedanticMode {
-		newUi = &PedanticUi{Ui: newUi}
+		newUi = &PedanticUi{
+			Ui: newUi,
+			WarningTrigger: func() {
+				m.warningTriggered = true
+			},
+		}
 	}
 
 	m.Ui = &cli.ConcurrentUi{Ui: newUi}
