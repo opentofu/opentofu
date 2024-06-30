@@ -96,6 +96,10 @@ func (c *CloudCommand) Run(args []string) int {
 		return 1
 	}
 
+	if c.pedanticMode && c.warningTriggered {
+		return 1
+	}
+
 	// TODO: Need to use some type of c.Meta handle here
 	return c.proxy(args, os.Stdout, os.Stderr)
 }
