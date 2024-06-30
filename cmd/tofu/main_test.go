@@ -383,8 +383,9 @@ func TestParseGlobalOptions(t *testing.T) {
 		{"positive tc 4 version", []string{"plan", "-state=file.tfstate", "-version"}, map[string]string{"version": ""}},
 		{"positive tc 5 version", []string{"plan", "-state=file.tfstate", "-v"}, map[string]string{"version": ""}},
 		{"positive tc 6 version", []string{"plan", "-state=file.tfstate", "--version"}, map[string]string{"version": ""}},
-		{"positive tc omit invalid", []string{"-help", "-random", "plan", "-state=file.tfstate"}, map[string]string{"help": ""}},
-		{"positive tc multi", []string{"-help", "-version", "plan", "-state=file.tfstate"}, map[string]string{"help": "", "version": ""}},
+		{"positive tc pedantic", []string{"-pedantic", "plan", "-state=file.tfstate"}, map[string]string{"pedantic": ""}},
+		{"positive tc help", []string{"-help", "plan", "-state=file.tfstate"}, map[string]string{"help": ""}},
+		{"positive tc omit invalid", []string{"-random", "plan", "-state=file.tfstate"}, map[string]string{}},
 		{"positive tc no options", []string{"plan", "-state=file.tfstate"}, map[string]string{}},
 	}
 
