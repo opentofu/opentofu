@@ -76,6 +76,10 @@ func (v *JSONView) StateDump(state string) {
 func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
 	sources := v.view.configSources()
 	for _, diag := range diags {
+		if v.view.pedanticMode {
+			diag = tfdiags.Override(diag, tfdiags.Error, nil)
+		}
+
 		diagnostic := json.NewDiagnostic(diag, sources)
 
 		args := []interface{}{"type", json.MessageDiagnostic, "diagnostic", diagnostic}

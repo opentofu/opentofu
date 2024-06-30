@@ -50,7 +50,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if diags.HasErrors() {
+	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -64,7 +64,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if encDiags.HasErrors() || c.pedanticMode && encDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -74,7 +74,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if backendDiags.HasErrors() || c.pedanticMode && backendDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -143,6 +143,10 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 				fmt.Sprintf(envChanged, name),
 			),
 		)
+	}
+
+	if c.pedanticMode && c.warningFlagged {
+		return 1
 	}
 
 	return 0
