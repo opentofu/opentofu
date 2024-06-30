@@ -98,6 +98,19 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	diags = diags.ConsolidateWarnings(1)
 
+	// Convert warnings to errors if we are in pedantic mode
+	// We do this after consolidation of warnings to reduce the verbosity of the output
+	if v.pedanticMode {
+		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
+		for _, diag := range diags {
+			if diag.Severity() == tfdiags.Warning {
+				diag = tfdiags.Override(diag, tfdiags.Error, nil)
+			}
+			newDiags = newDiags.Append(diag)
+		}
+		diags = newDiags
+	}
+
 	// Since warning messages are generally competing
 	if v.compactWarnings {
 		// If the user selected compact warnings and all of the diagnostics are
@@ -115,12 +128,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		if useCompact {
 			msg := format.DiagnosticWarningsCompact(diags, v.colorize)
 			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTofu without -compact-warnings.\n"
-
-			if v.pedanticMode {
-				v.streams.Eprint(msg)
-			} else {
-				v.streams.Print(msg)
-			}
+			v.streams.Print(msg)
 			return
 		}
 	}
@@ -133,8 +141,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			msg = format.Diagnostic(diag, v.configSources(), v.colorize, v.streams.Stderr.Columns())
 		}
 
-		severity := diag.Severity()
-		if severity == tfdiags.Error || v.pedanticMode && severity == tfdiags.Warning {
+		if diag.Severity() == tfdiags.Error {
 			v.streams.Eprint(msg)
 		} else {
 			v.streams.Print(msg)
