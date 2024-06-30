@@ -153,7 +153,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	view.Diagnostics(diags)
 
-	if diags.HasErrors() || c.PedanticMode && diags.HasWarnings() {
+	if diags.HasErrors() || c.PedanticMode && (diags.HasWarnings() || c.warningTriggered) {
 		return 1
 	}
 
