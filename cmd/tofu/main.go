@@ -505,9 +505,9 @@ func mkConfigDir(configDir string) error {
 }
 
 func parseGlobalOptions(args []string) (map[string]string, error) {
-	options := make(map[string]string)
-	commandFound := false
+	var commandFound bool
 
+	options := make(map[string]string)
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the command
@@ -544,9 +544,9 @@ func parseGlobalOptions(args []string) (map[string]string, error) {
 }
 
 func parseCommandArgs(args []string) []string {
-	newArgs := make([]string, 0)
-	commandFound := false
+	var commandFound bool
 
+	newArgs := make([]string, 0)
 	for _, arg := range args {
 		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the command
