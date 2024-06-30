@@ -180,9 +180,6 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
-	// Pedantic mode is used to treat warnings as errors
-	PedanticMode bool
-
 	//----------------------------------------------------------
 	// Protected: commands can set these
 	//----------------------------------------------------------
@@ -276,6 +273,9 @@ type Meta struct {
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// Pedantic mode is used to treat warnings as errors
+	pedanticMode bool
 
 	// warningTriggered is used to indicate if a 'ui' warning has been triggered when in pedantic mode
 	warningTriggered bool
@@ -641,10 +641,13 @@ func (m *Meta) process(args []string) []string {
 	m.color = m.Color
 	i := 0 // output index
 	for _, v := range args {
-		if v == "-no-color" {
+		switch v {
+		case "-no-color":
 			m.color = false
 			m.Color = false
-		} else {
+		case "-pedantic":
+			m.pedanticMode = true
+		default:
 			// copy and increment index
 			args[i] = v
 			i++
@@ -662,7 +665,7 @@ func (m *Meta) process(args []string) []string {
 		Ui:         m.oldUi,
 	})
 
-	if m.PedanticMode {
+	if m.pedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
 			WarningTrigger: func() {
@@ -679,7 +682,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
-			PedanticMode:    m.PedanticMode,
+			PedanticMode:    m.pedanticMode,
 		})
 	}
 

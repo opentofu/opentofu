@@ -41,6 +41,8 @@ func ParseView(args []string) (*View, []string) {
 			common.CompactWarnings = true
 		case "-concise":
 			common.Concise = true
+		case "-pedantic":
+			common.PedanticMode = true
 		default:
 			// Unsupported argument: move left to the current position, and
 			// increment the index.
