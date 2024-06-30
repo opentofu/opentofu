@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"runtime"
 	"testing"
 	"time"
 
@@ -49,11 +50,21 @@ func TestResourceProvider_Validate_bad(t *testing.T) {
 	}
 }
 
-var expectedScriptOut = `cd /tmp
+var expectedScriptOutUnix = `cd /tmp
 wget http://foobar
 exit 0
 `
 
+var expectedScriptOutWindows = `cd %TEMP%
+wget http://foobar
+exit 0`
+
+func getExpectedScriptOut() string {
+	if runtime.GOOS == "windows" {
+		return expectedScriptOutWindows
+	}
+	return expectedScriptOutUnix
+}
 func TestResourceProvider_generateScript(t *testing.T) {
 	inline := cty.ListVal([]cty.Value{
 		cty.StringVal("cd /tmp"),
@@ -70,7 +81,7 @@ func TestResourceProvider_generateScript(t *testing.T) {
 		t.Fatal("expected 1 out")
 	}
 
-	if out[0] != expectedScriptOut {
+	if out[0] != expectedScriptOutUnix {
 		t.Fatalf("bad: %v", out)
 	}
 }
@@ -112,7 +123,7 @@ func TestResourceProvider_CollectScripts_inline(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if out.String() != expectedScriptOut {
+	if out.String() != expectedScriptOutUnix {
 		t.Fatalf("bad: %v", out.String())
 	}
 }
@@ -120,10 +131,16 @@ func TestResourceProvider_CollectScripts_inline(t *testing.T) {
 func TestResourceProvider_CollectScripts_script(t *testing.T) {
 	p := New()
 	schema := p.GetSchema().Provisioner
+	var scriptfile string
+	if runtime.GOOS == "windows" {
+		scriptfile = "testdata/scriptwindows.sh"
+	} else {
+		scriptfile = "testdata/scrip1.sh"
+	}
 
 	conf, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
 		"scripts": cty.ListVal([]cty.Value{
-			cty.StringVal("testdata/script1.sh"),
+			cty.StringVal(scriptfile),
 		}),
 	}))
 	if err != nil {
@@ -145,6 +162,7 @@ func TestResourceProvider_CollectScripts_script(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	expectedScriptOut := getExpectedScriptOut()
 	if out.String() != expectedScriptOut {
 		t.Fatalf("bad: %v", out.String())
 	}
@@ -153,12 +171,18 @@ func TestResourceProvider_CollectScripts_script(t *testing.T) {
 func TestResourceProvider_CollectScripts_scripts(t *testing.T) {
 	p := New()
 	schema := p.GetSchema().Provisioner
+	var scriptfile string
+	if runtime.GOOS == "windows" {
+		scriptfile = "testdata/scriptwindows.sh"
+	} else {
+		scriptfile = "testdata/scrip1.sh"
+	}
 
 	conf, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
 		"scripts": cty.ListVal([]cty.Value{
-			cty.StringVal("testdata/script1.sh"),
-			cty.StringVal("testdata/script1.sh"),
-			cty.StringVal("testdata/script1.sh"),
+			cty.StringVal(scriptfile),
+			cty.StringVal(scriptfile),
+			cty.StringVal(scriptfile),
 		}),
 	}))
 	if err != nil {
@@ -181,6 +205,7 @@ func TestResourceProvider_CollectScripts_scripts(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
+		expectedScriptOut := getExpectedScriptOut()
 		if out.String() != expectedScriptOut {
 			t.Fatalf("bad: %v", out.String())
 		}
