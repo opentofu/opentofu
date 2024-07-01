@@ -7,7 +7,6 @@ package oss
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/testutils"
 )
 
 // verify that we are doing ACC tests or the OSS tests specifically
@@ -75,7 +75,7 @@ func TestBackendConfig(t *testing.T) {
 
 func TestBackendConfigWorkSpace(t *testing.T) {
 	testACC(t)
-	bucketName := fmt.Sprintf("terraform-backend-oss-test-%d", rand.Intn(1000))
+	bucketName := fmt.Sprintf("terraform-backend-oss-test-%d", testutils.RandomInt(0, 999))
 	config := map[string]interface{}{
 		"region":              "cn-beijing",
 		"bucket":              bucketName,
