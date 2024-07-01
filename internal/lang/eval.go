@@ -521,14 +521,15 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	var into map[string]map[string]cty.Value
 
-	//nolint:exhaustive // InvalidResourceMode is checked in default.
 	switch res.Mode {
 	case addrs.ManagedResourceMode:
 		into = b.managedResources
 	case addrs.DataResourceMode:
 		into = b.dataResources
+	case addrs.InvalidResourceMode:
+		panic("BUG: got invalid resource mode")
 	default:
-		panic(fmt.Errorf("unsupported ResourceMode %s", res.Mode))
+		panic(fmt.Errorf("BUG: got undefined ResourceMode %s", res.Mode))
 	}
 
 	val, diags := normalizeRefValue(b.s.Data.GetResource(res, rng))
