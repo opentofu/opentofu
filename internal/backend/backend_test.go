@@ -80,7 +80,7 @@ func TestRead_PathNoPermission(t *testing.T) {
 
 	if runtime.GOOS == "windows" {
 		// Use cacls to remove all permissions for this file on Windows
-		cmd := exec.Command("cmd", "/c", "cacls", f.Name(), "/E", "/R", os.Getenv("USERNAME"))
+		cmd := exec.Command("cmd", "/c", "cacls", f.Name(), "/E", "/R", os.Getenv("USERNAME")) // #nosec G204
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Failed to set file permissions with cacls: %s", err)
 		}

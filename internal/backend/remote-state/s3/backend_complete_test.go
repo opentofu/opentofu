@@ -148,6 +148,8 @@ func (m noopMatcher) String() string {
 	return ""
 }
 
+const osWindows = "windows"
+
 func TestBackendConfig_Authentication(t *testing.T) {
 	testDirectory := t.TempDir()
 	sysRoot := os.Getenv("SYSTEMROOT")
@@ -639,7 +641,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			servicemocks.InitSessionTestEnv(t)
 
 			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == osWindows {
 				t.Setenv("TEMP", testDirectory)
 				t.Setenv("TMP", testDirectory)
 				t.Setenv("SYSTEMROOT", sysRoot)
@@ -1121,7 +1123,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			servicemocks.InitSessionTestEnv(t)
 
 			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == osWindows {
 				t.Setenv("TEMP", testDirectory)
 				t.Setenv("TMP", testDirectory)
 				t.Setenv("SYSTEMROOT", sysRoot)
@@ -1539,7 +1541,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 			servicemocks.InitSessionTestEnv(t)
 
 			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == osWindows {
 				t.Setenv("TEMP", testDirectory)
 				t.Setenv("TMP", testDirectory)
 				t.Setenv("SYSTEMROOT", sysRoot)
@@ -1828,7 +1830,7 @@ web_identity_token_file = no-such-file
 			servicemocks.InitSessionTestEnv(t)
 
 			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == osWindows {
 				t.Setenv("TEMP", testDirectory)
 				t.Setenv("TMP", testDirectory)
 				t.Setenv("SYSTEMROOT", sysRoot)
@@ -1879,7 +1881,7 @@ web_identity_token_file = no-such-file
 			if tc.ExpandEnvVars {
 				var prefix string
 				tmpdir := os.Getenv("TMPDIR")
-				if runtime.GOOS == "windows" {
+				if runtime.GOOS == osWindows {
 					tmpdir = os.Getenv("TEMP")
 					prefix = tmpdir
 				} else {
@@ -2110,7 +2112,7 @@ region = us-west-2
 			servicemocks.InitSessionTestEnv(t)
 
 			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == osWindows {
 				t.Setenv("TEMP", testDirectory)
 				t.Setenv("TMP", testDirectory)
 				t.Setenv("SYSTEMROOT", sysRoot)
@@ -2235,7 +2237,7 @@ func TestBackendConfig_RetryMode(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
 			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == osWindows {
 				t.Setenv("TEMP", testDirectory)
 				t.Setenv("TMP", testDirectory)
 				t.Setenv("SYSTEMROOT", sysRoot)

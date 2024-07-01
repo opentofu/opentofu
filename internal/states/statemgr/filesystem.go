@@ -407,7 +407,7 @@ func (s *Filesystem) Unlock(id string) error {
 		s.stateFileOut = nil
 		s.lockID = ""
 
-		// Clean up the state file if we created it an never wrote to it
+		// Clean up the state file if we created it and never wrote to it
 		stat, err := os.Stat(fileName)
 		if err == nil && stat.Size() == 0 && s.created {
 			err = os.Remove(fileName)
@@ -415,7 +415,6 @@ func (s *Filesystem) Unlock(id string) error {
 				log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
 			}
 		}
-
 	}
 	s.lockID = ""
 	return unlockErr
