@@ -473,47 +473,45 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 		rawSubj = addr.Call.Call
 	}
 
-	normalizeRefValue := func(val cty.Value, inDiags tfdiags.Diagnostics) cty.Value {
-		normV, normDiags := normalizeRefValue(val, inDiags)
-		diags = diags.Append(normDiags)
-		return normV
-	}
+	var normDiags tfdiags.Diagnostics
 
 	switch subj := rawSubj.(type) {
 	case addrs.Resource:
 		diags = diags.Append(b.putResourceValue(subj, rng))
 
 	case addrs.ModuleCall:
-		b.wholeModules[subj.Name] = normalizeRefValue(b.s.Data.GetModule(subj, rng))
+		b.wholeModules[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetModule(subj, rng))
 
 	case addrs.InputVariable:
-		b.inputVariables[subj.Name] = normalizeRefValue(b.s.Data.GetInputVariable(subj, rng))
+		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(subj, rng))
 
 	case addrs.LocalValue:
-		b.localValues[subj.Name] = normalizeRefValue(b.s.Data.GetLocalValue(subj, rng))
+		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(subj, rng))
 
 	case addrs.PathAttr:
-		b.pathAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetPathAttr(subj, rng))
+		b.pathAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetPathAttr(subj, rng))
 
 	case addrs.TerraformAttr:
-		b.terraformAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetTerraformAttr(subj, rng))
+		b.terraformAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetTerraformAttr(subj, rng))
 
 	case addrs.CountAttr:
-		b.countAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetCountAttr(subj, rng))
+		b.countAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCountAttr(subj, rng))
 
 	case addrs.ForEachAttr:
-		b.forEachAttrs[subj.Name] = normalizeRefValue(b.s.Data.GetForEachAttr(subj, rng))
+		b.forEachAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetForEachAttr(subj, rng))
 
 	case addrs.OutputValue:
-		b.outputValues[subj.Name] = normalizeRefValue(b.s.Data.GetOutput(subj, rng))
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetOutput(subj, rng))
 
 	case addrs.Check:
-		b.outputValues[subj.Name] = normalizeRefValue(b.s.Data.GetCheckBlock(subj, rng))
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(subj, rng))
 
 	default:
 		// Should never happen
 		panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))
 	}
+
+	diags = diags.Append(normDiags)
 
 	return diags
 }
