@@ -7,6 +7,7 @@ package lang
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -428,16 +429,7 @@ func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.R
 	// self can only be used within a resource instance
 	subj, ok := selfAddr.(addrs.ResourceInstance)
 	if !ok {
-		return diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  `Invalid "self" reference`,
-			// This detail message mentions some current practice that
-			// this codepath doesn't really "know about". If the "self"
-			// object starts being supported in more contexts later then
-			// we'll need to adjust this message.
-			Detail:  `The "self" object is not available in this context. This object can be used only in resource provisioner, connection, and postcondition blocks.`,
-			Subject: ref.SourceRange.ToHCL().Ptr(),
-		})
+		panic("BUG: self addr must be a resource instance, got " + reflect.TypeOf(selfAddr).String())
 	}
 
 	val, valDiags := normalizeRefValue(b.s.Data.GetResource(subj.ContainingResource(), ref.SourceRange))
