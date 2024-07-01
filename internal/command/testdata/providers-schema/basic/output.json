@@ -54,6 +54,28 @@
                         "description_kind": "plain"
                     }
                 }
+            },
+            "functions": {
+                "test_func": {
+                    "description": "a basic string function",
+                    "summary": "test",
+                    "return_type": "string",
+                    "parameters": [
+                        {
+                            "name": "input",
+                            "description": "",
+                            "type": "number"
+                        }
+                    ],
+                    "variadic_parameter": {
+                        "name": "variadic_input",
+                        "description": "",
+                        "type": [
+                            "list",
+                            "bool"
+                        ]
+                    }
+                }
             }
         }
     }
