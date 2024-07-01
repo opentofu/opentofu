@@ -24,9 +24,10 @@ type Providers struct {
 }
 
 type Provider struct {
-	Provider          *Schema            `json:"provider,omitempty"`
-	ResourceSchemas   map[string]*Schema `json:"resource_schemas,omitempty"`
-	DataSourceSchemas map[string]*Schema `json:"data_source_schemas,omitempty"`
+	Provider          *Schema              `json:"provider,omitempty"`
+	ResourceSchemas   map[string]*Schema   `json:"resource_schemas,omitempty"`
+	DataSourceSchemas map[string]*Schema   `json:"data_source_schemas,omitempty"`
+	Functions         map[string]*Function `json:"functions,omitempty"`
 }
 
 func newProviders() *Providers {
@@ -61,5 +62,6 @@ func marshalProvider(tps providers.ProviderSchema) *Provider {
 		Provider:          marshalSchema(tps.Provider),
 		ResourceSchemas:   marshalSchemas(tps.ResourceTypes),
 		DataSourceSchemas: marshalSchemas(tps.DataSources),
+		Functions:         marshalFunctions(tps.Functions),
 	}
 }
