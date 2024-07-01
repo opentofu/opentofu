@@ -114,6 +114,7 @@ type providerSchema struct {
 	Provider          interface{}            `json:"provider,omitempty"`
 	ResourceSchemas   map[string]interface{} `json:"resource_schemas,omitempty"`
 	DataSourceSchemas map[string]interface{} `json:"data_source_schemas,omitempty"`
+	Functions         map[string]interface{} `json:"functions,omitempty"`
 }
 
 // testProvider returns a mock provider that is configured for basic
@@ -152,6 +153,21 @@ func providersSchemaFixtureSchema() *providers.GetProviderSchemaResponse {
 							Optional: true,
 						},
 					},
+				},
+			},
+		},
+		Functions: map[string]providers.FunctionSpec{
+			"test_func": {
+				Description: "a basic string function",
+				Return:      cty.String,
+				Summary:     "test",
+				Parameters: []providers.FunctionParameterSpec{{
+					Name: "input",
+					Type: cty.Number,
+				}},
+				VariadicParameter: &providers.FunctionParameterSpec{
+					Name: "variadic_input",
+					Type: cty.List(cty.Bool),
 				},
 			},
 		},
