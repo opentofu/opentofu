@@ -311,6 +311,7 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 	// produce an EvalContext with no parent.
 	ctx := parent.NewChild()
 	ctx.Functions = make(map[string]function.Function)
+	ctx.Variables = make(map[string]cty.Value)
 
 	for name, fn := range s.Functions() {
 		ctx.Functions[name] = fn
@@ -318,8 +319,6 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 
 	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
-		// We didn't populate variables yet so we just leave it empty.
-		ctx.Variables = make(map[string]cty.Value)
 		return ctx, diags
 	}
 
@@ -365,7 +364,7 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 		diags = diags.Append(varBuilder.putValueBySubject(ref))
 	}
 
-	ctx.Variables = varBuilder.buildAllVariables()
+	varBuilder.buildAllVariablesInto(ctx.Variables)
 
 	return ctx, diags
 }
@@ -550,9 +549,7 @@ func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.Source
 	return diags
 }
 
-func (b *evalVarBuilder) buildAllVariables() map[string]cty.Value {
-	vals := make(map[string]cty.Value)
-
+func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	// Managed resources are exposed in two different locations. The primary
 	// is at the top level where the resource type name is the root of the
 	// traversal, but we also expose them under "resource" as an escaping
@@ -585,8 +582,6 @@ func (b *evalVarBuilder) buildAllVariables() map[string]cty.Value {
 	if b.self != cty.NilVal {
 		vals["self"] = b.self
 	}
-
-	return vals
 }
 
 func buildResourceObjects(resources map[string]map[string]cty.Value) map[string]cty.Value {
