@@ -17,7 +17,7 @@ import (
 
 // This exercises most of the logic in StaticEvaluator and staticScopeData
 //
-//nolint:gocognit,cyclop // it's a test
+//nolint:cyclop // it's a test
 func TestStaticEvaluator_Evaluate(t *testing.T) {
 	// Synthetic file for building test components
 	testData := `
