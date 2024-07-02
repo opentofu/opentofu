@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -55,6 +56,12 @@ func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diag
 func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider providers.Interface) (diags tfdiags.Diagnostics) {
 
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
+
+	// If a provider configuration is of type TestProviderConfig, then skip the validation,
+	// and its value should be evaluated before the Plan operation.
+	if _, ok := configBody.(*configs.TestProviderConfig); ok {
+		return nil
+	}
 
 	// if a provider config is empty (only an alias), return early and don't continue
 	// validation. validate doesn't need to fully configure the provider itself, so
@@ -113,10 +120,27 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 	}
 
 	configSchema := resp.Provider.Block
-	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
-	diags = diags.Append(evalDiags)
-	if evalDiags.HasErrors() {
-		return diags
+
+	var configVal cty.Value
+	var evalDiags tfdiags.Diagnostics
+
+	// Check if the config body is of type TestProviderConfig.
+	// Use the value directly if available
+	testProviderConfig, isTestProviderConfig := configBody.(*configs.TestProviderConfig)
+	if isTestProviderConfig && testProviderConfig.Value != nil {
+		configVal = *testProviderConfig.Value
+	} else {
+		configVal, configBody, evalDiags = ctx.EvaluateBlock(configBody, configSchema, nil, EvalDataForNoInstanceKey)
+		diags = diags.Append(evalDiags)
+		if evalDiags.HasErrors() {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to evaluate the value for the HCL body",
+				Detail:   "The evaluation of the HCL body failed against the provided schema constraints due to dependencies on values that can only be resolved during the apply.",
+				Subject:  &config.DeclRange,
+			})
+			return diags
+		}
 	}
 
 	if verifyConfigIsKnown && !configVal.IsWhollyKnown() {
