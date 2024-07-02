@@ -122,8 +122,11 @@ func (ri *ImportResolver) ExpandAndResolveImport(importTarget *ImportTarget, ctx
 	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
 
 	if importTarget.Config.ForEach != nil {
+		const unknownsNotAllowed = false
+		const tupleAllowed = true
+
 		// The import target has a for_each attribute, so we need to expand it
-		forEachVal, evalDiags := evaluateForEachExpressionValue(importTarget.Config.ForEach, rootCtx, false, true)
+		forEachVal, evalDiags := evaluateForEachExpressionValue(importTarget.Config.ForEach, rootCtx, unknownsNotAllowed, tupleAllowed)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			return diags
@@ -166,7 +169,7 @@ func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalCont
 		return diags
 	}
 
-	importAddress, addressDiags := ctx.EvaluateImportAddress(importTarget.Config.To, keyData)
+	importAddress, addressDiags := evaluateImportAddress(ctx, importTarget.Config.To, keyData)
 	diags = diags.Append(addressDiags)
 	if diags.HasErrors() {
 		return diags

@@ -129,10 +129,6 @@ type EvalContext interface {
 	// indicating if that reference forces replacement.
 	EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics)
 
-	// EvaluateImportAddress takes the raw reference expression of the import address
-	// from the config, and returns the evaluated address addrs.AbsResourceInstance
-	EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
-
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.
 	EvaluationScope(self addrs.Referenceable, source addrs.Referenceable, keyData InstanceKeyEvalData) *lang.Scope
