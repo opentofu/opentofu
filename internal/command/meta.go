@@ -273,6 +273,12 @@ type Meta struct {
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// Pedantic mode is used to treat warnings as errors
+	pedanticMode bool
+
+	// legacyWarningFlagged is used to indicate if a warning has been triggered via the legacy ui when in pedantic mode
+	legacyWarningFlagged bool
 }
 
 type testingOverrides struct {
@@ -635,10 +641,13 @@ func (m *Meta) process(args []string) []string {
 	m.color = m.Color
 	i := 0 // output index
 	for _, v := range args {
-		if v == "-no-color" {
+		switch v {
+		case "-no-color":
 			m.color = false
 			m.Color = false
-		} else {
+		case "-pedantic":
+			m.pedanticMode = true
+		default:
 			// copy and increment index
 			args[i] = v
 			i++
@@ -648,14 +657,24 @@ func (m *Meta) process(args []string) []string {
 
 	// Set the UI
 	m.oldUi = m.Ui
-	m.Ui = &cli.ConcurrentUi{
-		Ui: &ColorizeUi{
-			Colorize:   m.Colorize(),
-			ErrorColor: "[red]",
-			WarnColor:  "[yellow]",
-			Ui:         m.oldUi,
-		},
+
+	newUi := cli.Ui(&ColorizeUi{
+		Colorize:   m.Colorize(),
+		ErrorColor: "[red]",
+		WarnColor:  "[yellow]",
+		Ui:         m.oldUi,
+	})
+
+	if m.pedanticMode {
+		newUi = &PedanticUi{
+			Ui: newUi,
+			WarningTrigger: func() {
+				m.legacyWarningFlagged = true
+			},
+		}
 	}
+
+	m.Ui = &cli.ConcurrentUi{Ui: newUi}
 
 	// Reconfigure the view. This is necessary for commands which use both
 	// views.View and cli.Ui during the migration phase.
@@ -663,6 +682,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
+			PedanticMode:    m.pedanticMode,
 		})
 	}
 
@@ -724,6 +744,19 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	outputWidth := m.ErrorColumns()
 
 	diags = diags.ConsolidateWarnings(1)
+
+	// Convert warnings to errors if we are in pedantic mode
+	// We do this after consolidation of warnings to reduce the verbosity of the output
+	if m.pedanticMode {
+		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
+		for _, diag := range diags {
+			if diag.Severity() == tfdiags.Warning {
+				diag = tfdiags.Override(diag, tfdiags.Error, nil)
+			}
+			newDiags = newDiags.Append(diag)
+		}
+		diags = newDiags
+	}
 
 	// Since warning messages are generally competing
 	if m.compactWarnings {

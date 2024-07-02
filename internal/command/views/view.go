@@ -38,6 +38,9 @@ type View struct {
 	// will be dereferenced as late as possible when rendering diagnostics in
 	// order to access the config loader cache.
 	configSources func() map[string][]byte
+
+	// Pedantic mode is used to treat warnings as errors
+	pedanticMode bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -75,6 +78,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
+	v.pedanticMode = view.PedanticMode
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -93,6 +97,19 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 
 	diags = diags.ConsolidateWarnings(1)
+
+	// Convert warnings to errors if we are in pedantic mode
+	// We do this after consolidation of warnings to reduce the verbosity of the output
+	if v.pedanticMode {
+		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
+		for _, diag := range diags {
+			if diag.Severity() == tfdiags.Warning {
+				diag = tfdiags.Override(diag, tfdiags.Error, nil)
+			}
+			newDiags = newDiags.Append(diag)
+		}
+		diags = newDiags
+	}
 
 	// Since warning messages are generally competing
 	if v.compactWarnings {

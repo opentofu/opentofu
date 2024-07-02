@@ -41,6 +41,12 @@ const (
 
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
+
+	// Global options
+	optionChDir    = "chdir"
+	optionHelp     = "help"
+	optionPedantic = "pedantic"
+	optionVersion  = "version"
 )
 
 // ui wraps the primary output cli.Ui, and redirects Warn calls to Output
@@ -70,6 +76,37 @@ func realMain() int {
 	defer logging.PanicHandler()
 
 	var err error
+
+	binName := filepath.Base(os.Args[0])
+	args := os.Args[1:]
+
+	// Get the global options from the command args
+	opts, err := parseGlobalOptions(args)
+	if err != nil {
+		Ui.Error(err.Error())
+		return 1
+	}
+
+	// Parse the command args and remove any global options that are present
+	args = parseCommandArgs(args)
+
+	// Set to the version command if version has been toggled
+	if _, ok := opts[optionVersion]; ok {
+		newArgs := make([]string, len(args)+1)
+		newArgs = append(newArgs, "version")
+		copy(newArgs[1:], args)
+		args = newArgs
+	}
+
+	// Attach the help option to the command args to activate help if it has been toggled
+	if _, ok := opts[optionHelp]; ok {
+		args = append(args, fmt.Sprintf("-%s", optionHelp))
+	}
+
+	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
+	if _, ok := opts[optionPedantic]; ok {
+		args = append(args, fmt.Sprintf("-%s", optionPedantic))
+	}
 
 	err = openTelemetryInit()
 	if err != nil {
@@ -215,10 +252,6 @@ func realMain() int {
 	// Initialize the backends.
 	backendInit.Init(services)
 
-	// Get the command line args.
-	binName := filepath.Base(os.Args[0])
-	args := os.Args[1:]
-
 	originalWd, err := os.Getwd()
 	if err != nil {
 		// It would be very strange to end up here
@@ -229,12 +262,7 @@ func realMain() int {
 	// The arguments can begin with a -chdir option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work. If that
 	// option is present then extractChdirOption returns a trimmed args with that option removed.
-	overrideWd, args, err := extractChdirOption(args)
-	if err != nil {
-		Ui.Error(fmt.Sprintf("Invalid -chdir option: %s", err))
-		return 1
-	}
-	if overrideWd != "" {
+	if overrideWd, ok := opts[optionChDir]; ok {
 		err := os.Chdir(overrideWd)
 		if err != nil {
 			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
@@ -457,52 +485,6 @@ func parseReattachProviders(in string) (map[addrs.Provider]*plugin.ReattachConfi
 	return unmanagedProviders, nil
 }
 
-func extractChdirOption(args []string) (string, []string, error) {
-	if len(args) == 0 {
-		return "", args, nil
-	}
-
-	const argName = "-chdir"
-	const argPrefix = argName + "="
-	var argValue string
-	var argPos int
-
-	for i, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			// Because the chdir option is a subcommand-agnostic one, we require
-			// it to appear before any subcommand argument, so if we find a
-			// non-option before we find -chdir then we are finished.
-			break
-		}
-		if arg == argName || arg == argPrefix {
-			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
-		}
-		if strings.HasPrefix(arg, argPrefix) {
-			argPos = i
-			argValue = arg[len(argPrefix):]
-		}
-	}
-
-	// When we fall out here, we'll have populated argValue with a non-empty
-	// string if the -chdir=... option was present and valid, or left it
-	// empty if it wasn't present.
-	if argValue == "" {
-		return "", args, nil
-	}
-
-	// If we did find the option then we'll need to produce a new args that
-	// doesn't include it anymore.
-	if argPos == 0 {
-		// Easy case: we can just slice off the front
-		return argValue, args[1:], nil
-	}
-	// Otherwise we need to construct a new array and copy to it.
-	newArgs := make([]string, len(args)-1)
-	copy(newArgs, args[:argPos])
-	copy(newArgs[argPos:], args[argPos+1:])
-	return argValue, newArgs, nil
-}
-
 // Creates the configuration directory.
 // `configDir` should refer to `~/.terraform.d`, `$XDG_CONFIG_HOME/opentofu` or its equivalent
 // on non-UNIX platforms.
@@ -520,4 +502,71 @@ func mkConfigDir(configDir string) error {
 	}
 
 	return err
+}
+
+func parseGlobalOptions(args []string) (map[string]string, error) {
+	options := make(map[string]string)
+	var commandFound bool
+
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			// Global options are processed before the command
+			// Flag that we have found the command
+			commandFound = true
+		}
+
+		option := strings.SplitN(arg[1:], "=", 2)
+
+		// Retain backwards compatibility as version option historically can be anywhere on the arg list
+		if option[0] == optionVersion || option[0] == "v" || option[0] == "-version" {
+			// Capture -version, -v and --version as the version option
+			option[0] = optionVersion
+		} else {
+			if commandFound || option[0] != optionChDir && option[0] != optionHelp && option[0] != optionPedantic {
+				continue
+			}
+
+			if option[0] == optionChDir {
+				if len(option) != 2 {
+					return nil, fmt.Errorf(
+						"invalid global option -%[1]s: must include an equals sign followed by a value: -%[1]s=value", option[0])
+				}
+			}
+		}
+
+		if len(option) != 2 {
+			option = append(option, "")
+		}
+		options[option[0]] = option[1]
+	}
+
+	return options, nil
+}
+
+func parseCommandArgs(args []string) []string {
+	newArgs := make([]string, 0)
+	var commandFound bool
+
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			// Global options are processed before the command
+			// Flag that we have found the command
+			commandFound = true
+		}
+
+		if strings.HasPrefix(arg, "-") && !commandFound {
+			testArg := strings.SplitN(arg[1:], "=", 2)[0]
+			if testArg == "v" || testArg == "-version" {
+				// Capture -version, -v and --version as the version option
+				testArg = optionVersion
+			}
+
+			if testArg == optionChDir || testArg == optionHelp || testArg == optionPedantic || testArg == optionVersion {
+				continue
+			}
+		}
+		newArgs = append(newArgs, arg)
+	}
+
+	return newArgs
 }
