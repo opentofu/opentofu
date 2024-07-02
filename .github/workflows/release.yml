@@ -18,7 +18,7 @@ on:
 jobs:
   release:
     name: Release
-    runs-on: larger-runners
+    runs-on: ubuntu-latest
     environment: gpg
     permissions:
       contents: write
@@ -40,7 +40,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag }}
@@ -87,7 +87,7 @@ jobs:
         uses: ./.github/actions/go-version
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
