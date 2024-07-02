@@ -127,12 +127,6 @@ func (c *ConsoleCommand) Run(args []string) int {
 		}
 	}()
 
-	// Set up the UI so we can output directly to stdout
-	ui := &cli.BasicUi{
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-	}
-
 	evalOpts := &tofu.EvalOpts{}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
@@ -156,7 +150,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// set the ConsoleMode to true so any available console-only functions included.
 	scope.ConsoleMode = true
 
-	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+	if diags.HasErrors() {
 		diags = diags.Append(tfdiags.SimpleWarning("Due to the problems above, some expressions may produce unexpected results."))
 	}
 
@@ -172,10 +166,10 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, ui)
+		return c.modePiped(session, c.Ui)
 	}
 
-	return c.modeInteractive(session, ui)
+	return c.modeInteractive(session, c.Ui)
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
