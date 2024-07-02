@@ -2,10 +2,9 @@ package hcl2shim
 
 import (
 	"fmt"
-	"math/rand"
-	"strings"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/testutils"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -336,18 +335,6 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 }
 
 func getRandomAlphaNumString() string {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-
 	const minLength, maxLength = 4, 16
-
-	length := rand.Intn(maxLength-minLength) + minLength //nolint:gosec // It doesn't need to be secure.
-
-	b := strings.Builder{}
-	b.Grow(length)
-
-	for i := 0; i < length; i++ {
-		b.WriteByte(chars[rand.Intn(len(chars))]) //nolint:gosec // It doesn't need to be secure.
-	}
-
-	return b.String()
+	return testutils.RandomID(uint(testutils.RandomInt(minLength, maxLength)), testutils.CharacterRangeAlphaNumeric)
 }
