@@ -375,31 +375,43 @@ func TestParseCommandArgs(t *testing.T) {
 		args     []string
 		expectedOpts map[string]string
 		expectedArgs []string
+		expectedErr error
 	}{
 		{
 			"positive tc options and args",
 			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "-state=file.tfstate"},
 			map[string]string{"chdir": "target", "help": "", "pedantic": "", "version": ""},
 			[]string{"plan", "-state=file.tfstate"},
+			nil,
 		},
 		{
 			"positive tc version option",
 			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
 			map[string]string{"version": ""},
 			[]string{"plan", "-state=file.tfstate"},
+			nil,
 		},
 		{
 			"positive tc invalid option before subcommand",
 			[]string{"-random", "plan", "-state=file.tfstate"},
 			map[string]string{},
 			[]string{"-random", "plan", "-state=file.tfstate"},
+			nil,
+		},
+		{
+			"negative tc chdir",
+			[]string{"-chdir", "plan", "-state=file.tfstate"},
+			nil,
+			nil,
+			fmt.Errorf("invalid global opt -chdir: must include an equals sign followed by a value: -chdir=value"),
 		},
 	}
 
-	var opts map[string]string
-	var args []string
-
-	var err error
+	var (
+		opts map[string]string
+		args []string
+		err error
+	)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -413,26 +425,9 @@ func TestParseCommandArgs(t *testing.T) {
 				t.Fatalf("expected: %v got: %v", tc.expectedArgs, args)
 			}
 
-			if err != nil {
-				t.Fatalf("expected: %v got: %v", nil, err)
+			if !reflect.DeepEqual(err, tc.expectedErr) {
+				t.Fatalf("expected: %v got: %v", tc.expectedArgs, args)
 			}
 		})
 	}
-
-	t.Run("negative tc chdir", func(t *testing.T) {
-		opts, args, err = parseCommandArgs([]string{"-chdir", "plan", "-state=file.tfstate"})
-
-		if opts != nil {
-			t.Fatalf("expected: %v got: %v", nil, opts)
-		}
-
-		if opts != nil {
-			t.Fatalf("expected: %v got: %v", nil, opts)
-		}
-
-		expectedError := fmt.Sprintf("invalid global opt -chdir: must include an equals sign followed by a value: -chdir=value")
-		if err == nil {
-			t.Fatalf("expected: %v got: %v", expectedError, err)
-		}
-	})
 }

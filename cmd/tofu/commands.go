@@ -51,22 +51,24 @@ var primaryCommands []string
 // hiddenCommands set, because that would be rather silly.
 var hiddenCommands map[string]struct{}
 
-// MetaCommand is the interface required to wrap a meta command and check if a pedantic warning has been flagged
-type MetaCommand interface {
+// Ui is the cli.Ui used for communicating to the outside world.
+var Ui cli.Ui
+
+// PedanticCommand is the interface which defines the required functions for the pedantic mode functionality
+type PedanticCommand interface {
 	cli.Command
 	WarningFlagged() bool
 }
 
-// Command wrapper for meta commands
-type commandWrapper struct {
-	MetaCommand
+// pedanticCommand is a wrapper around commands which implement the PedanticCommand interface
+type pedanticCommand struct {
+	PedanticCommand
 }
 
-// Run runs the command and returns the appropriate return code based on whether a
-// pedantic warning has been flagged or not
-func (cw *commandWrapper) Run(args []string) int {
-	retCode := cw.MetaCommand.Run(args)
-	if cw.MetaCommand.WarningFlagged() {
+// Run runs the command returning the appropriate code based on whether a warning has been flagged
+func (cw *pedanticCommand) Run(args []string) int {
+	retCode := cw.PedanticCommand.Run(args)
+	if cw.PedanticCommand.WarningFlagged() {
 		retCode = 1
 	}
 	return retCode
@@ -81,7 +83,6 @@ func initCommands(
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
-	ui cli.Ui,
 ) {
 	var inAutomation bool
 	if v := os.Getenv(runningInAutomationEnvName); v != "" {
@@ -112,7 +113,7 @@ func initCommands(
 
 		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),
-		Ui:               ui,
+		Ui:               Ui,
 
 		Services:        services,
 		BrowserLauncher: webbrowser.NewNativeLauncher(),
@@ -141,24 +142,24 @@ func initCommands(
 
 	commands = map[string]cli.CommandFactory{
 		"apply": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ApplyCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ApplyCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"console": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ConsoleCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ConsoleCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"destroy": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ApplyCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ApplyCommand{
 					Meta:    meta,
 					Destroy: true,
 				},
@@ -166,8 +167,8 @@ func initCommands(
 		},
 
 		"env": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceCommand{
 					Meta:       meta,
 					LegacyName: true,
 				},
@@ -175,8 +176,8 @@ func initCommands(
 		},
 
 		"env list": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceListCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceListCommand{
 					Meta: meta,
 					LegacyName: true,
 				},
@@ -184,8 +185,8 @@ func initCommands(
 		},
 
 		"env select": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceSelectCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceSelectCommand{
 					Meta: meta,
 					LegacyName: true,
 				},
@@ -193,8 +194,8 @@ func initCommands(
 		},
 
 		"env new": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceNewCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceNewCommand{
 					Meta:       meta,
 					LegacyName: true,
 				},
@@ -202,8 +203,8 @@ func initCommands(
 		},
 
 		"env delete": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceDeleteCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceDeleteCommand{
 					Meta:       meta,
 					LegacyName: true,
 				},
@@ -211,176 +212,176 @@ func initCommands(
 		},
 
 		"fmt": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.FmtCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.FmtCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"get": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.GetCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.GetCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"graph": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.GraphCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.GraphCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"import": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ImportCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ImportCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"init": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.InitCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.InitCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"login": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.LoginCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.LoginCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"logout": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.LogoutCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.LogoutCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"metadata": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.MetadataCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.MetadataCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"metadata functions": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.MetadataFunctionsCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.MetadataFunctionsCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"output": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.OutputCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.OutputCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"plan": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.PlanCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.PlanCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"providers": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ProvidersCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ProvidersCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"providers lock": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ProvidersLockCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ProvidersLockCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"providers mirror": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ProvidersMirrorCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ProvidersMirrorCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"providers schema": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ProvidersSchemaCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ProvidersSchemaCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"push": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.PushCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.PushCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"refresh": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.RefreshCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.RefreshCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"show": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ShowCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ShowCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"taint": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.TaintCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.TaintCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"test": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.TestCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.TestCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"validate": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.ValidateCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.ValidateCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"version": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.VersionCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.VersionCommand{
 					Meta:              meta,
 					Version:           Version,
 					VersionPrerelease: VersionPrerelease,
@@ -390,47 +391,47 @@ func initCommands(
 		},
 
 		"untaint": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.UntaintCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.UntaintCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"workspace": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"workspace list": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceListCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceListCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"workspace select": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceSelectCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceSelectCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"workspace show": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceShowCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceShowCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"workspace new": func() (cli.Command, error) {
-			return &commandWrapper{
+			return &pedanticCommand{
 				&command.WorkspaceNewCommand{
 					Meta: meta,
 				},
@@ -438,8 +439,8 @@ func initCommands(
 		},
 
 		"workspace delete": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.WorkspaceDeleteCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.WorkspaceDeleteCommand{
 					Meta: meta,
 				},
 			}, nil
@@ -450,16 +451,16 @@ func initCommands(
 		//-----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.UnlockCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.UnlockCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"state": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StateCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StateCommand{
 					StateMeta: command.StateMeta{
 						Meta: meta,
 					},
@@ -468,8 +469,8 @@ func initCommands(
 		},
 
 		"state list": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StateListCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StateListCommand{
 					Meta: meta,
 				},
 			}, nil
@@ -477,8 +478,8 @@ func initCommands(
 
 		"state ls": func() (cli.Command, error) {
 			return &command.AliasCommand{
-				Command: &commandWrapper{
-					MetaCommand: &command.StateListCommand{
+				Command: &pedanticCommand{
+					PedanticCommand: &command.StateListCommand{
 						Meta: meta,
 					},
 				},
@@ -486,8 +487,8 @@ func initCommands(
 		},
 
 		"state rm": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StateRmCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StateRmCommand{
 					StateMeta: command.StateMeta{
 						Meta: meta,
 					},
@@ -497,8 +498,8 @@ func initCommands(
 
 		"state remove": func() (cli.Command, error) {
 			return &command.AliasCommand{
-				Command: &commandWrapper{
-					MetaCommand: &command.StateRmCommand{
+				Command: &pedanticCommand{
+					PedanticCommand: &command.StateRmCommand{
 						StateMeta: command.StateMeta{
 							Meta: meta,
 						},
@@ -508,8 +509,8 @@ func initCommands(
 		},
 
 		"state mv": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StateMvCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StateMvCommand{
 					StateMeta: command.StateMeta{
 						Meta: meta,
 					},
@@ -519,8 +520,8 @@ func initCommands(
 
 		"state move": func() (cli.Command, error) {
 			return &command.AliasCommand{
-				Command: &commandWrapper{
-					MetaCommand: &command.StateMvCommand{
+				Command: &pedanticCommand{
+					PedanticCommand: &command.StateMvCommand{
 						StateMeta: command.StateMeta{
 							Meta: meta,
 						},
@@ -530,32 +531,32 @@ func initCommands(
 		},
 
 		"state pull": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StatePullCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StatePullCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"state push": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StatePushCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StatePushCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"state show": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StateShowCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StateShowCommand{
 					Meta: meta,
 				},
 			}, nil
 		},
 
 		"state replace-provider": func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.StateReplaceProviderCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.StateReplaceProviderCommand{
 					StateMeta: command.StateMeta{
 						Meta: meta,
 					},
@@ -566,8 +567,8 @@ func initCommands(
 
 	if meta.AllowExperimentalFeatures {
 		commands["cloud"] = func() (cli.Command, error) {
-			return &commandWrapper{
-				MetaCommand: &command.CloudCommand{
+			return &pedanticCommand{
+				PedanticCommand: &command.CloudCommand{
 					Meta: meta,
 				},
 			}, nil
