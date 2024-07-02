@@ -445,7 +445,7 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 		fakeBody := map[string]any{
 			"data": map[string]any{
 				"type": "state-versions",
-				"id":   GenerateID("sv-"),
+				"id":   generateID("sv-"),
 				"attributes": map[string]any{
 					"hosted-state-download-url": serverURL + "/state-json",
 					"hosted-state-upload-url":   serverURL + "/state-json",
