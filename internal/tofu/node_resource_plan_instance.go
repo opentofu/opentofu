@@ -579,7 +579,12 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		if configDiags.HasErrors() {
 			return instanceRefreshState, diags
 		}
-		instanceRefreshState.Value = copyMarksFromValue(instanceRefreshState.Value, valueWithConfigurationSchemaMarks)
+
+		_, marks := instanceRefreshState.Value.UnmarkDeepWithPaths()
+		_, configSchemaMarks := valueWithConfigurationSchemaMarks.UnmarkDeepWithPaths()
+		merged := combinePathValueMarks(marks, configSchemaMarks)
+
+		instanceRefreshState.Value = instanceRefreshState.Value.MarkWithPaths(merged)
 	}
 
 	// If we're importing and generating config, generate it now.
