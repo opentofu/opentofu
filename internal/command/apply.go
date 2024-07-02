@@ -76,7 +76,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+	if encDiags.HasErrors() || c.pedanticMode && encDiags.HasWarnings() {
 		view.Diagnostics(diags)
 		return 1
 	}

@@ -92,7 +92,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		c.Ui.Output(envIsOverriddenNote)
 	}
 
-	if c.pedanticMode && c.warningFlagged {
+	if c.pedanticMode && c.legacyWarningFlagged {
 		return 1
 	}
 

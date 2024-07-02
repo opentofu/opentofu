@@ -75,7 +75,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if diags.HasErrors() {
+	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -83,7 +83,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if encDiags.HasErrors() || c.pedanticMode && encDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -93,7 +93,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if backendDiags.HasErrors() || c.pedanticMode && backendDiags.HasWarnings() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -142,12 +142,12 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	if stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "workspace-new"); diags.HasErrors() {
+		if diags := stateLocker.Lock(stateMgr, "workspace-new"); diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 			c.showDiagnostics(diags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); diags.HasErrors() {
+			if diags := stateLocker.Unlock(); diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
 				c.showDiagnostics(diags)
 			}
 		}()
@@ -175,6 +175,10 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	err = stateMgr.PersistState(nil)
 	if err != nil {
 		c.Ui.Error(err.Error())
+		return 1
+	}
+
+	if c.pedanticMode && c.legacyWarningFlagged {
 		return 1
 	}
 
