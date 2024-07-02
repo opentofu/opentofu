@@ -1,3 +1,8 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 project_name: tofu
 
 before:
@@ -57,7 +62,12 @@ builds:
         goarch: arm
 
 archives:
+  - format: tar.gz
+    id: targz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{- .Os }}_{{- .Arch }}"
+  
   - format: zip
+    id: zip 
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{- .Os }}_{{- .Arch }}"
 
 dockers:
@@ -147,13 +157,7 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
-
-  - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}
-    image_templates:
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
-      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
 
   - name_template: ghcr.io/opentofu/opentofu:latest
     image_templates:
@@ -161,6 +165,7 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
 
 nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}'
@@ -195,10 +200,13 @@ snapcrafts:
       OpenTofu is an OSS tool for building, changing, and versioning infrastructure
       safely and efficiently. OpenTofu can manage existing and popular service
       providers as well as custom in-house solutions.
-    base: core22
-    grade: stable
+    disable: '{{ if eq .Env.RELEASE_FLAG_LATEST "false" }}true{{ else }}false{{ end }}'
+    channel_templates:
+      - '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}latest/edge{{ else }}latest/stable{{ end }}'
+    grade: '{{ if eq .Env.RELEASE_FLAG_PRERELEASE "true" }}devel{{ else }}stable{{ end }}'
     confinement: classic
     license: MPL-2.0
+    base: core22
     apps:
       tofu:
         command: tofu

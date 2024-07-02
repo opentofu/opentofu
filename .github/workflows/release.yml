@@ -6,6 +6,14 @@ on:
       tag:
         description: "Git tag (leave empty for dry run)"
         required: false
+      latest:
+        description: "Release as latest?"
+        required: true
+        type: boolean
+      prerelease:
+        description: "Release as prerelease?"
+        required: true
+        type: boolean
 
 jobs:
   release:
@@ -32,7 +40,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag }}
@@ -46,12 +54,40 @@ jobs:
         env:
           TARGET_VERSION: ${{inputs.tag}}
 
+      - name: Check if tag is on main branch or version branch
+        id: validate_tag
+        run: |
+          IS_TAG_ON_MAIN=$(git branch -a --contains ${{inputs.tag}} | grep -q "main" && echo true || echo false)
+          IS_TAG_ON_VERSION=$(git branch -a --contains ${{inputs.tag}} | grep -E "^v[0-9]+\.[0-9]+" && echo true || echo false)
+          echo "IS_TAG_ON_MAIN=${IS_TAG_ON_MAIN}" >> $GITHUB_OUTPUT
+          echo "IS_TAG_ON_VERSION=${IS_TAG_ON_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Check if release is allowed or not
+        id: validate_release
+        run: |
+          if [[ "${{ inputs.prerelease }}" == "false" && "${{ steps.validate_tag.outputs.IS_TAG_ON_MAIN }}" == "true" ]]; then
+            echo "ERROR: Creating stable release from a tag on main is not allowed."
+            exit 1
+          fi
+
+      - name: Check eligibility for archive push
+        id: archive
+        run: |
+          PUSH_ARCHIVE=$(
+            [[ 
+              "${{ inputs.prerelease }}" == "true" && 
+              ("${{ steps.validate_tag.outputs.IS_TAG_ON_MAIN }}" == "true" || 
+              "${{ steps.validate_tag.outputs.IS_TAG_ON_VERSION }}" == "true") 
+            ]] && echo false || echo true
+          )
+          echo "PUSH_ARCHIVE=${PUSH_ARCHIVE}" >> $GITHUB_ENV
+
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -97,6 +133,8 @@ jobs:
           # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
+          RELEASE_FLAG_PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_FLAG_LATEST: ${{ inputs.latest }}
 
       - name: Remove GPG key
         if: always()
@@ -113,7 +151,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.tag, 'v')
+        if: startsWith(inputs.tag, 'v') && steps.archive.outputs.PUSH_ARCHIVE
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -122,7 +160,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.tag, 'v')
+        if: startsWith(inputs.tag, 'v') && steps.archive.outputs.PUSH_ARCHIVE
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
