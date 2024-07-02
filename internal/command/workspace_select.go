@@ -145,7 +145,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		)
 	}
 
-	if c.pedanticMode && c.warningFlagged {
+	if c.pedanticMode && c.legacyWarningFlagged {
 		return 1
 	}
 

@@ -164,12 +164,20 @@ func (c *ConsoleCommand) Run(args []string) int {
 		Scope: scope,
 	}
 
+	var retCode int
+
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, c.Ui)
+		retCode = c.modePiped(session, c.Ui)
+	} else {
+		retCode = c.modeInteractive(session, c.Ui)
 	}
 
-	return c.modeInteractive(session, c.Ui)
+	if c.pedanticMode && c.legacyWarningFlagged {
+		retCode = 1
+	}
+
+	return retCode
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
