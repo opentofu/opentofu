@@ -1,8 +1,10 @@
 package hcl2shim
 
 import (
+	"cmp"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -10,30 +12,26 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// ComposeMockValueBySchema composes mock value based on schema configuration. It uses
-// configuration value as a baseline and populates null values with provided defaults.
-// If the provided defaults doesn't contain needed fields, ComposeMockValueBySchema uses
-// its own defaults. ComposeMockValueBySchema fails if schema contains dynamic types.
-func ComposeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (
-	cty.Value, tfdiags.Diagnostics) {
-	return mockValueComposer{}.composeMockValueBySchema(schema, config, defaults)
+// MockValueComposer provides different ways to generate mock values based on
+// config schema, attributes, blocks and cty types in general.
+type MockValueComposer struct {
+	rand *rand.Rand
 }
 
-type mockValueComposer struct {
-	getMockStringOverride func() string
-}
-
-func (mvc mockValueComposer) getMockString() string {
-	f := getRandomAlphaNumString
-
-	if mvc.getMockStringOverride != nil {
-		f = mvc.getMockStringOverride
+func NewMockValueComposer(seed int64) MockValueComposer {
+	return MockValueComposer{
+		rand: rand.New(rand.NewSource(seed)),
 	}
-
-	return f()
 }
 
-func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
+// ComposeBySchema composes mock value based on schema configuration. It uses
+// configuration value as a baseline and populates null values with provided defaults.
+// If the provided defaults doesn't contain needed fields, ComposeBySchema uses
+// its own defaults. ComposeBySchema fails if schema contains dynamic types.
+// ComposeBySchema produces the same result with the given input values (seed and func arguments).
+// It does so by traversing schema attributes, blocks and data structure elements / fields
+// in a stable way by sorting keys or elements beforehand.
+func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var configMap map[string]cty.Value
 	var diags tfdiags.Diagnostics
 
@@ -73,7 +71,7 @@ func (mvc mockValueComposer) composeMockValueBySchema(schema *configschema.Block
 	return cty.ObjectVal(mockValues), diags
 }
 
-func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	addPotentialDefaultsWarning := func(key, description string) {
@@ -90,7 +88,9 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
-	for k, attr := range schema.Attributes {
+	for _, kv := range mapToSortedSlice(schema.Attributes) {
+		k, attr := kv.k, kv.v
+
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
 			mockAttrs[k] = cv
@@ -141,14 +141,16 @@ func (mvc mockValueComposer) composeMockValueForAttributes(schema *configschema.
 	return mockAttrs, diags
 }
 
-func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	mockBlocks := make(map[string]cty.Value)
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
-	for k, block := range schema.BlockTypes {
+	for _, kv := range mapToSortedSlice(schema.BlockTypes) {
+		k, block := kv.k, kv.v
+
 		// Checking if the config value really present for the block.
 		// It should be non-null and non-empty collection.
 
@@ -213,12 +215,12 @@ func (mvc mockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 // to compose each value from the block's inner collection. It recursevily calls
 // composeMockValueBySchema to proceed with all the inner attributes and blocks
 // the same way so all the nested blocks follow the same logic.
-func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal cty.Value, block *configschema.Block, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal cty.Value, block *configschema.Block, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	switch {
 	case targetType.IsObjectType():
-		mockBlockVal, moreDiags := mvc.composeMockValueBySchema(block, configVal, defaults)
+		mockBlockVal, moreDiags := mvc.ComposeBySchema(block, configVal, defaults)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.NilVal, diags
@@ -234,7 +236,7 @@ func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 		for iterator.Next() {
 			_, blockConfigV := iterator.Element()
 
-			mockBlockVal, moreDiags := mvc.composeMockValueBySchema(block, blockConfigV, defaults)
+			mockBlockVal, moreDiags := mvc.ComposeBySchema(block, blockConfigV, defaults)
 			diags = diags.Append(moreDiags)
 			if moreDiags.HasErrors() {
 				return cty.NilVal, diags
@@ -257,7 +259,7 @@ func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 		for iterator.Next() {
 			blockConfigK, blockConfigV := iterator.Element()
 
-			mockBlockVal, moreDiags := mvc.composeMockValueBySchema(block, blockConfigV, defaults)
+			mockBlockVal, moreDiags := mvc.ComposeBySchema(block, blockConfigV, defaults)
 			diags = diags.Append(moreDiags)
 			if moreDiags.HasErrors() {
 				return cty.NilVal, diags
@@ -280,7 +282,7 @@ func (mvc mockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 
 // getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
 // It will return non-ok response if it encounters dynamic type.
-func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
+func (mvc MockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	var v cty.Value
 
 	// just to be sure for cases when the logic below misses something
@@ -310,7 +312,9 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 		objVals := make(map[string]cty.Value)
 
 		// populate the object with mock values
-		for k, at := range t.AttributeTypes() {
+		for _, kv := range mapToSortedSlice(t.AttributeTypes()) {
+			k, at := kv.k, kv.v
+
 			if t.AttributeOptional(k) {
 				continue
 			}
@@ -335,19 +339,41 @@ func (mvc mockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	return v, true
 }
 
-func getRandomAlphaNumString() string {
+func (mvc MockValueComposer) getMockString() string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
 	const minLength, maxLength = 4, 16
 
-	length := rand.Intn(maxLength-minLength) + minLength //nolint:gosec // It doesn't need to be secure.
+	length := mvc.rand.Intn(maxLength-minLength) + minLength //nolint:gosec // It doesn't need to be secure.
 
 	b := strings.Builder{}
 	b.Grow(length)
 
 	for i := 0; i < length; i++ {
-		b.WriteByte(chars[rand.Intn(len(chars))]) //nolint:gosec // It doesn't need to be secure.
+		b.WriteByte(chars[mvc.rand.Intn(len(chars))]) //nolint:gosec // It doesn't need to be secure.
 	}
 
 	return b.String()
+}
+
+type keyValue[K cmp.Ordered, V any] struct {
+	k K
+	v V
+}
+
+// mapToSortedSlice makes it possible to iterate over map in a stable manner.
+func mapToSortedSlice[K cmp.Ordered, V any](m map[K]V) []keyValue[K, V] {
+	keys := make([]K, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	slices.Sort(keys)
+
+	s := make([]keyValue[K, V], 0, len(m))
+	for _, k := range keys {
+		s = append(s, keyValue[K, V]{k, m[k]})
+	}
+
+	return s
 }

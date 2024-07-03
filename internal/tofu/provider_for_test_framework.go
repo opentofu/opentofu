@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"hash/fnv"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -38,7 +40,8 @@ func (p providerForTest) ReadResource(r providers.ReadResourceRequest) providers
 
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
 
-	resp.NewState, resp.Diagnostics = hcl2shim.ComposeMockValueBySchema(resSchema, r.ProviderMeta, p.overrideValues)
+	resp.NewState, resp.Diagnostics = newMockValueComposer(r.TypeName).
+		ComposeBySchema(resSchema, r.ProviderMeta, p.overrideValues)
 	return resp
 }
 
@@ -59,7 +62,8 @@ func (p providerForTest) PlanResourceChange(r providers.PlanResourceChangeReques
 
 	var resp providers.PlanResourceChangeResponse
 
-	resp.PlannedState, resp.Diagnostics = hcl2shim.ComposeMockValueBySchema(resSchema, r.Config, p.overrideValues)
+	resp.PlannedState, resp.Diagnostics = newMockValueComposer(r.TypeName).
+		ComposeBySchema(resSchema, r.Config, p.overrideValues)
 
 	return resp
 }
@@ -75,7 +79,8 @@ func (p providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) provi
 
 	var resp providers.ReadDataSourceResponse
 
-	resp.State, resp.Diagnostics = hcl2shim.ComposeMockValueBySchema(resSchema, r.Config, p.overrideValues)
+	resp.State, resp.Diagnostics = newMockValueComposer(r.TypeName).
+		ComposeBySchema(resSchema, r.Config, p.overrideValues)
 
 	return resp
 }
@@ -128,4 +133,10 @@ func (p providerForTest) Close() error {
 
 func (p providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
 	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
+}
+
+func newMockValueComposer(typeName string) hcl2shim.MockValueComposer {
+	hash := fnv.New64()
+	hash.Write([]byte(typeName))
+	return hcl2shim.NewMockValueComposer(int64(hash.Sum64()))
 }
