@@ -113,7 +113,7 @@ func (p *providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateR
 }
 
 // providerForTest doesn't configure its internal provider because it is mocked.
-func (p *providerForTest) ConfigureProvider(r providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+func (p *providerForTest) ConfigureProvider(_ providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	return providers.ConfigureProviderResponse{}
 }
 

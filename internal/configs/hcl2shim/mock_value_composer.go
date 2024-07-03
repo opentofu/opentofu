@@ -20,7 +20,7 @@ type MockValueComposer struct {
 
 func NewMockValueComposer(seed int64) MockValueComposer {
 	return MockValueComposer{
-		rand: rand.New(rand.NewSource(seed)),
+		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // It doesn't need to be secure.
 	}
 }
 
@@ -344,13 +344,13 @@ func (mvc MockValueComposer) getMockString() string {
 
 	const minLength, maxLength = 4, 16
 
-	length := mvc.rand.Intn(maxLength-minLength) + minLength //nolint:gosec // It doesn't need to be secure.
+	length := mvc.rand.Intn(maxLength-minLength) + minLength
 
 	b := strings.Builder{}
 	b.Grow(length)
 
 	for i := 0; i < length; i++ {
-		b.WriteByte(chars[mvc.rand.Intn(len(chars))]) //nolint:gosec // It doesn't need to be secure.
+		b.WriteByte(chars[mvc.rand.Intn(len(chars))])
 	}
 
 	return b.String()
