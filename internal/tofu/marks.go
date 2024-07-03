@@ -47,8 +47,6 @@ func marksEqual(a, b []cty.PathValueMarks) bool {
 // for the same path, but instead combine the marks for the same path
 // This ensures that we don't lose user marks when combining 2 different sets of marks for the same path
 func combinePathValueMarks(marks []cty.PathValueMarks, other []cty.PathValueMarks) []cty.PathValueMarks {
-	// TODO: Find a nice home for this method so it can be used in other places too
-
 	// skip some work if we don't have any marks in either of the lists
 	if len(marks) == 0 {
 		return other
