@@ -108,10 +108,44 @@ type File struct {
 	Checks []*Check
 }
 
+// Only load and validate the portions of files needed for the given operations/contexts
+type SelectiveLoader int
+
+const (
+	SelectiveLoadAll        SelectiveLoader = 0
+	SelectiveLoadBackend    SelectiveLoader = 1
+	SelectiveLoadEncryption SelectiveLoader = 2
+)
+
+// Apply the selective filter to the input files
+func (s SelectiveLoader) filter(input []*File) []*File {
+	if s == SelectiveLoadAll {
+		return input
+	}
+
+	out := make([]*File, len(input))
+	for i, inFile := range input {
+		outFile := &File{
+			Variables: inFile.Variables,
+			Locals:    inFile.Locals,
+		}
+
+		switch s {
+		case SelectiveLoadBackend:
+			outFile.Backends = inFile.Backends
+			outFile.CloudConfigs = inFile.CloudConfigs
+		case SelectiveLoadEncryption:
+			outFile.Encryptions = inFile.Encryptions
+		}
+		out[i] = outFile
+	}
+	return out
+}
+
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
 func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir)
+	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir, SelectiveLoadAll)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -126,7 +160,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -142,6 +176,10 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		Tests:              map[string]*TestFile{},
 		SourceDir:          sourceDir,
 	}
+
+	// Apply selective load rules
+	primaryFiles = load.filter(primaryFiles)
+	overrideFiles = load.filter(overrideFiles)
 
 	// Process the required_providers blocks first, to ensure that all
 	// resources have access to the correct provider FQNs
