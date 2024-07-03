@@ -2586,15 +2586,9 @@ func (n *NodeAbstractResourceInstance) getProviderWithPlannedChange(ctx EvalCont
 		return underlyingProvider, schema, nil
 	}
 
-	providerForTest := providerForTest{
-		internal:       underlyingProvider,
-		schema:         schema,
-		overrideValues: n.Config.OverrideValues,
-	}
+	providerForTest := newProviderForTest(underlyingProvider, schema)
 
-	if plannedChange != nil {
-		providerForTest.plannedChange = &plannedChange.After
-	}
+	providerForTest.setSingleResource(n.Addr.Resource.Resource, n.Config.OverrideValues)
 
 	return providerForTest, schema, nil
 }
