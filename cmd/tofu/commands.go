@@ -54,6 +54,23 @@ var hiddenCommands map[string]struct{}
 // Ui is the cli.Ui used for communicating to the outside world.
 var Ui cli.Ui
 
+type Command interface {
+	cli.Command
+	PedanticWarningNotified() bool
+}
+
+type CommandWrapper struct {
+	Command
+}
+
+func (cw *CommandWrapper) Run(args []string) int {
+	retCode := cw.Command.Run(args)
+	if cw.Command.PedanticWarningNotified() {
+		retCode = 1
+	}
+	return retCode
+}
+
 func initCommands(
 	ctx context.Context,
 	originalWorkingDir string,
@@ -124,35 +141,45 @@ func initCommands(
 
 	commands = map[string]cli.CommandFactory{
 		"apply": func() (cli.Command, error) {
-			return &command.ApplyCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.ApplyCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"console": func() (cli.Command, error) {
-			return &command.ConsoleCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.ConsoleCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"destroy": func() (cli.Command, error) {
-			return &command.ApplyCommand{
-				Meta:    meta,
-				Destroy: true,
+			return &CommandWrapper{
+				&command.ApplyCommand{
+					Meta:    meta,
+					Destroy: true,
+				},
 			}, nil
 		},
 
 		"env": func() (cli.Command, error) {
-			return &command.WorkspaceCommand{
-				Meta:       meta,
-				LegacyName: true,
+			return &CommandWrapper{
+				&command.WorkspaceCommand{
+					Meta:       meta,
+					LegacyName: true,
+				},
 			}, nil
 		},
 
 		"env list": func() (cli.Command, error) {
-			return &command.WorkspaceListCommand{
-				Meta:       meta,
-				LegacyName: true,
+			return &CommandWrapper{
+				&command.WorkspaceListCommand{
+					Meta: meta,
+					LegacyName: true,
+				},
 			}, nil
 		},
 
@@ -164,58 +191,76 @@ func initCommands(
 		},
 
 		"env new": func() (cli.Command, error) {
-			return &command.WorkspaceNewCommand{
-				Meta:       meta,
-				LegacyName: true,
+			return &CommandWrapper{
+				&command.WorkspaceNewCommand{
+					Meta:       meta,
+					LegacyName: true,
+				},
 			}, nil
 		},
 
 		"env delete": func() (cli.Command, error) {
-			return &command.WorkspaceDeleteCommand{
-				Meta:       meta,
-				LegacyName: true,
+			return &CommandWrapper{
+				&command.WorkspaceDeleteCommand{
+					Meta:       meta,
+					LegacyName: true,
+				},
 			}, nil
 		},
 
 		"fmt": func() (cli.Command, error) {
-			return &command.FmtCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.FmtCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"get": func() (cli.Command, error) {
-			return &command.GetCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.GetCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"graph": func() (cli.Command, error) {
-			return &command.GraphCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.GraphCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"import": func() (cli.Command, error) {
-			return &command.ImportCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.ImportCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"init": func() (cli.Command, error) {
-			return &command.InitCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.InitCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"login": func() (cli.Command, error) {
-			return &command.LoginCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.LoginCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 
 		"logout": func() (cli.Command, error) {
-			return &command.LogoutCommand{
-				Meta: meta,
+			return &CommandWrapper{
+				&command.LogoutCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 

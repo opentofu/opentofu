@@ -281,10 +281,6 @@ type Meta struct {
 	warningFlagged bool
 }
 
-func (m *Meta) NotifyWarning() {
-	m.warningFlagged = true
-}
-
 type testingOverrides struct {
 	Providers    map[addrs.Provider]providers.Factory
 	Provisioners map[string]provisioners.Factory
@@ -957,3 +953,14 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 	return nil, diags
 }
+
+func (m *Meta) NotifyWarning() {
+	if m.pedanticMode {
+		m.warningFlagged = true
+	}
+}
+
+func (m *Meta) PedanticWarningNotified() bool {
+	return m.pedanticMode && m.warningFlagged
+}
+
