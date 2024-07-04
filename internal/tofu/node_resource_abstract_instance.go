@@ -681,7 +681,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	var keyData instances.RepetitionData
 
 	resource := n.Addr.Resource.Resource
-	provider, providerSchema, err := n.getProviderWithPlannedChange(ctx, n.ResolvedProvider, plannedChange)
+	provider, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return nil, nil, keyData, diags.Append(err)
 	}
@@ -2573,10 +2573,6 @@ func resourceInstancePrevRunAddr(ctx EvalContext, currentAddr addrs.AbsResourceI
 }
 
 func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
-	return n.getProviderWithPlannedChange(ctx, addr, nil)
-}
-
-func (n *NodeAbstractResourceInstance) getProviderWithPlannedChange(ctx EvalContext, addr addrs.AbsProviderConfig, plannedChange *plans.ResourceInstanceChange) (providers.Interface, providers.ProviderSchema, error) {
 	underlyingProvider, schema, err := getProvider(ctx, addr)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
@@ -2586,7 +2582,7 @@ func (n *NodeAbstractResourceInstance) getProviderWithPlannedChange(ctx EvalCont
 		return underlyingProvider, schema, nil
 	}
 
-	providerForTest := newProviderForTest(underlyingProvider, schema)
+	providerForTest := newProviderForTestWithSchema(underlyingProvider, schema)
 
 	providerForTest.setSingleResource(n.Addr.Resource.Resource, n.Config.OverrideValues)
 

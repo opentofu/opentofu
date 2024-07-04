@@ -6,9 +6,11 @@
 package tofu
 
 import (
+	"fmt"
 	"hash/fnv"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
@@ -28,13 +30,26 @@ type providerForTest struct {
 	dataResources    resourceForTestByType
 }
 
-func newProviderForTest(internal providers.Interface, schema providers.ProviderSchema) *providerForTest {
+func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) *providerForTest {
 	return &providerForTest{
 		internal:         internal,
 		schema:           schema,
 		managedResources: make(resourceForTestByType),
 		dataResources:    make(resourceForTestByType),
 	}
+}
+
+func newProviderForTest(internal providers.Interface, res []*configs.MockResource) (providers.Interface, error) {
+	schema := internal.GetProviderSchema()
+	if schema.Diagnostics.HasErrors() {
+		return nil, fmt.Errorf("getting provider schema for test wrapper: %w", schema.Diagnostics.Err())
+	}
+
+	p := newProviderForTestWithSchema(internal, schema)
+
+	p.addMockResources(res)
+
+	return p, nil
 }
 
 func (p *providerForTest) ReadResource(r providers.ReadResourceRequest) providers.ReadResourceResponse {
@@ -151,6 +166,27 @@ func (p *providerForTest) setSingleResource(addr addrs.Resource, overrides map[s
 		panic("encountered invalid resource mode")
 	default:
 		panic("encountered undefined resource mode: " + addr.Mode.String())
+	}
+}
+
+func (p *providerForTest) addMockResources(mockResources []*configs.MockResource) {
+	for _, mockRes := range mockResources {
+		var resources resourceForTestByType
+
+		switch mockRes.Mode {
+		case addrs.ManagedResourceMode:
+			resources = p.managedResources
+		case addrs.DataResourceMode:
+			resources = p.dataResources
+		case addrs.InvalidResourceMode:
+			panic("BUG: invalid mock resource mode")
+		default:
+			panic("BUG: unsupported mock resource mode: " + mockRes.Mode.String())
+		}
+
+		resources[mockRes.Type] = resourceForTest{
+			overrideValues: mockRes.Defaults,
+		}
 	}
 }
 

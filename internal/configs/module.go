@@ -69,6 +69,13 @@ type Module struct {
 	StaticEvaluator *StaticEvaluator
 }
 
+// GetProviderConfig uses name and alias to find the respective Provider configuration.
+func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
+	tp := &Provider{Name: name, Alias: alias}
+	p, ok := m.ProviderConfigs[tp.moduleUniqueKey()]
+	return p, ok
+}
+
 // File describes the contents of a single configuration file.
 //
 // Individual files are not usually used alone, but rather combined together

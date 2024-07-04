@@ -120,6 +120,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		VariableValues:        w.variableValues,
 		VariableValuesLock:    &w.variableValuesLock,
 		Encryption:            w.Encryption,
+		Config:                w.Config,
 	}
 
 	return ctx
