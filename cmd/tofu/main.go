@@ -103,9 +103,10 @@ func realMain() int {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
 
-	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
+	// Configure pedantic mode if it has been toggled
+	var pedanticMode bool
 	if _, ok := opts[optionPedantic]; ok {
-		args = append(args, fmt.Sprintf("-%s", optionPedantic))
+		pedanticMode = true
 	}
 
 	err = openTelemetryInit()
@@ -276,7 +277,8 @@ func realMain() int {
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, originalWd, streams, config,
+			services, providerSrc, providerDevOverrides, unmanagedProviders, pedanticMode)
 	}
 
 	// Attempt to ensure the config directory exists.
