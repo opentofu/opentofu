@@ -180,6 +180,9 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
+	// Pedantic mode is used to treat warnings as errors
+	PedanticMode bool
+
 	//----------------------------------------------------------
 	// Protected: commands can set these
 	//----------------------------------------------------------
@@ -274,11 +277,9 @@ type Meta struct {
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
 
-	// Pedantic mode is used to treat warnings as errors
-	PedanticMode bool
+	// warningFlagged is used to indicate if a warning has been triggered when in pedantic mode
+	warningFlagged bool
 
-	// legacyWarningFlagged is used to indicate if a legacy ui warning has been triggered when in pedantic mode
-	legacyWarningFlagged bool
 }
 
 type testingOverrides struct {
@@ -666,7 +667,9 @@ func (m *Meta) process(args []string) []string {
 	if m.PedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
-			NotifyWarning: m.NotifyLegacyWarning,
+			NotifyWarning: func() {
+				m.warningFlagged = true
+			},
 		}
 	}
 
@@ -747,6 +750,7 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		for _, diag := range diags {
 			if diag.Severity() == tfdiags.Warning {
 				diag = tfdiags.Override(diag, tfdiags.Error, nil)
+				m.warningFlagged = true
 			}
 			newDiags = newDiags.Append(diag)
 		}
@@ -951,10 +955,6 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	return nil, diags
 }
 
-func (m *Meta) NotifyLegacyWarning() {
-	m.legacyWarningFlagged = true
-}
-
 func (m *Meta) WarningFlagged() bool {
-	return m.PedanticMode && m.legacyWarningFlagged || m.View.WarningFlagged
+	return m.PedanticMode && m.warningFlagged || m.View.WarningFlagged
 }
