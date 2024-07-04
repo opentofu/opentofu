@@ -86,10 +86,11 @@ func initCommands(
 
 	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
 
+	view := views.NewView(streams).SetRunningInAutomation(inAutomation)
 	meta := command.Meta{
 		WorkingDir: wd,
 		Streams:    streams,
-		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),
+		View:       view,
 
 		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),
@@ -113,6 +114,8 @@ func initCommands(
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
 	}
+
+	view.NotifyWarning = meta.NotifyWarning
 
 	// The command list is included in the tofu -help
 	// output, which is in turn included in the docs at

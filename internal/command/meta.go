@@ -281,7 +281,7 @@ type Meta struct {
 	warningFlagged bool
 }
 
-func (m *Meta) WarningNotifier() {
+func (m *Meta) NotifyWarning() {
 	m.warningFlagged = true
 }
 
@@ -672,7 +672,7 @@ func (m *Meta) process(args []string) []string {
 	if m.pedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
-			WarningNotifier: m.WarningNotifier,
+			NotifyWarning: m.NotifyWarning,
 		}
 	}
 
