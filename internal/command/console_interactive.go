@@ -49,7 +49,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 		}
 
 		out, exit, diags := session.Handle(line)
-		if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 		}
 		if exit {
