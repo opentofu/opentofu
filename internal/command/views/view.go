@@ -40,7 +40,7 @@ type View struct {
 	configSources func() map[string][]byte
 
 	// pedantic mode is used to treat warnings as errors
-	pedanticMode bool
+	PedanticMode bool
 
 	// Warning flagged is used to indicate a warning has been flagged when in pedantic mode
 	WarningFlagged bool
@@ -81,7 +81,6 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
-	v.pedanticMode = view.PedanticMode
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -103,7 +102,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
-	if v.pedanticMode {
+	if v.PedanticMode {
 		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
 		for _, diag := range diags {
 			if diag.Severity() == tfdiags.Warning {

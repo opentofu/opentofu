@@ -275,7 +275,7 @@ type Meta struct {
 	inputVariableCache  map[string]backend.UnparsedVariableValue
 
 	// Pedantic mode is used to treat warnings as errors
-	pedanticMode bool
+	PedanticMode bool
 
 	// legacyWarningFlagged is used to indicate if a legacy ui warning has been triggered when in pedantic mode
 	legacyWarningFlagged bool
@@ -645,8 +645,6 @@ func (m *Meta) process(args []string) []string {
 		case "-no-color":
 			m.color = false
 			m.Color = false
-		case "-pedantic":
-			m.pedanticMode = true
 		default:
 			// copy and increment index
 			args[i] = v
@@ -665,7 +663,7 @@ func (m *Meta) process(args []string) []string {
 		Ui:         m.oldUi,
 	})
 
-	if m.pedanticMode {
+	if m.PedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
 			NotifyWarning: m.NotifyLegacyWarning,
@@ -680,7 +678,6 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
-			PedanticMode:    m.pedanticMode,
 		})
 	}
 
@@ -745,7 +742,7 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
-	if m.pedanticMode {
+	if m.PedanticMode {
 		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
 		for _, diag := range diags {
 			if diag.Severity() == tfdiags.Warning {
@@ -959,5 +956,5 @@ func (m *Meta) NotifyLegacyWarning() {
 }
 
 func (m *Meta) WarningFlagged() bool {
-	return m.pedanticMode && m.legacyWarningFlagged || m.View.WarningFlagged
+	return m.PedanticMode && m.legacyWarningFlagged || m.View.WarningFlagged
 }
