@@ -282,9 +282,9 @@ func (r OverrideResource) getBlockName() string {
 	case addrs.DataResourceMode:
 		return blockNameOverrideData
 	case addrs.InvalidResourceMode:
-		return "invalid"
+		panic("BUG: invalid resource mode in override resource")
 	default:
-		return "invalid"
+		panic("BUG: undefined resource mode in override resource: " + r.Mode.String())
 	}
 }
 
@@ -349,9 +349,9 @@ func (r MockResource) getBlockName() string {
 	case addrs.DataResourceMode:
 		return blockNameMockData
 	case addrs.InvalidResourceMode:
-		return "invalid"
+		panic("BUG: invalid resource mode in mock resource")
 	default:
-		return "invalid"
+		panic("BUG: undefined resource mode in mock resource: " + r.Mode.String())
 	}
 }
 
