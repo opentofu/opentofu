@@ -56,16 +56,16 @@ var Ui cli.Ui
 
 type Command interface {
 	cli.Command
-	WarningNotified() bool
+	WarningFlagged() bool
 }
 
-type CommandWrapper struct {
+type commandWrapper struct {
 	Command
 }
 
-func (cw *CommandWrapper) Run(args []string) int {
+func (cw *commandWrapper) Run(args []string) int {
 	retCode := cw.Command.Run(args)
-	if cw.Command.WarningNotified() {
+	if cw.Command.WarningFlagged() {
 		retCode = 1
 	}
 	return retCode
@@ -131,8 +131,6 @@ func initCommands(
 		AllowExperimentalFeatures: experimentsAreAllowed(),
 	}
 
-	meta.View.NotifyWarning = meta.NotifyWarning
-
 	// The command list is included in the tofu -help
 	// output, which is in turn included in the docs at
 	// website/docs/cli/commands/index.html.markdown; if you
@@ -141,7 +139,7 @@ func initCommands(
 
 	commands = map[string]cli.CommandFactory{
 		"apply": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ApplyCommand{
 					Meta: meta,
 				},
@@ -149,7 +147,7 @@ func initCommands(
 		},
 
 		"console": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ConsoleCommand{
 					Meta: meta,
 				},
@@ -157,7 +155,7 @@ func initCommands(
 		},
 
 		"destroy": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ApplyCommand{
 					Meta:    meta,
 					Destroy: true,
@@ -166,7 +164,7 @@ func initCommands(
 		},
 
 		"env": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceCommand{
 					Meta:       meta,
 					LegacyName: true,
@@ -175,7 +173,7 @@ func initCommands(
 		},
 
 		"env list": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceListCommand{
 					Meta: meta,
 					LegacyName: true,
@@ -184,7 +182,7 @@ func initCommands(
 		},
 
 		"env select": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceSelectCommand{
 					Meta: meta,
 					LegacyName: true,
@@ -193,7 +191,7 @@ func initCommands(
 		},
 
 		"env new": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceNewCommand{
 					Meta:       meta,
 					LegacyName: true,
@@ -202,7 +200,7 @@ func initCommands(
 		},
 
 		"env delete": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceDeleteCommand{
 					Meta:       meta,
 					LegacyName: true,
@@ -211,7 +209,7 @@ func initCommands(
 		},
 
 		"fmt": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.FmtCommand{
 					Meta: meta,
 				},
@@ -219,7 +217,7 @@ func initCommands(
 		},
 
 		"get": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.GetCommand{
 					Meta: meta,
 				},
@@ -227,7 +225,7 @@ func initCommands(
 		},
 
 		"graph": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.GraphCommand{
 					Meta: meta,
 				},
@@ -235,7 +233,7 @@ func initCommands(
 		},
 
 		"import": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ImportCommand{
 					Meta: meta,
 				},
@@ -243,7 +241,7 @@ func initCommands(
 		},
 
 		"init": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.InitCommand{
 					Meta: meta,
 				},
@@ -251,7 +249,7 @@ func initCommands(
 		},
 
 		"login": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.LoginCommand{
 					Meta: meta,
 				},
@@ -259,7 +257,7 @@ func initCommands(
 		},
 
 		"logout": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.LogoutCommand{
 					Meta: meta,
 				},
@@ -267,7 +265,7 @@ func initCommands(
 		},
 
 		"metadata": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.MetadataCommand{
 					Meta: meta,
 				},
@@ -275,7 +273,7 @@ func initCommands(
 		},
 
 		"metadata functions": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.MetadataFunctionsCommand{
 					Meta: meta,
 				},
@@ -283,7 +281,7 @@ func initCommands(
 		},
 
 		"output": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.OutputCommand{
 					Meta: meta,
 				},
@@ -291,7 +289,7 @@ func initCommands(
 		},
 
 		"plan": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.PlanCommand{
 					Meta: meta,
 				},
@@ -299,7 +297,7 @@ func initCommands(
 		},
 
 		"providers": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ProvidersCommand{
 					Meta: meta,
 				},
@@ -307,7 +305,7 @@ func initCommands(
 		},
 
 		"providers lock": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ProvidersLockCommand{
 					Meta: meta,
 				},
@@ -315,7 +313,7 @@ func initCommands(
 		},
 
 		"providers mirror": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ProvidersMirrorCommand{
 					Meta: meta,
 				},
@@ -323,7 +321,7 @@ func initCommands(
 		},
 
 		"providers schema": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ProvidersSchemaCommand{
 					Meta: meta,
 				},
@@ -331,7 +329,7 @@ func initCommands(
 		},
 
 		"push": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.PushCommand{
 					Meta: meta,
 				},
@@ -339,7 +337,7 @@ func initCommands(
 		},
 
 		"refresh": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.RefreshCommand{
 					Meta: meta,
 				},
@@ -347,7 +345,7 @@ func initCommands(
 		},
 
 		"show": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ShowCommand{
 					Meta: meta,
 				},
@@ -355,7 +353,7 @@ func initCommands(
 		},
 
 		"taint": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.TaintCommand{
 					Meta: meta,
 				},
@@ -363,7 +361,7 @@ func initCommands(
 		},
 
 		"test": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.TestCommand{
 					Meta: meta,
 				},
@@ -371,7 +369,7 @@ func initCommands(
 		},
 
 		"validate": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.ValidateCommand{
 					Meta: meta,
 				},
@@ -379,7 +377,7 @@ func initCommands(
 		},
 
 		"version": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.VersionCommand{
 					Meta:              meta,
 					Version:           Version,
@@ -390,7 +388,7 @@ func initCommands(
 		},
 
 		"untaint": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.UntaintCommand{
 					Meta: meta,
 				},
@@ -398,7 +396,7 @@ func initCommands(
 		},
 
 		"workspace": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceCommand{
 					Meta: meta,
 				},
@@ -406,7 +404,7 @@ func initCommands(
 		},
 
 		"workspace list": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceListCommand{
 					Meta: meta,
 				},
@@ -414,7 +412,7 @@ func initCommands(
 		},
 
 		"workspace select": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceSelectCommand{
 					Meta: meta,
 				},
@@ -422,7 +420,7 @@ func initCommands(
 		},
 
 		"workspace show": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceShowCommand{
 					Meta: meta,
 				},
@@ -430,7 +428,7 @@ func initCommands(
 		},
 
 		"workspace new": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				&command.WorkspaceNewCommand{
 					Meta: meta,
 				},
@@ -438,7 +436,7 @@ func initCommands(
 		},
 
 		"workspace delete": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.WorkspaceDeleteCommand{
 					Meta: meta,
 				},
@@ -450,7 +448,7 @@ func initCommands(
 		//-----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.UnlockCommand{
 					Meta: meta,
 				},
@@ -458,7 +456,7 @@ func initCommands(
 		},
 
 		"state": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.StateCommand{
 					StateMeta: command.StateMeta{
 						Meta: meta,
@@ -468,7 +466,7 @@ func initCommands(
 		},
 
 		"state list": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.StateListCommand{
 					Meta: meta,
 				},
@@ -477,7 +475,7 @@ func initCommands(
 
 		"state ls": func() (cli.Command, error) {
 			return &command.AliasCommand{
-				Command: &CommandWrapper{
+				Command: &commandWrapper{
 					Command: &command.StateListCommand{
 						Meta: meta,
 					},
@@ -495,7 +493,7 @@ func initCommands(
 
 		"state remove": func() (cli.Command, error) {
 			return &command.AliasCommand{
-				Command: &CommandWrapper{
+				Command: &commandWrapper{
 					Command: &command.StateRmCommand{
 						StateMeta: command.StateMeta{
 							Meta: meta,
@@ -515,7 +513,7 @@ func initCommands(
 
 		"state move": func() (cli.Command, error) {
 			return &command.AliasCommand{
-				Command: &CommandWrapper{
+				Command: &commandWrapper{
 					Command: &command.StateMvCommand{
 						StateMeta: command.StateMeta{
 							Meta: meta,
@@ -526,7 +524,7 @@ func initCommands(
 		},
 
 		"state pull": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.StatePullCommand{
 					Meta: meta,
 				},
@@ -534,7 +532,7 @@ func initCommands(
 		},
 
 		"state push": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.StatePushCommand{
 					Meta: meta,
 				},
@@ -542,7 +540,7 @@ func initCommands(
 		},
 
 		"state show": func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.StateShowCommand{
 					Meta: meta,
 				},
@@ -560,7 +558,7 @@ func initCommands(
 
 	if meta.AllowExperimentalFeatures {
 		commands["cloud"] = func() (cli.Command, error) {
-			return &CommandWrapper{
+			return &commandWrapper{
 				Command: &command.CloudCommand{
 					Meta: meta,
 				},

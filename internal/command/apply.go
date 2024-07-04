@@ -40,9 +40,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	c.Meta.color = !common.NoColor
 	c.Meta.Color = c.Meta.color
 
-	// Toggle pedantic mode
-	c.pedanticMode = common.PedanticMode
-
 	// Parse and validate flags
 	var args *arguments.Apply
 	switch {

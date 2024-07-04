@@ -277,8 +277,8 @@ type Meta struct {
 	// Pedantic mode is used to treat warnings as errors
 	pedanticMode bool
 
-	// warningFlagged is used to indicate if a warning has been triggered when in pedantic mode
-	warningFlagged bool
+	// legacyWarningFlagged is used to indicate if a legacy ui warning has been triggered when in pedantic mode
+	legacyWarningFlagged bool
 }
 
 type testingOverrides struct {
@@ -668,7 +668,7 @@ func (m *Meta) process(args []string) []string {
 	if m.pedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
-			NotifyWarning: m.NotifyWarning,
+			NotifyWarning: m.NotifyLegacyWarning,
 		}
 	}
 
@@ -954,10 +954,10 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	return nil, diags
 }
 
-func (m *Meta) NotifyWarning() {
-	m.warningFlagged = true
+func (m *Meta) NotifyLegacyWarning() {
+	m.legacyWarningFlagged = true
 }
 
-func (m *Meta) WarningNotified() bool {
-	return m.warningFlagged
+func (m *Meta) WarningFlagged() bool {
+	return m.pedanticMode && m.legacyWarningFlagged || m.View.WarningFlagged
 }

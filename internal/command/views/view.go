@@ -39,10 +39,11 @@ type View struct {
 	// order to access the config loader cache.
 	configSources func() map[string][]byte
 
-	// Pedantic mode is used to treat warnings as errors
+	// pedantic mode is used to treat warnings as errors
 	pedanticMode bool
 
-	NotifyWarning func()
+	// Warning flagged is used to indicate a warning has been flagged when in pedantic mode
+	WarningFlagged bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -103,21 +104,15 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
 	if v.pedanticMode {
-		var warningFound bool
-
 		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
 		for _, diag := range diags {
 			if diag.Severity() == tfdiags.Warning {
-				warningFound = true
 				diag = tfdiags.Override(diag, tfdiags.Error, nil)
+				v.WarningFlagged = true
 			}
 			newDiags = newDiags.Append(diag)
 		}
 		diags = newDiags
-
-		if warningFound {
-			v.NotifyWarning()
-		}
 	}
 
 	// Since warning messages are generally competing
