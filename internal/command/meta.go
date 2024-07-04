@@ -955,12 +955,9 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 }
 
 func (m *Meta) NotifyWarning() {
-	if m.pedanticMode {
-		m.warningFlagged = true
-	}
+	m.warningFlagged = true
 }
 
-func (m *Meta) PedanticWarningNotified() bool {
-	return m.pedanticMode && m.warningFlagged
+func (m *Meta) WarningNotified() bool {
+	return m.warningFlagged
 }
-
