@@ -26,10 +26,6 @@ func (c *WorkspaceCommand) Run(args []string) int {
 	cmdFlags := c.Meta.extendedFlagSet("workspace")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 
-	if c.pedanticMode && c.legacyWarningFlagged {
-		return 1
-	}
-
 	return cli.RunResultHelp
 }
 

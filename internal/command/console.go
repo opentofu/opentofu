@@ -55,14 +55,14 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() || c.pedanticMode && encDiags.HasWarnings() {
+	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+	if diags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -72,7 +72,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() || c.pedanticMode && backendDiags.HasWarnings() {
+	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -105,7 +105,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		opReq.Variables, moreDiags = c.collectVariableValues()
 		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
-		if moreDiags.HasErrors() || c.pedanticMode && moreDiags.HasWarnings() {
+		if moreDiags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -114,7 +114,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if ctxDiags.HasErrors() || c.pedanticMode && ctxDiags.HasWarnings() {
+	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -122,7 +122,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Successfully creating the context can result in a lock, so ensure we release it
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
-		if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 		}
 	}()
@@ -164,20 +164,12 @@ func (c *ConsoleCommand) Run(args []string) int {
 		Scope: scope,
 	}
 
-	var retCode int
-
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		retCode = c.modePiped(session, c.Ui)
-	} else {
-		retCode = c.modeInteractive(session, c.Ui)
+		return c.modePiped(session, c.Ui)
 	}
 
-	if c.pedanticMode && c.legacyWarningFlagged {
-		retCode = 1
-	}
-
-	return retCode
+	return c.modeInteractive(session, c.Ui)
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
@@ -185,7 +177,7 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		result, exit, diags := session.Handle(strings.TrimSpace(scanner.Text()))
-		if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+		if diags.HasErrors() {
 			// In piped mode we'll exit immediately on error.
 			c.showDiagnostics(diags)
 			return 1

@@ -92,7 +92,7 @@ func (c *FmtCommand) Run(args []string) int {
 
 	diags := c.fmt(paths, c.input, output)
 	c.showDiagnostics(diags)
-	if diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
+	if diags.HasErrors() {
 		return 2
 	}
 
@@ -107,10 +107,6 @@ func (c *FmtCommand) Run(args []string) int {
 		} else {
 			return 3
 		}
-	}
-
-	if c.pedanticMode && c.legacyWarningFlagged {
-		return 1
 	}
 
 	return 0

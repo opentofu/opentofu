@@ -59,11 +59,7 @@ func (c *GetCommand) Run(args []string) int {
 
 	abort, diags := getModules(ctx, &c.Meta, path, testsDirectory, update)
 	c.showDiagnostics(diags)
-	if abort || diags.HasErrors() || c.pedanticMode && diags.HasWarnings() {
-		return 1
-	}
-
-	if c.pedanticMode && c.legacyWarningFlagged {
+	if abort || diags.HasErrors() {
 		return 1
 	}
 
