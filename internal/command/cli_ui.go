@@ -57,10 +57,10 @@ func (u *ColorizeUi) colorize(message string, color string) string {
 
 type PedanticUi struct {
 	cli.Ui
-	WarningTrigger func()
+	WarningNotifier func()
 }
 
 func (u *PedanticUi) Warn(msg string) {
 	u.Ui.Error(msg)
-	u.WarningTrigger()
+	u.WarningNotifier()
 }
