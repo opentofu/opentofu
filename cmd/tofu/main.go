@@ -92,8 +92,8 @@ func realMain() int {
 
 	// Set to the version command if version has been toggled
 	if _, ok := opts[optionVersion]; ok {
-		newArgs := make([]string, len(args)+1)
-		newArgs[0] = "version"
+		newArgs := make([]string, 0, len(args)+1)
+		newArgs = append(newArgs, "version")
 		copy(newArgs[1:], args)
 		args = newArgs
 	}
