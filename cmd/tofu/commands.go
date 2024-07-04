@@ -54,15 +54,19 @@ var hiddenCommands map[string]struct{}
 // Ui is the cli.Ui used for communicating to the outside world.
 var Ui cli.Ui
 
+// Command is the interface required to wrap a command and check if a pedantic warning has been flagged
 type Command interface {
 	cli.Command
 	WarningFlagged() bool
 }
 
+// Wraps a command
 type commandWrapper struct {
 	Command
 }
 
+// Run runs the command and returns the appropriate return code based on whether a
+// pedantic warning has been flagged or not
 func (cw *commandWrapper) Run(args []string) int {
 	retCode := cw.Command.Run(args)
 	if cw.Command.WarningFlagged() {
