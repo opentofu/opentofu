@@ -163,9 +163,9 @@ func (p *providerForTest) setSingleResource(addr addrs.Resource, overrides map[s
 	case addrs.DataResourceMode:
 		p.dataResources[addr.Type] = res
 	case addrs.InvalidResourceMode:
-		panic("encountered invalid resource mode")
+		panic("BUG: invalid mock resource mode")
 	default:
-		panic("encountered undefined resource mode: " + addr.Mode.String())
+		panic("BUG: unsupported resource mode: " + addr.Mode.String())
 	}
 }
 
