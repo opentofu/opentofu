@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/experiments"
-
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -108,7 +107,7 @@ type File struct {
 	Checks []*Check
 }
 
-// Only load and validate the portions of files needed for the given operations/contexts
+// SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
 type SelectiveLoader int
 
 const (
@@ -131,7 +130,7 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 		}
 
 		switch s {
-		case SelectiveLoadBackend:
+		case SelectiveLoadBackend: //nolint:exhaustive
 			outFile.Backends = inFile.Backends
 			outFile.CloudConfigs = inFile.CloudConfigs
 		case SelectiveLoadEncryption:
