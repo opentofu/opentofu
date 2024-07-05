@@ -76,6 +76,11 @@ func (v *View) RunningInAutomation() bool {
 	return v.runningInAutomation
 }
 
+func (v *View) SetRunningInPedanticMode(pedanticMode bool) *View {
+	v.PedanticMode = pedanticMode
+	return v
+}
+
 // Configure applies the global view configuration flags.
 func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor

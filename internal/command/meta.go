@@ -660,7 +660,7 @@ func (m *Meta) process(args []string) []string {
 		Ui:         m.oldUi,
 	})
 
-	if m.PedanticMode {
+	if m.View.PedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
 			NotifyWarning: func() {
@@ -741,7 +741,7 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
-	if m.PedanticMode {
+	if m.View.PedanticMode {
 		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
 		for _, diag := range diags {
 			if diag.Severity() == tfdiags.Warning {

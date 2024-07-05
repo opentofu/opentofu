@@ -111,7 +111,7 @@ func initCommands(
 	meta := command.Meta{
 		WorkingDir: wd,
 		Streams:    streams,
-		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),
+		View:       views.NewView(streams).SetRunningInAutomation(inAutomation).SetRunningInPedanticMode(pedanticMode),
 
 		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),
@@ -134,8 +134,6 @@ func initCommands(
 		UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
-
-		PedanticMode: pedanticMode,
 	}
 
 	// The command list is included in the tofu -help
