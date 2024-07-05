@@ -420,6 +420,11 @@ func TestParseCommandArgs(t *testing.T) {
 			[]string{"plan", "-state=file.tfstate"},
 		},
 		{
+			"positive tc version not in args",
+			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
+			[]string{"plan", "-state=file.tfstate"},
+		},
+		{
 			"positive tc unknown global option",
 			[]string{"-random", "plan", "-state=file.tfstate"},
 			[]string{"-random", "plan", "-state=file.tfstate"},
