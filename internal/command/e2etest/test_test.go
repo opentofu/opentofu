@@ -76,7 +76,7 @@ func TestOverrides(t *testing.T) {
 	if stderr != "" {
 		t.Errorf("unexpected stderr output on 'test':\n%s", stderr)
 	}
-	if !strings.Contains(stdout, "11 passed, 0 failed") {
+	if !strings.Contains(stdout, "12 passed, 0 failed") {
 		t.Errorf("output doesn't have expected success string:\n%s", stdout)
 	}
 }
