@@ -545,19 +545,20 @@ func parseCommandArgs(args []string) []string {
 			commandFound = true
 		}
 
-		if strings.HasPrefix(arg, "-") && !commandFound {
-			testArg := strings.SplitN(arg[1:], "=", 2)[0]
-			if testArg == "v" || testArg == "-version" {
-				// Capture -version, -v and --version as the version option
-				testArg = optionVersion
-			}
+		testArg := strings.SplitN(arg[1:], "=", 2)[0]
 
+		// Retain backwards compatibility as version option historically can be anywhere on the arg list
+		if testArg == optionVersion || testArg == "v" || testArg == "-version" {
+			// Capture -version, -v and --version as the version option
+			continue
+		}
+
+		if strings.HasPrefix(arg, "-") && !commandFound {
 			if testArg == optionChDir || testArg == optionHelp || testArg == optionPedantic || testArg == optionVersion {
 				continue
 			}
 		}
 		newArgs = append(newArgs, arg)
 	}
-
 	return newArgs
 }

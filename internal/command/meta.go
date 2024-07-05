@@ -276,10 +276,6 @@ type Meta struct {
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
-
-	// warningFlagged is used to indicate if a warning has been triggered when in pedantic mode
-	warningFlagged bool
-
 }
 
 type testingOverrides struct {
@@ -668,7 +664,7 @@ func (m *Meta) process(args []string) []string {
 		newUi = &PedanticUi{
 			Ui: newUi,
 			NotifyWarning: func() {
-				m.warningFlagged = true
+				m.View.WarningFlagged = true
 			},
 		}
 	}
@@ -750,7 +746,7 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		for _, diag := range diags {
 			if diag.Severity() == tfdiags.Warning {
 				diag = tfdiags.Override(diag, tfdiags.Error, nil)
-				m.warningFlagged = true
+				m.View.WarningFlagged = true
 			}
 			newDiags = newDiags.Append(diag)
 		}
@@ -956,5 +952,5 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 }
 
 func (m *Meta) WarningFlagged() bool {
-	return m.PedanticMode && m.warningFlagged || m.View.WarningFlagged
+	return m.View.WarningFlagged
 }
