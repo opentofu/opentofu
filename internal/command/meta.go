@@ -180,9 +180,6 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
-	// Pedantic mode is used to treat warnings as errors
-	PedanticMode bool
-
 	//----------------------------------------------------------
 	// Protected: commands can set these
 	//----------------------------------------------------------
@@ -642,6 +639,8 @@ func (m *Meta) process(args []string) []string {
 		case "-no-color":
 			m.color = false
 			m.Color = false
+		case "-pedantic":
+			m.View.PedanticMode = true
 		default:
 			// copy and increment index
 			args[i] = v

@@ -84,7 +84,6 @@ func initCommands(
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
-	pedanticMode bool,
 ) {
 	var inAutomation bool
 	if v := os.Getenv(runningInAutomationEnvName); v != "" {
@@ -111,7 +110,7 @@ func initCommands(
 	meta := command.Meta{
 		WorkingDir: wd,
 		Streams:    streams,
-		View:       views.NewView(streams).SetRunningInAutomation(inAutomation).SetRunningInPedanticMode(pedanticMode),
+		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),
 
 		Color:            true,
 		GlobalPluginDirs: globalPluginDirs(),

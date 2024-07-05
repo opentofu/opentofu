@@ -76,16 +76,12 @@ func (v *View) RunningInAutomation() bool {
 	return v.runningInAutomation
 }
 
-func (v *View) SetRunningInPedanticMode(pedanticMode bool) *View {
-	v.PedanticMode = pedanticMode
-	return v
-}
-
 // Configure applies the global view configuration flags.
 func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
+	v.PedanticMode = view.PedanticMode
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
