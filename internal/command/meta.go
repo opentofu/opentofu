@@ -631,6 +631,8 @@ func (m *Meta) process(args []string) []string {
 		m.Ui = m.oldUi
 	}
 
+	var pedanticMode bool
+
 	// Set colorization
 	m.color = m.Color
 	i := 0 // output index
@@ -640,7 +642,7 @@ func (m *Meta) process(args []string) []string {
 			m.color = false
 			m.Color = false
 		case "-pedantic":
-			m.View.PedanticMode = true
+			pedanticMode = true
 		default:
 			// copy and increment index
 			args[i] = v
@@ -659,7 +661,7 @@ func (m *Meta) process(args []string) []string {
 		Ui:         m.oldUi,
 	})
 
-	if m.View.PedanticMode {
+	if pedanticMode {
 		newUi = &PedanticUi{
 			Ui: newUi,
 			NotifyWarning: func() {
@@ -676,7 +678,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
-			PedanticMode:    m.View.PedanticMode,
+			PedanticMode:    pedanticMode,
 		})
 	}
 
