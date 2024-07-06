@@ -50,8 +50,8 @@ const (
 )
 
 // ui wraps the primary output cli.Ui
-// When in pedantic mode, calls are redirected to Error to write to stderr
-// When not in pedantic mode, calls are redirected to Output to write to stdout
+// When in pedantic mode, calls are redirected to Error which writes to stderr
+// When not in pedantic mode, calls are redirected to Output which writes to stdout
 type ui struct {
 	cli.Ui
 	pedanticMode   bool
@@ -370,6 +370,7 @@ func realMain() int {
 	}
 
 	// If any warnings have been flagged then we exit before running the command
+	// We don't print anything as it should have already been done via the ui component
 	if cliUi.warningFlagged {
 		return 1
 	}
