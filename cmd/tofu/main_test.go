@@ -378,14 +378,14 @@ func TestParseGlobalOptions(t *testing.T) {
 		expectedArgs []string
 	}{
 		{
-			"positive tc options",
-			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "-state=file.tfstate"},
+			"positive tc options and args",
+			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "-state=file.tfstate", "-version", "-v", "--version"},
 			map[string]string{"chdir": "target", "help": "", "pedantic": "", "version": ""},
 			[]string{"plan", "-state=file.tfstate"},
 		},
 		{
-			"positive tc version",
-			[]string{"-version", "-v", "--version", "plan", "-state=file.tfstate", "-version", "-v", "--version"},
+			"positive tc version option",
+			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
 			map[string]string{"chdir": "target", "help": "", "pedantic": "", "version": ""},
 			[]string{"plan", "-state=file.tfstate"},
 		},
