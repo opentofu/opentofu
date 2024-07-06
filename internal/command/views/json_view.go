@@ -76,7 +76,7 @@ func (v *JSONView) StateDump(state string) {
 func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
 	sources := v.view.configSources()
 	for _, diag := range diags {
-		if v.view.PedanticMode {
+		if v.view.PedanticMode && diag.Severity() == tfdiags.Warning {
 			diag = tfdiags.Override(diag, tfdiags.Error, nil)
 		}
 
