@@ -7,7 +7,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -405,16 +404,35 @@ func TestParseCommandArgs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts, args, err = parseCommandArgs(tc.args)
-			assert.EqualValues(t, tc.expectedOpts, opts)
-			assert.EqualValues(t, tc.expectedArgs, args)
-			assert.Nil(t, err)
+
+			if !reflect.DeepEqual(opts, tc.expectedOpts) {
+				t.Fatalf("expected: %v got: %v", tc.expectedOpts, opts)
+			}
+
+			if !reflect.DeepEqual(args, tc.expectedArgs) {
+				t.Fatalf("expected: %v got: %v", tc.expectedArgs, args)
+			}
+
+			if err != nil {
+				t.Fatalf("expected: %v got: %v", nil, err)
+			}
 		})
 	}
 
 	t.Run("negative tc chdir", func(t *testing.T) {
 		opts, args, err = parseCommandArgs([]string{"-chdir", "plan", "-state=file.tfstate"})
-		assert.Nil(t, opts)
-		assert.Nil(t, args)
-		assert.Error(t, err)
+
+		if opts != nil {
+			t.Fatalf("expected: %v got: %v", nil, opts)
+		}
+
+		if opts != nil {
+			t.Fatalf("expected: %v got: %v", nil, opts)
+		}
+
+		expectedError := fmt.Sprintf("invalid global opt -chdir: must include an equals sign followed by a value: -chdir=value")
+		if err == nil {
+			t.Fatalf("expected: %v got: %v", expectedError, err)
+		}
 	})
 }
