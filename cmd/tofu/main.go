@@ -506,8 +506,8 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 		opt := strings.SplitN(arg[1:], "=", 2)
 
 		// Retain backwards compatibility as version opt historically can be anywhere on the arg list
+		// Capture -version, -v and --version as the version opt
 		if opt[0] == optionVersion || opt[0] == "v" || opt[0] == "-version" {
-			// Capture -version, -v and --version as the version opt
 			opt[0] = optionVersion
 		} else {
 			if commandFound || opt[0] != optionChDir && opt[0] != optionHelp && opt[0] != optionPedantic {
