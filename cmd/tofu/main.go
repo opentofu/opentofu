@@ -49,23 +49,22 @@ const (
 	optionVersion  = "version"
 )
 
-// ui wraps the primary output cli.Ui, and redirects Warn calls to Output
-// calls. This ensures that warnings are sent to stdout, and are properly
-// serialized within the stdout stream.
+// ui wraps the primary output cli.Ui
+// When in pedantic mode, calls are redirected to Error to write to stderr
+// When not in pedantic mode, calls are redirected to Output to write to stdout
 type ui struct {
 	cli.Ui
+	pedanticMode   bool
+	warningFlagged bool
 }
 
 func (u *ui) Warn(msg string) {
+	if u.pedanticMode {
+		u.warningFlagged = true
+		u.Ui.Error(msg)
+		return
+	}
 	u.Ui.Output(msg)
-}
-
-func init() {
-	Ui = &ui{&cli.BasicUi{
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-		Reader:      os.Stdin,
-	}}
 }
 
 func main() {
@@ -77,13 +76,21 @@ func realMain() int {
 
 	var err error
 
+	cliUi := &ui{
+		Ui: &cli.BasicUi{
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+			Reader:      os.Stdin,
+		},
+	}
+
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
 	// Parse command args
 	opts, args, err := parseCommandArgs(args)
 	if err != nil {
-		Ui.Error(err.Error())
+		cliUi.Error(err.Error())
 		return 1
 	}
 
@@ -100,8 +107,11 @@ func realMain() int {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
 
-	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
+	// Configure pedantic mode if it has been toggled
 	if _, ok := opts[optionPedantic]; ok {
+		cliUi.pedanticMode = true
+
+		// Attach the pedantic option to the command args to activate pedantic mode at the command level
 		args = append(args, fmt.Sprintf("-%s", optionPedantic))
 	}
 
@@ -110,8 +120,8 @@ func realMain() int {
 		// openTelemetryInit can only fail if OpenTofu was run with an
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
-		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
-		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", openTelemetryExporterEnvVar))
+		cliUi.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
+		cliUi.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", openTelemetryExporterEnvVar))
 		return 1
 	}
 	var ctx context.Context
@@ -150,7 +160,7 @@ func realMain() int {
 
 	streams, err := terminal.Init()
 	if err != nil {
-		Ui.Error(fmt.Sprintf("Failed to configure the terminal: %s", err))
+		cliUi.Error(fmt.Sprintf("Failed to configure the terminal: %s", err))
 		return 1
 	}
 	if streams.Stdout.IsTerminal() {
@@ -180,7 +190,7 @@ func realMain() int {
 		// Since we haven't instantiated a command.Meta yet, we need to do
 		// some things manually here and use some "safe" defaults for things
 		// that command.Meta could otherwise figure out in smarter ways.
-		Ui.Error("There are some problems with the CLI configuration:")
+		cliUi.Error("There are some problems with the CLI configuration:")
 		for _, diag := range diags {
 			earlyColor := &colorstring.Colorize{
 				Colors:  colorstring.DefaultColors,
@@ -190,10 +200,10 @@ func realMain() int {
 			// We don't currently have access to the source code cache for
 			// the parser used to load the CLI config, so we can't show
 			// source code snippets in early diagnostics.
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
+			cliUi.Error(format.Diagnostic(diag, nil, earlyColor, 78))
 		}
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTofu may not behave as intended.\n\n")
+			cliUi.Error("As a result of the above problems, OpenTofu may not behave as intended.\n\n")
 			// We continue to run anyway, since OpenTofu has reasonable defaults.
 		}
 	}
@@ -221,17 +231,17 @@ func realMain() int {
 
 	providerSrc, diags := providerSource(config.ProviderInstallation, services)
 	if len(diags) > 0 {
-		Ui.Error("There are some problems with the provider_installation configuration:")
+		cliUi.Error("There are some problems with the provider_installation configuration:")
 		for _, diag := range diags {
 			earlyColor := &colorstring.Colorize{
 				Colors:  colorstring.DefaultColors,
 				Disable: true, // Disable color to be conservative until we know better
 				Reset:   true,
 			}
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
+			cliUi.Error(format.Diagnostic(diag, nil, earlyColor, 78))
 		}
 		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
+			cliUi.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
 			// We continue to run anyway, because most commands don't do provider installation.
 		}
 	}
@@ -242,7 +252,7 @@ func realMain() int {
 	// primarily by the SDK's acceptance testing framework.
 	unmanagedProviders, err := parseReattachProviders(os.Getenv("TF_REATTACH_PROVIDERS"))
 	if err != nil {
-		Ui.Error(err.Error())
+		cliUi.Error(err.Error())
 		return 1
 	}
 
@@ -252,7 +262,7 @@ func realMain() int {
 	originalWd, err := os.Getwd()
 	if err != nil {
 		// It would be very strange to end up here
-		Ui.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
+		cliUi.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
 		return 1
 	}
 
@@ -262,7 +272,7 @@ func realMain() int {
 	if overrideWd, ok := opts[optionChDir]; ok {
 		err := os.Chdir(overrideWd)
 		if err != nil {
-			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
+			cliUi.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
 			return 1
 		}
 	}
@@ -298,7 +308,7 @@ func realMain() int {
 	// Prefix the args with any args from the EnvCLI
 	args, err = mergeEnvArgs(EnvCLI, cliRunner.Subcommand(), args)
 	if err != nil {
-		Ui.Error(err.Error())
+		cliUi.Error(err.Error())
 		return 1
 	}
 
@@ -308,7 +318,7 @@ func realMain() int {
 	args, err = mergeEnvArgs(
 		fmt.Sprintf("%s_%s", EnvCLI, suffix), cliRunner.Subcommand(), args)
 	if err != nil {
-		Ui.Error(err.Error())
+		cliUi.Error(err.Error())
 		return 1
 	}
 
@@ -358,9 +368,14 @@ func realMain() int {
 		}
 	}
 
+	// If any warnings have been flagged then we exit before running the command
+	if cliUi.warningFlagged {
+		return 1
+	}
+
 	exitCode, err := cliRunner.Run()
 	if err != nil {
-		Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
+		cliUi.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
 		return 1
 	}
 
@@ -368,7 +383,7 @@ func realMain() int {
 	// plugins crashing
 	if exitCode != 0 {
 		for _, panicLog := range logging.PluginPanics() {
-			Ui.Error(panicLog)
+			cliUi.Error(panicLog)
 		}
 	}
 
