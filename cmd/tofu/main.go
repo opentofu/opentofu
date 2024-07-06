@@ -80,20 +80,17 @@ func realMain() int {
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
-	// Get the global options from the command args
-	opts, err := parseGlobalOptions(args)
+	// Parse command args
+	opts, args, err := parseCommandArgs(args)
 	if err != nil {
 		Ui.Error(err.Error())
 		return 1
 	}
 
-	// Parse the command args and remove any global options that are present
-	args = parseCommandArgs(args)
-
 	// Set to the version command if version has been toggled
 	if _, ok := opts[optionVersion]; ok {
-		newArgs := make([]string, 0, len(args)+1)
-		newArgs = append(newArgs, "version")
+		newArgs := make([]string, len(args)+1)
+		newArgs[0] = "version"
 		copy(newArgs[1:], args)
 		args = newArgs
 	}
@@ -493,8 +490,10 @@ func mkConfigDir(configDir string) error {
 	return err
 }
 
-func parseGlobalOptions(args []string) (map[string]string, error) {
-	options := make(map[string]string)
+func parseCommandArgs(args []string) (map[string]string, []string, error) {
+	opts := make(map[string]string)
+	newArgs := make([]string, 0)
+
 	var commandFound bool
 
 	for _, arg := range args {
@@ -504,59 +503,31 @@ func parseGlobalOptions(args []string) (map[string]string, error) {
 			commandFound = true
 		}
 
-		option := strings.SplitN(arg[1:], "=", 2)
+		opt := strings.SplitN(arg[1:], "=", 2)
 
-		// Retain backwards compatibility as version option historically can be anywhere on the arg list
-		if option[0] == optionVersion || option[0] == "v" || option[0] == "-version" {
-			// Capture -version, -v and --version as the version option
-			option[0] = optionVersion
+		// Retain backwards compatibility as version opt historically can be anywhere on the arg list
+		if opt[0] == optionVersion || opt[0] == "v" || opt[0] == "-version" {
+			// Capture -version, -v and --version as the version opt
+			opt[0] = optionVersion
 		} else {
-			if commandFound || option[0] != optionChDir && option[0] != optionHelp && option[0] != optionPedantic {
+			if commandFound || opt[0] != optionChDir && opt[0] != optionHelp && opt[0] != optionPedantic {
+				newArgs = append(newArgs, arg)
 				continue
 			}
 
-			if option[0] == optionChDir {
-				if len(option) != 2 {
-					return nil, fmt.Errorf(
-						"invalid global option -%[1]s: must include an equals sign followed by a value: -%[1]s=value", option[0])
+			if opt[0] == optionChDir {
+				if len(opt) != 2 {
+					return nil, nil, fmt.Errorf(
+						"invalid global opt -%[1]s: must include an equals sign followed by a value: -%[1]s=value", opt[0])
 				}
 			}
 		}
 
-		if len(option) != 2 {
-			option = append(option, "")
+		if len(opt) != 2 {
+			opt = append(opt, "")
 		}
-		options[option[0]] = option[1]
+		opts[opt[0]] = opt[1]
 	}
 
-	return options, nil
-}
-
-func parseCommandArgs(args []string) []string {
-	newArgs := make([]string, 0)
-	var commandFound bool
-
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			// Global options are processed before the command
-			// Flag that we have found the command
-			commandFound = true
-		}
-
-		testArg := strings.SplitN(arg[1:], "=", 2)[0]
-
-		// Retain backwards compatibility as version option historically can be anywhere on the arg list
-		if testArg == optionVersion || testArg == "v" || testArg == "-version" {
-			// Capture -version, -v and --version as the version option
-			continue
-		}
-
-		if strings.HasPrefix(arg, "-") && !commandFound {
-			if testArg == optionChDir || testArg == optionHelp || testArg == optionPedantic || testArg == optionVersion {
-				continue
-			}
-		}
-		newArgs = append(newArgs, arg)
-	}
-	return newArgs
+	return opts, newArgs, nil
 }
