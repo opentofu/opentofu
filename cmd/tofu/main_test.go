@@ -370,7 +370,7 @@ func TestMkConfigDir_noparent(t *testing.T) {
 	}
 }
 
-func TestParseGlobalOptions(t *testing.T) {
+func TestParseCommandArgs(t *testing.T) {
 	testCases := []struct {
 		name     string
 		args     []string
@@ -379,14 +379,14 @@ func TestParseGlobalOptions(t *testing.T) {
 	}{
 		{
 			"positive tc options and args",
-			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "-state=file.tfstate", "-version", "-v", "--version"},
+			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "-state=file.tfstate"},
 			map[string]string{"chdir": "target", "help": "", "pedantic": "", "version": ""},
 			[]string{"plan", "-state=file.tfstate"},
 		},
 		{
 			"positive tc version option",
 			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
-			map[string]string{"chdir": "target", "help": "", "pedantic": "", "version": ""},
+			map[string]string{"version": ""},
 			[]string{"plan", "-state=file.tfstate"},
 		},
 		{
