@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -403,7 +404,7 @@ func TestParseCommandArgs(t *testing.T) {
 			[]string{"-chdir", "plan", "-state=file.tfstate"},
 			nil,
 			nil,
-			fmt.Errorf("invalid global opt -chdir: must include an equals sign followed by a value: -chdir=value"),
+			errors.New("invalid global opt -chdir: must include an equals sign followed by a value: -chdir=value"),
 		},
 	}
 
