@@ -407,15 +407,9 @@ func TestParseCommandArgs(t *testing.T) {
 		},
 	}
 
-	var (
-		opts map[string]string
-		args []string
-		err error
-	)
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts, args, err = parseCommandArgs(tc.args)
+			opts, args, err := parseCommandArgs(tc.args)
 
 			if !reflect.DeepEqual(opts, tc.expectedOpts) {
 				t.Fatalf("expected: %v got: %v", tc.expectedOpts, opts)
