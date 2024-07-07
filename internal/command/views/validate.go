@@ -49,6 +49,14 @@ var _ Validate = (*ValidateHuman)(nil)
 func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 	columns := v.view.outputColumns()
 
+	// Convert warnings to errors if we are in pedantic mode
+	if v.view.PedanticMode {
+		var overridden bool
+		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
+			v.view.WarningFlagged = true
+		}
+	}
+
 	if len(diags) == 0 {
 		v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateSuccess), columns))
 	} else {
@@ -105,6 +113,15 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		Valid:         true, // until proven otherwise
 	}
 	configSources := v.view.configSources()
+
+	// Convert warnings to errors if we are in pedantic mode
+	if v.view.PedanticMode {
+		var overridden bool
+		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
+			v.view.WarningFlagged = true
+		}
+	}
+
 	for _, diag := range diags {
 		output.Diagnostics = append(output.Diagnostics, viewsjson.NewDiagnostic(diag, configSources))
 

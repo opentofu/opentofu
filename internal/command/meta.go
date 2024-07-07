@@ -744,15 +744,10 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
 	if m.View.PedanticMode {
-		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
-		for _, diag := range diags {
-			if diag.Severity() == tfdiags.Warning {
-				diag = tfdiags.Override(diag, tfdiags.Error, nil)
-				m.View.WarningFlagged = true
-			}
-			newDiags = newDiags.Append(diag)
+		var overridden bool
+		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
+			m.View.WarningFlagged = true
 		}
-		diags = newDiags
 	}
 
 	// Since warning messages are generally competing
@@ -913,7 +908,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -923,7 +918,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config == nil {
-		config, diags = c.loadConfig(path)
+		config, diags = m.loadConfig(path)
 		if diags.HasErrors() {
 			diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
 			return nil, diags
@@ -931,7 +926,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config != nil || state != nil {
-		opts, err := c.contextOpts()
+		opts, err := m.contextOpts()
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
@@ -953,6 +948,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	return nil, diags
 }
 
+// WarningFlagged returns whether a warning has been flagged during command execution when in pedantic mode
 func (m *Meta) WarningFlagged() bool {
 	return m.View.WarningFlagged
 }

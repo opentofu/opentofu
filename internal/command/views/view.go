@@ -104,15 +104,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
 	if v.PedanticMode {
-		newDiags := make(tfdiags.Diagnostics, 0, len(diags))
-		for _, diag := range diags {
-			if diag.Severity() == tfdiags.Warning {
-				diag = tfdiags.Override(diag, tfdiags.Error, nil)
-				v.WarningFlagged = true
-			}
-			newDiags = newDiags.Append(diag)
+		var overridden bool
+		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
+			v.WarningFlagged = true
 		}
-		diags = newDiags
 	}
 
 	// Since warning messages are generally competing

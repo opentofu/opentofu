@@ -75,11 +75,16 @@ func (v *JSONView) StateDump(state string) {
 
 func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
 	sources := v.view.configSources()
-	for _, diag := range diags {
-		if v.view.PedanticMode && diag.Severity() == tfdiags.Warning {
-			diag = tfdiags.Override(diag, tfdiags.Error, nil)
-		}
 
+	// Convert warnings to errors if we are in pedantic mode
+	if v.view.PedanticMode {
+		var overridden bool
+		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
+			v.view.WarningFlagged = true
+		}
+	}
+
+	for _, diag := range diags {
 		diagnostic := json.NewDiagnostic(diag, sources)
 
 		args := []interface{}{"type", json.MessageDiagnostic, "diagnostic", diagnostic}
