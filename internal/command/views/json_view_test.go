@@ -151,9 +151,9 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 	view := NewView(streams)
 	view.PedanticMode = true
 
-	jsonView := NewJSONView(view)
-
 	diags := tfdiags.Diagnostics{tfdiags.SimpleWarning("Output as error")}
+
+	jsonView := NewJSONView(view)
 	jsonView.Diagnostics(diags)
 
 	writer.Close()
