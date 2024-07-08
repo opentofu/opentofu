@@ -43,6 +43,15 @@ func marksEqual(a, b []cty.PathValueMarks) bool {
 	return true
 }
 
+func copyPathValueMarks(marks cty.PathValueMarks) cty.PathValueMarks {
+	newMarks := make(cty.ValueMarks, len(marks.Marks))
+	result := cty.PathValueMarks{Path: marks.Path}
+	for k, v := range marks.Marks {
+		newMarks[k] = v
+	}
+	return result
+}
+
 // combinePathValueMarks will combine the marks from two sets of marks with paths, ensuring that we don't duplicate marks
 // for the same path, but instead combine the marks for the same path
 // This ensures that we don't lose user marks when combining 2 different sets of marks for the same path
@@ -67,7 +76,7 @@ func combinePathValueMarks(marks []cty.PathValueMarks, other []cty.PathValueMark
 		for i, existing := range combined {
 			if mark.Path.Equals(existing.Path) {
 				// if we found a matching path, we should combine the marks and update the existing item
-				dupe := existing
+				dupe := copyPathValueMarks(existing)
 				for k, v := range mark.Marks {
 					dupe.Marks[k] = v
 				}
