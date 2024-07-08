@@ -49,6 +49,7 @@ func copyPathValueMarks(marks cty.PathValueMarks) cty.PathValueMarks {
 	for k, v := range marks.Marks {
 		newMarks[k] = v
 	}
+	result.Marks = newMarks
 	return result
 }
 
