@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestDiagnosticsPedanticMode(t *testing.T) {
+func TestViewDiagnosticsInPedanticMode(t *testing.T) {
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("error setting up reader and writer: %s", err)
