@@ -30,7 +30,8 @@ func NewMockValueComposer(seed int64) MockValueComposer {
 // its own defaults. ComposeBySchema fails if schema contains dynamic types.
 // ComposeBySchema produces the same result with the given input values (seed and func arguments).
 // It does so by traversing schema attributes, blocks and data structure elements / fields
-// in a stable way by sorting keys or elements beforehand.
+// in a stable way by sorting keys or elements beforehand. Then, randomized values match
+// between multiple ComposeBySchema calls, because seed and random sequences are the same.
 func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var configMap map[string]cty.Value
 	var diags tfdiags.Diagnostics
