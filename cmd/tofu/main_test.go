@@ -413,15 +413,15 @@ func TestParseCommandArgs(t *testing.T) {
 			opts, args, err := parseCommandArgs(tc.args)
 
 			if !reflect.DeepEqual(opts, tc.expectedOpts) {
-				t.Fatalf("expected: %v got: %v", tc.expectedOpts, opts)
+				t.Errorf("expected: %v got: %v", tc.expectedOpts, opts)
 			}
 
 			if !reflect.DeepEqual(args, tc.expectedArgs) {
-				t.Fatalf("expected: %v got: %v", tc.expectedArgs, args)
+				t.Errorf("expected: %v got: %v", tc.expectedArgs, args)
 			}
 
 			if !reflect.DeepEqual(err, tc.expectedErr) {
-				t.Fatalf("expected: %v got: %v", tc.expectedArgs, args)
+				t.Errorf("expected: %v got: %v", tc.expectedArgs, args)
 			}
 		})
 	}
