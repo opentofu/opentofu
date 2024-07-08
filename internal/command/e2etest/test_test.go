@@ -52,8 +52,8 @@ func TestMultipleRunBlocks(t *testing.T) {
 	}
 }
 
-func TestOverrides(t *testing.T) {
-	// This test fetches "local" and "random" providers.
+func TestMocksAndOverrides(t *testing.T) {
+	// This test fetches providers from registry.
 	skipIfCannotAccessNetwork(t)
 
 	tf := e2e.NewBinary(t, tofuBin, filepath.Join("testdata", "overrides-in-tests"))
