@@ -8,6 +8,8 @@ package views
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -129,6 +131,56 @@ func TestJSONView_Diagnostics(t *testing.T) {
 		},
 	}
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
+}
+
+func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("error setting up reader and writer: %s", err)
+	}
+
+	stream := &terminal.OutputStream{
+		File: writer,
+	}
+
+	streams := &terminal.Streams{
+		Stdout: stream,
+		Stderr: stream,
+	}
+
+	view := NewView(streams)
+	view.PedanticMode = true
+
+	jsonView := NewJSONView(view)
+
+	diags := tfdiags.Diagnostics{tfdiags.SimpleWarning("Output as error")}
+	jsonView.Diagnostics(diags)
+
+	writer.Close()
+
+	out, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("error reading from reader: %s", err)
+	}
+
+	want := []map[string]interface{}{
+		{
+			"@level":   "error",
+			"@message": fmt.Sprintf("%s: Output as error", tfdiags.Error),
+			"@module":  "tofu.ui",
+			"type":     "diagnostic",
+			"diagnostic": map[string]interface{}{
+				"severity": strings.ToLower(tfdiags.Error.String()),
+				"summary":  "Output as error",
+				"detail":   "",
+			},
+		},
+	}
+	testJSONViewOutputEquals(t, string(out), want)
+
+	if !view.WarningFlagged {
+		t.Errorf("expected: true, got: %v", view.WarningFlagged)
+	}
 }
 
 func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
@@ -459,3 +511,4 @@ func testJSONViewOutputEquals(t *testing.T, output string, want []map[string]int
 	}
 	testJSONViewOutputEqualsFull(t, output, want, options...)
 }
+

@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestViewDiagnosticsInPedanticMode(t *testing.T) {
+func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("error setting up reader and writer: %s", err)
@@ -26,7 +26,7 @@ func TestViewDiagnosticsInPedanticMode(t *testing.T) {
 	view := NewView(streams)
 	view.PedanticMode = true
 
-	diags := tfdiags.Diagnostics{tfdiags.SimpleWarning("TEST")}
+	diags := tfdiags.Diagnostics{tfdiags.SimpleWarning("Output as error")}
 	view.Diagnostics(diags)
 
 	writer.Close()
@@ -37,7 +37,7 @@ func TestViewDiagnosticsInPedanticMode(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(out))
-	want := fmt.Sprintf("%s: TEST", tfdiags.Error)
+	want := fmt.Sprintf("%s: Output as error", tfdiags.Error)
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
