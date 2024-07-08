@@ -886,6 +886,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 		c.transformProviderConfigsForTest,
 		c.transformOverriddenResourcesForTest,
 		c.transformOverriddenModulesForTest,
+		c.transformVariablesForTest,
 	}
 
 	var resetFuncs []func()
@@ -971,7 +972,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 				Alias:      ref.InChild.Alias,
 				AliasRange: ref.InChild.AliasRange,
 				Version:    testProvider.Version,
-				Config:     testProvider.Config,
+				Config:     &TestProviderConfig{Body: testProvider.Config, Value: nil},
 				DeclRange:  testProvider.DeclRange,
 			}
 
@@ -980,7 +981,15 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// Otherwise, let's copy over and overwrite all providers specified by
 		// the test file itself.
 		for key, provider := range file.Providers {
-			next[key] = provider
+			next[key] = &Provider{
+				Name:       provider.Name,
+				NameRange:  provider.NameRange,
+				Alias:      provider.Alias,
+				AliasRange: provider.AliasRange,
+				Version:    provider.Version,
+				Config:     &TestProviderConfig{Body: provider.Config, Value: nil},
+				DeclRange:  provider.DeclRange,
+			}
 		}
 	}
 
@@ -989,6 +998,47 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	return func() {
 		// Reset the original config within the returned function.
 		c.Module.ProviderConfigs = previous
+	}, diags
+}
+
+func (c *Config) transformVariablesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	previous := c.Module.Variables
+	next := make(map[string]*Variable)
+	for key, value := range c.Module.Variables {
+		next[key] = value
+	}
+
+	// Adds the missing variables in config.Module.Variables from file.Variables to
+	// allow provider blocks in test files to access "var" inputs.
+	for key, variable := range file.Variables {
+		_, existsInRun := run.Variables[key]
+		if _, ok := next[key]; !ok && !existsInRun {
+			defaultValue, valDiags := variable.Value(nil)
+			if valDiags != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  fmt.Sprintf("Value not found for expression: %v", key),
+					Detail:   "The expression may contain non-constant sub-expressions or require variables/functions that are not available. Please ensure that either it is constant or the evaluation context is properly initialized.",
+					Subject:  variable.Range().Ptr(),
+				})
+				continue
+			}
+			next[key] = &Variable{
+				Name:           key,
+				Default:        defaultValue,
+				Type:           defaultValue.Type(),
+				ConstraintType: defaultValue.Type(),
+				DeclRange:      variable.Range(),
+			}
+		}
+	}
+	c.Module.Variables = next
+
+	return func() {
+		// Reset all the variables
+		c.Module.Variables = previous
 	}, diags
 }
 

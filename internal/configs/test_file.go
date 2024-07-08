@@ -43,6 +43,15 @@ const (
 	RefreshOnlyTestMode TestMode = 'R'
 )
 
+// TestProviderConfig represents the config for providers used in tests.
+// It includes the provider config body embedded within hcl.Body.
+// Additionally, it contains a Value field which is evaluated before the Plan operation.
+// This field stores the cty.Value for "run" or "var" blocks.
+type TestProviderConfig struct {
+	hcl.Body
+	Value *cty.Value
+}
+
 // TestFile represents a single test file within a `tofu test` execution.
 //
 // A test file is made up of a sequential list of run blocks, each designating
