@@ -1130,8 +1130,7 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 var mockResourceBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
-			Name:     "defaults",
-			Required: true, // It doesn't make any sense to specify mock_X with no defaults field.
+			Name: "defaults",
 		},
 	},
 }
