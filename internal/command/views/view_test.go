@@ -42,4 +42,8 @@ func TestViewDiagnosticsInPedanticMode(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
 	}
+
+	if !view.WarningFlagged {
+		t.Errorf("expected: true, got: %v", view.WarningFlagged)
+	}
 }
