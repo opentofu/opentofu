@@ -89,6 +89,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
+	// Stable order is important here so random values match its fields between function calls.
 	for _, kv := range mapToSortedSlice(schema.Attributes) {
 		k, attr := kv.k, kv.v
 
@@ -149,6 +150,7 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
+	// Stable order is important here so random values match its fields between function calls.
 	for _, kv := range mapToSortedSlice(schema.BlockTypes) {
 		k, block := kv.k, kv.v
 
@@ -234,6 +236,7 @@ func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 
 		var iterator = configVal.ElementIterator()
 
+		// Stable order is important here so random values match its fields between function calls.
 		for iterator.Next() {
 			_, blockConfigV := iterator.Element()
 
@@ -257,6 +260,7 @@ func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 
 		var iterator = configVal.ElementIterator()
 
+		// Stable order is important here so random values match its fields between function calls.
 		for iterator.Next() {
 			blockConfigK, blockConfigV := iterator.Element()
 
@@ -312,7 +316,8 @@ func (mvc MockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 	case t.IsObjectType():
 		objVals := make(map[string]cty.Value)
 
-		// populate the object with mock values
+		// Populate the object with mock values. Stable order is important here
+		// so random values match its fields between function calls.
 		for _, kv := range mapToSortedSlice(t.AttributeTypes()) {
 			k, at := kv.k, kv.v
 
