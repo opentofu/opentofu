@@ -18,7 +18,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -85,7 +84,6 @@ type BuiltinEvalContext struct {
 	MoveResultsValue      refactoring.MoveResults
 	ImportResolverValue   *ImportResolver
 	Encryption            encryption.Encryption
-	Config                *configs.Config
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -147,10 +145,10 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 		return nil, err
 	}
 
-	if ctx.Config != nil {
+	if config := ctx.Evaluator.Config; config != nil {
 		// If an aliased provider is mocked, we use providerForTest wrapper.
 		// We cannot wrap providers.Factory itself, because factories don't support aliases.
-		pc, ok := ctx.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
+		pc, ok := config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
 		if ok && pc.IsMocked {
 			p, err = newProviderForTest(p, pc.MockResources)
 			if err != nil {
