@@ -95,7 +95,7 @@ func realMain() int {
 		args = newArgs
 	}
 
-	// Attach the pedantic option to the command arguments to activate pedantic if it has been toggled
+	// Attach the help option to the command arguments to activate help if it has been toggled
 	if _, ok := opts[optionHelp]; ok {
 		args = append(args, fmt.Sprintf("-%s", optionHelp))
 	}
