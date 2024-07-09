@@ -48,6 +48,15 @@ func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath
 	}
 }
 
+func (s StaticModuleCall) WithVariables(vars StaticModuleVariables) StaticModuleCall {
+	return StaticModuleCall{
+		addr:      s.addr,
+		vars:      vars,
+		rootPath:  s.rootPath,
+		workspace: s.workspace,
+	}
+}
+
 // only used in testing
 func RootModuleCallForTesting() StaticModuleCall {
 	return NewStaticModuleCall(addrs.RootModule, func(_ *Variable) (cty.Value, hcl.Diagnostics) {
