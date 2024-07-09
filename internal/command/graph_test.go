@@ -127,15 +127,16 @@ func TestGraph_plan(t *testing.T) {
 			Module:   addrs.RootModule,
 		},
 	})
-	emptyConfig, err := plans.NewDynamicValue(cty.EmptyObjectVal, cty.EmptyObject)
+	beConfig := cty.ObjectVal(map[string]cty.Value{
+		"path":          cty.NilVal,
+		"workspace_dir": cty.NilVal,
+	})
+	emptyConfig, err := plans.NewDynamicValue(beConfig, beConfig.Type())
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan.Backend = plans.Backend{
-		// Doesn't actually matter since we aren't going to activate the backend
-		// for this command anyway, but we need something here for the plan
-		// file writer to succeed.
-		Type:   "placeholder",
+		Type:   "local",
 		Config: emptyConfig,
 	}
 	_, configSnap := testModuleWithSnapshot(t, "graph")
