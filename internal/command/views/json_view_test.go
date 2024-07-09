@@ -133,13 +133,11 @@ func TestJSONView_Diagnostics(t *testing.T) {
 
 func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-
 	view := NewView(streams)
 	view.PedanticMode = true
+	jsonView := NewJSONView(view)
 
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
-
-	jsonView := NewJSONView(view)
 	jsonView.Diagnostics(diags)
 
 	want := []map[string]interface{}{
@@ -149,7 +147,7 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]interface{}{
-				"severity": strings.ToLower(tfdiags.Error.String()),
+				"severity": "error",
 				"summary":  "Output as error",
 				"detail":   "",
 			},

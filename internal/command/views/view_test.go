@@ -10,7 +10,6 @@ import (
 
 func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-
 	view := NewView(streams)
 	view.PedanticMode = true
 
