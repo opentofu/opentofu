@@ -18,7 +18,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
-	// "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 
@@ -7326,4 +7326,90 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 			t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
 		}
 	})
+}
+
+func TestContext2Plan_insuffient_block(t *testing.T) {
+	type testcase struct {
+		filename string
+		start    hcl.Pos
+		end      hcl.Pos
+	}
+
+	tests := map[string]testcase{
+		"insufficient-features-blocks-aliased-provider": {
+			filename: "provider[\"registry.opentofu.org/hashicorp/test\"] with no configuration",
+			start:    hcl.InitialPos,
+			end:      hcl.InitialPos,
+		},
+		"insufficient-features-blocks-nested_module": {
+			filename: "provider[\"registry.opentofu.org/hashicorp/test\"] with no configuration",
+			start:    hcl.InitialPos,
+			end:      hcl.InitialPos,
+		},
+		"insufficient-features-blocks-no-feats": {
+			filename: "testdata/insufficient-features-blocks-no-feats/main.tf",
+			start:    hcl.Pos{Line: 9, Column: 17, Byte: 146},
+			end:      hcl.Pos{Line: 9, Column: 17, Byte: 146},
+		},
+	}
+
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			m := testModule(t, testName)
+			p := mockProviderWithFeaturesBlock()
+
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+			var expectedDiags tfdiags.Diagnostics
+
+			expectedDiags = expectedDiags.Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Insufficient features blocks",
+					Detail:   "At least 1 \"features\" blocks are required.",
+					Subject: &hcl.Range{
+						Filename: tc.filename,
+						Start:    tc.start,
+						End:      tc.end,
+					},
+				},
+			)
+
+			assertDiagnosticsMatch(t, diags, expectedDiags)
+		})
+	}
+}
+
+func mockProviderWithFeaturesBlock() *MockProvider {
+	return &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: featuresBlockTestSchema()},
+			ResourceTypes: map[string]providers.Schema{
+				"test_object": {Block: simpleTestSchema()},
+			},
+		},
+	}
+}
+
+func featuresBlockTestSchema() *configschema.Block {
+	return &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"test_string": {
+				Type:     cty.String,
+				Optional: true,
+			},
+		},
+		BlockTypes: map[string]*configschema.NestedBlock{
+			"features": {
+				MinItems: 1,
+				MaxItems: 1,
+				Nesting:  configschema.NestingList,
+			},
+		},
+	}
 }
