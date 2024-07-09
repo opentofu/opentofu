@@ -7,6 +7,7 @@ NEW FEATURES:
 * Added support for `override_resource`, `override_data` and `override_module` blocks in testing framework. ([#1499](https://github.com/opentofu/opentofu/pull/1499))
 * Variables and Locals allowed in module sources and backend configurations (with limitations) ([#1718](https://github.com/opentofu/opentofu/pull/1718))
 * Added support to new .tofu extensions to allow tofu-specific overrides of .tf files ([#1738](https://github.com/opentofu/opentofu/pull/1738))
+* Added support for `mock_provider`, `mock_resource` and `mock_data` blocks in testing framework. ([#1772](https://github.com/opentofu/opentofu/pull/1772))
 
 ENHANCEMENTS:
 * Added `tofu test -json` types to website Machine-Readable UI documentation. ([#1408](https://github.com/opentofu/opentofu/issues/1408))

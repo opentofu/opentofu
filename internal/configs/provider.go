@@ -37,6 +37,11 @@ type Provider struct {
 	// export this so providers don't need to be re-resolved.
 	// This same field is also added to the ProviderConfigRef struct.
 	providerType addrs.Provider
+
+	// IsMocked indicates if this provider has been mocked. It is used in
+	// testing framework to instantiate test provider wrapper.
+	IsMocked      bool
+	MockResources []*MockResource
 }
 
 func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
