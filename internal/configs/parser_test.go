@@ -48,7 +48,7 @@ func testParser(files map[string]string) *Parser {
 func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	f, diags := parser.LoadConfigFile(filename)
-	mod, modDiags := NewModule([]*File{f}, nil, RootModuleCallForTesting(), filename)
+	mod, modDiags := NewModule([]*File{f}, nil, RootModuleCallForTesting(), filename, SelectiveLoadAll)
 	diags = append(diags, modDiags...)
 	cfg, moreDiags := BuildConfig(mod, nil)
 	return cfg, append(diags, moreDiags...)
