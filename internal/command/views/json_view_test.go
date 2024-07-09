@@ -151,7 +151,7 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 	view := NewView(streams)
 	view.PedanticMode = true
 
-	diags := tfdiags.Diagnostics{tfdiags.SimpleWarning("Output as error")}
+	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
 
 	jsonView := NewJSONView(view)
 	jsonView.Diagnostics(diags)
@@ -166,7 +166,7 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 	want := []map[string]interface{}{
 		{
 			"@level":   "error",
-			"@message": fmt.Sprintf("%s: Output as error", tfdiags.Error),
+			"@message": "Error: Output as error",
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
 			"diagnostic": map[string]interface{}{

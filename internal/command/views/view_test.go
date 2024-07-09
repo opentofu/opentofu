@@ -1,7 +1,6 @@
 package views
 
 import (
-	"fmt"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"io"
@@ -26,7 +25,7 @@ func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 	view := NewView(streams)
 	view.PedanticMode = true
 
-	diags := tfdiags.Diagnostics{tfdiags.SimpleWarning("Output as error")}
+	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
 	view.Diagnostics(diags)
 
 	writer.Close()
@@ -37,7 +36,7 @@ func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(string(out))
-	want := fmt.Sprintf("%s: Output as error", tfdiags.Error)
+	want := "Error: Output as error"
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
