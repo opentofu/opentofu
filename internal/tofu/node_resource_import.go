@@ -269,7 +269,11 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 	if n.Config != nil {
 		// Since the import command allow import resource with incomplete configuration, we ignore diagnostics here
 		valueWithConfigurationSchemaMarks, _, _ := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
-		state.Value = copyMarksFromValue(state.Value, valueWithConfigurationSchemaMarks)
+
+		_, stateValueMarks := state.Value.UnmarkDeepWithPaths()
+		_, valueWithConfigurationSchemaMarksPaths := valueWithConfigurationSchemaMarks.UnmarkDeepWithPaths()
+		combined := combinePathValueMarks(stateValueMarks, valueWithConfigurationSchemaMarksPaths)
+		state.Value = state.Value.MarkWithPaths(combined)
 	}
 
 	diags = diags.Append(riNode.writeResourceInstanceState(ctx, state, workingState))
