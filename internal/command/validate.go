@@ -56,6 +56,9 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 		return view.Results(diags)
 	}
 
+	// Inject variables from args into meta for static evaluation
+	c.GatherVariables(args.Vars)
+
 	validateDiags := c.validate(dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
 
@@ -66,6 +69,23 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	return view.Results(diags)
+}
+
+func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogenous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]rawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
 func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Diagnostics {

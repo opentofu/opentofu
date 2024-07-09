@@ -34,6 +34,8 @@ func TestStaticPlanVariables(t *testing.T) {
 	// Init with static variable
 	run("init", stateVar, modVar).Success()
 
+	run("validate", stateVar, modVar).Success()
+
 	// Plan with static variable
 	run("plan", stateVar, modVar, "-out="+planfile).Success()
 
