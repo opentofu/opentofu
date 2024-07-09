@@ -79,14 +79,14 @@ func (c *GraphCommand) Run(args []string) int {
 
 	// Load the backend
 	var b backend.Enhanced
-	// This is inspired by apply:PrepareBackend
+	//nolint: nestif // This is inspired by apply:PrepareBackend
 	if lp, ok := planFile.Local(); ok {
-		plan, err := lp.ReadPlan()
-		if err != nil {
+		plan, planErr := lp.ReadPlan()
+		if planErr != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to read plan from plan file",
-				fmt.Sprintf("Cannot read the plan from the given plan file: %s.", err),
+				fmt.Sprintf("Cannot read the plan from the given plan file: %s.", planErr),
 			))
 			c.showDiagnostics(diags)
 			return 1
