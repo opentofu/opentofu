@@ -8,8 +8,6 @@ package views
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -134,19 +132,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 }
 
 func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("error setting up reader and writer: %s", err)
-	}
-
-	stream := &terminal.OutputStream{
-		File: writer,
-	}
-
-	streams := &terminal.Streams{
-		Stdout: stream,
-		Stderr: stream,
-	}
+	streams, done := terminal.StreamsForTesting(t)
 
 	view := NewView(streams)
 	view.PedanticMode = true
@@ -155,13 +141,6 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 
 	jsonView := NewJSONView(view)
 	jsonView.Diagnostics(diags)
-
-	writer.Close()
-
-	out, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("error reading from reader: %s", err)
-	}
 
 	want := []map[string]interface{}{
 		{
@@ -176,7 +155,8 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 			},
 		},
 	}
-	testJSONViewOutputEquals(t, string(out), want)
+
+	testJSONViewOutputEquals(t, done(t).Stdout(), want)
 
 	if !view.WarningFlagged {
 		t.Errorf("expected: true, got: %v", view.WarningFlagged)
