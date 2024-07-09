@@ -29,6 +29,7 @@ BUG FIXES:
 * Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
 * Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
 * Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
+* Fixed issue with migration between versions can cause an update in-place for resources when no changes are needed. ([#1640](https://github.com/opentofu/opentofu/pull/1640))
 
 ## Previous Releases
 

@@ -11963,22 +11963,35 @@ resource "test_resource" "foo" {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
 
-	verifySensitiveValue := func(pvms []cty.PathValueMarks) {
-		if len(pvms) != 1 {
-			t.Fatalf("expected 1 sensitive path, got %d", len(pvms))
+	wantedAttrPaths := []cty.Path{cty.GetAttrPath("sensitive_value"), cty.GetAttrPath("value")}
+
+	isAWantedAttrPath := func(p cty.Path) bool {
+		for _, wanted := range wantedAttrPaths {
+			if p.Equals(wanted) {
+				return true
+			}
 		}
-		pvm := pvms[0]
-		if gotPath, wantPath := pvm.Path, cty.GetAttrPath("value"); !gotPath.Equals(wantPath) {
-			t.Errorf("wrong path\n got: %#v\nwant: %#v", gotPath, wantPath)
+		return false
+	}
+
+	verifySensitiveValues := func(pvms []cty.PathValueMarks) {
+		if len(pvms) != len(wantedAttrPaths) {
+			t.Fatalf("expected %d sensitive paths, got %d", len(wantedAttrPaths), len(pvms))
 		}
-		if gotMarks, wantMarks := pvm.Marks, cty.NewValueMarks(marks.Sensitive); !gotMarks.Equal(wantMarks) {
-			t.Errorf("wrong marks\n got: %#v\nwant: %#v", gotMarks, wantMarks)
+
+		for _, pvm := range pvms {
+			if !isAWantedAttrPath(pvm.Path) {
+				t.Errorf("unexpected path\n got: %#v\n", pvm.Path)
+			}
+			if !pvm.Marks.Equal(cty.NewValueMarks(marks.Sensitive)) {
+				t.Errorf("wrong marks\n got: %#v\nwant: %#v", pvm.Marks, cty.NewValueMarks(marks.Sensitive))
+			}
 		}
 	}
 
 	addr := mustResourceInstanceAddr("test_resource.foo")
 	fooChangeSrc := plan.Changes.ResourceInstance(addr)
-	verifySensitiveValue(fooChangeSrc.AfterValMarks)
+	verifySensitiveValues(fooChangeSrc.AfterValMarks)
 
 	state, diags := ctx.Apply(plan, m)
 	if diags.HasErrors() {
@@ -11986,7 +11999,7 @@ resource "test_resource" "foo" {
 	}
 
 	fooState := state.ResourceInstance(addr)
-	verifySensitiveValue(fooState.Current.AttrSensitivePaths)
+	verifySensitiveValues(fooState.Current.AttrSensitivePaths)
 }
 
 func TestContext2Apply_variableSensitivityProviders(t *testing.T) {
@@ -12026,17 +12039,42 @@ resource "test_resource" "baz" {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
 
-	verifySensitiveValue := func(pvms []cty.PathValueMarks) {
-		if len(pvms) != 1 {
-			t.Fatalf("expected 1 sensitive path, got %d", len(pvms))
+	isAWantedAttrPath := func(p cty.Path, wantedAttrPaths []cty.Path) bool {
+		for _, wanted := range wantedAttrPaths {
+			if p.Equals(wanted) {
+				return true
+			}
 		}
-		pvm := pvms[0]
-		if gotPath, wantPath := pvm.Path, cty.GetAttrPath("value"); !gotPath.Equals(wantPath) {
-			t.Errorf("wrong path\n got: %#v\nwant: %#v", gotPath, wantPath)
+		return false
+	}
+
+	verifySensitiveValues := func(pvms []cty.PathValueMarks, wantedAttrPaths []cty.Path) {
+		if len(pvms) != len(wantedAttrPaths) {
+			t.Fatalf("expected %d sensitive paths, got %d", len(wantedAttrPaths), len(pvms))
 		}
-		if gotMarks, wantMarks := pvm.Marks, cty.NewValueMarks(marks.Sensitive); !gotMarks.Equal(wantMarks) {
-			t.Errorf("wrong marks\n got: %#v\nwant: %#v", gotMarks, wantMarks)
+
+		for _, pvm := range pvms {
+			if !isAWantedAttrPath(pvm.Path, wantedAttrPaths) {
+				t.Errorf("unexpected path\n got: %#v\n", pvm.Path)
+			}
+			if !pvm.Marks.Equal(cty.NewValueMarks(marks.Sensitive)) {
+				t.Errorf("wrong marks\n got: %#v\nwant: %#v", pvm.Marks, cty.NewValueMarks(marks.Sensitive))
+			}
 		}
+	}
+
+	wantedBarPaths := []cty.Path{
+		{
+			cty.GetAttrStep{Name: "nesting_single"},
+			cty.GetAttrStep{Name: "sensitive_value"},
+		},
+		cty.GetAttrPath("sensitive_value"),
+		cty.GetAttrPath("value"),
+	}
+
+	wantedBazPaths := []cty.Path{
+		cty.GetAttrPath("sensitive_value"),
+		cty.GetAttrPath("value"),
 	}
 
 	// Sensitive attributes (defined by the provider) are marked
@@ -12044,11 +12082,11 @@ resource "test_resource" "baz" {
 	// "bar" references sensitive resources in "foo"
 	barAddr := mustResourceInstanceAddr("test_resource.bar")
 	barChangeSrc := plan.Changes.ResourceInstance(barAddr)
-	verifySensitiveValue(barChangeSrc.AfterValMarks)
+	verifySensitiveValues(barChangeSrc.AfterValMarks, wantedBarPaths)
 
 	bazAddr := mustResourceInstanceAddr("test_resource.baz")
 	bazChangeSrc := plan.Changes.ResourceInstance(bazAddr)
-	verifySensitiveValue(bazChangeSrc.AfterValMarks)
+	verifySensitiveValues(bazChangeSrc.AfterValMarks, wantedBazPaths)
 
 	state, diags := ctx.Apply(plan, m)
 	if diags.HasErrors() {
@@ -12056,10 +12094,10 @@ resource "test_resource" "baz" {
 	}
 
 	barState := state.ResourceInstance(barAddr)
-	verifySensitiveValue(barState.Current.AttrSensitivePaths)
+	verifySensitiveValues(barState.Current.AttrSensitivePaths, wantedBarPaths)
 
 	bazState := state.ResourceInstance(bazAddr)
-	verifySensitiveValue(bazState.Current.AttrSensitivePaths)
+	verifySensitiveValues(bazState.Current.AttrSensitivePaths, wantedBazPaths)
 }
 
 func TestContext2Apply_variableSensitivityChange(t *testing.T) {
@@ -12113,20 +12151,37 @@ resource "test_resource" "foo" {
 
 	fooState := state.ResourceInstance(addr)
 
-	if len(fooState.Current.AttrSensitivePaths) != 1 {
-		t.Fatalf("wrong number of sensitive paths, expected 1, got, %v", len(fooState.Current.AttrSensitivePaths))
-	}
-	got := fooState.Current.AttrSensitivePaths[0]
-	want := cty.PathValueMarks{
-		Path:  cty.GetAttrPath("value"),
-		Marks: cty.NewValueMarks(marks.Sensitive),
-	}
-
-	if !got.Equal(want) {
-		t.Fatalf("wrong value marks; got:\n%#v\n\nwant:\n%#v\n", got, want)
+	wantedPathValueMarks := []cty.PathValueMarks{
+		{
+			Path:  cty.GetAttrPath("sensitive_value"),
+			Marks: cty.NewValueMarks(marks.Sensitive),
+		},
+		{
+			Path:  cty.GetAttrPath("value"),
+			Marks: cty.NewValueMarks(marks.Sensitive),
+		},
 	}
 
-	m2 := testModuleInline(t, map[string]string{
+	if len(fooState.Current.AttrSensitivePaths) != len(wantedPathValueMarks) {
+		t.Fatalf("wrong number of sensitive paths, expected %d, got, %d", len(wantedPathValueMarks), len(fooState.Current.AttrSensitivePaths))
+	}
+
+	for _, path := range fooState.Current.AttrSensitivePaths {
+		found := false
+		for _, wanted := range wantedPathValueMarks {
+			if path.Path.Equals(wanted.Path) {
+				found = true
+				if !path.Marks.Equal(wanted.Marks) {
+					t.Errorf("wrong marks\n got: %#v\nwant: %#v", path.Marks, wanted.Marks)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("unexpected path\n got: %#v\n", path)
+		}
+	}
+
+	newModule := testModuleInline(t, map[string]string{
 		"main.tf": `
 variable "sensitive_var" {
 	default = "hello"
@@ -12138,33 +12193,30 @@ resource "test_resource" "foo" {
 }`,
 	})
 
-	ctx2 := testContext2(t, &ContextOpts{
+	newCtx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
 
-	// NOTE: Prior to our refactoring to make the state an explicit argument
-	// of Plan, as opposed to hidden state inside Context, this test was
-	// calling ctx.Apply instead of ctx2.Apply and thus using the previous
-	// plan instead of this new plan. "Fixing" it to use the new plan seems
-	// to break the test, so we've preserved that oddity here by saving the
-	// old plan as oldPlan and essentially discarding the new plan entirely,
-	// but this seems rather suspicious and we should ideally figure out what
-	// this test was originally intending to do and make it do that.
-	oldPlan := plan
-	_, diags = ctx2.Plan(m2, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	_, diags = newCtx.Plan(newModule, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
-	stateWithoutSensitive, diags := ctx.Apply(oldPlan, m)
+	stateWithoutSensitive, diags := newCtx.Apply(plan, newModule)
 	assertNoErrors(t, diags)
 
-	fooState2 := stateWithoutSensitive.ResourceInstance(addr)
-	if len(fooState2.Current.AttrSensitivePaths) > 0 {
+	newFooState := stateWithoutSensitive.ResourceInstance(addr)
+
+	// The sensitive value that was previously applied should still be sensitive, but nothing else
+	if len(newFooState.Current.AttrSensitivePaths) != 1 {
 		t.Fatalf(
-			"wrong number of sensitive paths, expected 0, got, %v\n%s",
-			len(fooState2.Current.AttrSensitivePaths),
-			spew.Sdump(fooState2.Current.AttrSensitivePaths),
+			"wrong number of sensitive paths, expected 1, got, %v\n%s",
+			len(newFooState.Current.AttrSensitivePaths),
+			spew.Sdump(newFooState.Current.AttrSensitivePaths),
 		)
+	}
+
+	if !newFooState.Current.AttrSensitivePaths[0].Path.Equals(cty.GetAttrPath("sensitive_value")) {
+		t.Fatalf("wrong sensitive path, got %v", newFooState.Current.AttrSensitivePaths[0].Path)
 	}
 }
 

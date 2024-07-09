@@ -742,8 +742,8 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	// Decode all instances in the current state
 	instances := map[addrs.InstanceKey]cty.Value{}
 	pendingDestroy := d.Operation == walkDestroy
-	for key, is := range rs.Instances {
-		if is == nil || is.Current == nil {
+	for key, instance := range rs.Instances {
+		if instance == nil || instance.Current == nil {
 			// Assume we're dealing with an instance that hasn't been created yet.
 			instances[key] = cty.UnknownVal(ty)
 			continue
@@ -766,7 +766,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		// Planned resources are temporarily stored in state with empty values,
 		// and need to be replaced by the planned value here.
-		if is.Current.Status == states.ObjectPlanned {
+		if instance.Current.Status == states.ObjectPlanned {
 			if change == nil {
 				// If the object is in planned status then we should not get
 				// here, since we should have found a pending value in the plan
@@ -790,17 +790,20 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 				continue
 			}
 
-			// If our provider schema contains sensitive values, mark those as sensitive
 			afterMarks := change.AfterValMarks
 			if schema.ContainsSensitive() {
-				afterMarks = append(afterMarks, schema.ValueMarks(val, nil)...)
+				// Now that we know that the schema contains sensitive marks,
+				// Combine those marks together to ensure that the value is marked correctly but not double marked
+				schemaMarks := schema.ValueMarks(val, nil)
+				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
 			instances[key] = val.MarkWithPaths(afterMarks)
+
 			continue
 		}
 
-		ios, err := is.Current.Decode(ty)
+		instanceObjectSrc, err := instance.Current.Decode(ty)
 		if err != nil {
 			// This shouldn't happen, since by the time we get here we
 			// should have upgraded the state data already.
@@ -813,17 +816,17 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 			continue
 		}
 
-		val := ios.Value
+		val := instanceObjectSrc.Value
 
-		// If our schema contains sensitive values, mark those as sensitive.
-		// Since decoding the instance object can also apply sensitivity marks,
-		// we must remove and combine those before remarking to avoid a double-
-		// mark error.
 		if schema.ContainsSensitive() {
 			var marks []cty.PathValueMarks
+			// Now that we know that the schema contains sensitive marks,
+			// Combine those marks together to ensure that the value is marked correctly but not double marked
 			val, marks = val.UnmarkDeepWithPaths()
-			marks = append(marks, schema.ValueMarks(val, nil)...)
-			val = val.MarkWithPaths(marks)
+			schemaMarks := schema.ValueMarks(val, nil)
+
+			combined := combinePathValueMarks(marks, schemaMarks)
+			val = val.MarkWithPaths(combined)
 		}
 		instances[key] = val
 	}
