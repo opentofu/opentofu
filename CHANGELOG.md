@@ -1,4 +1,12 @@
-## 1.7.3 (unreleased)
+## 1.7.4 (unreleased)
+
+NEW FEATURES:
+
+ENHANCEMENTS:
+
+BUG FIXES:
+
+## 1.7.3
 
 NEW FEATURES:
 
