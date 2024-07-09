@@ -10,9 +10,11 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
@@ -40,7 +42,8 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 		return inputBody
 	default:
 		log.Printf("[TRACE] buildProviderConfig for %s: no configuration at all", addr)
-		return hcl.EmptyBody()
+		addr := fmt.Sprintf("%s with no configuration", addr)
+		return hcl2shim.SynthBody(addr, make(map[string]cty.Value))
 	}
 }
 
