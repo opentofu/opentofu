@@ -926,10 +926,8 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	//       doing this we ensure to preserve the name and alias from the
 	//       original config.
 	//   3b. If the run has no override configuration, we copy all the providers
-	//       from the test file into `next`, overriding all providers with name
-	//       collisions from the original config.
-	//   3c. Copy all mock providers from the test file to the `next`, overriding
-	//       providers with name collisions from the original config.
+	//       (including mocks) from the test file into `next`, overriding all providers
+	//       with name collisions from the original config.
 	//   4. We then modify the original configuration so that the providers it
 	//      holds are the combination specified by the original config, the test
 	//      file and the run file.
@@ -986,17 +984,16 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		for key, provider := range file.Providers {
 			next[key] = provider
 		}
-	}
-
-	for _, mp := range file.MockProviders {
-		next[mp.moduleUniqueKey()] = &Provider{
-			Name:          mp.Name,
-			NameRange:     mp.NameRange,
-			Alias:         mp.Alias,
-			AliasRange:    mp.AliasRange,
-			DeclRange:     mp.DeclRange,
-			IsMocked:      true,
-			MockResources: mp.MockResources,
+		for _, mp := range file.MockProviders {
+			next[mp.moduleUniqueKey()] = &Provider{
+				Name:          mp.Name,
+				NameRange:     mp.NameRange,
+				Alias:         mp.Alias,
+				AliasRange:    mp.AliasRange,
+				DeclRange:     mp.DeclRange,
+				IsMocked:      true,
+				MockResources: mp.MockResources,
+			}
 		}
 	}
 

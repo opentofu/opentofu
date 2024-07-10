@@ -82,3 +82,19 @@ data "local_file" "maintf" {
 }
 
 resource "random_pet" "cat" {}
+
+provider random {
+  alias = "aliased"
+}
+
+resource "random_integer" "aliased" {
+  provider = random.aliased
+
+  # helps create a new value when test with mocked pet runs
+  keepers = {
+    pet = random_pet.cat.id
+  }
+
+  min = 1
+  max = 10
+}
