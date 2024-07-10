@@ -255,6 +255,16 @@ mock_provider "random" {
   }
 }
 
+mock_provider "random" {
+  alias = "aliased"
+
+  mock_resource "random_integer" {
+    defaults = {
+      id = "11"
+    }
+  }
+}
+
 run "check_mock_providers" {
   assert {
     condition     = resource.aws_s3_bucket.test.arn == "arn:aws:s3:::mocked"
@@ -276,12 +286,26 @@ run "check_mock_providers" {
     error_message = "file should not be read due to provider being mocked"
   }
 
+  assert {
+    condition     = resource.random_integer.aliased.id == "11"
+    error_message = "random integer should be 11 due to provider being mocked"
+  }
+}
+
+run "check_providers_block" {
   providers = {
-    random = random.for_pets
+    aws           = aws
+    local.aliased = local.aliased
+    random        = random.for_pets
   }
 
   assert {
     condition     = resource.random_pet.cat.id == "my lovely cat"
     error_message = "providers block in run should allow replacing real providers by mocked"
+  }
+
+  assert {
+    condition     = resource.random_integer.aliased.id != "11"
+    error_message = "random integer should not be mocked if providers block present"
   }
 }
