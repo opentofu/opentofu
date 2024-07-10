@@ -926,7 +926,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 	//       doing this we ensure to preserve the name and alias from the
 	//       original config.
 	//   3b. If the run has no override configuration, we copy all the providers
-	//       (with mocks) from the test file into `next`, overriding all providers
+	//       (including mocks) from the test file into `next`, overriding all providers
 	//       with name collisions from the original config.
 	//   4. We then modify the original configuration so that the providers it
 	//      holds are the combination specified by the original config, the test
