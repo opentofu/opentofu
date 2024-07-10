@@ -12,7 +12,9 @@ import (
 	"os"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
-	getter "github.com/hashicorp/go-getter"
+	gcsgetter "github.com/hashicorp/go-getter/gcs/v2"
+	s3getter "github.com/hashicorp/go-getter/s3/v2"
+	getter "github.com/hashicorp/go-getter/v2"
 	"github.com/opentofu/opentofu/internal/copy"
 )
 
@@ -52,8 +54,8 @@ var goGetterDetectors = []getter.Detector{
 	// entirely through local string manipulation.
 	new(getter.BitBucketDetector),
 
-	new(getter.GCSDetector),
-	new(getter.S3Detector),
+	new(gcsgetter.Detector),
+	new(s3getter.Detector),
 	new(fileDetector),
 }
 
@@ -75,14 +77,13 @@ var goGetterDecompressors = map[string]getter.Decompressor{
 	"txz":    new(getter.TarXzDecompressor),
 }
 
-var goGetterGetters = map[string]getter.Getter{
-	"file":  new(getter.FileGetter),
-	"gcs":   new(getter.GCSGetter),
-	"git":   new(getter.GitGetter),
-	"hg":    new(getter.HgGetter),
-	"s3":    new(getter.S3Getter),
-	"http":  getterHTTPGetter,
-	"https": getterHTTPGetter,
+var goGetterGetters = []getter.Getter{
+	new(getter.FileGetter),
+	new(gcsgetter.Getter),
+	new(getter.GitGetter),
+	new(getter.HgGetter),
+	new(s3getter.Getter),
+	getterHTTPGetter,
 }
 
 var getterHTTPClient = cleanhttp.DefaultClient()
@@ -142,18 +143,14 @@ func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAdd
 	} else {
 		log.Printf("[TRACE] getmodules: fetching %q to %q", packageAddr, instPath)
 		client := getter.Client{
+			Decompressors: goGetterDecompressors,
+			Getters:       goGetterGetters,
+		}
+		_, err = client.Get(ctx, &getter.Request{
 			Src: packageAddr,
 			Dst: instPath,
 			Pwd: instPath,
-
-			Mode: getter.ClientModeDir,
-
-			Detectors:     goGetterNoDetectors, // our caller should've already done detection
-			Decompressors: goGetterDecompressors,
-			Getters:       goGetterGetters,
-			Ctx:           ctx,
-		}
-		err = client.Get()
+		})
 		if err != nil {
 			return err
 		}

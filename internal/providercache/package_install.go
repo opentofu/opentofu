@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	getter "github.com/hashicorp/go-getter"
+	getter "github.com/hashicorp/go-getter/v2"
 	"github.com/hashicorp/go-retryablehttp"
 
 	"github.com/opentofu/opentofu/internal/copy"

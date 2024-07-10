@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 
 	"github.com/apparentlymart/go-versions/versions"
-	"github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-getter/v2"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -213,7 +213,10 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 			// does not follow the filesystem mirror file naming convention.)
 			targetPath := meta.PackedFilePath(outputDir)
 			stagingPath := filepath.Join(filepath.Dir(targetPath), "."+filepath.Base(targetPath))
-			err = httpGetter.GetFile(stagingPath, urlObj)
+			err = httpGetter.GetFile(ctx, &getter.Request{
+				Src: urlObj.String(),
+				Dst: stagingPath,
+			})
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
