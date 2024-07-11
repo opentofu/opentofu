@@ -92,8 +92,8 @@ func (p *Parser) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 // Sources returns a map of the cached source buffers for all files that
 // have been loaded through this parser, with source filenames (as requested
 // when each file was opened) as the keys.
-func (p *Parser) Sources() map[string][]byte {
-	return p.p.Sources()
+func (p *Parser) Sources() map[string]*hcl.File {
+	return p.p.Files()
 }
 
 // ForceFileSource artificially adds source code to the cache of file sources,

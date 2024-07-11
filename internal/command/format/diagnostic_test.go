@@ -269,8 +269,8 @@ func TestDiagnostic(t *testing.T) {
 		},
 	}
 
-	sources := map[string][]byte{
-		"test.tf": []byte(`test source code`),
+	sources := map[string]*hcl.File{
+		"test.tf": {Bytes: []byte(`test source code`)},
 	}
 
 	// This empty Colorize just passes through all of the formatting codes
@@ -577,8 +577,8 @@ Whatever shall we do?
 		},
 	}
 
-	sources := map[string][]byte{
-		"test.tf": []byte(`test source code`),
+	sources := map[string]*hcl.File{
+		"test.tf": {Bytes: []byte(`test source code`)},
 	}
 
 	for name, test := range tests {
@@ -676,12 +676,12 @@ func TestDiagnostic_nonOverlappingHighlightContext(t *testing.T) {
 			End:      hcl.Pos{Line: 4, Column: 2, Byte: 60},
 		},
 	})
-	sources := map[string][]byte{
-		"source.tf": []byte(`x = somefunc("testing", {
+	sources := map[string]*hcl.File{
+		"source.tf": {Bytes: []byte(`x = somefunc("testing", {
   alpha = "foo"
   beta  = "bar"
 })
-`),
+`)},
 	}
 	color := &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
@@ -725,12 +725,12 @@ func TestDiagnostic_emptyOverlapHighlightContext(t *testing.T) {
 			End:      hcl.Pos{Line: 4, Column: 1, Byte: 39},
 		},
 	})
-	sources := map[string][]byte{
-		"source.tf": []byte(`variable "x" {
+	sources := map[string]*hcl.File{
+		"source.tf": {Bytes: []byte(`variable "x" {
   default = {
     "foo"
   }
-`),
+`)},
 	}
 	color := &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
@@ -773,12 +773,12 @@ func TestDiagnosticPlain_emptyOverlapHighlightContext(t *testing.T) {
 			End:      hcl.Pos{Line: 4, Column: 1, Byte: 39},
 		},
 	})
-	sources := map[string][]byte{
-		"source.tf": []byte(`variable "x" {
+	sources := map[string]*hcl.File{
+		"source.tf": {Bytes: []byte(`variable "x" {
   default = {
     "foo"
   }
-`),
+`)},
 	}
 
 	expected := `
