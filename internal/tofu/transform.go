@@ -39,11 +39,14 @@ func (t *graphTransformerMulti) Transform(g *Graph) error {
 		if err := t.Transform(g); err != nil {
 			return err
 		}
-		if thisStepStr := g.StringWithNodeTypes(); thisStepStr != lastStepStr {
-			log.Printf("[TRACE] (graphTransformerMulti) Completed graph transform %T with new graph:\n%s  ------", t, logging.Indent(thisStepStr))
-			lastStepStr = thisStepStr
-		} else {
-			log.Printf("[TRACE] (graphTransformerMulti) Completed graph transform %T (no changes)", t)
+
+		if logging.IsDebugOrHigher() {
+			if thisStepStr := g.StringWithNodeTypes(); thisStepStr != lastStepStr {
+				log.Printf("[TRACE] (graphTransformerMulti) Completed graph transform %T with new graph:\n%s  ------", t, logging.Indent(thisStepStr))
+				lastStepStr = thisStepStr
+			} else {
+				log.Printf("[TRACE] (graphTransformerMulti) Completed graph transform %T (no changes)", t)
+			}
 		}
 	}
 
