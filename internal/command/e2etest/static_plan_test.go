@@ -73,6 +73,10 @@ func TestStaticPlanVariables(t *testing.T) {
 	// Apply plan without static variable (embedded)
 	run("apply", planfile).Success()
 
+	// Show State
+	run("show", statePath).Failure().StderrContains(modErr)
+	run("show", stateVar, modVar, statePath).Success().Contains(`out = "placeholder"`)
+
 	// Force Unlock
 	run("force-unlock", "ident").Failure().StderrContains(backendErr)
 	run("force-unlock", stateVar, modVar, "ident").Failure().StderrContains("Local state cannot be unlocked by another process")
