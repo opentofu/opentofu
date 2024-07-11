@@ -353,6 +353,10 @@ Options:
   -compact-warnings      If OpenTofu produces any warnings that are not
                          accompanied by errors, show them in a more compact
                          form that includes only the summary messages.
+  -consolidate-warnings=false
+		         If OpenTF produces any warnings, no consolodation
+                         will be performed.  All locations, for all warnings
+                         will be listed.
 
   -destroy               Destroy OpenTofu-managed infrastructure.
                          The command "tofu destroy" is a convenience alias
@@ -377,10 +381,6 @@ Options:
   -state-out=path        Path to write state to that is different than
                          "-state". This can be used to preserve the old
                          state.
-
-  -verbose-warnings      If OpenTF produces any warnings, no compaction
-                         will be performed.  All locations, for all warnings
-                         will be listed.
 
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.

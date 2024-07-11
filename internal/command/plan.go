@@ -252,6 +252,10 @@ Other Options:
   -compact-warnings          If OpenTofu produces any warnings that are not
                              accompanied by errors, shows them in a more compact
                              form that includes only the summary messages.
+  -consolidate-warnings=false
+		             If OpenTF produces any warnings, no consolodation
+                             will be performed.  All locations, for all warnings
+                             will be listed.
 
   -detailed-exitcode         Return detailed exit codes when the command exits.
                              This will change the meaning of exit codes to:
