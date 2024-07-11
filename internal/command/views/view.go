@@ -23,6 +23,7 @@ type View struct {
 
 	compactWarnings     bool
 	consolidateWarnings bool
+	consolidateErrors   bool
 
 	// When this is true it's a hint that OpenTofu is being run indirectly
 	// via a wrapper script or other automation and so we may wish to replace
@@ -80,6 +81,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.consolidateWarnings = view.ConsolidateWarnings
+	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
 }
 
@@ -92,9 +94,6 @@ func (v *View) SetConfigSources(cb func() map[string]*hcl.File) {
 // Diagnostics renders a set of warnings and errors in human-readable form.
 // Warnings are printed to stdout, and errors to stderr.
 func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
-	var warningCount int
-	warningCount = 1
-
 	diags.Sort()
 
 	if len(diags) == 0 {
@@ -102,10 +101,11 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 
 	if v.consolidateWarnings {
-		warningCount = -1
+		diags = diags.Consolidate(1, tfdiags.Warning)
 	}
-
-	diags = diags.ConsolidateWarnings(warningCount)
+	if v.consolidateErrors {
+		diags = diags.Consolidate(1, tfdiags.Error)
+	}
 
 	// Since warning messages are generally competing
 	if v.compactWarnings {

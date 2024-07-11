@@ -255,6 +255,9 @@ type Meta struct {
 	//
 	// consolidateWarnings (-consolidate-warnings=false) disables consolodation
 	// of warnings in the output, printing all instances of a particular warning.
+	//
+	// consolidateErrors (-consolidate-errors=true) enables consolodation
+	// of errors in the output, printing a single instances of a particular warning.
 	statePath           string
 	stateOutPath        string
 	backupPath          string
@@ -266,6 +269,7 @@ type Meta struct {
 	migrateState        bool
 	compactWarnings     bool
 	consolidateWarnings bool
+	consolidateErrors   bool
 
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local OpenTofu versions don't match.
@@ -616,6 +620,7 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
+	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")
 
 	m.varFlagSet(f)
 
@@ -668,6 +673,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings:     m.compactWarnings,
 			ConsolidateWarnings: m.consolidateWarnings,
+			ConsolidateErrors:   m.consolidateErrors,
 			NoColor:             !m.Color,
 		})
 	}
@@ -728,14 +734,14 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		return
 	}
 
-	warningCount := 1
-	if !m.consolidateWarnings {
-		warningCount = -1
-	}
-
 	outputWidth := m.ErrorColumns()
 
-	diags = diags.ConsolidateWarnings(warningCount)
+	if m.consolidateWarnings {
+		diags = diags.Consolidate(1, tfdiags.Warning)
+	}
+	if m.consolidateErrors {
+		diags = diags.Consolidate(1, tfdiags.Error)
+	}
 
 	// Since warning messages are generally competing
 	if m.compactWarnings {

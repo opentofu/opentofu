@@ -16,6 +16,7 @@ type View struct {
 	// for a configuration.
 	CompactWarnings     bool
 	ConsolidateWarnings bool
+	ConsolidateErrors   bool
 
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
@@ -48,6 +49,12 @@ func ParseView(args []string) (*View, []string) {
 			common.ConsolidateWarnings = true
 		case "-consolidate-warnings=false":
 			common.ConsolidateWarnings = false
+		case "-consolidate-errors":
+			common.ConsolidateErrors = true
+		case "-consolidate-errors=true":
+			common.ConsolidateErrors = true
+		case "-consolidate-errors=false":
+			common.ConsolidateErrors = false
 		case "-concise":
 			common.Concise = true
 		default:
