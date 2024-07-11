@@ -33,6 +33,7 @@ BUG FIXES:
 * Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
 * Fixed issue with migration between versions can cause an update in-place for resources when no changes are needed. ([#1640](https://github.com/opentofu/opentofu/pull/1640))
 * Add source context for the 'insufficient feature blocks' error ([#1777](https://github.com/opentofu/opentofu/pull/1777))
+* Remove encryption diags from autocomplete ([#1793](https://github.com/opentofu/opentofu/pull/1793))
 
 
 ## Previous Releases
