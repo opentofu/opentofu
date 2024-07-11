@@ -197,6 +197,11 @@ Options:
                       accompanied by errors, show them in a more compact form
                       that includes only the summary messages.
 
+  -consolidate-warnings=false
+		      If OpenTF produces any warnings, no consolodation
+                      will be performed.  All locations, for all warnings
+                      will be listed.
+
   -input=true         Ask for input for variables if not directly set.
 
   -lock=false         Don't hold a state lock during the operation. This is
@@ -219,10 +224,6 @@ Options:
   -var-file=foo       Set variables in the OpenTofu configuration from
                       a file. If "terraform.tfvars" or any ".auto.tfvars"
                       files are present, they will be automatically loaded.
-
-  -verbose-warnings   If OpenTF produces any warnings, no compaction
-                      will be performed.  All locations, for all warnings
-                      will be listed.
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
