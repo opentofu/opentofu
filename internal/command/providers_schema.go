@@ -95,6 +95,14 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	opReq := c.Operation(b, arguments.ViewJSON, enc)
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
+	var callDiags tfdiags.Diagnostics
+	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	diags = diags.Append(callDiags)
+	if callDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	opReq.AllowUnsetVariables = true
 	if err != nil {
 		diags = diags.Append(err)
