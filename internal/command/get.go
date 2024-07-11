@@ -26,6 +26,7 @@ func (c *GetCommand) Run(args []string) int {
 
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("get")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&update, "update", false, "update")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")

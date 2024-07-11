@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
@@ -93,6 +94,12 @@ func (c *StateShowCommand) Run(args []string) int {
 	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
+	var callDiags tfdiags.Diagnostics
+	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	if callDiags.HasErrors() {
+		c.showDiagnostics(callDiags)
+		return 1
+	}
 
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {

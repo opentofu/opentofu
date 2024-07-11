@@ -53,6 +53,14 @@ func (r tofuResult) StderrContains(msg string) tofuResult {
 	return r
 }
 
+func (r tofuResult) Contains(msg string) tofuResult {
+	if !strings.Contains(r.stdout, msg) {
+		debug.PrintStack()
+		r.t.Fatalf("expected output %q:\n%s", msg, r.stdout)
+	}
+	return r
+}
+
 // This test covers the scenario where a user migrates an existing project
 // to having encryption enabled, uses it, then migrates back to encryption
 // disabled
