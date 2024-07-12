@@ -158,34 +158,7 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 		return diagnostic
 	}
 
-	// We'll borrow HCL's range implementation here, because it has some
-	// handy features to help us produce a nice source code snippet.
-	highlightRange := sourceRefs.Subject.ToHCL()
-
-	// Some diagnostic sources fail to set the end of the subject range.
-	if highlightRange.End == (hcl.Pos{}) {
-		highlightRange.End = highlightRange.Start
-	}
-
-	snippetRange := highlightRange
-	if sourceRefs.Context != nil {
-		snippetRange = sourceRefs.Context.ToHCL()
-	}
-
-	// Make sure the snippet includes the highlight. This should be true
-	// for any reasonable diagnostic, but we'll make sure.
-	snippetRange = hcl.RangeOver(snippetRange, highlightRange)
-
-	// Empty ranges result in odd diagnostic output, so extend the end to
-	// ensure there's at least one byte in the snippet or highlight.
-	if snippetRange.Empty() {
-		snippetRange.End.Byte++
-		snippetRange.End.Column++
-	}
-	if highlightRange.Empty() {
-		highlightRange.End.Byte++
-		highlightRange.End.Column++
-	}
+	highlightRange, snippetRange := sourceRanges(sourceRefs)
 
 	diagnostic.Range = &DiagnosticRange{
 		Filename: highlightRange.Filename,
@@ -281,6 +254,39 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 	diagnostic.Snippet.FunctionCall = fnCall
 
 	return diagnostic
+}
+
+func sourceRanges(sourceRefs tfdiags.Source) (hcl.Range, hcl.Range) {
+	// We'll borrow HCL's range implementation here, because it has some
+	// handy features to help us produce a nice source code snippet.
+	highlightRange := sourceRefs.Subject.ToHCL()
+
+	// Some diagnostic sources fail to set the end of the subject range.
+	if highlightRange.End == (hcl.Pos{}) {
+		highlightRange.End = highlightRange.Start
+	}
+
+	snippetRange := highlightRange
+	if sourceRefs.Context != nil {
+		snippetRange = sourceRefs.Context.ToHCL()
+	}
+
+	// Make sure the snippet includes the highlight. This should be true
+	// for any reasonable diagnostic, but we'll make sure.
+	snippetRange = hcl.RangeOver(snippetRange, highlightRange)
+
+	// Empty ranges result in odd diagnostic output, so extend the end to
+	// ensure there's at least one byte in the snippet or highlight.
+	if snippetRange.Empty() {
+		snippetRange.End.Byte++
+		snippetRange.End.Column++
+	}
+	if highlightRange.Empty() {
+		highlightRange.End.Byte++
+		highlightRange.End.Column++
+	}
+
+	return highlightRange, snippetRange
 }
 
 func diagnoseFromExpr(diag tfdiags.Diagnostic) ([]DiagnosticExpressionValue, *DiagnosticFunctionCall) {
