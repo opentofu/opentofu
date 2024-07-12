@@ -133,32 +133,32 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 		},
 	}
 
-	loadTmpl := func(path string, marks cty.ValueMarks) (hcl.Expression, cty.ValueMarks, error) {
+	loadTmpl := func(path string, marks cty.ValueMarks) (hcl.Expression, error) {
 		maxDepth, err := templateMaxRecursionDepth()
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if depth > maxDepth {
 			// Sources will unwind up the stack
-			return nil, nil, ErrorTemplateRecursionLimit{}
+			return nil, ErrorTemplateRecursionLimit{}
 		}
 
 		// We re-use File here to ensure the same filename interpretation
 		// as it does, along with its other safety checks.
 		templateValue, err := File(baseDir, cty.StringVal(path).WithMarks(marks))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
-		// unmark the template ready to be handled, but return the marks for the caller so they can re-apply them
-		templateValue, templateMarks := templateValue.Unmark()
+		// unmark the template ready to be handled
+		templateValue, _ = templateValue.Unmark()
 
 		expr, diags := hclsyntax.ParseTemplate([]byte(templateValue.AsString()), path, hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
-			return nil, nil, diags
+			return nil, diags
 		}
 
-		return expr, templateMarks, nil
+		return expr, nil
 	}
 
 	funcsCbDepth := func() map[string]function.Function {
@@ -187,7 +187,7 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 			// return any type.
 
 			pathArg, pathMarks := args[0].Unmark()
-			expr, _, err := loadTmpl(pathArg.AsString(), pathMarks)
+			expr, err := loadTmpl(pathArg.AsString(), pathMarks)
 			if err != nil {
 				return cty.DynamicPseudoType, err
 			}
@@ -199,24 +199,15 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			pathArg, pathMarks := args[0].Unmark()
-			expr, marks, err := loadTmpl(pathArg.AsString(), pathMarks)
+			expr,  err := loadTmpl(pathArg.AsString(), pathMarks)
 			if err != nil {
 				return cty.DynamicVal, err
 			}
 
 			result, err := renderTemplate(expr, args[1], funcsCbDepth())
 
-			// Now we combine pathMarks and template Marks to ensure that our result is
-			// correctly marked with the source of the template.
-			combinedMarks := cty.ValueMarks{}
-			for mark := range marks {
-				combinedMarks[mark] = struct{}{}
-			}
-			for mark := range pathMarks {
-				combinedMarks[mark] = struct{}{}
-			}
 
-			return result.WithMarks(combinedMarks), err
+			return result.WithMarks(pathMarks), err
 		},
 	})
 }

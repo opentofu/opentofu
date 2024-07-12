@@ -184,10 +184,18 @@ func TestTemplateFile(t *testing.T) {
 			``,
 		},
 		{
-			// write to a sensitive file path should propagate the sensitivity correctly
+			// write to a sensitive file path that exists
 			cty.StringVal("testdata/hello.txt").Mark(marks.Sensitive),
 			cty.EmptyObjectVal,
 			cty.StringVal("Hello World").Mark(marks.Sensitive),
+			``,
+		},
+		{
+			cty.StringVal("testdata/bare.tmpl"),
+			cty.ObjectVal(map[string]cty.Value{
+				"val": cty.True.Mark(marks.Sensitive),
+			}),
+			cty.True.Mark(marks.Sensitive), // since this template contains only an interpolation, its true value shines through
 			``,
 		},
 	}
