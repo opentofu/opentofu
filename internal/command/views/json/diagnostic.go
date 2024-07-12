@@ -285,8 +285,6 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 	vars := expr.Variables()
 	values := make([]DiagnosticExpressionValue, 0, len(vars))
 	seen := make(map[string]struct{}, len(vars))
-	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
-	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
 Traversals:
 	for _, traversal := range vars {
 		for len(traversal) > 1 {
@@ -306,29 +304,11 @@ Traversals:
 			value := DiagnosticExpressionValue{
 				Traversal: traversalStr,
 			}
-			switch {
-			case val.HasMark(marks.Sensitive):
-				// We only mention a sensitive value if the diagnostic
-				// we're rendering is explicitly marked as being
-				// caused by sensitive values, because otherwise
-				// readers tend to be misled into thinking the error
-				// is caused by the sensitive value even when it isn't.
-				if !includeSensitive {
-					continue Traversals
-				}
-				// Even when we do mention one, we keep it vague
-				// in order to minimize the chance of giving away
-				// whatever was sensitive about it.
-				value.Statement = "has a sensitive value"
-			case !val.IsKnown():
-				statement := unknownTypeStatement(val, includeUnknown)
-				if statement == "" {
-					continue Traversals
-				}
-				value.Statement = statement
-			default:
-				value.Statement = fmt.Sprintf("is %s", compactValueStr(val))
+			statement := valueStatement(diag, val)
+			if statement == "" {
+				continue Traversals
 			}
+			value.Statement = statement
 			values = append(values, value)
 			seen[traversalStr] = struct{}{}
 		}
@@ -357,6 +337,31 @@ Traversals:
 	diagnostic.Snippet.FunctionCall = fnCall
 
 	return diagnostic
+}
+
+func valueStatement(diag tfdiags.Diagnostic, val cty.Value) string {
+	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
+	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+
+	switch {
+	case val.HasMark(marks.Sensitive):
+		// We only mention a sensitive value if the diagnostic
+		// we're rendering is explicitly marked as being
+		// caused by sensitive values, because otherwise
+		// readers tend to be misled into thinking the error
+		// is caused by the sensitive value even when it isn't.
+		if !includeSensitive {
+			return ""
+		}
+		// Even when we do mention one, we keep it vague
+		// in order to minimize the chance of giving away
+		// whatever was sensitive about it.
+		return "has a sensitive value"
+	case !val.IsKnown():
+		return unknownTypeStatement(val, includeUnknown)
+	default:
+		return fmt.Sprintf("is %s", compactValueStr(val))
+	}
 }
 
 func unknownTypeStatement(val cty.Value, includeUnknown bool) string {
