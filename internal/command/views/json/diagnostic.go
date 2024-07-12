@@ -366,37 +366,38 @@ func unknownTypeStatement(val cty.Value, includeUnknown bool) string {
 	// values, because otherwise readers tend to be
 	// misled into thinking the error is caused by the
 	// unknown value even when it isn't.
-	if ty := val.Type(); ty != cty.DynamicPseudoType {
-		if includeUnknown {
-			switch {
-			case ty.IsCollectionType():
-				valRng := val.Range()
-				minLen := valRng.LengthLowerBound()
-				maxLen := valRng.LengthUpperBound()
-				const maxLimit = 1024 // (upper limit is just an arbitrary value to avoid showing distracting large numbers in the UI)
-				switch {
-				case minLen == maxLen:
-					return fmt.Sprintf("is a %s of length %d, known only after apply", ty.FriendlyName(), minLen)
-				case minLen != 0 && maxLen <= maxLimit:
-					return fmt.Sprintf("is a %s with between %d and %d elements, known only after apply", ty.FriendlyName(), minLen, maxLen)
-				case minLen != 0:
-					return fmt.Sprintf("is a %s with at least %d elements, known only after apply", ty.FriendlyName(), minLen)
-				case maxLen <= maxLimit:
-					return fmt.Sprintf("is a %s with up to %d elements, known only after apply", ty.FriendlyName(), maxLen)
-				default:
-					return fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
-				}
-			default:
-				return fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
-			}
-		} else {
-			return fmt.Sprintf("is a %s", ty.FriendlyName())
-		}
-	} else {
+	ty := val.Type()
+	if ty == cty.DynamicPseudoType {
 		if !includeUnknown {
 			return ""
 		}
 		return "will be known only after apply"
+	}
+
+	if !includeUnknown {
+		return fmt.Sprintf("is a %s", ty.FriendlyName())
+	}
+
+	switch {
+	case ty.IsCollectionType():
+		valRng := val.Range()
+		minLen := valRng.LengthLowerBound()
+		maxLen := valRng.LengthUpperBound()
+		const maxLimit = 1024 // (upper limit is just an arbitrary value to avoid showing distracting large numbers in the UI)
+		switch {
+		case minLen == maxLen:
+			return fmt.Sprintf("is a %s of length %d, known only after apply", ty.FriendlyName(), minLen)
+		case minLen != 0 && maxLen <= maxLimit:
+			return fmt.Sprintf("is a %s with between %d and %d elements, known only after apply", ty.FriendlyName(), minLen, maxLen)
+		case minLen != 0:
+			return fmt.Sprintf("is a %s with at least %d elements, known only after apply", ty.FriendlyName(), minLen)
+		case maxLen <= maxLimit:
+			return fmt.Sprintf("is a %s with up to %d elements, known only after apply", ty.FriendlyName(), maxLen)
+		default:
+			return fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
+		}
+	default:
+		return fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
 	}
 }
 
