@@ -270,16 +270,25 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 	diagnostic.Snippet.HighlightStartOffset = start
 	diagnostic.Snippet.HighlightEndOffset = end
 
-	fromExpr := diag.FromExpr()
-	if fromExpr == nil {
-		return diagnostic
-	}
-
 	// We may also be able to generate information about the dynamic
 	// values of relevant variables at the point of evaluation, then.
 	// This is particularly useful for expressions that get evaluated
 	// multiple times with different values, such as blocks using
 	// "count" and "for_each", or within "for" expressions.
+	values, fnCall := diagnoseFromExpr(diag)
+
+	diagnostic.Snippet.Values = values
+	diagnostic.Snippet.FunctionCall = fnCall
+
+	return diagnostic
+}
+
+func diagnoseFromExpr(diag tfdiags.Diagnostic) ([]DiagnosticExpressionValue, *DiagnosticFunctionCall) {
+	fromExpr := diag.FromExpr()
+	if fromExpr == nil {
+		return nil, nil
+	}
+
 	expr := fromExpr.Expression
 	ctx := fromExpr.EvalContext
 	vars := expr.Variables()
@@ -308,7 +317,6 @@ Traversals:
 			if statement == "" {
 				continue Traversals
 			}
-			value.Statement = statement
 			values = append(values, value)
 			seen[traversalStr] = struct{}{}
 		}
@@ -316,11 +324,10 @@ Traversals:
 	sort.Slice(values, func(i, j int) bool {
 		return values[i].Traversal < values[j].Traversal
 	})
-	diagnostic.Snippet.Values = values
 
 	callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag)
 	if callInfo == nil || callInfo.CalledFunctionName() == "" {
-		return diagnostic
+		return values, nil
 	}
 
 	calledAs := callInfo.CalledFunctionName()
@@ -334,9 +341,8 @@ Traversals:
 	if f, ok := ctx.Functions[calledAs]; ok {
 		fnCall.Signature = DescribeFunction(baseName, f)
 	}
-	diagnostic.Snippet.FunctionCall = fnCall
 
-	return diagnostic
+	return values, fnCall
 }
 
 func valueStatement(diag tfdiags.Diagnostic, val cty.Value) string {
