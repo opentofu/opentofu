@@ -270,118 +270,120 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 	diagnostic.Snippet.HighlightStartOffset = start
 	diagnostic.Snippet.HighlightEndOffset = end
 
-	if fromExpr := diag.FromExpr(); fromExpr != nil {
-		// We may also be able to generate information about the dynamic
-		// values of relevant variables at the point of evaluation, then.
-		// This is particularly useful for expressions that get evaluated
-		// multiple times with different values, such as blocks using
-		// "count" and "for_each", or within "for" expressions.
-		expr := fromExpr.Expression
-		ctx := fromExpr.EvalContext
-		vars := expr.Variables()
-		values := make([]DiagnosticExpressionValue, 0, len(vars))
-		seen := make(map[string]struct{}, len(vars))
-		includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
-		includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
-	Traversals:
-		for _, traversal := range vars {
-			for len(traversal) > 1 {
-				val, diags := traversal.TraverseAbs(ctx)
-				if diags.HasErrors() {
-					// Skip anything that generates errors, since we probably
-					// already have the same error in our diagnostics set
-					// already.
-					traversal = traversal[:len(traversal)-1]
-					continue
-				}
+	fromExpr := diag.FromExpr()
+	if fromExpr == nil {
+		return diagnostic
+	}
 
-				traversalStr := traversalStr(traversal)
-				if _, exists := seen[traversalStr]; exists {
-					continue Traversals // don't show duplicates when the same variable is referenced multiple times
+	// We may also be able to generate information about the dynamic
+	// values of relevant variables at the point of evaluation, then.
+	// This is particularly useful for expressions that get evaluated
+	// multiple times with different values, such as blocks using
+	// "count" and "for_each", or within "for" expressions.
+	expr := fromExpr.Expression
+	ctx := fromExpr.EvalContext
+	vars := expr.Variables()
+	values := make([]DiagnosticExpressionValue, 0, len(vars))
+	seen := make(map[string]struct{}, len(vars))
+	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
+	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+Traversals:
+	for _, traversal := range vars {
+		for len(traversal) > 1 {
+			val, diags := traversal.TraverseAbs(ctx)
+			if diags.HasErrors() {
+				// Skip anything that generates errors, since we probably
+				// already have the same error in our diagnostics set
+				// already.
+				traversal = traversal[:len(traversal)-1]
+				continue
+			}
+
+			traversalStr := traversalStr(traversal)
+			if _, exists := seen[traversalStr]; exists {
+				continue Traversals // don't show duplicates when the same variable is referenced multiple times
+			}
+			value := DiagnosticExpressionValue{
+				Traversal: traversalStr,
+			}
+			switch {
+			case val.HasMark(marks.Sensitive):
+				// We only mention a sensitive value if the diagnostic
+				// we're rendering is explicitly marked as being
+				// caused by sensitive values, because otherwise
+				// readers tend to be misled into thinking the error
+				// is caused by the sensitive value even when it isn't.
+				if !includeSensitive {
+					continue Traversals
 				}
-				value := DiagnosticExpressionValue{
-					Traversal: traversalStr,
-				}
-				switch {
-				case val.HasMark(marks.Sensitive):
-					// We only mention a sensitive value if the diagnostic
-					// we're rendering is explicitly marked as being
-					// caused by sensitive values, because otherwise
-					// readers tend to be misled into thinking the error
-					// is caused by the sensitive value even when it isn't.
-					if !includeSensitive {
-						continue Traversals
-					}
-					// Even when we do mention one, we keep it vague
-					// in order to minimize the chance of giving away
-					// whatever was sensitive about it.
-					value.Statement = "has a sensitive value"
-				case !val.IsKnown():
-					// We'll avoid saying anything about unknown or
-					// "known after apply" unless the diagnostic is
-					// explicitly marked as being caused by unknown
-					// values, because otherwise readers tend to be
-					// misled into thinking the error is caused by the
-					// unknown value even when it isn't.
-					if ty := val.Type(); ty != cty.DynamicPseudoType {
-						if includeUnknown {
+				// Even when we do mention one, we keep it vague
+				// in order to minimize the chance of giving away
+				// whatever was sensitive about it.
+				value.Statement = "has a sensitive value"
+			case !val.IsKnown():
+				// We'll avoid saying anything about unknown or
+				// "known after apply" unless the diagnostic is
+				// explicitly marked as being caused by unknown
+				// values, because otherwise readers tend to be
+				// misled into thinking the error is caused by the
+				// unknown value even when it isn't.
+				if ty := val.Type(); ty != cty.DynamicPseudoType {
+					if includeUnknown {
+						switch {
+						case ty.IsCollectionType():
+							valRng := val.Range()
+							minLen := valRng.LengthLowerBound()
+							maxLen := valRng.LengthUpperBound()
+							const maxLimit = 1024 // (upper limit is just an arbitrary value to avoid showing distracting large numbers in the UI)
 							switch {
-							case ty.IsCollectionType():
-								valRng := val.Range()
-								minLen := valRng.LengthLowerBound()
-								maxLen := valRng.LengthUpperBound()
-								const maxLimit = 1024 // (upper limit is just an arbitrary value to avoid showing distracting large numbers in the UI)
-								switch {
-								case minLen == maxLen:
-									value.Statement = fmt.Sprintf("is a %s of length %d, known only after apply", ty.FriendlyName(), minLen)
-								case minLen != 0 && maxLen <= maxLimit:
-									value.Statement = fmt.Sprintf("is a %s with between %d and %d elements, known only after apply", ty.FriendlyName(), minLen, maxLen)
-								case minLen != 0:
-									value.Statement = fmt.Sprintf("is a %s with at least %d elements, known only after apply", ty.FriendlyName(), minLen)
-								case maxLen <= maxLimit:
-									value.Statement = fmt.Sprintf("is a %s with up to %d elements, known only after apply", ty.FriendlyName(), maxLen)
-								default:
-									value.Statement = fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
-								}
+							case minLen == maxLen:
+								value.Statement = fmt.Sprintf("is a %s of length %d, known only after apply", ty.FriendlyName(), minLen)
+							case minLen != 0 && maxLen <= maxLimit:
+								value.Statement = fmt.Sprintf("is a %s with between %d and %d elements, known only after apply", ty.FriendlyName(), minLen, maxLen)
+							case minLen != 0:
+								value.Statement = fmt.Sprintf("is a %s with at least %d elements, known only after apply", ty.FriendlyName(), minLen)
+							case maxLen <= maxLimit:
+								value.Statement = fmt.Sprintf("is a %s with up to %d elements, known only after apply", ty.FriendlyName(), maxLen)
 							default:
 								value.Statement = fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
 							}
-						} else {
-							value.Statement = fmt.Sprintf("is a %s", ty.FriendlyName())
+						default:
+							value.Statement = fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
 						}
 					} else {
-						if !includeUnknown {
-							continue Traversals
-						}
-						value.Statement = "will be known only after apply"
+						value.Statement = fmt.Sprintf("is a %s", ty.FriendlyName())
 					}
-				default:
-					value.Statement = fmt.Sprintf("is %s", compactValueStr(val))
+				} else {
+					if !includeUnknown {
+						continue Traversals
+					}
+					value.Statement = "will be known only after apply"
 				}
-				values = append(values, value)
-				seen[traversalStr] = struct{}{}
+			default:
+				value.Statement = fmt.Sprintf("is %s", compactValueStr(val))
 			}
+			values = append(values, value)
+			seen[traversalStr] = struct{}{}
 		}
-		sort.Slice(values, func(i, j int) bool {
-			return values[i].Traversal < values[j].Traversal
-		})
-		diagnostic.Snippet.Values = values
+	}
+	sort.Slice(values, func(i, j int) bool {
+		return values[i].Traversal < values[j].Traversal
+	})
+	diagnostic.Snippet.Values = values
 
-		if callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag); callInfo != nil && callInfo.CalledFunctionName() != "" {
-			calledAs := callInfo.CalledFunctionName()
-			baseName := calledAs
-			if idx := strings.LastIndex(baseName, "::"); idx >= 0 {
-				baseName = baseName[idx+2:]
-			}
-			callInfo := &DiagnosticFunctionCall{
-				CalledAs: calledAs,
-			}
-			if f, ok := ctx.Functions[calledAs]; ok {
-				callInfo.Signature = DescribeFunction(baseName, f)
-			}
-			diagnostic.Snippet.FunctionCall = callInfo
+	if callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag); callInfo != nil && callInfo.CalledFunctionName() != "" {
+		calledAs := callInfo.CalledFunctionName()
+		baseName := calledAs
+		if idx := strings.LastIndex(baseName, "::"); idx >= 0 {
+			baseName = baseName[idx+2:]
 		}
-
+		callInfo := &DiagnosticFunctionCall{
+			CalledAs: calledAs,
+		}
+		if f, ok := ctx.Functions[calledAs]; ok {
+			callInfo.Signature = DescribeFunction(baseName, f)
+		}
+		diagnostic.Snippet.FunctionCall = callInfo
 	}
 
 	return diagnostic
