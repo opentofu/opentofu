@@ -203,20 +203,7 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 
 	// Build the string of the code snippet, tracking at which byte of
 	// the file the snippet starts.
-	var codeStartByte int
-	sc := hcl.NewRangeScanner(src, highlightRange.Filename, bufio.ScanLines)
-	var code strings.Builder
-	for sc.Scan() {
-		lineRange := sc.Range()
-		if lineRange.Overlaps(snippetRange) {
-			if codeStartByte == 0 && code.Len() == 0 {
-				codeStartByte = lineRange.Start.Byte
-			}
-			code.Write(lineRange.SliceBytes(src))
-			code.WriteRune('\n')
-		}
-	}
-	codeStr := strings.TrimSuffix(code.String(), "\n")
+	codeStartByte, codeStr := codeString(src, highlightRange, snippetRange)
 	diagnostic.Snippet.Code = codeStr
 
 	// Calculate the start and end byte of the highlight range relative
@@ -287,6 +274,23 @@ func sourceRanges(sourceRefs tfdiags.Source) (hcl.Range, hcl.Range) {
 	}
 
 	return highlightRange, snippetRange
+}
+
+func codeString(src []byte, highlightRange, snippetRange hcl.Range) (int, string) {
+	var codeStartByte int
+	sc := hcl.NewRangeScanner(src, highlightRange.Filename, bufio.ScanLines)
+	var code strings.Builder
+	for sc.Scan() {
+		lineRange := sc.Range()
+		if lineRange.Overlaps(snippetRange) {
+			if codeStartByte == 0 && code.Len() == 0 {
+				codeStartByte = lineRange.Start.Byte
+			}
+			code.Write(lineRange.SliceBytes(src))
+			code.WriteRune('\n')
+		}
+	}
+	return codeStartByte, strings.TrimSuffix(code.String(), "\n")
 }
 
 func diagnoseFromExpr(diag tfdiags.Diagnostic) ([]DiagnosticExpressionValue, *DiagnosticFunctionCall) {
