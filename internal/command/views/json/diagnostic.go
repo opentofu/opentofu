@@ -371,20 +371,23 @@ Traversals:
 	})
 	diagnostic.Snippet.Values = values
 
-	if callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag); callInfo != nil && callInfo.CalledFunctionName() != "" {
-		calledAs := callInfo.CalledFunctionName()
-		baseName := calledAs
-		if idx := strings.LastIndex(baseName, "::"); idx >= 0 {
-			baseName = baseName[idx+2:]
-		}
-		callInfo := &DiagnosticFunctionCall{
-			CalledAs: calledAs,
-		}
-		if f, ok := ctx.Functions[calledAs]; ok {
-			callInfo.Signature = DescribeFunction(baseName, f)
-		}
-		diagnostic.Snippet.FunctionCall = callInfo
+	callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag)
+	if callInfo == nil || callInfo.CalledFunctionName() == "" {
+		return diagnostic
 	}
+
+	calledAs := callInfo.CalledFunctionName()
+	baseName := calledAs
+	if idx := strings.LastIndex(baseName, "::"); idx >= 0 {
+		baseName = baseName[idx+2:]
+	}
+	fnCall := &DiagnosticFunctionCall{
+		CalledAs: calledAs,
+	}
+	if f, ok := ctx.Functions[calledAs]; ok {
+		fnCall.Signature = DescribeFunction(baseName, f)
+	}
+	diagnostic.Snippet.FunctionCall = fnCall
 
 	return diagnostic
 }
