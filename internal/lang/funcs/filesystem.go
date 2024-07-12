@@ -199,14 +199,12 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 		},
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
 			pathArg, pathMarks := args[0].Unmark()
-			expr,  err := loadTmpl(pathArg.AsString(), pathMarks)
+			expr, err := loadTmpl(pathArg.AsString(), pathMarks)
 			if err != nil {
 				return cty.DynamicVal, err
 			}
 
 			result, err := renderTemplate(expr, args[1], funcsCbDepth())
-
-
 			return result.WithMarks(pathMarks), err
 		},
 	})

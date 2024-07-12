@@ -195,7 +195,7 @@ func TestTemplateFile(t *testing.T) {
 			cty.ObjectVal(map[string]cty.Value{
 				"val": cty.True.Mark(marks.Sensitive),
 			}),
-			cty.True.Mark(marks.Sensitive), // since this template contains only an interpolation, its true value shines through
+			cty.True.Mark(marks.Sensitive),
 			``,
 		},
 	}
