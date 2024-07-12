@@ -114,7 +114,7 @@ func (s *Schema) coreConfigSchemaAttribute() *configschema.Attribute {
 		// "Required" to false and let the provider try calling its
 		// DefaultFunc again during the validate step, where it can then
 		// return the error.
-		if err != nil || (err == nil && v != nil) {
+		if err != nil || v != nil {
 			reqd = false
 			opt = true
 		}

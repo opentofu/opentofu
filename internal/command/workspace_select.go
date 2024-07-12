@@ -79,11 +79,6 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to load backend: %s", err))
-		return 1
-	}
-
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
