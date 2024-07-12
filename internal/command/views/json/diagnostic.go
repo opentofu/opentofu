@@ -154,232 +154,234 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 	}
 
 	sourceRefs := diag.Source()
-	if sourceRefs.Subject != nil {
-		// We'll borrow HCL's range implementation here, because it has some
-		// handy features to help us produce a nice source code snippet.
-		highlightRange := sourceRefs.Subject.ToHCL()
+	if sourceRefs.Subject == nil {
+		return diagnostic
+	}
 
-		// Some diagnostic sources fail to set the end of the subject range.
-		if highlightRange.End == (hcl.Pos{}) {
-			highlightRange.End = highlightRange.Start
+	// We'll borrow HCL's range implementation here, because it has some
+	// handy features to help us produce a nice source code snippet.
+	highlightRange := sourceRefs.Subject.ToHCL()
+
+	// Some diagnostic sources fail to set the end of the subject range.
+	if highlightRange.End == (hcl.Pos{}) {
+		highlightRange.End = highlightRange.Start
+	}
+
+	snippetRange := highlightRange
+	if sourceRefs.Context != nil {
+		snippetRange = sourceRefs.Context.ToHCL()
+	}
+
+	// Make sure the snippet includes the highlight. This should be true
+	// for any reasonable diagnostic, but we'll make sure.
+	snippetRange = hcl.RangeOver(snippetRange, highlightRange)
+
+	// Empty ranges result in odd diagnostic output, so extend the end to
+	// ensure there's at least one byte in the snippet or highlight.
+	if snippetRange.Empty() {
+		snippetRange.End.Byte++
+		snippetRange.End.Column++
+	}
+	if highlightRange.Empty() {
+		highlightRange.End.Byte++
+		highlightRange.End.Column++
+	}
+
+	diagnostic.Range = &DiagnosticRange{
+		Filename: highlightRange.Filename,
+		Start: Pos{
+			Line:   highlightRange.Start.Line,
+			Column: highlightRange.Start.Column,
+			Byte:   highlightRange.Start.Byte,
+		},
+		End: Pos{
+			Line:   highlightRange.End.Line,
+			Column: highlightRange.End.Column,
+			Byte:   highlightRange.End.Byte,
+		},
+	}
+
+	var src []byte
+	if sources != nil {
+		src = sources[highlightRange.Filename]
+	}
+
+	// If we have a source file for the diagnostic, we can emit a code
+	// snippet.
+	if src != nil {
+		diagnostic.Snippet = &DiagnosticSnippet{
+			StartLine: snippetRange.Start.Line,
+
+			// Ensure that the default Values struct is an empty array, as this
+			// makes consuming the JSON structure easier in most languages.
+			Values: []DiagnosticExpressionValue{},
 		}
 
-		snippetRange := highlightRange
-		if sourceRefs.Context != nil {
-			snippetRange = sourceRefs.Context.ToHCL()
+		file, offset := parseRange(src, highlightRange)
+
+		// Some diagnostics may have a useful top-level context to add to
+		// the code snippet output.
+		contextStr := hcled.ContextString(file, offset-1)
+		if contextStr != "" {
+			diagnostic.Snippet.Context = &contextStr
 		}
 
-		// Make sure the snippet includes the highlight. This should be true
-		// for any reasonable diagnostic, but we'll make sure.
-		snippetRange = hcl.RangeOver(snippetRange, highlightRange)
-
-		// Empty ranges result in odd diagnostic output, so extend the end to
-		// ensure there's at least one byte in the snippet or highlight.
-		if snippetRange.Empty() {
-			snippetRange.End.Byte++
-			snippetRange.End.Column++
-		}
-		if highlightRange.Empty() {
-			highlightRange.End.Byte++
-			highlightRange.End.Column++
-		}
-
-		diagnostic.Range = &DiagnosticRange{
-			Filename: highlightRange.Filename,
-			Start: Pos{
-				Line:   highlightRange.Start.Line,
-				Column: highlightRange.Start.Column,
-				Byte:   highlightRange.Start.Byte,
-			},
-			End: Pos{
-				Line:   highlightRange.End.Line,
-				Column: highlightRange.End.Column,
-				Byte:   highlightRange.End.Byte,
-			},
-		}
-
-		var src []byte
-		if sources != nil {
-			src = sources[highlightRange.Filename]
-		}
-
-		// If we have a source file for the diagnostic, we can emit a code
-		// snippet.
-		if src != nil {
-			diagnostic.Snippet = &DiagnosticSnippet{
-				StartLine: snippetRange.Start.Line,
-
-				// Ensure that the default Values struct is an empty array, as this
-				// makes consuming the JSON structure easier in most languages.
-				Values: []DiagnosticExpressionValue{},
-			}
-
-			file, offset := parseRange(src, highlightRange)
-
-			// Some diagnostics may have a useful top-level context to add to
-			// the code snippet output.
-			contextStr := hcled.ContextString(file, offset-1)
-			if contextStr != "" {
-				diagnostic.Snippet.Context = &contextStr
-			}
-
-			// Build the string of the code snippet, tracking at which byte of
-			// the file the snippet starts.
-			var codeStartByte int
-			sc := hcl.NewRangeScanner(src, highlightRange.Filename, bufio.ScanLines)
-			var code strings.Builder
-			for sc.Scan() {
-				lineRange := sc.Range()
-				if lineRange.Overlaps(snippetRange) {
-					if codeStartByte == 0 && code.Len() == 0 {
-						codeStartByte = lineRange.Start.Byte
-					}
-					code.Write(lineRange.SliceBytes(src))
-					code.WriteRune('\n')
+		// Build the string of the code snippet, tracking at which byte of
+		// the file the snippet starts.
+		var codeStartByte int
+		sc := hcl.NewRangeScanner(src, highlightRange.Filename, bufio.ScanLines)
+		var code strings.Builder
+		for sc.Scan() {
+			lineRange := sc.Range()
+			if lineRange.Overlaps(snippetRange) {
+				if codeStartByte == 0 && code.Len() == 0 {
+					codeStartByte = lineRange.Start.Byte
 				}
+				code.Write(lineRange.SliceBytes(src))
+				code.WriteRune('\n')
 			}
-			codeStr := strings.TrimSuffix(code.String(), "\n")
-			diagnostic.Snippet.Code = codeStr
+		}
+		codeStr := strings.TrimSuffix(code.String(), "\n")
+		diagnostic.Snippet.Code = codeStr
 
-			// Calculate the start and end byte of the highlight range relative
-			// to the code snippet string.
-			start := highlightRange.Start.Byte - codeStartByte
-			end := start + (highlightRange.End.Byte - highlightRange.Start.Byte)
+		// Calculate the start and end byte of the highlight range relative
+		// to the code snippet string.
+		start := highlightRange.Start.Byte - codeStartByte
+		end := start + (highlightRange.End.Byte - highlightRange.Start.Byte)
 
-			// We can end up with some quirky results here in edge cases like
-			// when a source range starts or ends at a newline character,
-			// so we'll cap the results at the bounds of the highlight range
-			// so that consumers of this data don't need to contend with
-			// out-of-bounds errors themselves.
-			if start < 0 {
-				start = 0
-			} else if start > len(codeStr) {
-				start = len(codeStr)
-			}
-			if end < 0 {
-				end = 0
-			} else if end > len(codeStr) {
-				end = len(codeStr)
-			}
+		// We can end up with some quirky results here in edge cases like
+		// when a source range starts or ends at a newline character,
+		// so we'll cap the results at the bounds of the highlight range
+		// so that consumers of this data don't need to contend with
+		// out-of-bounds errors themselves.
+		if start < 0 {
+			start = 0
+		} else if start > len(codeStr) {
+			start = len(codeStr)
+		}
+		if end < 0 {
+			end = 0
+		} else if end > len(codeStr) {
+			end = len(codeStr)
+		}
 
-			diagnostic.Snippet.HighlightStartOffset = start
-			diagnostic.Snippet.HighlightEndOffset = end
+		diagnostic.Snippet.HighlightStartOffset = start
+		diagnostic.Snippet.HighlightEndOffset = end
 
-			if fromExpr := diag.FromExpr(); fromExpr != nil {
-				// We may also be able to generate information about the dynamic
-				// values of relevant variables at the point of evaluation, then.
-				// This is particularly useful for expressions that get evaluated
-				// multiple times with different values, such as blocks using
-				// "count" and "for_each", or within "for" expressions.
-				expr := fromExpr.Expression
-				ctx := fromExpr.EvalContext
-				vars := expr.Variables()
-				values := make([]DiagnosticExpressionValue, 0, len(vars))
-				seen := make(map[string]struct{}, len(vars))
-				includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
-				includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
-			Traversals:
-				for _, traversal := range vars {
-					for len(traversal) > 1 {
-						val, diags := traversal.TraverseAbs(ctx)
-						if diags.HasErrors() {
-							// Skip anything that generates errors, since we probably
-							// already have the same error in our diagnostics set
-							// already.
-							traversal = traversal[:len(traversal)-1]
-							continue
+		if fromExpr := diag.FromExpr(); fromExpr != nil {
+			// We may also be able to generate information about the dynamic
+			// values of relevant variables at the point of evaluation, then.
+			// This is particularly useful for expressions that get evaluated
+			// multiple times with different values, such as blocks using
+			// "count" and "for_each", or within "for" expressions.
+			expr := fromExpr.Expression
+			ctx := fromExpr.EvalContext
+			vars := expr.Variables()
+			values := make([]DiagnosticExpressionValue, 0, len(vars))
+			seen := make(map[string]struct{}, len(vars))
+			includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
+			includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+		Traversals:
+			for _, traversal := range vars {
+				for len(traversal) > 1 {
+					val, diags := traversal.TraverseAbs(ctx)
+					if diags.HasErrors() {
+						// Skip anything that generates errors, since we probably
+						// already have the same error in our diagnostics set
+						// already.
+						traversal = traversal[:len(traversal)-1]
+						continue
+					}
+
+					traversalStr := traversalStr(traversal)
+					if _, exists := seen[traversalStr]; exists {
+						continue Traversals // don't show duplicates when the same variable is referenced multiple times
+					}
+					value := DiagnosticExpressionValue{
+						Traversal: traversalStr,
+					}
+					switch {
+					case val.HasMark(marks.Sensitive):
+						// We only mention a sensitive value if the diagnostic
+						// we're rendering is explicitly marked as being
+						// caused by sensitive values, because otherwise
+						// readers tend to be misled into thinking the error
+						// is caused by the sensitive value even when it isn't.
+						if !includeSensitive {
+							continue Traversals
 						}
-
-						traversalStr := traversalStr(traversal)
-						if _, exists := seen[traversalStr]; exists {
-							continue Traversals // don't show duplicates when the same variable is referenced multiple times
-						}
-						value := DiagnosticExpressionValue{
-							Traversal: traversalStr,
-						}
-						switch {
-						case val.HasMark(marks.Sensitive):
-							// We only mention a sensitive value if the diagnostic
-							// we're rendering is explicitly marked as being
-							// caused by sensitive values, because otherwise
-							// readers tend to be misled into thinking the error
-							// is caused by the sensitive value even when it isn't.
-							if !includeSensitive {
-								continue Traversals
-							}
-							// Even when we do mention one, we keep it vague
-							// in order to minimize the chance of giving away
-							// whatever was sensitive about it.
-							value.Statement = "has a sensitive value"
-						case !val.IsKnown():
-							// We'll avoid saying anything about unknown or
-							// "known after apply" unless the diagnostic is
-							// explicitly marked as being caused by unknown
-							// values, because otherwise readers tend to be
-							// misled into thinking the error is caused by the
-							// unknown value even when it isn't.
-							if ty := val.Type(); ty != cty.DynamicPseudoType {
-								if includeUnknown {
+						// Even when we do mention one, we keep it vague
+						// in order to minimize the chance of giving away
+						// whatever was sensitive about it.
+						value.Statement = "has a sensitive value"
+					case !val.IsKnown():
+						// We'll avoid saying anything about unknown or
+						// "known after apply" unless the diagnostic is
+						// explicitly marked as being caused by unknown
+						// values, because otherwise readers tend to be
+						// misled into thinking the error is caused by the
+						// unknown value even when it isn't.
+						if ty := val.Type(); ty != cty.DynamicPseudoType {
+							if includeUnknown {
+								switch {
+								case ty.IsCollectionType():
+									valRng := val.Range()
+									minLen := valRng.LengthLowerBound()
+									maxLen := valRng.LengthUpperBound()
+									const maxLimit = 1024 // (upper limit is just an arbitrary value to avoid showing distracting large numbers in the UI)
 									switch {
-									case ty.IsCollectionType():
-										valRng := val.Range()
-										minLen := valRng.LengthLowerBound()
-										maxLen := valRng.LengthUpperBound()
-										const maxLimit = 1024 // (upper limit is just an arbitrary value to avoid showing distracting large numbers in the UI)
-										switch {
-										case minLen == maxLen:
-											value.Statement = fmt.Sprintf("is a %s of length %d, known only after apply", ty.FriendlyName(), minLen)
-										case minLen != 0 && maxLen <= maxLimit:
-											value.Statement = fmt.Sprintf("is a %s with between %d and %d elements, known only after apply", ty.FriendlyName(), minLen, maxLen)
-										case minLen != 0:
-											value.Statement = fmt.Sprintf("is a %s with at least %d elements, known only after apply", ty.FriendlyName(), minLen)
-										case maxLen <= maxLimit:
-											value.Statement = fmt.Sprintf("is a %s with up to %d elements, known only after apply", ty.FriendlyName(), maxLen)
-										default:
-											value.Statement = fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
-										}
+									case minLen == maxLen:
+										value.Statement = fmt.Sprintf("is a %s of length %d, known only after apply", ty.FriendlyName(), minLen)
+									case minLen != 0 && maxLen <= maxLimit:
+										value.Statement = fmt.Sprintf("is a %s with between %d and %d elements, known only after apply", ty.FriendlyName(), minLen, maxLen)
+									case minLen != 0:
+										value.Statement = fmt.Sprintf("is a %s with at least %d elements, known only after apply", ty.FriendlyName(), minLen)
+									case maxLen <= maxLimit:
+										value.Statement = fmt.Sprintf("is a %s with up to %d elements, known only after apply", ty.FriendlyName(), maxLen)
 									default:
 										value.Statement = fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
 									}
-								} else {
-									value.Statement = fmt.Sprintf("is a %s", ty.FriendlyName())
+								default:
+									value.Statement = fmt.Sprintf("is a %s, known only after apply", ty.FriendlyName())
 								}
 							} else {
-								if !includeUnknown {
-									continue Traversals
-								}
-								value.Statement = "will be known only after apply"
+								value.Statement = fmt.Sprintf("is a %s", ty.FriendlyName())
 							}
-						default:
-							value.Statement = fmt.Sprintf("is %s", compactValueStr(val))
+						} else {
+							if !includeUnknown {
+								continue Traversals
+							}
+							value.Statement = "will be known only after apply"
 						}
-						values = append(values, value)
-						seen[traversalStr] = struct{}{}
+					default:
+						value.Statement = fmt.Sprintf("is %s", compactValueStr(val))
 					}
+					values = append(values, value)
+					seen[traversalStr] = struct{}{}
 				}
-				sort.Slice(values, func(i, j int) bool {
-					return values[i].Traversal < values[j].Traversal
-				})
-				diagnostic.Snippet.Values = values
+			}
+			sort.Slice(values, func(i, j int) bool {
+				return values[i].Traversal < values[j].Traversal
+			})
+			diagnostic.Snippet.Values = values
 
-				if callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag); callInfo != nil && callInfo.CalledFunctionName() != "" {
-					calledAs := callInfo.CalledFunctionName()
-					baseName := calledAs
-					if idx := strings.LastIndex(baseName, "::"); idx >= 0 {
-						baseName = baseName[idx+2:]
-					}
-					callInfo := &DiagnosticFunctionCall{
-						CalledAs: calledAs,
-					}
-					if f, ok := ctx.Functions[calledAs]; ok {
-						callInfo.Signature = DescribeFunction(baseName, f)
-					}
-					diagnostic.Snippet.FunctionCall = callInfo
+			if callInfo := tfdiags.ExtraInfo[hclsyntax.FunctionCallDiagExtra](diag); callInfo != nil && callInfo.CalledFunctionName() != "" {
+				calledAs := callInfo.CalledFunctionName()
+				baseName := calledAs
+				if idx := strings.LastIndex(baseName, "::"); idx >= 0 {
+					baseName = baseName[idx+2:]
 				}
-
+				callInfo := &DiagnosticFunctionCall{
+					CalledAs: calledAs,
+				}
+				if f, ok := ctx.Functions[calledAs]; ok {
+					callInfo.Signature = DescribeFunction(baseName, f)
+				}
+				diagnostic.Snippet.FunctionCall = callInfo
 			}
 
 		}
+
 	}
 
 	return diagnostic
