@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -149,9 +148,6 @@ func (m noopMatcher) String() string {
 }
 
 func TestBackendConfig_Authentication(t *testing.T) {
-	testDirectory := t.TempDir()
-	sysRoot := os.Getenv("SYSTEMROOT")
-
 	testCases := map[string]struct {
 		config                     map[string]any
 		EnableEc2MetadataServer    bool
@@ -638,20 +634,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
-				t.Setenv("TEMP", testDirectory)
-				t.Setenv("TMP", testDirectory)
-				t.Setenv("SYSTEMROOT", sysRoot)
-
-				// Trigger garbage collection to ensure that all open file handles are closed.
-				// This prevents TempDir RemoveAll cleanup errors on Windows.
-				t.Cleanup(func() {
-					runtime.GC()
-
-				})
-			}
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -772,9 +754,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 	}
 }
 func TestBackendConfig_Authentication_AssumeRoleInline(t *testing.T) {
-	testDirectory := t.TempDir()
-	sysRoot := os.Getenv("SYSTEMROOT")
-
 	testCases := map[string]struct {
 		config                     map[string]any
 		EnableEc2MetadataServer    bool
@@ -1121,20 +1100,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
-				t.Setenv("TEMP", testDirectory)
-				t.Setenv("TMP", testDirectory)
-				t.Setenv("SYSTEMROOT", sysRoot)
-
-				// Trigger garbage collection to ensure that all open file handles are closed.
-				// This prevents TempDir RemoveAll cleanup errors on Windows.
-				t.Cleanup(func() {
-					runtime.GC()
-
-				})
-			}
-
 			ctx := context.TODO()
 
 			// Populate required fields
@@ -1229,9 +1194,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 }
 
 func TestBackendConfig_Authentication_AssumeRoleNested(t *testing.T) {
-	testDirectory := t.TempDir()
-	sysRoot := os.Getenv("SYSTEMROOT")
-
 	testCases := map[string]struct {
 		config                     map[string]any
 		EnableEc2MetadataServer    bool
@@ -1540,20 +1502,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
-				t.Setenv("TEMP", testDirectory)
-				t.Setenv("TMP", testDirectory)
-				t.Setenv("SYSTEMROOT", sysRoot)
-
-				// Trigger garbage collection to ensure that all open file handles are closed.
-				// This prevents TempDir RemoveAll cleanup errors on Windows.
-				t.Cleanup(func() {
-					runtime.GC()
-
-				})
-			}
-
 			ctx := context.TODO()
 
 			// Populate required fields
@@ -1650,9 +1598,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 }
 
 func TestBackendConfig_Authentication_AssumeRoleWithWebIdentity(t *testing.T) {
-	testDirectory := t.TempDir()
-	sysRoot := os.Getenv("SYSTEMROOT")
-
 	testCases := map[string]struct {
 		config                          map[string]any
 		SetConfig                       bool
@@ -1830,20 +1775,6 @@ web_identity_token_file = no-such-file
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
-				t.Setenv("TEMP", testDirectory)
-				t.Setenv("TMP", testDirectory)
-				t.Setenv("SYSTEMROOT", sysRoot)
-
-				// Trigger garbage collection to ensure that all open file handles are closed.
-				// This prevents TempDir RemoveAll cleanup errors on Windows.
-				t.Cleanup(func() {
-					runtime.GC()
-
-				})
-			}
-
 			ctx := context.TODO()
 
 			// Populate required fields
@@ -1864,6 +1795,8 @@ web_identity_token_file = no-such-file
 
 			tc.config["sts_endpoint"] = ts.URL
 
+			t.Setenv("TMPDIR", t.TempDir())
+
 			tokenFile, err := os.CreateTemp("", "aws-sdk-go-base-web-identity-token-file")
 			if err != nil {
 				t.Fatalf("unexpected error creating temporary web identity token file: %s", err)
@@ -1880,15 +1813,12 @@ web_identity_token_file = no-such-file
 
 			if tc.ExpandEnvVars {
 				tmpdir := os.Getenv("TMPDIR")
-				if runtime.GOOS == "windows" {
-					tmpdir = os.Getenv("TEMP")
-				}
 				rel, err := filepath.Rel(tmpdir, tokenFileName)
 				if err != nil {
 					t.Fatalf("error making path relative: %s", err)
 				}
 				t.Logf("relative: %s", rel)
-				tokenFileName = filepath.Join(tmpdir, rel)
+				tokenFileName = filepath.Join("$TMPDIR", rel)
 				t.Logf("env tempfile: %s", tokenFileName)
 			}
 
@@ -1946,9 +1876,6 @@ web_identity_token_file = no-such-file
 }
 
 func TestBackendConfig_Region(t *testing.T) {
-	testDirectory := t.TempDir()
-	sysRoot := os.Getenv("SYSTEMROOT")
-
 	testCases := map[string]struct {
 		config                  map[string]any
 		EnvironmentVariables    map[string]string
@@ -2107,20 +2034,6 @@ region = us-west-2
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
-				t.Setenv("TEMP", testDirectory)
-				t.Setenv("TMP", testDirectory)
-				t.Setenv("SYSTEMROOT", sysRoot)
-
-				// Trigger garbage collection to ensure that all open file handles are closed.
-				// This prevents TempDir RemoveAll cleanup errors on Windows.
-				t.Cleanup(func() {
-					runtime.GC()
-
-				})
-			}
-
 			// Populate required fields
 			tc.config["bucket"] = "bucket"
 			tc.config["key"] = "key"
@@ -2179,9 +2092,6 @@ region = us-west-2
 }
 
 func TestBackendConfig_RetryMode(t *testing.T) {
-	testDirectory := t.TempDir()
-	sysRoot := os.Getenv("SYSTEMROOT")
-
 	testCases := map[string]struct {
 		config               map[string]any
 		EnvironmentVariables map[string]string
@@ -2232,20 +2142,6 @@ func TestBackendConfig_RetryMode(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
-
-			// Set Windows-specific environment variables
-			if runtime.GOOS == "windows" {
-				t.Setenv("TEMP", testDirectory)
-				t.Setenv("TMP", testDirectory)
-				t.Setenv("SYSTEMROOT", sysRoot)
-
-				// Trigger garbage collection to ensure that all open file handles are closed.
-				// This prevents TempDir RemoveAll cleanup errors on Windows.
-				t.Cleanup(func() {
-					runtime.GC()
-
-				})
-			}
 
 			// Populate required fields
 			tc.config["bucket"] = "bucket"
