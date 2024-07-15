@@ -128,7 +128,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ProviderResolver = n.ProviderResolver
-		a.ResolvedProvider = n.ProviderResolver(a.Addr.Keys())
+		a.ResolvedProvider = n.ProviderResolver(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -337,7 +337,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				return &graphNodeImportState{
 					Addr:             c.Addr,
 					ID:               c.ID,
-					ResolvedProvider: n.ProviderResolver(c.Addr.Keys()),
+					ResolvedProvider: n.ProviderResolver(c.Addr),
 					Schema:           n.Schema,
 					SchemaVersion:    n.SchemaVersion,
 					Config:           n.Config,
@@ -348,7 +348,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ProviderResolver = n.ProviderResolver
-		a.ResolvedProvider = n.ProviderResolver(a.Addr.Keys())
+		a.ResolvedProvider = n.ProviderResolver(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -382,7 +382,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ProviderResolver = n.ProviderResolver
-		a.ResolvedProvider = n.ProviderResolver(a.Addr.Keys())
+		a.ResolvedProvider = n.ProviderResolver(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas

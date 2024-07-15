@@ -66,11 +66,11 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 	}
 }
 
-func (n *NodeAbstractResourceInstance) SetProvider(p func([]addrs.InstanceKey) addrs.AbsProviderConfig) {
+func (n *NodeAbstractResourceInstance) SetProvider(p func(addrs.AbsResourceInstance) addrs.AbsProviderConfig) {
 	// This is called during the apply graph transformer phase to set the ProviderResolver.
 	n.ProviderResolver = p
 	// As this is a instance with a known address, we can lookup the ResolvedProvider here.
-	n.ResolvedProvider = n.ProviderResolver(n.Addr.Keys())
+	n.ResolvedProvider = n.ProviderResolver(n.Addr)
 }
 
 func (n *NodeAbstractResourceInstance) Name() string {

@@ -63,8 +63,8 @@ func (n *graphNodeImportState) Provider() addrs.Provider {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) SetProvider(addr func([]addrs.InstanceKey) addrs.AbsProviderConfig) {
-	n.ResolvedProvider = addr(nil)
+func (n *graphNodeImportState) SetProvider(addr func(addrs.AbsResourceInstance) addrs.AbsProviderConfig) {
+	n.ResolvedProvider = addr(addrs.AbsResourceInstance{}) // BROKEN
 }
 
 // GraphNodeModuleInstance

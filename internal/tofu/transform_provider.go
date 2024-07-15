@@ -84,7 +84,7 @@ type GraphNodeProviderConsumer interface {
 	Provider() (provider addrs.Provider)
 
 	// Set the resolved provider address for this resource.
-	SetProvider(func([]addrs.InstanceKey) addrs.AbsProviderConfig)
+	SetProvider(func(addrs.AbsResourceInstance) addrs.AbsProviderConfig)
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -169,7 +169,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
 	for v, reqs := range requested {
-		resolvers := make(map[addrs.InstanceKey]func([]addrs.InstanceKey) addrs.AbsProviderConfig)
+		resolvers := make(map[addrs.InstanceKey]func(addrs.ModuleInstance) addrs.AbsProviderConfig)
 		bork := false
 		for ik, req := range reqs {
 			key := req.Addr.String()
@@ -227,7 +227,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				}
 			} else {
 				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-				resolvers[ik] = func([]addrs.InstanceKey) addrs.AbsProviderConfig { return target.ProviderAddr() }
+				resolvers[ik] = func(addrs.ModuleInstance) addrs.AbsProviderConfig { return target.ProviderAddr() }
 				g.Connect(dag.BasicEdge(v, target))
 			}
 		}
@@ -235,11 +235,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			continue
 		}
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			pv.SetProvider(func(keys []addrs.InstanceKey) addrs.AbsProviderConfig {
-				key := keys[len(keys)-1]
-				keys = keys[:len(keys)-1]
-
-				resolver, ok := resolvers[key]
+			pv.SetProvider(func(addr addrs.AbsResourceInstance) addrs.AbsProviderConfig {
+				resolver, ok := resolvers[addr.Resource.Key]
 				if !ok {
 					resolver, ok = resolvers[addrs.NoKey]
 					if !ok {
@@ -247,7 +244,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 					}
 				}
 
-				return resolver(keys)
+				return resolver(addr.Module)
 			})
 		}
 
@@ -604,11 +601,11 @@ func (n *graphNodeProxyProvider) Name() string {
 }
 
 // find the concrete provider instance
-func (n *graphNodeProxyProvider) Resolve(keys []addrs.InstanceKey) addrs.AbsProviderConfig {
+func (n *graphNodeProxyProvider) Resolve(keys addrs.ModuleInstance) addrs.AbsProviderConfig {
 	key := addrs.NoKey
 	if len(keys) > 0 {
 		// Pop key
-		key = keys[len(keys)-1]
+		key = keys[len(keys)-1].InstanceKey
 		keys = keys[:len(keys)-1]
 	}
 

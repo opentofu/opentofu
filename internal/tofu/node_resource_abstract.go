@@ -75,7 +75,7 @@ type NodeAbstractResource struct {
 
 	// The address of the provider this resource will use
 	//ResolvedProvider addrs.AbsProviderConfig
-	ProviderResolver func([]addrs.InstanceKey) addrs.AbsProviderConfig
+	ProviderResolver func(addrs.AbsResourceInstance) addrs.AbsProviderConfig
 	// storedProviderConfig is the provider address retrieved from the
 	// state. This is defined here for access within the ProvidedBy method, but
 	// will be set from the embedding instance type when the state is attached.
@@ -291,7 +291,7 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetProvider(p func([]addrs.InstanceKey) addrs.AbsProviderConfig) {
+func (n *NodeAbstractResource) SetProvider(p func(addrs.AbsResourceInstance) addrs.AbsProviderConfig) {
 	n.ProviderResolver = p
 }
 
@@ -505,7 +505,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 // the state.
 func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ProviderResolver(addr.Keys()))
+	provider, providerSchema, err := getProvider(ctx, n.ProviderResolver(addr))
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -546,7 +546,7 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 // instance in the state.
 func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ProviderResolver(addr.Keys()))
+	provider, providerSchema, err := getProvider(ctx, n.ProviderResolver(addr))
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
