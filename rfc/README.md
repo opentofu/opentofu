@@ -7,7 +7,7 @@ RFCs are primarily created by the OpenTofu Community in response to one or more 
 ## Authoring an RFC
 
 When an Issue is given the `needs-rfc` label, any community member may propose an RFC by following these steps:
-1. Copy the [./rfc/yyyymmdd-template.md](link) to `./rfc/${isodate}-${rfc title}.md` on a branch in their fork of the OpenTofu Repository
+1. Copy the [yyyymmdd-template.md](./yyyymmdd-template.md) to `./rfc/${isodate}-${rfc title}.md` on a branch in their fork of the OpenTofu Repository
 2. Edit the newly created Markdown file and fill in the template fields
 3. Submit a Pull Request in the OpenTofu Repository, linked to the open issue(s)
 
