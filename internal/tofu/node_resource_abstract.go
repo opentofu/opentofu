@@ -296,7 +296,7 @@ func (n *NodeAbstractResource) SetProvider(p func([]addrs.InstanceKey) addrs.Abs
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
 	// Once the provider is fully resolved, we can return the known value.
 	/* Does this actully break anything? if n.ResolvedProvider.Provider.Type != "" {
 		return n.ResolvedProvider, true
@@ -304,7 +304,29 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		return n.Config.ProviderConfigAddr(""), false // TODO!
+		if n.Config.ProviderConfigRef == nil {
+			// If no specific "provider" argument is given, we want to look up the
+			// provider config where the local name matches the implied provider
+			// from the resource type. This may be different from the resource's
+			// provider type.
+			return map[addrs.InstanceKey]addrs.ProviderConfig{
+				addrs.NoKey: addrs.LocalProviderConfig{
+					LocalName: n.Config.Addr().ImpliedProvider(),
+				},
+			}, false
+		}
+
+		result := make(map[addrs.InstanceKey]addrs.ProviderConfig)
+
+		for key, alias := range n.Config.ProviderConfigRef.Alias {
+			result[addrs.StringKey(key)] = addrs.LocalProviderConfig{
+				LocalName: n.Config.ProviderConfigRef.Name,
+				Alias:     alias,
+			}
+		}
+		return result, false
+
+		//return n.Config.ProviderConfigAddr(""), false // TODO!
 	}
 
 	// See if we have a valid provider config from the state.
@@ -312,28 +334,33 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return n.storedProviderConfig, true
+		panic("BIG BUG BUG")
+		//return n.storedProviderConfig, true
 	}
 
 	// We might have an import target that is providing a specific provider,
 	// this is okay as we know there is nothing else potentially providing a
 	// provider configuration.
 	if len(n.importTargets) > 0 {
-		// The import targets should either all be defined via config or none
-		// of them should be. They should also all have the same provider, so it
-		// shouldn't matter which we check here, as they'll all give the same.
-		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return addrs.LocalProviderConfig{
-				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias[""],
-			}, false
-		}
+		panic("BIG BUG BUG")
+		/*
+			// The import targets should either all be defined via config or none
+			// of them should be. They should also all have the same provider, so it
+			// shouldn't matter which we check here, as they'll all give the same.
+			if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
+				return addrs.LocalProviderConfig{
+					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
+					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias[""],
+				}, false
+			}*/
 	}
 
 	// No provider configuration found; return a default address
-	return addrs.AbsProviderConfig{
-		Provider: n.Provider(),
-		Module:   n.ModulePath(),
+	return map[addrs.InstanceKey]addrs.ProviderConfig{
+		addrs.NoKey: addrs.AbsProviderConfig{
+			Provider: n.Provider(),
+			Module:   n.ModulePath(),
+		},
 	}, false
 }
 

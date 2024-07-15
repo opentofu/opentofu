@@ -181,8 +181,22 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	if attr, exists := content.Attributes["provider"]; exists {
 		ref, providerDiags := decodeProviderConfigRef(attr.Expr, "provider")
 		diags = append(diags, providerDiags...)
-		r.ProviderConfigRef, providerDiags = ref.Single() // TODO for each
-		diags = append(diags, providerDiags...)
+
+		if ref.AliasExpr != nil && r.ForEach != nil {
+			// TODO static evaluator
+			fe, feDiags := r.ForEach.Value(nil)
+			diags = append(diags, feDiags...)
+			if feDiags.HasErrors() {
+				//continue
+			}
+			value, valueDiags := ref.Iterate(fe.AsValueMap())
+			diags = append(diags, valueDiags...)
+			r.ProviderConfigRef = value
+		} else {
+			value, valueDiags := ref.Single()
+			diags = append(diags, valueDiags...)
+			r.ProviderConfigRef = value
+		}
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {
@@ -672,6 +686,7 @@ type ProviderConfigRefAbstract struct {
 // TODO allow StaticEvaluator for locals?
 func (p *ProviderConfigRefAbstract) Single() (*ProviderConfigRef, hcl.Diagnostics) {
 	if p.AliasExpr != nil {
+		panic("HERE")
 		return nil, hcl.Diagnostics{&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",

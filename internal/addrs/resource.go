@@ -272,7 +272,7 @@ func (a AbsResourceInstance) Keys() []InstanceKey {
 
 	out[len(out)-1] = a.Resource.Key
 
-	return out[:len(out)-1] // Cut off the key for now...
+	return out //[:len(out)-1] // Cut off the key for now...
 }
 
 // ResourceInstance returns the address of a particular resource instance within the receiver.

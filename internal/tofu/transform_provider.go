@@ -78,7 +78,7 @@ type GraphNodeProviderConsumer interface {
 	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
 	//   value is a default provider configuration address for the resource's
 	//   Provider
-	ProvidedBy() (addr addrs.ProviderConfig, exact bool)
+	ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exact bool)
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
@@ -111,58 +111,56 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		Addr  addrs.AbsProviderConfig
 		Exact bool // If true, inheritence from parent modules is not attempted
 	}
-	requested := map[dag.Vertex]map[string]ProviderRequest{}
-	needConfigured := map[string]addrs.AbsProviderConfig{}
+	requested := map[dag.Vertex]map[addrs.InstanceKey]ProviderRequest{}
 	for _, v := range g.Vertices() {
 		// Does the vertex _directly_ use a provider?
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			providerAddr, exact := pv.ProvidedBy()
-			if providerAddr == nil && exact {
+			providerAddrs, exact := pv.ProvidedBy()
+			if providerAddrs == nil && exact {
 				// no provider is required
 				continue
 			}
 
-			requested[v] = make(map[string]ProviderRequest)
+			requested[v] = make(map[addrs.InstanceKey]ProviderRequest)
 
-			var absPc addrs.AbsProviderConfig
+			for ik, providerAddr := range providerAddrs {
+				var absPc addrs.AbsProviderConfig
 
-			switch p := providerAddr.(type) {
-			case addrs.AbsProviderConfig:
-				// ProvidedBy() returns an AbsProviderConfig when the provider
-				// configuration is set in state, so we do not need to verify
-				// the FQN matches.
-				absPc = p
+				switch p := providerAddr.(type) {
+				case addrs.AbsProviderConfig:
+					// ProvidedBy() returns an AbsProviderConfig when the provider
+					// configuration is set in state, so we do not need to verify
+					// the FQN matches.
+					absPc = p
 
-				if exact {
-					log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
-				}
+					if exact {
+						log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
+					}
 
-			case addrs.LocalProviderConfig:
-				// ProvidedBy() return a LocalProviderConfig when the resource
-				// contains a `provider` attribute
-				absPc.Provider = pv.Provider()
-				modPath := pv.ModulePath()
-				if t.Config == nil {
+				case addrs.LocalProviderConfig:
+					// ProvidedBy() return a LocalProviderConfig when the resource
+					// contains a `provider` attribute
+					absPc.Provider = pv.Provider()
+					modPath := pv.ModulePath()
+					if t.Config == nil {
+						absPc.Module = modPath
+						absPc.Alias = p.Alias
+						break
+					}
+
 					absPc.Module = modPath
 					absPc.Alias = p.Alias
-					break
+
+				default:
+					// This should never happen; the case statements are meant to be exhaustive
+					panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
 				}
 
-				absPc.Module = modPath
-				absPc.Alias = p.Alias
-
-			default:
-				// This should never happen; the case statements are meant to be exhaustive
-				panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
+				requested[v][ik] = ProviderRequest{
+					Addr:  absPc,
+					Exact: exact,
+				}
 			}
-
-			requested[v][absPc.String()] = ProviderRequest{
-				Addr:  absPc,
-				Exact: exact,
-			}
-
-			// Direct references need the provider configured as well as initialized
-			needConfigured[absPc.String()] = absPc
 		}
 	}
 
@@ -171,7 +169,10 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
 	for v, reqs := range requested {
-		for key, req := range reqs {
+		resolvers := make(map[addrs.InstanceKey]func([]addrs.InstanceKey) addrs.AbsProviderConfig)
+		bork := false
+		for ik, req := range reqs {
+			key := req.Addr.String()
 			p := req.Addr
 			target := m[key]
 
@@ -179,6 +180,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			if !ok && target == nil {
 				// No target and no path to traverse up from
 				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), p))
+				bork = true
 				continue
 			}
 
@@ -195,29 +197,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 					target = m[key]
 					if target != nil {
 						log.Printf("[TRACE] ProviderTransformer: %s uses inherited configuration %s", dag.VertexName(v), pp)
+						bork = true
 						break
 					}
 					log.Printf("[TRACE] ProviderTransformer: looking for %s to serve %s", pp, dag.VertexName(v))
 				}
-			}
-
-			// If this provider doesn't need to be configured then we can just
-			// stub it out with an init-only provider node, which will just
-			// start up the provider and fetch its schema.
-			if _, exists := needConfigured[key]; target == nil && !exists {
-				stubAddr := addrs.AbsProviderConfig{
-					Module:   addrs.RootModule,
-					Provider: p.Provider,
-				}
-				stub := &NodeEvalableProvider{
-					&NodeAbstractProvider{
-						Addr: stubAddr,
-					},
-				}
-				m[stubAddr.String()] = stub
-				log.Printf("[TRACE] ProviderTransformer: creating init-only node for %s", stubAddr)
-				target = stub
-				g.Add(target)
 			}
 
 			if target == nil {
@@ -229,27 +213,44 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 						dag.VertexName(v), p, dag.VertexName(v),
 					),
 				))
+				bork = true
 				break
 			}
-
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				g.Remove(p)
 
-				if pv, ok := v.(GraphNodeProviderConsumer); ok {
-					pv.SetProvider(p.Resolve)
-				}
-				for _, target := range p.targets {
+				resolvers[ik] = p.Resolve
+
+				for _, target := range p.Expanded() {
 					g.Connect(dag.BasicEdge(v, target))
 				}
 			} else {
 				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-				if pv, ok := v.(GraphNodeProviderConsumer); ok {
-					pv.SetProvider(func([]addrs.InstanceKey) addrs.AbsProviderConfig { return target.ProviderAddr() })
-				}
+				resolvers[ik] = func([]addrs.InstanceKey) addrs.AbsProviderConfig { return target.ProviderAddr() }
 				g.Connect(dag.BasicEdge(v, target))
 			}
 		}
+		if bork {
+			continue
+		}
+		if pv, ok := v.(GraphNodeProviderConsumer); ok {
+			pv.SetProvider(func(keys []addrs.InstanceKey) addrs.AbsProviderConfig {
+				key := keys[len(keys)-1]
+				keys = keys[:len(keys)-1]
+
+				resolver, ok := resolvers[key]
+				if !ok {
+					resolver, ok = resolvers[addrs.NoKey]
+					if !ok {
+						panic("IN THE DISCO")
+					}
+				}
+
+				return resolver(keys)
+			})
+		}
+
 	}
 
 	return diags.Err()
