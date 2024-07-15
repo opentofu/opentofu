@@ -281,8 +281,12 @@ var connectionBlockSupersetSchema = &configschema.Block{
 
 func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
+	if 1 == 1 {
+		// BUG BUG BUG
+		return diags
+	}
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, addrs.AbsProviderConfig{})
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags

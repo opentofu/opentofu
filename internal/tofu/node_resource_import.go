@@ -62,8 +62,8 @@ func (n *graphNodeImportState) Provider() addrs.Provider {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) SetProvider(addr addrs.AbsProviderConfig) {
-	n.ResolvedProvider = addr
+func (n *graphNodeImportState) SetProvider(addr func([]addrs.InstanceKey) addrs.AbsProviderConfig) {
+	n.ResolvedProvider = addr(nil)
 }
 
 // GraphNodeModuleInstance
@@ -235,9 +235,9 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 
 	// Refresh
 	riNode := &NodeAbstractResourceInstance{
-		Addr: n.TargetAddr,
+		Addr:                 n.TargetAddr,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: n.ResolvedProvider,
+			// BUG BUG BUG ResolvedProvider: n.ResolvedProvider,
 		},
 	}
 	state, refreshDiags := riNode.refresh(ctx, states.NotDeposed, state)

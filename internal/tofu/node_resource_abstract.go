@@ -74,7 +74,8 @@ type NodeAbstractResource struct {
 	forceDependsOn bool
 
 	// The address of the provider this resource will use
-	ResolvedProvider addrs.AbsProviderConfig
+	//ResolvedProvider addrs.AbsProviderConfig
+	ProviderResolver func([]addrs.InstanceKey) addrs.AbsProviderConfig
 	// storedProviderConfig is the provider address retrieved from the
 	// state. This is defined here for access within the ProvidedBy method, but
 	// will be set from the embedding instance type when the state is attached.
@@ -290,16 +291,16 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
-	n.ResolvedProvider = p
+func (n *NodeAbstractResource) SetProvider(p func([]addrs.InstanceKey) addrs.AbsProviderConfig) {
+	n.ProviderResolver = p
 }
 
 // GraphNodeProviderConsumer
 func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedProvider.Provider.Type != "" {
+	/* Does this actully break anything? if n.ResolvedProvider.Provider.Type != "" {
 		return n.ResolvedProvider, true
-	}
+	}*/
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
@@ -434,7 +435,7 @@ func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotN
 // in that case, allowing expression evaluation to see it as a zero-element list
 // rather than as not set at all.
 func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
-	state := ctx.State()
+	//state := ctx.State()
 
 	// We'll record our expansion decision in the shared "expander" object
 	// so that later operations (i.e. DynamicExpand and expression evaluation)
@@ -450,7 +451,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 			return diags
 		}
 
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		//BUG TODO state.SetResourceProvider(addr, n.ResolvedProvider)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
@@ -462,11 +463,11 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 		// This method takes care of all of the business logic of updating this
 		// while ensuring that any existing instances are preserved, etc.
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		// BUG TODO state.SetResourceProvider(addr, n.ResolvedProvider)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
 	default:
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		// BUG TODO state.SetResourceProvider(addr, n.ResolvedProvider)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
 	}
 
@@ -477,7 +478,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 // the state.
 func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, n.ProviderResolver(addr.Keys()))
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -518,7 +519,7 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 // instance in the state.
 func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, n.ProviderResolver(addr.Keys()))
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags

@@ -17,7 +17,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -447,7 +446,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Schemas, moduleAddr string) ([]resource, error) {
 	var rs []resource
 	for _, v := range resources {
-		providerConfigKey := opaqueProviderKey(v.ProviderConfigAddr(instances.RepetitionData{}).StringCompact(), moduleAddr)
+		providerConfigKey := opaqueProviderKey(v.ProviderConfigAddr("").StringCompact(), moduleAddr)
 		r := resource{
 			Address:           v.Addr().String(),
 			Type:              v.Type,

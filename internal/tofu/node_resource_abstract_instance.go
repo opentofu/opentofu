@@ -36,6 +36,9 @@ type NodeAbstractResourceInstance struct {
 	NodeAbstractResource
 	Addr addrs.AbsResourceInstance
 
+	// The address of the provider this resource will use
+	ResolvedProvider addrs.AbsProviderConfig
+
 	// These are set via the AttachState method.
 	instanceState *states.ResourceInstance
 
@@ -61,6 +64,13 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 		NodeAbstractResource: *r,
 		Addr:                 addr,
 	}
+}
+
+func (n *NodeAbstractResourceInstance) SetProvider(p func([]addrs.InstanceKey) addrs.AbsProviderConfig) {
+	// This is called during the apply graph transformer phase to set the ProviderResolver.
+	n.ProviderResolver = p
+	// As this is a instance with a known address, we can lookup the ResolvedProvider here.
+	n.ResolvedProvider = n.ProviderResolver(n.Addr.Keys())
 }
 
 func (n *NodeAbstractResourceInstance) Name() string {
