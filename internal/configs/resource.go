@@ -29,8 +29,9 @@ type Resource struct {
 	Count   hcl.Expression
 	ForEach hcl.Expression
 
-	ProviderConfigRef *ProviderConfigRef
-	Provider          addrs.Provider
+	ProviderConfigRef         *ProviderConfigRef
+	ProviderConfigRefAbstract *ProviderConfigRefAbstract
+	Provider                  addrs.Provider
 
 	Preconditions  []*CheckRule
 	Postconditions []*CheckRule
@@ -181,21 +182,8 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	if attr, exists := content.Attributes["provider"]; exists {
 		ref, providerDiags := decodeProviderConfigRef(attr.Expr, "provider")
 		diags = append(diags, providerDiags...)
-
-		if ref.AliasExpr != nil && r.ForEach != nil {
-			// TODO static evaluator
-			fe, feDiags := r.ForEach.Value(nil)
-			diags = append(diags, feDiags...)
-			if feDiags.HasErrors() {
-				//continue
-			}
-			value, valueDiags := ref.Iterate(fe.AsValueMap())
-			diags = append(diags, valueDiags...)
-			r.ProviderConfigRef = value
-		} else {
-			value, valueDiags := ref.Single()
-			diags = append(diags, valueDiags...)
-			r.ProviderConfigRef = value
+		if !providerDiags.HasErrors() {
+			r.ProviderConfigRefAbstract = ref
 		}
 	}
 
@@ -398,6 +386,41 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	return r, diags
 }
 
+func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	ref := r.ProviderConfigRefAbstract
+
+	if ref == nil {
+		return diags
+	}
+
+	if ref.AliasExpr != nil && r.ForEach != nil {
+		fe, feDiags := eval.Evaluate(r.ForEach, StaticIdentifier{
+			Module:    eval.call.addr,
+			Subject:   fmt.Sprintf("resource.%s.for_each", r.Name),
+			DeclRange: r.DeclRange,
+		})
+		diags = append(diags, feDiags...)
+		if feDiags.HasErrors() {
+			return diags
+		}
+		value, valueDiags := ref.Iterate(fe.AsValueMap())
+		diags = append(diags, valueDiags...)
+		if valueDiags.HasErrors() {
+			return diags
+		}
+		r.ProviderConfigRef = value
+	} else {
+		value, valueDiags := ref.Single()
+		diags = append(diags, valueDiags...)
+		if valueDiags.HasErrors() {
+			return diags
+		}
+		r.ProviderConfigRef = value
+	}
+	return diags
+}
+
 func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
@@ -465,8 +488,9 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 	if attr, exists := content.Attributes["provider"]; exists {
 		ref, providerDiags := decodeProviderConfigRef(attr.Expr, "provider")
 		diags = append(diags, providerDiags...)
-		r.ProviderConfigRef, providerDiags = ref.Single() // TODO
-		diags = append(diags, providerDiags...)
+		if !providerDiags.HasErrors() {
+			r.ProviderConfigRefAbstract = ref
+		}
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {

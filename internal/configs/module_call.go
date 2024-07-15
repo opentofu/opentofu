@@ -38,7 +38,8 @@ type ModuleCall struct {
 	Count   hcl.Expression
 	ForEach hcl.Expression
 
-	Providers []PassedProviderConfig
+	Providers    []PassedProviderConfig
+	ProviderAttr *hcl.Attribute
 
 	DependsOn []hcl.Traversal
 
@@ -104,9 +105,7 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["providers"]; exists {
-		providers, providerDiags := decodePassedProviderConfigs(attr, mc.ForEach)
-		diags = append(diags, providerDiags...)
-		mc.Providers = append(mc.Providers, providers...)
+		mc.ProviderAttr = attr
 	}
 
 	var seenEscapeBlock *hcl.Block
@@ -153,7 +152,17 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 	var diags hcl.Diagnostics
 	diags = diags.Extend(mc.decodeStaticSource(eval))
 	diags = diags.Extend(mc.decodeStaticVersion(eval))
+	diags = diags.Extend(mc.decodeStaticProviders(eval))
 	return diags
+}
+
+func (mc *ModuleCall) decodeStaticProviders(eval *StaticEvaluator) hcl.Diagnostics {
+	if mc.ProviderAttr != nil {
+		providers, providerDiags := decodePassedProviderConfigs(mc.ProviderAttr, mc.ForEach, eval)
+		mc.Providers = append(mc.Providers, providers...)
+		return providerDiags
+	}
+	return nil
 }
 
 func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics {
@@ -292,7 +301,7 @@ type PassedProviderConfig struct {
 	InParent *ProviderConfigRef
 }
 
-func decodePassedProviderConfigs(attr *hcl.Attribute, forEach hcl.Expression) ([]PassedProviderConfig, hcl.Diagnostics) {
+func decodePassedProviderConfigs(attr *hcl.Attribute, forEach hcl.Expression, eval *StaticEvaluator) ([]PassedProviderConfig, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	var providers []PassedProviderConfig
 
@@ -314,7 +323,11 @@ func decodePassedProviderConfigs(attr *hcl.Attribute, forEach hcl.Expression) ([
 		var value *ProviderConfigRef
 		if valueRef.AliasExpr != nil && forEach != nil {
 			// TODO static evaluator
-			fe, feDiags := forEach.Value(nil)
+			fe, feDiags := eval.Evaluate(forEach, StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   "providers",
+				DeclRange: attr.Range,
+			})
 			diags = append(diags, feDiags...)
 			if feDiags.HasErrors() {
 				continue

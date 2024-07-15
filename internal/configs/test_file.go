@@ -490,7 +490,7 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["providers"]; exists {
-		providers, providerDiags := decodePassedProviderConfigs(attr, nil)
+		providers, providerDiags := decodePassedProviderConfigs(attr, nil, nil)
 		diags = append(diags, providerDiags...)
 		r.Providers = append(r.Providers, providers...)
 	}
