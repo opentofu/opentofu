@@ -502,6 +502,7 @@ func initCommands(
 						},
 					}, nil
 				}
+				continue
 			}
 		}
 	}
