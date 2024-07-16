@@ -475,7 +475,7 @@ func initCommands(
 		}
 	}
 
-	commands = make(map[string]cli.CommandFactory)
+	commands = make(map[string]cli.CommandFactory, len(commandsDirect))
 	for name, factory := range commandsDirect {
 		cmd, err := factory()
 		if err != nil {
