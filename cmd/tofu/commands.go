@@ -169,14 +169,14 @@ func initCommands(
 
 		"env list": func() (cli.Command, error) {
 			return &command.WorkspaceListCommand{
-				Meta: meta,
+				Meta:       meta,
 				LegacyName: true,
 			}, nil
 		},
 
 		"env select": func() (cli.Command, error) {
 			return &command.WorkspaceSelectCommand{
-				Meta: meta,
+				Meta:       meta,
 				LegacyName: true,
 			}, nil
 		},

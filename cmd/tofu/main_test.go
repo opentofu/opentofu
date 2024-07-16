@@ -372,11 +372,11 @@ func TestMkConfigDir_noparent(t *testing.T) {
 
 func TestParseCommandArgs(t *testing.T) {
 	testCases := []struct {
-		name     string
-		args     []string
+		name         string
+		args         []string
 		expectedOpts map[string]string
 		expectedArgs []string
-		expectedErr error
+		expectedErr  error
 	}{
 		{
 			"positive tc options and args",
