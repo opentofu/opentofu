@@ -491,6 +491,8 @@ func mkConfigDir(configDir string) error {
 	return err
 }
 
+// parseCommandArgs parses the command arguments supplied to the tofu command and returns seperated slices of
+// global options and subcommand args for use.
 func parseCommandArgs(args []string) (map[string]string, []string, error) {
 	opts := make(map[string]string)
 	newArgs := make([]string, 0)
