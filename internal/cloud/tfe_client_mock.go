@@ -1034,18 +1034,18 @@ func (m *MockProjects) Update(ctx context.Context, projectID string, options tfe
 }
 
 func (m *MockProjects) Delete(ctx context.Context, projectID string) error {
-	var p *tfe.Project = nil
+	var projectToDelete *tfe.Project
 	for _, p := range m.projects {
 		if p.ID == projectID {
-
+			projectToDelete = p
 			break
 		}
 	}
-	if p == nil {
+	if projectToDelete == nil {
 		return tfe.ErrResourceNotFound
 	}
 
-	delete(m.projects, p.Name)
+	delete(m.projects, projectToDelete.Name)
 
 	return nil
 }

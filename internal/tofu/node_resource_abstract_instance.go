@@ -326,11 +326,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 		return nil
 	}
 
-	if obj != nil {
-		log.Printf("[TRACE] %s: writing state object for %s", logFuncName, absAddr)
-	} else {
-		log.Printf("[TRACE] %s: removing state object for %s", logFuncName, absAddr)
-	}
+	log.Printf("[TRACE] %s: writing state object for %s", logFuncName, absAddr)
 
 	schema, currentVersion := providerSchema.SchemaForResourceAddr(absAddr.ContainingResource().Resource)
 	if schema == nil {
@@ -662,9 +658,14 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 		return ret, diags
 	}
 
-	// Mark the value if necessary
-	if len(priorPaths) > 0 {
-		ret.Value = ret.Value.MarkWithPaths(priorPaths)
+	// Bring in the marks from the schema for the value, this will be merged with the marks from the
+	// previous value to preserve user-marked values, for example: someone passing a sensitive arg to a non-sensitive
+	// prop on a resource
+	marks := combinePathValueMarks(priorPaths, schema.ValueMarks(ret.Value, nil))
+
+	// we only want to mark the value if it has marks
+	if len(marks) > 0 {
+		ret.Value = ret.Value.MarkWithPaths(marks)
 	}
 
 	return ret, diags
@@ -681,7 +682,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	var keyData instances.RepetitionData
 
 	resource := n.Addr.Resource.Resource
-	provider, providerSchema, err := n.getProviderWithPlannedChange(ctx, n.ResolvedProvider, plannedChange)
+	provider, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return nil, nil, keyData, diags.Append(err)
 	}
@@ -814,7 +815,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	// Store the paths for the config val to re-mark after we've sent things
 	// over the wire.
 	unmarkedConfigVal, unmarkedPaths := configValIgnored.UnmarkDeepWithPaths()
-	unmarkedPriorVal, priorPaths := priorVal.UnmarkDeepWithPaths()
+	unmarkedPriorVal, _ := priorVal.UnmarkDeepWithPaths()
 
 	proposedNewVal := objchange.ProposedNew(schema, unmarkedPriorVal, unmarkedConfigVal)
 
@@ -841,6 +842,8 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	plannedNewVal := resp.PlannedState
+	// Store an unmarked version of our planned new value because the `plan` now marks properties correctly with the config marks
+	unmarkedPlannedNewVal, _ := plannedNewVal.UnmarkDeep()
 	plannedPrivate := resp.PlannedPrivate
 
 	if plannedNewVal == cty.NilVal {
@@ -868,7 +871,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
-	if errs := objchange.AssertPlanValid(schema, unmarkedPriorVal, unmarkedConfigVal, plannedNewVal); len(errs) > 0 {
+	if errs := objchange.AssertPlanValid(schema, unmarkedPriorVal, unmarkedConfigVal, unmarkedPlannedNewVal); len(errs) > 0 {
 		if resp.LegacyTypeSystem {
 			// The shimming of the old type system in the legacy SDK is not precise
 			// enough to pass this consistency check, so we'll give it a pass here,
@@ -921,10 +924,14 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	// Add the marks back to the planned new value -- this must happen after ignore changes
 	// have been processed
-	unmarkedPlannedNewVal := plannedNewVal
-	if len(unmarkedPaths) > 0 {
-		plannedNewVal = plannedNewVal.MarkWithPaths(unmarkedPaths)
+	marks := combinePathValueMarks(unmarkedPaths, schema.ValueMarks(plannedNewVal, nil))
+	if len(marks) > 0 {
+		plannedNewVal = plannedNewVal.MarkWithPaths(marks)
 	}
+
+	// The test assertion error handling above could've changed the plannedNewVal
+	// so we should store the unmarked version before we go ahead and re-mark it again
+	unmarkedPlannedNewVal, _ = plannedNewVal.UnmarkDeep()
 
 	// The provider produces a list of paths to attributes whose changes mean
 	// that we must replace rather than update an existing remote object.
@@ -1113,16 +1120,16 @@ func (n *NodeAbstractResourceInstance) plan(
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
-	// If we plan to write or delete sensitive paths from state,
-	// this is an Update action.
-	//
-	// We need to filter out any marks which may not apply to the new planned
-	// value before comparison. The one case where a provider is allowed to
-	// return a different value from the configuration is when a config change
-	// is not functionally significant and the prior state can be returned. If a
-	// new mark was also discarded from that config change, it needs to be
-	// ignored here to prevent an errant update action.
-	if action == plans.NoOp && !marksEqual(filterMarks(plannedNewVal, unmarkedPaths), priorPaths) {
+	// compare the marks between the prior and the new value, there may have been a change of sensitivity
+	// in the new value that requires an update
+	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
+	_, priorValMarks := priorVal.UnmarkDeepWithPaths()
+
+	marksAreEqual := marksEqual(plannedNewValMarks, priorValMarks)
+
+	// If we plan to update sensitive paths from state,
+	// this is an Update action instead of a NoOp.
+	if action == plans.NoOp && !marksAreEqual {
 		action = plans.Update
 	}
 
@@ -2573,10 +2580,6 @@ func resourceInstancePrevRunAddr(ctx EvalContext, currentAddr addrs.AbsResourceI
 }
 
 func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
-	return n.getProviderWithPlannedChange(ctx, addr, nil)
-}
-
-func (n *NodeAbstractResourceInstance) getProviderWithPlannedChange(ctx EvalContext, addr addrs.AbsProviderConfig, plannedChange *plans.ResourceInstanceChange) (providers.Interface, providers.ProviderSchema, error) {
 	underlyingProvider, schema, err := getProvider(ctx, addr)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
@@ -2586,15 +2589,9 @@ func (n *NodeAbstractResourceInstance) getProviderWithPlannedChange(ctx EvalCont
 		return underlyingProvider, schema, nil
 	}
 
-	providerForTest := providerForTest{
-		internal:       underlyingProvider,
-		schema:         schema,
-		overrideValues: n.Config.OverrideValues,
-	}
+	providerForTest := newProviderForTestWithSchema(underlyingProvider, schema)
 
-	if plannedChange != nil {
-		providerForTest.plannedChange = &plannedChange.After
-	}
+	providerForTest.setSingleResource(n.Addr.Resource.Resource, n.Config.OverrideValues)
 
 	return providerForTest, schema, nil
 }

@@ -230,9 +230,6 @@ func (c *RemoteClient) writeLockInfo(info *statemgr.LockInfo) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 
 	if info == nil {
 		delete(blob.MetaData, lockInfoMetaKey)

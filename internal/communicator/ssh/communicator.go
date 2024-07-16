@@ -718,7 +718,7 @@ func scpUploadDirProtocol(name string, w io.Writer, r *bufio.Reader, f func() er
 		return err
 	}
 
-	fmt.Fprintln(w, "E")
+	_, err = fmt.Fprintln(w, "E")
 	if err != nil {
 		return err
 	}

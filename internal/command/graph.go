@@ -77,21 +77,53 @@ func (c *GraphCommand) Run(args []string) int {
 		}
 	}
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
-	diags = diags.Append(backendDiags)
-	if diags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
-	}
-
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
-		Config: backendConfig,
-	}, enc.State())
-	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
+	var b backend.Enhanced
+	//nolint: nestif // This is inspired by apply:PrepareBackend
+	if lp, ok := planFile.Local(); ok {
+		plan, planErr := lp.ReadPlan()
+		if planErr != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to read plan from plan file",
+				fmt.Sprintf("Cannot read the plan from the given plan file: %s.", planErr),
+			))
+			c.showDiagnostics(diags)
+			return 1
+		}
+		if plan.Backend.Config == nil {
+			// Should never happen; always indicates a bug in the creation of the plan file
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to read plan from plan file",
+				"The given plan file does not have a valid backend configuration. This is a bug in the OpenTofu command that generated this plan file.",
+			))
+			c.showDiagnostics(diags)
+			return 1
+		}
+		var backendDiags tfdiags.Diagnostics
+		b, backendDiags = c.BackendForLocalPlan(plan.Backend, enc.State())
+		diags = diags.Append(backendDiags)
+		if backendDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
+	} else {
+		backendConfig, backendDiags := c.loadBackendConfig(configPath)
+		diags = diags.Append(backendDiags)
+		if diags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
+
+		b, backendDiags = c.Backend(&BackendOpts{
+			Config: backendConfig,
+		}, enc.State())
+		diags = diags.Append(backendDiags)
+		if backendDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	// We require a local backend
@@ -111,6 +143,16 @@ func (c *GraphCommand) Run(args []string) int {
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile
 	opReq.AllowUnsetVariables = true
+
+	// Inject information required for static evaluation
+	var callDiags tfdiags.Diagnostics
+	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	diags = diags.Append(callDiags)
+	if callDiags.HasErrors() {
+		c.showDiagnostics(diags)
+		return 1
+	}
+
 	if err != nil {
 		diags = diags.Append(err)
 		c.showDiagnostics(diags)
@@ -230,6 +272,15 @@ Options:
 
   -module-depth=n  (deprecated) In prior versions of OpenTofu, specified the
 				   depth of modules to show in the output.
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 `
 	return strings.TrimSpace(helpText)
 }

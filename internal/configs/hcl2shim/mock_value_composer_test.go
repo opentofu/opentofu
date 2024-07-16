@@ -1,13 +1,15 @@
 package hcl2shim
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
 
+// TestComposeMockValueBySchema ensures different configschema.Block values
+// processed correctly (lists, maps, objects, etc). Also, it should ensure that
+// the resulting values are equal given the same set of inputs (seed, schema, etc).
 func TestComposeMockValueBySchema(t *testing.T) {
 	t.Parallel()
 
@@ -83,13 +85,13 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			config: cty.NilVal,
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"required-only":      cty.NullVal(cty.String),
-				"required-computed":  cty.StringVal("aaaaaaaa"),
+				"required-computed":  cty.StringVal("xNmGyAVmNkB4"),
 				"optional":           cty.NullVal(cty.String),
-				"optional-computed":  cty.StringVal("aaaaaaaa"),
-				"computed-only":      cty.StringVal("aaaaaaaa"),
+				"optional-computed":  cty.StringVal("6zQu0"),
+				"computed-only":      cty.StringVal("l3INvNSQT"),
 				"sensitive-optional": cty.NullVal(cty.String),
 				"sensitive-required": cty.NullVal(cty.String),
-				"sensitive-computed": cty.StringVal("aaaaaaaa"),
+				"sensitive-computed": cty.StringVal("ionwj3qrsh4xyC9"),
 			}),
 		},
 		"diff-props-in-single-block-attributes": {
@@ -166,13 +168,13 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ObjectVal(map[string]cty.Value{
 					"required-only":      cty.NullVal(cty.String),
-					"required-computed":  cty.StringVal("aaaaaaaa"),
+					"required-computed":  cty.StringVal("xNmGyAVmNkB4"),
 					"optional":           cty.NullVal(cty.String),
-					"optional-computed":  cty.StringVal("aaaaaaaa"),
-					"computed-only":      cty.StringVal("aaaaaaaa"),
+					"optional-computed":  cty.StringVal("6zQu0"),
+					"computed-only":      cty.StringVal("l3INvNSQT"),
 					"sensitive-optional": cty.NullVal(cty.String),
 					"sensitive-required": cty.NullVal(cty.String),
-					"sensitive-computed": cty.StringVal("aaaaaaaa"),
+					"sensitive-computed": cty.StringVal("ionwj3qrsh4xyC9"),
 				}),
 			}),
 		},
@@ -208,8 +210,16 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						Nesting: configschema.NestingList,
 						Block: configschema.Block{
 							Attributes: map[string]*configschema.Attribute{
-								"field": {
+								"num": {
 									Type:     cty.Number,
+									Computed: true,
+								},
+								"str1": {
+									Type:     cty.String,
+									Computed: true,
+								},
+								"str2": {
+									Type:     cty.String,
 									Computed: true,
 								},
 							},
@@ -223,7 +233,9 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ListVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"field": cty.NumberIntVal(0),
+						"num":  cty.NumberIntVal(0),
+						"str1": cty.StringVal("l3INvNSQT"),
+						"str2": cty.StringVal("6zQu0"),
 					}),
 				}),
 			}),
@@ -235,8 +247,16 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						Nesting: configschema.NestingSet,
 						Block: configschema.Block{
 							Attributes: map[string]*configschema.Attribute{
-								"field": {
+								"num": {
 									Type:     cty.Number,
+									Computed: true,
+								},
+								"str1": {
+									Type:     cty.String,
+									Computed: true,
+								},
+								"str2": {
+									Type:     cty.String,
 									Computed: true,
 								},
 							},
@@ -250,7 +270,9 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"field": cty.NumberIntVal(0),
+						"num":  cty.NumberIntVal(0),
+						"str1": cty.StringVal("l3INvNSQT"),
+						"str2": cty.StringVal("6zQu0"),
 					}),
 				}),
 			}),
@@ -262,8 +284,16 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						Nesting: configschema.NestingMap,
 						Block: configschema.Block{
 							Attributes: map[string]*configschema.Attribute{
-								"field": {
+								"num": {
 									Type:     cty.Number,
+									Computed: true,
+								},
+								"str1": {
+									Type:     cty.String,
+									Computed: true,
+								},
+								"str2": {
+									Type:     cty.String,
 									Computed: true,
 								},
 							},
@@ -279,7 +309,9 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.MapVal(map[string]cty.Value{
 					"somelabel": cty.ObjectVal(map[string]cty.Value{
-						"field": cty.NumberIntVal(0),
+						"num":  cty.NumberIntVal(0),
+						"str1": cty.StringVal("l3INvNSQT"),
+						"str2": cty.StringVal("6zQu0"),
 					}),
 				}),
 			}),
@@ -304,8 +336,9 @@ func TestComposeMockValueBySchema(t *testing.T) {
 					},
 					"obj": {
 						Type: cty.Object(map[string]cty.Type{
-							"fieldNum": cty.Number,
-							"fieldStr": cty.String,
+							"fieldNum":  cty.Number,
+							"fieldStr1": cty.String,
+							"fieldStr2": cty.String,
 						}),
 						Computed: true,
 						Optional: true,
@@ -326,7 +359,12 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Computed: true,
 									Optional: true,
 								},
-								"str": {
+								"str1": {
+									Type:     cty.String,
+									Computed: true,
+									Optional: true,
+								},
+								"str2": {
 									Type:     cty.String,
 									Computed: true,
 									Optional: true,
@@ -359,21 +397,23 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"num":  cty.NumberIntVal(0),
-				"str":  cty.StringVal("aaaaaaaa"),
+				"str":  cty.StringVal("xNmGyAVmNkB4"),
 				"bool": cty.False,
 				"obj": cty.ObjectVal(map[string]cty.Value{
-					"fieldNum": cty.NumberIntVal(0),
-					"fieldStr": cty.StringVal("aaaaaaaa"),
+					"fieldNum":  cty.NumberIntVal(0),
+					"fieldStr1": cty.StringVal("l3INvNSQT"),
+					"fieldStr2": cty.StringVal("6zQu0"),
 				}),
 				"list": cty.ListValEmpty(cty.String),
 				"nested": cty.ListVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
 						"num":  cty.NumberIntVal(0),
-						"str":  cty.StringVal("aaaaaaaa"),
+						"str1": cty.StringVal("mCp2gObD"),
+						"str2": cty.StringVal("iOtQNQsLiFD5"),
 						"bool": cty.False,
 						"obj": cty.ObjectVal(map[string]cty.Value{
 							"fieldNum": cty.NumberIntVal(0),
-							"fieldStr": cty.StringVal("aaaaaaaa"),
+							"fieldStr": cty.StringVal("ionwj3qrsh4xyC9"),
 						}),
 						"list": cty.ListValEmpty(cty.String),
 					}),
@@ -443,24 +483,16 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"useConfigValue":    cty.StringVal("iAmFromConfig"),
 				"useDefaultsValue":  cty.StringVal("iAmFromDefaults"),
-				"generateMockValue": cty.StringVal("aaaaaaaa"),
+				"generateMockValue": cty.StringVal("l3INvNSQT"),
 				"nested": cty.ListVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
 						"useConfigValue":    cty.StringVal("iAmFromConfig"),
 						"useDefaultsValue":  cty.StringVal("iAmFromDefaults"),
-						"generateMockValue": cty.StringVal("aaaaaaaa"),
+						"generateMockValue": cty.StringVal("6zQu0"),
 					}),
 				}),
 			}),
 			wantWarning: true, // ignored value in defaults
-		},
-	}
-
-	const mockStringLength = 8
-
-	mvc := mockValueComposer{
-		getMockStringOverride: func() string {
-			return strings.Repeat("a", mockStringLength)
 		},
 	}
 
@@ -470,7 +502,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			gotVal, gotDiags := mvc.composeMockValueBySchema(test.schema, test.config, test.defaults)
+			gotVal, gotDiags := NewMockValueComposer(42).ComposeBySchema(test.schema, test.config, test.defaults)
 			switch {
 			case test.wantError && !gotDiags.HasErrors():
 				t.Fatalf("Expected error in diags, but none returned")

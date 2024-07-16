@@ -1,12 +1,14 @@
 ## 1.8.0 (Unreleased)
 
 UPGRADE NOTES:
-BREAKING CHANGE - `use_legacy_workflow` field has been removing from the S3 backend configuration. ([#1730](https://github.com/opentofu/opentofu/pull/1730))
+* BREAKING CHANGE - `use_legacy_workflow` field has been removing from the S3 backend configuration. ([#1730](https://github.com/opentofu/opentofu/pull/1730))
+* SECURITY - Bump github.com/hashicorp/go-getter to fix CVE-2024-6257, may cause performance hit for large modules ([#1751](https://github.com/opentofu/opentofu/pull/1751))
 
 NEW FEATURES:
 * Added support for `override_resource`, `override_data` and `override_module` blocks in testing framework. ([#1499](https://github.com/opentofu/opentofu/pull/1499))
 * Variables and Locals allowed in module sources and backend configurations (with limitations) ([#1718](https://github.com/opentofu/opentofu/pull/1718))
 * Added support to new .tofu extensions to allow tofu-specific overrides of .tf files ([#1738](https://github.com/opentofu/opentofu/pull/1738))
+* Added support for `mock_provider`, `mock_resource` and `mock_data` blocks in testing framework. ([#1772](https://github.com/opentofu/opentofu/pull/1772))
 
 ENHANCEMENTS:
 * Added `tofu test -json` types to website Machine-Readable UI documentation. ([#1408](https://github.com/opentofu/opentofu/issues/1408))
@@ -15,6 +17,7 @@ ENHANCEMENTS:
 * Improved performance of writing state files and reduced their size using compact json encoding. ([#1647](https://github.com/opentofu/opentofu/pull/1647))
 * Allow to reference variable inside the `variables` block of a test file. ([#1488](https://github.com/opentofu/opentofu/pull/1488))
 * Allow variables and other static values to be used in encryption configuration. ([#1728](https://github.com/opentofu/opentofu/pull/1728))
+* Included provider function in `tofu providers schema` command ([#1753](https://github.com/opentofu/opentofu/pull/1753))
 
 BUG FIXES:
 * Fixed validation for `enforced` flag in encryption configuration. ([#1711](https://github.com/opentofu/opentofu/pull/1711))
@@ -28,6 +31,10 @@ BUG FIXES:
 * Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
 * Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
 * Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
+* Fixed issue with migration between versions can cause an update in-place for resources when no changes are needed. ([#1640](https://github.com/opentofu/opentofu/pull/1640))
+* Add source context for the 'insufficient feature blocks' error ([#1777](https://github.com/opentofu/opentofu/pull/1777))
+* Remove encryption diags from autocomplete ([#1793](https://github.com/opentofu/opentofu/pull/1793))
+
 
 ## Previous Releases
 
