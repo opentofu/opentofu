@@ -343,10 +343,8 @@ func initCommands(
 		},
 
 		"workspace list": func() (cli.Command, error) {
-			return &pedanticWrapper{
-				PedanticCommand: &command.WorkspaceListCommand{
-					Meta: meta,
-				},
+			return &command.WorkspaceListCommand{
+				Meta: meta,
 			}, nil
 		},
 
