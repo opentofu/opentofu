@@ -21,7 +21,6 @@ func TestStaticPlanVariables(t *testing.T) {
 		"static_plan_typed_variables",
 	}
 	for _, fixture := range fixtures {
-
 		t.Run(fmt.Sprintf("TestStaticPlanVariables/%s", fixture), func(t *testing.T) {
 			fixturePath := filepath.Join("testdata", fixture)
 			tf := e2e.NewBinary(t, tofuBin, fixturePath)
