@@ -32,7 +32,7 @@ func normaliseLineEndings(filename string) ([]byte, error) {
 	normalisedContent := bytes.ReplaceAll(originalContent, []byte("\r\n"), []byte("\n"))
 
 	if !bytes.Equal(originalContent, normalisedContent) {
-		err = os.WriteFile(filename, normalisedContent, 0644)
+		err = os.WriteFile(filename, normalisedContent, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("error writing file %s: %w", filename, err)
 		}
@@ -57,11 +57,11 @@ func TestImpliedMoveStatements(t *testing.T) {
 
 		// Restore original file content after test completion
 		t.Cleanup(func() {
-			err1 := os.WriteFile(file1, originalContent, 0644)
+			err1 := os.WriteFile(file1, originalContent, 0600)
 			if err1 != nil {
 				t.Error()
 			}
-			err = os.WriteFile(file2, originalContentChild, 0644)
+			err = os.WriteFile(file2, originalContentChild, 0600)
 			if err != nil {
 				t.Error()
 			}
