@@ -1,0 +1,3 @@
+output "out" {
+	value = "placeholder"
+}
