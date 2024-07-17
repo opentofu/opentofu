@@ -7,6 +7,7 @@ package planfile
 
 import (
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -189,10 +190,15 @@ func TestWrappedError(t *testing.T) {
 	}
 
 	// Open something that doesn't exist: should error
-	missingFile := "no such file or directory"
+	var missingFileError string
+	if runtime.GOOS == "windows" {
+		missingFileError = "The system cannot find the file specified"
+	} else {
+		missingFileError = "no such file or directory"
+	}
 	_, err = OpenWrapped(filepath.Join("testdata", "absent.tfplan"), encryption.PlanEncryptionDisabled())
-	if !strings.Contains(err.Error(), missingFile) {
-		t.Fatalf("expected  %q, got %q", missingFile, err)
+	if !strings.Contains(err.Error(), missingFileError) {
+		t.Fatalf("expected  %q, got %q", missingFileError, err)
 	}
 }
 

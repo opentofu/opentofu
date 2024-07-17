@@ -145,7 +145,9 @@ func TestResourceProvider_CollectScripts_script(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if out.String() != expectedScriptOut {
+	expectedOutput := normaliseNewlines(expectedScriptOut)
+	actualOutput := normaliseNewlines(out.String())
+	if actualOutput != expectedOutput {
 		t.Fatalf("bad: %v", out.String())
 	}
 }
@@ -181,7 +183,9 @@ func TestResourceProvider_CollectScripts_scripts(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		if out.String() != expectedScriptOut {
+		expectedOutput := normaliseNewlines(expectedScriptOut)
+		actualOutput := normaliseNewlines(out.String())
+		if actualOutput != expectedOutput {
 			t.Fatalf("bad: %v", out.String())
 		}
 	}
@@ -322,4 +326,8 @@ func TestResourceProvisioner_nullsInOptionals(t *testing.T) {
 			})
 		})
 	}
+}
+
+func normaliseNewlines(input string) string {
+	return strings.ReplaceAll(input, "\r\n", "\n")
 }
