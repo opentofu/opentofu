@@ -280,7 +280,7 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 			return variable.Default, nil
 		}
 
-		parsed, parsedErr := v.Decode(variable.Type)
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
 		if parsedErr != nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
