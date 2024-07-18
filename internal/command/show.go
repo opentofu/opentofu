@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
@@ -27,7 +29,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -382,7 +383,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.Sta
 			return variable.Default, nil
 		}
 
-		parsed, parsedErr := v.Decode(variable.Type)
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
 		if parsedErr != nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
