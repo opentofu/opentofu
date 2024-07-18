@@ -505,6 +505,8 @@ func initCommands(
 				continue
 			}
 		}
+
+		commands[name] = factory
 	}
 
 	primaryCommands = []string{
