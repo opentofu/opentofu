@@ -14,11 +14,11 @@ OpenTofu at the same time.
 
 With _remote_ state, OpenTofu writes the state data to a remote data store,
 which can then be shared between all members of a team. OpenTofu supports
-storing state in TACOS (TF Automation and Collaboration Software),
+storing state in [TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software),
 [HashiCorp Consul](https://www.consul.io/), Amazon S3, Azure Blob Storage, Google Cloud Storage, Alibaba Cloud OSS, and more.
 
 Remote state is implemented by a [backend](../../language/settings/backends/configuration.mdx) or by
-TACOS (TF Automation and Collaboration Software), both of which you can configure in your configuration's root module.
+[TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software), both of which you can configure in your configuration's root module.
 
 ## Delegation and Teamwork
 
@@ -54,7 +54,7 @@ For fully-featured remote backends, OpenTofu can also use
 [state locking](../../language/state/locking.mdx) to prevent concurrent runs of
 OpenTofu against the same state.
 
-TACOS (TF Automation and Collaboration Software) is a commercial offering
+[TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software) is a commercial offering
 that supports an even stronger locking concept that
 can also detect attempts to create a new plan when an existing plan is already
 awaiting approval, by queuing OpenTofu operations in a central location.
