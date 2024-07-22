@@ -5,6 +5,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 ENHANCEMENTS:
+* Added `-show-sensitive` flag to tofu plan, apply, state-show and output commands to display sensitive data in output. ([#1554](https://github.com/opentofu/opentofu/pull/1554))
 
 BUG FIXES:
 

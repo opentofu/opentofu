@@ -2167,6 +2167,43 @@ func TestApply_warnings(t *testing.T) {
 	})
 }
 
+func TestApply_showSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
+	defer testChdir(t, td)()
+
+	p := testProvider()
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	statePath := testTempFile(t)
+
+	args := []string{
+		"-state", statePath,
+		"-auto-approve",
+		"-show-sensitive",
+	}
+
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	stdout := output.Stdout()
+	if !strings.Contains(stdout, "notsensitive = \"Hello world\"") {
+		t.Fatalf("bad: output should contain 'notsensitive' output\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "sensitive    = \"Hello world\"") {
+		t.Fatalf("bad: output should contain 'sensitive' output\n%s", stdout)
+	}
+}
+
 // applyFixtureSchema returns a schema suitable for processing the
 // configuration in testdata/apply . This schema should be
 // assigned to a mock provider named "test".
