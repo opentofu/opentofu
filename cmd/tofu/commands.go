@@ -243,6 +243,12 @@ func initCommands(
 			}, nil
 		},
 
+		"metadata dump": func() (cli.Command, error) {
+			return &command.MetadataDumpCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"output": func() (cli.Command, error) {
 			return &command.OutputCommand{
 				Meta: meta,
