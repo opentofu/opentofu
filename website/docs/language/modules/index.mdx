@@ -7,8 +7,8 @@ description: >-
 # Modules
 
 _Modules_ are containers for multiple resources that are used together. A module
-consists of a collection of `.tf` and/or `.tf.json` files kept together in a
-directory.
+consists of a collection of `.tf`, `.tofu`, `.tf.json`, and/or `.tofu.json`
+files that are kept together in a directory.
 
 Modules are the main way to package and reuse resource configurations with
 OpenTofu.
@@ -16,8 +16,8 @@ OpenTofu.
 ## The Root Module
 
 Every OpenTofu configuration has at least one module, known as its
-_root module_, which consists of the resources defined in the `.tf` files in
-the main working directory.
+_root module_, which consists of the resources defined in the `.tf` or `.tofu`
+files in the main working directory.
 
 ## Child Modules
 
