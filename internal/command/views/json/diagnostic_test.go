@@ -918,14 +918,19 @@ func TestNewDiagnostic(t *testing.T) {
 			}
 
 			// Don't care about leading or trailing whitespace
-			gotString := strings.TrimSpace(string(gotBytes))
-			wantString := strings.TrimSpace(string(wantBytes))
+			gotString := normaliseNewlines(strings.TrimSpace(string(gotBytes)))
+			wantString := normaliseNewlines(strings.TrimSpace(string(wantBytes)))
 
 			if !cmp.Equal(wantString, gotString) {
 				t.Fatalf("wrong result\n:%s", cmp.Diff(wantString, gotString))
 			}
 		})
 	}
+}
+
+// Function to normalise newlines in a string for Windows
+func normaliseNewlines(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
 }
 
 // Helper function to make constructing literal Diagnostics easier. There

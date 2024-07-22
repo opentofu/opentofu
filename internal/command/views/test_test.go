@@ -8,6 +8,7 @@ package views
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -3564,6 +3565,11 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 			if _, err := os.Stat(tempStateFilePath); os.IsNotExist(err) {
 				// File does not exist
 				t.Errorf("Expected state file 'errored_test.tfstate' to exist in: %s, but it does not.", tempDir)
+			}
+			// Trigger garbage collection to ensure that all open file handles are closed.
+			// This prevents TempDir RemoveAll cleanup errors on Windows.
+			if runtime.GOOS == "windows" {
+				runtime.GC()
 			}
 		})
 	}

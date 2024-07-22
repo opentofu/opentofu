@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -197,7 +198,8 @@ func setupBinary() func() {
 		os.Exit(1)
 	}
 	// Getting top level dir
-	dirPaths := strings.Split(currentDir, "/")
+	newDir := filepath.ToSlash(currentDir)
+	dirPaths := strings.Split(newDir, "/")
 	log.Println(currentDir)
 	topLevel := len(dirPaths) - 3
 	topDir := strings.Join(dirPaths[0:topLevel], "/")

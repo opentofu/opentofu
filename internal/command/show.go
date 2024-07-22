@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
@@ -27,7 +29,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -68,6 +69,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 	c.viewType = args.ViewType
+	c.View.SetShowSensitive(args.ShowSensitive)
 
 	// Set up view
 	view := views.NewShow(args.ViewType, c.View)
@@ -113,8 +115,11 @@ Usage: tofu [global options] show [options] [path]
 Options:
 
   -no-color           If specified, output won't contain any color.
+
   -json               If specified, output the OpenTofu plan or state in
                       a machine-readable form.
+
+  -show-sensitive     If specified, sensitive values will be displayed.
 
   -var 'foo=bar'      Set a value for one of the input variables in the root
                       module of the configuration. Use this option more than
@@ -382,7 +387,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.Sta
 			return variable.Default, nil
 		}
 
-		parsed, parsedErr := v.Decode(variable.Type)
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
 		if parsedErr != nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,

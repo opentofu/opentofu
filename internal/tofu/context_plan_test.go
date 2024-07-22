@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -3417,9 +3418,9 @@ func TestContext2Plan_pathVar(t *testing.T) {
 				t.Fatalf("resource %s should be created", i)
 			}
 			checkVals(t, objectVal(t, schema, map[string]cty.Value{
-				"cwd":    cty.StringVal(cwd + "/barpath"),
-				"module": cty.StringVal(m.Module.SourceDir + "/foopath"),
-				"root":   cty.StringVal(m.Module.SourceDir + "/barpath"),
+				"cwd":    cty.StringVal(filepath.ToSlash(cwd + "/barpath")),
+				"module": cty.StringVal(filepath.ToSlash(m.Module.SourceDir + "/foopath")),
+				"root":   cty.StringVal(filepath.ToSlash(m.Module.SourceDir + "/barpath")),
 			}), ric.After)
 		default:
 			t.Fatal("unknown instance:", i)

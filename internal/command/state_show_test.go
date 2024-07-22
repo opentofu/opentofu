@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -267,6 +268,123 @@ func TestStateShow_configured_provider(t *testing.T) {
 	actual := output.Stdout()
 	if actual != expected {
 		t.Fatalf("Expected:\n%q\n\nTo equal:\n%q", actual, expected)
+	}
+}
+
+func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
+	state := stateWithSensitiveValueForStateShow()
+	statePath := testStateFile(t, state)
+
+	p := testProvider()
+	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
+
+	streams, done := terminal.StreamsForTesting(t)
+	c := &StateShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Streams:          streams,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+		"test_instance.foo",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	expected := `# test_instance.foo:
+resource "test_instance" "foo" {
+    bar = "value"
+    foo = "value"
+    id  = (sensitive value)
+}`
+	actual := strings.TrimSpace(output.Stdout())
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("got incorrect output\n %v", diff)
+	}
+}
+
+func TestStateShow_showSensitiveArg(t *testing.T) {
+	state := stateWithSensitiveValueForStateShow()
+	statePath := testStateFile(t, state)
+
+	p := testProvider()
+	p.GetProviderSchemaResponse = providerWithSensitiveValueForStateShow()
+
+	streams, done := terminal.StreamsForTesting(t)
+	c := &StateShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Streams:          streams,
+		},
+	}
+
+	args := []string{
+		"-show-sensitive",
+		"-state", statePath,
+		"test_instance.foo",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	expected := `# test_instance.foo:
+resource "test_instance" "foo" {
+    bar = "value"
+    foo = "value"
+    id  = "bar"
+}`
+	actual := strings.TrimSpace(output.Stdout())
+	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
+		t.Fatalf("got incorrect output\n %v", diff)
+	}
+}
+
+// stateWithSensitiveValueForStateShow returns a state with a resource
+// instance.
+func stateWithSensitiveValueForStateShow() *states.State {
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
+				Status:    states.ObjectReady,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+		)
+	})
+
+	return state
+}
+
+// providerWithSensitiveValueForStateShow returns a provider schema response
+// with the "id" attribute flagged as sensitive.
+func providerWithSensitiveValueForStateShow() *providers.GetProviderSchemaResponse {
+	return &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id":  {Type: cty.String, Optional: true, Computed: true, Sensitive: true},
+						"foo": {Type: cty.String, Optional: true},
+						"bar": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+		},
 	}
 }
 

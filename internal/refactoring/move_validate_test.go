@@ -7,6 +7,7 @@ package refactoring
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -517,7 +518,8 @@ A chain of move statements must end with an address that doesn't appear in any o
 				if !gotDiags.HasErrors() {
 					t.Fatalf("unexpected success\nwant error: %s", test.WantError)
 				}
-				if got, want := gotDiags.Err().Error(), test.WantError; got != want {
+				normalisedErr := filepath.ToSlash(gotDiags.Err().Error())
+				if got, want := normalisedErr, test.WantError; got != want {
 					t.Fatalf("wrong error\ngot error:  %s\nwant error: %s", got, want)
 				}
 			default:
