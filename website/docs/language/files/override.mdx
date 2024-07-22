@@ -24,7 +24,7 @@ literally `override.tf`, `override.tofu`, `override.tf.json` or
 `override.tofu.json`.
 
 :::note
-[Extension Precedence](../../language/files/index.mdx#) is important when
+[Extension Precedence](./index.mdx#extension-precedence) is important when
 dealing with override files. If both `foo_override.tf` and `foo_override.tofu`
 exist in the same directory, OpenTofu will only load `foo_override.tofu` and
 disregard `foo_override.tf`. The same rule applies to JSON-based files - if
