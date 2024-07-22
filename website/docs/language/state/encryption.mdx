@@ -112,6 +112,10 @@ When you first configure encryption on an existing project, your state and plan 
 
 <CodeBlock language="hcl">{FallbackFromUnencrypted}</CodeBlock>
 
+:::note
+Variables and locals can be used in configuration, but may not contain any references to data in the state or provider defined functions. All values must be able to be resolved during `tofu init` before the state is available.
+:::
+
 ## Rolling back encryption
 
 Similar to the initial setup above, migrating to unencrypted state and plan files is also possible by using the `unencrypted` method as follows:
