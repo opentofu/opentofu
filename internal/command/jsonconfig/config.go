@@ -165,14 +165,17 @@ func marshalProviderConfigs(
 	// Add an entry for each provider configuration block in the module.
 	for k, pc := range c.Module.ProviderConfigs {
 		providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: pc.Name})
-		schema := schemas.ProviderConfig(providerFqn)
 
 		p := providerConfig{
 			Name:          pc.Name,
 			FullName:      providerFqn.String(),
 			Alias:         pc.Alias,
 			ModuleAddress: c.Path.String(),
-			Expressions:   marshalExpressions(pc.Config, schema),
+		}
+
+		if schemas != nil {
+			schema := schemas.ProviderConfig(providerFqn)
+			p.Expressions = marshalExpressions(pc.Config, schema)
 		}
 
 		// Store the fully resolved provider version constraint, rather than
@@ -473,44 +476,46 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 			}
 		}
 
-		schema, schemaVer := schemas.ResourceTypeConfig(
-			v.Provider,
-			v.Mode,
-			v.Type,
-		)
-		if schema == nil {
-			return nil, fmt.Errorf("no schema found for %s (in provider %s)", v.Addr().String(), v.Provider)
-		}
-		r.SchemaVersion = schemaVer
-
-		r.Expressions = marshalExpressions(v.Config, schema)
-
-		// Managed is populated only for Mode = addrs.ManagedResourceMode
-		if v.Managed != nil && len(v.Managed.Provisioners) > 0 {
-			var provisioners []provisioner
-			for _, p := range v.Managed.Provisioners {
-				schema := schemas.ProvisionerConfig(p.Type)
-				prov := provisioner{
-					Type:        p.Type,
-					Expressions: marshalExpressions(p.Config, schema),
-				}
-				provisioners = append(provisioners, prov)
+		if schemas != nil {
+			schema, schemaVer := schemas.ResourceTypeConfig(
+				v.Provider,
+				v.Mode,
+				v.Type,
+			)
+			if schema == nil {
+				return nil, fmt.Errorf("no schema found for %s (in provider %s)", v.Addr().String(), v.Provider)
 			}
-			r.Provisioners = provisioners
-		}
+			r.SchemaVersion = schemaVer
 
-		if len(v.DependsOn) > 0 {
-			dependencies := make([]string, len(v.DependsOn))
-			for i, d := range v.DependsOn {
-				ref, diags := addrs.ParseRef(d)
-				// we should not get an error here, because `tofu validate`
-				// would have complained well before this point, but if we do we'll
-				// silenty skip it.
-				if !diags.HasErrors() {
-					dependencies[i] = ref.Subject.String()
+			r.Expressions = marshalExpressions(v.Config, schema)
+
+			// Managed is populated only for Mode = addrs.ManagedResourceMode
+			if v.Managed != nil && len(v.Managed.Provisioners) > 0 {
+				var provisioners []provisioner
+				for _, p := range v.Managed.Provisioners {
+					schema := schemas.ProvisionerConfig(p.Type)
+					prov := provisioner{
+						Type:        p.Type,
+						Expressions: marshalExpressions(p.Config, schema),
+					}
+					provisioners = append(provisioners, prov)
 				}
+				r.Provisioners = provisioners
 			}
-			r.DependsOn = dependencies
+
+			if len(v.DependsOn) > 0 {
+				dependencies := make([]string, len(v.DependsOn))
+				for i, d := range v.DependsOn {
+					ref, diags := addrs.ParseRef(d)
+					// we should not get an error here, because `tofu validate`
+					// would have complained well before this point, but if we do we'll
+					// silenty skip it.
+					if !diags.HasErrors() {
+						dependencies[i] = ref.Subject.String()
+					}
+				}
+				r.DependsOn = dependencies
+			}
 		}
 
 		rs = append(rs, r)
