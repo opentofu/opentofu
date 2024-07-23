@@ -28,6 +28,14 @@ commands. This command is here primarily for backward compatibility, but
 we don't recommend using it because it provides no opportunity to review
 the effects of the operation before updating the state.
 
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu refresh`.
+:::
+
 ## Usage
 
 Usage: `tofu refresh [options]`

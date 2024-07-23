@@ -11,6 +11,14 @@ representation of either a configuration or execution plan.
 The output is in the DOT format, which can be used by
 [GraphViz](http://www.graphviz.org) to generate charts.
 
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu graph`.
+:::
+
 ## Usage
 
 Usage: `tofu graph [options]`
@@ -40,6 +48,22 @@ Options:
 
 * `-module-depth=n` - (deprecated) In prior versions of OpenTofu, specified the
   depth of modules to show in the output.
+
+* `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](plan.mdx#input-variables-on-the-command-line) for more information.
+
+* `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 ## Generating Images
 
