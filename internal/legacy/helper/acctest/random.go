@@ -147,7 +147,7 @@ func RandIpAddress(s string) (string, error) {
 }
 
 func genPrivateKey() (*rsa.PrivateKey, string, error) {
-	privateKey, err := rsa.GenerateKey(crand.Reader, 1024)
+	privateKey, err := rsa.GenerateKey(crand.Reader, 2048)
 	if err != nil {
 		return nil, "", err
 	}
