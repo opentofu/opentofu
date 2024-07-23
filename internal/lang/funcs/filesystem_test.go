@@ -6,16 +6,18 @@
 package funcs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
+
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func TestFile(t *testing.T) {
@@ -181,6 +183,21 @@ func TestTemplateFile(t *testing.T) {
 			cty.True, // since this template contains only an interpolation, its true value shines through
 			``,
 		},
+		{
+			// write to a sensitive file path that exists
+			cty.StringVal("testdata/hello.txt").Mark(marks.Sensitive),
+			cty.EmptyObjectVal,
+			cty.StringVal("Hello World").Mark(marks.Sensitive),
+			``,
+		},
+		{
+			cty.StringVal("testdata/bare.tmpl"),
+			cty.ObjectVal(map[string]cty.Value{
+				"val": cty.True.Mark(marks.Sensitive),
+			}),
+			cty.True.Mark(marks.Sensitive),
+			``,
+		},
 	}
 
 	templateFileFn := MakeTemplateFileFunc(".", func() map[string]function.Function {
@@ -194,7 +211,8 @@ func TestTemplateFile(t *testing.T) {
 		t.Run(fmt.Sprintf("TemplateFile(%#v, %#v)", test.Path, test.Vars), func(t *testing.T) {
 			got, err := templateFileFn.Call([]cty.Value{test.Path, test.Vars})
 
-			if argErr, ok := err.(function.ArgError); ok {
+			var argErr function.ArgError
+			if errors.As(err, &argErr) {
 				if argErr.Index < 0 || argErr.Index > 1 {
 					t.Errorf("ArgError index %d is out of range for templatefile (must be 0 or 1)", argErr.Index)
 				}
