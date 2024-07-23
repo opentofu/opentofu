@@ -6,6 +6,13 @@ description: The tofu workspace list command is used to list all existing worksp
 
 The `tofu workspace list` command is used to list all existing workspaces.
 
+## Usage
+
+Usage: `tofu workspace list [DIR]`
+
+The command will list all existing workspaces. The current workspace is
+indicated using an asterisk (`*`) marker.
+
 :::note
 Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
 [backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
@@ -13,13 +20,6 @@ or [encryption block](../../../language/state/encryption.mdx#configuration)
 requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
 when running `tofu workspace list`.
 :::
-
-## Usage
-
-Usage: `tofu workspace list [DIR]`
-
-The command will list all existing workspaces. The current workspace is
-indicated using an asterisk (`*`) marker.
 
 This command also accepts the following options:
 

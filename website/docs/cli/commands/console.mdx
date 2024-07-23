@@ -9,14 +9,6 @@ description: >-
 The `tofu console` command provides an interactive console for
 evaluating [expressions](../../language/expressions/index.mdx).
 
-:::note
-Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
-[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu console`.
-:::
-
 ## Usage
 
 Usage: `tofu console [options]`
@@ -35,6 +27,14 @@ For configurations using
 [the `local` backend](../../language/settings/backends/local.mdx) only,
 `tofu console` accepts the legacy command line option
 [`-state`](../../language/settings/backends/local.mdx#command-line-arguments).
+
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu console`.
+:::
 
 This command also accepts the following options for tofu console:
 
