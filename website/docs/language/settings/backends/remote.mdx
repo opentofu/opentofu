@@ -7,10 +7,6 @@ description: >-
 
 # Backend Type: remote
 
-:::note
-**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of this backend. The `cloud` option includes an improved user experience and more features.
-:::
-
 The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TF Automation and Collaboration Software ([TACOS](../../../intro/tacos.mdx)) backends. It used to be called an "enhanced" backend.
 
 If your [TACOS](../../../intro/tacos.mdx) provider enables full remote operations, you can execute commands such as `tofu plan` or `tofu apply` within the [TACOS](../../../intro/tacos.mdx) runtime environment, with log output streaming directly to your local terminal. Remote plans and applies use variable values from the associated remote workspace.
