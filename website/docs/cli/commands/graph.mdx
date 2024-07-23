@@ -11,14 +11,6 @@ representation of either a configuration or execution plan.
 The output is in the DOT format, which can be used by
 [GraphViz](http://www.graphviz.org) to generate charts.
 
-:::note
-Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
-[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu graph`.
-:::
-
 ## Usage
 
 Usage: `tofu graph [options]`
@@ -35,6 +27,14 @@ creates different graphs for different operations. See the options below
 for the list of types supported. The default type is "plan" if a
 configuration is given, and "apply" if a plan file is passed as an
 argument.
+
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu graph`.
+:::
 
 Options:
 

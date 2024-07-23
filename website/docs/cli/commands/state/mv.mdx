@@ -17,14 +17,6 @@ to retain an existing remote object but track it as a different resource
 instance address in OpenTofu, such as if you have renamed a resource block
 or you have moved it into a different module in your configuration.
 
-:::note
-Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
-[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu state mv`.
-:::
-
 ## Usage
 
 Usage: `tofu state mv [options] SOURCE DESTINATION`
@@ -59,6 +51,14 @@ makes any other changes between your configuration change and your
 `tofu state mv` command, because otherwise they might inadvertently create
 a plan that will destroy the old object and create a new object at the new
 address.
+:::
+
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state mv`.
 :::
 
 This command also accepts the following options:

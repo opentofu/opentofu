@@ -13,13 +13,6 @@ state for the current configuration. The behavior of this lock is dependent
 on the backend being used. Local state files cannot be unlocked by another
 process.
 
-:::note
-Use of variables in [backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu force-unlock`.
-:::
-
 ## Usage
 
 Usage: `tofu force-unlock [options] LOCK_ID`
@@ -30,6 +23,13 @@ This will not modify your infrastructure. This command removes the lock on the
 state for the current configuration. The behavior of this lock is dependent
 on the backend being used. Local state files cannot be unlocked by another
 process.
+
+:::note
+Use of variables in [backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu force-unlock`.
+:::
 
 Options:
 

@@ -11,14 +11,6 @@ works with local state.
 This command should rarely be used. It is meant only as a utility in case
 manual intervention is necessary with the remote state.
 
-:::note
-Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
-[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu state push`.
-:::
-
 ## Usage
 
 Usage: `tofu state push [options] PATH`
@@ -53,6 +45,14 @@ pushing state, the destination state will be overwritten.
 
 For configurations using the [`cloud` backend](../../../cli/cloud/index.mdx) or the [`remote` backend](../../../language/settings/backends/remote.mdx)
 only, `tofu state push` also accepts the option [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state push`.
+:::
 
 This command also accepts the following options for tofu state push:
 

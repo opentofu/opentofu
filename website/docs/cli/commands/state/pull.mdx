@@ -10,14 +10,6 @@ The `tofu state pull` command is used to manually download and output
 the state from [remote state](../../../language/state/remote.mdx). This command also
 works with local state.
 
-:::note
-Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
-[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu state pull`.
-:::
-
 ## Usage
 
 Usage: `tofu state pull`
@@ -36,6 +28,14 @@ version before output.
 
 :::note
 OpenTofu state files must be in UTF-8 format without a byte order mark (BOM). For PowerShell on Windows, use `Set-Content` to automatically encode files in UTF-8 format. For example, run `tofu state pull | sc terraform.tfstate`.
+:::
+
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state pull`.
 :::
 
 The command support the following command-line arguments:

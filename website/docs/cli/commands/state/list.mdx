@@ -9,13 +9,6 @@ description: >-
 The `tofu state list` command is used to list resources within a
 [OpenTofu state](../../../language/state/index.mdx).
 
-:::note
-Use of variables in [backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals)
-or [encryption block](../../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu state list`.
-:::
-
 ## Usage
 
 Usage: `tofu state list [options] [address...]`
@@ -31,6 +24,13 @@ within modules are listed last.
 For complex infrastructures, the state can contain thousands of resources.
 To filter these, provide one or more patterns to the command. Patterns are
 in [resource addressing format](../../../cli/state/resource-addressing.mdx).
+
+:::note
+Use of variables in [backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals)
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state list`.
+:::
 
 The command-line flags are all optional. The following flags are available:
 

@@ -25,12 +25,6 @@ The `tofu providers mirror` command can automatically populate a directory
 that will be used as a local filesystem mirror in the provider installation
 configuration.
 
-:::note
-Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation)
-requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu providers mirror`.
-:::
-
 ## Usage
 
 Usage: `tofu providers mirror [options] <target-dir>`
@@ -39,6 +33,12 @@ A single target directory is required. OpenTofu will create under that
 directory the path structure that is expected for filesystem-based provider
 plugin mirrors, populating it with `.zip` files containing the plugins
 themselves.
+
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu providers mirror`.
+:::
 
 This command accepts the following generic options:
 

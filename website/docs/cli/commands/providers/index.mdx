@@ -11,14 +11,6 @@ The `tofu providers` command shows information about the
 configuration in the current working directory, as an aid to understanding
 where each requirement was detected from.
 
-:::note
-Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
-[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
-or [encryption block](../../../language/state/encryption.mdx#configuration)
-requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu providers`.
-:::
-
 This command also has several subcommands with different purposes.
 
 ## Usage
@@ -38,6 +30,14 @@ Providers required by state:
 
     provider[registry.opentofu.org/hashicorp/tfcoremock]
 ```
+
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu providers`.
+:::
 
 This command accepts the following options:
 
