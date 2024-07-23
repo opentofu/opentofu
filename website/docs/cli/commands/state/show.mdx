@@ -21,10 +21,34 @@ This command requires an address that points to a single resource in the
 state. Addresses are
 in [resource addressing format](../../../cli/state/resource-addressing.mdx).
 
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu show`.
+:::
+
 The command-line flags are all optional. The following flags are available:
 
 * `-state=path` - Path to the state file. Defaults to "terraform.tfstate".
   Ignored when [remote state](../../../language/state/remote.mdx) is used.
+
+* `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](../plan.mdx#input-variables-on-the-command-line) for more information.
+
+* `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 The output of `tofu state show` is intended for human consumption, not
 programmatic consumption. To extract state data for use in other software, use

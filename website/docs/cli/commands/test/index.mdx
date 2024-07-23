@@ -98,6 +98,14 @@ only load `main.tofutest.json` and ignore `main.tftest.json`.
 * `-no-color` Disable colorized output in the command output.
 * `-verbose` Print the plan or state for each test run block as it executes.
 
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu test`.
+:::
+
 ## Directory structure
 
 The `tofu test` command supports two directory layouts, flat or nested:

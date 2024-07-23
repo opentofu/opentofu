@@ -34,6 +34,14 @@ instances. Depending on the constraints imposed by the remote system, creating
 those objects might fail if their names or other identifiers conflict with
 the old objects still present.
 
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state rm`.
+:::
+
 This command also accepts the following options:
 
 - `-dry-run` - Report all of the resource instances that match the given
@@ -47,6 +55,22 @@ This command also accepts the following options:
   instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
+
+- `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](../plan.mdx#input-variables-on-the-command-line) for more information.
+
+- `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 For configurations using the [`cloud` backend](../../../cli/cloud/index.mdx) or the [`remote` backend](../../../language/settings/backends/remote.mdx)
 only, `tofu state rm`
