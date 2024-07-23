@@ -15,9 +15,13 @@ To configure the cloud CLI integration, add a nested `cloud` block within the `t
 Refer to [Using the Cloud Backend](../../cli/cloud/index.mdx) in the OpenTofu CLI documentation for full configuration details, migration instructions, and command line arguments.
 
 ```hcl
+locals {
+	org = "example_corp"
+}
+
 terraform {
   cloud {
-    organization = "example_corp"
+    organization = local.org
     hostname = "app.example.io"
 
     workspaces {
@@ -26,3 +30,7 @@ terraform {
   }
 }
 ```
+
+:::note
+Cloud fields may not contain any references to data in the state or provider defined functions. All values must be able to be resolved during `tofu init` before the state is available.
+:::

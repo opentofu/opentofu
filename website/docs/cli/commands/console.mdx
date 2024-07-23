@@ -28,6 +28,14 @@ For configurations using
 `tofu console` accepts the legacy command line option
 [`-state`](../../language/settings/backends/local.mdx#command-line-arguments).
 
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu console`.
+:::
+
 This command also accepts the following options for tofu console:
 
 - `-var 'NAME=VALUE'` - Sets a value for a single
@@ -41,6 +49,10 @@ This command also accepts the following options for tofu console:
   root module of the configuration, using definitions from a
   ["tfvars" file](/docs/language/values/variables#variable-definitions-tfvars-files).
   Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 ## Scripting
 
