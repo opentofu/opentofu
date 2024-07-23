@@ -34,7 +34,7 @@ BUG FIXES:
 * Fixed issue with migration between versions can cause an update in-place for resources when no changes are needed. ([#1640](https://github.com/opentofu/opentofu/pull/1640))
 * Add source context for the 'insufficient feature blocks' error ([#1777](https://github.com/opentofu/opentofu/pull/1777))
 * Remove encryption diags from autocomplete ([#1793](https://github.com/opentofu/opentofu/pull/1793))
-
+* Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
 
 ## Previous Releases
 

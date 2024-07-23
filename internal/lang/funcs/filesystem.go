@@ -121,7 +121,6 @@ func MakeTemplateFileFunc(baseDir string, funcsCb func() map[string]function.Fun
 	return makeTemplateFileFuncImpl(baseDir, funcsCb, 0)
 }
 func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function.Function, depth int) function.Function {
-
 	params := []function.Parameter{
 		{
 			Name:        "path",
@@ -134,7 +133,7 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 		},
 	}
 
-	loadTmpl := func(fn string, marks cty.ValueMarks) (hcl.Expression, error) {
+	loadTmpl := func(path string, marks cty.ValueMarks) (hcl.Expression, error) {
 		maxDepth, err := templateMaxRecursionDepth()
 		if err != nil {
 			return nil, err
@@ -146,12 +145,15 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 
 		// We re-use File here to ensure the same filename interpretation
 		// as it does, along with its other safety checks.
-		tmplVal, err := File(baseDir, cty.StringVal(fn).WithMarks(marks))
+		templateValue, err := File(baseDir, cty.StringVal(path).WithMarks(marks))
 		if err != nil {
 			return nil, err
 		}
 
-		expr, diags := hclsyntax.ParseTemplate([]byte(tmplVal.AsString()), fn, hcl.Pos{Line: 1, Column: 1})
+		// unmark the template ready to be handled
+		templateValue, _ = templateValue.Unmark()
+
+		expr, diags := hclsyntax.ParseTemplate([]byte(templateValue.AsString()), path, hcl.Pos{Line: 1, Column: 1})
 		if diags.HasErrors() {
 			return nil, diags
 		}
@@ -206,7 +208,6 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 			return result.WithMarks(pathMarks), err
 		},
 	})
-
 }
 
 // MakeFileExistsFunc constructs a function that takes a path
