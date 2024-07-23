@@ -7,12 +7,6 @@ description: The tofu get command downloads and updates modules.
 The `tofu get` command is used to download and update
 [modules](../../language/modules/develop/index.mdx) mentioned in the root module.
 
-:::note
-Use of [variables in module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation)
-requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
-when running `tofu get`.
-:::
-
 ## Usage
 
 Usage: `tofu get [options]`
@@ -20,6 +14,12 @@ Usage: `tofu get [options]`
 The modules are downloaded into a `.terraform` subdirectory of the current
 working directory. Don't commit this directory to your version control
 repository.
+
+:::note
+Use of [variables in module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu get`.
+:::
 
 The `get` command supports the following option:
 
