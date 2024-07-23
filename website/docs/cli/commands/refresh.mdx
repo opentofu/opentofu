@@ -43,6 +43,14 @@ Consequently, it supports all of the same options as
 plan file, it doesn't allow selecting a planning mode other than "refresh only",
 and `-auto-approve` is always enabled.
 
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu refresh`.
+:::
+
 Automatically applying the effect of a refresh is risky. If you have
 misconfigured credentials for one or more providers, OpenTofu may
 be misled into thinking that all of the managed objects have been deleted,

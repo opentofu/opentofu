@@ -44,10 +44,15 @@ Both of these safety checks can be disabled with the `-force` flag.
 pushing state, the destination state will be overwritten.
 
 For configurations using the [`cloud` backend](../../../cli/cloud/index.mdx) or the [`remote` backend](../../../language/settings/backends/remote.mdx)
-only, `tofu state push`
-also accepts the option
+only, `tofu state push` also accepts the option [`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
 
-[`-ignore-remote-version`](/docs/cli/cloud/command-line-arguments#ignore-remote-version).
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state push`.
+:::
 
 This command also accepts the following options for tofu state push:
 
@@ -60,5 +65,20 @@ This command also accepts the following options for tofu state push:
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
-[`-ignore-remote-version`](../../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
+- [`ignore-remote-version`](../../../cli/cloud/command-line-arguments.mdx#ignore-remote-version).
 
+- `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](../plan.mdx#input-variables-on-the-command-line) for more information.
+
+- `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
