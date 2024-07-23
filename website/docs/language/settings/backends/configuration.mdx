@@ -8,7 +8,7 @@ description: >-
 
 A backend defines where OpenTofu stores its [state](../../../language/state/index.mdx) data files.
 
-OpenTofu uses persisted state data to keep track of the resources it manages. Most non-trivial OpenTofu configurations either integrate with TACOS (TF Automation and Collaboration Software) or use a backend to store state remotely. This lets multiple people access the state data and work together on that collection of infrastructure resources.
+OpenTofu uses persisted state data to keep track of the resources it manages. Most non-trivial OpenTofu configurations either integrate with [TACOS](../../../intro/tacos.mdx) (TF Automation and Collaboration Software) or use a backend to store state remotely. This lets multiple people access the state data and work together on that collection of infrastructure resources.
 
 This page describes how to configure a backend by adding the [`backend` block](#using-a-backend-block) to your configuration.
 
@@ -20,7 +20,7 @@ Some of these backends act like plain remote disks for state files, while others
 
 ## Using a Backend Block
 
-You do not need to configure a backend when using TACOS (TF Automation and Collaboration Software) because
+You do not need to configure a backend when using [TACOS](../../../intro/tacos.mdx) (TF Automation and Collaboration Software) because
 it automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](../../../language/settings/tf-cloud.mdx), it cannot include a `backend` block.
 
 To configure a backend, add a nested `backend` block within the top-level
