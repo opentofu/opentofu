@@ -31,6 +31,7 @@ type NodeRootVariable struct {
 }
 
 var (
+	_ GraphNodeExecutable     = (*NodeRootVariable)(nil)
 	_ GraphNodeModuleInstance = (*NodeRootVariable)(nil)
 	_ GraphNodeReferenceable  = (*NodeRootVariable)(nil)
 )
