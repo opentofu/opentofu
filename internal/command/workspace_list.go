@@ -105,7 +105,7 @@ func (c *WorkspaceListCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceListCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] workspace list
+Usage: tofu [global options] workspace list [options]
 
   List OpenTofu workspaces.
 

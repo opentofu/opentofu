@@ -136,7 +136,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 }
 
 const providersSchemaCommandHelp = `
-Usage: tofu [global options] providers schema -json
+Usage: tofu [global options] providers schema [options] -json
 
   Prints out a json representation of the schemas for all providers used 
   in the current configuration.
