@@ -67,6 +67,7 @@ type variable struct {
 	Default     json.RawMessage `json:"default,omitempty"`
 	Description string          `json:"description,omitempty"`
 	Sensitive   bool            `json:"sensitive,omitempty"`
+	Type        string          `json:"type,omitempty"`
 }
 
 // Resource is the representation of a resource in the config
@@ -370,6 +371,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 				Default:     defaultValJSON,
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
+				Type:        v.Type.FriendlyName(),
 			}
 		}
 		module.Variables = vars

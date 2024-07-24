@@ -72,6 +72,7 @@ func (c *MetadataDumpCommand) Run(args []string) int {
 		return 1
 	}
 
+	// We pass in nil for schemas because we don't want to require initializing here
 	data, err := jsonconfig.Marshal(&configs.Config{Module: module}, nil)
 	if err != nil {
 		diags = diags.Append(err)
@@ -79,7 +80,7 @@ func (c *MetadataDumpCommand) Run(args []string) int {
 		return 1
 	}
 
-	println(string(data))
+	c.Ui.Output(string(data))
 
 	return 0
 }
