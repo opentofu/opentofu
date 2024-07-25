@@ -14,8 +14,6 @@ This flag will work as an exact inverse of `-target` - when planning, it would a
 
 Similarly to how targeted resources also include all of their dependencies in the plan, an excluded resource would mean that all resources dependent on it should be excluded as well
 
-// How do data sources behave with resource dependencies, with regard to resource targeting?
-
 ### User Documentation
 
 User should be able to provide one or more excluded resource, via one or multiple `-exclude` flags. For example: `tofu plan -exclude=null_resource.a -exclude=null_resource.b`
@@ -83,6 +81,7 @@ resource "null_resource" "c" {
 In the example above, if you run `tofu plan -target=null_resource.a`, then both `null_resource.a` and `null_resource.c` will be excluded from the plan. `null_resource.c` depends on a local which in itself depends on `null_resource.a`
 
 **Note**: For now, `-exclude` and `-target` flag should not be allowed to be used in conjunction. In the future, we might allow them both to be used in conjunction, with the `-exclude`d resource taking precedence. However, this approach would require a deeper dive into it
+**Note 2**: When using the `-target` flag, on an apply from a stored plan file, the flag is completely ignored. So, the behaviour would be the same for the `-exclude` flag
 
 #### Outputs
 
@@ -100,8 +99,6 @@ This also means that any dependency on a data source is not considered at all wh
 
 Unlike `-target` flag, which is passed to the cloud backend in remote runs, the `-exclude` flag will not be passed to cloud backends. This is due to a technical limitation, with the cloud client and API calls being managed by `go-tfe`.
 
-- // apply with plan file and flag?
-
 ### Technical Approach
 
 The technical approach of this should be pretty simple and very similar to how targeted resources work.
@@ -112,6 +109,8 @@ Mainly:
 - In the `TargetTransformer`, remove any excluded resource or resource depending on an excluded resource from the graph
 
 ### Open Questions
+
+- Is `-exclude` the correct name for the flag? Maybe `-target-exclude`?
 
 ### Future Considerations
 
