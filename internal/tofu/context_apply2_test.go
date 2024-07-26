@@ -1247,10 +1247,10 @@ output "out" {
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{Block: simpleTestSchema()},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": {Block: simpleTestSchema()},
+				"test_object": providers.Schema{Block: simpleTestSchema()},
 			},
 			DataSources: map[string]providers.Schema{
-				"test_object": {
+				"test_object": providers.Schema{
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"test_string": {
@@ -1302,7 +1302,7 @@ output "out" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"other_object": {Block: simpleTestSchema()},
+				"other_object": providers.Schema{Block: simpleTestSchema()},
 			},
 		},
 	}
